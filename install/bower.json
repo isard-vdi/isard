@@ -1,0 +1,30 @@
+{
+  "name": "isard-vdi webapp",
+  "description": "Isard VDI Frontend",
+  "main": "app.py",
+  "keywords": [
+    "isard",
+    "vdi",
+    "virtualization",
+    "qemu",
+    "libvirt"
+  ],
+  "authors": [
+    "Alberto Larraz Dalmases",
+    "Josep Maria Viñolas Auquer"
+  ],
+  "license": "AGPLv3",
+  "homepage": "",
+  "private": "true",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "fontlinux": "*",
+    "gentelella": "^1.3.0"
+  }
+}

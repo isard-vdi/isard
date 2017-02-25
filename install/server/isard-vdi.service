@@ -1,0 +1,11 @@
+    [Unit]
+    Description=uWSGI instance to start Isard Front End instance
+    After=firewalld.service
+
+    [Service]
+    Restart=always
+    RestartSec=10
+    ExecStart=/usr/bin/bash -c 'cd /usr/local/src/isard-fe; python fe.py  > /usr/local/src/isard-fe/isard.log 2>&1'
+
+    [Install]
+    WantedBy=multi-user.target

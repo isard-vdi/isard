@@ -1,0 +1,162 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+        <div class="right_col" role="main">
+			  
+            <div class="page-title">
+              <div class="title_left">
+                <h3><i class="fa fa-user"></i> Users<small>  Users - Roles - Categories - Groups</small></h3>
+              </div>
+              <div class="title_right">
+              </div>
+            </div>
+            <div class="clearfix"></div>
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2><i class="fa fa-user"></i> Users <small></small></h2>                			
+					<ul class="nav navbar-right panel_toolbox">
+                      <li><a class="btn-import-csv"><span
+                              style="color: #5499c7; "><i class="fa fa-plus"></i> Import csv</span></a>
+                      </li>
+                      <li><a class="btn-new-user"><span
+                              style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                      </li>
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <table id="users" class="table table-striped">
+                      <thead>
+                        <tr>
+							<th></th>
+                          <th>enabled</th>
+                          <th>id</th>
+                          <th>name</th>
+                          <th>kind</th>
+                          <th>category</th>
+                          <th>group</th>
+                          <th>role</th>
+                          <th>password</th>
+                          <th>last access</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 col-sm-4 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2><i class="fa fa-key"></i> Roles <small></small></h2> 
+					<ul class="nav navbar-right panel_toolbox">
+                      <li><a class="add-new-role"><span
+                              style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                      </li>
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <table id="roles" class="table table-striped ">
+                      <thead>
+                        <tr>
+							<th></th>
+                          <th>name</th>
+                          <th>description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+            </div>
+              <div class="col-md-4 col-sm-4 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2><i class="fa fa-leaf"></i> Categories <small></small></h2> 
+					<ul class="nav navbar-right panel_toolbox">
+                      <li><a class="add-new-role"><span
+                              style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                      </li>
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <table id="categories" class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>name</th>
+                          <th>description</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-4 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2><i class="fa fa-group"></i> Groups <small></small></h2> 
+					<ul class="nav navbar-right panel_toolbox">
+                      <li><a class="add-new-group"><span
+                              style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                      </li>
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <table id="groups" class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>name</th>
+                          <th>description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+            </div>
+			</div>
+		 </div>
+		</div>
+
+
+{% include '/admin/pages/users_modals.html' %}
+{% endblock %}
+
+{% block pagescript %}
+    <script src="/static/js/restful.js"></script>
+    <script src="/static/admin/js/users.js"></script>
+    <script src="/static/admin/js/roles.js"></script>
+    <script src="/static/admin/js/categories.js"></script>
+    <script src="/static/admin/js/groups.js"></script>
+{% endblock %}

@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Python compiled
+*.pyc
+
+#rethink data
+rethinkdb_data/
+
+# log
+*.log
+
+#pycharm
+.idea/
+webapp/.idea/
+engine/.idea/
+

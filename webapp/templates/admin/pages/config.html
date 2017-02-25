@@ -1,0 +1,213 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="right_col" role="main">
+    <div class="page-title">
+       <div class="title_left">
+          <h3><i class="fa fa-gears"></i> Configuration <small>Isard global configuration</small></h3>
+       </div>
+
+    </div>
+    <div class="clearfix"></div>
+    <div class="row">
+       <div class="col-md-6 col-sm-6 col-xs-12">
+           <div class="x_panel">
+                 <div class="x_title">
+                    <h2><i class="fa fa-lock"></i> Authentication <small></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                        <li><a class="btn-edit" data-panel="auth"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
+                    </ul>
+                    <div class="clearfix"></div>
+                 </div>
+                 <div class="x_content">
+
+                      <form id="formAuthentication" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
+                          <div class="x_panel">
+                                <div class="x_title">
+                                    <h2>Database authentication<small></small></h2>
+                                        <label class="control-label navbar-right" for="auth-local-active"> Active 
+                                        </label>
+                                          <div class="checkbox pull-right">
+                                            <label>
+                                              <input id="auth-local-active" name="auth-local-active" type="checkbox" class="flat">
+                                            </label>
+                                          </div>
+                                    <div class="clearfix"></div>
+                                 </div>
+                                 
+                                <div class="x_content">
+                                    <!-- Local authentication has no other parameters -->
+                                </div>
+                          </div>
+                          <div class="x_panel">
+                            <div class="x_title">
+                                <h2>LDAP authentication<small></small></h2>
+                                    <label class="control-label navbar-right" for="auth-ldap-active"> Active 
+                                    </label>
+                                        <div class="checkbox pull-right">
+                                            <label>
+                                              <input id="auth-ldap-active" name="auth-ldap-active" type="checkbox" class="flat">
+                                            </label>
+                                        </div>
+                                <div class="clearfix"></div>
+                             </div>
+                             
+                            <div class="x_content">
+                             <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="auth-ldap-ldap_server">Server <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                   <input id="auth-ldap-ldap_server" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="auth-ldap-ldap_server" placeholder="ldap://ldap.domain.com" required="required" type="text">
+                                </div>
+                             </div>
+
+                             <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="auth-ldap-bind_dn">bind dn <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                   <input id="auth-ldap-bind_dn" class="form-control col-md-7 col-xs-12" name="auth-ldap-bind_dn" placeholder="dc=domain,dc=com" required="required" type="text">
+                                </div>
+                             </div>
+                            </div>
+                      </div>
+
+                     <div class="form-group footer-auth" style="display:none">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary btn-cancel" data-panel="auth">Cancel</button>
+                           <button id="send" type="submit" class="btn btn-success">Update</button>
+                        </div>
+                     </div>
+                                           
+                      </form>
+                </div>
+              </div>
+       </div>
+       <div class="col-md-6 col-sm-6 col-xs-12">
+           <div class="x_panel">
+                 <div class="x_title">
+                    <h2><i class="fa fa-trash-o"></i> Disposable Desktops <small></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                        <li><a class="btn-edit" data-panel="disposable_desktops"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
+                    </ul>
+                    <div class="clearfix"></div>
+                 </div>
+                 <div class="x_content">
+
+                      <form id="formDisposable" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
+                          <div class="x_panel">
+                            <div class="x_title">
+                                <h2>One use desktops<small></small></h2>
+                                    <label class="control-label navbar-right" for="disposable_desktops-active"> Active 
+                                    </label>
+                                        <div class="checkbox pull-right">
+                                            <label>
+                                              <input type="hidden" id="disposable_desktops-id" name="disposable_desktops-id">
+                                              <input id="disposable_desktops-active" name="disposable_desktops-active" type="checkbox" class="flat">
+                                            </label>
+                                        </div>
+                                <div class="clearfix"></div>
+                             </div>
+                            <div class="x_content">
+
+                                <table id="table-disposables" class="table table-striped">
+                                  <thead>
+                                    <tr>
+                                      <th>Name</th>
+                                      <th>Networks</th>
+                                      <th>Templates</th>
+                                      <th></th>
+                                    </tr>
+                                  </thead>
+                                      <tbody>
+                                      </tbody>
+                                </table>
+                            </div>
+                      </div>
+
+                     <div class="form-group footer-disposable_desktops" style="display:none">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary btn-cancel" data-panel="disposable_desktops">Cancel</button>
+                           <button id="send" type="submit" class="btn btn-success">Update</button>
+                        </div>
+                     </div>
+                                           
+                      </form>
+                </div>
+              </div>
+       
+       </div>
+    </div>
+    
+    
+    <div class="clearfix"></div>
+    <div class="row">
+       <div class="col-md-6 col-sm-6 col-xs-12">
+           <div class="x_panel">
+                 <div class="x_title">
+                    <h2><i class="fa fa-area-chart"></i> Grafana <small></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                        <li><a class="btn-edit" data-panel="engine-carbon"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
+                    </ul>
+                    <div class="clearfix"></div>
+                 </div>
+                 <div class="x_content">
+
+                      <form id="formGrafana" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
+                          <div class="x_panel">
+                            <div class="x_title">
+                                <h2>Carbon<small></small></h2>
+                                    <label class="control-label navbar-right" for="engine-carbon-active"> Active 
+                                    </label>
+                                        <div class="checkbox pull-right">
+                                            <label>
+                                              <input id="engine-carbon-active" name="engine-carbon-active" type="checkbox" class="flat">
+                                            </label>
+                                        </div>
+                                <div class="clearfix"></div>
+                             </div>
+                             
+                            <div class="x_content">
+                             <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-carbon-server">Server <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                   <input id="engine-carbon-server" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="engine-carbon-server" placeholder="grafana.domain.com" required="required" type="text">
+                                </div>
+                             </div>
+
+                             <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-carbon-port">Port <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                   <input id="engine-carbon-port" class="form-control col-md-7 col-xs-12" name="engine-carbon-port" placeholder="Port number" required="required" type="text">
+                                </div>
+                             </div>
+                            </div>
+                      </div>
+
+                     <div class="form-group footer-engine-carbon" style="display:none">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary btn-cancel" data-panel="engine-carbon">Cancel</button>
+                           <button id="send" type="submit" class="btn btn-success">Update</button>
+                        </div>
+                     </div>
+                                           
+                      </form>
+                </div>
+              </div>
+           
+       </div>
+       <div class="col-md-6 col-sm-6 col-xs-12">
+           
+       </div>
+    </div>
+    <div class="clearfix"></div>
+</div>
+{% include '/admin/pages/config_modals.html' %}
+{% endblock %}
+{% block pagescript %}
+     	<script src="/js/restful.js"></script>
+        <script src="/static/admin/js/config.js"></script>  
+{% endblock %}

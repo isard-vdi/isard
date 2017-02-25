@@ -1,0 +1,93 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="right_col" role="main">
+   <div class="page-title">
+      <div class="title_left">
+         <h3><i class="fa fa-circle-o"></i> Iso files <small>Upload and manage your isos</small></h3>
+      </div>
+   </div>
+   <div class="clearfix"></div>
+            <div class="row">
+              <div class="col-md-4 col-sm-4 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Upload from URL <small>Add url to download from</small></h2>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <br />
+                    <form id="upload" action="{{ url_for('isos_upload') }}" method="POST" class="form-horizontal form-label-left">
+
+                      <div class="form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="url">URL <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input type="text" id="url" name="url" required="required" class="form-control col-md-7 col-xs-12">
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input type="text" id="name" name="name" required="required" class="form-control col-md-7 col-xs-12">
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="hypervisors_pools" class="control-label col-md-3 col-sm-3 col-xs-12">Hypervisors Pools</label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <select class="form-control" id="hypervisors_pools" name="hypervisors_pools">
+							    <option value="default" selected="default">
+								    Default
+								</option>
+                            </select>
+                        </div>
+                      </div>
+
+						  <div class="form-group">
+							<div class="col-md-6 col-md-offset-3"> 
+							   <button type="reset" class="btn btn-primary">Reset</button>
+							   <button id="send" type="submit" class="btn btn-success">Download</button>								                     
+							</div>
+						 </div>
+						                       
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-8 col-sm-8 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Isos list <small>Your Isos in system</small></h2>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <br />
+
+					<table id="isos" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Status</th>
+							 <th>Name</th>
+							 <th>Description</th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                  </div>
+                </div>
+              </div>
+          </div>
+        </div>
+{% endblock %}
+{% block pagescript %}
+    <script src="/static/js/restful.js"></script>
+    <script src="/js/isos.js"></script>
+    <!-- bootstrap-progressbar -->
+    <script src="/vendors/bootstrap-progressbar/bootstrap-progressbar.min.js"></script>
+{% endblock %}
