@@ -15,16 +15,27 @@ sudo cp /etc/rethinkdb/default.conf.sample /etc/rethinkdb/instances.d/default.co
 sudo dnf -y install python3 python3-pip redhat-rpm-config python-devel openldap-devel npm
 ```
 
+## download source from repository
+
+git clone https://github.com/isard-vdi/isard.git
+cd isard
+
 ## pip3 Python library requirements
 ```
-sudo pip3 install -r requirements.pip
+sudo pip3 install -r install/requirements.pip
 ```
 
 ## Bower install javascript
 ```
+cd webapp
 npm -g install bower
 bower install
 ```
+
+## Run isard-vdi
+
+cd ..
+./run.sh 
 
 ## Systemd Service
 ```

@@ -9,6 +9,11 @@ __pycache__/
 # Python compiled
 *.pyc
 
+# javascript bower
+webapp/bower_components/
+node_modules/
+webapp/node_modules/
+
 #rethink data
 rethinkdb_data/
 
