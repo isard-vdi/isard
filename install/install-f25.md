@@ -12,7 +12,7 @@ sudo cp /etc/rethinkdb/default.conf.sample /etc/rethinkdb/instances.d/default.co
 
 ## Fedora 25 requirements
 ```
-sudo dnf -y install python3 python3-pip redhat-rpm-config python-devel openldap-devel npm
+sudo dnf -y install python3 python3-pip redhat-rpm-config python3-devel openldap-devel npm git
 ```
 
 ## download source from repository
