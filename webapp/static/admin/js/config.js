@@ -105,7 +105,7 @@ function show_disposables(){
 							}}]
     } );        
  
-     $('#table-disposables').find(' tbody').on( 'click', 'button', function () {
+     $('#table-disposablesx').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
         console.log($(this).attr('id'),data);
         if($(this).attr('id')=='btn-disposable_desktops-delete'){
@@ -120,7 +120,7 @@ function show_disposables(){
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
 							//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
-                			}); 
+                			//~ }); 
 						}).on('pnotify.cancel', function() {
 				});	  
         }
