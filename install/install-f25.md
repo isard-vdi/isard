@@ -12,25 +12,27 @@ sudo cp /etc/rethinkdb/default.conf.sample /etc/rethinkdb/instances.d/default.co
 
 ## Fedora 25 requirements
 ```
-sudo dnf -y install python3 python3-pip redhat-rpm-config python3-devel openldap-devel npm git
+sudo dnf -y install python3 python3-pip redhat-rpm-config python3-devel openldap-devel npm
 ```
 
 ## download source from repository
 
 git clone https://github.com/isard-vdi/isard.git
-cd isard
+cd isard/install
 
 ## pip3 Python library requirements
 ```
-sudo pip3 install -r install/requirements.pip
+sudo pip3 install -r requirements.pip
 ```
 
 ## Bower install javascript
 ```
-cd webapp
 npm -g install bower
 bower install
 ```
+
+## Start rethinkdb database
+sudo systemctl start rethinkdb
 
 ## Run isard-vdi
 
