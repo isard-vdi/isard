@@ -41,7 +41,7 @@ Use only for testing purposes. Work in progress.
 
 ## Screenshots and videos: 
 
-Go to ![Webpage project](http://isard-vdi.github.io/)
+Go to [Webpage project](http://isard-vdi.github.io/)
 
 #### Release notes:
 
