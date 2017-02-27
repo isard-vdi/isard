@@ -10,7 +10,7 @@ itsdangerous==0.24
 Jinja2==2.9.4
 MarkupSafe==0.23
 pycparser==2.17
-python-ldap==2.4.28
+pyldap==2.4.28
 pyxdg==0.25
 requests==2.12.3
 rethinkdb==2.3.0.post6
