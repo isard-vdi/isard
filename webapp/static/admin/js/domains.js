@@ -8,6 +8,15 @@
 
 $(document).ready(function() {
         $template_domain = $(".template-detail-domain");
+
+    // Setup - add a text input to each footer cell
+    $('#domains tfoot th').each( function () {
+        var title = $(this).text();
+        if (['','Icon','Hypervisor','Action'].indexOf(title) == -1){
+            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+    } );
+            
 		domains_table= $('#domains').DataTable({
 			"ajax": {
 				"url": "/admin/domains/get",
@@ -68,6 +77,27 @@ $(document).ready(function() {
 							}}
 							]
 		} );
+
+    // Apply the search
+    domains_table.columns().every( function () {
+        var that = this;
+ 
+        $( 'input', this.footer() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+                that
+                    .search( this.value )
+                    .draw();
+            }
+        } );
+    } );
+    
+    domains_table.on( 'click', 'tr', function () {
+        $(this).toggleClass('active');
+    } );
+
+    //~ $('#button').click( function () {
+        //~ alert( table.rows('.selected').data().length +' row(s) selected' );
+    //~ } );
 
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
