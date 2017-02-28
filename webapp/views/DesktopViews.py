@@ -228,26 +228,27 @@ def event_stream_backend(username,quota):
 @login_required
 def filterTemplate(kind,category=False,group=False,user=False):
     #~ dict={'kind':kind}
+    custom_filter={}
     #~ if kind == 'user_template': 
-        #~ dict['user']=current_user.username
+        #~ custom_filter['user']=current_user.username
     #~ else:
-        #~ if category is not None:
-            #~ dict['category']=category
-        #~ if group is not None:
-            #~ dict['group']=group
-        #~ if user is not None:
-            #~ dict['user']=user
+    if category:
+        custom_filter['category']=category
+    if group:
+        custom_filter['group']=group
+    if user:
+        custom_filter['user']=user
     #~ domains = app.isardapi.get_templates(dict)
     #~ return Response(json.dumps(domains), mimetype='application/json')
-    return Response(json.dumps(app.isardapi.get_alloweds_domains(current_user.username,kind)), mimetype='application/json')
+    return Response(json.dumps(app.isardapi.get_alloweds_domains(current_user.username,kind, custom_filter)), mimetype='application/json')
 
 @app.route('/desktops/getDistinc/<field>/<kind>', methods=['GET'])
 @login_required
 def getDistinct(field,kind):
-    if kind=='user_template':
-        categories=app.isardapi.get_distinc_field(field, {'kind':kind, 'user':current_user.username})
-    else:
-        categories=app.isardapi.get_distinc_field(field, {'kind':kind})
+    #~ if kind=='user_template':
+        #~ categories=app.isardapi.get_distinc_field(current_user.username, field, kind)
+    #~ else:
+    categories=app.isardapi.get_distinc_field(current_user.username, field, kind)
     return Response(json.dumps(categories), mimetype='application/json')
     #~ return Response(json.dumps(app.isardapi.get_alloweds(current_user.username,'domains')), mimetype='application/json')
 

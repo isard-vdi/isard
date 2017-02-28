@@ -49,14 +49,12 @@ class isard():
 
     def show_disposable(self,client_ip):
         disposables_config=self.config['disposable_desktops']
-        print('IP DEL CLIENT:',client_ip)
         if disposables_config['active']:
             with app.app_context():
                 disposables=r.table('disposables').run(db.conn)
             for d in disposables:
                 for net in d['nets']: 
-                    net='127.0.0.1/32'
-                    if IPAddress(client_ip) == IPNetwork(net)[0]: return d
+                    if IPAddress(client_ip) in IPNetwork(net): return d
         return False
 #~ STATUS
     def get_domain_last_messages(self, id):
@@ -155,10 +153,10 @@ class isard():
                 qpisos=isos*100/user_obj['quota']['domains']['isos']
             except:
                 qpisos=100
-        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':qpdesktops,
-                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':qpup,
-                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':qptemplates,
-                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':qpisos}
+        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % round(qpdesktops,2),
+                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
+                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
+                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
                 
     def get_user_templates(self, user):
         with app.app_context():
@@ -321,7 +319,7 @@ class isard():
                 return True
         return False
             
-    def get_alloweds_domains(self, user, filter_type, pluck=[]):
+    def get_alloweds_domains(self, user, filter_type, custom_filter, pluck=[]):
         with app.app_context():
             ud=r.table('users').get(user).run(db.conn)
             delete_allowed_key=False
@@ -329,7 +327,6 @@ class isard():
                 pluck.append('allowed')
                 delete_allowed_key=True
             allowed_data={}
-            print(filter_type)
             if filter_type=='base':
                 #~ data=r.table('domains').get_all('base', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
                  data = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
@@ -341,7 +338,7 @@ class isard():
                 ## We should avoid the ones that have false in all allowed fields:
                 ## Ex: This should be avoided as are user_templates not public:
                 ##       {'allowed':{'roles':False,'categories':False,'groups':False}}
-                data = r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
+                data = r.table('domains').filter(r.row['kind'].match("template")).filter(custom_filter).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
             ## If we continue down here, data will be filtered by alloweds matching user role, domain, group and user
             #~ Generic get all: data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
             for group in data:
@@ -398,12 +395,88 @@ class isard():
             return allowed_data
 
 
-    def get_distinc_field(self, field, filterDict=None):
+    def get_distinc_field(self, user, field, filter_type, pluck=[]):
         '''
         TODO: This is not ordering, probably because of dict keys
         '''
+        #~ with app.app_context():
+            #~ return r.table('domains').group(field).filter(filterDict).order_by(field).pluck(field).distinct().run(db.conn)
         with app.app_context():
-            return r.table('domains').group(field).filter(filterDict).order_by(field).pluck(field).distinct().run(db.conn)
+            ud=r.table('users').get(user).run(db.conn)
+            delete_allowed_key=False
+            if not 'allowed' in pluck: 
+                pluck.append('allowed')
+                delete_allowed_key=True
+            allowed_data={}
+            ## Base is not going to happen
+            #~ if filter_type=='base':
+                 #~ data = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
+            if filter_type=='user_template':
+                ## This templates aren't shared, are user privated
+                ## We can just return this.
+                return r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').group(field).pluck({'id','name','allowed'}).run(db.conn)
+            if filter_type=='public_template':
+                ## We should avoid the ones that have false in all allowed fields:
+                ## Ex: This should be avoided as are user_templates not public:
+                ##       {'allowed':{'roles':False,'categories':False,'groups':False}}
+                data = r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').group(field).pluck({'id','name','allowed'}).run(db.conn)
+            ## If we continue down here, data will be filtered by alloweds matching user role, domain, group and user
+            #~ Generic get all: data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
+            for group in data:
+                    allowed_data[group]=[]
+                    for d in data[group]:
+                        # False doesn't check, [] means all allowed
+                        # Role is the master and user the least. If allowed in roles,
+                        #   won't check categories, groups, users
+                        allowed=d['allowed']
+                        if d['allowed']['roles'] is not False:
+                            if not d['allowed']['roles']:  # Len is not 0
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+                                continue
+                            if ud['role'] in d['allowed']['roles']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+                                continue
+                        if d['allowed']['categories'] is not False:
+                            if not d['allowed']['categories']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+                                continue
+                            if ud['category'] in d['allowed']['categories']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+                                continue
+                        if d['allowed']['groups'] is not False:
+                            if not d['allowed']['groups']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+                                continue
+                            if ud['group'] in d['allowed']['groups']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+                                continue
+                        if d['allowed']['users'] is not False:
+                            if not d['allowed']['users']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+                                continue
+                            if user in d['allowed']['users']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data[group].append(d)
+            tmp_data=allowed_data.copy()
+            for k,v in tmp_data.items():
+                if not len(tmp_data[k]):
+                    allowed_data.pop(k,None)
+            # This is just to check
+            #~ for k,v in allowed_data.items():
+                    #~ for dom in allowed_data[k]:
+                        #~ allowed=r.table('domains').get(dom['id']).run(db.conn)['allowed']
+                        #~ print(allowed,k,dom['id'])
+            return allowed_data
+
+
+
 
     #~ SHOULD BE DONE
     #~ def domainIsUnique(self, id):
