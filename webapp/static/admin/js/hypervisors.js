@@ -59,7 +59,7 @@ $(document).ready(function() {
 							{
 							"targets": 6,
 							"render": function ( data, type, full, meta ) {
-							  return moment.unix(full.status_time).fromNow()+'<br>'+moment.unix(full.status_time).fromNow();
+							  return moment.unix(full.status_time).fromNow();
 							}}
              ]
     } );

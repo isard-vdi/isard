@@ -30,6 +30,7 @@ def login():
                 flash('Username not found or incorrect password.','warning')
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     disposables=app.isardapi.show_disposable(remote_addr)
+    print(disposables)
     return render_template('login.html', disposables=disposables if disposables else '')
 
 @app.route('/')
