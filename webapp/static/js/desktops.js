@@ -100,6 +100,7 @@ $(document).ready(function() {
             tr.removeClass('shown');
         }
         else {
+            
             // Close other rows
              if ( table.row( '.shown' ).length ) {
                       $('.details-control', table.row( '.shown' ).node()).click();
@@ -120,10 +121,13 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDesktopDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                if (!row.data().status.includes('Fail')){
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                }
                 actionsDesktopDetail();
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
             }
+          }
         }
     } );
 
