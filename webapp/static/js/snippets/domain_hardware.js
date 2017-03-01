@@ -82,7 +82,9 @@
 			api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
 				$(div_id+" #vcpu").html(domain['hardware-vcpus']+' CPU(s)');
 				$(div_id+" #ram").html(domain['hardware-memory']);
-				$(div_id+" #net").html(domain['hardware-interfaces'][0].name);
+                // List could not be ordered! In theory all the disks have same virtual-size
+                $(div_id+" #disks").html(domain['disks_info-path_disk'][0]['virtual-size']);
+				$(div_id+" #net").html(domain['hardware-interfaces'][0].id);
 				$(div_id+" #graphics").html(domain['hardware-graphics-type']);
                 $(div_id+" #video").html(domain['hardware-video-type']);
                 $(div_id+" #boot").html(domain['hardware-boot_order']);

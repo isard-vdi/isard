@@ -20,7 +20,7 @@
 				legend: {
 				  x: 'center',
 				  y: 'bottom',
-				  data: ['Free','Wasted']
+				  data: ['Free','Used']
 				},
 				toolbox: {
 				  show: true,
@@ -76,7 +76,7 @@
 					name: 'Free: '+freehs
 				  }, {
 					value: wasted,
-					name: 'Wasted: '+wastedhs
+					name: 'Used: '+wastedhs
 				  }]
 				}]
 			  });

@@ -121,6 +121,8 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDesktopDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
+                console.log(row.data().detail)
+                $('#status-detail-'+row.data().id).html(row.data().detail);
                 if (!row.data().status.includes('Fail')){
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
                 }
@@ -258,6 +260,7 @@ $(document).ready(function() {
           var row = table.row('#'+data.id); 
           table.row(row).data(data);
           setDesktopDetailButtonsStatus(data.id, data.status);
+          console.log(data);
 	}, false);
 
 	desktops_source.addEventListener('Deleted', function(e) {
