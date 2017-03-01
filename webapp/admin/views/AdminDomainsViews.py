@@ -8,7 +8,7 @@
 import json
 import time
 
-from flask import render_template, Response
+from flask import render_template, Response, request
 from flask_login import login_required, current_user
 
 from webapp import app
@@ -32,6 +32,13 @@ DOMAINS
 def admin_domains():
     return render_template('admin/pages/domains.html', nav="Domains") 
 
+@app.route('/admin/mdomains', methods=['POST'])
+@login_required
+@isAdmin
+def admin_mdomains():
+    print(request.get_json(force=True))
+    return json.dumps({}), 200, {'ContentType': 'application/json'}
+    
 @app.route('/admin/domains/get')
 @login_required
 @isAdmin

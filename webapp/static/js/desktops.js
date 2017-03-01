@@ -126,9 +126,9 @@ $(document).ready(function() {
                 }
                 actionsDesktopDetail();
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
+                setDomainGenealogy(row.data().id);
             }
           }
-        }
     } );
 
 

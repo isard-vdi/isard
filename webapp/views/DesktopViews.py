@@ -142,6 +142,7 @@ def desktops_add_disposable():
                         
 @app.route('/hardware', methods=['GET'])
 @login_required
+@ownsid
 def hardware():
     dict={}
     dict['nets']=app.isardapi.get_alloweds(current_user.username,'interfaces',pluck=['id','name','description'],order='name')
@@ -152,6 +153,18 @@ def hardware():
     dict['hypervisors_pools']=app.isardapi.get_alloweds(current_user.username,'hypervisors_pools',pluck=['id','name','description'],order='name')
     dict['user']=app.isardapi.get_user(current_user.username)
     return json.dumps(dict)
+
+@app.route('/domain_genealogy', methods=['POST'])
+@login_required
+@ownsid
+def domain_genealogy():
+    gen=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)['disks_info-path_disk']
+    gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info-path_disk']
+    wasted=0
+    for i,v in enumerate(gen):
+        gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
+        wasted+=gen[i]['actual-size']
+    return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human})
 
 @app.route('/domain', methods=['POST'])
 @login_required
