@@ -37,18 +37,18 @@
 						}
 					  }
 					},
-					restore: {
-					  show: true,
-					  title: "Restore"
-					},
-					saveAsImage: {
-					  show: true,
-					  title: "Save Image"
-					}
+					//~ restore: {
+					  //~ show: true,
+					  //~ title: "Restore"
+					//~ },
+					//~ saveAsImage: {
+					  //~ show: true,
+					  //~ title: "Save Image"
+					//~ }
 				  }
 				},
 				series: [{
-				  name: 'Access to the resource',
+				  name: 'Hard disk space',
 				  type: 'pie',
 				  radius: ['35%', '55%'],
 				  itemStyle: {
