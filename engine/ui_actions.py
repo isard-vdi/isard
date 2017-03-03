@@ -143,6 +143,7 @@ class UiActions(object):
     def destroy_domain_from_id(self,id):
         pass
 
+
     def stop_domain_from_id(self,id):
         # INFO TO DEVELOPER. puede pasar que alguna actualización en algún otro hilo del status haga que
         # durante un corto período de tiempo devuelva None,para evitarlo durante un segundo vamos a ir pidiendo cada
@@ -242,6 +243,48 @@ class UiActions(object):
 # recrear el xml y verificar que se define o arranca ok
 # yo crearía el disco con una ruta relativa respecto a una variable de configuración
 # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
+
+    def deleting_disks_from_domain(self,id_domain):
+        #ALBERTO FALTA ACABAR
+
+        dict_domain = get_domain(id_domain)
+
+        action = {}
+        action['id_domain'] = id_domain
+        action['type'] = 'delete_disk_from_domain'
+
+
+        action['path_template_disk'] = path_absolute_template_disk
+        action['path_domain_disk'] = path_domain_disk
+        action['disk_index'] = disk_index_in_bus
+
+        hyp_to_disk_create = get_host_disk_operations_from_path(path_selected, pool=pool_id, type_path='templates')
+
+        # INFO TO DEVELOPER: falta terminar de ver que hacemos con el pool para crear
+        # discos, debería haber un disk operations por pool
+        try:
+
+            update_domain_status(status='CreatingTemplateDisk',
+                                 id_domain=id_domain,
+                                 hyp_id=False,
+                                 detail='Creating template disk operation is launched in hostname {} ({} operations in queue)'.format(
+                                         hyp_to_disk_create,
+                                         self.manager.q_disk_operations[hyp_to_disk_create].qsize()))
+            self.manager.q_disk_operations[hyp_to_disk_create].put(action)
+        except Exception as e:
+            update_domain_status(status='Stopped',
+                                 id_domain=id_domain,
+                                 hyp_id=False,
+                                 detail='Creating template operation failed when insert action in queue for disk operations')
+            log.error(
+                'Creating disk operation failed when insert action in queue for disk operations in host {}. Exception: {}'.format(
+                    hyp_to_disk_create, e))
+            return False
+
+            disk_index_in_bus = disk_index_in_bus + 1
+
+    return True
+        pass
 
     def create_template_disks_from_domain(self,id_domain):
         dict_domain = get_domain(id_domain)

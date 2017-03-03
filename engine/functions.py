@@ -16,6 +16,7 @@ import socket
 import time
 import threading
 import json
+import xmltodict
 from time import sleep
 from .db import update_domain_progress, insert_disk_operation, update_disk_operation, get_disks_all_domains
 from .db import get_domain, insert_domain, update_domain_createing_template, get_domain_spice,get_config
@@ -938,6 +939,44 @@ def check_all_backing_chains(hostname,path_to_write_json=None):
         dict_stats = analize_backing_chains_outputs(array_out_err=array_out_err,
                                                     path_to_write_json=path_to_write_json)
     return dict_stats
+
+
+
+def cmd_check_os(path_disk):
+    return 'virt-inspector -a "{}"'.format(path_disk)
+
+def check_all_os(hostname,path_to_write_json=None):
+    tuples_domain_disk = get_disks_all_domains()
+    cmds1 = list()
+    for domain_id, path_domain_disk in tuples_domain_disk:
+        cmds1.append({'title': domain_id, 'cmd': cmd_check_os(path_domain_disk)})
+
+    from pprint import pprint
+    pprint(cmds1)
+    array_out_err = execute_commands(hostname,cmds1,dict_mode=True)
+    # from pprint import pprint
+    # pprint(array_out_err)
+    if path_to_write_json is not None:
+        f = open(path_to_write_json, 'w')
+        json.dump(array_out_err, f)
+        f.close()
+
+    return array_out_err
+
+def analize_check_os_output(array_out_err):
+
+    for d in array_out_err:
+        domains_ok = 0
+        domains_err = 0
+        for d in array_out_err:
+            id = d['title']
+            if len(d['err']) > 0:
+                domains_err += 1
+                log.info(d['err'])
+                update_domain_os('Unknown', id, detail=d['err'])
+            else:
+                d = xmltodict.parse(d['out'])
+                print('DOMAIN ID: {}, SO product_name: {}'.format(id,d['operatingsystems']['operatingsystem']['product_name']))
 
 
 def analize_backing_chains_outputs(array_out_err=[],path_to_write_json=None,path_to_read_json=None):

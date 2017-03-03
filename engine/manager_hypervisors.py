@@ -281,6 +281,9 @@ class ManagerHypervisors(object):
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
 
+                if old_status == 'Stopped' and new_status == "Deleting":
+                    ui.deleting_disks_from_domain(domain_id)
+
                 if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
                     # create_template_from_dict(dict_new_template)
                     if get_if_all_disk_template_created(domain_id):

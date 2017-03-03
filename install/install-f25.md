@@ -70,3 +70,12 @@ systemctl start isard-vdi
 
 Now you should be able to connect to frontend through http://localhost:5000
 Default user is admin and password isard.
+
+
+# In hypervisors we need
+
+
+in Fedora or centos:
+```
+dnf -y install openssh-server qemu-kvm libguestfs-tools
+```

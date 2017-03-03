@@ -75,6 +75,15 @@ def launch_disk_operations_thread(hyp_id,hostname,user='root',port=22):
     thread_disk_operation.start()
     return thread_disk_operation,queue_disk_operation
 
+def launch_delete_disk_action(action,hostname,user,port):
+    disk_path = action['disk_path']
+    id_domain = action['domain']
+    array_out_err = execute_commands(hostname,
+                                     ssh_commands=action['ssh_comands'],
+                                     user=user,
+                                     port=port)
+    #ALBERTO FALTA ACABAR
+    pass
 
 def launch_action_disk(action,hostname,user,port):
     disk_path  = action['disk_path']
@@ -188,11 +197,16 @@ class DiskOperationsThread(threading.Thread):
             try:
                 action=self.queue_actions.get(timeout=TIMEOUT_QUEUES)
                 # for ssh commands
-                if action['type'] in ['create_disk','delete_disk']:
+                if action['type'] in ['create_disk']:
                     launch_action_disk(action,
                                        self.hostname,
                                        self.user,
                                        self.port)
+                if action['type'] in ['delete_disk']:
+                    launch_delete_disk_action( action,
+                                               self.hostname,
+                                               self.user,
+                                               self.port)
 
                 elif action['type'] in ['create_template_disk_from_domain']:
                     launch_action_create_template_disk(action,

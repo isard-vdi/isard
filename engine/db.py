@@ -343,7 +343,6 @@ def update_domain_status(status,id_domain,hyp_id=None,detail=''):
                                                       'detail':json.dumps(detail)}).run(r_conn)
     else:
         results = rtable.filter({'id':id_domain}).update({'hyp_started':hyp_id,
-                                                          'hyp_started2':hyp_id,
                                                   'status':status,
                                                   'detail':json.dumps(detail)}).run(r_conn)
 
@@ -437,15 +436,12 @@ def update_domain_hyp_stopped(id_domain,status='Stopped'):
 def get_domain_hyp_started(id_domain):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
-    # results = rtable.get(id_domain).pluck('hyp_started').run(r_conn)
-    #INFO TO DEVELOPER CHIVATO NO ME ACLARO
-    results = rtable.get(id_domain).pluck('hyp_started2').run(r_conn)
+    results = rtable.get(id_domain).pluck('hyp_started').run(r_conn)
     close_rethink_connection(r_conn)
     if results is None:
         return ''
-    #INFO TO DEVELOPER CHIVATO NO ME ACLARO
-    # return results['hyp_started']
-    return results['hyp_started2']
+
+    return results['hyp_started']
 
 def get_domain_hyp_started_and_status_and_detail(id_domain):
     r_conn = new_rethink_connection()
