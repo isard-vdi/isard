@@ -53,3 +53,25 @@ cd ..
 You can browse to your computer port 5000
 Default user is 'admin' and password 'isard'
 
+
+# KNOWN ISSUES
+
+## IsardVDI engine can't contact hypervisor(s)
+
+### ssh authentication fail when connect: Server 'vdesktop6.escoladeltreball.org' not found in known_hosts
+
+You should generate int your IsardVDI machine your ssh key and copy it to the hypervisor(s):
+```
+ssh-keygen
+ssh-copy-id root@<hypervisor_hostname>
+```
+
+Check that you can connect to the hypervisor using ssh root@<hypervisor_hostname>
+
+NOTE: Service sshd on hypervisor(s) should use ssh-rsa keys. Please check **/etc/ssh/sshd_config** on hypervisor that you have only **HostKey /etc/ssh/ssh_host_rsa_key** option active
+
+## IsardVDI does not start
+
++ Check that you have rethinkdb database running: **systemctl status rethinkdb**
++ Check that rethinkdb tcp port 28015 it is open: **netstat -tulpn | grep 28015**
++ Check that there are no error logs on output.

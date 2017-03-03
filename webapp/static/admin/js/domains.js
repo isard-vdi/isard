@@ -165,8 +165,12 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                $('#status-detail-'+row.data().id).html(row.data().detail);
+                if (!row.data().status.includes('Fail')){
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                }
                 actionsDomainDetail();
+                setDomainGenealogy(row.data().id);
                 setDomainDetailButtonsStatus(row.data().id,row.data().status)
             }            
         }
