@@ -76,3 +76,17 @@ def admin_config_update():
         if app.adminapi.update_table_dict('config',1,dict):
             return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
+
+
+'''
+BACKUP & RESTORE
+'''
+@app.route('/admin/backup', methods=['POST'])
+@login_required
+@isAdmin
+def admin_backup():
+    if request.method == 'POST':
+        app.adminapi.backup_db()
+        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+

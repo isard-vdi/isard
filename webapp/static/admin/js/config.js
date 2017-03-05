@@ -55,6 +55,11 @@ $(document).ready(function() {
         $('.footer-'+basekey).css('display','none');
         $('[id^="btn-'+basekey+'-"]').hide(); 
     });
+
+    $('.btn-backup').on( 'click', function () {
+        api.ajax('/admin/backup','POST',{}).done(function(data) {
+        });  
+    });
 });
 
 function show_disposables(){

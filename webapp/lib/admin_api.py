@@ -125,6 +125,34 @@ class isardAdmin():
         f=flatten()
         return f.unflatten_dict(dict)
 
+    '''
+    BACKUP & RESTORE
+    '''
+    def backup_db(self):
+        isard_db={}
+        with app.app_context():
+            for table in r.table_list().run(db.conn):
+                isard_db[table]=list(r.table(table).run(db.conn))
+        with open('/tmp/isard.json', 'w') as isard_db_file:
+            isard_db_file.write(str(isard_db))
+        import tarfile, os
+        with tarfile.open('/tmp/isard.tar.gz', "w:gz") as tar:
+            tar.add('/tmp/isard.json', arcname=os.path.basename('/tmp/isard.json'))
+            tar.close()
+        try:
+            os.remove('/tmp/isard.json')
+        except OSError:
+            pass
+            
+    def restore_db(self):
+        import tarfile
+        with tarfile.open('/tmp/isard.tar.gz', "r:gz") as tar:
+            tar.extractall('/tmp/')
+            tar.close()
+        with open('/tmp/isard.json', 'r') as isard_db_file:
+            isard_db=isard_db_file.read()
+        print(isard_db)
+                    
 class flatten(object):
     def __init__(self):
         None
@@ -182,3 +210,4 @@ class flatten(object):
                 d = d[part]
             d[parts[-1]] = value
         return resultDict
+
