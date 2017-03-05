@@ -129,13 +129,13 @@ class isardAdmin():
     BACKUP & RESTORE
     '''
     def backup_db(self):
+        import tarfile,pickle,os
         isard_db={}
         with app.app_context():
             for table in r.table_list().run(db.conn):
                 isard_db[table]=list(r.table(table).run(db.conn))
-        with open('/tmp/isard.json', 'w') as isard_db_file:
-            isard_db_file.write(str(isard_db))
-        import tarfile, os
+        with open('/tmp/isard.json', 'wb') as isard_db_file:
+            pickle.dump(isard_db, isard_db_file)
         with tarfile.open('/tmp/isard.tar.gz', "w:gz") as tar:
             tar.add('/tmp/isard.json', arcname=os.path.basename('/tmp/isard.json'))
             tar.close()
@@ -145,13 +145,14 @@ class isardAdmin():
             pass
             
     def restore_db(self):
-        import tarfile
+        import tarfile,pickle
         with tarfile.open('/tmp/isard.tar.gz', "r:gz") as tar:
             tar.extractall('/tmp/')
             tar.close()
-        with open('/tmp/isard.json', 'r') as isard_db_file:
-            isard_db=isard_db_file.read()
-        print(isard_db)
+        with open('/tmp/isard.json', 'rb') as isard_db_file:
+            isard_db = pickle.load(isard_db_file)
+        for k,v in isard_db.items():
+            print(k)
                     
 class flatten(object):
     def __init__(self):

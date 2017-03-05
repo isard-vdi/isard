@@ -90,3 +90,11 @@ def admin_backup():
         return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
 
+@app.route('/admin/restore', methods=['POST'])
+@login_required
+@isAdmin
+def admin_restore():
+    if request.method == 'POST':
+        app.adminapi.restore_db()
+        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}

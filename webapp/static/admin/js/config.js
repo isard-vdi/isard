@@ -60,6 +60,11 @@ $(document).ready(function() {
         api.ajax('/admin/backup','POST',{}).done(function(data) {
         });  
     });
+
+    $('.btn-restore').on( 'click', function () {
+        api.ajax('/admin/restore','POST',{}).done(function(data) {
+        });  
+    });
 });
 
 function show_disposables(){

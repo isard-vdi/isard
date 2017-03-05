@@ -46,11 +46,12 @@ except Exception as e:
 
 
 '''
-Scheduler
+Scheduler tests
 '''
 from .lib.isardScheduler import isardScheduler
 app.scheduler=isardScheduler()
-app.scheduler.addDate('domains',{'status':'Started'},{'status':'Stopping'},10)
+#~ app.scheduler.addDate('domains',{'status':'Started'},{'status':'Stopping'},10)
+
 '''
 Authentication types
 '''
