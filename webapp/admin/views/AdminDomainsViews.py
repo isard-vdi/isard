@@ -60,7 +60,7 @@ def admin_domains_get():
 @app.route('/admin/stream/domains')
 @login_required
 @isAdmin
-def admin_domains_stream():
+def admin_stream_domains():
         return Response(admin_domains_stream(), mimetype='text/event-stream')
 
 def admin_domains_stream():

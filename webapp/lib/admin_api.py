@@ -10,7 +10,10 @@ import random, queue
 from threading import Thread
 import time
 from webapp import app
+from datetime import datetime, timedelta
 import rethinkdb as r
+
+from ..lib.log import * 
 
 from .flask_rethink import RethinkDB
 db = RethinkDB(app)
@@ -130,29 +133,83 @@ class isardAdmin():
     '''
     def backup_db(self):
         import tarfile,pickle,os
+        id='isard_backup_'+datetime.now().strftime("%Y%m%d-%H%M%S")
+        path='./backups/'
+        os.makedirs(path,exist_ok=True)
+        dict={'id':id,
+              'filename':id+'.tar.gz',
+              'path':path,
+              'description':'',
+              'when':time.time(),
+              'data':{},
+              'status':'Initializing'}
+        with app.app_context():
+            r.table('backups').insert(dict).run(db.conn)
+        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status']
         isard_db={}
         with app.app_context():
+            r.table('backups').get(id).update({'status':'Loading tables'}).run(db.conn)
             for table in r.table_list().run(db.conn):
-                isard_db[table]=list(r.table(table).run(db.conn))
-        with open('/tmp/isard.json', 'wb') as isard_db_file:
+                if table not in skip_tables:
+                    isard_db[table]=list(r.table(table).run(db.conn))
+                    #~ dict['data'][table]=r.table(table).count().run(db.conn)
+                    r.table('backups').get(id).update({'data':{table:r.table(table).count().run(db.conn)}}).run(db.conn)
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Dumping to file'}).run(db.conn)
+        with open(path+id+'.json', 'wb') as isard_db_file:
             pickle.dump(isard_db, isard_db_file)
-        with tarfile.open('/tmp/isard.tar.gz', "w:gz") as tar:
-            tar.add('/tmp/isard.json', arcname=os.path.basename('/tmp/isard.json'))
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Compressing'}).run(db.conn)
+        with tarfile.open(path+id+'.tar.gz', "w:gz") as tar:
+            tar.add(path+id+'.json', arcname=os.path.basename(path+id+'.json'))
             tar.close()
         try:
-            os.remove('/tmp/isard.json')
+            os.remove(path+id+'.json')
+        except OSError:
+            pass
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Finished creating'}).run(db.conn)
+            
+    def restore_db(self,id):
+        import tarfile,pickle
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+            r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
+        path=dict['path']
+        with tarfile.open(path+id+'.tar.gz', "r:gz") as tar:
+            tar.extractall(path)
+            tar.close()
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.json', 'rb') as isard_db_file:
+            isard_db = pickle.load(isard_db_file)
+        for k,v in isard_db.items():
+            with app.app_context():
+                if not r.table_list().contains(k).run(db.conn):
+                    log.error("Table {} not found, should have been created on IsardVDI startup.".format(k))
+                    return False
+                else:
+                    log.info("Restoring table {}".format(k))
+                    with app.app_context():
+                        r.table('backups').get(id).update({'status':'Updating table: '+k}).run(db.conn)
+                    log.info(r.table(k).insert(v, conflict='update').run(db.conn))
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Finished restoring'}).run(db.conn)
+        try:
+            os.remove(path+id+'.json')
         except OSError:
             pass
             
-    def restore_db(self):
-        import tarfile,pickle
-        with tarfile.open('/tmp/isard.tar.gz', "r:gz") as tar:
-            tar.extractall('/tmp/')
-            tar.close()
-        with open('/tmp/isard.json', 'rb') as isard_db_file:
-            isard_db = pickle.load(isard_db_file)
-        for k,v in isard_db.items():
-            print(k)
+    def remove_backup_db(self,id):
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+        path=dict['path']
+        try:
+            os.remove(path+id+'.tar.gz')
+        except OSError:
+            pass
+        with app.app_context():
+            r.table('backups').get(id).delete().run(db.conn)
                     
 class flatten(object):
     def __init__(self):

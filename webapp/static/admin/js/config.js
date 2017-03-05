@@ -57,14 +57,155 @@ $(document).ready(function() {
     });
 
     $('.btn-backup').on( 'click', function () {
-        api.ajax('/admin/backup','POST',{}).done(function(data) {
-        });  
+				new PNotify({
+						title: 'Create backup',
+							text: "Do you really want to create a new backup?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/backup','POST',{}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	         
     });
+    
+    backups_table=$('#table-backups').DataTable({
+			"ajax": {
+				"url": "/admin/table/backups/get",
+				"dataSrc": ""
+			},
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+            "bLengthChange": false,
+            "bFilter": false,
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				{ "data": "when"},
+				{ "data": "status"},
+				{
+                "className":      'actions-control',
+                "orderable":      false,
+                "data":           null,
+                "width": "58px",
+                "defaultContent": '<button id="btn-backups-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
+                                   <button id="btn-backups-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkblue"></i></button>'
+				},
+                ],
+			 "order": [[1, 'asc']],
+			 "columnDefs": [ {
+							"targets": 0,
+							"render": function ( data, type, full, meta ) {
+							  return moment.unix(full.when).fromNow();
+							}}]
+    } );        
+ 
+     $('#table-backups').find(' tbody').on( 'click', 'button', function () {
+        var data = backups_table.row( $(this).parents('tr') ).data();
+        console.log($(this).attr('id'),data);
+        if($(this).attr('id')=='btn-backups-delete'){
+				new PNotify({
+						title: 'Delete backup',
+							text: "Do you really want to delete backup on date "+moment.unix(data.when).fromNow()+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/backup_remove','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+        if($(this).attr('id')=='btn-backups-restore'){
+				new PNotify({
+						title: 'Restore backup',
+							text: "Do you really want to restore backup from file "+data.filename+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/restore','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+    });           
 
-    $('.btn-restore').on( 'click', function () {
-        api.ajax('/admin/restore','POST',{}).done(function(data) {
-        });  
-    });
+    // Stream domains_source
+	if (!!window.EventSource) {
+	  var backups_source = new EventSource('/admin/stream/backups');
+      console.log('Listening backups...');
+	} else {
+	  //~ // Result to xhr polling :(
+	}
+
+	window.onbeforeunload = function(){
+	  backups_source.close();
+	};
+
+	backups_source.addEventListener('open', function(e) {
+	  // Connection was opened.
+	}, false);
+
+	backups_source.addEventListener('error', function(e) {
+	  if (e.readyState == EventSource.CLOSED) {
+		// Connection was closed.
+	  }
+     
+	}, false);
+
+	backups_source.addEventListener('New', function(e) {
+	  var data = JSON.parse(e.data);
+		if($("#" + data.id).length == 0) {
+		  //it doesn't exist
+		  backups_table.row.add(data).draw();
+            new PNotify({
+                title: "Backup added",
+                text: "Backups "+data.filename+" has been created",
+                hide: true,
+                delay: 2000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });          
+		}else{
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = table.row('#'+data.id); 
+          backups_table.row(row).data(data);			
+		}
+	}, false);
+
+	backups_source.addEventListener('Status', function(e) {
+          var data = JSON.parse(e.data);
+          var row = backups_table.row('#'+data.id); 
+          backups_table.row(row).data(data);
+	}, false);
+
+	backups_source.addEventListener('Deleted', function(e) {
+	  var data = JSON.parse(e.data);
+      var row = backups_table.row('#'+data.id).remove().draw();
+            new PNotify({
+                title: "Domain deleted",
+                text: "Domain "+data.name+" has been deleted",
+                hide: true,
+                delay: 2000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'info'
+            });
+	}, false);
+    
 });
 
 function show_disposables(){

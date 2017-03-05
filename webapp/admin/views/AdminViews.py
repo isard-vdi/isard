@@ -6,6 +6,7 @@
 #!flask/bin/python
 # coding=utf-8
 import json
+import time
 
 from flask import render_template, Response, request, redirect, url_for
 from flask_login import login_required
@@ -54,7 +55,6 @@ def admin_config():
 @isAdmin
 def admin_disposables():
     result=app.adminapi.get_admin_table('disposables')
-    print(result)
     return json.dumps(result), 200, {'ContentType':'application/json'} 
 
 @app.route('/admin/config/update', methods=['POST'])
@@ -63,7 +63,7 @@ def admin_disposables():
 def admin_config_update():
     if request.method == 'POST':
         dict=app.isardapi.f.unflatten_dict(request.form)
-        print(dict)
+        #~ print(dict)
         if 'auth' in dict:
             dict['auth']['local']={'active':False} if 'local' not in dict['auth']  else {'active':True}
             dict['auth']['ldap']['active']=False if 'active' not in dict['auth']['ldap'] else True
@@ -95,6 +95,34 @@ def admin_backup():
 @isAdmin
 def admin_restore():
     if request.method == 'POST':
-        app.adminapi.restore_db()
+        app.adminapi.restore_db(request.get_json(force=True)['pk'])
         return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+
+@app.route('/admin/backup_remove', methods=['POST'])
+@login_required
+@isAdmin
+def admin_backup_remove():
+    if request.method == 'POST':
+        app.adminapi.remove_backup_db(request.get_json(force=True)['pk'])
+        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+    
+@app.route('/admin/stream/backups')
+@login_required
+@isAdmin
+def admin_stream_backups():
+    return Response(admin_backups_stream(), mimetype='text/event-stream')
+
+def admin_backups_stream():
+    with app.app_context():
+        for c in r.table('backups').changes(include_initial=False).run(db.conn):
+            if c['new_val'] is None:
+                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                continue
+            if c['old_val'] is None:
+                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                continue             
+            if 'detail' not in c['new_val']: c['new_val']['detail']=''
+            yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+                    

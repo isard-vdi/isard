@@ -271,6 +271,7 @@ $(document).ready(function() {
                 break;
         }
     });	
+
     // Stream domains_source
 	if (!!window.EventSource) {
 	  var domains_source = new EventSource('/admin/stream/domains');

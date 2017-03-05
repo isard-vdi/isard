@@ -48,6 +48,8 @@ class Populate(object):
         self.disks()
         log.info('Checking table domains')
         self.domains()
+        log.info('Checking table domains_status')
+        self.domains_status()
         log.info('Checking table domain_xmls')
         self.domains_xmls()
         log.info('Checking table isos')
@@ -62,6 +64,8 @@ class Populate(object):
         self.disk_operations()
         log.info('Checking table disposables')
         self.disposables()
+        log.info('Checking table backups')
+        self.backups()
         log.info('Checking table config')
         self.config()
 
@@ -123,6 +127,17 @@ class Populate(object):
                                                          'disposables':[]  #{'id':'','name':'','description':''}
                                                          }]).run(db.conn))
                 
+            return True                
+
+    '''
+    BACKUPS
+    '''
+
+    def backups(self):
+        with app.app_context():
+            if not r.table_list().contains('backups').run(db.conn):
+                log.info("Table backups not found, creating and populating defaults...")
+                r.table_create('backups', primary_key="id").run(db.conn)
             return True                
 
     '''
