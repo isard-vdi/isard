@@ -91,6 +91,8 @@ def domains_update():
         except:
             args = request.form.to_dict()
         try:
+            if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                 return json.dumps('Quota for starting domains full.'), 500, {'ContentType':'application/json'}
             if app.isardapi.update_table_value('domains', args['pk'], args['name'], args['value']):
                 return json.dumps('Updated'), 200, {'ContentType':'application/json'}
             else:
@@ -98,11 +100,15 @@ def domains_update():
         except Exception as e:
             return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
 
+
 @app.route('/desktops_add', methods=['POST'])
 @login_required
 def desktops_add():
     res=True
     if request.method == 'POST':
+        if float(app.isardapi.get_user_quotas(current_user.username)['dqp']) >= 100:
+            flash('Quota for creating new desktops is full','danger')
+            return redirect(url_for('desktops'))
         create_dict=app.isardapi.f.unflatten_dict(request.form)
         create_dict.pop('templateFilterGroup', None)
         create_dict.pop('templateFilterCategory',None)
@@ -185,6 +191,9 @@ def domain_alloweds():
 def desktops_template():
     msg=True
     if request.method == 'POST':
+        if float(app.isardapi.get_user_quotas(current_user.username)['tqp']) >= 100:
+            flash('Quota for creating new templates is full','danger')
+            return redirect(url_for('desktops'))
         #~ # if app.isardapi.is_domain_id_unique
         original=app.isardapi.get_domain(request.form['id'])
         domain_dict=app.isardapi.f.unflatten_dict(original)
@@ -198,7 +207,6 @@ def desktops_template():
             return redirect(url_for('desktops'))
         else:
             flash('Could not create template now','danger')
-            None
     return redirect(url_for('desktops'))
 
 @app.route('/stream/desktops')
