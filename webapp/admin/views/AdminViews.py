@@ -126,3 +126,5 @@ def admin_backups_stream():
             if 'detail' not in c['new_val']: c['new_val']['detail']=''
             yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
                     
+
+

@@ -285,6 +285,17 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-template').on('click', function () {
+		if($('.quota-templates .perc').text() >=100){
+            new PNotify({
+                title: "Quota for creating templates full.",
+                text: "Can't create another template, quota full.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: 'error'
+            });
+		}else{	
 			var pk=$(this).closest("div").attr("data-pk");
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
@@ -293,6 +304,7 @@ function actionsDesktopDetail(){
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+        }
 	});
 
 	$('.btn-delete').on('click', function () {
