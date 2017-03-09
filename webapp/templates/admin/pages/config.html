@@ -228,7 +228,56 @@
        </div>
     </div>
     <div class="clearfix"></div>
+
+    <div class="row">
+       <div class="col-md-6 col-sm-6 col-xs-12">
+           <div class="x_panel">
+                 <div class="x_title">
+                    <h2><i class="fa fa-lock"></i> Job scheduler <small></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                        <li><a class="btn-scheduler" data-panel="scheduler"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Add job</span></a>
+                    </ul>
+                    <div class="clearfix"></div>
+                 </div>
+                 <div class="x_content">
+<!--
+                                    <label class="control-label navbar-right" for="auth-ldap-active"> Active 
+                                    </label>
+                                        <div class="checkbox pull-right">
+                                            <label>
+                                              <input id="auth-ldap-active" name="auth-ldap-active" type="checkbox" class="flat">
+                                            </label>
+                                        </div>
+-->
+                                <div class="clearfix"></div>
+                             
+                            <div class="x_content">
+                                <table id="table-scheduler" class="table table-striped">
+                                  <thead>
+                                    <tr>
+                                      <th>Kind</th>
+                                      <th>Table</th>
+                                      <th></th>
+                                    </tr>
+                                  </thead>
+                                      <tbody>
+                                      </tbody>
+                                </table>                                
+                            </div>
+                      </div>
+
+                </div>
+              </div>
+       </div>
+       <div class="col-md-6 col-sm-6 col-xs-12">
+    </div>
+    
+    
+    <div class="clearfix"></div>
 </div>
+
+
+
 {% include '/admin/pages/config_modals.html' %}
 {% endblock %}
 {% block pagescript %}

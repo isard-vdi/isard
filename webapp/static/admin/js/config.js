@@ -56,6 +56,13 @@ $(document).ready(function() {
         $('[id^="btn-'+basekey+'-"]').hide(); 
     });
 
+    $('.btn-scheduler').on( 'click', function () {
+        $('#modalScheduler').modal({
+				backdrop: 'static',
+				keyboard: false
+        }).modal('show'); 
+    });
+    
     $('.btn-backup').on( 'click', function () {
 				new PNotify({
 						title: 'Create backup',

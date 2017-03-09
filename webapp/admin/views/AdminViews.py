@@ -127,4 +127,21 @@ def admin_backups_stream():
             yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
                     
 
-
+'''
+SCHEDULER
+'''
+@app.route('/admin/scheduler', methods=['POST'])
+@login_required
+@isAdmin
+def admin_scheduler():
+    if request.method == 'POST':
+        if request.form['kind'] == 'cron':
+            if request.form['action'] == 'domains-stop':
+                app.scheduler.addCron('domains',{'status':'Stopped'},{'status':'Unknown'},request.form['hour'],request.form['minute'])
+            #~ app.scheduler.addCron(request.form['table'],
+                                  #~ request.form['filter'],
+                                  #~ request.form['update'],
+                                  #~ request.form['hour'],
+                                  #~ request.form['minute'])
+            return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}

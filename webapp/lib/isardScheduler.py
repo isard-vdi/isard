@@ -37,9 +37,11 @@ class isardScheduler():
         self.turnOn()
         
         
-    def addCron(self,table,filter,update,hour,minute):
-        alarm_time = datetime.now() + timedelta(seconds=10)
-        self.scheduler.add_job(self.bulk_action,'cron', hour=hour, minute=minute, args=[table,filter,update], jobstore=self.rStore, replace_existing=True, id='p2')
+    def addCron(self,table,tbl_filter,tbl_update,hour,minute):
+        id='cron_'+str(hour)+str(minute)
+        self.scheduler.add_job(self.bulk_action,'cron', hour=hour, minute=minute, args=(table,tbl_filter,tbl_update), jobstore=self.rStore, replace_existing=True, id=id)
+        with app.app_context():
+            r.table('scheduler_jobs').get(id).update({'kind':'cron','table':table,'filter':tbl_filter,'update':tbl_update,'hour':hour,'minute':minute}).run(db.conn)
 
     def addDate(self,table,filter,update,seconds):
         alarm_time = datetime.now() + timedelta(seconds=seconds)
@@ -64,7 +66,7 @@ class isardScheduler():
     '''
     BULK ACTIONS
     '''
-    def bulk_action(self,table,filter,update):
+    def bulk_action(self,table,tbl_filter,tbl_update):
         with app.app_context():
             log.info('BULK ACTION: Table {}, Filter {}, Update {}'.format(table,filter, update))
             r.table(table).filter(filter).update(update).run(db.conn)
