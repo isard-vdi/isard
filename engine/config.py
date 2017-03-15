@@ -30,7 +30,7 @@ except Exception as e:
 RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
 RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
 RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
-with r.connect(host="localhost", port=28015) as conn:
+with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
     rconfig=r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
 print(rconfig)
 STATUS_POLLING_INTERVAL = rconfig['intervals']['status_polling']
