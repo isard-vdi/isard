@@ -100,10 +100,34 @@ class Populate(object):
                                                                          'ldap_server': 'ldap://ldap.domain.org',
                                                                          'bind_dn': 'dc=domain,dc=org'}},
                                                         'disposable_desktops':{'active': False},
-                                                        'engine':{'carbon':{'active':False,'server':'','port':''}},
+                                                        'engine':{  'intervals':{   'status_polling':10,
+                                                                                    'time_between_polling': 5,
+                                                                                    'test_hyp_fail': 20,
+                                                                                    'background_polling': 10,
+                                                                                    'transitional_states_polling': 2},
+                                                                    'ssh':{'paramiko_host_key_policy_check': False},
+                                                                    'stats':{'active': True,
+                                                                            'max_queue_domains_status': 10,
+                                                                            'max_queue_hyps_status': 10,
+                                                                            'hyp_stats_interval': 5
+                                                                            },
+                                                                    'log':{
+                                                                            'log_name':  'isard',
+                                                                            'log_level': 'DEBUG',
+                                                                            'log_file':  'msg.log'
+                                                                    },
+                                                                    'timeouts':{
+                                                                            'ssh_paramiko_hyp_test_connection':   4,
+                                                                            'timeout_trying_ssh': 2,
+                                                                            'timeout_trying_hyp_and_ssh': 10,
+                                                                            'timeout_queues': 2,
+                                                                            'timeout_hypervisor': 10,
+                                                                            'libvirt_hypervisor_timeout_connection': 3,
+                                                                            'timeout_between_retries_hyp_is_alive': 1,
+                                                                            'retries_hyp_is_alive': 3
+                                                                            },
+                                                                    'carbon':{'active':False,'server':'','port':''}},
                                                         'version':0
-                                                       #~ 'spice': {'domain': '',
-                                                                 #~ 'certificate': ''},
                                                        }], conflict='error').run(db.conn))
                 log.info("Table config populated with defaults.")
                 return True

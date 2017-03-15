@@ -10,6 +10,7 @@ $(document).ready(function() {
 
     api.ajax('/admin/config','POST',{}).done(function(data) {
         $.each( data, function( key, value ) {
+            console.log(key,value)
             if(typeof(value) === "boolean"){
                 $('#'+key).iCheck('disable');
                 if(value){$('#'+key).iCheck('check');}

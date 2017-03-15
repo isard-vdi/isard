@@ -17,29 +17,39 @@
 # c=ConfigParser()
 # c.read(file_conf)
 
-RETHINK_HOST = 'localhost'
-RETHINK_PORT = 28015
-STATUS_POLLING_INTERVAL = 10
-RETHINK_DB   = 'isard'
+import rethinkdb as r
+import configparser
+import os
+try:
+    rcfg = configparser.ConfigParser()
+    rcfg.read(os.path.join(os.path.dirname(__file__),'../isard.conf'))
+except Exception as e:
+    log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
+    sys.exit(0)
 
-TIME_BETWEEN_POLLING = 5
-TEST_HYP_FAIL_INTERVAL = 20
-POLLING_INTERVAL_BACKGROUND = 10
-POLLING_INTERVAL_TRANSITIONAL_STATES = 2
+RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
+RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
+RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
+with r.connect(host="localhost", port=28015) as conn:
+    rconfig=r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
+print(rconfig)
+STATUS_POLLING_INTERVAL = rconfig['intervals']['status_polling']
+TIME_BETWEEN_POLLING = rconfig['intervals']['time_between_polling']
+TEST_HYP_FAIL_INTERVAL = rconfig['intervals']['test_hyp_fail']
+POLLING_INTERVAL_BACKGROUND = rconfig['intervals']['background_polling']
+POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig['intervals']['transitional_states_polling']
+
 TRANSITIONAL_STATUS = ('Starting', 'Stopping')
 
 # CONFIG_DICT = {k: {l[0]:l[1] for l in c.items(k)} for k in c.sections()}
 
 CONFIG_DICT = {
 'RETHINKDB':{
-'host':			'localhost',
-'port':			'28015',
-'dbname':		'isard'
+'host':			RETHINK_HOST,
+'port':			RETHINK_PORT,
+'dbname':		RETHINK_DB
 },
 
-
-
-'SSH': {
     # This is important if you want to protect to man in the midle attack
     # but paramiko have a problem with ecdsa keys that is implemented in
     # modern distributions like fedora or debian. Ecdsa keys are not supported (yet) with paramiko
@@ -54,31 +64,11 @@ CONFIG_DICT = {
     # or man in the midle attacks with ssh aren't a problem in your
     # network
     # this parameter must be False
-    'paramiko_host_key_policy_check' : False
-},
 
-'STATS':{
-'max_queue_domains_status': 10,
-'max_queue_hyps_status': 10,
-'hyp_stats_interval': 5
-},
-
-'LOG':{
-'log_name':  'isard',
-'log_level': 'DEBUG',
-'log_file':  'msg.log'
-},
-
-'TIMEOUTS':{
-'ssh_paramiko_hyp_test_connection':   4,
-'timeout_trying_ssh': 2,
-'timeout_trying_hyp_and_ssh': 10,
-'timeout_queues': 2,
-'timeout_hypervisor': 10,
-'libvirt_hypervisor_timeout_connection': 3,
-'timeout_between_retries_hyp_is_alive': 1,
-'retries_hyp_is_alive': 3
-},
+'SSH': rconfig['ssh'],
+'STATS': rconfig['stats'],
+'LOG': rconfig['log'],
+'TIMEOUTS':rconfig['timeouts'],
 
 'REMOTEOPERATIONS':{
 'host_remote_disk_operatinos': 'vdesktop1.escoladeltreball.org',
