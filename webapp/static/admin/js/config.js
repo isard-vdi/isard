@@ -10,7 +10,6 @@ $(document).ready(function() {
 
     api.ajax('/admin/config','POST',{}).done(function(data) {
         $.each( data, function( key, value ) {
-            console.log(key,value)
             if(typeof(value) === "boolean"){
                 $('#'+key).iCheck('disable');
                 if(value){$('#'+key).iCheck('check');}
@@ -215,6 +214,7 @@ $(document).ready(function() {
 	}, false);
 
 	backups_source.addEventListener('Deleted', function(e) {
+        console.log('deleted');
 	  var data = JSON.parse(e.data);
       var row = backups_table.row('#'+data.id).remove().draw();
             new PNotify({
@@ -280,7 +280,6 @@ function show_disposables(){
  
      $('#table-disposablesx').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
         if($(this).attr('id')=='btn-disposable_desktops-delete'){
 				new PNotify({
 						title: 'Delete disposable',
