@@ -57,6 +57,20 @@ $(document).ready(function() {
         $('[id^="btn-'+basekey+'-"]').hide(); 
     });
 
+    $('#btn-checkport').on( 'click', function (event) {
+        event.preventDefault()
+                    console.log($('#engine-carbon-server').value)
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+                        console.log(data);
+                    });  
+    });
+    
+    function checkPort(){
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+                        console.log(data);
+                    });          
+    }
+    
     $('.btn-scheduler').on( 'click', function () {
         $('#modalScheduler').modal({
 				backdrop: 'static',

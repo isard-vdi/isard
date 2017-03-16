@@ -63,13 +63,16 @@ def admin_disposables():
 def admin_config_update():
     if request.method == 'POST':
         dict=app.isardapi.f.unflatten_dict(request.form)
-        #~ print(dict)
         if 'auth' in dict:
             dict['auth']['local']={'active':False} if 'local' not in dict['auth']  else {'active':True}
             dict['auth']['ldap']['active']=False if 'active' not in dict['auth']['ldap'] else True
         if 'engine' in dict:
             if 'carbon' in dict['engine']:
                 dict['engine']['carbon']['active']=False if 'active' not in dict['engine']['carbon'] else True
+            if 'ssh' in dict['engine']:
+                if 'hidden' in dict['engine']['ssh']:
+                    dict['engine']['ssh']['paramiko_host_key_policy_check']=True if 'paramiko_host_key_policy_check' in dict['engine']['ssh'] else False
+                    dict['engine']['ssh'].pop('hidden',None)
         if 'disposable_desktops' in dict:
             dict['disposable_desktops'].pop('id',None)
             dict['disposable_desktops']['active']=False if 'active' not in dict['disposable_desktops'] else True
@@ -77,6 +80,15 @@ def admin_config_update():
             return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
 
+@app.route('/admin/config/checkport', methods=['POST'])
+@login_required
+@isAdmin
+def admin_config_checkport():
+    if request.method == 'POST':
+        
+        if app.adminapi.check_port(request.form['server'],request.form['port']):
+            return json.dumps('Port is open'), 200, {'ContentType':'application/json'}
+    return json.dumps('Port is closed'), 500, {'ContentType':'application/json'}
 
 '''
 BACKUP & RESTORE
