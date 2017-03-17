@@ -52,7 +52,7 @@ class isardScheduler():
         self.scheduler.add_job(self.bulk_action,'interval', run_date=alarm_time, args=[table,filter,update], jobstore=self.rStore, replace_existing=True, id='p1')
 
     def clean_stats(self):
-        self.scheduler.add_job(self.remove_old_stats, 'interval', minutes=20, jobstore=self.rStore, replace_existing=True, id='clean_stats')
+        self.scheduler.add_job(self.remove_old_stats, 'interval', minutes=1, jobstore=self.rStore, replace_existing=True, id='clean_stats')
         with app.app_context():
             r.table('scheduler_jobs').get('clean_stats').update({'kind':'interval','table':'','filter':'','update':'','hour':0,'minute':20}).run(db.conn)
   
@@ -61,7 +61,15 @@ class isardScheduler():
             r.table('domains_status').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn)  
             r.table('hypervisors_events').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn)  
             r.table('hypervisors_status').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn)  
-                
+
+    def stop_domains(self):
+        self.scheduler.add_job(self.stop_all_domains, 'cron', hour=22, minute=20, jobstore=self.rStore, replace_existing=True, id='domains_stop')
+        with app.app_context():
+            r.table('scheduler_jobs').get('domains_stop').update({'kind':'cron','table':'domains_stop','filter':'','update':'','hour':22,'minute':20}).run(db.conn)
+
+    def stop_all_domains():
+	with app.app_context():
+	    r.table('domains').get_all({'status':'Started'}).update({'status':'Stopping'}).run(db.conn)
     #~ def getJobs(self):
         #~ return self.scheduler.print_jobs()
         
