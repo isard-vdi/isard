@@ -51,7 +51,15 @@ class isardScheduler():
         alarm_time = datetime.now() + timedelta(seconds=10)
         self.scheduler.add_job(self.bulk_action,'interval', run_date=alarm_time, args=[table,filter,update], jobstore=self.rStore, replace_existing=True, id='p1')
 
-
+    def clean_stats(self):
+        self.scheduler.add_job(self.remove_old_stats, 'interval', minutes=1, jobstore=self.rStore, replace_existing=True, id='clean_stats')
+        with app.app_context():
+            r.table('scheduler_jobs').get('clean_stats').update({'kind':'interval','table':'','filter':'','update':'','hour':2,'minute':0}).run(db.conn)
+  
+    def remove_old_stats(self):
+        with app.app_context():
+            r.table('domains_status').filter(r.row['when'] > datetime.now() - timedelta(minutes=1)).run(conn)  
+                
     #~ def getJobs(self):
         #~ return self.scheduler.print_jobs()
         
