@@ -68,8 +68,8 @@ class isardScheduler():
             r.table('scheduler_jobs').get('domains_stop').update({'kind':'cron','table':'domains_stop','filter':'','update':'','hour':22,'minute':20}).run(db.conn)
 
     def stop_all_domains():
-	with app.app_context():
-	    r.table('domains').get_all({'status':'Started'}).update({'status':'Stopping'}).run(db.conn)
+        with app.app_context():
+            r.table('domains').get_all({'status':'Started'}).update({'status':'Stopping'}).run(db.conn)
     #~ def getJobs(self):
         #~ return self.scheduler.print_jobs()
         

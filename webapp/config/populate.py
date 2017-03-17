@@ -558,6 +558,10 @@ class Populate(object):
             if not r.table_list().contains('domains').run(db.conn):
                 log.info("Table domains not found, creating...")
                 r.table_create('domains', primary_key="id").run(db.conn)
+                r.table('domains').index_create("status").run(db.conn)
+                r.table('domains').index_wait("status").run(db.conn)
+                r.table('domains').index_create("hyp_started").run(db.conn)
+                r.table('domains').index_wait("hyp_started").run(db.conn)
                 r.table('domains').index_create("user").run(db.conn)
                 r.table('domains').index_wait("user").run(db.conn)
                 r.table('domains').index_create("group").run(db.conn)
