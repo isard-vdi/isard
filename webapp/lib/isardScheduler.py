@@ -54,7 +54,7 @@ class isardScheduler():
     def clean_stats(self):
         self.scheduler.add_job(self.remove_old_stats, 'interval', minutes=1, jobstore=self.rStore, replace_existing=True, id='clean_stats')
         with app.app_context():
-            r.table('scheduler_jobs').get('clean_stats').update({'kind':'interval','table':'','filter':'','update':'','hour':0,'minute':20}).run(db.conn)
+            r.table('scheduler_jobs').get('clean_stats').update({'kind':'interval','name':'Clean all statistics','table':'','filter':'','update':'','hour':0,'minute':20}).run(db.conn)
   
     def remove_old_stats():
         with app.app_context():

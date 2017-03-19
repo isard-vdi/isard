@@ -36,6 +36,8 @@ def admin():
 @login_required
 def admin_table_get(table):
     result=app.adminapi.get_admin_table(table)
+    print(result)
+    if table == 'scheduler_jobs': result[0].pop('job_state', None)
     return json.dumps(result), 200, {'ContentType':'application/json'} 
 
 '''

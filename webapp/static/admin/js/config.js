@@ -163,6 +163,78 @@ $(document).ready(function() {
         }
     });           
 
+
+    scheduler_table=$('#table-scheduler').DataTable({
+			"ajax": {
+				"url": "/admin/table/scheduler_jobs/get",
+				"dataSrc": ""
+			},
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+            "bLengthChange": false,
+            "bFilter": false,
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+                { "data": "name"},
+				{ "data": "kind"},
+				{ "data": "next_run_time"},
+				{
+                "className":      'actions-control',
+                "orderable":      false,
+                "data":           null,
+                "width": "58px",
+                "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
+                                   <button id="btn-scheduler-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkblue"></i></button>'
+				},
+                ],
+			 "order": [[1, 'asc']],
+			 "columnDefs": [ {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+							  return moment.unix(full.next_run_time);
+							}}]
+    } );        
+ 
+     $('#table-scheduler').find(' tbody').on( 'click', 'button', function () {
+        var data = scheduler_table.row( $(this).parents('tr') ).data();
+        console.log($(this).attr('id'),data);
+        if($(this).attr('id')=='btn-scheduler-delete'){
+				new PNotify({
+						title: 'Delete scheduled task',
+							text: "Do you really want to delete scheduled task "+moment.unix(data.next_run_time)+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/backup_remove','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+        if($(this).attr('id')=='btn-backups-restore'){
+				new PNotify({
+						title: 'Restore backup',
+							text: "Do you really want to restore backup from file "+data.filename+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/restore','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+    });           
+
+
     // Stream domains_source
 	if (!!window.EventSource) {
 	  var backups_source = new EventSource('/admin/stream/backups');
