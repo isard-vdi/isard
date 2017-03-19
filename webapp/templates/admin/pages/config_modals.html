@@ -120,3 +120,45 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="modalUpload" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Upload backup file
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <div class="row">
+                  <div class="col-md-12 col-sm-12 col-xs-12">
+                    <div class="x_panel">
+                      <div class="x_title">
+                        <h2>Dropzone multiple file uploader</h2>
+                        <div class="clearfix"></div>
+                      </div>
+                      <div class="x_content">
+                        <p>Drag multiple files to the box below for multi upload or click to select files. This is for demonstration purposes only, the files are not uploaded to any server.</p>
+                        <form action="{{ url_for('admin_backup_upload') }}" class="dropzone"></form>
+                        <br />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+

@@ -93,7 +93,14 @@ $(document).ready(function() {
 						}).on('pnotify.cancel', function() {
 				});	         
     });
-    
+
+    $('.btn-backups-upload').on( 'click', function () {
+			$('#modalUpload').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');  
+        });
+        
     backups_table=$('#table-backups').DataTable({
 			"ajax": {
 				"url": "/admin/table/backups/get",
@@ -113,9 +120,10 @@ $(document).ready(function() {
                 "className":      'actions-control',
                 "orderable":      false,
                 "data":           null,
-                "width": "58px",
+                "width": "88px",
                 "defaultContent": '<button id="btn-backups-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   <button id="btn-backups-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkblue"></i></button>'
+                                   <button id="btn-backups-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i></button> \
+                                   <button id="btn-backups-download" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-download" style="color:darkblue"></i></button>'
 				},
                 ],
 			 "order": [[1, 'asc']],
@@ -128,7 +136,6 @@ $(document).ready(function() {
  
      $('#table-backups').find(' tbody').on( 'click', 'button', function () {
         var data = backups_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
         if($(this).attr('id')=='btn-backups-delete'){
 				new PNotify({
 						title: 'Delete backup',
@@ -160,6 +167,15 @@ $(document).ready(function() {
                             });  
 						}).on('pnotify.cancel', function() {
 				});	  
+        }
+        if($(this).attr('id')=='btn-backups-download'){
+						var url = '/admin/backup/download/'+data['id'];
+						var anchor = document.createElement('a');
+							anchor.setAttribute('href', url);
+							anchor.setAttribute('download', data['filename']);
+						var ev = document.createEvent("MouseEvents");
+							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+						anchor.dispatchEvent(ev);
         }
     });           
 
@@ -384,4 +400,47 @@ function renderDisposables(data){
         return_data.push(data['disposables'][i].name)
       }
       return return_data;
+}
+
+function renderDropzone(){
+    new Dropzone("div#droparea", {
+    url: "/uploadajax",
+    method: "POST", // can be changed to "put" if necessary
+    maxFilesize: 800, // in MB
+    paramName: "file", // The name that will be used to transfer the file
+    uploadMultiple: false, // This option will also trigger additional events (like processingmultiple).
+    headers: {
+      "My-Awesome-Header": "header value"
+    },
+    addRemoveLinks: true, // add an <a class="dz-remove">Remove file</a> element to the file preview that will remove the file, and it will change to Cancel upload
+    previewsContainer: "#previewsContainer",
+    //~ clickable: "#selectImage",
+    createImageThumbnails: false,
+    maxThumbnailFilesize: 2, // in MB
+    thumbnailWidth: 300,
+    thumbnailHeight: 300,
+    maxFiles: 1,
+    acceptedFiles: "image/png, image/jpeg, image/gif", //This is a comma separated list of mime types or file extensions.Eg.: image/*,application/pdf,.psd.
+    autoProcessQueue: false, // When set to false you have to call myDropzone.processQueue() yourself in order to upload the dropped files. 
+    forceFallback: false,
+
+    init: function() {
+      console.log("init");
+    },
+    resize: function(file) {
+      console.log("resize");
+      /*
+       * Crop rectangle range
+       * Those values are going to be used by ctx.drawImage().
+       */ 
+      return {"srcX":0, "srcY":0, "srcWidth":300, "srcHeight":300}
+    },
+    accept: function(file, done) {
+      console.log("accept");
+      done();
+    },
+    fallback: function() {
+      console.log("fallback");
+    }
+  });
 }

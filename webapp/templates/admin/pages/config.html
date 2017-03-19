@@ -1,6 +1,8 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
+    <!-- Dropzone.js -->
+    <link href="/vendors/dropzone/dist/min/dropzone.min.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 
@@ -190,6 +192,7 @@
                     <h2><i class="fa fa-briefcase"></i> Backup database <small></small></h2>
                     <ul class="nav navbar-right panel_toolbox">
                         <li><a class="btn-backup" data-panel="backup"><span style="color: #5499c7; "><i class="fa fa-life-saver"></i> Backup</span></a>
+                        <li><a class="btn-backups-upload" data-panel="backup"><span style="color: darkgreen; "><i class="fa fa-upload"></i> Upload</span></a>
                             <!--
                         <li><a class="btn-restore" data-panel="backup"><span style="color: #5499c7; "><i class="fa fa-sign-in"></i> Restore</span></a>
 -->
@@ -430,6 +433,8 @@ ENGINE
 {% include '/admin/pages/config_modals.html' %}
 {% endblock %}
 {% block pagescript %}
+    <!-- Dropzone.js -->
+    <script src="/vendors/dropzone/dist/min/dropzone.min.js"></script>
      	<script src="/js/restful.js"></script>
         <script src="/static/admin/js/config.js"></script>  
 {% endblock %}
