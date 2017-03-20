@@ -52,9 +52,26 @@ class isardScheduler():
         self.scheduler.add_job(self.bulk_action,'interval', run_date=alarm_time, args=[table,filter,update], jobstore=self.rStore, replace_existing=True, id='p1')
 
     def clean_stats(self):
-        self.scheduler.add_job(self.remove_old_stats, 'interval', minutes=1, jobstore=self.rStore, replace_existing=True, id='clean_stats')
+        self.scheduler.add_job(self.remove_old_stats, 'interval', hours=24, jobstore=self.rStore, replace_existing=True, id='clean_stats')
         with app.app_context():
             r.table('scheduler_jobs').get('clean_stats').update({'kind':'interval','name':'Clean all statistics','table':'','filter':'','update':'','hour':0,'minute':20}).run(db.conn)
+  
+    def stop_domains_without_viewer(self):
+        self.scheduler.add_job(self.stop_noclient_domains, 'cron', hour=11, minute=0, jobstore=self.rStore, replace_existing=True, id='stop_noclient_domains_11')
+        self.scheduler.add_job(self.stop_noclient_domains, 'cron', hour=15, minute=0, jobstore=self.rStore, replace_existing=True, id='stop_noclient_domains_15')
+        self.scheduler.add_job(self.stop_noclient_domains, 'cron', hour=22, minute=15, jobstore=self.rStore, replace_existing=True, id='stop_noclient_domains_22')
+        with app.app_context():
+            r.table('scheduler_jobs').get('stop_noclient_domains_11').update({'kind':'cron','name':'Stop domains without viewer (11:00)','table':'','filter':'','update':'','hour':11,'minute':0}).run(db.conn)
+            r.table('scheduler_jobs').get('stop_noclient_domains_15').update({'kind':'cron','name':'Stop domains without viewer (15:00)','table':'','filter':'','update':'','hour':15,'minute':0}).run(db.conn)
+            r.table('scheduler_jobs').get('stop_noclient_domains_22').update({'kind':'cron','name':'Stop domains without viewer (22:15)','table':'','filter':'','update':'','hour':22,'minute':15}).run(db.conn)
+
+    '''
+    Scheduler actions
+    '''
+    def stop_noclient_domains():
+        with app.app_context():
+            r.table('domains').get_all('Started',index='status').filter({'viewer':{'client_since':False}}).update({'status':'Stopping'}).run(db.conn)
+        
   
     def remove_old_stats():
         with app.app_context():

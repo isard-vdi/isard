@@ -37,7 +37,9 @@ def admin():
 def admin_table_get(table):
     result=app.adminapi.get_admin_table(table)
     print(result)
-    if table == 'scheduler_jobs': result[0].pop('job_state', None)
+    if table == 'scheduler_jobs': 
+        for i,val  in enumerate(result):
+            result[i].pop('job_state', None)
     return json.dumps(result), 200, {'ContentType':'application/json'} 
 
 '''
