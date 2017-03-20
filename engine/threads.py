@@ -10,6 +10,7 @@ from collections import OrderedDict
 import queue
 import threading
 import time
+import os
 
 from libvirt import VIR_DOMAIN_START_PAUSED,libvirtError
 from os.path import dirname as extract_dir_path
@@ -20,7 +21,7 @@ import threading
 from .db import get_hyp_hostnames_online,update_domain_hyp_started, update_all_domains_status
 from .db import update_hypervisor_failed_connection, update_hyp_status, set_unknown_domains_not_in_hyps
 from .db import update_domain_status, get_domains_started_in_hyp, get_hyp_hostname_from_id, update_domains_started_in_hyp_to_unknown
-from .functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str,execute_commands, execute_command_with_progress
+from .functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str,execute_commands, execute_command_with_progress,get_tid
 from .qcow import extract_list_backing_chain,create_cmds_disk_template_from_domain, verify_output_cmds1_template_from_domain,verify_output_cmds2,verify_output_cmds3
 from .db import update_db_hyp_info, update_disk_template_created, update_disk_backing_chain
 from .vm import create_template_from_dict
@@ -189,8 +190,8 @@ class DiskOperationsThread(threading.Thread):
 
     def disk_operations_thread(self):
         host = self.hostname
-
-        log.debug('Thread to launchdisks operations in host {} ...'.format(host))
+        self.pid = os.getppid()
+        log.debug('Thread to launchdisks operations in host {} with PID: {}...'.format(host, pid))
 
 
         while self.stop is not True:
@@ -245,7 +246,9 @@ class HypWorkerThread(threading.Thread):
         self.queue_master = queue_master
 
     def run(self):
-        log.debug('Hyp {} worker thread started ...'.format(self.hyp_id))
+        self.pid = os.getppid()
+        self.tid = get_tid()
+        log.debug('Hyp {} worker thread started with TID: {} PID: {}'.format(self.tid, self.hyp_id, self.pid))
         host,port,user = get_hyp_hostname_from_id(self.hyp_id)
         port = int(port)
         self.hostname = host
@@ -324,15 +327,15 @@ class HypWorkerThread(threading.Thread):
                                        user,
                                        port)
 
-                # ## DESTROY THREAD
-                # elif action['type'] == 'destroy_thread':
-                #     list_works_in_queue = list(self.queue_actions.queue)
-                #     if self.queue_master is not None:
-                #         self.queue_master.put(['destroy_working_thread',self.hyp_id,list_works_in_queue])
-                #     #INFO TO DEVELOPER, si entra aquí es porque no quedaba nada en cola, si no ya lo habrán matado antes
-                #
-                #     log.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
-                #
+                    # ## DESTROY THREAD
+                    # elif action['type'] == 'destroy_thread':
+                    #     list_works_in_queue = list(self.queue_actions.queue)
+                    #     if self.queue_master is not None:
+                    #         self.queue_master.put(['destroy_working_thread',self.hyp_id,list_works_in_queue])
+                    #     #INFO TO DEVELOPER, si entra aquí es porque no quedaba nada en cola, si no ya lo habrán matado antes
+                    #
+                    #     log.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
+                    #
 
                     #raise 'destoyed'
 
@@ -351,8 +354,8 @@ class HypWorkerThread(threading.Thread):
                     self.stop = True
                 else:
                     log.debug('type action {} not supported in queue actions'.format(action['type']))
-                #time.sleep(0.1)
-                ## TRY DOMAIN
+                    #time.sleep(0.1)
+                    ## TRY DOMAIN
 
 
             except queue.Empty:

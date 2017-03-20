@@ -283,8 +283,7 @@ class UiActions(object):
 
             disk_index_in_bus = disk_index_in_bus + 1
 
-    return True
-        pass
+        return True
 
     def create_template_disks_from_domain(self,id_domain):
         dict_domain = get_domain(id_domain)
@@ -662,5 +661,5 @@ class UiActions(object):
 
 ### Hypers
 
-    def set_default_hyper(self,hyp_id):
-        return change_hyp_disk_operations(hyp_id)
+    # def set_default_hyper(self,hyp_id):
+    #     return change_hyp_disk_operations(hyp_id)

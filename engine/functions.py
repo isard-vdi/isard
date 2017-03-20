@@ -17,6 +17,7 @@ import time
 import threading
 import json
 import xmltodict
+import ctypes
 from time import sleep
 from .db import update_domain_progress, insert_disk_operation, update_disk_operation, get_disks_all_domains
 from .db import get_domain, insert_domain, update_domain_createing_template, get_domain_spice,get_config
@@ -45,10 +46,13 @@ def get_threads_running():
     # t_enumerate.start()
 
     e = threading.enumerate()
-    l = [t.name for t in e]
-    l.sort()
-    for i in l:
-        log.debug('Thread running: {}'.format(i))
+    # l = [t.name for t in e]
+    # l.sort()
+    log.debug('PID: {}'.format(os.getppid()))
+    for t in e:
+        if hasattr(t, 'tid'):  # only available on Unix
+            log.debug('Thread running(TID: {}): {}'.format(t.tid, t.name))
+        log.debug('Thread running: {}'.format(t.name))
     return e
 
 
@@ -62,6 +66,11 @@ def get_threads_names_running():
     l = [t.name for t in e]
     l.sort()
     return l
+
+def get_tid():
+
+    tid = ctypes.CDLL('libc.so.6').syscall(186)
+    return tid
 
 def randomMAC():
 	mac = [ 0x52, 0x54, 0x00,

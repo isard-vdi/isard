@@ -26,12 +26,13 @@ from .config import TEST_HYP_FAIL_INTERVAL, STATUS_POLLING_INTERVAL, TIME_BETWEE
 
 
 class ManagerHypervisors(object):
-    def __init__(self, launch_threads=True,
+    def __init__(self, launch_threads=True,with_status_threads=True,
                  status_polling_interval=STATUS_POLLING_INTERVAL,
                  test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL):
 
         self.time_between_polling = TIME_BETWEEN_POLLING
         self.polling_interval_background = POLLING_INTERVAL_BACKGROUND
+        self.with_status_threads = with_status_threads
 
         self.q = self.QueuesThreads()
         self.t_workers = {}
@@ -106,7 +107,8 @@ class ManagerHypervisors(object):
                     update_hyp_status(hyp_id, 'StartingThreads')
                     # start worker thread
                     self.manager.t_workers[hyp_id], self.manager.q.workers[hyp_id] = launch_thread_worker(hyp_id)
-                    self.manager.t_status[hyp_id] = launch_thread_status(hyp_id, self.manager.STATUS_POLLING_INTERVAL)
+                    if self.manager.with_status_threads is True:
+                        self.manager.t_status[hyp_id] = launch_thread_status(hyp_id, self.manager.STATUS_POLLING_INTERVAL)
 
                     # self.manager.launch_threads(hyp_id)
                     # INFO TO DEVELOPER FALTA VERIFICAR QUE REALMENTE ESTÁN ARRANCADOS LOS THREADS??
@@ -117,13 +119,15 @@ class ManagerHypervisors(object):
                         if id_pool not in self.manager.pools.keys():
                             self.manager.pools[id_pool] = PoolHypervisors(id_pool)
 
-            self.manager.broom = launch_thread_broom()
+
 
         def run(self):
             q = self.manager.q.background
             first_loop = True
 
             while self.manager.quit is False:
+                get_threads_running()
+                print('canta canta')
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
                     self.launch_threads_disk_operations()
@@ -140,6 +144,8 @@ class ManagerHypervisors(object):
                     self.t_changes_domains = self.manager.DomainsChangesThread('changes_domains', self.manager)
                     self.t_changes_domains.daemon = True
                     self.t_changes_domains.start()
+
+                    self.manager.broom = launch_thread_broom()
 
                     first_loop = False
 
