@@ -22,7 +22,7 @@ import time
 import threading
 
 from .log import *
-from .functions import hostname_to_uri
+from .functions import hostname_to_uri, get_tid
 from .db import update_domain_status, get_id_hyp_from_uri, update_domain_viewer_started_values, insert_event_in_db, RethinkHypEvent, remove_domain_viewer_values
 from .db import get_hyp_hostname_user_port_from_id, update_uri_hyp, get_domain_status, get_domain_hyp_started_and_status_and_detail
 from .vm import xml_vm
@@ -221,6 +221,7 @@ def myDomainEventCallbackRethink (conn, dom, event, detail, opaque):
             vm=xml_vm(xml_started)
             port, tlsport = vm.get_graphics_port()
             update_domain_viewer_started_values(dom_id, hyp_id= hyp_id, port = port, tlsport = tlsport)
+            log.info('DOMAIN STARTED - {} in {} (port: {} / tlsport:{})'.format(dom_id, hyp_id, port, tlsport))
         except Exception as e:
             log.debug('Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed'.format(dom_id))
             log.debug('Exception: ' + str(e))
@@ -361,6 +362,8 @@ class ThreadHypEvents(threading.Thread):
 
     def run(self):
         # Close connection on exit (to test cleanup paths)
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         old_exitfunc = getattr(sys, 'exitfunc', None)
 
         def exit():

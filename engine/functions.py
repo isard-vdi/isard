@@ -48,11 +48,12 @@ def get_threads_running():
     e = threading.enumerate()
     # l = [t.name for t in e]
     # l.sort()
-    log.debug('PID: {}'.format(os.getppid()))
+    log.debug('parent PID: {}'.format(os.getppid()))
     for t in e:
         if hasattr(t, 'tid'):  # only available on Unix
-            log.debug('Thread running(TID: {}): {}'.format(t.tid, t.name))
-        log.debug('Thread running: {}'.format(t.name))
+            log.debug('Thread running (TID: {}): {}'.format(t.tid, t.name))
+        else:
+            log.debug('Thread running: {}'.format(t.name))
     return e
 
 
@@ -99,6 +100,8 @@ def timelimit(timeout, func, arg1):
             self.result = None
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             self.result = func(arg1)
 
     it = FuncThread()

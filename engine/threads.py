@@ -186,12 +186,14 @@ class DiskOperationsThread(threading.Thread):
         self.queue_master = queue_master
 
     def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         self.disk_operations_thread()
 
     def disk_operations_thread(self):
         host = self.hostname
-        self.pid = os.getppid()
-        log.debug('Thread to launchdisks operations in host {} with PID: {}...'.format(host, pid))
+        self.tid = get_tid()
+        log.debug('Thread to launchdisks operations in host {} with TID: {}...'.format(host, self.tid))
 
 
         while self.stop is not True:
@@ -246,9 +248,8 @@ class HypWorkerThread(threading.Thread):
         self.queue_master = queue_master
 
     def run(self):
-        self.pid = os.getppid()
         self.tid = get_tid()
-        log.debug('Hyp {} worker thread started with TID: {} PID: {}'.format(self.tid, self.hyp_id, self.pid))
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         host,port,user = get_hyp_hostname_from_id(self.hyp_id)
         port = int(port)
         self.hostname = host
@@ -532,6 +533,8 @@ class try_hyp_connection_thread (threading.Thread):
         self.user = user
 
     def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
 
         self.hyp_obj,self.ok=try_hyp_connection(self.hyp_id,self.hostname,self.port,self.user)
 

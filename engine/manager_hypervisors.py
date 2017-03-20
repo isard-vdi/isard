@@ -19,7 +19,7 @@ from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status
 from .db import new_rethink_connection, update_all_hyps_status, get_pools_from_hyp, get_domain_hyp_started
 from .db import get_if_all_disk_template_created, update_domain_status, get_hypers_disk_operations
 from .db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id
-from .functions import get_threads_running
+from .functions import get_threads_running, get_tid
 from .ui_actions import UiActions
 from .log import *
 from .config import TEST_HYP_FAIL_INTERVAL, STATUS_POLLING_INTERVAL, TIME_BETWEEN_POLLING, POLLING_INTERVAL_BACKGROUND
@@ -29,6 +29,8 @@ class ManagerHypervisors(object):
     def __init__(self, launch_threads=True,with_status_threads=True,
                  status_polling_interval=STATUS_POLLING_INTERVAL,
                  test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL):
+
+        log.info('MAIN PID: {}'.format(get_tid()))
 
         self.time_between_polling = TIME_BETWEEN_POLLING
         self.polling_interval_background = POLLING_INTERVAL_BACKGROUND
@@ -122,12 +124,15 @@ class ManagerHypervisors(object):
 
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             q = self.manager.q.background
             first_loop = True
 
             while self.manager.quit is False:
+                # ONLY FOR DEBUG
+                log.debug('##### THREADS ##################')
                 get_threads_running()
-                print('canta canta')
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
                     self.launch_threads_disk_operations()
@@ -181,6 +186,8 @@ class ManagerHypervisors(object):
             self.name = name
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             r_conn = new_rethink_connection()
             # rtable=r.table('disk_operations')
             # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
@@ -207,6 +214,8 @@ class ManagerHypervisors(object):
             self.name = name
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             log.debug('^^^^^^^^^^^^^^^^^^^ ACTIONS THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
             r_conn = new_rethink_connection()
@@ -237,6 +246,8 @@ class ManagerHypervisors(object):
             self.name = name
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             log.debug('^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
             r_conn = new_rethink_connection()

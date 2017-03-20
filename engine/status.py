@@ -21,7 +21,7 @@ from .db import get_domain_hyp_started_and_status_and_detail, update_domain_hyp_
 from .db import update_domain_status
 
 
-from .functions import calcule_cpu_stats, calcule_disk_net_domain_load
+from .functions import calcule_cpu_stats, calcule_disk_net_domain_load, get_tid
 
 max_len_fifo_domains = int(CONFIG_DICT['STATS']['max_queue_domains_status'])
 max_len_fifo_hyps = int(CONFIG_DICT['STATS']['max_queue_hyps_status'])
@@ -172,6 +172,8 @@ class ThreadIsard(threading.Thread):
         self._kwargs = kwargs
 
     def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         try:
             if self.target_function:
                 self.target_function(*self._args, **self._kwargs)
@@ -246,6 +248,8 @@ class ThreadBroom(threading.Thread):
                     break
 
     def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         self.polling()
 
 class ThreadStatus(threading.Thread):
@@ -276,6 +280,8 @@ class ThreadStatus(threading.Thread):
 
 
     def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         self.polling_status()
 
 def launch_thread_status(hyp_id,polling_interval):

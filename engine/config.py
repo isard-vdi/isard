@@ -33,6 +33,8 @@ RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
 with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
     rconfig=r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
 print(rconfig)
+
+
 STATUS_POLLING_INTERVAL = rconfig['intervals']['status_polling']
 TIME_BETWEEN_POLLING = rconfig['intervals']['time_between_polling']
 TEST_HYP_FAIL_INTERVAL = rconfig['intervals']['test_hyp_fail']
