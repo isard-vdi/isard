@@ -56,6 +56,20 @@ $(document).ready(function() {
         $('[id^="btn-'+basekey+'-"]').hide(); 
     });
 
+    $('#btn-checkport').on( 'click', function (event) {
+        event.preventDefault()
+                    console.log($('#engine-carbon-server').value)
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+                        console.log(data);
+                    });  
+    });
+    
+    function checkPort(){
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+                        console.log(data);
+                    });          
+    }
+    
     $('.btn-scheduler').on( 'click', function () {
         $('#modalScheduler').modal({
 				backdrop: 'static',
@@ -79,7 +93,14 @@ $(document).ready(function() {
 						}).on('pnotify.cancel', function() {
 				});	         
     });
-    
+
+    $('.btn-backups-upload').on( 'click', function () {
+			$('#modalUpload').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');  
+        });
+        
     backups_table=$('#table-backups').DataTable({
 			"ajax": {
 				"url": "/admin/table/backups/get",
@@ -99,9 +120,10 @@ $(document).ready(function() {
                 "className":      'actions-control',
                 "orderable":      false,
                 "data":           null,
-                "width": "58px",
+                "width": "88px",
                 "defaultContent": '<button id="btn-backups-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   <button id="btn-backups-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkblue"></i></button>'
+                                   <button id="btn-backups-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i></button> \
+                                   <button id="btn-backups-download" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-download" style="color:darkblue"></i></button>'
 				},
                 ],
 			 "order": [[1, 'asc']],
@@ -114,7 +136,6 @@ $(document).ready(function() {
  
      $('#table-backups').find(' tbody').on( 'click', 'button', function () {
         var data = backups_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
         if($(this).attr('id')=='btn-backups-delete'){
 				new PNotify({
 						title: 'Delete backup',
@@ -147,7 +168,88 @@ $(document).ready(function() {
 						}).on('pnotify.cancel', function() {
 				});	  
         }
+        if($(this).attr('id')=='btn-backups-download'){
+						var url = '/admin/backup/download/'+data['id'];
+						var anchor = document.createElement('a');
+							anchor.setAttribute('href', url);
+							anchor.setAttribute('download', data['filename']);
+						var ev = document.createEvent("MouseEvents");
+							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+						anchor.dispatchEvent(ev);
+        }
     });           
+
+
+    scheduler_table=$('#table-scheduler').DataTable({
+			"ajax": {
+				"url": "/admin/table/scheduler_jobs/get",
+				"dataSrc": ""
+			},
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+            "bLengthChange": false,
+            "bFilter": false,
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+                { "data": "name"},
+				{ "data": "kind"},
+				{ "data": "next_run_time"},
+				{
+                "className":      'actions-control',
+                "orderable":      false,
+                "data":           null,
+                "width": "58px",
+                "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
+                                   <button id="btn-scheduler-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkblue"></i></button>'
+				},
+                ],
+			 "order": [[1, 'asc']],
+			 "columnDefs": [ {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+							  return moment.unix(full.next_run_time);
+							}}]
+    } );        
+ 
+     $('#table-scheduler').find(' tbody').on( 'click', 'button', function () {
+        var data = scheduler_table.row( $(this).parents('tr') ).data();
+        console.log($(this).attr('id'),data);
+        if($(this).attr('id')=='btn-scheduler-delete'){
+				new PNotify({
+						title: 'Delete scheduled task',
+							text: "Do you really want to delete scheduled task "+moment.unix(data.next_run_time)+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/backup_remove','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+        if($(this).attr('id')=='btn-backups-restore'){
+				new PNotify({
+						title: 'Restore backup',
+							text: "Do you really want to restore backup from file "+data.filename+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/restore','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+    });           
+
 
     // Stream domains_source
 	if (!!window.EventSource) {
@@ -200,6 +302,7 @@ $(document).ready(function() {
 	}, false);
 
 	backups_source.addEventListener('Deleted', function(e) {
+        console.log('deleted');
 	  var data = JSON.parse(e.data);
       var row = backups_table.row('#'+data.id).remove().draw();
             new PNotify({
@@ -265,7 +368,6 @@ function show_disposables(){
  
      $('#table-disposablesx').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
         if($(this).attr('id')=='btn-disposable_desktops-delete'){
 				new PNotify({
 						title: 'Delete disposable',
@@ -298,4 +400,47 @@ function renderDisposables(data){
         return_data.push(data['disposables'][i].name)
       }
       return return_data;
+}
+
+function renderDropzone(){
+    new Dropzone("div#droparea", {
+    url: "/uploadajax",
+    method: "POST", // can be changed to "put" if necessary
+    maxFilesize: 800, // in MB
+    paramName: "file", // The name that will be used to transfer the file
+    uploadMultiple: false, // This option will also trigger additional events (like processingmultiple).
+    headers: {
+      "My-Awesome-Header": "header value"
+    },
+    addRemoveLinks: true, // add an <a class="dz-remove">Remove file</a> element to the file preview that will remove the file, and it will change to Cancel upload
+    previewsContainer: "#previewsContainer",
+    //~ clickable: "#selectImage",
+    createImageThumbnails: false,
+    maxThumbnailFilesize: 2, // in MB
+    thumbnailWidth: 300,
+    thumbnailHeight: 300,
+    maxFiles: 1,
+    acceptedFiles: "image/png, image/jpeg, image/gif", //This is a comma separated list of mime types or file extensions.Eg.: image/*,application/pdf,.psd.
+    autoProcessQueue: false, // When set to false you have to call myDropzone.processQueue() yourself in order to upload the dropped files. 
+    forceFallback: false,
+
+    init: function() {
+      console.log("init");
+    },
+    resize: function(file) {
+      console.log("resize");
+      /*
+       * Crop rectangle range
+       * Those values are going to be used by ctx.drawImage().
+       */ 
+      return {"srcX":0, "srcY":0, "srcWidth":300, "srcHeight":300}
+    },
+    accept: function(file, done) {
+      console.log("accept");
+      done();
+    },
+    fallback: function() {
+      console.log("fallback");
+    }
+  });
 }

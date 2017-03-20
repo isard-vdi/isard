@@ -10,6 +10,8 @@ import random, queue
 from threading import Thread
 import time
 from webapp import app
+from werkzeug import secure_filename
+import os
 from datetime import datetime, timedelta
 import rethinkdb as r
 
@@ -32,7 +34,17 @@ class isardAdmin():
             return True
         if not dict['errors']: return True
         return False
-        
+
+    import socket
+    from contextlib import closing
+
+    def check_socket(host, port):
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+            if sock.connect_ex((host, port)) == 0:
+                return True
+            else:
+                return False
+                    
     '''
     ADMIN API
     '''
@@ -155,16 +167,21 @@ class isardAdmin():
                     #~ dict['data'][table]=r.table(table).count().run(db.conn)
                     r.table('backups').get(id).update({'data':{table:r.table(table).count().run(db.conn)}}).run(db.conn)
         with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)            
             r.table('backups').get(id).update({'status':'Dumping to file'}).run(db.conn)
+        with open(path+id+'.rethink', 'wb') as isard_rethink_file:
+            pickle.dump(dict, isard_rethink_file)
         with open(path+id+'.json', 'wb') as isard_db_file:
             pickle.dump(isard_db, isard_db_file)
         with app.app_context():
             r.table('backups').get(id).update({'status':'Compressing'}).run(db.conn)
         with tarfile.open(path+id+'.tar.gz', "w:gz") as tar:
             tar.add(path+id+'.json', arcname=os.path.basename(path+id+'.json'))
+            tar.add(path+id+'.rethink', arcname=os.path.basename(path+id+'.rethink'))
             tar.close()
         try:
             os.remove(path+id+'.json')
+            os.remove(path+id+'.rethink')
         except OSError:
             pass
         with app.app_context():
@@ -197,9 +214,40 @@ class isardAdmin():
             r.table('backups').get(id).update({'status':'Finished restoring'}).run(db.conn)
         try:
             os.remove(path+id+'.json')
-        except OSError:
+            os.remove(path+id+'.rethink')
+        except OSError as e:
+            log.error(e)
             pass
-            
+
+    def upload_backup(self,handler):
+        path='./backups/'
+        id=handler.filename.split('.tar.gz')[0]
+        filename = secure_filename(handler.filename)
+        handler.save(os.path.join(path+filename))
+        import tarfile,pickle
+        #~ with app.app_context():
+            #~ dict=r.table('backups').get(id).run(db.conn)
+            #~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
+        #~ path=dict['path']
+        
+        with tarfile.open(path+handler.filename, "r:gz") as tar:
+            tar.extractall(path)
+            tar.close()
+        #~ with app.app_context():
+            #~ r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.rethink', 'rb') as isard_rethink_file:
+            isard_rethink = pickle.load(isard_rethink_file)
+        with app.app_context():
+            log.info(r.table('backups').insert(isard_rethink, conflict='update').run(db.conn))
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Finished uploading'}).run(db.conn)
+        try:
+            os.remove(path+id+'.json')
+            os.remove(path+id+'.rethink')
+        except OSError as e:
+            log.error(e)
+            pass
+        
     def remove_backup_db(self,id):
         with app.app_context():
             dict=r.table('backups').get(id).run(db.conn)
@@ -210,7 +258,13 @@ class isardAdmin():
             pass
         with app.app_context():
             r.table('backups').get(id).delete().run(db.conn)
-                    
+
+    def info_backup_db(self,id):
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+        with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
+            return dict['path'],dict['filename'], isard_db_file.read()
+        
 class flatten(object):
     def __init__(self):
         None
