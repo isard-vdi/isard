@@ -1,6 +1,8 @@
-
+from flask import jsonify
 import os
 from flask import Flask
+import json
+
 
 if os.path.isfile('config.py'):
     path_config = 'config.py'
@@ -9,23 +11,22 @@ elif os.path.isfile('default_config.py'):
 
 
 try:
-    from app.config import configure_app
-except:
-    from app.default_config import configure_app
+    from api.config import configure_app
 
-wtforms_json.init()
+except:
+    from api.default_config import configure_app
+
 
 app = Flask(__name__)
-configure_app(app)
-db = SQLAlchemy(app)
 
-# Aquest import s'ha de fer despres de app = Flask(__name__)
-from app.presentation.views import *
-from app.presentation.views.query import *
+@app.route('/threads/', methods=['GET'])
+def get_threads():
+    d=[{'prova1':'provando1', 'prova2':'provando2'}]
 
-# register blueprints
-from app.presentation.api import api as api_blueprint
-app.register_blueprint(api_blueprint, url_prefix='/api')
+    return jsonify(d), 200
 
-from app.presentation.views.test.login import auth
-app.register_blueprint(auth)
+
+@app.route('/domains/user/<string:username>', methods=['GET'])
+def get_domains(username):
+    domains = app.db.get_domains_from_user(username)
+    return json.dumps(domains,sort_keys=True, indent=4), 200

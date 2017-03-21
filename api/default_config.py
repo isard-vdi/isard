@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 
 class BaseConfig(object):
     DEBUG = False
-    TESTING = False"
+    TESTING = False
 
     LOGGING_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     LOG_DATE_FORMAT = '%Y/%m/%d %H:%M:%S'

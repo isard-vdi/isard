@@ -280,6 +280,10 @@ class HypWorkerThread(threading.Thread):
                                 #domain is destroyed, all ok
                                 update_domain_status('Stopped',action['id_domain'],hyp_id=self.hyp_id,detail='Domain is created, ready to use')
                                 log.debug('domain {} creating operation finalished. Started paused and destroyed in hypervisor {}. Now status is Stopped. READY TO USE'.format(action['id_domain'],self.hyp_id))
+
+                                if action['id_domain'].find('_disposable_') == 0:
+                                    update_domain_status('Starting', action['id_domain'],
+                                                         detail='Disposable domain starting')
                             else:
                                 update_domain_status('Crashed',action['id_domain'],hyp_id=self.hyp_id,
                                                      detail='Domain is created, started in pause mode but not destroyed,creating domain operation is aborted')
