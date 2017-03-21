@@ -605,7 +605,7 @@ class isard():
                   'description': 'Disposable desktop',
                   'kind': 'desktop',
                   'user': userObj['id'],
-                  'status': 'Creating',
+                  'status': 'CreatingAndStarting',
                   'detail': None,
                   'category': userObj['category'],
                   'group': userObj['group'],

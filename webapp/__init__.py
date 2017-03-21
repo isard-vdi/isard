@@ -51,8 +51,8 @@ Scheduler tests
 from .lib.isardScheduler import isardScheduler
 app.scheduler=isardScheduler()
 #~ app.scheduler.addDate('domains',{'status':'Started'},{'status':'Stopping'},10)
-app.scheduler.clean_stats()
-app.scheduler.stop_domains_without_viewer()
+#~ app.scheduler.clean_stats()
+#~ app.scheduler.stop_domains_without_viewer()
 
 '''
 Authentication types

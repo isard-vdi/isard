@@ -68,7 +68,13 @@
       </div>
     </div>
   </body>
-    
+
+<!-- Warning: this comment is needed for spiceTLS
+<textarea id="caStore" type="text" cols="65" rows="15" style="display:none"></textarea>
+-->
+<!-- Is it possible to hide this? -->
+<embed type="application/x-spice" width=0 height=0>
+
     <!-- jQuery -->
     <script src="/vendors/jquery/dist/jquery.min.js"></script>
     <!-- PNotify -->
@@ -99,6 +105,10 @@
 		{% endwith %}
     <!-- Isard restful ajax calls -->
     <script src="/static/js/restful.js"></script>
+    {% if disposables %}
+        <!-- Spice viewer -->
+        <script src="/static/js/viewer.js"></script> 
+        <script src="/static/js/disposables.js"></script>
         <script>
             $('#disposable').on('change', function() {
                 api.ajax('/desktops_add_disposable','POST',{'pk':this.value}).done(function(data) {
@@ -106,4 +116,5 @@
                 });
             })        
         </script>
+    {% endif %}
 </html>
