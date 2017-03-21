@@ -42,7 +42,9 @@ class ManagerHypervisors(object):
         self.pools = {}
         self.t_disk_operations = {}
         self.q_disk_operations = {}
-        self.t_changes_hyp = None
+        self.t_changes_hyps = None
+        self.t_changes_domains = None
+        self.t_broom = None
         self.t_background = None
         self.quit = False
 
@@ -142,15 +144,15 @@ class ManagerHypervisors(object):
 
                 # LAUNCH CHANGES THREADS
                 if first_loop is True:
-                    self.t_changes_hyp = self.manager.HypervisorChangesThread('changes_hyp', self.manager)
-                    self.t_changes_hyp.daemon = True
-                    self.t_changes_hyp.start()
+                    self.manager.t_changes_hyps = self.manager.HypervisorChangesThread('changes_hyp', self.manager)
+                    self.manager.t_changes_hyps.daemon = True
+                    self.manager.t_changes_hyps.start()
 
-                    self.t_changes_domains = self.manager.DomainsChangesThread('changes_domains', self.manager)
-                    self.t_changes_domains.daemon = True
-                    self.t_changes_domains.start()
+                    self.manager.t_changes_domains = self.manager.DomainsChangesThread('changes_domains', self.manager)
+                    self.manager.t_changes_domains.daemon = True
+                    self.manager.t_changes_domains.start()
 
-                    self.manager.broom = launch_thread_broom()
+                    self.manager.t_broom = launch_thread_broom()
 
                     first_loop = False
 
