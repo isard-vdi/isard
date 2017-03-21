@@ -36,3 +36,5 @@ slip==0.6.4
 slip.dbus==0.6.4
 SSSDConfig==1.14.2
 Werkzeug==0.11.15
+xmltodict==0.10.2
+
