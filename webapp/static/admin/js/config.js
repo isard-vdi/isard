@@ -36,6 +36,9 @@ $(document).ready(function() {
         });  
         $('.footer-'+basekey).css('display','block');
         $('[id^="btn-'+basekey+'-"]').show();
+        if(basekey=='disposable_desktops'){
+            activateDisposables();
+        }
             
     });
 
@@ -75,7 +78,14 @@ $(document).ready(function() {
 				keyboard: false
         }).modal('show'); 
     });
-    
+
+    $('.btn-add-disposables').on( 'click', function () {
+        $('#modalDisposable').modal({
+				backdrop: 'static',
+				keyboard: false
+        }).modal('show'); 
+    });
+        
     $('.btn-backup').on( 'click', function () {
 				new PNotify({
 						title: 'Create backup',
@@ -291,14 +301,17 @@ $(document).ready(function() {
 						}).get().on('pnotify.confirm', function() {
                             api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
                             });  
+                            api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
+                            });  
 						}).on('pnotify.cancel', function() {
 				});	  
         }
     }); 
 
+
     // Stream scheduler_source
 	if (!!window.EventSource) {
-	  var scheduler_source = new EventSource('/admin/stream/scheduler');
+	  var scheduler_source = new EventSource('/admin/stream/scheduler_jobs');
       console.log('Listening scheduler...');
 	} else {
 	  //~ // Result to xhr polling :(
@@ -394,8 +407,8 @@ function show_disposables(){
                 "orderable":      false,
                 "data":           null,
                 "width": "58px",
-                "defaultContent": '<button id="btn-disposable_desktops-delete" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   <button id="btn-disposable_desktops-edit" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+                "defaultContent": '<button id="btn-disposable_desktops-delete" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-times" style="color:darkred"></i></button>'
+                                   //~ <button id="btn-disposable_desktops-edit" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-pencil" style="color:darkblue"></i></button>'
 				},
                 ],
 			 "order": [[1, 'asc']],
@@ -405,8 +418,8 @@ function show_disposables(){
 							  return renderDisposables(full);
 							}}]
     } );        
- 
-     $('#table-disposablesx').find(' tbody').on( 'click', 'button', function () {
+
+     $('#table-disposables').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
         if($(this).attr('id')=='btn-disposable_desktops-delete'){
 				new PNotify({
@@ -419,8 +432,8 @@ function show_disposables(){
 							history: {history: false},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
-                			//~ }); 
+                            api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'disposables'}).done(function(data) {
+                            });  
 						}).on('pnotify.cancel', function() {
 				});	  
         }
@@ -431,7 +444,8 @@ function show_disposables(){
 			}).modal('show');   
             //~ $("#select2-disposables").select2Sortable();         
         }
-    });       
+    });
+ 
 }
 
 function renderDisposables(data){
@@ -440,4 +454,8 @@ function renderDisposables(data){
         return_data.push(data['disposables'][i].name)
       }
       return return_data;
+}
+
+function activateDisposables(){
+       
 }

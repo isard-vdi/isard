@@ -63,10 +63,14 @@ class isardAdmin():
             ## ALERT: Should remove password (password='')
             return self.f.table_values_bstrap(r.table('users').run(db.conn))
 
-    def get_admin_table(self, table, pluck=False):
+    def get_admin_table(self, table, pluck=False, id=False):
         with app.app_context():
-            if pluck:
+            if id and not pluck:
+                return r.table(table).get(id).run(db.conn)
+            if pluck and not id:
                 return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
+            if pluck and id:
+                return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
             
     def get_admin_domains(self):
@@ -103,11 +107,14 @@ class isardAdmin():
                 return self.f.table_values_bstrap(r.table('hypervisors_pools').run(db.conn))
             else:
                 return list(r.table('hypervisors_pools').run(db.conn))
-                
+
+    def insert_table_dict(self, table, dict):
+        with app.app_context():
+            return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
+                            
     def update_table_dict(self, table, id, dict):
         with app.app_context():
             return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
-            return True 
 
     def get_admin_domain_datatables(self):
         with app.app_context():

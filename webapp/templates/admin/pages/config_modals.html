@@ -1,3 +1,5 @@
+
+
 <div class="modal fade" id="modalDisposable" tabindex="-1" role="dialog" 
      aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -10,16 +12,65 @@
                        <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Disposble desktops
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Add new disposable desktop
                 </h4>
             </div>
             
             <!-- Modal Body -->
             <div class="modal-body">
+              <form id="modalAddDisposable" class="form-horizontal form-label-left" action="{{ url_for('admin_disposable_add') }}" method="POST" novalidate>
+			  <div class="x_panel">
+                 <div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="name" name="name" class="form-control col-md-7 col-xs-12"></input>
+                        </div>
+                     </div> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="description" name="description" class="form-control col-md-7 col-xs-12"></input>
+                        </div>
+                     </div> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="nets">Nets
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="nets" name="nets" class="form-control col-md-7 col-xs-12"></input>
+                        </div>
+                     </div> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hour">Disposables
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <select id="disposables" name="disposables" class="form-control" required>
+                                <option value="">Choose..</option>
+                                <option value="_biblioteca1">Biblioteca</option>
+                            </select>
+                        </div>
+                     </div>    
+				 </div>
+			  </div>
+
+    
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="submit" class="btn btn-success">Add job</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
             </div>
         </div>
     </div>
 </div>
+
 
 <div class="modal fade" id="modalScheduler" tabindex="-1" role="dialog" 
      aria-labelledby="myModalLabel" aria-hidden="true">
@@ -116,7 +167,7 @@
                            <select id="action" name="action" class="form-control" onchange="hiddenFields(this);console.log('hide');" required>
                               <option value="">Choose..</option>
                               <option value="delete_old_stats">Delete old stats</option>
-                              <option value="stop_domains_without_viewer    ">Stop domains without viewer</option>
+                              <option value="stop_domains_without_viewer">Stop domains without viewer</option>
                            </select>
                         </div>
                      </div>
