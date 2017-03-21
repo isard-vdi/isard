@@ -36,12 +36,19 @@ def admin():
 @login_required
 def admin_table_get(table):
     result=app.adminapi.get_admin_table(table)
-    print(result)
     if table == 'scheduler_jobs': 
         for i,val  in enumerate(result):
             result[i].pop('job_state', None)
     return json.dumps(result), 200, {'ContentType':'application/json'} 
 
+@app.route('/admin/delete', methods=["POST"])
+@login_required
+@isAdmin
+def admin_delete():
+    if request.method == 'POST':
+        if app.adminapi.delete_table_key(request.get_json(force=True)['table'],request.get_json(force=True)['pk']):
+            return json.dumps('Deleted'), 200, {'ContentType':'application/json'} 
+    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'}
 '''
 CONFIG
 '''
@@ -129,8 +136,6 @@ def admin_backup_remove():
 @isAdmin
 def admin_backup_download(id):
     filedir,filename,data=app.adminapi.info_backup_db(id)
-    #~ print(filedir,filename)
-    #~ return send_from_directory(filedir, filename, as_attachment=True)
     return Response( data,
         mimetype="application/x-gzip",
         headers={"Content-Disposition":"attachment;filename="+filename})
@@ -158,7 +163,6 @@ def admin_backups_stream():
             if c['old_val'] is None:
                 yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
                 continue             
-            if 'detail' not in c['new_val']: c['new_val']['detail']=''
             yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
                     
 
@@ -170,13 +174,28 @@ SCHEDULER
 @isAdmin
 def admin_scheduler():
     if request.method == 'POST':
-        if request.form['kind'] == 'cron':
-            if request.form['action'] == 'domains-stop':
-                app.scheduler.addCron('domains',{'status':'Stopped'},{'status':'Unknown'},request.form['hour'],request.form['minute'])
-            #~ app.scheduler.addCron(request.form['table'],
-                                  #~ request.form['filter'],
-                                  #~ request.form['update'],
-                                  #~ request.form['hour'],
-                                  #~ request.form['minute'])
-            return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+        app.scheduler.add_scheduler(request.form['kind'],request.form['action'],request.form['hour'],request.form['minute'])        
+        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+
+@app.route('/admin/stream/scheduler')
+@login_required
+@isAdmin
+def admin_stream_scheduler():
+    return Response(admin_scheduler_stream(), mimetype='text/event-stream')
+
+def admin_scheduler_stream():
+    with app.app_context():
+        for c in r.table('scheduler_jobs').changes(include_initial=False).run(db.conn):
+            if c['new_val'] is None:
+                c['old_val'].pop('job_state', None)
+                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                continue
+            if c['old_val'] is None:
+                c['new_val'].pop('job_state', None)
+                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                continue             
+            c['new_val'].pop('job_state', None)
+            c['old_val'].pop('job_state', None)
+            yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+                    

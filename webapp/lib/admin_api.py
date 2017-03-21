@@ -48,6 +48,10 @@ class isardAdmin():
     '''
     ADMIN API
     '''
+    def delete_table_key(self,table,key):
+        with app.app_context():
+            return self.check(r.table(table).get(key).delete().run(db.conn),'deleted')
+            
     def toggle_hypervisor_field(self,id,key):
         with app.app_context():
             field=r.table('hypervisors').get(id).run(db.conn)[key]

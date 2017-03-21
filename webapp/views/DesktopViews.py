@@ -225,28 +225,33 @@ def event_stream(username):
                 #~ r.table('domains_status').get_all(r.args(list(dom_started)), index='name')
                 #~ r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
                 #~ print(list(r.table('domains_status').get_all(r.args(list(dom_started)), index='name').merge({"table": "domains_status"}).run(db.conn)))
-                try:
-                    print(c['new_val']['table'])
-                except Exception as e:
-                    None
                 if (c['new_val'] is not None and c['new_val']['table'] == 'domains') or (c['old_val'] is not None and c['old_val']['table'] == 'domains'):
-                    print('IN DOMAIN STATUS',list(dom_started))
                     if c['new_val'] is None:
-                        print('DELETING DOMAIN:',c['old_val']['id'])
                         yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
                         continue
                     if c['old_val'] is None:
                         yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
                         continue             
-                    if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                    #~ if c['new_val'] is not 'Started': dom_started.discard(c['new_val']['id'])
+                    #~ if 'detail' not in c['new_val']: c['new_val']['detail']=''
                     if c['old_val']['status']=='Starting' and c['new_val']['status']=='Started': 
                         dom_started.append(c['new_val']['id'])
-                        print('AFTER INSERT',list(dom_started))
                     yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
                 else:
                     print('THIS IS A DOMAIN STATUS')
                     print(c['new_val']['name'],c['new_val']['status']['cpu_usage'])
+
+@app.route('/stream/disposable')
+def sse_request_disposable():
+    id = '_disposable_'+app.isardapi.parse_string(request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr)
+    return Response(event_disposable_stream(id), mimetype='text/event-stream')
+
+def event_disposable_stream(id):
+    with app.app_context():
+        for c in r.table('domains').get(id).changes(include_initial=False).run(db.conn):
+            if 'new_val' in c:
+                if c['new_val']['status'] == 'Started':
+                    yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Started',time.time(),json.dumps(c['new_val']))
+
 
 @app.route('/stream/backend')
 @login_required

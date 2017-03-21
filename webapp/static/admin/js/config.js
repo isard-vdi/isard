@@ -58,7 +58,6 @@ $(document).ready(function() {
 
     $('#btn-checkport').on( 'click', function (event) {
         event.preventDefault()
-                    console.log($('#engine-carbon-server').value)
 					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
                         console.log(data);
                     });  
@@ -177,81 +176,9 @@ $(document).ready(function() {
 							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
 						anchor.dispatchEvent(ev);
         }
-    });           
+    });                
 
-
-    scheduler_table=$('#table-scheduler').DataTable({
-			"ajax": {
-				"url": "/admin/table/scheduler_jobs/get",
-				"dataSrc": ""
-			},
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
-            "bLengthChange": false,
-            "bFilter": false,
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-                { "data": "name"},
-				{ "data": "kind"},
-				{ "data": "next_run_time"},
-				{
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "width": "58px",
-                "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   <button id="btn-scheduler-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkblue"></i></button>'
-				},
-                ],
-			 "order": [[1, 'asc']],
-			 "columnDefs": [ {
-							"targets": 2,
-							"render": function ( data, type, full, meta ) {
-							  return moment.unix(full.next_run_time);
-							}}]
-    } );        
- 
-     $('#table-scheduler').find(' tbody').on( 'click', 'button', function () {
-        var data = scheduler_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
-        if($(this).attr('id')=='btn-scheduler-delete'){
-				new PNotify({
-						title: 'Delete scheduled task',
-							text: "Do you really want to delete scheduled task "+moment.unix(data.next_run_time)+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {confirm: true},
-							buttons: {closer: false,sticker: false},
-							history: {history: false},
-							stack: stack_center
-						}).get().on('pnotify.confirm', function() {
-                            api.ajax('/admin/backup_remove','POST',{'pk':data['id'],}).done(function(data) {
-                            });  
-						}).on('pnotify.cancel', function() {
-				});	  
-        }
-        if($(this).attr('id')=='btn-backups-restore'){
-				new PNotify({
-						title: 'Restore backup',
-							text: "Do you really want to restore backup from file "+data.filename+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {confirm: true},
-							buttons: {closer: false,sticker: false},
-							history: {history: false},
-							stack: stack_center
-						}).get().on('pnotify.confirm', function() {
-                            api.ajax('/admin/restore','POST',{'pk':data['id'],}).done(function(data) {
-                            });  
-						}).on('pnotify.cancel', function() {
-				});	  
-        }
-    });           
-
-
-    // Stream domains_source
+    // Stream backups_source
 	if (!!window.EventSource) {
 	  var backups_source = new EventSource('/admin/stream/backups');
       console.log('Listening backups...');
@@ -302,12 +229,11 @@ $(document).ready(function() {
 	}, false);
 
 	backups_source.addEventListener('Deleted', function(e) {
-        console.log('deleted');
 	  var data = JSON.parse(e.data);
       var row = backups_table.row('#'+data.id).remove().draw();
             new PNotify({
-                title: "Domain deleted",
-                text: "Domain "+data.name+" has been deleted",
+                title: "Backup deleted",
+                text: "Backup "+data.name+" has been deleted",
                 hide: true,
                 delay: 2000,
                 icon: 'fa fa-success',
@@ -315,8 +241,122 @@ $(document).ready(function() {
                 type: 'info'
             });
 	}, false);
+
+
     
+    scheduler_table=$('#table-scheduler').DataTable({
+			"ajax": {
+				"url": "/admin/table/scheduler_jobs/get",
+				"dataSrc": ""
+			},
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+            "bLengthChange": false,
+            "bFilter": false,
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+                { "data": "name"},
+				{ "data": "kind"},
+				{ "data": "next_run_time"},
+				{
+                "className":      'actions-control',
+                "orderable":      false,
+                "data":           null,
+                "width": "58px",
+                "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
+				},
+                ],
+			 "order": [[1, 'asc']],
+			 "columnDefs": [ {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+							  return moment.unix(full.next_run_time);
+							}}]
+    } );        
+ 
+     $('#table-scheduler').find(' tbody').on( 'click', 'button', function () {
+        var data = scheduler_table.row( $(this).parents('tr') ).data();
+        if($(this).attr('id')=='btn-scheduler-delete'){
+				new PNotify({
+						title: 'Delete scheduled task',
+							text: "Do you really want to delete scheduled task "+moment.unix(data.next_run_time)+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+    }); 
+
+    // Stream scheduler_source
+	if (!!window.EventSource) {
+	  var scheduler_source = new EventSource('/admin/stream/scheduler');
+      console.log('Listening scheduler...');
+	} else {
+	  //~ // Result to xhr polling :(
+	}
+
+	window.onbeforeunload = function(){
+	  scheduler_source.close();
+	};
+
+	scheduler_source.addEventListener('open', function(e) {
+	  // Connection was opened.
+	}, false);
+
+	scheduler_source.addEventListener('error', function(e) {
+	  if (e.readyState == EventSource.CLOSED) {
+		// Connection was closed.
+	  }
+     
+	}, false);
+
+	scheduler_source.addEventListener('New', function(e) {
+	  var data = JSON.parse(e.data);
+		if($("#" + data.id).length == 0) {
+		  //it doesn't exist
+		  scheduler_table.row.add(data).draw();
+            new PNotify({
+                title: "Scheduler added",
+                text: "Scheduler "+data.name+" has been created",
+                hide: true,
+                delay: 2000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });          
+		}else{
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = table.row('#'+data.id); 
+          scheduler_table.row(row).data(data);			
+		}
+	}, false);
+
+	scheduler_source.addEventListener('Deleted', function(e) {
+	  var data = JSON.parse(e.data);
+      var row = scheduler_table.row('#'+data.id).remove().draw();
+            new PNotify({
+                title: "Scheduler deleted",
+                text: "Scheduler "+data.name+" has been deleted",
+                hide: true,
+                delay: 2000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'info'
+            });
+	}, false);
+
 });
+
+
 
 function show_disposables(){
         //~ api.ajax('/admin/table/disposables/get','GET',{}).done(function(data) {
@@ -400,47 +440,4 @@ function renderDisposables(data){
         return_data.push(data['disposables'][i].name)
       }
       return return_data;
-}
-
-function renderDropzone(){
-    new Dropzone("div#droparea", {
-    url: "/uploadajax",
-    method: "POST", // can be changed to "put" if necessary
-    maxFilesize: 800, // in MB
-    paramName: "file", // The name that will be used to transfer the file
-    uploadMultiple: false, // This option will also trigger additional events (like processingmultiple).
-    headers: {
-      "My-Awesome-Header": "header value"
-    },
-    addRemoveLinks: true, // add an <a class="dz-remove">Remove file</a> element to the file preview that will remove the file, and it will change to Cancel upload
-    previewsContainer: "#previewsContainer",
-    //~ clickable: "#selectImage",
-    createImageThumbnails: false,
-    maxThumbnailFilesize: 2, // in MB
-    thumbnailWidth: 300,
-    thumbnailHeight: 300,
-    maxFiles: 1,
-    acceptedFiles: "image/png, image/jpeg, image/gif", //This is a comma separated list of mime types or file extensions.Eg.: image/*,application/pdf,.psd.
-    autoProcessQueue: false, // When set to false you have to call myDropzone.processQueue() yourself in order to upload the dropped files. 
-    forceFallback: false,
-
-    init: function() {
-      console.log("init");
-    },
-    resize: function(file) {
-      console.log("resize");
-      /*
-       * Crop rectangle range
-       * Those values are going to be used by ctx.drawImage().
-       */ 
-      return {"srcX":0, "srcY":0, "srcWidth":300, "srcHeight":300}
-    },
-    accept: function(file, done) {
-      console.log("accept");
-      done();
-    },
-    fallback: function() {
-      console.log("fallback");
-    }
-  });
 }
