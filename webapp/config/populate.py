@@ -690,8 +690,15 @@ class Populate(object):
                 r.table('hypervisors_status').index_wait("connected").run(db.conn)
                 r.table('hypervisors_status').index_create("hyp_id").run(db.conn)
                 r.table('hypervisors_status').index_wait("hyp_id").run(db.conn)
+            if not r.table_list().contains('hypervisors_status_history').run(db.conn):
+                log.info("Table hypervisors_status_history not found, creating...")
+                r.table_create('hypervisors_status_history', primary_key="id").run(db.conn)
+                r.table('hypervisors_status_history').index_create("connected").run(db.conn)
+                r.table('hypervisors_status_history').index_wait("connected").run(db.conn)
+                r.table('hypervisors_status_history').index_create("hyp_id").run(db.conn)
+                r.table('hypervisors_status_history').index_wait("hyp_id").run(db.conn)
             return True
-
+            
     '''
     DOMAINS_STATUS
     '''
@@ -705,8 +712,14 @@ class Populate(object):
                 r.table('domains_status').index_wait("name").run(db.conn)
                 r.table('domains_status').index_create("hyp_id").run(db.conn)
                 r.table('domains_status').index_wait("hyp_id").run(db.conn)
+            if not r.table_list().contains('domains_status_history').run(db.conn):
+                log.info("Table domains_status_history not found, creating...")
+                r.table_create('domains_status_history', primary_key="id").run(db.conn)
+                r.table('domains_status_history').index_create("name").run(db.conn)
+                r.table('domains_status_history').index_wait("name").run(db.conn)
+                r.table('domains_status_history').index_create("hyp_id").run(db.conn)
+                r.table('domains_status_history').index_wait("hyp_id").run(db.conn)
             return True
-
     '''
     DISK_OPERATIONS
     '''

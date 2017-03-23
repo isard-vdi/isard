@@ -63,9 +63,13 @@ class isardScheduler():
           
     def delete_old_stats():
         with app.app_context():
-            r.table('domains_status').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn)  
-            r.table('hypervisors_events').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn)  
+            old_ds=r.table('domains_status').filter(r.row['when'] < int(time.time()) - 1200).run(db.conn)
+            r.table('domains_status').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn)
+            r.table('domains_status_history').insert(old_ds).run(db.conn)  
+            #~ r.table('hypervisors_events').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn) 
+            old_hs=r.table('hypervisors_status').filter(r.row['when'] < int(time.time()) - 1200).run(db.conn) 
             r.table('hypervisors_status').filter(r.row['when'] < int(time.time()) - 1200).delete().run(db.conn)  
+            r.table('hypervisors_status_history').insert(old_hs).run(db.conn)
 
     def turnOff(self):
         self.scheduler.shutdown()
