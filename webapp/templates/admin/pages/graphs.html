@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!-- Meta, title, CSS, favicons, etc. -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Gentelella Alela! | </title>
+
+    <!-- Bootstrap -->
+    <link href="../vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="../vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+    <!-- NProgress -->
+    <link href="../vendors/nprogress/nprogress.css" rel="stylesheet">
+
+    <!-- Custom Theme Style -->
+    <link href="../build/css/custom.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/d3-bubble.css"/>
+  </head>
+
+  <body class="nav-md">
+    <div class="container body">
+      <div class="main_container">
+        <!-- top navigation -->
+              <div class="nav_menu" style="height:40px">
+                <nav class="" role="navigation">
+                  <div class="nav toggle" style="position:top">
+                    <span><i class="fa fa-area-chart fa-2x"></i></span>
+                  </div>
+                  <ul class="nav navbar-nav navbar-right">
+                    <li class="">
+                      <a href="javascript:" class="user-profile dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                        <b>Graphs</b>
+                        <span class="fa fa-angle-down"></span>
+                      </a>
+                      <ul class="dropdown-menu dropdown-usermenu pull-right">
+
+                        <li><a href="/admin/graphs/bubbles">Bubbles</a></li>
+                      </ul>
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+        <!-- /top navigation -->
+        <!-- page content -->
+        <div class="col-md-12">
+          <div class="col-middle">
+            <div class="text-center text-center">
+                <section id="chart"></section>
+            </div>
+          </div>
+        </div>
+        <!-- /page content -->
+      </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="../vendors/jquery/dist/jquery.min.js"></script>
+    <!-- Bootstrap -->
+    <script src="../vendors/bootstrap/dist/js/bootstrap.min.js"></script>
+    <!-- FastClick -->
+    <script src="../vendors/fastclick/lib/fastclick.js"></script>
+    <!-- NProgress -->
+    <script src="../vendors/nprogress/nprogress.js"></script>
+
+    <!-- Custom Theme Scripts -->
+	<script src="/bower_components/d3/d3.min.js"></script>
+	<script src="/static/admin/js/graphs.js"></script>
+  </body>
+</html>

@@ -100,8 +100,9 @@ from .views import AboutViews
 from .admin.views import AdminViews
 from .admin.views import AdminUsersViews
 from .admin.views import AdminDomainsViews
-from .admin.views import AdminIsosViews
+#~ from .admin.views import AdminIsosViews
 from .admin.views import AdminHypersViews
+from .admin.views import AdminGraphsViews
 
 
 
