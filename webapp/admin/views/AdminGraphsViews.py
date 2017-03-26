@@ -33,8 +33,8 @@ def admin_graphs():
     return render_template('admin/pages/graphs.html',nav="Graphs")
  
 @app.route('/admin/graphs/d3_bubble')
-@login_required
-@isAdmin
+#@login_required
+#@isAdmin
 def admin_graphs_d3_bubble():
         return Response(graph_d3_bubble_stream(), mimetype='text/event-stream')
         
