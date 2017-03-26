@@ -1,5 +1,4 @@
-(function() { 
-	
+$(document).ready(function() {
   // D3 Bubble Chart 
 
 	var diameter = 600;
@@ -120,8 +119,11 @@
 
 }
 
+var dataSet = new Array();
+
 	if (!!window.EventSource) {
 	  var source = new EventSource('/admin/graphs/d3_bubble');
+      console.log('Listening d3 bubble stream...');
 	} else {
 	  // Result to xhr polling :(
 	}
@@ -129,21 +131,38 @@
 	window.onbeforeunload = function(){
 	  source.close();
 	};
+    
 
 	source.addEventListener('update', function(e) {
 	  var data = JSON.parse(e.data);
-      //~ console.log(data);
-    var newDataSet = [];
       for(var prop in data){
-          //~ console.log(prop+' - '+data[prop]['load']);
-          console.log(prop);
-          newDataSet.push({name: prop, hyp: data[prop]['hyp'], className: data[prop]['icon'].toLowerCase().replace(/ /g,''), size: data[prop]['load']*100});
+        var found=false;
+        for (var i = 0; i < dataSet.length; i++) {
+            if(dataSet[i]['name']==prop){
+                dataSet[i]={name: prop, hyp: data[prop]['hyp_started'], className: data[prop]['os'].toLowerCase().replace(/ /g,''), size: data[prop]['status']['cpu_usage']*100};
+                found=true;
+                }
+        }
+        if(!found){
+            dataSet.push({name: prop, hyp: data[prop]['hyp_started'], className: data[prop]['os'].toLowerCase().replace(/ /g,''), size: data[prop]['status']['cpu_usage']*100});
+        }
       }
-      drawBubbles( {children: newDataSet} );
-	  //~ console.log(data.id);
-	  //~ setUp(data.id);
+      console.log(dataSet.lenght);
+      drawBubbles( {children: dataSet} );
 	}, false);
-    
+
+
+	source.addEventListener('stopped', function(e) {
+	  var data = JSON.parse(e.data);
+      console.log('deleted')
+      for (var i = 0; i < dataSet.length; i++) {
+          if(dataSet[i]['name']==data['id']){
+              dataSet.splice(i,1);
+          }
+      }
+      drawBubbles( {children: dataSet} );
+	}, false);      
+      
 	//~ function getData() {
 		//~ var i = 0;
 		//~ pubnub.subscribe({
@@ -172,13 +191,8 @@
 
 	//~ getData();
   
-})();
+});
 
 
-
-
-//~ $(document).ready(function() {
-
-    //~ } );
 
 
