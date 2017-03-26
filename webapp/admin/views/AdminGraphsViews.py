@@ -41,7 +41,12 @@ def admin_graphs_d3_bubble():
 def graph_d3_bubble_stream():
     with app.app_context():
         domains={}
-        for s in r.table('domains_status').pluck('name','status').changes(include_initial=False).run(db.conn):
+        for s in r.table('domains').get_all('Started', index='status')['id'].coerce_to('array'), 
+            lamdba stats: r.table('domains_status').get_all(r.args(stats), index='name').orderBy('when').group('name').nth(-1)
+            .changes(include_initial=False).run(db.conn)
+        #~ r.table('domains_status').pluck('name','when','status').orderBy('when').group('name').nth(-1)
+        #~ for s in r.table('domains_status').pluck('name','status').changes(include_initial=False).run(db.conn):
+            print(s)
             ns=s['new_val']
             print(ns['name'],ns['status']['hyp'])
             # Falta eliminar els que ja han parat!!
