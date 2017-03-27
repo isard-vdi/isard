@@ -81,6 +81,7 @@ $(document).ready(function() {
             // Open this row
             row.child( formatHypervisorPanel(row.data()) ).show();
             tr.addClass('shown');
+            $('#status-detail-'+row.data().id).html(row.data().detail);
             actionsHyperDetail();
 
         }

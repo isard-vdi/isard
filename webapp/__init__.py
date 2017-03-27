@@ -44,11 +44,22 @@ except Exception as e:
     log.error('Is rethink up an running? Can not connect! Aborting start. Please refer to documentation.\n Exception: '+str(e))
     exit(0)
 
+
 '''
-Authnetication types
+Scheduler tests
+'''
+from .lib.isardScheduler import isardScheduler
+app.scheduler=isardScheduler()
+#~ app.scheduler.addDate('domains',{'status':'Started'},{'status':'Stopping'},10)
+#~ app.scheduler.clean_stats()
+#~ app.scheduler.stop_domains_without_viewer()
+
+'''
+Authentication types
 '''
 from .auth import authentication
 app.localuser=authentication.LocalUsers()
+
 
 '''
 Serve static files
@@ -89,8 +100,9 @@ from .views import AboutViews
 from .admin.views import AdminViews
 from .admin.views import AdminUsersViews
 from .admin.views import AdminDomainsViews
-from .admin.views import AdminIsosViews
+#~ from .admin.views import AdminIsosViews
 from .admin.views import AdminHypersViews
+from .admin.views import AdminGraphsViews
 
 
 

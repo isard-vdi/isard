@@ -23,7 +23,25 @@ LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
 #logger = log.getLogger()
 #logger.setLevel(LOG_LEVEL_NUM)
 #log.Formatter(fmt=LOG_FORMAT,datefmt=LOG_DATE_FORMAT)
-log.basicConfig(format=LOG_FORMAT,datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
+
+#log.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
+log.basicConfig(filename=LOG_FILE,
+                format=LOG_FORMAT,
+                datefmt=LOG_DATE_FORMAT,
+                level=LOG_LEVEL_NUM)
+
+logFormatter = log.Formatter(fmt=LOG_FORMAT,datefmt=LOG_DATE_FORMAT)
+rootLogger = log.getLogger()
+
+# fileHandler = logging.FileHandler("{0}/{1}.log".format(logPath, fileName))
+# fileHandler.setFormatter(logFormatter)
+# rootLogger.addHandler(fileHandler)
+
+consoleHandler = log.StreamHandler()
+consoleHandler.setLevel(log.INFO)
+consoleHandler.setFormatter(logFormatter)
+rootLogger.addHandler(consoleHandler)
+
 #coloredlogs.install(format=LOG_FORMAT,datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
 
 

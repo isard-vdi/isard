@@ -1,6 +1,5 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
-
 {% block content %}
 <div class="right_col" role="main">
     <div class="page-title">
@@ -20,6 +19,17 @@
              <div class="x_title">
                         <h2>List of domains in system <small></small></h2>
                         <ul class="nav navbar-right panel_toolbox">
+                        <li><div class="item form-group pull-right">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">Global actions: </label>
+                           <div class="col-md-5 col-sm-5 col-xs-12">
+							   <select class="form-control" id="mactions" name="mactions" >
+                                  <option value="none">Select action</option>
+                                  <option value="toggle">Toggle status</option>
+                                  <option value="delete">Delete</option>
+							   </select>
+                              </div>
+                        </div>
+                        </li>
                           <li><a class="add-new-role"><span
                                   style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
                           </li>
@@ -34,7 +44,7 @@
                 <p class="text-muted font-13 m-b-30">
                 </p>
                 <div id="tableDiv"></div>
-                <table id="domains" class="table table-striped">
+                <table id="domains" class="table">
                    <thead>
                       <tr>
                           <th></th>

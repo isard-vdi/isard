@@ -91,6 +91,8 @@ def domains_update():
         except:
             args = request.form.to_dict()
         try:
+            if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                 return json.dumps('Quota for starting domains full.'), 500, {'ContentType':'application/json'}
             if app.isardapi.update_table_value('domains', args['pk'], args['name'], args['value']):
                 return json.dumps('Updated'), 200, {'ContentType':'application/json'}
             else:
@@ -98,11 +100,15 @@ def domains_update():
         except Exception as e:
             return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
 
+
 @app.route('/desktops_add', methods=['POST'])
 @login_required
 def desktops_add():
     res=True
     if request.method == 'POST':
+        if float(app.isardapi.get_user_quotas(current_user.username)['dqp']) >= 100:
+            flash('Quota for creating new desktops is full','danger')
+            return redirect(url_for('desktops'))
         create_dict=app.isardapi.f.unflatten_dict(request.form)
         create_dict.pop('templateFilterGroup', None)
         create_dict.pop('templateFilterCategory',None)
@@ -153,6 +159,18 @@ def hardware():
     dict['user']=app.isardapi.get_user(current_user.username)
     return json.dumps(dict)
 
+@app.route('/domain_genealogy', methods=['POST'])
+@login_required
+@ownsid
+def domain_genealogy():
+    gen=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)['disks_info-path_disk']
+    gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info-path_disk']
+    wasted=0
+    for i,v in enumerate(gen):
+        gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
+        wasted+=gen[i]['actual-size']
+    return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human})
+
 @app.route('/domain', methods=['POST'])
 @login_required
 def domain():
@@ -173,6 +191,9 @@ def domain_alloweds():
 def desktops_template():
     msg=True
     if request.method == 'POST':
+        if float(app.isardapi.get_user_quotas(current_user.username)['tqp']) >= 100:
+            flash('Quota for creating new templates is full','danger')
+            return redirect(url_for('desktops'))
         #~ # if app.isardapi.is_domain_id_unique
         original=app.isardapi.get_domain(request.form['id'])
         domain_dict=app.isardapi.f.unflatten_dict(original)
@@ -186,7 +207,6 @@ def desktops_template():
             return redirect(url_for('desktops'))
         else:
             flash('Could not create template now','danger')
-            None
     return redirect(url_for('desktops'))
 
 @app.route('/stream/desktops')
@@ -196,16 +216,41 @@ def sse_request():
 
 def event_stream(username):
         with app.app_context():
-            for c in r.table('domains').get_all(username, index='user').changes(include_initial=False).run(db.conn):
-                if c['new_val'] is None:
-                    print('DELETING DOMAIN:',c['old_val']['id'])
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                    continue
-                if c['old_val'] is None:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                    continue             
-                if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+            #~ dom_started=set(['_jvinolas_asdf'])
+            dom_started=[]
+            for c in r.table('domains').get_all(username, index='user').merge({"table": "domains"}).changes(include_initial=False).union(
+                r.table('domains_status').get_all(r.args(dom_started)).merge({"table": "domains_status"}).changes(include_initial=False)).run(db.conn):
+                #~ get_all(username, index='user').filter({'kind': 'desktop'})
+                #~ r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
+                #~ r.table('domains_status').get_all(r.args(list(dom_started)), index='name')
+                #~ r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
+                #~ print(list(r.table('domains_status').get_all(r.args(list(dom_started)), index='name').merge({"table": "domains_status"}).run(db.conn)))
+                if (c['new_val'] is not None and c['new_val']['table'] == 'domains') or (c['old_val'] is not None and c['old_val']['table'] == 'domains'):
+                    if c['new_val'] is None:
+                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                        continue
+                    if c['old_val'] is None:
+                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                        continue             
+                    #~ if 'detail' not in c['new_val']: c['new_val']['detail']=''
+                    if c['old_val']['status']=='Starting' and c['new_val']['status']=='Started': 
+                        dom_started.append(c['new_val']['id'])
+                    yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+                else:
+                    print('THIS IS A DOMAIN STATUS')
+                    print(c['new_val']['name'],c['new_val']['status']['cpu_usage'])
+
+@app.route('/stream/disposable')
+def sse_request_disposable():
+    id = '_disposable_'+app.isardapi.parse_string(request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr)
+    return Response(event_disposable_stream(id), mimetype='text/event-stream')
+
+def event_disposable_stream(id):
+    with app.app_context():
+        for c in r.table('domains').get(id).changes(include_initial=False).run(db.conn):
+            if 'new_val' in c:
+                if c['new_val']['status'] == 'Started':
+                    yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Started',time.time(),json.dumps(c['new_val']))
 
 
 @app.route('/stream/backend')

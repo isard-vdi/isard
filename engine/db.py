@@ -338,11 +338,11 @@ def update_domain_status(status,id_domain,hyp_id=None,detail=''):
 
     if hyp_id is None:
         #print('ojojojo')
-        results = rtable.filter({'id':id_domain}).update({
+        results = rtable.get_all(id_domain, index='id').update({
                                                       'status':status,
                                                       'detail':json.dumps(detail)}).run(r_conn)
     else:
-        results = rtable.filter({'id':id_domain}).update({'hyp_started':hyp_id,
+        results = rtable.get_all(id_domain, index='id').update({'hyp_started':hyp_id,
                                                           'hyp_started2':hyp_id,
                                                   'status':status,
                                                   'detail':json.dumps(detail)}).run(r_conn)
@@ -415,7 +415,7 @@ def update_all_domains_status(reset_status = 'Stopped',
         results = r.table('domains').update({'status':reset_status}).run(r_conn)
 
     for initial_status in from_status:
-        results = r.table('domains').filter({'status':initial_status}).update({'status':reset_status}).run(r_conn)
+        results = r.table('domains').get_all(initial_status, index='status').update({'status':reset_status}).run(r_conn)
     close_rethink_connection(r_conn)
     return results
 
@@ -437,15 +437,12 @@ def update_domain_hyp_stopped(id_domain,status='Stopped'):
 def get_domain_hyp_started(id_domain):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
-    # results = rtable.get(id_domain).pluck('hyp_started').run(r_conn)
-    #INFO TO DEVELOPER CHIVATO NO ME ACLARO
-    results = rtable.get(id_domain).pluck('hyp_started2').run(r_conn)
+    results = rtable.get(id_domain).pluck('hyp_started').run(r_conn)
     close_rethink_connection(r_conn)
     if results is None:
         return ''
-    #INFO TO DEVELOPER CHIVATO NO ME ACLARO
-    # return results['hyp_started']
-    return results['hyp_started2']
+
+    return results['hyp_started']
 
 def get_domain_hyp_started_and_status_and_detail(id_domain):
     r_conn = new_rethink_connection()
@@ -462,7 +459,7 @@ def get_domains_with_status(status):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
     try:
-        results = rtable.filter({'status': status}).pluck('id').run(r_conn)
+        results = rtable.get_all(status, index='status').pluck('id').run(r_conn)
         close_rethink_connection(r_conn)
     except :
         # if results is None:
@@ -473,9 +470,10 @@ def get_domains_with_status(status):
 def get_domains_with_transitional_status(list_status = TRANSITIONAL_STATUS):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
-    l = list(rtable.filter(lambda d: r.expr(list_status).
-            contains(d['status'])).pluck('status', 'id', 'hyp_started').
-            run(r_conn))
+    #~ l = list(rtable.filter(lambda d: r.expr(list_status).
+            #~ contains(d['status'])).pluck('status', 'id', 'hyp_started').
+            #~ run(r_conn))
+    l = list(rtable.get_all(list_status, index='status').pluck('status', 'id', 'hyp_started').run(r_conn))
     close_rethink_connection(r_conn)
     return l
 
@@ -484,8 +482,8 @@ def change_status_to_all_domains_with_status(oldstatus,newstatus):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
     try:
-        results = rtable.filter({'status': oldstatus}).pluck('id').run(r_conn)
-        result = rtable.filter({'status': oldstatus}).update({'status': newstatus}).run(r_conn)
+        results = rtable.get_all(oldstatus, index='status').pluck('id').run(r_conn)
+        result = rtable.get_all(oldstatus, index='status').update({'status': newstatus}).run(r_conn)
         close_rethink_connection(r_conn)
 
     except :
@@ -760,7 +758,7 @@ def get_domains_started_in_hyp(hyp_id):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
 
-    list_domain = list(rtable.filter({'hyp_started':hyp_id}).pluck('id').run(r_conn))
+    list_domain = list(rtable.get_all(hyp_id, index='hyp_started').pluck('id').run(r_conn))
 
     l = [d['id'] for d in list_domain]
     close_rethink_connection(r_conn)
@@ -774,7 +772,7 @@ def update_domains_started_in_hyp_to_unknown(hyp_id):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
 
-    result = rtable.filter({'hyp_started':hyp_id}).update({'status':'Unknown'}).run(r_conn)
+    result = rtable.get_all(hyp_id, index='hyp_started').update({'status':'Unknown'}).run(r_conn)
     close_rethink_connection(r_conn)
     return result
 
@@ -818,7 +816,7 @@ def exist_domain(id):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
 
-    l = list(rtable.filter({'id':id}).pluck(id).run(r_conn))
+    l = list(rtable.get(id).run(r_conn))
     close_rethink_connection(r_conn)
     if len(l) > 0:
         return True

@@ -100,6 +100,7 @@ $(document).ready(function() {
             tr.removeClass('shown');
         }
         else {
+            
             // Close other rows
              if ( table.row( '.shown' ).length ) {
                       $('.details-control', table.row( '.shown' ).node()).click();
@@ -120,11 +121,15 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDesktopDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                $('#status-detail-'+row.data().id).html(row.data().detail);
+                if (!row.data().status.includes('Fail')){
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                }
                 actionsDesktopDetail();
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
+                setDomainGenealogy(row.data().id);
             }
-        }
+          }
     } );
 
 
@@ -254,6 +259,7 @@ $(document).ready(function() {
           var row = table.row('#'+data.id); 
           table.row(row).data(data);
           setDesktopDetailButtonsStatus(data.id, data.status);
+          console.log(data);
 	}, false);
 
 	desktops_source.addEventListener('Deleted', function(e) {
@@ -279,6 +285,17 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-template').on('click', function () {
+		if($('.quota-templates .perc').text() >=100){
+            new PNotify({
+                title: "Quota for creating templates full.",
+                text: "Can't create another template, quota full.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: 'error'
+            });
+		}else{	
 			var pk=$(this).closest("div").attr("data-pk");
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
@@ -287,6 +304,7 @@ function actionsDesktopDetail(){
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+        }
 	});
 
 	$('.btn-delete').on('click', function () {

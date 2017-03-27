@@ -120,9 +120,17 @@ class isard():
             domain=self.f.flatten_dict(domain)
             if human_size:
                 domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
+                for i,dict in enumerate(domain['disks_info-path_disk']):
+                    for k,v in domain['disks_info-path_disk'][i].items():
+                        if 'size' in k:
+                            domain['disks_info-path_disk'][i][k]=self.human_size(domain['disks_info-path_disk'][i][k])
         else:
             if human_size:
                 domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
+                for i,dict in enumerate(domain['disks_info']['path_disk']):
+                    for k,v in domain['disks_info']['path_disk'][i].items():
+                        if 'size' in k:
+                            domain['disks_info']['path_disk'][i][k]=self.human_size(domain['disks_info']['path_disk'][i][k])
         return domain   
 
     def get_user_quotas(self, username, fakequota=False):
@@ -597,7 +605,7 @@ class isard():
                   'description': 'Disposable desktop',
                   'kind': 'desktop',
                   'user': userObj['id'],
-                  'status': 'Creating',
+                  'status': 'CreatingAndStarting',
                   'detail': None,
                   'category': userObj['category'],
                   'group': userObj['group'],

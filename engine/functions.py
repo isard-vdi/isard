@@ -16,6 +16,8 @@ import socket
 import time
 import threading
 import json
+import xmltodict
+import ctypes
 from time import sleep
 from .db import update_domain_progress, insert_disk_operation, update_disk_operation, get_disks_all_domains
 from .db import get_domain, insert_domain, update_domain_createing_template, get_domain_spice,get_config
@@ -44,10 +46,14 @@ def get_threads_running():
     # t_enumerate.start()
 
     e = threading.enumerate()
-    l = [t.name for t in e]
-    l.sort()
-    for i in l:
-        log.debug('Thread running: {}'.format(i))
+    # l = [t.name for t in e]
+    # l.sort()
+    log.debug('parent PID: {}'.format(os.getppid()))
+    for t in e:
+        if hasattr(t, 'tid'):  # only available on Unix
+            log.debug('Thread running (TID: {}): {}'.format(t.tid, t.name))
+        else:
+            log.debug('Thread running: {}'.format(t.name))
     return e
 
 
@@ -61,6 +67,11 @@ def get_threads_names_running():
     l = [t.name for t in e]
     l.sort()
     return l
+
+def get_tid():
+
+    tid = ctypes.CDLL('libc.so.6').syscall(186)
+    return tid
 
 def randomMAC():
 	mac = [ 0x52, 0x54, 0x00,
@@ -89,6 +100,8 @@ def timelimit(timeout, func, arg1):
             self.result = None
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             self.result = func(arg1)
 
     it = FuncThread()
@@ -938,6 +951,44 @@ def check_all_backing_chains(hostname,path_to_write_json=None):
         dict_stats = analize_backing_chains_outputs(array_out_err=array_out_err,
                                                     path_to_write_json=path_to_write_json)
     return dict_stats
+
+
+
+def cmd_check_os(path_disk):
+    return 'virt-inspector -a "{}"'.format(path_disk)
+
+def check_all_os(hostname,path_to_write_json=None):
+    tuples_domain_disk = get_disks_all_domains()
+    cmds1 = list()
+    for domain_id, path_domain_disk in tuples_domain_disk:
+        cmds1.append({'title': domain_id, 'cmd': cmd_check_os(path_domain_disk)})
+
+    from pprint import pprint
+    pprint(cmds1)
+    array_out_err = execute_commands(hostname,cmds1,dict_mode=True)
+    # from pprint import pprint
+    # pprint(array_out_err)
+    if path_to_write_json is not None:
+        f = open(path_to_write_json, 'w')
+        json.dump(array_out_err, f)
+        f.close()
+
+    return array_out_err
+
+def analize_check_os_output(array_out_err):
+
+    for d in array_out_err:
+        domains_ok = 0
+        domains_err = 0
+        for d in array_out_err:
+            id = d['title']
+            if len(d['err']) > 0:
+                domains_err += 1
+                log.info(d['err'])
+                update_domain_os('Unknown', id, detail=d['err'])
+            else:
+                d = xmltodict.parse(d['out'])
+                print('DOMAIN ID: {}, SO product_name: {}'.format(id,d['operatingsystems']['operatingsystem']['product_name']))
 
 
 def analize_backing_chains_outputs(array_out_err=[],path_to_write_json=None,path_to_read_json=None):

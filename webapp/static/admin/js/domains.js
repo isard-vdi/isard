@@ -95,9 +95,45 @@ $(document).ready(function() {
         $(this).toggleClass('active');
     } );
 
-    //~ $('#button').click( function () {
-        //~ alert( table.rows('.selected').data().length +' row(s) selected' );
-    //~ } );
+    $('#mactions').on('change', function () {
+        action=$(this).val();
+        names=''
+        ids=[]
+
+        if(domains_table.rows('.active').data().length){
+            $.each(domains_table.rows('.active').data(),function(key, value){
+                names+=value['name']+'\n';
+                ids.push(value['id']);
+            });
+            var text = "You are about to "+action+" these desktops:\n\n "+names
+        }else{ 
+            $.each(domains_table.rows({filter: 'applied'}).data(),function(key, value){
+                ids.push(value['id']);
+            });
+            var text = "You are about to "+action+" "+domains_table.rows({filter: 'applied'}).data().length+" desktops!\n All the desktops in list!"
+        }
+				new PNotify({
+						title: 'Warning!',
+							text: text,
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+							api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                			}); 
+						}).on('pnotify.cancel', function() {
+				});	
+    } );
 
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
@@ -129,8 +165,12 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                $('#status-detail-'+row.data().id).html(row.data().detail);
+                if (!row.data().status.includes('Fail')){
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                }
                 actionsDomainDetail();
+                setDomainGenealogy(row.data().id);
                 setDomainDetailButtonsStatus(row.data().id,row.data().status)
             }            
         }
@@ -231,6 +271,7 @@ $(document).ready(function() {
                 break;
         }
     });	
+
     // Stream domains_source
 	if (!!window.EventSource) {
 	  var domains_source = new EventSource('/admin/stream/domains');
