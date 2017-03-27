@@ -14,6 +14,8 @@
     <link href="../vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="../vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Datatables -->
+    <link href="/vendors/datatables.net-bs/css/dataTables.bootstrap.css" rel="stylesheet">
     <!-- NProgress -->
     <link href="../vendors/nprogress/nprogress.css" rel="stylesheet">
 
@@ -47,16 +49,38 @@
               </div>
         <!-- /top navigation -->
         <!-- page content -->
-        <div class="col-md-12">
-          <div class="col-middle">
-            <div class="text-center text-center">
-                <section id="chart"></section>
-            </div>
-          </div>
+        <div class="row">
+			<div class="col-md-6 col-sm-6 col-xs-12">
+				<div class="text-center text-center">
+					<section id="chart">             
+					</section>
+				</div>
+			</div>
+			<div class="col-md-6 col-sm-6 col-xs-12">
+                                <table id="table-list" class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>hyper</th>
+                                            <th>name</th>
+                                            <th>os</th>
+                                            <th>load</th>
+                                            <th>net</th>
+                                            <th>disk rw</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>				
+			</div>
         </div>
         <!-- /page content -->
       </div>
     </div>
+
+<!--
+<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
+<span class="sr-only">Loading...</span>   
+-->
 
     <!-- jQuery -->
     <script src="../vendors/jquery/dist/jquery.min.js"></script>
@@ -66,7 +90,9 @@
     <script src="../vendors/fastclick/lib/fastclick.js"></script>
     <!-- NProgress -->
     <script src="../vendors/nprogress/nprogress.js"></script>
-
+    <!-- Datatables -->
+    <script src="/vendors/datatables.net/js/jquery.dataTables.js"></script>
+    <script src="/vendors/datatables.net-bs/js/dataTables.bootstrap.js"></script>
     <!-- Custom Theme Scripts -->
 	<script src="/bower_components/d3/d3.min.js"></script>
 	<script src="/static/admin/js/graphs.js"></script>
