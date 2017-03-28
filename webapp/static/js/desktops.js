@@ -181,6 +181,7 @@ $(document).ready(function() {
             case 'btn-display':
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
+                    console.log('xpi detected')
 					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
                     if(data==false){
 						new PNotify({
@@ -202,28 +203,97 @@ $(document).ready(function() {
                 }); 
 				}else{
 					//Viewer .vv Download
-					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(error) {
-                    if(error==false){
-						new PNotify({
-						title: "Display error",
-							text: "Can't download display file, something went wrong.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-					}else{
-						var url = '/desktops/viewer/file/'+data['id'];
-						var anchor = document.createElement('a');
-							anchor.setAttribute('href', url);
-							anchor.setAttribute('download', 'console.vv');
-						var ev = document.createEvent("MouseEvents");
-							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-						anchor.dispatchEvent(ev);
+					//~ api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(error) {
+                    //~ if(error==false){
+						//~ new PNotify({
+						//~ title: "Display error",
+							//~ text: "Can't download display file, something went wrong.",
+							//~ hide: true,
+							//~ delay: 3000,
+							//~ icon: 'fa fa-alert-sign',
+							//~ opacity: 1,
+							//~ type: 'error'
+						//~ });
+					//~ }else{
+                        new PNotify({
+                            title: 'Choose display connection',
+                            text: 'Open in browser (html5) or download remote-viewer file.',
+                            icon: 'glyphicon glyphicon-question-sign',
+                            hide: false,
+                            delay: 3000,
+                            confirm: {
+                                confirm: true,
+                                buttons: [
+                                    {
+                                        text: 'HTML5',
+                                        addClass: 'btn-primary',
+                                        click: function(notice){
+                                            api.ajax('/desktops/viewer/html5/'+data['id'],'GET',{}).done(function(data) {
+                                                notice.update({
+                                                    title: 'You choosed HTML5', text: 'Opening in new window...', icon: true, type: 'info', hide: true,
+                                                    confirm: {
+                                                        confirm: false
+                                                    },
+                                                    buttons: {
+                                                        closer: true,
+                                                        sticker: false
+                                                    }
+                                                });
+                                                http://vdesktop6.escoladeltreball.org/?host=isard-devel.escoladeltreball.org&port=55906&passwd=1234
+                                                url='http://'+data.host+'/?host='+data.host+'&port='+data.port+'&passwd='+data.passwd
+                                                window.open(url);
+                                            }).fail(function (data) {
+                                                notice.update({
+                                                    title: 'Failed', text: 'Something went wrong...', icon: true, type: 'error', hide: true,
+                                                    confirm: {
+                                                        confirm: false
+                                                    },
+                                                    buttons: {
+                                                        closer: true,
+                                                        sticker: false
+                                                    }
+                                                });
+                                                window.open('/desktops');
+                                            });
+                                        }
+                                    },
+                                    {
+                                        text: 'Download display file',
+                                        click: function(notice){
+                                            notice.update({
+                                                title: 'You choosed to download', text: 'File will be downloaded shortly', icon: true, type: 'info', hide: true,
+                                                confirm: {
+                                                    confirm: false
+                                                },
+                                                buttons: {
+                                                    closer: true,
+                                                    sticker: false
+                                                }
+                                            });
+                                            var url = '/desktops/viewer/file/'+data['id'];
+                                            var anchor = document.createElement('a');
+                                                anchor.setAttribute('href', url);
+                                                anchor.setAttribute('download', 'console.vv');
+                                            var ev = document.createEvent("MouseEvents");
+                                                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                                            anchor.dispatchEvent(ev);
+                                        }
+                                    },
+                                ]
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            }
+                        });                        
+
+
 					}
-				}); 
-				}
+				//~ }); 
+				//~ }
                 break;
         }
     });

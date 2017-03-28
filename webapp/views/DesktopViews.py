@@ -79,7 +79,26 @@ def spice(type,id):
     if type == 'xpi':
         dict=app.isardapi.get_spice_xpi(id)
         return json.dumps(dict), 200, {'ContentType:':'application/json'}
- 
+
+    if type == 'html5':
+        dict=app.isardapi.get_domain_spice(id)
+        ##### Change this when engine opens ports accordingly (without tls)
+        if dict['port'] or True:
+            #~ dict['port'] = "5"+ dict['port']
+            dict['port'] = dict['port'] if dict['port'] else dict['tlsport']
+            dict['port'] = "5"+ dict['port']
+            return json.dumps(dict), 200, {'ContentType:':'application/json'}
+        else:
+            return json.dumps('HTML5 incompatible with TLS port.'), 500, {'ContentType':'application/json'}
+                    #~ {'host':domain['viewer']['hostname'],
+                    #~ 'kind':domain['hardware']['graphics']['type'],
+                    #~ 'port':False,
+                    #~ 'tlsport':domain['viewer']['tlsport'],
+                    #~ 'ca':viewer['certificate'],
+                    #~ 'domain':viewer['domain'],
+                    #~ 'passwd':domain['viewer']['passwd']}
+        
+         
 #~ Serves desktops and templates (domains)
 @app.route('/domains/update', methods=['POST'])
 @login_required

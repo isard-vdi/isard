@@ -182,6 +182,7 @@ def admin_table_stream(table):
             if c['new_val'] is None:
                 yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
                 continue
+            c['new_val'].pop('job_state', None)                
             if c['old_val'] is None:
                 yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
                 continue             
