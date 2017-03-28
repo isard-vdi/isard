@@ -84,7 +84,22 @@ def launch_delete_disk_action(action,hostname,user,port):
                                      user=user,
                                      port=port)
     #ALBERTO FALTA ACABAR
+
     pass
+
+
+def launch_action_delete_disk(action,hostname,user,port):
+    disk_path  = action['disk_path']
+    id_domain  = action['domain']
+    array_out_err = execute_commands(hostname,
+                                     ssh_commands=action['ssh_comands'],
+                                     user=user,
+                                     port=port)
+    #last ls must fail
+    if len([k['err'] for k in array_out_err if len(k['err']) == 1]):
+        log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
+
+
 
 def launch_action_disk(action,hostname,user,port):
     disk_path  = action['disk_path']

@@ -21,15 +21,15 @@ VDESKTOP_DISK_OPERATINOS = CONFIG_DICT['REMOTEOPERATIONS']['host_remote_disk_ope
 
 def create_cmds_delete_disk(path_disk):
     cmds = list()
-    cmd = 'ls {}'.format(path_dir)
+    cmd = 'ls -l "{}"'.format(path_disk)
     cmds.append(cmd)
 
-    cmd = 'rm -f {}'.format(path_dir)
+    cmd = 'if [ -f "{}" ] ; then rm -f "{}"; fi'.format(path_disk)
     cmds.append(cmd)
     log.debug('delete disk cmd: {}'.format(cmd))
     cmds.append(cmd)
 
-    cmd = 'ls {}'.format(path_dir)
+    cmd = 'ls -l "{}"'.format(path_disk)
     cmds.append(cmd)
 
     return cmds
