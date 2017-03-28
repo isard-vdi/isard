@@ -44,7 +44,10 @@ def graph_d3_bubble_stream():
         for c in r.table('domains_status').pluck('name','when','status').changes(include_initial=False).run(db.conn):
             #~ domains={}
             if(c['new_val']['name'].startswith('_')):
-                d=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
+                try:
+                    d=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
+                except:
+                    d=None
                 if d is not None: #This if can be removed when vimet is shutdown
                     if(d['status']=='Started'):
                         d['status']=c['new_val']['status']

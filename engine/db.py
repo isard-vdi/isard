@@ -346,6 +346,8 @@ def update_domain_status(status,id_domain,hyp_id=None,detail=''):
                                                           'hyp_started2':hyp_id,
                                                   'status':status,
                                                   'detail':json.dumps(detail)}).run(r_conn)
+    if status=='Stopped':
+        stop_last_domain_status(id_domain)
 
     close_rethink_connection(r_conn)
     # if results_zero(results):
@@ -862,6 +864,19 @@ def get_last_domain_status(name):
     #~ else:
         #~ return l  #[0]
 
+def stop_last_domain_status(name):
+    r_conn = new_rethink_connection()
+    rtable=r.table('domains_status')
+    try:
+        return rtable.\
+                get_all(name, index='name').\
+                 nth(-1).update({'state':'stopped','state_reason':'not running'}).\
+                 run(r_conn)
+        close_rethink_connection(r_conn)
+    except:
+        close_rethink_connection(r_conn)
+        return None
+        
 def update_hypervisor_failed_connection(id,fail_connected_reason=''):
     r_conn = new_rethink_connection()
     rtable=r.table('hypervisors')
