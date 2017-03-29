@@ -72,7 +72,7 @@ $(document).ready(function() {
 
 	source.addEventListener('stopped', function(e) {
 	  var data = JSON.parse(e.data);
-      removeData(domains_tabe,getDataSet(data))
+      removeData(domains_table,getDataSet(data))
       drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
 	}, false);      
 

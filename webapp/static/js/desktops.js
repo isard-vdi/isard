@@ -182,25 +182,41 @@ $(document).ready(function() {
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
                     console.log('xpi detected')
+                    if(isXpiBlocked()){
+                            new PNotify({
+                            title: "Plugin blocked",
+                                text: "You should allow SpiceXPI plugin and then reload webpage.",
+                                hide: true,
+                                confirm: {
+                                    confirm: true,
+                                    cancel: false
+                                },
+                                //~ delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'warning'
+                            });                        
+                    }else{
 					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
-                    if(data==false){
-						new PNotify({
-						title: "Display error",
-							text: "Can't open display, something went wrong.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-					}else{
-						if(data.tlsport){
-							openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
-						}else{
-							openTCP(data.host, data.port, data.passwd);
-						}
-					}
-                }); 
+                        if(data==false){
+                            new PNotify({
+                            title: "Display error",
+                                text: "Can't open display, something went wrong.",
+                                hide: true,
+                                delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'error'
+                            });
+                        }else{
+                            if(data.tlsport){
+                                openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
+                            }else{
+                                openTCP(data.host, data.port, data.passwd);
+                            }
+                        }
+                    });                         
+                    }
 				}else{
 					//Viewer .vv Download
 					//~ api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(error) {
