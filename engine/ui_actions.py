@@ -55,6 +55,7 @@ class UiActions(object):
         if ssl is True:
             x.reset_viewer_passwd()
         else:
+            #only for test purposes, not use in production
             x.spice_remove_passwd_nossl()
 
         x.remove_selinux_options()
