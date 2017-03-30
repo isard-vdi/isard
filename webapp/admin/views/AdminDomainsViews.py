@@ -66,12 +66,29 @@ def admin_stream_domains():
 def admin_domains_stream():
         #~ initial=True
         with app.app_context():
-            for c in r.table('domains').changes(include_initial=False).run(db.conn):
-                if c['new_val'] is None:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                    continue
-                if c['old_val'] is None:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                    continue             
-                if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+            for c in r.table('domains').merge({"table": "domains"}).changes(include_initial=False).union(
+                r.table('domains_status').pluck('id').merge({"table": "domains_status"}).changes(include_initial=False)).run(db.conn):  
+                if (c['new_val'] is not None and c['new_val']['table']=='domains') or (c['old_val'] is not None and c['old_val']['table']=='domains'):
+                    if c['new_val'] is None:
+                        try:
+                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                            continue
+                        except:
+                            break
+                    if c['old_val'] is None:
+                        try:
+                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                            continue 
+                        except:
+                            break
+                    #~ if 'detail' not in c['new_val']: c['new_val']['detail']=''
+                    try:
+                        yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+                    except:
+                        break
+                else:
+                    try:
+                        yield 'event: %s\nid: %d\ndata: ''\n\n' % ('conn',time.time())
+                    except:
+                        log.info('Exiting thread disposable')
+                        break
