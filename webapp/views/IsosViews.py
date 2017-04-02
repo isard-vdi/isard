@@ -48,30 +48,14 @@ def sse_request_isos():
 
 def event_stream_isos(username):
         with app.app_context():
-            for c in r.table('isos').get_all(username, index='user').merge({"table": "domains"}).changes(include_initial=True).union(
-                r.table('domains_status').pluck('id').merge({"table": "domains_status"}).changes(include_initial=False)).run(db.conn):  
-                if (c['new_val'] is not None and c['new_val']['table']=='isos') or (c['old_val'] is not None and c['old_val']['table']=='isos'):
+            for c in r.table('isos').get_all(username, index='user').changes(include_initial=True).run(db.conn):
+                if c['new_val'] is None:
+                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']['id']))
+                    continue
+                if 'old_val' not in c:
+                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                    continue             
+                if 'detail' not in c['new_val']: c['new_val']['detail']=''
+                yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
 
-                    if c['new_val'] is None:
-                        try:
-                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']['id']))
-                            continue
-                        except:
-                            break
-                    if 'old_val' not in c:
-                        try:
-                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                            continue
-                        except:
-                            break
-                    try:
-                        yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
-                    except:
-                        break
-                else:
-                    try:
-                        yield 'event: %s\nid: %d\ndata: ''\n\n' % ('conn',time.time())
-                    except:
-                        log.info('Exiting thread isos')
-                        break
 

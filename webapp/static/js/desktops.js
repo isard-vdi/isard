@@ -149,8 +149,9 @@ $(document).ready(function() {
 							type: 'error'
 						});
 				}else{
-					api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
-					});  
+                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'})
+					//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
+					//~ });  
 				}          
                 break;
             case 'btn-stop':
@@ -315,21 +316,35 @@ $(document).ready(function() {
     });
 
 
-	
-// SERVER SENT EVENTS Stream
-	if (!!window.EventSource) {
-	  var desktops_source = new EventSource('/stream/desktops');
-      console.log('Listening desktops...');
-	} else {
-	  // Result to xhr polling :(
-	}
+    // SocketIO
+    socket = io.connect('http://' + document.domain + ':' + location.port+'/domains');
 
-	window.onbeforeunload = function(){
-	  desktops_source.close();
-	};
+    socket.on('connect', function() {
+        connection_done();
+        console.log('Listening user namespace');
+    });
 
-	desktops_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
+
+    socket.on('desktop_update', function(data){
+        console.log('update')
+        var data = JSON.parse(data);
+        var row = table.row('#'+data.id); 
+        table.row(row).data(data);
+        setDesktopDetailButtonsStatus(data.id, data.status);
+    });
+
+    socket.on('desktop_add', function(data){
+        console.log('add')
+        var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
 		  table.row.add(data).draw();
@@ -338,29 +353,82 @@ $(document).ready(function() {
           var row = table.row('#'+data.id); 
           table.row(row).data(data);			
 		}
-	}, false);
-
-	desktops_source.addEventListener('Status', function(e) {
-	  var data = JSON.parse(e.data);
-          var row = table.row('#'+data.id); 
-          table.row(row).data(data);
-          setDesktopDetailButtonsStatus(data.id, data.status);
-          console.log(data);
-	}, false);
-
-	desktops_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = table.row('#'+data.id).remove().draw();
-            new PNotify({
+        setDesktopDetailButtonsStatus(data.id, data.status);
+    });
+    
+    socket.on('desktop_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = table.row('#'+data.id).remove().draw();
+        new PNotify({
                 title: "Desktop deleted",
                 text: "Desktop "+data.name+" has been deleted",
                 hide: true,
                 delay: 4000,
                 icon: 'fa fa-success',
                 opacity: 1,
-                type: 'info'
-            });
-	}, false);
+                type: 'success'
+        });
+    });
+    
+    socket.on ('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+    
+//~ // SERVER SENT EVENTS Stream
+	//~ if (!!window.EventSource) {
+	  //~ var desktops_source = new EventSource('/stream/desktops');
+      //~ console.log('Listening desktops...');
+	//~ } else {
+	  //~ // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ desktops_source.close();
+	//~ };
+
+	//~ desktops_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ table.row.add(data).draw();
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ table.row(row).data(data);			
+		//~ }
+	//~ }, false);
+
+	//~ desktops_source.addEventListener('Status', function(e) {
+	  //~ var data = JSON.parse(e.data);
+          //~ var row = table.row('#'+data.id); 
+          //~ table.row(row).data(data);
+          //~ setDesktopDetailButtonsStatus(data.id, data.status);
+          //~ console.log(data);
+	//~ }, false);
+
+	//~ desktops_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Desktop deleted",
+                //~ text: "Desktop "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 4000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
 
 });
 
@@ -413,9 +481,7 @@ function actionsDesktopDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-                                //Should return something about the result...
-							});  
+                            socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {
 				});	
 	});

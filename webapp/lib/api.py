@@ -7,7 +7,7 @@
 # coding=utf-8
 import random, queue
 from threading import Thread
-import time
+import time, json
 from webapp import app
 from flask_login import current_user
 import rethinkdb as r
@@ -35,7 +35,31 @@ class isard():
             return True
         if not dict['errors']: return True
         return False
-    
+
+    def update_desktop_status(self,user,data):
+            try:
+                if data['name']=='status':
+                    if data['value']=='Stopping':
+                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    if data['value']=='Deleting':
+                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    if data['value']=='Starting':
+                        if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                            return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+            except Exception as e:
+                return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+            
     def update_table_value(self, table, id, field, value):
         with app.app_context():
             return self.check(r.table(table).get(id).update({field: value}).run(db.conn),'replaced')
@@ -165,7 +189,7 @@ class isard():
                 'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
                 't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
                 'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
-                
+
     def get_user_templates(self, user):
         with app.app_context():
             dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).run(db.conn))

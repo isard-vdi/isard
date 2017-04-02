@@ -39,17 +39,15 @@ def admin_stream_graphs_d3_bubble():
         return Response(graph_d3_bubble_stream(), mimetype='text/event-stream')
         
 def graph_d3_bubble_stream():
+    
     with app.app_context():
         for c in r.table('domains_status').pluck('name','when','status').changes(include_initial=False).run(db.conn):
             #~ domains={}
             if(c['new_val']['name'].startswith('_')):
                 d=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
                 if d is not None: #This if can be removed when vimet is shutdown
-                    try:
-                        if(d['status']=='Started'):
-                            d['status']=c['new_val']['status']
-                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('update',time.time(),json.dumps(d))
-                        else:
-                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('stopped',time.time(),json.dumps(d))
-                    except:
-                        break
+                    if(d['status']=='Started'):
+                        d['status']=c['new_val']['status']
+                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('update',time.time(),json.dumps(d))
+                    else:
+                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('stopped',time.time(),json.dumps(d))

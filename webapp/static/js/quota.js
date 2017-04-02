@@ -5,30 +5,57 @@
 * License: AGPLv3
 */
 
+$lost=0;
 $maxlost=2;
 $(document).ready(function() {
-	if (!!window.EventSource) {
-	  var s = new EventSource('/stream/backend');
-      console.log('Listening quotas...');
-	} else {
-	  //~ // Result to xhr polling :(
-	}
+	//~ if (!!window.EventSource) {
+	  //~ var s = new EventSource('/stream/backend');
+      //~ console.log('Listening quotas...');
+	//~ } else {
+	  // Result to xhr polling :(
+	//~ }
 
-	window.onbeforeunload = function(){
-	  s.close();
-	};
+	//~ window.onbeforeunload = function(){
+	  //~ s.close();
+	//~ };
 
-	s.addEventListener('open', function() {
-	  // Connection was opened.
-      $lost=0;
-	  $('#modal-lostconnection').modal('hide');
-	}, false);
+	//~ s.addEventListener('open', function() {
+	  //~ // Connection was opened.
+      //~ $lost=0;
+	  //~ $('#modal-lostconnection').modal('hide');
+	//~ }, false);
 
-	s.addEventListener('error', function(e) {
-	  if (e.readyState == EventSource.CLOSED) {
-		// Connection was closed.
+	//~ s.addEventListener('error', function(e) {
+	  //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
 		
-	  }else{
+	  //~ }else{
+        //~ $lost=$lost+1;
+        //~ if($lost>=$maxlost){
+                //~ $('#modal-lostconnection').modal({
+                    //~ backdrop: 'static',
+                    //~ keyboard: false
+                //~ }).modal('show');
+                        //~ return false;
+            //~ }
+        //~ }
+       
+	//~ }, false);
+
+
+	//~ s.addEventListener('Quota', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ drawUserQuota(data)
+	//~ }, false);
+
+
+});
+
+    function connection_done(){
+      $lost=0;
+	  $('#modal-lostconnection').modal('hide');        
+    }
+    function connection_lost(){
         $lost=$lost+1;
         if($lost>=$maxlost){
                 $('#modal-lostconnection').modal({
@@ -37,15 +64,7 @@ $(document).ready(function() {
                 }).modal('show');
                         return false;
             }
-        }
-       
-	}, false);
-
-
-	s.addEventListener('Quota', function(e) {
-	  var data = JSON.parse(e.data);
-		drawUserQuota(data)
-	}, false);
+    }
 
     function drawUserQuota(data){
         $('.quota-desktops .badge').html(data.d);
@@ -80,7 +99,3 @@ $(document).ready(function() {
         if(data.iqp > 50 && data.iqp <= 80){$('.quota-isos .badge').addClass('bg-orange');}
         if(data.iqp > 80){$('.quota-isos .badge').addClass('bg-red');}	
     }
-});
-
-
-
