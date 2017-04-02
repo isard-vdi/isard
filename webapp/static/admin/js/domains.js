@@ -272,70 +272,132 @@ $(document).ready(function() {
         }
     });	
 
-    // Stream domains_source
-	if (!!window.EventSource) {
-	  var domains_source = new EventSource('/admin/stream/domains');
-      console.log('Listening domains...');
-	} else {
-	  //~ // Result to xhr polling :(
-	}
 
-	window.onbeforeunload = function(){
-	  domains_source.close();
-	};
+    // SocketIO
+    socket = io.connect('http://' + document.domain + ':' + location.port+'/admin_domains');
 
-	domains_source.addEventListener('open', function(e) {
-	  // Connection was opened.
-	}, false);
+    socket.on('connect', function() {
+        connection_done();
+        console.log('Listening admin_domains namespace');
+    });
 
-	domains_source.addEventListener('error', function(e) {
-	  if (e.readyState == EventSource.CLOSED) {
-		// Connection was closed.
-	  }
-     
-	}, false);
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
 
-	domains_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
+    socket.on('desktop_data', function(data){
+        var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
 		  domains_table.row.add(data).draw();
-            new PNotify({
-                title: "Domain added",
-                text: "Domain "+data.name+" has been created",
+		}else{
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = domains_table.row('#'+data.id); 
+          domains_table.row(row).data(data).invalidate();			
+		}
+        domains_table.draw(false);
+        setDomainDetailButtonsStatus(data.id, data.status);
+    });
+    
+    socket.on('desktop_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Desktop deleted",
+                text: "Desktop "+data.name+" has been deleted",
                 hide: true,
-                delay: 2000,
+                delay: 4000,
                 icon: 'fa fa-success',
                 opacity: 1,
                 type: 'success'
-            });          
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = table.row('#'+data.id); 
-          domains_table.row(row).data(data);			
-		}
-	}, false);
-
-	domains_source.addEventListener('Status', function(e) {
-          var data = JSON.parse(e.data);
-          var row = domains_table.row('#'+data.id); 
-          domains_table.row(row).data(data);
-          setDomainDetailButtonsStatus(data.id, data.status);
-	}, false);
-
-	domains_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = table.row('#'+data.id).remove().draw();
-            new PNotify({
-                title: "Domain deleted",
-                text: "Domain "+data.name+" has been deleted",
+        });
+    });
+    
+    socket.on ('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
                 hide: true,
-                delay: 2000,
-                icon: 'fa fa-success',
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
                 opacity: 1,
-                type: 'info'
-            });
-	}, false);
+                type: data.type
+        });
+    });
+
+
+    //~ // Stream domains_source
+	//~ if (!!window.EventSource) {
+	  //~ var domains_source = new EventSource('/admin/stream/domains');
+      //~ console.log('Listening domains...');
+	//~ } else {
+	  // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ domains_source.close();
+	//~ };
+
+	//~ domains_source.addEventListener('open', function(e) {
+	  //~ // Connection was opened.
+	//~ }, false);
+
+	//~ domains_source.addEventListener('error', function(e) {
+	  //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
+	  //~ }
+     
+	//~ }, false);
+
+	//~ domains_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ domains_table.row.add(data).draw();
+            //~ new PNotify({
+                //~ title: "Domain added",
+                //~ text: "Domain "+data.name+" has been created",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'success'
+            //~ });          
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ domains_table.row(row).data(data);			
+		//~ }
+	//~ }, false);
+
+	//~ domains_source.addEventListener('Status', function(e) {
+          //~ var data = JSON.parse(e.data);
+          //~ var row = domains_table.row('#'+data.id); 
+          //~ domains_table.row(row).data(data);
+          //~ setDomainDetailButtonsStatus(data.id, data.status);
+	//~ }, false);
+
+	//~ domains_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Domain deleted",
+                //~ text: "Domain "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
     
 });
 

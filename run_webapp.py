@@ -51,12 +51,13 @@ class DomainsThread(threading.Thread):
                     if c['new_val'] is None:
                         data=c['old_val']
                         event='desktop_delete' if data['kind']=='desktop' else 'template_delete'
-                    elif c['old_val'] is None:
-                        data=c['new_val']
-                        event='desktop_add' if data['kind']=='desktop' else 'template_add'
+                    #~ elif c['old_val'] is None:
+                        #~ data=c['new_val']
+                        #~ event='desktop_add' if data['kind']=='desktop' else 'template_add'
                     else:
+                        # Status
                         data=c['new_val']
-                        event='desktop_add' if data['kind']=='desktop' else 'template_add'
+                        event='desktop_data' if data['kind']=='desktop' else 'template_data'
                     socketio.emit(event, 
                                     json.dumps(app.isardapi.f.flatten_dict(data)), 
                                     namespace=namespace, 
@@ -65,6 +66,11 @@ class DomainsThread(threading.Thread):
                                     json.dumps(app.isardapi.get_user_quotas(data['user'])), 
                                     namespace=namespace, 
                                     room='user_'+data['user'])
+                    ## Admins should receive all updates on /admin namespace
+                    socketio.emit(event, 
+                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                    namespace='/admin_domains', 
+                                    room='admins')
                 except Exception as e:
                     log.error('DomainsThread error:'+e)
 
@@ -89,7 +95,7 @@ def socketio_domains_connect():
     
 @socketio.on('disconnect', namespace='/domains')
 def socketio_domains_disconnect():
-    print('user:'+current_user.username+' disconnectet')
+    print('user:'+current_user.username+' disconnected')
 
 @socketio.on('domain_update', namespace='/domains')
 def socketio_domains_update(data):
@@ -100,6 +106,24 @@ def socketio_domains_update(data):
                     room='user_'+current_user.username)
 
 
+## Admin namespace
+@socketio.on('connect', namespace='/admin_domains')
+def socketio_domains_connect():
+    #~ print('sid:'+request.sid)
+    if current_user.role=='admin':
+        join_room('admins')
+        join_room('user_'+current_user.username)
+        socketio.emit('user_quota', 
+                        json.dumps(app.isardapi.get_user_quotas(current_user.username, current_user.quota)), 
+                        namespace='/admin_domains', 
+                        room='user_'+current_user.username)
+    else:
+        None
+    
+@socketio.on('disconnect', namespace='/domains')
+def socketio_domains_disconnect():
+    print('user:'+current_user.username+' disconnected')
+    
 ## Main
 if __name__ == '__main__':
     start_domains_thread()

@@ -334,25 +334,28 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
-    socket.on('desktop_update', function(data){
-        console.log('update')
-        var data = JSON.parse(data);
-        var row = table.row('#'+data.id); 
-        table.row(row).data(data);
-        setDesktopDetailButtonsStatus(data.id, data.status);
-    });
+    //~ socket.on('desktop_update', function(data){
+        //~ console.log('update')
+        //~ var data = JSON.parse(data);
+        //~ var row = table.row('#'+data.id); 
+        //~ table.row(row).data(data);
+        //~ setDesktopDetailButtonsStatus(data.id, data.status);
+    //~ });
 
-    socket.on('desktop_add', function(data){
-        console.log('add')
+    socket.on('desktop_data', function(data){
+        console.log('add or update')
         var data = JSON.parse(data);
+        //~ dtInsertUpdate(table,data,true)
+        //~ console.log('done')
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
 		  table.row.add(data).draw();
 		}else{
           //if already exists do an update (ie. connection lost and reconnect)
           var row = table.row('#'+data.id); 
-          table.row(row).data(data);			
+          table.row(row).data(data).invalidate();			
 		}
+        table.draw(false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
     
