@@ -28,7 +28,14 @@
 		return pluginsFound;
 	}
 
-
+    function isXpiBlocked(){
+        var embed = document.embeds[0];
+        if (typeof embed.connect === "function") { 
+            return false;
+        }
+        return true;
+    }
+    
 	function openTCP(spice_host,spice_port,spice_passwd)
 	{
 		var embed = document.embeds[0];
