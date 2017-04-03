@@ -317,7 +317,7 @@ $(document).ready(function() {
 
 
     // SocketIO
-    socket = io.connect('http://' + document.domain + ':' + location.port+'/domains');
+    socket = io.connect('https://' + document.domain + ':' + location.port+'/domains');
 
     socket.on('connect', function() {
         connection_done();
