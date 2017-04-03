@@ -124,24 +124,15 @@ def stream_hypers():
                         r.table('hypervisors_status').merge({"table": "hypervisors_status"}).changes(include_initial=False)).run(db.conn):
                 if c['new_val'] is None:
                     if c['old_val']['table'] is 'hypervisors':
-                        try:
-                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']['id']))
-                            continue
-                        except:
-                            break
+                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']['id']))
+                        continue
                 if 'old_val' not in c:
                     if c['old_val']['table'] is 'hypervisors':
-                        try:
-                            yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                            continue   
-                        except:
-                            break
-                #~ if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                try:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('hypervisors',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
-                except:
-                    break
-                    
+                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                        continue             
+                if 'detail' not in c['new_val']: c['new_val']['detail']=''
+                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('hypervisors',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+
 @app.route('/admin/hypervisors/get')
 @login_required
 def admin_hypervisors_get():
