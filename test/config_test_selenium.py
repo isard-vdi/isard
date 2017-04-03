@@ -1,7 +1,8 @@
 
 
-base_test_name='testB'
+base_test_name='testC'
 num=2
+num_test=10
 user='admin'
 pwd ='isard'
 vm_num = 1
