@@ -171,7 +171,7 @@ $(document).ready(function() {
                 }
                 actionsDomainDetail();
                 setDomainGenealogy(row.data().id);
-                setDomainDetailButtonsStatus(row.data().id,row.data().status)
+                //~ setDomainDetailButtonsStatus(row.data().id,row.data().status)
             }            
         }
     } );	
@@ -274,7 +274,7 @@ $(document).ready(function() {
 
 
     // SocketIO
-    socket = io.connect('http://' + document.domain + ':' + location.port+'/admins');
+    socket = io.connect('/sio_admins');
 
     socket.on('connect', function() {
         connection_done();
@@ -309,7 +309,7 @@ $(document).ready(function() {
     socket.on('desktop_delete', function(data){
         console.log('delete')
         var data = JSON.parse(data);
-        var row = table.row('#'+data.id).remove().draw();
+        var row = domains_table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Desktop deleted",
                 text: "Desktop "+data.name+" has been deleted",

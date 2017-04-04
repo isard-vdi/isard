@@ -32,8 +32,8 @@ class DomainsThread(threading.Thread):
 
     def run(self):
         with app.app_context():
-            for c in r.table('domains').pluck('id','kind','hyp_started','name','description','icon','status','user').changes(include_initial=False).run(db.conn):
-                #~ .without('xml','hardware','viewer')
+            for c in r.table('domains').without('xml','hardware','viewer').changes(include_initial=False).run(db.conn):
+                #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
                 #~ pprint.pprint(c)
                 if self.stop==True: break
                 try:

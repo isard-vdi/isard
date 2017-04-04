@@ -455,7 +455,8 @@ class Populate(object):
                                                            #~ 'categories': False,
                                                            #~ 'groups': False,
                                                            #~ 'users': False}
-                                                       }]).run(db.conn))
+                                                       #~ }
+                                                       ]).run(db.conn))
             return True
 
     '''
