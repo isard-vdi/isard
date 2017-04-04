@@ -296,8 +296,7 @@ $(document).ready(function() {
 
 
     // SocketIO
-    //~ socket = io.connect('https://' + document.domain + ':' + location.port+'/domains');
-     socket = io.connect('/sio_users');
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
      
     socket.on('connect', function() {
         connection_done();

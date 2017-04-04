@@ -87,52 +87,118 @@ $(document).ready(function() {
         }
     } );
 
-    // Stream hypers
-	if (!!window.EventSource) {
-	  var hyper_source = new EventSource('/stream/admin/hypers');
-	} else {
-	  // Result to xhr polling :(
-	}
+    // SocketIO
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
+     
+    socket.on('connect', function() {
+        connection_done();
+        socket.emit('join_rooms',['hyper'])
+        console.log('Listening admins namespace');
+    });
 
-	window.onbeforeunload = function(){
-	  hyper_source.close();
-	};
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
 
-	hyper_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
+    socket.on('hyper_data', function(data){
+        console.log('add or update')
+        var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
-		  table.row.add( formatHypervisorData(data)).draw();
+		  table.row.add(data).draw();
 		}else{
-		  //if already exists do an update (ie. connection lost and reconnect)
-			var row = table.row('#'+data.id); 
-			table.row(row).data(formatHypervisorData(data));			
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = table.row('#'+data.id); 
+          table.row(row).data(data).invalidate();			
 		}
-	}, false);
+        table.draw(false);
+    });
 
-	//Source for table updates hypervisors
-	hyper_source.addEventListener('hypervisors', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = table.row('#'+data.id); 
-      table.row(row).data(formatHypervisorData(data));
-	}, false);
+    socket.on('hyper_status', function(data){
+        console.log('status: '+data.name)
+    });
+        
+    socket.on('hyper_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Hypervisor deleted",
+                text: "Hypervisor "+data.name+" has been deleted",
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+        });
+    });
+    
+    socket.on('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
 
-	hyper_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = table.row('#'+data.id); 
-      table.row(row).remove();
-	}, false);
 
-	hyper_source.addEventListener('hypervisors_status', function(e) {
-        // Here will be the stats
-	}, false);
+    //~ // Stream hypers
+	//~ if (!!window.EventSource) {
+	  //~ var hyper_source = new EventSource('/stream/admin/hypers');
+	//~ } else {
+	  //~ // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ hyper_source.close();
+	//~ };
+
+	//~ hyper_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ table.row.add( formatHypervisorData(data)).draw();
+		//~ }else{
+		  //~ //if already exists do an update (ie. connection lost and reconnect)
+			//~ var row = table.row('#'+data.id); 
+			//~ table.row(row).data(formatHypervisorData(data));			
+		//~ }
+	//~ }, false);
+
+	//~ //Source for table updates hypervisors
+	//~ hyper_source.addEventListener('hypervisors', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = table.row('#'+data.id); 
+      //~ table.row(row).data(formatHypervisorData(data));
+	//~ }, false);
+
+	//~ hyper_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = table.row('#'+data.id); 
+      //~ table.row(row).remove();
+	//~ }, false);
+
+	//~ hyper_source.addEventListener('hypervisors_status', function(e) {
+        //~ // Here will be the stats
+	//~ }, false);
 	
-	hyper_source.addEventListener('error', function(e) {
-        console.log('Hyper sse Error');
-        if (e.readyState == EventSource.CLOSED) {
-		// Connection was closed.
-	  }
-	}, false);
+	//~ hyper_source.addEventListener('error', function(e) {
+        //~ console.log('Hyper sse Error');
+        //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
+	  //~ }
+	//~ }, false);
 });// document ready
 
 function renderName(data){

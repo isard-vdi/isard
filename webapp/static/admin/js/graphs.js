@@ -52,29 +52,55 @@ $(document).ready(function() {
             drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
     });
 
-    /* Server Sent Event */
-	if (!!window.EventSource) {
-	  var source = new EventSource('/admin/stream/graphs/d3_bubble');
-      console.log('Listening d3 bubble stream...');
-	} else {
-	  // Result to xhr polling :(
-	}
 
-	window.onbeforeunload = function(){
-	  source.close();
-	};
-    
-	source.addEventListener('update', function(e) {
+    // SocketIO
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
+
+    socket.on('connect', function() {
+        connection_done();
+        socket.emit('join_rooms',['domains_status'])
+        console.log('Listening admins namespace');
+    });
+
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+
+    socket.on('desktop_status', function(data){
 	  var data = JSON.parse(e.data);
       applyData(domains_table,getDataSet(data),false)
       drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
-	}, false);
-
-	source.addEventListener('stopped', function(e) {
+    });
+    
+    socket.on('desktop_stopped', function(data){
 	  var data = JSON.parse(e.data);
       removeData(domains_table,getDataSet(data))
       drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
-	}, false);      
+    });
+
+    //~ /* Server Sent Event */
+	//~ if (!!window.EventSource) {
+	  //~ var source = new EventSource('/admin/stream/graphs/d3_bubble');
+      //~ console.log('Listening d3 bubble stream...');
+	//~ } else {
+	  //~ // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ source.close();
+	//~ };
+    
+	//~ source.addEventListener('update', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ applyData(domains_table,getDataSet(data),false)
+      //~ drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+	//~ }, false);
+
+	//~ source.addEventListener('stopped', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ removeData(domains_table,getDataSet(data))
+      //~ drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+	//~ }, false);      
 
 });
 

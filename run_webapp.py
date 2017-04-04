@@ -34,7 +34,6 @@ class DomainsThread(threading.Thread):
         with app.app_context():
             for c in r.table('domains').without('xml','hardware','viewer').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
-                #~ pprint.pprint(c)
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -45,8 +44,6 @@ class DomainsThread(threading.Thread):
                         if not c['new_val']['id'].startswith('_'): continue
                         data=c['new_val']
                         event='desktop_data' if data['kind']=='desktop' else 'template_data'
-                    print('xxxxxxxxxxxxxxx DESKTOP '+data['id']+' STATUS: '+data['status'])
-                    #~ pprint.pprint([ c['new_val'][x] for x in  c['old_val'] if x in c['new_val'] ])
                     socketio.emit(event, 
                                     json.dumps(app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_users', 
@@ -78,6 +75,7 @@ class DomainsStatusThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.stop = False
+        self.domains= dict()
 
     def run(self):
         with app.app_context():
@@ -86,15 +84,28 @@ class DomainsStatusThread(threading.Thread):
                 try:
                     if c['new_val'] is not None:
                         if not c['new_val']['name'].startswith('_'): continue
-                        socketio.emit('desktop_status', 
-                                        json.dumps(app.isardapi.f.flatten_dict(c['new_val'])), 
-                                        namespace='/sio_users', 
-                                        room='user_'+c['new_val']['name'].split('_')[1])
-                        ## Admins should receive all updates on /admin namespace
-                        socketio.emit('desktop_status', 
-                                        json.dumps(app.isardapi.f.flatten_dict(c['new_val'])), 
-                                        namespace='/sio_admins', 
-                                        room='domains_status')
+                        if c['new_val']['name'] not in self.domains.keys():
+                            domain=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
+                            self.domains[c['new_val']['name']]=domain
+                        else:
+                            domain=self.domains[c['new_val']['name']]
+                        if domain is not None: #This if can be removed when vimet is shutdown
+                                if domain['status']=='Started':
+                                    domain['status']=c['new_val']['status']
+                                    socketio.emit('desktop_status', 
+                                                    json.dumps(app.isardapi.f.flatten_dict(domain)), 
+                                                    namespace='/sio_users', 
+                                                    room='user_'+c['new_val']['name'].split('_')[1])
+                                    socketio.emit('desktop_status', 
+                                                    json.dumps(app.isardapi.f.flatten_dict(domain)), 
+                                                    namespace='/sio_admins', 
+                                                    room='domains_status')
+                                else:
+                                    self.domains.pop(c['new_val']['name'],None)
+                                    socketio.emit('desktop_stopped', 
+                                                    json.dumps(app.isardapi.f.flatten_dict(domain)), 
+                                                    namespace='/sio_admins', 
+                                                    room='domains_status')
                 except Exception as e:
                     print('DomainsStatusThread error:'+str(e))
 
@@ -149,6 +160,42 @@ def start_users_thread():
         threads['users'].daemon = True
         threads['users'].start()
         print('UsersThread Started')       
+
+## Hypervisors Threading
+class HypervisorsThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.stop = False
+
+    def run(self):
+        with app.app_context():
+            for c in r.table('hypervisors').merge({"table": "hyper"}).changes(include_initial=False).union(
+                        r.table('hypervisors_status').merge({"table": "hyper_status"}).changes(include_initial=False)).run(db.conn):
+                if self.stop==True: break
+                try:
+                    if c['new_val'] is None:
+                        if c['old_val']['table']=='hyper':
+                            socketio.emit('hyper_deleted', 
+                                            json.dumps(c['old_val']['id']), 
+                                            namespace='/sio_admins', 
+                                            room='hyper')
+                    else:
+                        event='hyper_data' if c['new_val']['table']=='hyper' else 'hyper_status'
+                    socketio.emit(event, 
+                                    json.dumps(app.isardapi.f.flatten_dict(c['new_val'])), 
+                                    namespace='/sio_admins', 
+                                    room='hyper')                            
+                except Exception as e:
+                    print('DomainsStatusThread error:'+str(e))
+
+def start_hypervisors_thread():
+    global threads
+    if 'hypervisors' not in threads: threads['hypervisors']=None
+    if threads['hypervisors'] is None:
+        threads['hypervisors'] = HypervisorsThread()
+        threads['hypervisors'].daemon = True
+        threads['hypervisors'].start()
+        print('HypervisorsThread Started')  
 
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')
@@ -231,6 +278,7 @@ if __name__ == '__main__':
     start_domains_thread()
     start_domains_status_thread()
     start_users_thread()
+    start_hypervisors_thread()
     
     import logging
     logger=logging.getLogger("socketio")

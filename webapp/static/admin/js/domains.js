@@ -274,7 +274,7 @@ $(document).ready(function() {
 
 
     // SocketIO
-    socket = io.connect('/sio_admins');
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
 
     socket.on('connect', function() {
         connection_done();

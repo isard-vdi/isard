@@ -79,6 +79,10 @@ def send_templates(path):
 @app.route('/bower_components/<path:path>')
 def send_bower(path):
     return send_from_directory(os.path.join(app.root_path, 'bower_components'), path)
+
+#~ @app.route('/socket.io')
+#~ def send_socketio(path):
+    #~ return send_from_directory(os.path.join(app.root_path, 'bower_components/socket.io-client/lib/socket.js'), path)
     
 @app.route('/isard_dist/<path:path>')
 def send_isardist(path):
