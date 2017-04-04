@@ -183,11 +183,15 @@ class isard():
                 qpisos=isos*100/user_obj['quota']['domains']['isos']
             except:
                 qpisos=100
-        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % round(qpdesktops,2),
-                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
-                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
-                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
-
+        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % 0,
+                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % 0,
+                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % 0,
+                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % 0}
+        #~ return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % round(qpdesktops,2),
+                #~ 'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
+                #~ 't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
+                #~ 'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
+                
     def get_user_templates(self, user):
         with app.app_context():
             dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).run(db.conn))

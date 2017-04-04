@@ -110,7 +110,7 @@ $(document).ready(function() {
 	});
 
     // SocketIO
-    var socket = io.connect('http://' + document.domain + ':' + location.port+'/domains');
+    var socket = io.connect('/users');
 
     socket.on('connect', function() {
         connection_done();

@@ -442,19 +442,19 @@ class Populate(object):
                                                            'categories': [],
                                                            'groups': [],
                                                            'users': []},
-                                                       },
-                                                      {'id': 'cirrus',
-                                                       'name': 'Cirrus',
-                                                       'description': 'Not functional',
-                                                       'ram': 65536,
-                                                       'vram': 65536,
-                                                       'model': 'cirrus',
-                                                       'heads': 1,
-                                                       'allowed': {
-                                                           'roles': ['admin'],
-                                                           'categories': False,
-                                                           'groups': False,
-                                                           'users': False}
+                                                       }
+                                                      #~ {'id': 'cirrus',
+                                                       #~ 'name': 'Cirrus',
+                                                       #~ 'description': 'Not functional',
+                                                       #~ 'ram': 65536,
+                                                       #~ 'vram': 65536,
+                                                       #~ 'model': 'cirrus',
+                                                       #~ 'heads': 1,
+                                                       #~ 'allowed': {
+                                                           #~ 'roles': ['admin'],
+                                                           #~ 'categories': False,
+                                                           #~ 'groups': False,
+                                                           #~ 'users': False}
                                                        }]).run(db.conn))
             return True
 
