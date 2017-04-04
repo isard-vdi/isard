@@ -274,11 +274,12 @@ $(document).ready(function() {
 
 
     // SocketIO
-    socket = io.connect('http://' + document.domain + ':' + location.port+'/admin_domains');
+    socket = io.connect('http://' + document.domain + ':' + location.port+'/admins');
 
     socket.on('connect', function() {
         connection_done();
-        console.log('Listening admin_domains namespace');
+        socket.emit('join_rooms',['domains'])
+        console.log('Listening admins namespace');
     });
 
     socket.on('connect_error', function(data) {

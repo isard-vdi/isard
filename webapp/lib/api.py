@@ -92,10 +92,8 @@ class isard():
     def get_domain_spice(self, id):
         domain =  r.table('domains').get(id).run(db.conn)
         viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        print(viewer)
         ##### BIG TODO
         if viewer['defaultMode'] == "Secure":
-            print('secure')
             return {'host':domain['viewer']['hostname'],
                     'kind':domain['hardware']['graphics']['type'],
                     'port':False,
@@ -615,7 +613,6 @@ class isard():
         with app.app_context():
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
             dom=app.isardapi.get_domain(template, flatten=False)
-        print(dom)
         parent_disk=dom['hardware']['disks'][0]['file']
         create_dict=dom['create_dict']
 

@@ -174,8 +174,7 @@ $(document).ready(function() {
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
-                			}); 
+                            socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
 						}).on('pnotify.cancel', function() {
 				});	
                 break;
@@ -198,25 +197,26 @@ $(document).ready(function() {
                                 type: 'warning'
                             });                        
                     }else{
-					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
-                        if(data==false){
-                            new PNotify({
-                            title: "Display error",
-                                text: "Can't open display, something went wrong.",
-                                hide: true,
-                                delay: 3000,
-                                icon: 'fa fa-alert-sign',
-                                opacity: 1,
-                                type: 'error'
-                            });
-                        }else{
-                            if(data.tlsport){
-                                openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
-                            }else{
-                                openTCP(data.host, data.port, data.passwd);
-                            }
-                        }
-                    });                         
+                    socket.emit('domain_viewer',{'pk':data['id'],'kind':'xpi'})
+					//~ api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
+                        //~ if(data==false){
+                            //~ new PNotify({
+                            //~ title: "Display error",
+                                //~ text: "Can't open display, something went wrong.",
+                                //~ hide: true,
+                                //~ delay: 3000,
+                                //~ icon: 'fa fa-alert-sign',
+                                //~ opacity: 1,
+                                //~ type: 'error'
+                            //~ });
+                        //~ }else{
+                            //~ if(data.tlsport){
+                                //~ openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
+                            //~ }else{
+                                //~ openTCP(data.host, data.port, data.passwd);
+                            //~ }
+                        //~ }
+                    //~ });                         
                     }
 				}else{
 					//Viewer .vv Download
@@ -232,6 +232,7 @@ $(document).ready(function() {
 							//~ type: 'error'
 						//~ });
 					//~ }else{
+                    
                         new PNotify({
                             title: 'Choose display connection',
                             text: 'Open in browser (html5) or download remote-viewer file.',
@@ -245,33 +246,17 @@ $(document).ready(function() {
                                         text: 'HTML5',
                                         addClass: 'btn-primary',
                                         click: function(notice){
-                                            api.ajax('/desktops/viewer/html5/'+data['id'],'GET',{}).done(function(data) {
-                                                notice.update({
-                                                    title: 'You choosed HTML5', text: 'Opening in new window...', icon: true, type: 'info', hide: true,
-                                                    confirm: {
-                                                        confirm: false
-                                                    },
-                                                    buttons: {
-                                                        closer: true,
-                                                        sticker: false
-                                                    }
-                                                });
-                                                http://vdesktop6.escoladeltreball.org/?host=isard-devel.escoladeltreball.org&port=55906&passwd=1234
-                                                url='http://'+data.host+'/?host='+data.host+'&port='+data.port+'&passwd='+data.passwd
-                                                window.open(url);
-                                            }).fail(function (data) {
-                                                notice.update({
-                                                    title: 'Failed', text: 'Something went wrong...', icon: true, type: 'error', hide: true,
-                                                    confirm: {
-                                                        confirm: false
-                                                    },
-                                                    buttons: {
-                                                        closer: true,
-                                                        sticker: false
-                                                    }
-                                                });
-                                                window.open('/desktops');
-                                            });
+                                            notice.update({
+                                                title: 'You choosed html5 viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
+                                                confirm: {
+                                                    confirm: false
+                                                },
+                                                buttons: {
+                                                    closer: true,
+                                                    sticker: false
+                                                }
+                                            });                                            
+                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'html5'});
                                         }
                                     },
                                     {
@@ -287,13 +272,7 @@ $(document).ready(function() {
                                                     sticker: false
                                                 }
                                             });
-                                            var url = '/desktops/viewer/file/'+data['id'];
-                                            var anchor = document.createElement('a');
-                                                anchor.setAttribute('href', url);
-                                                anchor.setAttribute('download', 'console.vv');
-                                            var ev = document.createEvent("MouseEvents");
-                                                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                                            anchor.dispatchEvent(ev);
+                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
                                         }
                                     },
                                 ]
@@ -317,11 +296,12 @@ $(document).ready(function() {
 
 
     // SocketIO
-    socket = io.connect('https://' + document.domain + ':' + location.port+'/domains');
-
+    //~ socket = io.connect('https://' + document.domain + ':' + location.port+'/domains');
+     socket = io.connect('/sio_users');
+     
     socket.on('connect', function() {
         connection_done();
-        console.log('Listening user namespace');
+        console.log('Listening users namespace');
     });
 
     socket.on('connect_error', function(data) {
@@ -334,19 +314,9 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
-    //~ socket.on('desktop_update', function(data){
-        //~ console.log('update')
-        //~ var data = JSON.parse(data);
-        //~ var row = table.row('#'+data.id); 
-        //~ table.row(row).data(data);
-        //~ setDesktopDetailButtonsStatus(data.id, data.status);
-    //~ });
-
     socket.on('desktop_data', function(data){
         console.log('add or update')
         var data = JSON.parse(data);
-        //~ dtInsertUpdate(table,data,true)
-        //~ console.log('done')
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
 		  table.row.add(data).draw();
@@ -374,7 +344,7 @@ $(document).ready(function() {
         });
     });
     
-    socket.on ('result', function (data) {
+    socket.on('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
                 title: data.title,
@@ -386,6 +356,47 @@ $(document).ready(function() {
                 type: data.type
         });
     });
+    
+    socket.on('domain_viewer', function (data) {
+        var data = JSON.parse(data);
+        if(data['kind']=='xpi'){
+            viewer=data['viewer']
+                        if(viewer==false){
+                            new PNotify({
+                            title: "Display error",
+                                text: "Can't open display, something went wrong.",
+                                hide: true,
+                                delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'error'
+                            });
+                        }else{
+                            if(viewer.tlsport){
+                                openTLS(viewer.host, viewer.port, viewer.tlsport, viewer.passwd, viewer.ca);
+                            }else{
+                                openTCP(viewer.host, viewer.port, viewer.passwd);
+                            }
+                        }
+        }
+        if(data['kind']=='html5'){
+            viewer=data['viewer']
+            window.open('http://'+viewer.host+'/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd);            
+            
+        }        
+        
+         if(data['kind']=='file'){
+            //~ viewer=data['viewer']
+            var url = '/desktops/viewer/file/'+data['id'];
+            var anchor = document.createElement('a');
+                anchor.setAttribute('href', url);
+                anchor.setAttribute('download', 'console.vv');
+            var ev = document.createEvent("MouseEvents");
+                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                anchor.dispatchEvent(ev);        
+        }
+    });
+
     
 //~ // SERVER SENT EVENTS Stream
 	//~ if (!!window.EventSource) {

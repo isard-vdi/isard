@@ -42,6 +42,18 @@
               </div>
               <div class="clearfix"></div>
               <div class="separator">
+                {% if disposables %}
+                <section>
+                    <h1 style="padding:0;margin:0">{{disposables.name}}</h1>
+                          <label for="disposable">{{disposables.description}}</label>
+                          <select id="disposable" class="form-control">
+                            <option value="">Choose a desktop..</option>
+                            {% for d in disposables.disposables %}
+                                <option value="{{d.id}}">{{d.name}}</option>
+                            {% endfor %}
+                          </select>                    
+                </section>
+                {% endif %}
                 <div class="clearfix"></div>
                 <br />
 
@@ -93,4 +105,16 @@
 		{% endwith %}
     <!-- Isard restful ajax calls -->
     <script src="/static/js/restful.js"></script>
+    {% if disposables %}
+        <!-- Spice viewer -->
+        <script src="/static/js/viewer.js"></script> 
+        <script src="/static/js/disposables.js"></script>
+        <script>
+            $('#disposable').on('change', function() {
+                api.ajax('/desktops_add_disposable','POST',{'pk':this.value}).done(function(data) {
+                    console.log( data );
+                });
+            })        
+        </script>
+    {% endif %}
 </html>
