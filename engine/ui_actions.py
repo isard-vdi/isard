@@ -19,7 +19,7 @@ from .db import remove_dict_new_template_from_domain
 #from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
-from .qcow import create_cmds_disk_from_base, create_cmds_disk_template_from_domain, get_path_to_disk, get_host_disk_operations_from_path
+from .qcow import create_cmds_disk_from_base, create_cmds_delete_disk, create_cmds_disk_template_from_domain, get_path_to_disk, get_host_disk_operations_from_path
 from .vm import xml_vm, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
 from .db import update_domain_status,get_hyp, create_disk_template_created_list_in_domain, remove_disk_template_created_list_in_domain
 from .db import get_hyp_hostnames_online,insert_ferrary,get_ferrary,delete_domain,update_domain_viewer_started_values
@@ -259,12 +259,13 @@ class UiActions(object):
             for d in dict_domain['hardware']['disks']:
 
                 disk_path = d['file']
-                pool_id   = d['hypervisors_pools'][0]
+                pool_id   = dict_domain['hypervisors_pools'][0]
                 if pool_id not in self.manager.pools.keys():
                     log.error('hypervisor pool {} nor running in manager, can\'t delete disks in domain {}'.format(pool_id,id_domain))
                     return False
 
                 next_hyp = self.manager.pools[pool_id].get_next()
+                log.debug('hypervisor where delete disk {}: {}'.format(disk_path,next_hyp))
                 cmds = create_cmds_delete_disk(disk_path)
 
                 action = dict()
@@ -273,6 +274,7 @@ class UiActions(object):
                 action['disk_path'] = disk_path
                 action['domain'] = id_domain
                 action['ssh_comands'] = cmds
+                action['index_disk'] = index_disk
 
                 try:
 
@@ -280,7 +282,7 @@ class UiActions(object):
                                          id_domain=id_domain,
                                          hyp_id=False,
                                          detail='Deleting disk {} in domain {}, queued in hypervisor thread {}'.format(
-                                                 path_disk,
+                                                 disk_path,
                                                  id_domain,
                                                  next_hyp
                                                  ))
