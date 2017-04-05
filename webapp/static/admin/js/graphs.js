@@ -67,13 +67,13 @@ $(document).ready(function() {
     });
 
     socket.on('desktop_status', function(data){
-	  var data = JSON.parse(e.data);
+	  var data = JSON.parse(data);
       applyData(domains_table,getDataSet(data),false)
       drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
     });
     
     socket.on('desktop_stopped', function(data){
-	  var data = JSON.parse(e.data);
+	  var data = JSON.parse(data);
       removeData(domains_table,getDataSet(data))
       drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
     });

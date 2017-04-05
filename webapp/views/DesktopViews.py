@@ -187,8 +187,8 @@ def hardware():
 @login_required
 @ownsid
 def domain_genealogy():
-    gen=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)['disks_info-path_disk']
-    gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info-path_disk']
+    gen=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)['disks_info']
+    gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info']
     wasted=0
     for i,v in enumerate(gen):
         gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),

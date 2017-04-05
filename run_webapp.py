@@ -82,30 +82,38 @@ class DomainsStatusThread(threading.Thread):
             for c in r.table('domains_status').pluck('name','when','status').changes(include_initial=False).run(db.conn):
                 if self.stop==True: break
                 try:
+                    #~ print(len(list(self.domains.keys())))
+                    #~ pprint.pprint(str(list(self.domains.keys())))
                     if c['new_val'] is not None:
                         if not c['new_val']['name'].startswith('_'): continue
                         if c['new_val']['name'] not in self.domains.keys():
+                            if r.table('domains').get(c['new_val']['name']).run(db.conn) is None: continue
                             domain=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
                             self.domains[c['new_val']['name']]=domain
                         else:
                             domain=self.domains[c['new_val']['name']]
                         if domain is not None: #This if can be removed when vimet is shutdown
+                                new_dom=domain.copy()
                                 if domain['status']=='Started':
-                                    domain['status']=c['new_val']['status']
+                                    new_dom['status']=c['new_val']['status']
                                     socketio.emit('desktop_status', 
-                                                    json.dumps(app.isardapi.f.flatten_dict(domain)), 
+                                                    json.dumps(new_dom), 
                                                     namespace='/sio_users', 
                                                     room='user_'+c['new_val']['name'].split('_')[1])
                                     socketio.emit('desktop_status', 
-                                                    json.dumps(app.isardapi.f.flatten_dict(domain)), 
+                                                    json.dumps(new_dom), 
                                                     namespace='/sio_admins', 
                                                     room='domains_status')
+                                    #~ pprint.pprint(domain)
+
                                 else:
+                                    #~ print(domain['id'],domain['status'])
                                     self.domains.pop(c['new_val']['name'],None)
                                     socketio.emit('desktop_stopped', 
-                                                    json.dumps(app.isardapi.f.flatten_dict(domain)), 
+                                                    json.dumps(new_dom), 
                                                     namespace='/sio_admins', 
                                                     room='domains_status')
+                                new_dom=None
                 except Exception as e:
                     print('DomainsStatusThread error:'+str(e))
 
@@ -197,6 +205,42 @@ def start_hypervisors_thread():
         threads['hypervisors'].start()
         print('HypervisorsThread Started')  
 
+## Config Threading
+class ConfigThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.stop = False
+
+    def run(self):
+        with app.app_context():
+            for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
+                r.table('scheduler_jobs').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).run(db.conn):
+                #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
+                if self.stop==True: break
+                try:
+                    if c['new_val'] is None:
+                        event= 'backup_deleted' if c['old_val']['table']=='backups' else 'sch_deleted'
+                        socketio.emit(event, 
+                                        json.dumps(c['old_val']['id']), 
+                                        namespace='/sio_admins', 
+                                        room='config')
+                    else:
+                        event='backup_data' if c['new_val']['table']=='backups' else 'sch_data'
+                        socketio.emit(event, 
+                                        json.dumps(c['new_val']),
+                                        room='config') 
+                except Exception as e:
+                    print('ConfigThread error:'+str(e))
+                    
+def start_config_thread():
+    global threads
+    if 'config' not in threads: threads['config']=None
+    if threads['config'] is None:
+        threads['config'] = ConfigThread()
+        threads['config'].daemon = True
+        threads['config'].start()
+        print('ConfigThread Started')
+
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')
 def socketio_users_connect():
@@ -279,6 +323,7 @@ if __name__ == '__main__':
     start_domains_status_thread()
     start_users_thread()
     start_hypervisors_thread()
+    start_config_thread()
     
     import logging
     logger=logging.getLogger("socketio")
