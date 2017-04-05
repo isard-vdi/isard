@@ -20,6 +20,11 @@ db.init_app(app)
 
 from .decorators import ownsid
 
+
+from flask_socketio import SocketIO, send, emit
+#~ socketio= SocketIO(app)
+#~ Global socketio
+
 @app.route('/domain_messages', methods=['POST'])
 @login_required
 @ownsid
@@ -76,10 +81,29 @@ def spice(type,id):
         return Response(consola, 
                         mimetype="application/x-virt-viewer",
                         headers={"Content-Disposition":"attachment;filename=consola.vv"})
-    if type == 'xpi':
-        dict=app.isardapi.get_spice_xpi(id)
-        return json.dumps(dict), 200, {'ContentType:':'application/json'}
- 
+    #~ if type == 'xpi':
+        #~ dict=app.isardapi.get_spice_xpi(id)
+        #~ return json.dumps(dict), 200, {'ContentType:':'application/json'}
+
+    #~ if type == 'html5':
+        #~ dict=app.isardapi.get_domain_spice(id)
+        #~ ##### Change this when engine opens ports accordingly (without tls)
+        #~ if dict['port'] or True:
+            ###dict['port'] = "5"+ dict['port']
+            #~ dict['port'] = dict['port'] if dict['port'] else dict['tlsport']
+            #~ dict['port'] = "5"+ dict['port']
+            #~ return json.dumps(dict), 200, {'ContentType:':'application/json'}
+        #~ else:
+            #~ return json.dumps('HTML5 incompatible with TLS port.'), 500, {'ContentType':'application/json'}
+                    #~ {'host':domain['viewer']['hostname'],
+                    #~ 'kind':domain['hardware']['graphics']['type'],
+                    #~ 'port':False,
+                    #~ 'tlsport':domain['viewer']['tlsport'],
+                    #~ 'ca':viewer['certificate'],
+                    #~ 'domain':viewer['domain'],
+                    #~ 'passwd':domain['viewer']['passwd']}
+        
+         
 #~ Serves desktops and templates (domains)
 @app.route('/domains/update', methods=['POST'])
 @login_required
@@ -163,8 +187,8 @@ def hardware():
 @login_required
 @ownsid
 def domain_genealogy():
-    gen=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)['disks_info-path_disk']
-    gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info-path_disk']
+    gen=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)['disks_info']
+    gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info']
     wasted=0
     for i,v in enumerate(gen):
         gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
@@ -209,36 +233,78 @@ def desktops_template():
             flash('Could not create template now','danger')
     return redirect(url_for('desktops'))
 
-@app.route('/stream/desktops')
-@login_required
-def sse_request():
-        return Response(event_stream(current_user.username), mimetype='text/event-stream')
+#~ @socketio.on('connect', namespace='/test')
+#~ def test_connect():
+    #~ print(current_user.username)
+    #~ global thread
+    #~ if thread is None:
+        #~ thread = socketio.start_background_task(target=background_thread)
+    #~ emit('my_response', {'data': 'Connected', 'count': 0})
 
-def event_stream(username):
+#~ def background_thread():
+    #~ """Example of how to send server generated events to clients."""
+    #~ count = 0
+    #~ while True:
+        #~ socketio.sleep(10)
+        #~ count += 1
+        #~ socketio.emit('my_response',
+                      #~ {'data': 'Server generated event', 'count': count},
+                      #~ namespace='/test')
+
+#~ @socketio.on('connect')
+#~ def desktops_connect_handler():
+    #~ if current_user.is_authenticated:
+        #~ log.info('authenticated: '+current_user.username)
+        #~ with app.app_context():
+            #~ for c in r.table('domains').get_all(current_user.username, index='user').merge({"table": "domains"}).changes(include_initial=False).run(db.conn):
+                #~ if c['new_val'] is not None:
+                   #~ log.info('new event for user '+current_user.username+' desktop:'+c['new_val']['id'])
+                   #~ emit('status_desktop',c['new_val'])
+    #~ else:
+        #~ log.info('not authenticated')
+        #~ return False  # not allowed here
+
+#~ @socketio.on('disconnect')
+#~ def disconnect():
+    #~ print("%s disconnected" % (current_user.username))
+    
+def desktops_stream():
         with app.app_context():
-            #~ dom_started=set(['_jvinolas_asdf'])
-            dom_started=[]
-            for c in r.table('domains').get_all(username, index='user').merge({"table": "domains"}).changes(include_initial=False).union(
-                r.table('domains_status').get_all(r.args(dom_started)).merge({"table": "domains_status"}).changes(include_initial=False)).run(db.conn):
-                #~ get_all(username, index='user').filter({'kind': 'desktop'})
-                #~ r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
-                #~ r.table('domains_status').get_all(r.args(list(dom_started)), index='name')
-                #~ r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
+            for c in r.table('domains').get_all(current_user.username, index='user').merge({"table": "domains"}).changes(include_initial=False).run(db.conn):
+                if c['new_val'] is not None:
+                   print('new event for user '+current_user.username+' desktop:'+c['new_val']['id'])
+                   emit('status_desktop',c['new_val'])
+
+#~ @app.route('/stream/desktops')
+#~ @login_required
+#~ def sse_request():
+        #~ return Response(event_stream(current_user.username), mimetype='text/event-stream')
+
+#~ def event_stream(username):
+        #~ with app.app_context():
+            #~ #dom_started=set(['_jvinolas_asdf'])
+            #~ dom_started=[]
+            #~ for c in r.table('domains').get_all(username, index='user').merge({"table": "domains"}).changes(include_initial=False).union(
+                #~ r.table('domains_status').get_all(r.args(dom_started)).merge({"table": "domains_status"}).changes(include_initial=False)).run(db.conn):
+                #~ #get_all(username, index='user').filter({'kind': 'desktop'})
+                #~ #r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
+                #~ #r.table('domains_status').get_all(r.args(list(dom_started)), index='name')
+                #~ #r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
                 #~ print(list(r.table('domains_status').get_all(r.args(list(dom_started)), index='name').merge({"table": "domains_status"}).run(db.conn)))
-                if (c['new_val'] is not None and c['new_val']['table'] == 'domains') or (c['old_val'] is not None and c['old_val']['table'] == 'domains'):
-                    if c['new_val'] is None:
-                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                        continue
-                    if c['old_val'] is None:
-                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                        continue             
-                    #~ if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                    if c['old_val']['status']=='Starting' and c['new_val']['status']=='Started': 
-                        dom_started.append(c['new_val']['id'])
-                    yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
-                else:
-                    print('THIS IS A DOMAIN STATUS')
-                    print(c['new_val']['name'],c['new_val']['status']['cpu_usage'])
+                #~ if (c['new_val'] is not None and c['new_val']['table'] == 'domains') or (c['old_val'] is not None and c['old_val']['table'] == 'domains'):
+                    #~ if c['new_val'] is None:
+                        #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                        #~ continue
+                    #~ if c['old_val'] is None:
+                        #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                        #~ continue             
+                    #~ #if 'detail' not in c['new_val']: c['new_val']['detail']=''
+                    #~ if c['old_val']['status']=='Starting' and c['new_val']['status']=='Started': 
+                        #~ dom_started.append(c['new_val']['id'])
+                    #~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+                #~ else:
+                    #~ print('THIS IS A DOMAIN STATUS')
+                    #~ print(c['new_val']['name'],c['new_val']['status']['cpu_usage'])
 
 @app.route('/stream/disposable')
 def sse_request_disposable():

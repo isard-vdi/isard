@@ -7,7 +7,7 @@
 # coding=utf-8
 import random, queue
 from threading import Thread
-import time
+import time, json
 from webapp import app
 from flask_login import current_user
 import rethinkdb as r
@@ -35,7 +35,31 @@ class isard():
             return True
         if not dict['errors']: return True
         return False
-    
+
+    def update_desktop_status(self,user,data):
+            try:
+                if data['name']=='status':
+                    if data['value']=='Stopping':
+                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    if data['value']=='Deleting':
+                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    if data['value']=='Starting':
+                        if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                            return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+            except Exception as e:
+                return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+            
     def update_table_value(self, table, id, field, value):
         with app.app_context():
             return self.check(r.table(table).get(id).update({field: value}).run(db.conn),'replaced')
@@ -68,10 +92,8 @@ class isard():
     def get_domain_spice(self, id):
         domain =  r.table('domains').get(id).run(db.conn)
         viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        print(viewer)
         ##### BIG TODO
         if viewer['defaultMode'] == "Secure":
-            print('secure')
             return {'host':domain['viewer']['hostname'],
                     'kind':domain['hardware']['graphics']['type'],
                     'port':False,
@@ -120,17 +142,17 @@ class isard():
             domain=self.f.flatten_dict(domain)
             if human_size:
                 domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
-                for i,dict in enumerate(domain['disks_info-path_disk']):
-                    for k,v in domain['disks_info-path_disk'][i].items():
+                for i,dict in enumerate(domain['disks_info']):
+                    for k,v in domain['disks_info'][i].items():
                         if 'size' in k:
-                            domain['disks_info-path_disk'][i][k]=self.human_size(domain['disks_info-path_disk'][i][k])
+                            domain['disks_info'][i][k]=self.human_size(domain['disks_info'][i][k])
         else:
             if human_size:
                 domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
-                for i,dict in enumerate(domain['disks_info']['path_disk']):
-                    for k,v in domain['disks_info']['path_disk'][i].items():
+                for i,dict in enumerate(domain['disks_info']):
+                    for k,v in domain['disks_info'][i].items():
                         if 'size' in k:
-                            domain['disks_info']['path_disk'][i][k]=self.human_size(domain['disks_info']['path_disk'][i][k])
+                            domain['disks_info'][i][k]=self.human_size(domain['disks_info'][i][k])
         return domain   
 
     def get_user_quotas(self, username, fakequota=False):
@@ -161,10 +183,14 @@ class isard():
                 qpisos=isos*100/user_obj['quota']['domains']['isos']
             except:
                 qpisos=100
-        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % round(qpdesktops,2),
-                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
-                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
-                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
+        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % 0,
+                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % 0,
+                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % 0,
+                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % 0}
+        #~ return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % round(qpdesktops,2),
+                #~ 'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
+                #~ 't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
+                #~ 'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
                 
     def get_user_templates(self, user):
         with app.app_context():
@@ -591,7 +617,6 @@ class isard():
         with app.app_context():
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
             dom=app.isardapi.get_domain(template, flatten=False)
-        print(dom)
         parent_disk=dom['hardware']['disks'][0]['file']
         create_dict=dom['create_dict']
 

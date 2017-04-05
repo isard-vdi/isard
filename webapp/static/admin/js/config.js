@@ -188,69 +188,69 @@ $(document).ready(function() {
         }
     });                
 
-    // Stream backups_source
-	if (!!window.EventSource) {
-	  var backups_source = new EventSource('/admin/stream/backups');
-      console.log('Listening backups...');
-	} else {
-	  //~ // Result to xhr polling :(
-	}
+    //~ // Stream backups_source
+	//~ if (!!window.EventSource) {
+	  //~ var backups_source = new EventSource('/admin/stream/backups');
+      //~ console.log('Listening backups...');
+	//~ } else {
+	  // Result to xhr polling :(
+	//~ }
 
-	window.onbeforeunload = function(){
-	  backups_source.close();
-	};
+	//~ window.onbeforeunload = function(){
+	  //~ backups_source.close();
+	//~ };
 
-	backups_source.addEventListener('open', function(e) {
-	  // Connection was opened.
-	}, false);
+	//~ backups_source.addEventListener('open', function(e) {
+	  //~ // Connection was opened.
+	//~ }, false);
 
-	backups_source.addEventListener('error', function(e) {
-	  if (e.readyState == EventSource.CLOSED) {
-		// Connection was closed.
-	  }
+	//~ backups_source.addEventListener('error', function(e) {
+	  //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
+	  //~ }
      
-	}, false);
+	//~ }, false);
 
-	backups_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
-		if($("#" + data.id).length == 0) {
-		  //it doesn't exist
-		  backups_table.row.add(data).draw();
-            new PNotify({
-                title: "Backup added",
-                text: "Backups "+data.filename+" has been created",
-                hide: true,
-                delay: 2000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-            });          
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = table.row('#'+data.id); 
-          backups_table.row(row).data(data);			
-		}
-	}, false);
+	//~ backups_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ backups_table.row.add(data).draw();
+            //~ new PNotify({
+                //~ title: "Backup added",
+                //~ text: "Backups "+data.filename+" has been created",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'success'
+            //~ });          
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ backups_table.row(row).data(data);			
+		//~ }
+	//~ }, false);
 
-	backups_source.addEventListener('Status', function(e) {
-          var data = JSON.parse(e.data);
-          var row = backups_table.row('#'+data.id); 
-          backups_table.row(row).data(data);
-	}, false);
+	//~ backups_source.addEventListener('Status', function(e) {
+          //~ var data = JSON.parse(e.data);
+          //~ var row = backups_table.row('#'+data.id); 
+          //~ backups_table.row(row).data(data);
+	//~ }, false);
 
-	backups_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = backups_table.row('#'+data.id).remove().draw();
-            new PNotify({
-                title: "Backup deleted",
-                text: "Backup "+data.name+" has been deleted",
-                hide: true,
-                delay: 2000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'info'
-            });
-	}, false);
+	//~ backups_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = backups_table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Backup deleted",
+                //~ text: "Backup "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
 
 
     
@@ -308,64 +308,152 @@ $(document).ready(function() {
         }
     }); 
 
+    // SocketIO
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
 
-    // Stream scheduler_source
-	if (!!window.EventSource) {
-	  var scheduler_source = new EventSource('/admin/stream/scheduler_jobs');
-      console.log('Listening scheduler...');
-	} else {
-	  //~ // Result to xhr polling :(
-	}
+    socket.on('connect', function() {
+        connection_done();
+        socket.emit('join_rooms',['config'])
+        console.log('Listening admins namespace');
+    });
 
-	window.onbeforeunload = function(){
-	  scheduler_source.close();
-	};
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
 
-	scheduler_source.addEventListener('open', function(e) {
-	  // Connection was opened.
-	}, false);
-
-	scheduler_source.addEventListener('error', function(e) {
-	  if (e.readyState == EventSource.CLOSED) {
-		// Connection was closed.
-	  }
-     
-	}, false);
-
-	scheduler_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
+    socket.on('backup_data', function(data){
+        var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
-		  scheduler_table.row.add(data).draw();
-            new PNotify({
-                title: "Scheduler added",
-                text: "Scheduler "+data.name+" has been created",
+		  backups_table.row.add(data).draw();
+		}else{
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = backups_table.row('#'+data.id); 
+          backups_table.row(row).data(data).invalidate();			
+		}
+        backups_table.draw(false);
+    });
+    
+    socket.on('backup_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = backups_table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Backup deleted",
+                text: "Backup "+data.name+" has been deleted",
                 hide: true,
-                delay: 2000,
+                delay: 4000,
                 icon: 'fa fa-success',
                 opacity: 1,
                 type: 'success'
-            });          
+        });
+    });
+
+    socket.on('sch_data', function(data){
+        var data = JSON.parse(data);
+		if($("#" + data.id).length == 0) {
+		  //it doesn't exist
+		  scheduler_table.row.add(data).draw();
 		}else{
           //if already exists do an update (ie. connection lost and reconnect)
-          var row = table.row('#'+data.id); 
-          scheduler_table.row(row).data(data);			
+          var row = scheduler_table.row('#'+data.id); 
+          scheduler_table.row(row).data(data).invalidate();			
 		}
-	}, false);
-
-	scheduler_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = scheduler_table.row('#'+data.id).remove().draw();
-            new PNotify({
+        scheduler_table.draw(false);
+    });
+    
+    socket.on('sch_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = scheduler_table.row('#'+data.id).remove().draw();
+        new PNotify({
                 title: "Scheduler deleted",
                 text: "Scheduler "+data.name+" has been deleted",
                 hide: true,
-                delay: 2000,
+                delay: 4000,
                 icon: 'fa fa-success',
                 opacity: 1,
-                type: 'info'
-            });
-	}, false);
+                type: 'success'
+        });
+    });
+        
+    socket.on ('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+
+
+    //~ // Stream scheduler_source
+	//~ if (!!window.EventSource) {
+	  //~ var scheduler_source = new EventSource('/admin/stream/scheduler_jobs');
+      //~ console.log('Listening scheduler...');
+	//~ } else {
+	  // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ scheduler_source.close();
+	//~ };
+
+	//~ scheduler_source.addEventListener('open', function(e) {
+	  //~ // Connection was opened.
+	//~ }, false);
+
+	//~ scheduler_source.addEventListener('error', function(e) {
+	  //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
+	  //~ }
+     
+	//~ }, false);
+
+	//~ scheduler_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ scheduler_table.row.add(data).draw();
+            //~ new PNotify({
+                //~ title: "Scheduler added",
+                //~ text: "Scheduler "+data.name+" has been created",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'success'
+            //~ });          
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ scheduler_table.row(row).data(data);			
+		//~ }
+	//~ }, false);
+
+	//~ scheduler_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = scheduler_table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Scheduler deleted",
+                //~ text: "Scheduler "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
 
 });
 

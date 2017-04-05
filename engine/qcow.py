@@ -18,18 +18,16 @@ from .db import get_pool
 VDESKTOP_DISK_OPERATINOS = CONFIG_DICT['REMOTEOPERATIONS']['host_remote_disk_operatinos']
 
 
-
 def create_cmds_delete_disk(path_disk):
     cmds = list()
-    cmd = 'ls {}'.format(path_dir)
+    cmd = 'ls -l "{}"'.format(path_disk)
     cmds.append(cmd)
 
-    cmd = 'rm -f {}'.format(path_dir)
-    cmds.append(cmd)
+    cmd = 'if [ -f "{}" ] ; then rm -f "{}"; fi'.format(path_disk,path_disk)
     log.debug('delete disk cmd: {}'.format(cmd))
     cmds.append(cmd)
 
-    cmd = 'ls {}'.format(path_dir)
+    cmd = 'ls -l "{}"'.format(path_disk)
     cmds.append(cmd)
 
     return cmds

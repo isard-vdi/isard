@@ -15,7 +15,7 @@ from .threads import launch_try_hyps, set_unknown_domains_not_in_hyps
 from .threads import set_domains_coherence, launch_thread_worker, launch_disk_operations_thread
 from .events_recolector import launch_thread_hyps_event
 from .status import launch_thread_status, launch_thread_broom
-from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status
+from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status, remove_domain, get_domain
 from .db import new_rethink_connection, update_all_hyps_status, get_pools_from_hyp, get_domain_hyp_started
 from .db import get_if_all_disk_template_created, update_domain_status, get_hypers_disk_operations
 from .db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id
@@ -302,6 +302,14 @@ class ManagerHypervisors(object):
 
                 if old_status == 'Stopped' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
+
+                if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
+                    log.debug('disk deleted, mow remove domain form database')
+                    remove_domain(domain_id)
+                    if get_domain(domain_id) is None:
+                        log.info('domain {} deleted from database'.format(domain_id))
+                    else:
+                        update_domain_status('Failed', id_domain, detail='domain {} can not be deleted from database'.format(domain_id))
 
                 if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
                     # create_template_from_dict(dict_new_template)

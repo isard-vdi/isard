@@ -18,7 +18,7 @@ db.init_app(app)
 
 from ..lib.log import *
 
-from apscheduler.schedulers.gevent import GeventScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.rethinkdb import RethinkDBJobStore
 
 from datetime import datetime, timedelta
@@ -29,7 +29,7 @@ class isardScheduler():
         JOB SCHEDULER
         '''
         self.rStore=RethinkDBJobStore()
-        self.scheduler = GeventScheduler()
+        self.scheduler = BackgroundScheduler()
         self.scheduler.add_jobstore('rethinkdb',self.rStore, database='isard', table='scheduler_jobs')
         self.scheduler.remove_all_jobs()
         #~ scheduler.add_job(alarm, 'date', run_date=alarm_time, args=[datetime.now()])

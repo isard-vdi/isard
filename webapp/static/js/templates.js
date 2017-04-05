@@ -109,48 +109,101 @@ $(document).ready(function() {
 	  modal.find('.modal-body').text('The desktop will be permanently deleted (unrecoverable)')
 	});
 
+    // SocketIO
+    var socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
 
-// SERVER SENT EVENTS Stream
-	if (!!window.EventSource) {
-	  var desktops_source = new EventSource('/stream/desktops');
-      console.log('on event');
-	} else {
-	  // Result to xhr polling :(
-	}
+    socket.on('connect', function() {
+        connection_done();
+        console.log('Listening user namespace');
+    });
 
-	window.onbeforeunload = function(){
-	  desktops_source.close();
-	};
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
 
-	desktops_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
+    socket.on('template_update', function(data){
+        console.log('update')
+        var data = JSON.parse(data);
+        var row = table.row('#'+data.id); 
+        table.row(row).data(data);
+        setDesktopDetailButtonsStatus(data.id, data.status);
+    });
+
+    socket.on('template_add', function(data){
+        console.log('add')
+        var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
-		  table.row.add( formatTmplDetails(data)).draw();
+		  table.row.add(data).draw();
 		}else{
-		  //if already exists do an update (ie. connection lost and reconnect)
-			var row = table.row('#'+data.id); 
-			table.row(row).data(formatTmplDetails(data));			
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = table.row('#'+data.id); 
+          table.row(row).data(data);			
 		}
+    });
+    
+    socket.on('template_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Desktop deleted",
+                text: "Desktop "+data.name+" has been deleted",
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'info'
+        });
+    });
+
+//~ // SERVER SENT EVENTS Stream
+	//~ if (!!window.EventSource) {
+	  //~ var desktops_source = new EventSource('/stream/desktops');
+      //~ console.log('on event');
+	//~ } else {
+	  //~ // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ desktops_source.close();
+	//~ };
+
+	//~ desktops_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ table.row.add( formatTmplDetails(data)).draw();
+		//~ }else{
+		  //~ //if already exists do an update (ie. connection lost and reconnect)
+			//~ var row = table.row('#'+data.id); 
+			//~ table.row(row).data(formatTmplDetails(data));			
+		//~ }
       
-		if(data.status=='Stopped'){
-            // Should disable details buttons
-		}else{
-            // And enable it again
-		}
-	}, false);
+		//~ if(data.status=='Stopped'){
+            //~ // Should disable details buttons
+		//~ }else{
+            //~ // And enable it again
+		//~ }
+	//~ }, false);
 
-	desktops_source.addEventListener('Status', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = table.row('#'+data.id); 
-      table.row(row).data(formatTmplDetails(data));
-	}, false);
+	//~ desktops_source.addEventListener('Status', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = table.row('#'+data.id); 
+      //~ table.row(row).data(formatTmplDetails(data));
+	//~ }, false);
 
-	desktops_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      // var row =
-		table.row('#'+data.id).remove().draw();
-	}, false);
+	//~ desktops_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ // var row =
+		//~ table.row('#'+data.id).remove().draw();
+	//~ }, false);
 
 
 });   // document ready
