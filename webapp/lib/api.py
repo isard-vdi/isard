@@ -142,17 +142,20 @@ class isard():
             domain=self.f.flatten_dict(domain)
             if human_size:
                 domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
-                for i,dict in enumerate(domain['disks_info']):
-                    for k,v in domain['disks_info'][i].items():
-                        if 'size' in k:
-                            domain['disks_info'][i][k]=self.human_size(domain['disks_info'][i][k])
+                #~ for i,dict in enumerate(domain['disks_info']):
+                for k in domain['disks_info']:
+                    print('human_size flatten: '+k)
+                    #~ for key in k.keys():
+                        if 'size' in key:
+                            domain['disks_info'][k]=self.human_size(domain['disks_info'][k])
         else:
             if human_size:
+                print('human_size not flatten: '+k)
                 domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
-                for i,dict in enumerate(domain['disks_info']):
-                    for k,v in domain['disks_info'][i].items():
+                #~ for i,dict in enumerate(domain['disks_info']):
+                for k in domain['disks_info']:
                         if 'size' in k:
-                            domain['disks_info'][i][k]=self.human_size(domain['disks_info'][i][k])
+                            domain['disks_info'][k]=self.human_size(domain['disks_info'][k])
         return domain   
 
     def get_user_quotas(self, username, fakequota=False):
@@ -183,14 +186,14 @@ class isard():
                 qpisos=isos*100/user_obj['quota']['domains']['isos']
             except:
                 qpisos=100
-        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % 0,
-                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % 0,
-                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % 0,
-                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % 0}
-        #~ return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % round(qpdesktops,2),
-                #~ 'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
-                #~ 't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
-                #~ 'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
+        #~ return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % 0,
+                #~ 'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % 0,
+                #~ 't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % 0,
+                #~ 'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % 0}
+        return {'d':desktops,  'dq':user_obj['quota']['domains']['desktops'],  'dqp':"%.2f" % round(qpdesktops,2),
+                'r':desktopsup,'rq':user_obj['quota']['domains']['running'],   'rqp':"%.2f" % round(qpup,2),
+                't':templates, 'tq':user_obj['quota']['domains']['templates'], 'tqp':"%.2f" % round(qptemplates,2),
+                'i':isos,      'iq':user_obj['quota']['domains']['isos'],      'iqp':"%.2f" % round(qpisos,2)}
                 
     def get_user_templates(self, user):
         with app.app_context():
