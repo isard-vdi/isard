@@ -1,3 +1,5 @@
+
+
 <div class="modal fade" id="modalDisposable" tabindex="-1" role="dialog" 
      aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -10,123 +12,237 @@
                        <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Disposble desktops
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Add new disposable desktop
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+              <form id="modalAddDisposable" class="form-horizontal form-label-left" action="{{ url_for('admin_disposable_add') }}" method="POST" novalidate>
+			  <div class="x_panel">
+                 <div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="name" name="name" class="form-control col-md-7 col-xs-12"></input>
+                        </div>
+                     </div> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="description" name="description" class="form-control col-md-7 col-xs-12"></input>
+                        </div>
+                     </div> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="nets">Nets
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="nets" name="nets" class="form-control col-md-7 col-xs-12"></input>
+                        </div>
+                     </div> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hour">Disposables
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <select id="disposables" name="disposables" class="form-control" required>
+                                <option value="">Choose..</option>
+                                <option value="_biblioteca1">Biblioteca</option>
+                            </select>
+                        </div>
+                     </div>    
+				 </div>
+			  </div>
+
+    
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="submit" class="btn btn-success">Add job</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalScheduler" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Add new scheduled job
                 </h4>
             </div>
             
             <!-- Modal Body -->
             <div class="modal-body">
                 
-              <form id="modalAdd" class="form-horizontal form-label-left" action="{{ url_for('admin_config') }}" method="POST" novalidate>
+              <form id="modalAddScheduler" class="form-horizontal form-label-left" action="{{ url_for('admin_scheduler') }}" method="POST" novalidate>
 			  <div class="x_panel">
-					<div class="x_content">
-                        <input id="id" hidden/>
+                 <div class="x_content">
                      <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
-                        </label>
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Type: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="name" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="name" placeholder="New desktop name" required="required" type="text">
-                        </div>
-                     </div>
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                           <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12"></textarea>
-                        </div>
-                     </div>
-				</div>
-			  </div>
-
-			  <div class="x_panel">
-					 <div class="x_title">
-						<h2>Templates<small></small></h2>
-						<ul class="nav navbar-right panel_toolbox">
-						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-						   </li>
-						</ul>
-						<div class="clearfix"></div>
-					 </div>
-					 <div class="x_content">
-                     <div class="item form-group">
-                        <div class="item form-group">
-                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="select2-disposables">Templates: <span class="required">*</span></label>
-                           <div class="col-md-6 col-sm-6 col-xs-12">
-							   <select class="form-control" id="select2-disposables" name="disposables"  multiple="multiple" required>
-                            <option></option>
-                            <option value="AK">Alaska</option>
-                            <option value="HI">Hawaii</option>
-                            <option value="CA">California</option>
-                            <option value="NV">Nevada</option>
-                            <option value="OR">Oregon</option>
-                            <option value="WA">Washington</option>
-                            <option value="AZ">Arizona</option>
-                            <option value="CO">Colorado</option>
-                            <option value="ID">Idaho</option>
-                            <option value="MT">Montana</option>
-							   </select>
-                              </div>
-                        </div>
+                           <select id="kind" name="kind" class="form-control" required>
+                              <option value="">Choose..</option>
+                              <option value="cron">Cron</option>
 <!--
-                                <table id="table-add-disposables" class="table table-striped">
-                                  <thead>
-                                    <tr>
-                                      <th>Name</th>
-                                      <th>Networks</th>
-                                      <th>Templates</th>
-                                      <th></th>
-                                    </tr>
-                                  </thead>
-                                      <tbody>
-                                      </tbody>
-                                </table>
+                              <option value="date">Date</option>
 -->
-					 </div>	
+                              <option value="interval">Interval</option>
+                           </select>
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hour">Hour
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <select id="hour" name="hour" class="form-control" required>
+                              <option value="00">00</option>
+                              <option value="01">01</option>
+                              <option value="02">02</option>
+                              <option value="03">03</option>
+                              <option value="04">04</option>
+                              <option value="05">05</option>
+                              <option value="06">06</option>
+                              <option value="07">07</option>
+                              <option value="08">08</option>
+                              <option value="09">09</option>
+                              <option value="10">10</option>
+                              <option value="11">11</option>
+                              <option value="12">12</option>
+                              <option value="13">13</option>
+                              <option value="14">14</option>
+                              <option value="15">15</option>
+                              <option value="16">16</option>
+                              <option value="17">17</option>
+                              <option value="18">18</option>
+                              <option value="19">19</option>
+                              <option value="20">20</option>
+                              <option value="21">21</option>
+                              <option value="22">22</option>
+                              <option value="23">23</option>
+                            </select>
+                        </div>
+                     </div>  
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="minute">Minute
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <select id="minute" name="minute" class="form-control" required>
+                              <option value="00">00</option>
+                              <option value="05">05</option>
+                              <option value="10">10</option>
+                              <option value="15">15</option>
+                              <option value="20">20</option>
+                              <option value="25">25</option>
+                              <option value="30">30</option>
+                              <option value="35">35</option>
+                              <option value="40">40</option>
+                              <option value="45">45</option>
+                              <option value="50">50</option>
+                              <option value="55">55</option>
+                            </select>
+                        </div>
+                     </div> 
+                     <hr>
+                     
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="action">Action: <span class="required">*</span></label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <select id="action" name="action" class="form-control" onchange="hiddenFields(this);console.log('hide');" required>
+                              <option value="">Choose..</option>
+                              <option value="delete_old_stats">Delete old stats</option>
+                              <option value="stop_domains_without_viewer">Stop domains without viewer</option>
+                           </select>
+                        </div>
+                     </div>
+                     <div class="item form-group .hidden-field .delete_old_stats" hidden>
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="older">Older than
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="older" name="older" class="form-control col-md-7 col-xs-12"></input>
+                        </div>
+                     </div>  
+				 </div>
 			  </div>
 
-			  <div class="x_panel">
-					 <div class="x_title">
-						<h2>Hardware<small></small></h2>
-						<ul class="nav navbar-right panel_toolbox">
-						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
-						   </li>
-						</ul>
-						<div class="clearfix"></div>
-					 </div>
-					 <div class="x_content" style="display:none">
-						<div class="row">
-								<div class="col-md-3 col-sm-3 col-xs-12">
-									<div class="item form-group">
-									   <label>Hyper pool:</label>
-									   <select class="form-control" id="hypervisor_pool" name="hypervisor_pool" disabled>
-										  <option value="default" selected="default">
-											 Default
-										  </option>
-									   </select>
-									</div>
-								</div>
-								<div class="col-md-3 col-sm-3 col-xs-12">
-								</div>
-								<div class="col-md-3 col-sm-3 col-xs-12">
-								</div>
-								<div class="col-md-3 col-sm-3 col-xs-12">
-								</div>							
-							</div>
-
-					 </div>
-				  </div>    
-            </div>
-                       
+    
             <!-- Modal Footer -->
             <div class="modal-footer">
                      <div class="form-group">
                         <div class="col-md-6 col-md-offset-3">
                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="submit" class="btn btn-success">Create domain</button>
+                           <button id="send" type="submit" class="btn btn-success">Add job</button>
                         </div>
                      </div>
             </div>
             </form>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+function hiddenFields(obj) {
+	action=obj.value;
+    $('.hidden-field').hide();
+    $('.'+action).show();
+}
+</script>
+
+<div class="modal fade" id="modalUpload" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Upload backup file
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <div class="row">
+                  <div class="col-md-12 col-sm-12 col-xs-12">
+                    <div class="x_panel">
+                      <div class="x_title">
+                        <h2>Dropzone multiple file uploader</h2>
+                        <div class="clearfix"></div>
+                      </div>
+                      <div class="x_content">
+                        <p>Drag multiple files to the box below for multi upload or click to select files. This is for demonstration purposes only, the files are not uploaded to any server.</p>
+                        <form action="{{ url_for('admin_backup_upload') }}" class="dropzone"></form>
+                        <br />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+

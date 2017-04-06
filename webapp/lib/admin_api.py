@@ -10,7 +10,12 @@ import random, queue
 from threading import Thread
 import time
 from webapp import app
+from werkzeug import secure_filename
+import os
+from datetime import datetime, timedelta
 import rethinkdb as r
+
+from ..lib.log import * 
 
 from .flask_rethink import RethinkDB
 db = RethinkDB(app)
@@ -29,10 +34,24 @@ class isardAdmin():
             return True
         if not dict['errors']: return True
         return False
-        
+
+    import socket
+    from contextlib import closing
+
+    def check_socket(host, port):
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+            if sock.connect_ex((host, port)) == 0:
+                return True
+            else:
+                return False
+                    
     '''
     ADMIN API
     '''
+    def delete_table_key(self,table,key):
+        with app.app_context():
+            return self.check(r.table(table).get(key).delete().run(db.conn),'deleted')
+            
     def toggle_hypervisor_field(self,id,key):
         with app.app_context():
             field=r.table('hypervisors').get(id).run(db.conn)[key]
@@ -44,10 +63,14 @@ class isardAdmin():
             ## ALERT: Should remove password (password='')
             return self.f.table_values_bstrap(r.table('users').run(db.conn))
 
-    def get_admin_table(self, table, pluck=False):
+    def get_admin_table(self, table, pluck=False, id=False):
         with app.app_context():
-            if pluck:
+            if id and not pluck:
+                return r.table(table).get(id).run(db.conn)
+            if pluck and not id:
                 return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
+            if pluck and id:
+                return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
             
     def get_admin_domains(self):
@@ -84,11 +107,14 @@ class isardAdmin():
                 return self.f.table_values_bstrap(r.table('hypervisors_pools').run(db.conn))
             else:
                 return list(r.table('hypervisors_pools').run(db.conn))
-                
+
+    def insert_table_dict(self, table, dict):
+        with app.app_context():
+            return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
+                            
     def update_table_dict(self, table, id, dict):
         with app.app_context():
             return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
-            return True 
 
     def get_admin_domain_datatables(self):
         with app.app_context():
@@ -125,6 +151,131 @@ class isardAdmin():
         f=flatten()
         return f.unflatten_dict(dict)
 
+    '''
+    BACKUP & RESTORE
+    '''
+    def backup_db(self):
+        import tarfile,pickle,os
+        id='isard_backup_'+datetime.now().strftime("%Y%m%d-%H%M%S")
+        path='./backups/'
+        os.makedirs(path,exist_ok=True)
+        dict={'id':id,
+              'filename':id+'.tar.gz',
+              'path':path,
+              'description':'',
+              'when':time.time(),
+              'data':{},
+              'status':'Initializing'}
+        with app.app_context():
+            r.table('backups').insert(dict).run(db.conn)
+        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status']
+        isard_db={}
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Loading tables'}).run(db.conn)
+            for table in r.table_list().run(db.conn):
+                if table not in skip_tables:
+                    isard_db[table]=list(r.table(table).run(db.conn))
+                    #~ dict['data'][table]=r.table(table).count().run(db.conn)
+                    r.table('backups').get(id).update({'data':{table:r.table(table).count().run(db.conn)}}).run(db.conn)
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)            
+            r.table('backups').get(id).update({'status':'Dumping to file'}).run(db.conn)
+        with open(path+id+'.rethink', 'wb') as isard_rethink_file:
+            pickle.dump(dict, isard_rethink_file)
+        with open(path+id+'.json', 'wb') as isard_db_file:
+            pickle.dump(isard_db, isard_db_file)
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Compressing'}).run(db.conn)
+        with tarfile.open(path+id+'.tar.gz', "w:gz") as tar:
+            tar.add(path+id+'.json', arcname=os.path.basename(path+id+'.json'))
+            tar.add(path+id+'.rethink', arcname=os.path.basename(path+id+'.rethink'))
+            tar.close()
+        try:
+            os.remove(path+id+'.json')
+            os.remove(path+id+'.rethink')
+        except OSError:
+            pass
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Finished creating'}).run(db.conn)
+            
+    def restore_db(self,id):
+        import tarfile,pickle
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+            r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
+        path=dict['path']
+        with tarfile.open(path+id+'.tar.gz', "r:gz") as tar:
+            tar.extractall(path)
+            tar.close()
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.json', 'rb') as isard_db_file:
+            isard_db = pickle.load(isard_db_file)
+        for k,v in isard_db.items():
+            with app.app_context():
+                if not r.table_list().contains(k).run(db.conn):
+                    log.error("Table {} not found, should have been created on IsardVDI startup.".format(k))
+                    return False
+                else:
+                    log.info("Restoring table {}".format(k))
+                    with app.app_context():
+                        r.table('backups').get(id).update({'status':'Updating table: '+k}).run(db.conn)
+                    log.info(r.table(k).insert(v, conflict='update').run(db.conn))
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Finished restoring'}).run(db.conn)
+        try:
+            os.remove(path+id+'.json')
+            os.remove(path+id+'.rethink')
+        except OSError as e:
+            log.error(e)
+            pass
+
+    def upload_backup(self,handler):
+        path='./backups/'
+        id=handler.filename.split('.tar.gz')[0]
+        filename = secure_filename(handler.filename)
+        handler.save(os.path.join(path+filename))
+        import tarfile,pickle
+        #~ with app.app_context():
+            #~ dict=r.table('backups').get(id).run(db.conn)
+            #~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
+        #~ path=dict['path']
+        
+        with tarfile.open(path+handler.filename, "r:gz") as tar:
+            tar.extractall(path)
+            tar.close()
+        #~ with app.app_context():
+            #~ r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.rethink', 'rb') as isard_rethink_file:
+            isard_rethink = pickle.load(isard_rethink_file)
+        with app.app_context():
+            log.info(r.table('backups').insert(isard_rethink, conflict='update').run(db.conn))
+        with app.app_context():
+            r.table('backups').get(id).update({'status':'Finished uploading'}).run(db.conn)
+        try:
+            os.remove(path+id+'.json')
+            os.remove(path+id+'.rethink')
+        except OSError as e:
+            log.error(e)
+            pass
+        
+    def remove_backup_db(self,id):
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+        path=dict['path']
+        try:
+            os.remove(path+id+'.tar.gz')
+        except OSError:
+            pass
+        with app.app_context():
+            r.table('backups').get(id).delete().run(db.conn)
+
+    def info_backup_db(self,id):
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+        with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
+            return dict['path'],dict['filename'], isard_db_file.read()
+        
 class flatten(object):
     def __init__(self):
         None
@@ -182,3 +333,4 @@ class flatten(object):
                 d = d[part]
             d[parts[-1]] = value
         return resultDict
+

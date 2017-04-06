@@ -19,7 +19,7 @@ from .db import remove_dict_new_template_from_domain
 #from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
-from .qcow import create_cmds_disk_from_base, create_cmds_disk_template_from_domain, get_path_to_disk, get_host_disk_operations_from_path
+from .qcow import create_cmds_disk_from_base, create_cmds_delete_disk, create_cmds_disk_template_from_domain, get_path_to_disk, get_host_disk_operations_from_path
 from .vm import xml_vm, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
 from .db import update_domain_status,get_hyp, create_disk_template_created_list_in_domain, remove_disk_template_created_list_in_domain
 from .db import get_hyp_hostnames_online,insert_ferrary,get_ferrary,delete_domain,update_domain_viewer_started_values
@@ -55,6 +55,7 @@ class UiActions(object):
         if ssl is True:
             x.reset_viewer_passwd()
         else:
+            #only for test purposes, not use in production
             x.spice_remove_passwd_nossl()
 
         x.remove_selinux_options()
@@ -142,6 +143,7 @@ class UiActions(object):
 
     def destroy_domain_from_id(self,id):
         pass
+
 
     def stop_domain_from_id(self,id):
         # INFO TO DEVELOPER. puede pasar que alguna actualización en algún otro hilo del status haga que
@@ -242,6 +244,68 @@ class UiActions(object):
 # recrear el xml y verificar que se define o arranca ok
 # yo crearía el disco con una ruta relativa respecto a una variable de configuración
 # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
+
+    def deleting_disks_from_domain(self,id_domain,force=False):
+        #ALBERTO FALTA ACABAR
+
+        dict_domain = get_domain(id_domain)
+
+        if dict_domain['kind'] != 'desktop' and force is False:
+            log.error('{} is a template, disks can not be deleted')
+            return -1
+
+        if len(dict_domain['hardware']['disks']) > 0:
+            index_disk=0
+            for d in dict_domain['hardware']['disks']:
+
+                disk_path = d['file']
+                pool_id   = dict_domain['hypervisors_pools'][0]
+                if pool_id not in self.manager.pools.keys():
+                    log.error('hypervisor pool {} nor running in manager, can\'t delete disks in domain {}'.format(pool_id,id_domain))
+                    return False
+
+                next_hyp = self.manager.pools[pool_id].get_next()
+                log.debug('hypervisor where delete disk {}: {}'.format(disk_path,next_hyp))
+                cmds = create_cmds_delete_disk(disk_path)
+
+                action = dict()
+                action['id_domain'] = id_domain
+                action['type'] = 'delete_disk'
+                action['disk_path'] = disk_path
+                action['domain'] = id_domain
+                action['ssh_comands'] = cmds
+                action['index_disk'] = index_disk
+
+                try:
+
+                    update_domain_status(status='DeletingDomainDisk',
+                                         id_domain=id_domain,
+                                         hyp_id=False,
+                                         detail='Deleting disk {} in domain {}, queued in hypervisor thread {}'.format(
+                                                 disk_path,
+                                                 id_domain,
+                                                 next_hyp
+                                                 ))
+
+                    self.manager.q.workers[next_hyp].put(action)
+                except Exception as e:
+                    update_domain_status(status='Stopped',
+                                         id_domain=id_domain,
+                                         hyp_id=False,
+                                         detail='Creating template operation failed when insert action in queue for disk operations')
+                    log.error(
+                        'Creating disk operation failed when insert action in queue for disk operations in host {}. Exception: {}'.format(
+                            next_hyp, e))
+                    return False
+
+
+                index_disk += 1
+        else:
+            log.debug('no disk to delete in domain {}'.format(id_domain))
+
+        return True
+
+
 
     def create_template_disks_from_domain(self,id_domain):
         dict_domain = get_domain(id_domain)
@@ -619,5 +683,5 @@ class UiActions(object):
 
 ### Hypers
 
-    def set_default_hyper(self,hyp_id):
-        return change_hyp_disk_operations(hyp_id)
+    # def set_default_hyper(self,hyp_id):
+    #     return change_hyp_disk_operations(hyp_id)

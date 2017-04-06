@@ -195,3 +195,4 @@ $(document).ready(function() {
         radioClass: 'iradio_flat-green',
     })
 });
+

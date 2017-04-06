@@ -15,23 +15,26 @@ from .threads import launch_try_hyps, set_unknown_domains_not_in_hyps
 from .threads import set_domains_coherence, launch_thread_worker, launch_disk_operations_thread
 from .events_recolector import launch_thread_hyps_event
 from .status import launch_thread_status, launch_thread_broom
-from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status
+from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status, remove_domain, get_domain
 from .db import new_rethink_connection, update_all_hyps_status, get_pools_from_hyp, get_domain_hyp_started
 from .db import get_if_all_disk_template_created, update_domain_status, get_hypers_disk_operations
 from .db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id
-from .functions import get_threads_running
+from .functions import get_threads_running, get_tid
 from .ui_actions import UiActions
 from .log import *
 from .config import TEST_HYP_FAIL_INTERVAL, STATUS_POLLING_INTERVAL, TIME_BETWEEN_POLLING, POLLING_INTERVAL_BACKGROUND
 
 
 class ManagerHypervisors(object):
-    def __init__(self, launch_threads=True,
+    def __init__(self, launch_threads=True,with_status_threads=True,
                  status_polling_interval=STATUS_POLLING_INTERVAL,
                  test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL):
 
+        log.info('MAIN PID: {}'.format(get_tid()))
+
         self.time_between_polling = TIME_BETWEEN_POLLING
         self.polling_interval_background = POLLING_INTERVAL_BACKGROUND
+        self.with_status_threads = with_status_threads
 
         self.q = self.QueuesThreads()
         self.t_workers = {}
@@ -39,7 +42,9 @@ class ManagerHypervisors(object):
         self.pools = {}
         self.t_disk_operations = {}
         self.q_disk_operations = {}
-        self.t_changes_hyp = None
+        self.t_changes_hyps = None
+        self.t_changes_domains = None
+        self.t_broom = None
         self.t_background = None
         self.quit = False
 
@@ -106,7 +111,8 @@ class ManagerHypervisors(object):
                     update_hyp_status(hyp_id, 'StartingThreads')
                     # start worker thread
                     self.manager.t_workers[hyp_id], self.manager.q.workers[hyp_id] = launch_thread_worker(hyp_id)
-                    self.manager.t_status[hyp_id] = launch_thread_status(hyp_id, self.manager.STATUS_POLLING_INTERVAL)
+                    if self.manager.with_status_threads is True:
+                        self.manager.t_status[hyp_id] = launch_thread_status(hyp_id, self.manager.STATUS_POLLING_INTERVAL)
 
                     # self.manager.launch_threads(hyp_id)
                     # INFO TO DEVELOPER FALTA VERIFICAR QUE REALMENTE ESTÁN ARRANCADOS LOS THREADS??
@@ -117,13 +123,18 @@ class ManagerHypervisors(object):
                         if id_pool not in self.manager.pools.keys():
                             self.manager.pools[id_pool] = PoolHypervisors(id_pool)
 
-            self.manager.broom = launch_thread_broom()
+
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             q = self.manager.q.background
             first_loop = True
 
             while self.manager.quit is False:
+                # ONLY FOR DEBUG
+                log.debug('##### THREADS ##################')
+                get_threads_running()
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
                     self.launch_threads_disk_operations()
@@ -133,13 +144,15 @@ class ManagerHypervisors(object):
 
                 # LAUNCH CHANGES THREADS
                 if first_loop is True:
-                    self.t_changes_hyp = self.manager.HypervisorChangesThread('changes_hyp', self.manager)
-                    self.t_changes_hyp.daemon = True
-                    self.t_changes_hyp.start()
+                    self.manager.t_changes_hyps = self.manager.HypervisorChangesThread('changes_hyp', self.manager)
+                    self.manager.t_changes_hyps.daemon = True
+                    self.manager.t_changes_hyps.start()
 
-                    self.t_changes_domains = self.manager.DomainsChangesThread('changes_domains', self.manager)
-                    self.t_changes_domains.daemon = True
-                    self.t_changes_domains.start()
+                    self.manager.t_changes_domains = self.manager.DomainsChangesThread('changes_domains', self.manager)
+                    self.manager.t_changes_domains.daemon = True
+                    self.manager.t_changes_domains.start()
+
+                    self.manager.t_broom = launch_thread_broom()
 
                     first_loop = False
 
@@ -175,6 +188,8 @@ class ManagerHypervisors(object):
             self.name = name
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             r_conn = new_rethink_connection()
             # rtable=r.table('disk_operations')
             # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
@@ -201,6 +216,8 @@ class ManagerHypervisors(object):
             self.name = name
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             log.debug('^^^^^^^^^^^^^^^^^^^ ACTIONS THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
             r_conn = new_rethink_connection()
@@ -231,6 +248,8 @@ class ManagerHypervisors(object):
             self.name = name
 
         def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             log.debug('^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
             r_conn = new_rethink_connection()
@@ -280,6 +299,17 @@ class ManagerHypervisors(object):
 
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
+
+                if old_status == 'Stopped' and new_status == "Deleting":
+                    ui.deleting_disks_from_domain(domain_id)
+
+                if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
+                    log.debug('disk deleted, mow remove domain form database')
+                    remove_domain(domain_id)
+                    if get_domain(domain_id) is None:
+                        log.info('domain {} deleted from database'.format(domain_id))
+                    else:
+                        update_domain_status('Failed', id_domain, detail='domain {} can not be deleted from database'.format(domain_id))
 
                 if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
                     # create_template_from_dict(dict_new_template)
