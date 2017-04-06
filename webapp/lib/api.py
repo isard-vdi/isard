@@ -142,20 +142,18 @@ class isard():
             domain=self.f.flatten_dict(domain)
             if human_size:
                 domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
-                #~ for i,dict in enumerate(domain['disks_info']):
-                for k in domain['disks_info']:
-                    print('human_size flatten: '+k)
-                    #~ for key in k.keys():
+                for i,dict in enumerate(domain['disks_info']):
+                    for key in dict.keys():
                         if 'size' in key:
-                            domain['disks_info'][k]=self.human_size(domain['disks_info'][k])
+                            domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         else:
+            # This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields
             if human_size:
-                print('human_size not flatten: '+k)
                 domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
-                #~ for i,dict in enumerate(domain['disks_info']):
-                for k in domain['disks_info']:
-                        if 'size' in k:
-                            domain['disks_info'][k]=self.human_size(domain['disks_info'][k])
+                for i,dict in enumerate(domain['disks_info']):
+                    for key in dict.keys():
+                        if 'size' in key:
+                            domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         return domain   
 
     def get_user_quotas(self, username, fakequota=False):
