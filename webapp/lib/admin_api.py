@@ -276,6 +276,37 @@ class isardAdmin():
         with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
             return dict['path'],dict['filename'], isard_db_file.read()
         
+        
+    '''
+    GRAPHS
+    '''
+    def get_domains_tree(self, id):
+        #~ Should verify something???
+        with app.app_context():
+            rdomains=r.db('isard').table('domains')
+            domains=r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name').run(db.conn)
+            dict={'name':id,'children':[]}
+            for d in domains:
+                children=r.table('domains').filter({'create_dict':{'origin':d['create_dict']['origin']}}).pluck('id','name').run(db.conn)
+                print('children:'children)
+                dict['children'].append({'name':d['name'],'size':100})
+            return dict
+            #~ finished=False
+            #~ while not finished:
+                
+    def get_domains_tree_csv(self, id):
+        #~ Should verify something???
+        with app.app_context():
+            rdomains=r.db('isard').table('domains')
+            domains=r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name').run(db.conn)
+            csv='id,value\n'+id+',\n'
+            #~ dict={'name':id,'children':[]}
+            for d in domains:
+                csv=csv+id+'.'+d['id']+',100\n'
+                #~ dict['children'].append({'name':d['name'],'size':100})
+            print(csv)
+            return csv
+                    
 class flatten(object):
     def __init__(self):
         None

@@ -216,6 +216,7 @@ class ConfigThread(threading.Thread):
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
                 r.table('scheduler_jobs').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
+                print('Config event:'+str(c))
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -225,7 +226,9 @@ class ConfigThread(threading.Thread):
                                         namespace='/sio_admins', 
                                         room='config')
                     else:
+                        print('new config val')
                         event='backup_data' if c['new_val']['table']=='backups' else 'sch_data'
+                        print(event)
                         socketio.emit(event, 
                                         json.dumps(c['new_val']),
                                         room='config') 

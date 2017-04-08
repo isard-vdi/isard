@@ -54,3 +54,12 @@ def graph_d3_bubble_stream():
                         yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('update',time.time(),json.dumps(d))
                     else:
                         yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('stopped',time.time(),json.dumps(d))
+
+@app.route('/admin/graphst')
+def admin_graphst():
+    return render_template('admin/pages/graphs_tree.html',nav="Graphs")
+    
+@app.route('/admin/graphs_tree')
+@login_required
+def admin_graphs_tree():
+    return json.dumps(app.adminapi.get_domains_tree('_windows_7_x64_v3')), 200, {'ContentType': 'application/json'}
