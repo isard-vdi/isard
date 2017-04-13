@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -8,20 +7,21 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Gentelella Alela! | </title>
+    <title>Graphs | Isard</title>
 
     <!-- Bootstrap -->
-    <link href="../vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
-    <link href="../vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+    <link href="/vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
     <!-- Datatables -->
     <link href="/vendors/datatables.net-bs/css/dataTables.bootstrap.css" rel="stylesheet">
     <!-- NProgress -->
-    <link href="../vendors/nprogress/nprogress.css" rel="stylesheet">
+    <link href="/vendors/nprogress/nprogress.css" rel="stylesheet">
 
     <!-- Custom Theme Style -->
-    <link href="../build/css/custom.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/d3-bubble.css"/>
+    <link href="/build/css/custom.min.css" rel="stylesheet">
+
+    {% block css %}{% endblock %}
   </head>
 
   <body class="nav-md">
@@ -41,7 +41,9 @@
                       </a>
                       <ul class="dropdown-menu dropdown-usermenu pull-right">
 
-                        <li><a href="/admin/graphs/bubbles">Bubbles</a></li>
+                        <li><a href="/admin/graphs/domains_bubbles">Bubbles</a></li>
+                        <li><a href="/admin/graphs/domains_tree_circular">Tree circle</a></li>
+                        <li><a href="/admin/graphs/domains_tree_horizontal">Tree</a></li>
                       </ul>
                     </li>
                   </ul>
@@ -49,30 +51,8 @@
               </div>
         <!-- /top navigation -->
         <!-- page content -->
-        <div class="row">
-			<div class="col-md-6 col-sm-6 col-xs-12">
-				<div class="text-center text-center">
-					<section id="chart">             
-					</section>
-				</div>
-			</div>
-			<div class="col-md-6 col-sm-6 col-xs-12">
-                                <table id="table-list" class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>hyper</th>
-                                            <th>name</th>
-                                            <th>os</th>
-                                            <th>load</th>
-                                            <th>net</th>
-                                            <th>disk rw</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>				
-			</div>
-        </div>
+        {% block content %}      
+        {% endblock %}
         <!-- /page content -->
       </div>
     </div>
@@ -100,8 +80,9 @@
 -->
     <!-- Custom Theme Scripts -->
    
-	<script src="/bower_components/d3/d3.min.js"></script>
-	<script src="/static/admin/js/graphs.js"></script>
-     <script src="/static/js/quota.js"></script>
+
+     <script src="/static/js/quota.js"></script> 
+     
+    {% block pagescript %}{% endblock %}
   </body>
 </html>

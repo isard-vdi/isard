@@ -288,12 +288,30 @@ class isardAdmin():
             dict={'name':id,'children':[]}
             for d in domains:
                 children=r.table('domains').filter({'create_dict':{'origin':d['create_dict']['origin']}}).pluck('id','name').run(db.conn)
-                print('children:'children)
+                print('children:'+
+                children)
                 dict['children'].append({'name':d['name'],'size':100})
             return dict
             #~ finished=False
             #~ while not finished:
-                
+
+    def get_domains_tree_list(self):
+        #~ Should verify something???
+        with app.app_context():
+            rdomains=r.db('isard').table('domains').pluck('id','kind',{'create_dict':{'origin'}}).run(db.conn)
+            domains=[{'name':'isard'},{'name':'bases','parent':'isard'},{'name':'base_images','parent':'isard'}]
+            for d in rdomains:
+                if not d['create_dict']['origin']:
+                    if d['kind']=='base':
+                        domains.append({'name':d['id'],'parent':'bases'})
+                    else:
+                        domains.append({'name':d['id'],'parent':'base_images'})
+                else:
+                    domains.append({'name':d['id'],'parent':d['create_dict']['origin']})
+                #~ if not d['create_dict']['origin']:
+                 #~ print(d['id']+' - '+str(d['create_dict']['origin']))
+            return domains
+            
     def get_domains_tree_csv(self, id):
         #~ Should verify something???
         with app.app_context():

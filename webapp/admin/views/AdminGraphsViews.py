@@ -26,40 +26,51 @@ from .decorators import isAdmin
 '''
 RENDER GRAPH ADMIN PAGE
 '''
-@app.route('/admin/graphs')
+@app.route('/admin/graphs/<kind>')
 @login_required
 @isAdmin
-def admin_graphs():
-    return render_template('admin/pages/graphs.html',nav="Graphs")
+def admin_graphs(kind):
+    return render_template('admin/pages/graphs/'+kind+'.html',nav="Graphs")
  
-@app.route('/admin/stream/graphs/d3_bubble')
-#@login_required
-#@isAdmin
-def admin_stream_graphs_d3_bubble():
-        return Response(graph_d3_bubble_stream(), mimetype='text/event-stream')
+#~ @app.route('/admin/stream/graphs/d3_bubble')
+#~ #@login_required
+#~ #@isAdmin
+#~ def admin_stream_graphs_d3_bubble():
+        #~ return Response(graph_d3_bubble_stream(), mimetype='text/event-stream')
         
-def graph_d3_bubble_stream():
+#~ def graph_d3_bubble_stream():
     
-    with app.app_context():
-        for c in r.table('domains_status').pluck('name','when','status').changes(include_initial=False).run(db.conn):
-            #~ domains={}
-            if(c['new_val']['name'].startswith('_')):
-                try:
-                    d=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
-                except:
-                    d=None
-                if d is not None: #This if can be removed when vimet is shutdown
-                    if(d['status']=='Started'):
-                        d['status']=c['new_val']['status']
-                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('update',time.time(),json.dumps(d))
-                    else:
-                        yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('stopped',time.time(),json.dumps(d))
+    #~ with app.app_context():
+        #~ for c in r.table('domains_status').pluck('name','when','status').changes(include_initial=False).run(db.conn):
+            ##domains={}
+            #~ if(c['new_val']['name'].startswith('_')):
+                #~ try:
+                    #~ d=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
+                #~ except:
+                    #~ d=None
+                #~ if d is not None: #This if can be removed when vimet is shutdown
+                    #~ if(d['status']=='Started'):
+                        #~ d['status']=c['new_val']['status']
+                        #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('update',time.time(),json.dumps(d))
+                    #~ else:
+                        #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('stopped',time.time(),json.dumps(d))
 
-@app.route('/admin/graphst')
-def admin_graphst():
-    return render_template('admin/pages/graphs_tree.html',nav="Graphs")
-    
-@app.route('/admin/graphs_tree')
+#~ @app.route('/admin/graph_tree_horiz')
+#~ def admin_graph_tree_h():
+    #~ return render_template('admin/pages/graphs_tree_horiz.html',nav="Graphs")
+
+#~ @app.route('/admin/graph_tree_circle')
+#~ def admin_graph_tree_c():
+    #~ return render_template('admin/pages/graphs_tree_circle.html',nav="Graphs")
+        
+@app.route('/admin/graphs_data_tree')
 @login_required
 def admin_graphs_tree():
+    #~ return json.dumps(app.adminapi.get_domains_tree_list()), 200, {'ContentType': 'application/json'}
     return json.dumps(app.adminapi.get_domains_tree('_windows_7_x64_v3')), 200, {'ContentType': 'application/json'}
+
+@app.route('/admin/graphs_data_tree_list')
+@login_required
+def admin_graphs_tree_list():
+    return json.dumps(app.adminapi.get_domains_tree_list()), 200, {'ContentType': 'application/json'}
+    #~ return json.dumps(app.adminapi.get_domains_tree('_windows_7_x64_v3')), 200, {'ContentType': 'application/json'}

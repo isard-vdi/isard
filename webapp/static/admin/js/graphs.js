@@ -1,21 +1,18 @@
   // D3 Bubble Chart 
-	var diameter = 500;
-	var svg = d3.select('#chart').append('svg')
-		.attr('width', diameter)
-		.attr('height', diameter);
-	var bubble = d3.layout.pack()
-		.size([diameter, diameter])
-		.value(function(d) {return d.size;}) // new data is loaded to bubble layout
-		.padding(3);
-        
-        
+	//~ var diameter = 500;
+	//~ var svg = d3.select('#chart').append('svg')
+		//~ .attr('width', diameter)
+		//~ .attr('height', diameter);
+
+var rect = document.querySelector ('#chart').getBoundingClientRect(),
+       width = height = diameter = rect.width;
+var svg = d3.select("#chart").append("svg")
+            .attr("width",width)
+            .attr("height",height)
+            .attr("transform", "translate(" + (width / 2 + 40) + "," + (height / 2 + 90) + ")");
+    //~ var diameter=width
+    
 $(document).ready(function() {
-
-
-
-
-
-            
     domains_table= $('#table-list').DataTable({
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
@@ -68,45 +65,29 @@ $(document).ready(function() {
 
     socket.on('desktop_status', function(data){
 	  var data = JSON.parse(data);
+      console.log(data)
       applyData(domains_table,getDataSet(data),false)
-      drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+      //~ drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+      drawBubbles4()
     });
     
     socket.on('desktop_stopped', function(data){
 	  var data = JSON.parse(data);
-      removeData(domains_table,getDataSet(data))
-      drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
-    });
-
-    //~ /* Server Sent Event */
-	//~ if (!!window.EventSource) {
-	  //~ var source = new EventSource('/admin/stream/graphs/d3_bubble');
-      //~ console.log('Listening d3 bubble stream...');
-	//~ } else {
-	  //~ // Result to xhr polling :(
-	//~ }
-
-	//~ window.onbeforeunload = function(){
-	  //~ source.close();
-	//~ };
-    
-	//~ source.addEventListener('update', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ applyData(domains_table,getDataSet(data),false)
-      //~ drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
-	//~ }, false);
-
-	//~ source.addEventListener('stopped', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ removeData(domains_table,getDataSet(data))
-      //~ drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
-	//~ }, false);      
+      removeData(domains_table,data))
+      drawBubbles4()
+      //~ drawBubbles4( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+    });    
 
 });
 
 
 // Bubbles
 function drawBubbles(m) {
+
+	var bubble = d3.layout.pack()
+		.size([diameter, diameter])
+		.value(function(d) {return d.size;}) // new data is loaded to bubble layout
+		.padding(3);
         var nodes = bubble.nodes(m)
 			.filter(function(d) { return !d.children; }); // filter out the outer bubble
 		// assign new data to existing DOM 
