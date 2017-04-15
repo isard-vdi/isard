@@ -67,15 +67,15 @@ $(document).ready(function() {
 	  var data = JSON.parse(data);
       console.log(data)
       applyData(domains_table,getDataSet(data),false)
-      //~ drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
-      drawBubbles4()
+      drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+      //~ drawBubbles4()
     });
     
     socket.on('desktop_stopped', function(data){
 	  var data = JSON.parse(data);
-      removeData(domains_table,data))
-      drawBubbles4()
-      //~ drawBubbles4( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+      removeData(domains_table,data)
+      //~ drawBubbles4()
+      drawBubbles4( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
     });    
 
 });

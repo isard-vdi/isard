@@ -1,7 +1,7 @@
-<!DOCTYPE html>
-<meta charset="utf-8">
-<style>
-
+<!-- extend base layout -->
+{% extends "admin/pages/graphs.html" %}
+{% block css %}
+    <style>
 
 .node circle {
   fill: #fff;
@@ -10,96 +10,100 @@
 }
 
 .node text {
-  font: 12px sans-serif;
+  font: bold 12px sans-serif;
 }
 
+.node.menu {
+        color: cyan;
+    }
+    
 .link {
   fill: none;
   stroke: #ccc;
   stroke-width: 2px;
 }
 
-</style>
-<svg width="960" height="1060"></svg>
-    <!-- jQuery -->
-    <script src="/vendors/jquery/dist/jquery.js"></script>
+    </style>
+{% endblock %}
+{% block content %}
+        <!-- page content -->
+        <div class="row">
+			<div class="col-md-12 col-sm-12 col-xs-12">
+				<div class="text-center text-center">
+					<section id="chart">             
+					</section>
+				</div>
+			</div>
+<!--
+			<div class="col-md-4 col-sm-4 col-xs-12">
+                                <table id="table-list" class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>hyper</th>
+                                            <th>name</th>
+                                            <th>os</th>
+                                            <th>load</th>
+                                            <th>net</th>
+                                            <th>disk rw</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>				
+			</div>
+-->
+        </div>
+{% endblock %}
+
+{% block pagescript %}
+	<script src="/bower_components/d3/d3.min.js"></script>
     <!-- Isard restful ajax calls -->
     <script src="/static/js/restful.js"></script>
-<script src="//d3js.org/d3.v4.min.js"></script>
 <script>
-
-//$.get("/admin/graphs_tree", function(data){
-//    console.log(data)
-  //~ alert("Data Loaded: " + data);
-//~ });
-//~ api.ajax('/admin/graphs_tree','GET','').done(function(data) {
-    //~ console.log(data)
-                    //~ });  
-//~ d3.csv("flare.csv", function(error, data) {
-  //~ if (error) throw error;
 
 
 api.ajax('/admin/graphs_data_tree_list','GET','').done(function(data) {
-    var dataMap = data.reduce(function(map, node) {
-        map[node.name] = node;
-        return map;
-    }, {});
 
-    // create the tree array
-    var mytree = [];
-    data.forEach(function(node) {
-        // add to parent
-        var parent = dataMap[node.parent];
-        if (parent) {
-            // create child array if it doesn't exist
-            (parent.children || (parent.children = []))
-                // add node to child array
-                .push(node);
-        } else {
-            // parent is null or missing
-            mytree.push(node);
-        }
-    });
-
-      //~ var root = d3.hierarchy(mytree[0]);
-  //~ tree(root);
-
-treeData=mytree
-console.log(treeData)
+    treeData=listToTree(data)
+    //~ console.log(JSON.stringify(treeData, null, 4))
 
 // Set the dimensions and margins of the diagram
+var rect = document.querySelector ('#chart').getBoundingClientRect();
+       width = height = diameter = rect.width;
 var margin = {top: 20, right: 90, bottom: 30, left: 90},
-    width = 960 - margin.left - margin.right,
-    height = 500 - margin.top - margin.bottom;
+    width = width - margin.left - margin.right,
+    height = width - margin.top - margin.bottom;
+    height=height*2
 
 // append the svg object to the body of the page
 // appends a 'group' element to 'svg'
 // moves the 'group' element to the top left margin
-var svg = d3.select("body").append("svg")
+svg = d3.select("#chart").append("svg")
     .attr("width", width + margin.right + margin.left)
     .attr("height", height + margin.top + margin.bottom)
   .append("g")
     .attr("transform", "translate("
           + margin.left + "," + margin.top + ")");
 
-var i = 0,
-    duration = 750,
-    root;
+i = 0
+duration = 750
+root=[];
 
 // declares a tree layout and assigns the size
-var treemap = d3.tree().size([height, width]);
+treemap = d3.tree().size([height, width]);
 
 // Assigns parent, children, height, depth
 root = d3.hierarchy(treeData, function(d) { return d.children; });
 root.x0 = height / 2;
 root.y0 = 0;
-
+//~ console.log(JSON.stringify(root, null, 4))
 // Collapse after the second level
 root.children.forEach(collapse);
-
+//~ console.log('colapsed')
 update(root);
 
 });
+
 
 // Collapse the node and all it's children
 function collapse(d) {
@@ -109,6 +113,7 @@ function collapse(d) {
     d.children = null
   }
 }
+
 
 function update(source) {
 
@@ -148,13 +153,31 @@ function update(source) {
   nodeEnter.append('text')
       .attr("dy", ".35em")
       .attr("x", function(d) {
-          return d.children || d._children ? -13 : 13;
+          return d.data.kind=='desktop' ? 13 : -13;
+          //~ return d.children || d._children ? -13 : 13;
       })
       .attr("text-anchor", function(d) {
-          return d.children || d._children ? "end" : "start";
+          return d.data.kind=='desktop' ? 'start' : 'end';
+          //~ return d.children || d._children ? "end" : "start";
       })
-      .text(function(d) { return d.data.name; });
+      .attr('class', function(d) {
+          //~ console.log(d.data.kind)
+          return 'node-'+d.data.kind;
+          //~ if (d.data.kind=='desktop') {
+              //~ return 'white';
+          //~ }else{
+                //~ if (d.data.kind=='menu') {
+                    //~ return 'black';
+                //~ }else{
+                    //~ return 'yellow';
+                //~ }
+          //~ }
+          
+          //~ return d.data.kind=='desktop' ? 'white' : return d.data.kind=='menu' ? 'black' : 'yellow';
+      })
+      .text(function(d) { return d.data.name+':'+d.data.children.length; });
 
+      
   // UPDATE
   var nodeUpdate = nodeEnter.merge(node);
 
@@ -172,7 +195,6 @@ function update(source) {
         return d._children ? "lightsteelblue" : "#fff";
     })
     .attr('cursor', 'pointer');
-
 
   // Remove any exiting nodes
   var nodeExit = node.exit().transition()
@@ -227,9 +249,6 @@ function update(source) {
     d.y0 = d.y;
   });
 
-
-//~ });//api.ajax
-
   // Creates a curved (diagonal) path from parent to the child nodes
   function diagonal(s, d) {
 
@@ -254,4 +273,49 @@ function update(source) {
   }
 }
 
+
+//~ function getNestedChildren(arr, parent) {
+    //~ var out = []
+    //~ for(var i in arr) {
+        //~ if(arr[i].parent == parent) {
+            //~ var children = getNestedChildren(arr, arr[i].id)
+
+            //~ if(children.length) {
+                //~ arr[i].children = children
+            //~ }
+            //~ out.push(arr[i])
+        //~ }
+    //~ }
+    //~ return out
+//~ }
+
+function listToTree(data) {
+  var ID_KEY = 'id';
+  var PARENT_KEY = 'parent';
+  var CHILDREN_KEY = 'children';
+  
+  var item, id, parentId;
+  var map = {};
+	for(var i = 0; i < data.length; i++ ) { 
+  	if(data[i][ID_KEY]){
+    	map[data[i][ID_KEY]] = data[i];
+      data[i][CHILDREN_KEY] = [];
+    }
+  }
+  for (var i = 0; i < data.length; i++) {
+    if(data[i][PARENT_KEY]) { // is a child
+    	if(map[data[i][PARENT_KEY]]) // for dirty data
+      {
+    		map[data[i][PARENT_KEY]][CHILDREN_KEY].push(data[i]); // add child to parent
+    		data.splice( i, 1 ); // remove from root
+      	i--; // iterator correction
+      } else {
+      	data[i][PARENT_KEY] = 0; // clean dirty data
+      }
+    }
+  };
+  console.log(JSON.stringify(data[0], null, 4))
+  return data[0];
+}
 </script>
+{% endblock %}
