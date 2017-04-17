@@ -320,7 +320,14 @@ def socketio_admins_connect(join_rooms):
     if current_user.role=='admin':
         for rm in join_rooms:
             join_room(rm)
-            
+
+@socketio.on('get_tree_list', namespace='/sio_admins')
+def socketio_domains_update():
+    socketio.emit('tree_list',
+                    app.isardapi.app.adminapi.get_domains_tree_list(),
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+                    
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():
     leave_room('admins')
