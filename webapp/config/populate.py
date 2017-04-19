@@ -26,7 +26,6 @@ class Populate(object):
         self.database()
 
     def defaults(self):
-        return True
         log.info('Checking table roles')
         self.roles()
         log.info('Checking table categories')
