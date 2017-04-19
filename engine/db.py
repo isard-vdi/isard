@@ -474,8 +474,12 @@ def get_domains_with_transitional_status(list_status = TRANSITIONAL_STATUS):
     rtable=r.table('domains')
     #~ l = list(rtable.filter(lambda d: r.expr(list_status).
             #~ contains(d['status'])).pluck('status', 'id', 'hyp_started').
-            #~ run(r_conn))
-    l = list(rtable.get_all(list_status, index='status').pluck('status', 'id', 'hyp_started').run(r_conn))
+            #~ run
+    #REVISAR CON JOSEP MARIA
+    l = list(rtable.filter(lambda d: r.expr(list_status).
+            contains(d['status'])).pluck('status', 'id', 'hyp_started').
+            run(r_conn))
+    #l = list(rtable.get_all(list_status, index='status').pluck('status', 'id', 'hyp_started').run(r_conn))
     close_rethink_connection(r_conn)
     return l
 
