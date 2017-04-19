@@ -334,11 +334,11 @@ class HypWorkerThread(threading.Thread):
                     except libvirtError as e:
                         error_msg = e.get_error_message()
 
-                        update_domain_status('FailedCreatingDomain',action['id_domain'],self.id_hyp,detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
+                        update_domain_status('FailedCreatingDomain',action['id_domain'],hyp_id=self.hyp_id,detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
                         log.error('Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: '.format(error_msg))
 
                     except Exception as e:
-                        update_domain_status('Crashed',action['id_domain'],self.id_hyp,detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
+                        update_domain_status('Crashed',action['id_domain'],hyp_id=self.hyp_id,detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
                         log.error('Exception starting paused xml for domain {} in hypervisor {}. NOT LIBVIRT EXCEPTION, RARE CASE. Exception message: '.format(str(e)))
 
                 ## START DOMAIN
@@ -349,8 +349,7 @@ class HypWorkerThread(threading.Thread):
                         update_domain_status('Started',action['id_domain'],hyp_id=self.hyp_id,detail='')
                         log.debug('STARTED domain {}: createdXML action in hypervisor {} has been sent'.format(action['id_domain'],host))
                     except Exception as e:
-                        id_hyp = get_id_hyp_from_uri(self.h.uri)
-                        update_domain_status('Failed',action['id_domain'],self.id_hyp,detail=str(e))
+                        update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
                         log.debug('exception in starting domain {}: '.format(e))
 
                 ## STOP DOMAIN
@@ -361,7 +360,7 @@ class HypWorkerThread(threading.Thread):
                         update_domain_status('Stopped',action['id_domain'])
                         log.debug('STOPPED domain {}'.format(action['id_domain']))
                     except Exception as e:
-                        update_domain_status('Failed',action['id_domain'],self.id_hyp,detail=str(e))
+                        update_domain_status('Failed',action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
                         log.debug('exception in stopping domain {}: '.format(e))
 
                 elif action['type'] in ['create_disk', 'delete_disk']:

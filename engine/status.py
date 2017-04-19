@@ -193,11 +193,12 @@ class ThreadBroom(threading.Thread):
     def polling(self):
         while self.stop is not True:
             l = get_domains_with_transitional_status()
+
             list_domains_without_hyp = [d for d in l if 'hyp_started' not in d.keys()]
             list_domains = [d for d in l if 'hyp_started' in d.keys()]
             for d in list_domains_without_hyp:
                 log.error('DOMAIN {} WITH STATUS {} without HYPERVISOR'.format(d['id'],d['status']))
-                update_domain_status('Unknown',d['id'],detail='starting or stoping status witouth hypervisor')
+                update_domain_status('Unknown', d['id'], detail='starting or stoping status witouth hypervisor')
 
             hyps_to_try = set([d['hyp_started'] for d in list_domains])
             hyps_domain_started = {}
@@ -207,13 +208,20 @@ class ThreadBroom(threading.Thread):
                 if h.connected:
                     hyps_domain_started[hyp_id] = {}
                     hyps_domain_started[hyp_id]['hyp'] = h
-                    list_domains = h.get_domains()
-                    if list_domains is None:
-                        list_domains = []
-                    hyps_domain_started[hyp_id]['active_domains'] = list_domains
+                    list_domains_from_hyp = h.get_domains()
+                    if list_domains_from_hyp is None:
+                        list_domains_from_hyp = []
+                    hyps_domain_started[hyp_id]['active_domains'] = list_domains_from_hyp
                 else:
                     log.error('HYPERVISOR {} libvirt connection failed')
                     hyps_domain_started[hyp_id] = False
+
+            for d in list_domains_without_hyp:
+                domain_id = d['id']
+                status = d['status']
+                if status == 'Stopping':
+                    log.debug('DOMAIN: {} STATUS STOPPING WITHOUTH HYPERVISOR, UNKNOWN REASON'.format(domain_id))
+                    update_domain_status('Stopped', domain_id, detail='Stopped by broom thread because has not hypervisor')
 
             for d in list_domains:
                 domain_id = d['id']
@@ -222,12 +230,11 @@ class ThreadBroom(threading.Thread):
                 if hyps_domain_started[hyp_started] is not False:
                     if status == 'Starting':
                         log.debug('DOMAIN: {} STATUS STARTING TO RUN IN HYPERVISOR: {}'.format(domain_id, hyp_started))
-                        try:
-                            tmp = hyps_domain_started[hyp_started]['active_domains']
-                            if domain_id in hyps_domain_started[hyp_started]['active_domains']:
-                                print(domain_id)
-                        except Exception as e:
-                            log.error(e)
+                        # try:
+                        #     if domain_id in hyps_domain_started[hyp_started]['active_domains']:
+                        #         print(domain_id)
+                        # except Exception as e:
+                        #     log.error(e)
                         if domain_id in hyps_domain_started[hyp_started]['active_domains']:
                             log.debug('DOMAIN: {} ACTIVE IN HYPERVISOR: {}'.format(domain_id, hyp_started))
                             state_libvirt = hyps_domain_started[hyp_started]['hyp'].domains[domain_id].state()
@@ -237,8 +244,14 @@ class ThreadBroom(threading.Thread):
                             update_domain_hyp_started(domain_id,hyp_started)
                         else:
                             log.debug('DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} '.format(domain_id, hyp_started))
+                    elif status == 'Stopping':
+                        log.debug('DOMAIN: {} STATUS STOPPING IN HYPERVISOR: {}'.format(domain_id, hyp_started))
+                        if domain_id not in hyps_domain_started[hyp_started]['active_domains']:
+                            update_domain_status('Stopped', domain_id, detail='Stopped by broom thread')
                     else:
                         log.debug('DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} '.format(domain_id, hyp_started))
+
+
 
             interval = 0.0
             while interval < self.polling_interval:
