@@ -272,7 +272,15 @@ $(document).ready(function() {
                                                     sticker: false
                                                 }
                                             });
-                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
+                                            //~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
+                                            
+                                                var url = '/desktops/viewer/file/'+data['id'];
+                                                var anchor = document.createElement('a');
+                                                    anchor.setAttribute('href', url);
+                                                    anchor.setAttribute('download', 'console.vv');
+                                                var ev = document.createEvent("MouseEvents");
+                                                    ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                                                    anchor.dispatchEvent(ev);                                              
                                         }
                                     },
                                 ]
@@ -358,6 +366,7 @@ $(document).ready(function() {
     
     socket.on('domain_viewer', function (data) {
         var data = JSON.parse(data);
+        console.log('domain_viewer event received'+data)
         if(data['kind']=='xpi'){
             viewer=data['viewer']
                         if(viewer==false){
