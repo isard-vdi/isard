@@ -25,4 +25,10 @@ from .decorators import ownsid
 def classroom():
     if request.method == 'POST':
         None
-    return render_template('pages/classroom.html', nav='Classroom')
+    hosts=[]
+    for i in range(1,30):
+        hosts.append({'ip':'10.200.210.'+str(i),'hostname':'f2a-'+str(i)})
+    #~ hosts=[{'ip':'10.200.210.1','hostname':'f2a-01'},
+            #~ {'ip':'10.200.210.2','hostname':'f2a-02'},
+            #~ {'ip':'10.200.210.3','hostname':'f2a-03'},]
+    return render_template('pages/classroom.html', nav='Classroom', hosts=hosts)

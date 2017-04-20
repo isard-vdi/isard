@@ -13,22 +13,7 @@
                     <div class="clearfix"></div>
                   </div>
                   <div class="x_content">
-                      
-                      <div class="animated flipInY col-lg-3 col-md-3 col-sm-6 col-xs-12">
-                            <div class="flex">
-                              <ul class="list-inline widget_profile_box">
-                                  <li>Josep Maria Viñolas Auquer</li>
-                                <li>
-                                    <div class="icon"><i class="fa fa-caret-square-o-right"></i>
-                                </li>
-                                
-                              </ul>
-                            </div>
-                          <h3>New Sign ups</h3>
-                          <p>Lorem ipsum psdea itgum rixt.</p>
-                        </div>
-                      </div>                      
-
+                      {% include '/snippets/host.tmpl' %}
                   </div>
                 </div>
               </div>
@@ -38,7 +23,4 @@
 {% endblock %}
 {% block pagescript %}
     <script src="/static/js/restful.js"></script>
-    <script src="/js/isos.js"></script>
-    <!-- bootstrap-progressbar -->
-    <script src="/vendors/bootstrap-progressbar/bootstrap-progressbar.min.js"></script>
 {% endblock %}
