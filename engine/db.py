@@ -475,11 +475,7 @@ def get_domains_with_transitional_status(list_status = TRANSITIONAL_STATUS):
     #~ l = list(rtable.filter(lambda d: r.expr(list_status).
             #~ contains(d['status'])).pluck('status', 'id', 'hyp_started').
             #~ run
-    #REVISAR CON JOSEP MARIA
-    l = list(rtable.filter(lambda d: r.expr(list_status).
-            contains(d['status'])).pluck('status', 'id', 'hyp_started').
-            run(r_conn))
-    #l = list(rtable.get_all(list_status, index='status').pluck('status', 'id', 'hyp_started').run(r_conn))
+    l = list(rtable.get_all(r.args(list_status), index='status').pluck('status', 'id', 'hyp_started').run(r_conn))
     close_rethink_connection(r_conn)
     return l
 
@@ -1110,12 +1106,39 @@ def get_domain_spice(id_domain):
             'tlsport': domain['viewer']['tlsport'],
             'passwd' : domain['viewer']['passwd']}
 
+def get_domains_from_classroom(classroom):
+    return []
+
+def get_domains_from_group(group,kind='desktop'):
+    r_conn = new_rethink_connection()
+    rtable=r.table('domains')
+    l = list(r.table('domains').eq_join('user', r.table('users')).without({'right': 'id'}).without({'right': 'kind'}).zip().filter(
+            {'group': group, 'kind': kind}).order_by('id').pluck('status','id','kind',{'hardware':[{'disks':['file']}]}).run(r_conn))
+    close_rethink_connection(r_conn)
+    return [{'kind':s['kind'],'id':s['id'],'status':s['status'],'disk':s['hardware']['disks'][0]['file']} for s in l]
+
+def get_domains_running_hypervisor(hyp_id):
+    return []
+
+def get_domains_from_template_origin():
+    return []
+
+def get_all_domains_with_id_and_status(status=None,kind='desktop'):
+    r_conn = new_rethink_connection()
+    rtable=r.table('domains')
+    if status is None:
+        l = list(rtable.filter({'kind':kind}).pluck('id','status').run(r_conn))
+    else:
+        l = list(rtable.filter({'kind': kind,'status': status}).pluck('id', 'status').run(r_conn))
+    close_rethink_connection(r_conn)
+    return l
+
 def get_domains_from_user(user,kind='desktop'):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
-    l = list(rtable.filter({'user':user,'kind':kind}).pluck('id','kind',{'hardware':[{'disks':['file']}]}).run(r_conn))
+    l = list(rtable.filter({'user':user,'kind':kind}).pluck('status','id','kind',{'hardware':[{'disks':['file']}]}).run(r_conn))
     close_rethink_connection(r_conn)
-    return [{'kind':s['kind'],'id':s['id'],'disk':s['hardware']['disks'][0]['file']} for s in l]
+    return [{'kind': s['kind'], 'id': s['id'], 'status': s['status'], 'disk': s['hardware']['disks'][0]['file']} for s in l]
 
 def start_all_domains_from_user(user):
     l = get_domains_from_user(user)
