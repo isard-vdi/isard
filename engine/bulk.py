@@ -70,3 +70,4 @@ def get_domain_list_groupby(groupby,filterby=None,quantity=None,status=None,rand
             random.shuffle(domain_list)
 
     return domain_list
+
