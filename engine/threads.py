@@ -335,8 +335,7 @@ class HypWorkerThread(threading.Thread):
                         error_msg = e.get_error_message()
 
                         update_domain_status('FailedCreatingDomain',action['id_domain'],hyp_id=self.hyp_id,detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
-                        log.error('Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: '.format(error_msg))
-
+                        log.error('Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} '.format(action['id_domain'],self.hyp_id,error_msg))
                     except Exception as e:
                         update_domain_status('Crashed',action['id_domain'],hyp_id=self.hyp_id,detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
                         log.error('Exception starting paused xml for domain {} in hypervisor {}. NOT LIBVIRT EXCEPTION, RARE CASE. Exception message: '.format(str(e)))

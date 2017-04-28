@@ -287,11 +287,10 @@ def socketio_domains_viewer(data):
         print('HTML5')
         viewer=app.isardapi.get_domain_spice(data['pk'])
         ##### Change this when engine opens ports accordingly (without tls)
-        if viewer['port'] or True:
-            #~ dict['port'] = "5"+ dict['port']
+        if viewer['port']:
             viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
             viewer['port'] = "5"+ viewer['port']
-            
+        #~ viewer['port']=viewer['port']-1
     socketio.emit('domain_viewer',
                     json.dumps({'kind':data['kind'],'viewer':viewer}),
                     namespace='/sio_users', 

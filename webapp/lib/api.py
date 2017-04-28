@@ -96,7 +96,7 @@ class isard():
         if viewer['defaultMode'] == "Secure":
             return {'host':domain['viewer']['hostname'],
                     'kind':domain['hardware']['graphics']['type'],
-                    'port':False,
+                    'port':domain['viewer']['port'],
                     'tlsport':domain['viewer']['tlsport'],
                     'ca':viewer['certificate'],
                     'domain':viewer['domain'],
