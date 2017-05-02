@@ -5,8 +5,11 @@
 * License: AGPLv3
 */
 
+socket=null
+user={}
 $(document).ready(function() {
-	
+    user['role']=$('#user-data').data("role");
+    modal_add_desktops = $('#modal_add_desktops').DataTable()
 	$template = $(".template-detail");
 	$('.btn-new').on('click', function () {
 		if($('.quota-desktops .perc').text() >=100){
@@ -21,10 +24,14 @@ $(document).ready(function() {
             });
 		}else{	
 			setHardwareOptions('#modalAddDesktop');
+            $("#modalAdd")[0].reset();
 			$('#modalAddDesktop').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+             $('#hardware-block').hide();
+            $('#modalAdd').parsley();
+            modal_add_desktop_datatables();
 		}
 	});
 	
@@ -53,7 +60,6 @@ $(document).ready(function() {
 				{ "data": "status", "width": "10px"},
 				{ "data": "name"},
                 { "data": "hyp_started", "width": "10px"}
-				//~ { "data": "description", "visible": false}
 				],
 			 "order": [[3, 'desc']],		 
 		"columnDefs": [ {
@@ -149,9 +155,7 @@ $(document).ready(function() {
 							type: 'error'
 						});
 				}else{
-                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'})
-					//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
-					//~ });  
+                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'}) 
 				}          
                 break;
             case 'btn-stop':
@@ -197,42 +201,9 @@ $(document).ready(function() {
                                 type: 'warning'
                             });                        
                     }else{
-                    socket.emit('domain_viewer',{'pk':data['id'],'kind':'xpi'})
-					//~ api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
-                        //~ if(data==false){
-                            //~ new PNotify({
-                            //~ title: "Display error",
-                                //~ text: "Can't open display, something went wrong.",
-                                //~ hide: true,
-                                //~ delay: 3000,
-                                //~ icon: 'fa fa-alert-sign',
-                                //~ opacity: 1,
-                                //~ type: 'error'
-                            //~ });
-                        //~ }else{
-                            //~ if(data.tlsport){
-                                //~ openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
-                            //~ }else{
-                                //~ openTCP(data.host, data.port, data.passwd);
-                            //~ }
-                        //~ }
-                    //~ });                         
+                    socket.emit('domain_viewer',{'pk':data['id'],'kind':'xpi'})                       
                     }
 				}else{
-					//Viewer .vv Download
-					//~ api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(error) {
-                    //~ if(error==false){
-						//~ new PNotify({
-						//~ title: "Display error",
-							//~ text: "Can't download display file, something went wrong.",
-							//~ hide: true,
-							//~ delay: 3000,
-							//~ icon: 'fa fa-alert-sign',
-							//~ opacity: 1,
-							//~ type: 'error'
-						//~ });
-					//~ }else{
-                    
                         new PNotify({
                             title: 'Choose display connection',
                             text: 'Open in browser (html5) or download remote-viewer file.',
@@ -304,10 +275,18 @@ $(document).ready(function() {
 
 
     // SocketIO
+    reconnect=-1;
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
+    console.log(socket)
      
     socket.on('connect', function() {
         connection_done();
+        reconnect+=1;
+        if(reconnect){
+            console.log(reconnect+' reconnects to websocket. Refreshing datatables');
+            table.ajax.reload();
+            // Should have a route to update quota via ajax...
+        }
         console.log('Listening users namespace');
     });
 
@@ -405,53 +384,6 @@ $(document).ready(function() {
         }
     });
 
-    
-//~ // SERVER SENT EVENTS Stream
-	//~ if (!!window.EventSource) {
-	  //~ var desktops_source = new EventSource('/stream/desktops');
-      //~ console.log('Listening desktops...');
-	//~ } else {
-	  //~ // Result to xhr polling :(
-	//~ }
-
-	//~ window.onbeforeunload = function(){
-	  //~ desktops_source.close();
-	//~ };
-
-	//~ desktops_source.addEventListener('New', function(e) {
-	  //~ var data = JSON.parse(e.data);
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ table.row.add(data).draw();
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = table.row('#'+data.id); 
-          //~ table.row(row).data(data);			
-		//~ }
-	//~ }, false);
-
-	//~ desktops_source.addEventListener('Status', function(e) {
-	  //~ var data = JSON.parse(e.data);
-          //~ var row = table.row('#'+data.id); 
-          //~ table.row(row).data(data);
-          //~ setDesktopDetailButtonsStatus(data.id, data.status);
-          //~ console.log(data);
-	//~ }, false);
-
-	//~ desktops_source.addEventListener('Deleted', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ var row = table.row('#'+data.id).remove().draw();
-            //~ new PNotify({
-                //~ title: "Desktop deleted",
-                //~ text: "Desktop "+data.name+" has been deleted",
-                //~ hide: true,
-                //~ delay: 4000,
-                //~ icon: 'fa fa-success',
-                //~ opacity: 1,
-                //~ type: 'info'
-            //~ });
-	//~ }, false);
-
 });
 
 
@@ -533,7 +465,15 @@ function icon(name){
             return "<span class='fl-"+name+" fa-2x'></span>";
 		}       
 }
-    
+
+function icon1x(name){
+       if(name=='windows' || name=='linux'){
+           return "<i class='fa fa-"+name+"'></i>";
+        }else{
+            return "<span class='fl-"+name+"'></span>";
+		}       
+}
+
 function renderDisplay(data){
         if(data.status=='Stopping' || data.status =='Started'){
             return ' <div class="display"> \
@@ -554,6 +494,10 @@ function renderName(data){
                         
 function renderIcon(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+}
+
+function renderIcon1x(data){
+		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon1x(data.icon)+'</span>'
 }
 
 function renderStatus(data){
@@ -593,4 +537,155 @@ function setDefaultsTemplate(id) {
 	});
 }
 
+
+
+
+function renderTemplateKind(data){
+		if(data.kind=="public_template"){return "public";}
+        if(data.kind=="user_template"){return "private";}
+        return "base"
+}
+
+function modal_add_desktop_datatables(){
+    modal_add_desktops.destroy()
+    $('#modal_add_desktops thead th').each( function () {
+        var title = $(this).text();
+        if(title=='Name'){
+            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+        //~ if(title=='Type'){
+                    //~ column=modal_add_desktops.columns(0)
+                    //~ var select = $('<select><option value=""><option value="base">Base</option><option value="public_template">Public</select>')
+                        //~ .appendTo( $(column.header()).empty() )
+                        //~ .on( 'change', function () {
+                            //~ var val = $.fn.dataTable.util.escapeRegex(
+                                //~ $(this).val()
+                            //~ );
+                            //~ column
+                                //~ .search( val ? '^'+val+'$' : '', true, false )
+                                //~ .draw();
+                        //~ } );
+        //~ }
+    } );
+    
+	modal_add_desktops = $('#modal_add_desktops').DataTable({
+			"ajax": {
+				"url": "/desktops/getAllTemplates",
+				"dataSrc": ""
+			},
+
+            "scrollY":        "125px",
+            "scrollCollapse": true,
+            "paging":         false,
+            
+            //~ "searching":         false,
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                "zeroRecords":    "No matching templates found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                "infoFiltered":   "(filtered from _MAX_ total templates)"
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				//~ {
+                //~ "className":      'details-control',
+                //~ "orderable":      false,
+                //~ "data":           null,
+                //~ "width": "10px",
+                //~ "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+				//~ },
+                { "data": "kind", "width": "10px", "orderable": false},
+				{ "data": "name"},
+                { "data": "group", "width": "10px"},
+                { "data": "username"}
+				],
+			 "order": [[0, 'asc']],	
+             "pageLength": 5,	 
+		"columnDefs": [     
+                            {
+							"targets": 0,
+							"render": function ( data, type, full, meta ) {
+							  return renderTemplateKind(full);
+							}},
+							{
+							"targets": 1,
+							"render": function ( data, type, full, meta ) {
+							  return renderIcon1x(full)+" "+full.name;
+							}},
+							]
+
+
+
+	} );  
+    
+
+    $("#send").on('click', function(e){
+            var form = $('#modalAdd');
+
+            form.parsley().validate();
+
+            if (form.parsley().isValid()){
+                template=$('#template').val();
+                if (template !=''){
+                    var queryString = $('#modalAdd').serialize();
+                    data=$('#modalAdd').serializeObject();
+                    socket.emit('domain_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#datatables-error-status').html('No template selected').addClass('my-error');
+                }
+            }
+        });
+        
+        $("#btn-hardware").on('click', function(e){
+                $('#hardware-block').show();
+        });
+        
+    
+    modal_add_desktops.columns().every( function () {
+        var that = this;
+ 
+        $( 'input', this.header() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+                that
+                    .search( this.value )
+                    .draw();
+            }
+        } );
+    } );
+
+    $('#modal_add_desktops tbody').on( 'click', 'tr', function () {
+        rdata=modal_add_desktops.row(this).data()
+        if ( $(this).hasClass('selected') ) {
+            $(this).removeClass('selected');
+            $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+            $('#datatables-error-status').html('No template selected').addClass('my-error');
+            
+            $('#template').val('');
+            $('#btn-hardware').hide();
+            $('#hardware-block').hide();
+        }
+        else {
+            modal_add_desktops.$('tr.selected').removeClass('selected');
+            $(this).addClass('selected');
+            $('#modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
+            $('#datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+            $('#template').val(rdata['id']);
+            if(user['role']!='user'){
+                $('#btn-hardware').show();
+                setHardwareDomainDefaults('#modalAddDesktop',rdata['id'])
+            }
+        }
+    } );
+
+
+
+//~ window.ParsleyConfig = {
+    //~ excluded: 'input[type=button], input[type=submit], input[type=reset]',
+    //~ inputs: 'input, textarea, select, input[type=hidden], :hidden',
+//~ };
+
+}
 

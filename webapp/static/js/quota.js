@@ -6,64 +6,20 @@
 */
 
 $lost=0;
-$maxlost=2;
-$(document).ready(function() {
-	//~ if (!!window.EventSource) {
-	  //~ var s = new EventSource('/stream/backend');
-      //~ console.log('Listening quotas...');
-	//~ } else {
-	  // Result to xhr polling :(
-	//~ }
-
-	//~ window.onbeforeunload = function(){
-	  //~ s.close();
-	//~ };
-
-	//~ s.addEventListener('open', function() {
-	  //~ // Connection was opened.
-      //~ $lost=0;
-	  //~ $('#modal-lostconnection').modal('hide');
-	//~ }, false);
-
-	//~ s.addEventListener('error', function(e) {
-	  //~ if (e.readyState == EventSource.CLOSED) {
-		//~ // Connection was closed.
-		
-	  //~ }else{
-        //~ $lost=$lost+1;
-        //~ if($lost>=$maxlost){
-                //~ $('#modal-lostconnection').modal({
-                    //~ backdrop: 'static',
-                    //~ keyboard: false
-                //~ }).modal('show');
-                        //~ return false;
-            //~ }
-        //~ }
-       
-	//~ }, false);
-
-
-	//~ s.addEventListener('Quota', function(e) {
-	  //~ var data = JSON.parse(e.data);
-		//~ drawUserQuota(data)
-	//~ }, false);
-
-
-});
-
+$maxlost=1;
     function connection_done(){
       $lost=0;
 	  $('#modal-lostconnection').modal('hide');        
     }
     function connection_lost(){
-        $lost=$lost+1;
-        if($lost>=$maxlost){
+        //~ $lost=$lost+1;
+        //~ if($lost>=$maxlost){
                 $('#modal-lostconnection').modal({
                     backdrop: 'static',
                     keyboard: false
                 }).modal('show');
                         return false;
-            }
+            //~ }
     }
 
     function drawUserQuota(data){

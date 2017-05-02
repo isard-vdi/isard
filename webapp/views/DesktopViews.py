@@ -125,6 +125,7 @@ def domains_update():
             return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
 
 
+from pprint import pprint
 @app.route('/desktops_add', methods=['POST'])
 @login_required
 def desktops_add():
@@ -134,6 +135,7 @@ def desktops_add():
             flash('Quota for creating new desktops is full','danger')
             return redirect(url_for('desktops'))
         create_dict=app.isardapi.f.unflatten_dict(request.form)
+        pprint(create_dict)
         create_dict.pop('templateFilterGroup', None)
         create_dict.pop('templateFilterCategory',None)
         create_dict.pop('templateFilterUser',None)
@@ -352,6 +354,13 @@ def filterTemplate(kind,category=False,group=False,user=False):
     #~ domains = app.isardapi.get_templates(dict)
     #~ return Response(json.dumps(domains), mimetype='application/json')
     return Response(json.dumps(app.isardapi.get_alloweds_domains(current_user.username,kind, custom_filter)), mimetype='application/json')
+
+@app.route('/desktops/getAllTemplates', methods=['GET'])
+@login_required
+def getAllTemplates():
+    custom_filter={}
+    return Response(json.dumps(app.isardapi.get_all_alloweds_domains(current_user.username)), mimetype='application/json')
+
 
 @app.route('/desktops/getDistinc/<field>/<kind>', methods=['GET'])
 @login_required

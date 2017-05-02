@@ -297,7 +297,40 @@ def socketio_domains_viewer(data):
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
+@socketio.on('domain_add', namespace='/sio_users')
+def socketio_domains_add(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    from pprint import pprint
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    if 'hypervisors_pools' not in create_dict.keys():
+        #~ Hardware is not in create_dict
+        data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
+        create_dict['hardware']=data['create_dict']['hardware']
+        create_dict['hardware'].pop('disks',None)
+        create_dict['hypervisors_pools']=data['hypervisors_pools']
+    else:
+        create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+        create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+        create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+        create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+        create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+        create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    pprint(create_dict)
+    #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
 
+    #~ if res is True:
+            #~ flash('Desktop '+create_dict['name']+' created.','success')
+            #~ return redirect(url_for('desktops'))
+    #~ else:
+            #~ flash('Could not create desktop. Maybe you have one with the same name?','danger')
+            #~ return redirect(url_for('desktops'))
+    socketio.emit('result',
+                    '',
+                    #~ app.isardapi.update_desktop_status(current_user.username, data),
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
 
 
 ## Admin namespace
