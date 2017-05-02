@@ -288,8 +288,8 @@ class isardAdmin():
             dict={'name':id,'children':[]}
             for d in domains:
                 children=r.table('domains').filter({'create_dict':{'origin':d['create_dict']['origin']}}).pluck('id','name').run(db.conn)
-                print('children:'+
-                children)
+                #~ print('children:'+
+                #~ children)
                 dict['children'].append({'name':d['name'],'size':100})
             return dict
             #~ finished=False

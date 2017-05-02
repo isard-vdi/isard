@@ -125,36 +125,34 @@ def domains_update():
             return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
 
 
-from pprint import pprint
-@app.route('/desktops_add', methods=['POST'])
-@login_required
-def desktops_add():
-    res=True
-    if request.method == 'POST':
-        if float(app.isardapi.get_user_quotas(current_user.username)['dqp']) >= 100:
-            flash('Quota for creating new desktops is full','danger')
-            return redirect(url_for('desktops'))
-        create_dict=app.isardapi.f.unflatten_dict(request.form)
-        pprint(create_dict)
-        create_dict.pop('templateFilterGroup', None)
-        create_dict.pop('templateFilterCategory',None)
-        create_dict.pop('templateFilterUser',None)
-        #~ Convert to lists even if it is a single select.
-        #~ When converted to multiple select (with order?) should be removed
-        create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
-        create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
-        create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
-        create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
-        create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
-        create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
-        res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+#~ from pprint import pprint
+#~ @app.route('/desktops_add', methods=['POST'])
+#~ @login_required
+#~ def desktops_add():
+    #~ res=True
+    #~ if request.method == 'POST':
+        #~ if float(app.isardapi.get_user_quotas(current_user.username)['dqp']) >= 100:
+            #~ flash('Quota for creating new desktops is full','danger')
+            #~ return redirect(url_for('desktops'))
+        #~ create_dict=app.isardapi.f.unflatten_dict(request.form)
+        #~ pprint(create_dict)
+        #~ create_dict.pop('templateFilterGroup', None)
+        #~ create_dict.pop('templateFilterCategory',None)
+        #~ create_dict.pop('templateFilterUser',None)
+        #~ create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+        #~ create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+        #~ create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+        #~ create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+        #~ create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+        #~ create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+        #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
 
-        if res is True:
-            flash('Desktop '+create_dict['name']+' created.','success')
-            return redirect(url_for('desktops'))
-        else:
-            flash('Could not create desktop. Maybe you have one with the same name?','danger')
-            return redirect(url_for('desktops'))
+        #~ if res is True:
+            #~ flash('Desktop '+create_dict['name']+' created.','success')
+            #~ return redirect(url_for('desktops'))
+        #~ else:
+            #~ flash('Could not create desktop. Maybe you have one with the same name?','danger')
+            #~ return redirect(url_for('desktops'))
 
 @app.route('/desktops_add_disposable', methods=['POST'])
 def desktops_add_disposable():
@@ -195,7 +193,8 @@ def domain_genealogy():
     for i,v in enumerate(gen):
         gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
         wasted+=gen[i]['actual-size']
-    return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human})
+    gen_ids=app.isardapi.get_backing_ids(request.get_json(force=True)['pk'])
+    return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
 
 @app.route('/domain', methods=['POST'])
 @login_required

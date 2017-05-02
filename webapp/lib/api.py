@@ -156,6 +156,20 @@ class isard():
                             domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         return domain   
 
+    def get_backing_ids(self,id):
+        idchain=[]
+        with app.app_context():
+            backing=r.table('domains').get(id).pluck({'disks_info':'filename'}).run(db.conn)
+            for f in backing['disks_info']:
+                fname=f['filename']
+                f=f
+                try:
+                    idchain.append(list(r.table("domains").filter(lambda disks: disks['hardware']['disks'][0]['file']==f).pluck('id','name').run(db.conn))[0])
+                except Exception as e:
+                    print(e)
+                    break
+        return idchain
+        
     def get_user_quotas(self, username, fakequota=False):
         '''
         Utilitzada

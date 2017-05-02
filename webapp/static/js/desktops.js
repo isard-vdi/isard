@@ -34,7 +34,8 @@ $(document).ready(function() {
             modal_add_desktop_datatables();
 		}
 	});
-	
+
+
 	//DataTable Main renderer
 	var table = $('#desktops').DataTable({
 			"ajax": {
@@ -342,7 +343,27 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-    
+
+    socket.on('add_form_result', function (data) {
+        console.log('received result')
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAdd")[0].reset();
+            $("#modalAddDesktop").modal('hide');
+            //~ $('body').removeClass('modal-open');
+            //~ $('.modal-backdrop').remove();
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+        
     socket.on('domain_viewer', function (data) {
         var data = JSON.parse(data);
         console.log('domain_viewer event received'+data)
@@ -368,8 +389,7 @@ $(document).ready(function() {
         }
         if(data['kind']=='html5'){
             viewer=data['viewer']
-            window.open('http://'+viewer.host+'/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd); 
-            //console.log("viewer port:"+viewer.port+" viewer tlsport:"+viewer.tlsport)           
+            window.open('http://'+viewer.host+'/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd);            
             
         }        
         
@@ -390,7 +410,17 @@ $(document).ready(function() {
 
 function actionsDesktopDetail(){
 	$('.btn-edit').on('click', function () {
-            //Not implemented
+            var pk=$(this).closest("div").attr("data-pk");
+            console.log(pk)
+			setHardwareOptions('#modalEditDesktop');
+            $("#modalEdit")[0].reset();
+			$('#modalEditDesktop').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+             $('#hardware-block').hide();
+            $('#modalEdit').parsley();
+            modal_edit_desktop_datatables(pk);
 	});
 
 	$('.btn-template').on('click', function () {
@@ -622,7 +652,7 @@ function modal_add_desktop_datatables(){
 	} );  
     
 
-    $("#send").on('click', function(e){
+    $("#modalAddDesktop #send").on('click', function(e){
             var form = $('#modalAdd');
 
             form.parsley().validate();
@@ -635,13 +665,13 @@ function modal_add_desktop_datatables(){
                     socket.emit('domain_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    $('#datatables-error-status').html('No template selected').addClass('my-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
                 }
             }
         });
         
-        $("#btn-hardware").on('click', function(e){
-                $('#hardware-block').show();
+        $("#modalAddDesktop #btn-hardware").on('click', function(e){
+                $('#modalAddDesktop #hardware-block').show();
         });
         
     
@@ -662,25 +692,24 @@ function modal_add_desktop_datatables(){
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-            $('#datatables-error-status').html('No template selected').addClass('my-error');
+            $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
             
-            $('#template').val('');
-            $('#btn-hardware').hide();
-            $('#hardware-block').hide();
+            $('#modalAddDesktop #template').val('');
+            $('#modalAddDesktop #btn-hardware').hide();
+            $('#modalAddDesktop #hardware-block').hide();
         }
         else {
             modal_add_desktops.$('tr.selected').removeClass('selected');
             $(this).addClass('selected');
-            $('#modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
-            $('#datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
-            $('#template').val(rdata['id']);
+            $('#modalAddDesktop #modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
+            $('#modalAddDesktop #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+            $('#modalAddDesktop #template').val(rdata['id']);
             if(user['role']!='user'){
-                $('#btn-hardware').show();
+                $('#modalAddDesktop #btn-hardware').show();
                 setHardwareDomainDefaults('#modalAddDesktop',rdata['id'])
             }
         }
     } );
-
 
 
 //~ window.ParsleyConfig = {
@@ -690,3 +719,19 @@ function modal_add_desktop_datatables(){
 
 }
 
+
+function modal_edit_desktop_datatables(id){
+	$.ajax({
+		type: "GET",
+		url:"/desktops/templateUpdate/" + id,
+		success: function(data)
+		{
+            console.log(data)
+			$('#modalEditDesktop #name').val(data.name);
+			$('#modalEditDesktop #description').val(data.description);
+            //~ $('#modalEditDesktop #datatables-error-status').val(data);
+		}				
+	});
+    
+}
+    
