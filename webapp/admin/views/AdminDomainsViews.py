@@ -36,8 +36,13 @@ def admin_domains():
 @login_required
 @isAdmin
 def admin_mdomains():
-    print(request.get_json(force=True))
-    return json.dumps({}), 200, {'ContentType': 'application/json'}
+    dict=request.get_json(force=True)
+    print('vamoo')
+    #~ original_domains=app.adminapi.multiple_action('domains',dict['action'],dict['ids'])
+    desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
+    res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
+    print(res)
+    return json.dumps({'test':1}), 200, {'ContentType': 'application/json'}
     
 @app.route('/admin/domains/get')
 @login_required

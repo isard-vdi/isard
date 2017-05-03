@@ -57,7 +57,22 @@ class isardAdmin():
             field=r.table('hypervisors').get(id).run(db.conn)[key]
             new_field=False if field else True
             return self.check(r.table('hypervisors').get(id).update({key:new_field}).run(db.conn),'replaced')
-                
+
+    def multiple_action(self, table, action, ids):
+        with app.app_context():
+            if action == 'toggle':
+                domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
+                domains_started=self.multiple_check_field('domains','status','Started',ids)
+                res_stopped=self.check(r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn))
+                res_started=self.check(r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn))
+                return True #res_stopped*res_started
+            if action == 'delete':
+                return False
+
+    def multiple_check_field(self, table, field, value, ids):
+        with app.app_context():
+            return [d['id'] for d in list(r.table(table).get_all(r.args(ids)).filter({field:value}).pluck('id').run(db.conn))]
+                                    
     def get_admin_user(self):
         with app.app_context():
             ## ALERT: Should remove password (password='')

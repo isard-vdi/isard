@@ -10,6 +10,7 @@ from collections import OrderedDict
 from os.path import dirname as extract_dir_path
 import itertools
 import time
+import traceback
 
 from .pool_hypervisors import PoolHypervisors
 from .log import *
@@ -83,8 +84,9 @@ class UiActions(object):
         failed=False
         if pool_id in self.manager.pools.keys():
             next_hyp = self.manager.pools[pool_id].get_next()
+            log.debug('//////////////////////')
             if next_hyp is not False:
-
+                log.debug('next_hyp={}'.format(next_hyp))
                 self.manager.q.workers[next_hyp].put({'type':'start_paused_domain','xml':xml,'id_domain':id_domain})
                 update_domain_status(status='CreatingDomain',
                          id_domain=id_domain,
@@ -482,7 +484,13 @@ class UiActions(object):
 
     def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False):
         if creating_from_create_dict is True:
-            populate_dict_hardware_from_create_dict(id_domain)
+            try:
+                populate_dict_hardware_from_create_dict(id_domain)
+            except Exception as e:
+                log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
+                log.error('Traceback: \n .{}'.format(traceback.format_exc()))
+                log.error('Exception message: {}'.format(e))
+                
             domain = get_domain(id_domain)
             id_template = domain['create_dict']['origin']
             template = get_domain(id_template)
