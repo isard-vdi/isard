@@ -833,15 +833,15 @@ def insert_host_viewer(hostname,ip,place_id,name='',
     d['ip_address'] = ip
     d['mac_address'] = mac
 
-    mary_key = "hostname").run(db.conn)
-    r.table('hosts_viewers').index_create("ip_address").run(db.conn)
-    r.table('hosts_viewers').index_wait("ip_address").run(db.conn)
-    r.table('hosts_viewers').index_create("mac_address").run(db.conn)
-    r.table('hosts_viewers').index_wait("mac_address").run(db.conn)
-    r.table('hosts_viewers').index_create("place_id").run(db.conn)
-    r.table('hosts_viewers').index_wait("place_id").run(db.conn)
-    r.table('hosts_viewers').index_create("host_order").run(db.conn)
-    r.table('hosts_viewers').index_wait("host_order").run
+    # mary_key = "hostname").run(db.conn)
+    # r.table('hosts_viewers').index_create("ip_address").run(db.conn)
+    # r.table('hosts_viewers').index_wait("ip_address").run(db.conn)
+    # r.table('hosts_viewers').index_create("mac_address").run(db.conn)
+    # r.table('hosts_viewers').index_wait("mac_address").run(db.conn)
+    # r.table('hosts_viewers').index_create("place_id").run(db.conn)
+    # r.table('hosts_viewers').index_wait("place_id").run(db.conn)
+    # r.table('hosts_viewers').index_create("host_order").run(db.conn)
+    # r.table('hosts_viewers').index_wait("host_order").run
 
 def insert_domain(dict_domain):
 

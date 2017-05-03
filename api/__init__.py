@@ -34,12 +34,12 @@ def create_domain_bulk():
     pass
 
 @app.route('/create_domain/bulk_random_to_user/<string:username>/<int:quantity>/<string:prefix>', methods=['POST'])
-def create_domain_bulk():
+def create_domain_bulk_random_to_user():
     pass
 
 
 @app.route('/create_domain/to_user/<string:username>/<string:template_id>/<string:domain_id>', methods=['POST'])
-def create_domain_bulk():
+def create_domain_bulk_to_user():
     pass
 
 @app.route('/create_domain/to_group/<string:group>/<string:template_id>/<int:quantity>/<string:prefix>', methods=['POST'])
@@ -63,7 +63,7 @@ def start_domain_with_prefix():
 
 
 @app.route('/action_with_domains/<string:action>/from_template/<string:template>', methods=['PUT'])
-def start_domain_with_prefix():
+def start_domain_with_prefix_from_template():
     pass
 
 
