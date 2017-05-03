@@ -63,10 +63,12 @@ class isardAdmin():
             if action == 'toggle':
                 domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
                 domains_started=self.multiple_check_field('domains','status','Started',ids)
-                res_stopped=self.check(r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn))
-                res_started=self.check(r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn))
-                return True #res_stopped*res_started
+                res_stopped=self.check(r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn),'updated')
+                res_started=self.check(r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn),'updated')
+                return res_stopped*res_started
             if action == 'delete':
+                domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
+                res_deleted=self.check(r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn),'deleted')
                 return False
 
     def multiple_check_field(self, table, field, value, ids):

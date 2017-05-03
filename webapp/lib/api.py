@@ -456,9 +456,15 @@ class isard():
             #~ data.append(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)[0])
             #~ data.append(r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)[0])
 
-            data = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).union(
-                    r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).union(
-                    r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'})), interleave='name').run(db.conn)
+            #~ data = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).union(
+                    #~ r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).union(
+                    #~ r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'})), interleave='name').run(db.conn)
+  
+            data1 = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            data2 = r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            data3 = r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            data = data1+data2+data3
+  
             ## If we continue down here, data will be filtered by alloweds matching user role, domain, group and user
             #~ Generic get all: data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
             #~ for group in data:
