@@ -294,15 +294,16 @@ $(document).ready(function() {
 
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
-		if($("#" + data.id).length == 0) {
-		  //it doesn't exist
-		  domains_table.row.add(data).draw();
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = domains_table.row('#'+data.id); 
-          domains_table.row(row).data(data).invalidate();			
-		}
-        domains_table.draw(false);
+        applyData(domains_table,data,false)
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ domains_table.row.add(data).draw();
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = domains_table.row('#'+data.id); 
+          //~ domains_table.row(row).data(data).invalidate();			
+		//~ }
+        //~ domains_table.draw(false);
         setDomainDetailButtonsStatus(data.id, data.status);
     });
     

@@ -165,32 +165,32 @@ function d3FormatData(data){
             }];
 }
     
-function applyData(table, data, append){
-    //Quickly appends new data rows.  Does not update rows
-    if(append == true){
-        table.rows.add(data);
+//~ function applyData(table, data, append){
+    //~ //Quickly appends new data rows.  Does not update rows
+    //~ if(append == true){
+        //~ table.rows.add(data);
          
-    //Locate and update rows by rowId or add if new
-    }else{
-        var index;
-        for (var x = 0;x < data.length;x++){
-            //Find row index by rowId if row exists
-            index = table.row('#' + data[x].id);
+    //~ //Locate and update rows by rowId or add if new
+    //~ }else{
+        //~ var index;
+        //~ for (var x = 0;x < data.length;x++){
+            //~ //Find row index by rowId if row exists
+            //~ index = table.row('#' + data[x].id);
              
-            //Update row data if existing, and invalidate for redraw
-            if(index.length > 0){
-                table.row(index[0]).data(data[x]).invalidate();
+            //~ //Update row data if existing, and invalidate for redraw
+            //~ if(index.length > 0){
+                //~ table.row(index[0]).data(data[x]).invalidate();
              
-            //Add row data if new
-            }else{
-                table.row.add(data[x]);
-            }
-        }
-    }
+            //~ //Add row data if new
+            //~ }else{
+                //~ table.row.add(data[x]);
+            //~ }
+        //~ }
+    //~ }
  
-    //Redraw table maintaining paging
-    table.draw(false);
-}
+    //~ //Redraw table maintaining paging
+    //~ table.draw(false);
+//~ }
 
 function removeData(table,data){
         var index;

@@ -308,15 +308,16 @@ $(document).ready(function() {
     socket.on('desktop_data', function(data){
         console.log('add or update')
         var data = JSON.parse(data);
-		if($("#" + data.id).length == 0) {
-		  //it doesn't exist
-		  table.row.add(data).draw();
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = table.row('#'+data.id); 
-          table.row(row).data(data).invalidate();			
-		}
-        table.draw(false);
+        applyData(table,data,false)
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ table.row.add(data).draw();
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ table.row(row).data(data).invalidate();			
+		//~ }
+        //~ table.draw(false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
     
