@@ -12,8 +12,8 @@ $(document).ready(function() {
     modal_add_desktops = $('#modal_add_desktops').DataTable()
 	initalize_modal_all_desktops_events()
  
-
 	$template = $(".template-detail");
+
     
 	$('.btn-new').on('click', function () {
 		if($('.quota-desktops .perc').text() >=100){
@@ -308,7 +308,8 @@ $(document).ready(function() {
     socket.on('desktop_data', function(data){
         console.log('add or update')
         var data = JSON.parse(data);
-        applyData(table,data,false)
+        dtUpdateInsert(table,data,false);
+        //~ applyData(table,data,false)
 		//~ if($("#" + data.id).length == 0) {
 		  //~ //it doesn't exist
 		  //~ table.row.add(data).draw();

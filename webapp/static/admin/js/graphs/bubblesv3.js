@@ -1,15 +1,15 @@
   // D3 Bubble Chart 
-	//~ var diameter = 500;
-	//~ var svg = d3.select('#chart').append('svg')
-		//~ .attr('width', diameter)
-		//~ .attr('height', diameter);
+	var diameter = 500;
+	var svg = d3.select('#chart').append('svg')
+		.attr('width', diameter)
+		.attr('height', diameter);
 
-var rect = document.querySelector ('#chart').getBoundingClientRect(),
-       width = height = diameter = rect.width;
-var svg = d3.select("#chart").append("svg")
-            .attr("width",width)
-            .attr("height",height)
-            .attr("transform", "translate(" + (width / 2 + 40) + "," + (height / 2 + 90) + ")");
+//~ var rect = document.querySelector ('#chart').getBoundingClientRect(),
+       //~ width = height = diameter = rect.width;
+//~ var svg = d3.select("#chart").append("svg")
+            //~ .attr("width",width)
+            //~ .attr("height",height)
+            //~ .attr("transform", "translate(" + (width / 2 + 40) + "," + (height / 2 + 90) + ")");
     //~ var diameter=width
     
 $(document).ready(function() {
@@ -65,8 +65,8 @@ $(document).ready(function() {
 
     socket.on('desktop_status', function(data){
 	  var data = JSON.parse(data);
-      console.log(data)
-      applyData(domains_table,getDataSet(data),false)
+      console.log(getDataSet(data))
+      dtUpdateInsert(domains_table,getDataSet(data),false)
       drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
       //~ drawBubbles4()
     });
@@ -75,7 +75,7 @@ $(document).ready(function() {
 	  var data = JSON.parse(data);
       removeData(domains_table,data)
       //~ drawBubbles4()
-      drawBubbles4( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
+      drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
     });    
 
 });
@@ -128,14 +128,14 @@ function getDataSet(data){
     }else{
         cpu=(cpu).toFixed(1);
     }
-    return [{id: data['id'],
+    return {id: data['id'],
             name: data['name'], 
             hyp: data['hyp_started'], 
             className: data['os'].toLowerCase().replace(/ /g,''), 
             size: cpu,
             disk_rw: (data['status']['disk_rw']['block_w_bytes_per_sec']+data['status']['disk_rw']['block_r_bytes_per_sec']).toFixed(1),
             net_rw: (data['status']['net_rw']['net_w_bytes_per_sec']+data['status']['net_rw']['net_r_bytes_per_sec']).toFixed(1),
-            }];
+            };
 }
     
 //~ function applyData(table, data, append){

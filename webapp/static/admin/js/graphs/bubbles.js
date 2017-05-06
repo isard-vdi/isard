@@ -98,7 +98,8 @@ $(document).ready(function() {
     socket.on('desktop_status', function(data){
 	  var data = JSON.parse(data);
       console.log(data)
-      applyData(domains_table,getDataSet(data),false)
+      dtUpdateInsert(domains_table,getDataSet(data),false)
+      //~ applyData(domains_table,getDataSet(data),false)
       //~ drawBubbles( {children: domains_table.rows({filter: 'applied'}).data().toArray()} );
         //~ myBubbleChart('#chart', d3FormatData(data));
         //~ chart('#chart', d3FormatData(data));

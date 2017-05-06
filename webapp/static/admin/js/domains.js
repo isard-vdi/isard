@@ -7,6 +7,19 @@
 
 
 $(document).ready(function() {
+	$('#test').on( 'click', function () {
+		data={'id':'_eea1554300_LOGO','id2':'_cpr585864606_QWERTT','id3':'_isx47893266_ServerJournal'}
+		//~ console.log('Found: '+domains_table.rows({page: 'all'}).nodes().indexOf(data.id)+' - '+data.id)
+		console.log('Invisible: '+domains_table.row('#'+data.id).id())
+
+		//~ console.log('Found2: '+domains_table.rows({page: 'all'}).nodes().indexOf(data.id2)+' - '+data.id2)
+		//~ console.log('Visible: '+domains_table.row('#'+data.id2).id())
+		console.log('Visible tb: '+domains_table.row('#'+data.id3).id())
+		console.log('Inexistent: '+domains_table.row('#xxxyyy').id())
+		if(typeof(domains_table.row('#'+data.id3).id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
+		if(typeof(domains_table.row('#xxxyyy').id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
+	});
+	
         $template_domain = $(".template-detail-domain");
 
     // Setup - add a text input to each footer cell
@@ -294,7 +307,8 @@ $(document).ready(function() {
 
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
-        applyData(domains_table,data,false)
+        dtUpdateInsert(domains_table,data,false);
+        //~ applyData(domains_table,data,false)
 		//~ if($("#" + data.id).length == 0) {
 		  //~ //it doesn't exist
 		  //~ domains_table.row.add(data).draw();

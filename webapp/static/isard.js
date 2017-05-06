@@ -267,29 +267,76 @@ $(document).ready(function() {
         })(jQuery); 
 
 
-function applyData(table, data, append){
+//~ function applyData(table, data, append){
+    //~ //Quickly appends new data rows.  Does not update rows
+    //~ if(append == true){
+        //~ table.rows.add(data);
+         
+    //~ //Locate and update rows by rowId or add if new
+    //~ }else{
+        //~ var index;
+        //~ for (var x = 0;x < data.length;x++){
+            //~ //Find row index by rowId if row exists
+            //~ index = table.row('#' + data[x].id);
+             
+            //~ //Update row data if existing, and invalidate for redraw
+            //~ if(index.length > 0){
+                //~ table.row(index[0]).data(data[x]).invalidate();
+             
+            //~ //Add row data if new
+            //~ }else{
+                //~ table.row.add(data[x]);
+            //~ }
+        //~ }
+    //~ }
+ 
+    //~ //Redraw table maintaining paging
+    //~ table.draw(false);
+//~ }
+
+function dtUpdateInsertoLD(table, data, append){
     //Quickly appends new data rows.  Does not update rows
     if(append == true){
         table.rows.add(data);
          
     //Locate and update rows by rowId or add if new
     }else{
-        var index;
-        for (var x = 0;x < data.length;x++){
-            //Find row index by rowId if row exists
-            index = table.row('#' + data[x].id);
-             
-            //Update row data if existing, and invalidate for redraw
-            if(index.length > 0){
-                table.row(index[0]).data(data[x]).invalidate();
-             
-            //Add row data if new
-            }else{
-                table.row.add(data[x]);
-            }
-        }
+			//~ console.log('Found: '+table.rows().nodes().indexOf(data.id)+' - '+data.id)
+            found=false;
+            table.rows().every( function ( rowIdx, tableLoop, rowLoop ) {
+                if(this.data().id==data.id){
+                    table.row(rowIdx).data(data).invalidate();
+                    found=true;
+                    return false; //Break
+                }
+            });
+            if(!found){
+                table.row.add(data);
+                }
     }
  
     //Redraw table maintaining paging
     table.draw(false);
 }
+
+function dtUpdateInsert(table, data, append){
+    //Quickly appends new data rows.  Does not update rows
+    if(append == true){
+        table.rows.add(data);
+         
+    //Locate and update rows by rowId or add if new
+    }else{
+		if(typeof(table.row('#'+data.id).id())=='undefined'){
+			// Does not exists yes
+			table.row.add(data);
+		}else{
+			// Exists, do update
+			table.row('#'+data.id).data(data).invalidate();
+		}
+    }
+ 
+    //Redraw table maintaining paging
+    table.draw(false);
+}
+
+
