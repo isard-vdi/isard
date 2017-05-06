@@ -18,6 +18,22 @@ from .db import get_pool
 VDESKTOP_DISK_OPERATINOS = CONFIG_DICT['REMOTEOPERATIONS']['host_remote_disk_operatinos']
 
 
+def create_cmds_delete_disk(path_disk):
+    cmds = list()
+    cmd = 'ls -l "{}"'.format(path_disk)
+    cmds.append(cmd)
+
+    cmd = 'if [ -f "{}" ] ; then rm -f "{}"; fi'.format(path_disk,path_disk)
+    log.debug('delete disk cmd: {}'.format(cmd))
+    cmds.append(cmd)
+
+    cmd = 'ls -l "{}"'.format(path_disk)
+    cmds.append(cmd)
+
+    return cmds
+
+
+
 def create_cmds_disk_from_base(path_base,path_new,clustersize='4k'):
     #INFO TO DEVELOPER todo: hay que verificar primero si el disco no existe, ya que si no lo machaca creo
     # no se bien cuaqndo hacerlo y si vale la pena, habríamos de manejarlo como una excepción

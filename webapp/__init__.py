@@ -44,11 +44,22 @@ except Exception as e:
     log.error('Is rethink up an running? Can not connect! Aborting start. Please refer to documentation.\n Exception: '+str(e))
     exit(0)
 
+
 '''
-Authnetication types
+Scheduler tests
+'''
+from .lib.isardScheduler import isardScheduler
+app.scheduler=isardScheduler()
+#~ app.scheduler.addDate('domains',{'status':'Started'},{'status':'Stopping'},10)
+#~ app.scheduler.clean_stats()
+#~ app.scheduler.stop_domains_without_viewer()
+
+'''
+Authentication types
 '''
 from .auth import authentication
 app.localuser=authentication.LocalUsers()
+
 
 '''
 Serve static files
@@ -68,6 +79,10 @@ def send_templates(path):
 @app.route('/bower_components/<path:path>')
 def send_bower(path):
     return send_from_directory(os.path.join(app.root_path, 'bower_components'), path)
+
+#~ @app.route('/socket.io')
+#~ def send_socketio(path):
+    #~ return send_from_directory(os.path.join(app.root_path, 'bower_components/socket.io-client/lib/socket.js'), path)
     
 @app.route('/isard_dist/<path:path>')
 def send_isardist(path):
@@ -89,8 +104,9 @@ from .views import AboutViews
 from .admin.views import AdminViews
 from .admin.views import AdminUsersViews
 from .admin.views import AdminDomainsViews
-from .admin.views import AdminIsosViews
+#~ from .admin.views import AdminIsosViews
 from .admin.views import AdminHypersViews
+from .admin.views import AdminGraphsViews
 
 
 

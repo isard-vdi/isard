@@ -25,4 +25,5 @@ rethinkdb_data/
 webapp/.idea/
 engine/.idea/
 
+#backups
 backups/

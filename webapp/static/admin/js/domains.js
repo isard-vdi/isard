@@ -8,6 +8,15 @@
 
 $(document).ready(function() {
         $template_domain = $(".template-detail-domain");
+
+    // Setup - add a text input to each footer cell
+    $('#domains tfoot th').each( function () {
+        var title = $(this).text();
+        if (['','Icon','Hypervisor','Action'].indexOf(title) == -1){
+            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+    } );
+            
 		domains_table= $('#domains').DataTable({
 			"ajax": {
 				"url": "/admin/domains/get",
@@ -69,6 +78,63 @@ $(document).ready(function() {
 							]
 		} );
 
+    // Apply the search
+    domains_table.columns().every( function () {
+        var that = this;
+ 
+        $( 'input', this.footer() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+                that
+                    .search( this.value )
+                    .draw();
+            }
+        } );
+    } );
+    
+    domains_table.on( 'click', 'tr', function () {
+        $(this).toggleClass('active');
+    } );
+
+    $('#mactions').on('change', function () {
+        action=$(this).val();
+        names=''
+        ids=[]
+
+        if(domains_table.rows('.active').data().length){
+            $.each(domains_table.rows('.active').data(),function(key, value){
+                names+=value['name']+'\n';
+                ids.push(value['id']);
+            });
+            var text = "You are about to "+action+" these desktops:\n\n "+names
+        }else{ 
+            $.each(domains_table.rows({filter: 'applied'}).data(),function(key, value){
+                ids.push(value['id']);
+            });
+            var text = "You are about to "+action+" "+domains_table.rows({filter: 'applied'}).data().length+" desktops!\n All the desktops in list!"
+        }
+				new PNotify({
+						title: 'Warning!',
+							text: text,
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+							api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                			}); 
+						}).on('pnotify.cancel', function() {
+				});	
+    } );
+
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = domains_table.row( tr );
@@ -99,9 +165,13 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                $('#status-detail-'+row.data().id).html(row.data().detail);
+                if (!row.data().status.includes('Fail')){
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                }
                 actionsDomainDetail();
-                setDomainDetailButtonsStatus(row.data().id,row.data().status)
+                setDomainGenealogy(row.data().id);
+                //~ setDomainDetailButtonsStatus(row.data().id,row.data().status)
             }            
         }
     } );	
@@ -201,70 +271,134 @@ $(document).ready(function() {
                 break;
         }
     });	
-    // Stream domains_source
-	if (!!window.EventSource) {
-	  var domains_source = new EventSource('/admin/stream/domains');
-      console.log('Listening domains...');
-	} else {
-	  //~ // Result to xhr polling :(
-	}
 
-	window.onbeforeunload = function(){
-	  domains_source.close();
-	};
 
-	domains_source.addEventListener('open', function(e) {
-	  // Connection was opened.
-	}, false);
+    // SocketIO
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
 
-	domains_source.addEventListener('error', function(e) {
-	  if (e.readyState == EventSource.CLOSED) {
-		// Connection was closed.
-	  }
-     
-	}, false);
+    socket.on('connect', function() {
+        connection_done();
+        socket.emit('join_rooms',['domains'])
+        console.log('Listening admins namespace');
+    });
 
-	domains_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
+
+    socket.on('desktop_data', function(data){
+        var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
 		  domains_table.row.add(data).draw();
-            new PNotify({
-                title: "Domain added",
-                text: "Domain "+data.name+" has been created",
+		}else{
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = domains_table.row('#'+data.id); 
+          domains_table.row(row).data(data).invalidate();			
+		}
+        domains_table.draw(false);
+        setDomainDetailButtonsStatus(data.id, data.status);
+    });
+    
+    socket.on('desktop_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = domains_table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Desktop deleted",
+                text: "Desktop "+data.name+" has been deleted",
                 hide: true,
-                delay: 2000,
+                delay: 4000,
                 icon: 'fa fa-success',
                 opacity: 1,
                 type: 'success'
-            });          
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = table.row('#'+data.id); 
-          domains_table.row(row).data(data);			
-		}
-	}, false);
-
-	domains_source.addEventListener('Status', function(e) {
-          var data = JSON.parse(e.data);
-          var row = domains_table.row('#'+data.id); 
-          domains_table.row(row).data(data);
-          setDomainDetailButtonsStatus(data.id, data.status);
-	}, false);
-
-	domains_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = table.row('#'+data.id).remove().draw();
-            new PNotify({
-                title: "Domain deleted",
-                text: "Domain "+data.name+" has been deleted",
+        });
+    });
+    
+    socket.on ('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
                 hide: true,
-                delay: 2000,
-                icon: 'fa fa-success',
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
                 opacity: 1,
-                type: 'info'
-            });
-	}, false);
+                type: data.type
+        });
+    });
+
+
+    //~ // Stream domains_source
+	//~ if (!!window.EventSource) {
+	  //~ var domains_source = new EventSource('/admin/stream/domains');
+      //~ console.log('Listening domains...');
+	//~ } else {
+	  // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ domains_source.close();
+	//~ };
+
+	//~ domains_source.addEventListener('open', function(e) {
+	  //~ // Connection was opened.
+	//~ }, false);
+
+	//~ domains_source.addEventListener('error', function(e) {
+	  //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
+	  //~ }
+     
+	//~ }, false);
+
+	//~ domains_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ domains_table.row.add(data).draw();
+            //~ new PNotify({
+                //~ title: "Domain added",
+                //~ text: "Domain "+data.name+" has been created",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'success'
+            //~ });          
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ domains_table.row(row).data(data);			
+		//~ }
+	//~ }, false);
+
+	//~ domains_source.addEventListener('Status', function(e) {
+          //~ var data = JSON.parse(e.data);
+          //~ var row = domains_table.row('#'+data.id); 
+          //~ domains_table.row(row).data(data);
+          //~ setDomainDetailButtonsStatus(data.id, data.status);
+	//~ }, false);
+
+	//~ domains_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Domain deleted",
+                //~ text: "Domain "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
     
 });
 

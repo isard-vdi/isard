@@ -383,7 +383,10 @@ class xml_vm(object):
             self.tree.xpath('/domain/devices/graphics')[0].set('passwd',passwd)
             self.viewer_passwd = passwd
             if ssl is True:
-                self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode','secure')
+                #mode secure if you not use websockets
+                #self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode','secure')
+                #defaultMode=any is the default value, if you pop defaultMode attrib is the same
+                self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode', 'any')
             else:
                 if 'defaultMode' in self.tree.xpath('/domain/devices/graphics')[0].keys():
                     self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('defaultMode')

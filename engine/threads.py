@@ -10,6 +10,7 @@ from collections import OrderedDict
 import queue
 import threading
 import time
+import os
 
 from libvirt import VIR_DOMAIN_START_PAUSED,libvirtError
 from os.path import dirname as extract_dir_path
@@ -20,7 +21,7 @@ import threading
 from .db import get_hyp_hostnames_online,update_domain_hyp_started, update_all_domains_status
 from .db import update_hypervisor_failed_connection, update_hyp_status, set_unknown_domains_not_in_hyps
 from .db import update_domain_status, get_domains_started_in_hyp, get_hyp_hostname_from_id, update_domains_started_in_hyp_to_unknown
-from .functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str,execute_commands, execute_command_with_progress
+from .functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str,execute_commands, execute_command_with_progress,get_tid
 from .qcow import extract_list_backing_chain,create_cmds_disk_template_from_domain, verify_output_cmds1_template_from_domain,verify_output_cmds2,verify_output_cmds3
 from .db import update_db_hyp_info, update_disk_template_created, update_disk_backing_chain
 from .vm import create_template_from_dict
@@ -75,6 +76,30 @@ def launch_disk_operations_thread(hyp_id,hostname,user='root',port=22):
     thread_disk_operation.start()
     return thread_disk_operation,queue_disk_operation
 
+def launch_delete_disk_action(action,hostname,user,port):
+    disk_path = action['disk_path']
+    id_domain = action['domain']
+    array_out_err = execute_commands(hostname,
+                                     ssh_commands=action['ssh_comands'],
+                                     user=user,
+                                     port=port)
+    #ALBERTO FALTA ACABAR
+
+    pass
+
+
+def launch_action_delete_disk(action,hostname,user,port):
+    disk_path  = action['disk_path']
+    id_domain  = action['domain']
+    array_out_err = execute_commands(hostname,
+                                     ssh_commands=action['ssh_comands'],
+                                     user=user,
+                                     port=port)
+    #last ls must fail
+    if len([k['err'] for k in array_out_err if len(k['err']) == 1]):
+        log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
+
+
 
 def launch_action_disk(action,hostname,user,port):
     disk_path  = action['disk_path']
@@ -84,23 +109,46 @@ def launch_action_disk(action,hostname,user,port):
                                      ssh_commands=action['ssh_comands'],
                                      user=user,
                                      port=port)
-    if len([k['err'] for k in array_out_err if len(k['err']) == 0]):
-        log.debug('all operations creating disk {} for new domain {} runned ok'.format(disk_path, id_domain))
-        out_cmd_backing_chain = array_out_err[-1]['out']
 
-        list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
-        update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
-        ##INFO TO DEVELOPER
-        # ahora ya se puede llamar a starting paused
-        update_domain_status('CreatingDomain', id_domain, None,
-                             detail='new disk created, now go to creating desktop and testing if desktop start')
-    else:
-        log.error('operations creating disk {} for new domain {} failed.'.format(disk_path, id_domain))
-        log.error('\n'.join(['cmd: {} / out: {} / err: {}'.format(action['ssh_comands'][i],
-                                                                  array_out_err[i]['out'],
-                                                                  array_out_err[i]['err']) for i in
-                             range(len(action['ssh_comands']))]))
-        update_domain_status('Failed', id_domain, detail='new disk create operation failed, details in logs')
+    if action['type'] == 'create_disk':
+        if len([k['err'] for k in array_out_err if len(k['err']) == 0]):
+            ##TODO: TEST WITH MORE THAN ONE DISK, 2 list_backing_chain must be created
+            log.debug('all operations creating disk {} for new domain {} runned ok'.format(disk_path, id_domain))
+            out_cmd_backing_chain = array_out_err[-1]['out']
+
+            list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
+            update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
+            ##INFO TO DEVELOPER
+            # ahora ya se puede llamar a starting paused
+            update_domain_status('CreatingDomain', id_domain, None,
+                                 detail='new disk created, now go to creating desktop and testing if desktop start')
+        else:
+
+            log.error('operations creating disk {} for new domain {} failed.'.format(disk_path, id_domain))
+            log.error('\n'.join(['cmd: {} / out: {} / err: {}'.format(action['ssh_comands'][i],
+                                                                      array_out_err[i]['out'],
+                                                                      array_out_err[i]['err']) for i in
+                                 range(len(action['ssh_comands']))]))
+            update_domain_status('Failed', id_domain, detail='new disk create operation failed, details in logs')
+
+    elif action['type'] == 'delete_disk':
+        if len(array_out_err[0]['err']) > 0:
+            log.error('disk from domain {} not found, or permission denied or access to data problems'.format(id_domain))
+            log.error('ERROR: {}'.format(array_out_err[0]['err']))
+            update_domain_status('Failed', id_domain, detail='delete disk operation failed, disk not found: {}'.format(array_out_err[0]['err']))
+        elif len(array_out_err[0]['err']) > 0:
+            log.error('disk from domain {} found, but erase command fail'.format(id_domain))
+            log.error('ERROR: {}'.format(array_out_err[0]['err']))
+            update_domain_status('Failed', id_domain, detail='delete disk command failed')
+        elif len(array_out_err[2]['out']) > 0:
+            log.error('disk from domain {} found, erase command not failed with error message, but disk is in directory.'.format(id_domain))
+            log.error('ERROR: {}'.format(array_out_err[0]['out']))
+            update_domain_status('Failed', id_domain, detail='delete disk operation failed, disk in directory can not erase')
+        else:
+            log.info('disk {} from domain {} erased'.format(disk_path,id_domain))
+            update_disk_backing_chain(id_domain, index_disk, 'DISK_ERASED', [])
+            update_domain_status('DiskDeleted', id_domain, detail='delete disk operation run ok')
+
 
 def launch_action_create_template_disk(action, hostname, user, port):
     path_template_disk = action['path_template_disk']
@@ -176,23 +224,30 @@ class DiskOperationsThread(threading.Thread):
         self.queue_master = queue_master
 
     def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         self.disk_operations_thread()
 
     def disk_operations_thread(self):
         host = self.hostname
-
-        log.debug('Thread to launchdisks operations in host {} ...'.format(host))
+        self.tid = get_tid()
+        log.debug('Thread to launchdisks operations in host {} with TID: {}...'.format(host, self.tid))
 
 
         while self.stop is not True:
             try:
                 action=self.queue_actions.get(timeout=TIMEOUT_QUEUES)
                 # for ssh commands
-                if action['type'] in ['create_disk','delete_disk']:
+                if action['type'] in ['create_disk']:
                     launch_action_disk(action,
                                        self.hostname,
                                        self.user,
                                        self.port)
+                if action['type'] in ['delete_disk']:
+                    launch_delete_disk_action( action,
+                                               self.hostname,
+                                               self.user,
+                                               self.port)
 
                 elif action['type'] in ['create_template_disk_from_domain']:
                     launch_action_create_template_disk(action,
@@ -231,7 +286,8 @@ class HypWorkerThread(threading.Thread):
         self.queue_master = queue_master
 
     def run(self):
-        log.debug('Hyp {} worker thread started ...'.format(self.hyp_id))
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         host,port,user = get_hyp_hostname_from_id(self.hyp_id)
         port = int(port)
         self.hostname = host
@@ -262,6 +318,10 @@ class HypWorkerThread(threading.Thread):
                                 #domain is destroyed, all ok
                                 update_domain_status('Stopped',action['id_domain'],hyp_id=self.hyp_id,detail='Domain is created, ready to use')
                                 log.debug('domain {} creating operation finalished. Started paused and destroyed in hypervisor {}. Now status is Stopped. READY TO USE'.format(action['id_domain'],self.hyp_id))
+
+                                if action['id_domain'].find('_disposable_') == 0:
+                                    update_domain_status('Starting', action['id_domain'],
+                                                         detail='Disposable domain starting')
                             else:
                                 update_domain_status('Crashed',action['id_domain'],hyp_id=self.hyp_id,
                                                      detail='Domain is created, started in pause mode but not destroyed,creating domain operation is aborted')
@@ -310,15 +370,15 @@ class HypWorkerThread(threading.Thread):
                                        user,
                                        port)
 
-                # ## DESTROY THREAD
-                # elif action['type'] == 'destroy_thread':
-                #     list_works_in_queue = list(self.queue_actions.queue)
-                #     if self.queue_master is not None:
-                #         self.queue_master.put(['destroy_working_thread',self.hyp_id,list_works_in_queue])
-                #     #INFO TO DEVELOPER, si entra aquí es porque no quedaba nada en cola, si no ya lo habrán matado antes
-                #
-                #     log.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
-                #
+                    # ## DESTROY THREAD
+                    # elif action['type'] == 'destroy_thread':
+                    #     list_works_in_queue = list(self.queue_actions.queue)
+                    #     if self.queue_master is not None:
+                    #         self.queue_master.put(['destroy_working_thread',self.hyp_id,list_works_in_queue])
+                    #     #INFO TO DEVELOPER, si entra aquí es porque no quedaba nada en cola, si no ya lo habrán matado antes
+                    #
+                    #     log.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
+                    #
 
                     #raise 'destoyed'
 
@@ -337,8 +397,8 @@ class HypWorkerThread(threading.Thread):
                     self.stop = True
                 else:
                     log.debug('type action {} not supported in queue actions'.format(action['type']))
-                #time.sleep(0.1)
-                ## TRY DOMAIN
+                    #time.sleep(0.1)
+                    ## TRY DOMAIN
 
 
             except queue.Empty:
@@ -515,6 +575,8 @@ class try_hyp_connection_thread (threading.Thread):
         self.user = user
 
     def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
 
         self.hyp_obj,self.ok=try_hyp_connection(self.hyp_id,self.hostname,self.port,self.user)
 

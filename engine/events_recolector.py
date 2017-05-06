@@ -22,9 +22,10 @@ import time
 import threading
 
 from .log import *
-from .functions import hostname_to_uri
+from .functions import hostname_to_uri, get_tid
 from .db import update_domain_status, get_id_hyp_from_uri, update_domain_viewer_started_values, insert_event_in_db, RethinkHypEvent, remove_domain_viewer_values
 from .db import get_hyp_hostname_user_port_from_id, update_uri_hyp, get_domain_status, get_domain_hyp_started_and_status_and_detail
+from .db import get_domain
 from .vm import xml_vm
 
 def virEventLoopNativeRun():
@@ -206,75 +207,80 @@ def myDomainEventCallbackRethink (conn, dom, event, detail, opaque):
     now = time.time()
     dom_id = dom.name()
     hyp_id = get_id_hyp_from_uri(conn.getURI())
-    if hyp_id is None or hyp_id == '':
-        log.debug('ojojojojojoojojojo salta un evento sin hyp_id en {}, uri:{}'.dom_id,conn.getURI())
-    r_status = opaque
-    dict_event = {'domain':dom_id,
-                  'hyp_id':hyp_id,
-                   'event':domEventToString(event),
-                  'detail':domDetailToString(event, detail),
-                    'when':now}
+    if get_domain(dom_id) is not None:
+        if hyp_id is None or hyp_id == '':
+            log.debug('event in Hypervisor not in database with uri.  hyp_id:{}, uri:{}'.dom_id,conn.getURI())
+        r_status = opaque
+        dict_event = {'domain':dom_id,
+                      'hyp_id':hyp_id,
+                      'event':domEventToString(event),
+                      'detail':domDetailToString(event, detail),
+                      'when':now}
 
-    if dict_event['event'] in ('Started','Resumed'):
-        try:
-            xml_started = dom.XMLDesc()
-            vm=xml_vm(xml_started)
-            port, tlsport = vm.get_graphics_port()
-            update_domain_viewer_started_values(dom_id, hyp_id= hyp_id, port = port, tlsport = tlsport)
-        except Exception as e:
-            log.debug('Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed'.format(dom_id))
-            log.debug('Exception: ' + str(e))
+        if dict_event['event'] in ('Started','Resumed'):
+            try:
+                xml_started = dom.XMLDesc()
+                vm=xml_vm(xml_started)
+                port, tlsport = vm.get_graphics_port()
+                update_domain_viewer_started_values(dom_id, hyp_id= hyp_id, port = port, tlsport = tlsport)
+                log.info('DOMAIN STARTED - {} in {} (port: {} / tlsport:{})'.format(dom_id, hyp_id, port, tlsport))
+            except Exception as e:
+                log.debug('Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed'.format(dom_id))
+                log.debug('Exception: ' + str(e))
 
-    if dict_event['event'] in ('Stopped','Shutdown'):
+        if dict_event['event'] in ('Stopped','Shutdown'):
             remove_domain_viewer_values(dom_id)
             if get_domain_status(dict_event['domain']) != 'Stopped':
                 log.debug('event {} ({}) in hypervisor {} changes status to Stopped in domain {}'.format(
-                    dict_event['event'],
-                    dict_event['detail'],
-                    hyp_id,
-                    dict_event['domain']
+                        dict_event['event'],
+                        dict_event['detail'],
+                        hyp_id,
+                        dict_event['domain']
                 ))
 
                 update_domain_status(status='Stopped',id_domain=dict_event['domain'],hyp_id=False,detail='Ready to Start')
 
-    r_status.insert_event_in_db(dict_event)
-    if dict_event['event'] in (
-                     "Defined",
-                     "Undefined",
-                     #"Started",
-                     "Suspended",
-                     # "Resumed",
-                     #"Stopped",
-                     #"Shutdown",
-                     "PMSuspended",
-                     "Crashed"
-                     ):
+        r_status.insert_event_in_db(dict_event)
+        if dict_event['event'] in (
+                "Defined",
+                "Undefined",
+                #"Started",
+                "Suspended",
+                # "Resumed",
+                #"Stopped",
+                #"Shutdown",
+                "PMSuspended",
+                "Crashed"
+        ):
 
 
-        #INFO TO DEVELOPER, ESTOY YA NO TIENE SENTIDO,
-        #PERO SI VALDRAÍ LA PENA HACER UN log.error para casos raros
+            #INFO TO DEVELOPER, ESTOY YA NO TIENE SENTIDO,
+            #PERO SI VALDRAÍ LA PENA HACER UN log.error para casos raros
 
-        log.error('event strange, why?? event: {}, domain: {}, hyp_id: {}, detail: {}'.format(
-                              dict_event['event'],
-                              dict_event['domain'],
-                              hyp_id,
-                              dict_event['detail']
-                              ))
-    ## Alberto: FALTA QUITAR EL HYP_ID Y LOS DATOS DE SPICE AL HACER STOP
+            log.error('event strange, why?? event: {}, domain: {}, hyp_id: {}, detail: {}'.format(
+                    dict_event['event'],
+                    dict_event['domain'],
+                    hyp_id,
+                    dict_event['detail']
+            ))
+        ## Alberto: FALTA QUITAR EL HYP_ID Y LOS DATOS DE SPICE AL HACER STOP
 
-    log.debug("myDomainEventCallback3 EVENT: Domain %s(%s) %s %s in hypervisor %s" % (dom.name(), dom.ID(),
-                                                                 domEventToString(event),
-                                                                 domDetailToString(event, detail),
-                                                                 hyp_id))
+        log.debug("myDomainEventCallback3 EVENT: Domain %s(%s) %s %s in hypervisor %s" % (dom.name(), dom.ID(),
+                                                                                          domEventToString(event),
+                                                                                          domDetailToString(event, detail),
+                                                                                          hyp_id))
 
-    d_status_hyp_started = get_domain_hyp_started_and_status_and_detail('_llarraz_tftp')
-    if d_status_hyp_started['status'] != domEventToString(event) \
-                                and domEventToString(event) in ['Started','Stopped','Paused']:
-        update_domain_status(id_domain = dom.name(),
-                             status    = domEventToString(event),
-                             hyp_id    = hyp_id,
-                             detail    = domDetailToString(event, detail)
-                             )
+        d_status_hyp_started = get_domain_hyp_started_and_status_and_detail('_llarraz_tftp')
+        if d_status_hyp_started['status'] != domEventToString(event) \
+                and domEventToString(event) in ['Started','Stopped','Paused']:
+            update_domain_status(id_domain = dom.name(),
+                                 status    = domEventToString(event),
+                                 hyp_id    = hyp_id,
+                                 detail    = domDetailToString(event, detail)
+                                 )
+    else:
+        log.error('domain {} launch event in hyervisor {}, but id_domain is not in database'.format(dom_id, hyp_id))
+        log.error('event: {}; detail: {}'.format(domEventToString(event), domDetailToString(event, detail)))
 
 
 last_timestamp_event_graphics = dict()
@@ -361,6 +367,8 @@ class ThreadHypEvents(threading.Thread):
 
     def run(self):
         # Close connection on exit (to test cleanup paths)
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
         old_exitfunc = getattr(sys, 'exitfunc', None)
 
         def exit():

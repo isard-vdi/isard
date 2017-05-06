@@ -36,6 +36,9 @@ $(document).ready(function() {
         });  
         $('.footer-'+basekey).css('display','block');
         $('[id^="btn-'+basekey+'-"]').show();
+        if(basekey=='disposable_desktops'){
+            activateDisposables();
+        }
             
     });
 
@@ -55,7 +58,406 @@ $(document).ready(function() {
         $('.footer-'+basekey).css('display','none');
         $('[id^="btn-'+basekey+'-"]').hide(); 
     });
+
+    $('#btn-checkport').on( 'click', function (event) {
+        event.preventDefault()
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+                        console.log(data);
+                    });  
+    });
+    
+    function checkPort(){
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+                        console.log(data);
+                    });          
+    }
+    
+    $('.btn-scheduler').on( 'click', function () {
+        $('#modalScheduler').modal({
+				backdrop: 'static',
+				keyboard: false
+        }).modal('show'); 
+    });
+
+    $('.btn-add-disposables').on( 'click', function () {
+        $('#modalDisposable').modal({
+				backdrop: 'static',
+				keyboard: false
+        }).modal('show'); 
+    });
+        
+    $('.btn-backup').on( 'click', function () {
+				new PNotify({
+						title: 'Create backup',
+							text: "Do you really want to create a new backup?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/backup','POST',{}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	         
+    });
+
+    $('.btn-backups-upload').on( 'click', function () {
+			$('#modalUpload').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');  
+        });
+        
+    backups_table=$('#table-backups').DataTable({
+			"ajax": {
+				"url": "/admin/table/backups/get",
+				"dataSrc": ""
+			},
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+            "bLengthChange": false,
+            "bFilter": false,
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				{ "data": "when"},
+				{ "data": "status"},
+				{
+                "className":      'actions-control',
+                "orderable":      false,
+                "data":           null,
+                "width": "88px",
+                "defaultContent": '<button id="btn-backups-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
+                                   <button id="btn-backups-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i></button> \
+                                   <button id="btn-backups-download" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-download" style="color:darkblue"></i></button>'
+				},
+                ],
+			 "order": [[1, 'asc']],
+			 "columnDefs": [ {
+							"targets": 0,
+							"render": function ( data, type, full, meta ) {
+							  return moment.unix(full.when).fromNow();
+							}}]
+    } );        
+ 
+     $('#table-backups').find(' tbody').on( 'click', 'button', function () {
+        var data = backups_table.row( $(this).parents('tr') ).data();
+        if($(this).attr('id')=='btn-backups-delete'){
+				new PNotify({
+						title: 'Delete backup',
+							text: "Do you really want to delete backup on date "+moment.unix(data.when).fromNow()+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/backup_remove','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+        if($(this).attr('id')=='btn-backups-restore'){
+				new PNotify({
+						title: 'Restore backup',
+							text: "Do you really want to restore backup from file "+data.filename+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/restore','POST',{'pk':data['id'],}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+        if($(this).attr('id')=='btn-backups-download'){
+						var url = '/admin/backup/download/'+data['id'];
+						var anchor = document.createElement('a');
+							anchor.setAttribute('href', url);
+							anchor.setAttribute('download', data['filename']);
+						var ev = document.createEvent("MouseEvents");
+							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+						anchor.dispatchEvent(ev);
+        }
+    });                
+
+    //~ // Stream backups_source
+	//~ if (!!window.EventSource) {
+	  //~ var backups_source = new EventSource('/admin/stream/backups');
+      //~ console.log('Listening backups...');
+	//~ } else {
+	  // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ backups_source.close();
+	//~ };
+
+	//~ backups_source.addEventListener('open', function(e) {
+	  //~ // Connection was opened.
+	//~ }, false);
+
+	//~ backups_source.addEventListener('error', function(e) {
+	  //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
+	  //~ }
+     
+	//~ }, false);
+
+	//~ backups_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ backups_table.row.add(data).draw();
+            //~ new PNotify({
+                //~ title: "Backup added",
+                //~ text: "Backups "+data.filename+" has been created",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'success'
+            //~ });          
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ backups_table.row(row).data(data);			
+		//~ }
+	//~ }, false);
+
+	//~ backups_source.addEventListener('Status', function(e) {
+          //~ var data = JSON.parse(e.data);
+          //~ var row = backups_table.row('#'+data.id); 
+          //~ backups_table.row(row).data(data);
+	//~ }, false);
+
+	//~ backups_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = backups_table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Backup deleted",
+                //~ text: "Backup "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
+
+
+    
+    scheduler_table=$('#table-scheduler').DataTable({
+			"ajax": {
+				"url": "/admin/table/scheduler_jobs/get",
+				"dataSrc": ""
+			},
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+            "bLengthChange": false,
+            "bFilter": false,
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+                { "data": "name"},
+				{ "data": "kind"},
+				{ "data": "next_run_time"},
+				{
+                "className":      'actions-control',
+                "orderable":      false,
+                "data":           null,
+                "width": "58px",
+                "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
+				},
+                ],
+			 "order": [[1, 'asc']],
+			 "columnDefs": [ {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+							  return moment.unix(full.next_run_time);
+							}}]
+    } );        
+ 
+     $('#table-scheduler').find(' tbody').on( 'click', 'button', function () {
+        var data = scheduler_table.row( $(this).parents('tr') ).data();
+        if($(this).attr('id')=='btn-scheduler-delete'){
+				new PNotify({
+						title: 'Delete scheduled task',
+							text: "Do you really want to delete scheduled task "+moment.unix(data.next_run_time)+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
+                            });  
+                            api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	  
+        }
+    }); 
+
+    // SocketIO
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
+
+    socket.on('connect', function() {
+        connection_done();
+        socket.emit('join_rooms',['config'])
+        console.log('Listening admins namespace');
+    });
+
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
+
+    socket.on('backup_data', function(data){
+        var data = JSON.parse(data);
+		if($("#" + data.id).length == 0) {
+		  //it doesn't exist
+		  backups_table.row.add(data).draw();
+		}else{
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = backups_table.row('#'+data.id); 
+          backups_table.row(row).data(data).invalidate();			
+		}
+        backups_table.draw(false);
+    });
+    
+    socket.on('backup_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = backups_table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Backup deleted",
+                text: "Backup "+data.name+" has been deleted",
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+        });
+    });
+
+    socket.on('sch_data', function(data){
+        var data = JSON.parse(data);
+		if($("#" + data.id).length == 0) {
+		  //it doesn't exist
+		  scheduler_table.row.add(data).draw();
+		}else{
+          //if already exists do an update (ie. connection lost and reconnect)
+          var row = scheduler_table.row('#'+data.id); 
+          scheduler_table.row(row).data(data).invalidate();			
+		}
+        scheduler_table.draw(false);
+    });
+    
+    socket.on('sch_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = scheduler_table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Scheduler deleted",
+                text: "Scheduler "+data.name+" has been deleted",
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+        });
+    });
+        
+    socket.on ('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+
+
+    //~ // Stream scheduler_source
+	//~ if (!!window.EventSource) {
+	  //~ var scheduler_source = new EventSource('/admin/stream/scheduler_jobs');
+      //~ console.log('Listening scheduler...');
+	//~ } else {
+	  // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ scheduler_source.close();
+	//~ };
+
+	//~ scheduler_source.addEventListener('open', function(e) {
+	  //~ // Connection was opened.
+	//~ }, false);
+
+	//~ scheduler_source.addEventListener('error', function(e) {
+	  //~ if (e.readyState == EventSource.CLOSED) {
+		//~ // Connection was closed.
+	  //~ }
+     
+	//~ }, false);
+
+	//~ scheduler_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ scheduler_table.row.add(data).draw();
+            //~ new PNotify({
+                //~ title: "Scheduler added",
+                //~ text: "Scheduler "+data.name+" has been created",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'success'
+            //~ });          
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ scheduler_table.row(row).data(data);			
+		//~ }
+	//~ }, false);
+
+	//~ scheduler_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = scheduler_table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Scheduler deleted",
+                //~ text: "Scheduler "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 2000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
+
 });
+
+
 
 function show_disposables(){
         //~ api.ajax('/admin/table/disposables/get','GET',{}).done(function(data) {
@@ -93,8 +495,8 @@ function show_disposables(){
                 "orderable":      false,
                 "data":           null,
                 "width": "58px",
-                "defaultContent": '<button id="btn-disposable_desktops-delete" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   <button id="btn-disposable_desktops-edit" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+                "defaultContent": '<button id="btn-disposable_desktops-delete" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-times" style="color:darkred"></i></button>'
+                                   //~ <button id="btn-disposable_desktops-edit" class="btn btn-xs" type="button"  data-placement="top" style="display:none"><i class="fa fa-pencil" style="color:darkblue"></i></button>'
 				},
                 ],
 			 "order": [[1, 'asc']],
@@ -104,10 +506,9 @@ function show_disposables(){
 							  return renderDisposables(full);
 							}}]
     } );        
- 
-     $('#table-disposablesx').find(' tbody').on( 'click', 'button', function () {
+
+     $('#table-disposables').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
         if($(this).attr('id')=='btn-disposable_desktops-delete'){
 				new PNotify({
 						title: 'Delete disposable',
@@ -119,8 +520,8 @@ function show_disposables(){
 							history: {history: false},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
-                			//~ }); 
+                            api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'disposables'}).done(function(data) {
+                            });  
 						}).on('pnotify.cancel', function() {
 				});	  
         }
@@ -131,7 +532,8 @@ function show_disposables(){
 			}).modal('show');   
             //~ $("#select2-disposables").select2Sortable();         
         }
-    });       
+    });
+ 
 }
 
 function renderDisposables(data){
@@ -140,4 +542,8 @@ function renderDisposables(data){
         return_data.push(data['disposables'][i].name)
       }
       return return_data;
+}
+
+function activateDisposables(){
+       
 }

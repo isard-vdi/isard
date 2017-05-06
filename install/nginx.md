@@ -18,9 +18,10 @@ firewall-cmd --zone=public --add-port=5000/tcp --permanent
 
 ```
 dnf install nginx
+cp server/nginx.conf /etc/nginx/
 cp server/isard.conf /etc/nginx/conf.d/
 ```
-**Remember to modify paths and server_name accordingly in isard.conf**
+**Remember to modify SERVER_NAME accordingly in isard.conf**
 
 ### Generate and install self-signed certificate
 ```
@@ -40,8 +41,9 @@ systemctl enable nginx
 systemctl start nginx
 ```
 
-And finally add https rule on firewalld:
+And finally add https rule on firewalld and http redirects to https:
 
 ```
 firewall-cmd --zone=public --add-service=https --permanent
+firewall-cmd --zone=public --add-service=http --permanent
 ```

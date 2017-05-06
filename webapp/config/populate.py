@@ -48,6 +48,8 @@ class Populate(object):
         self.disks()
         log.info('Checking table domains')
         self.domains()
+        log.info('Checking table domains_status')
+        self.domains_status()
         log.info('Checking table domain_xmls')
         self.domains_xmls()
         log.info('Checking table isos')
@@ -62,6 +64,8 @@ class Populate(object):
         self.disk_operations()
         log.info('Checking table disposables')
         self.disposables()
+        log.info('Checking table backups')
+        self.backups()
         log.info('Checking table config')
         self.config()
 
@@ -96,10 +100,34 @@ class Populate(object):
                                                                          'ldap_server': 'ldap://ldap.domain.org',
                                                                          'bind_dn': 'dc=domain,dc=org'}},
                                                         'disposable_desktops':{'active': False},
-                                                        'engine':{'carbon':{'active':False,'server':'','port':''}},
+                                                        'engine':{  'intervals':{   'status_polling':10,
+                                                                                    'time_between_polling': 5,
+                                                                                    'test_hyp_fail': 20,
+                                                                                    'background_polling': 10,
+                                                                                    'transitional_states_polling': 2},
+                                                                    'ssh':{'paramiko_host_key_policy_check': False},
+                                                                    'stats':{'active': True,
+                                                                            'max_queue_domains_status': 10,
+                                                                            'max_queue_hyps_status': 10,
+                                                                            'hyp_stats_interval': 5
+                                                                            },
+                                                                    'log':{
+                                                                            'log_name':  'isard',
+                                                                            'log_level': 'DEBUG',
+                                                                            'log_file':  'msg.log'
+                                                                    },
+                                                                    'timeouts':{
+                                                                            'ssh_paramiko_hyp_test_connection':   4,
+                                                                            'timeout_trying_ssh': 2,
+                                                                            'timeout_trying_hyp_and_ssh': 10,
+                                                                            'timeout_queues': 2,
+                                                                            'timeout_hypervisor': 10,
+                                                                            'libvirt_hypervisor_timeout_connection': 3,
+                                                                            'timeout_between_retries_hyp_is_alive': 1,
+                                                                            'retries_hyp_is_alive': 3
+                                                                            },
+                                                                    'carbon':{'active':False,'server':'','port':''}},
                                                         'version':0
-                                                       #~ 'spice': {'domain': '',
-                                                                 #~ 'certificate': ''},
                                                        }], conflict='error').run(db.conn))
                 log.info("Table config populated with defaults.")
                 return True
@@ -123,6 +151,17 @@ class Populate(object):
                                                          'disposables':[]  #{'id':'','name':'','description':''}
                                                          }]).run(db.conn))
                 
+            return True                
+
+    '''
+    BACKUPS
+    '''
+
+    def backups(self):
+        with app.app_context():
+            if not r.table_list().contains('backups').run(db.conn):
+                log.info("Table backups not found, creating and populating defaults...")
+                r.table_create('backups', primary_key="id").run(db.conn)
             return True                
 
     '''
@@ -403,20 +442,21 @@ class Populate(object):
                                                            'categories': [],
                                                            'groups': [],
                                                            'users': []},
-                                                       },
-                                                      {'id': 'cirrus',
-                                                       'name': 'Cirrus',
-                                                       'description': 'Not functional',
-                                                       'ram': 65536,
-                                                       'vram': 65536,
-                                                       'model': 'cirrus',
-                                                       'heads': 1,
-                                                       'allowed': {
-                                                           'roles': ['admin'],
-                                                           'categories': False,
-                                                           'groups': False,
-                                                           'users': False}
-                                                       }]).run(db.conn))
+                                                       }
+                                                      #~ {'id': 'cirrus',
+                                                       #~ 'name': 'Cirrus',
+                                                       #~ 'description': 'Not functional',
+                                                       #~ 'ram': 65536,
+                                                       #~ 'vram': 65536,
+                                                       #~ 'model': 'cirrus',
+                                                       #~ 'heads': 1,
+                                                       #~ 'allowed': {
+                                                           #~ 'roles': ['admin'],
+                                                           #~ 'categories': False,
+                                                           #~ 'groups': False,
+                                                           #~ 'users': False}
+                                                       #~ }
+                                                       ]).run(db.conn))
             return True
 
     '''
@@ -519,6 +559,10 @@ class Populate(object):
             if not r.table_list().contains('domains').run(db.conn):
                 log.info("Table domains not found, creating...")
                 r.table_create('domains', primary_key="id").run(db.conn)
+                r.table('domains').index_create("status").run(db.conn)
+                r.table('domains').index_wait("status").run(db.conn)
+                r.table('domains').index_create("hyp_started").run(db.conn)
+                r.table('domains').index_wait("hyp_started").run(db.conn)
                 r.table('domains').index_create("user").run(db.conn)
                 r.table('domains').index_wait("user").run(db.conn)
                 r.table('domains').index_create("group").run(db.conn)
@@ -647,8 +691,15 @@ class Populate(object):
                 r.table('hypervisors_status').index_wait("connected").run(db.conn)
                 r.table('hypervisors_status').index_create("hyp_id").run(db.conn)
                 r.table('hypervisors_status').index_wait("hyp_id").run(db.conn)
+            if not r.table_list().contains('hypervisors_status_history').run(db.conn):
+                log.info("Table hypervisors_status_history not found, creating...")
+                r.table_create('hypervisors_status_history', primary_key="id").run(db.conn)
+                r.table('hypervisors_status_history').index_create("connected").run(db.conn)
+                r.table('hypervisors_status_history').index_wait("connected").run(db.conn)
+                r.table('hypervisors_status_history').index_create("hyp_id").run(db.conn)
+                r.table('hypervisors_status_history').index_wait("hyp_id").run(db.conn)
             return True
-
+            
     '''
     DOMAINS_STATUS
     '''
@@ -662,8 +713,14 @@ class Populate(object):
                 r.table('domains_status').index_wait("name").run(db.conn)
                 r.table('domains_status').index_create("hyp_id").run(db.conn)
                 r.table('domains_status').index_wait("hyp_id").run(db.conn)
+            if not r.table_list().contains('domains_status_history').run(db.conn):
+                log.info("Table domains_status_history not found, creating...")
+                r.table_create('domains_status_history', primary_key="id").run(db.conn)
+                r.table('domains_status_history').index_create("name").run(db.conn)
+                r.table('domains_status_history').index_wait("name").run(db.conn)
+                r.table('domains_status_history').index_create("hyp_id").run(db.conn)
+                r.table('domains_status_history').index_wait("hyp_id").run(db.conn)
             return True
-
     '''
     DISK_OPERATIONS
     '''

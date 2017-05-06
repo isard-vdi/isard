@@ -100,6 +100,7 @@ $(document).ready(function() {
             tr.removeClass('shown');
         }
         else {
+            
             // Close other rows
              if ( table.row( '.shown' ).length ) {
                       $('.details-control', table.row( '.shown' ).node()).click();
@@ -120,11 +121,15 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDesktopDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                $('#status-detail-'+row.data().id).html(row.data().detail);
+                if (!row.data().status.includes('Fail')){
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                }
                 actionsDesktopDetail();
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
+                setDomainGenealogy(row.data().id);
             }
-        }
+          }
     } );
 
 
@@ -144,8 +149,9 @@ $(document).ready(function() {
 							type: 'error'
 						});
 				}else{
-					api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
-					});  
+                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'})
+					//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
+					//~ });  
 				}          
                 break;
             case 'btn-stop':
@@ -168,107 +174,274 @@ $(document).ready(function() {
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
-                			}); 
+                            socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
 						}).on('pnotify.cancel', function() {
 				});	
                 break;
             case 'btn-display':
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
-					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
-                    if(data==false){
-						new PNotify({
-						title: "Display error",
-							text: "Can't open display, something went wrong.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-					}else{
-						if(data.tlsport){
-							openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
-						}else{
-							openTCP(data.host, data.port, data.passwd);
-						}
-					}
-                }); 
+                    console.log('xpi detected')
+                    if(isXpiBlocked()){
+                            new PNotify({
+                            title: "Plugin blocked",
+                                text: "You should allow SpiceXPI plugin and then reload webpage.",
+                                hide: true,
+                                confirm: {
+                                    confirm: true,
+                                    cancel: false
+                                },
+                                //~ delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'warning'
+                            });                        
+                    }else{
+                    socket.emit('domain_viewer',{'pk':data['id'],'kind':'xpi'})
+					//~ api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
+                        //~ if(data==false){
+                            //~ new PNotify({
+                            //~ title: "Display error",
+                                //~ text: "Can't open display, something went wrong.",
+                                //~ hide: true,
+                                //~ delay: 3000,
+                                //~ icon: 'fa fa-alert-sign',
+                                //~ opacity: 1,
+                                //~ type: 'error'
+                            //~ });
+                        //~ }else{
+                            //~ if(data.tlsport){
+                                //~ openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
+                            //~ }else{
+                                //~ openTCP(data.host, data.port, data.passwd);
+                            //~ }
+                        //~ }
+                    //~ });                         
+                    }
 				}else{
 					//Viewer .vv Download
-					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(error) {
-                    if(error==false){
-						new PNotify({
-						title: "Display error",
-							text: "Can't download display file, something went wrong.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-					}else{
-						var url = '/desktops/viewer/file/'+data['id'];
-						var anchor = document.createElement('a');
-							anchor.setAttribute('href', url);
-							anchor.setAttribute('download', 'console.vv');
-						var ev = document.createEvent("MouseEvents");
-							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-						anchor.dispatchEvent(ev);
+					//~ api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(error) {
+                    //~ if(error==false){
+						//~ new PNotify({
+						//~ title: "Display error",
+							//~ text: "Can't download display file, something went wrong.",
+							//~ hide: true,
+							//~ delay: 3000,
+							//~ icon: 'fa fa-alert-sign',
+							//~ opacity: 1,
+							//~ type: 'error'
+						//~ });
+					//~ }else{
+                    
+                        new PNotify({
+                            title: 'Choose display connection',
+                            text: 'Open in browser (html5) or download remote-viewer file.',
+                            icon: 'glyphicon glyphicon-question-sign',
+                            hide: false,
+                            delay: 3000,
+                            confirm: {
+                                confirm: true,
+                                buttons: [
+                                    {
+                                        text: 'HTML5',
+                                        addClass: 'btn-primary',
+                                        click: function(notice){
+                                            notice.update({
+                                                title: 'You choosed html5 viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
+                                                confirm: {
+                                                    confirm: false
+                                                },
+                                                buttons: {
+                                                    closer: true,
+                                                    sticker: false
+                                                }
+                                            });                                            
+                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'html5'});
+                                        }
+                                    },
+                                    {
+                                        text: 'Download display file',
+                                        click: function(notice){
+                                            notice.update({
+                                                title: 'You choosed to download', text: 'File will be downloaded shortly', icon: true, type: 'info', hide: true,
+                                                confirm: {
+                                                    confirm: false
+                                                },
+                                                buttons: {
+                                                    closer: true,
+                                                    sticker: false
+                                                }
+                                            });
+                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
+                                        }
+                                    },
+                                ]
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            }
+                        });                        
+
+
 					}
-				}); 
-				}
+				//~ }); 
+				//~ }
                 break;
         }
     });
 
 
-	
-// SERVER SENT EVENTS Stream
-	if (!!window.EventSource) {
-	  var desktops_source = new EventSource('/stream/desktops');
-      console.log('Listening desktops...');
-	} else {
-	  // Result to xhr polling :(
-	}
+    // SocketIO
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
+     
+    socket.on('connect', function() {
+        connection_done();
+        console.log('Listening users namespace');
+    });
 
-	window.onbeforeunload = function(){
-	  desktops_source.close();
-	};
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+    
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
 
-	desktops_source.addEventListener('New', function(e) {
-	  var data = JSON.parse(e.data);
+    socket.on('desktop_data', function(data){
+        console.log('add or update')
+        var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
 		  table.row.add(data).draw();
 		}else{
           //if already exists do an update (ie. connection lost and reconnect)
           var row = table.row('#'+data.id); 
-          table.row(row).data(data);			
+          table.row(row).data(data).invalidate();			
 		}
-	}, false);
-
-	desktops_source.addEventListener('Status', function(e) {
-	  var data = JSON.parse(e.data);
-          var row = table.row('#'+data.id); 
-          table.row(row).data(data);
-          setDesktopDetailButtonsStatus(data.id, data.status);
-	}, false);
-
-	desktops_source.addEventListener('Deleted', function(e) {
-	  var data = JSON.parse(e.data);
-      var row = table.row('#'+data.id).remove().draw();
-            new PNotify({
+        table.draw(false);
+        setDesktopDetailButtonsStatus(data.id, data.status);
+    });
+    
+    socket.on('desktop_delete', function(data){
+        console.log('delete')
+        var data = JSON.parse(data);
+        var row = table.row('#'+data.id).remove().draw();
+        new PNotify({
                 title: "Desktop deleted",
                 text: "Desktop "+data.name+" has been deleted",
                 hide: true,
                 delay: 4000,
                 icon: 'fa fa-success',
                 opacity: 1,
-                type: 'info'
-            });
-	}, false);
+                type: 'success'
+        });
+    });
+    
+    socket.on('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+    
+    socket.on('domain_viewer', function (data) {
+        var data = JSON.parse(data);
+        if(data['kind']=='xpi'){
+            viewer=data['viewer']
+                        if(viewer==false){
+                            new PNotify({
+                            title: "Display error",
+                                text: "Can't open display, something went wrong.",
+                                hide: true,
+                                delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'error'
+                            });
+                        }else{
+                            if(viewer.tlsport){
+                                openTLS(viewer.host, viewer.port, viewer.tlsport, viewer.passwd, viewer.ca);
+                            }else{
+                                openTCP(viewer.host, viewer.port, viewer.passwd);
+                            }
+                        }
+        }
+        if(data['kind']=='html5'){
+            viewer=data['viewer']
+            window.open('http://'+viewer.host+'/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd);            
+            
+        }        
+        
+         if(data['kind']=='file'){
+            //~ viewer=data['viewer']
+            var url = '/desktops/viewer/file/'+data['id'];
+            var anchor = document.createElement('a');
+                anchor.setAttribute('href', url);
+                anchor.setAttribute('download', 'console.vv');
+            var ev = document.createEvent("MouseEvents");
+                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                anchor.dispatchEvent(ev);        
+        }
+    });
+
+    
+//~ // SERVER SENT EVENTS Stream
+	//~ if (!!window.EventSource) {
+	  //~ var desktops_source = new EventSource('/stream/desktops');
+      //~ console.log('Listening desktops...');
+	//~ } else {
+	  //~ // Result to xhr polling :(
+	//~ }
+
+	//~ window.onbeforeunload = function(){
+	  //~ desktops_source.close();
+	//~ };
+
+	//~ desktops_source.addEventListener('New', function(e) {
+	  //~ var data = JSON.parse(e.data);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ table.row.add(data).draw();
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ table.row(row).data(data);			
+		//~ }
+	//~ }, false);
+
+	//~ desktops_source.addEventListener('Status', function(e) {
+	  //~ var data = JSON.parse(e.data);
+          //~ var row = table.row('#'+data.id); 
+          //~ table.row(row).data(data);
+          //~ setDesktopDetailButtonsStatus(data.id, data.status);
+          //~ console.log(data);
+	//~ }, false);
+
+	//~ desktops_source.addEventListener('Deleted', function(e) {
+	  //~ var data = JSON.parse(e.data);
+      //~ var row = table.row('#'+data.id).remove().draw();
+            //~ new PNotify({
+                //~ title: "Desktop deleted",
+                //~ text: "Desktop "+data.name+" has been deleted",
+                //~ hide: true,
+                //~ delay: 4000,
+                //~ icon: 'fa fa-success',
+                //~ opacity: 1,
+                //~ type: 'info'
+            //~ });
+	//~ }, false);
 
 });
 
@@ -279,6 +452,17 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-template').on('click', function () {
+		if($('.quota-templates .perc').text() >=100){
+            new PNotify({
+                title: "Quota for creating templates full.",
+                text: "Can't create another template, quota full.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: 'error'
+            });
+		}else{	
 			var pk=$(this).closest("div").attr("data-pk");
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
@@ -287,6 +471,7 @@ function actionsDesktopDetail(){
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+        }
 	});
 
 	$('.btn-delete').on('click', function () {
@@ -309,9 +494,7 @@ function actionsDesktopDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-                                //Should return something about the result...
-							});  
+                            socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {
 				});	
 	});
