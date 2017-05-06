@@ -13,7 +13,8 @@
                     <div class="clearfix"></div>
                   </div>
                   <div class="x_content">
-                      {% include '/snippets/host.tmpl' %}
+                     
+                      {% include '/snippets/classroom.tmpl' %}
                   </div>
                 </div>
               </div>
@@ -22,5 +23,16 @@
         </div>
 {% endblock %}
 {% block pagescript %}
+<!--
     <script src="/static/js/restful.js"></script>
+-->
+<!--
+<script src="//cdnjs.cloudflare.com/ajax/libs/interact.js/1.2.8/interact.min.js"></script>
+-->
+<script>
+$(document).ready(function() {
+    $('.top_nav').hide()
+    $('#menu_toggle').click()
+});
+</script>
 {% endblock %}

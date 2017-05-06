@@ -32,7 +32,15 @@
                   {% if current_user.role == 'admin' or current_user.role == 'advanced' %}
                   <li><a href="/templates"><i class="fa fa-cubes"></i> Templates</span></a>
                   </li>
+<!--
                   <li><a href="/classroom"><i class="fa fa-users"></i> Classroom</span></a>
+-->
+                  <li><a><i class="fa fa-users"></i> Activity <span class="fa fa-chevron-down"></span></a>
+                    <ul class="nav child_menu">
+                      <li><a href="/classroom">Classroom</a></li>
+                      <li><a href="/users">Users</a></li>
+                    </ul>
+                  </li>
                   </li>
 <!--
                   <li><a href="/isos/upload"><i class="fa fa-circle-o"></i> Isos</span></a>
@@ -51,10 +59,6 @@
                   </li>
                   <li><a href="/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</span></a>
                   </li>
-<!--
-                  <li><a href="/admin/graphs" target="_blank"><i class="fa fa-area-chart"></i> Graphs</span></a>
-                  </li>
--->
                   <li><a><i class="fa fa-bar-chart-o"></i> Graphs <span class="fa fa-chevron-down"></span></a>
                     <ul class="nav child_menu">
                       <li><a href="/admin/graphs/domains_bubbles" target="_blank">Bubbles</a></li>
