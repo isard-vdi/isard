@@ -1,8 +1,10 @@
 	function setDomainGenealogy(id){
-			api.ajax_async('/domain_genealogy','POST',{'pk':id}).done(function(gen) {
+			api.ajax('/domain_genealogy','POST',{'pk':id}).done(function(gen) {
                 var wasted=0
-                $.each(gen['genealogy'],function(index,disk){
-                    $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+disk.filename+'</td></tr>');
+                //~ $.each(gen['genealogy'],function(index,disk){
+                $.each(gen['gen_ids'],function(index,val){
+                    $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+val.name+'</td></tr>');
+                    //~ $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+disk.filename+'</td></tr>');
                 });  
                 renderDiskDonut(gen['free'],gen['wasted'],gen['free_hs'],gen['wasted_hs']);
             });

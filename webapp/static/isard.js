@@ -196,3 +196,147 @@ $(document).ready(function() {
     })
 });
 
+
+// Form serialization
+
+        (function($){
+            $.fn.serializeObject = function(){
+
+                var self = this,
+                    json = {},
+                    push_counters = {},
+                    patterns = {
+                        "validate": /^[a-zA-Z][a-zA-Z0-9_]*(?:\[(?:\d*|[a-zA-Z0-9_]+)\])*$/,
+                        "key":      /[a-zA-Z0-9_]+|(?=\[\])/g,
+                        "push":     /^$/,
+                        "fixed":    /^\d+$/,
+                        "named":    /^[a-zA-Z0-9_]+$/
+                    };
+
+
+                this.build = function(base, key, value){
+                    base[key] = value;
+                    return base;
+                };
+
+                this.push_counter = function(key){
+                    if(push_counters[key] === undefined){
+                        push_counters[key] = 0;
+                    }
+                    return push_counters[key]++;
+                };
+
+                $.each($(this).serializeArray(), function(){
+
+                    // skip invalid keys
+                    if(!patterns.validate.test(this.name)){
+                        return;
+                    }
+
+                    var k,
+                        keys = this.name.match(patterns.key),
+                        merge = this.value,
+                        reverse_key = this.name;
+
+                    while((k = keys.pop()) !== undefined){
+
+                        // adjust reverse_key
+                        reverse_key = reverse_key.replace(new RegExp("\\[" + k + "\\]$"), '');
+
+                        // push
+                        if(k.match(patterns.push)){
+                            merge = self.build([], self.push_counter(reverse_key), merge);
+                        }
+
+                        // fixed
+                        else if(k.match(patterns.fixed)){
+                            merge = self.build([], k, merge);
+                        }
+
+                        // named
+                        else if(k.match(patterns.named)){
+                            merge = self.build({}, k, merge);
+                        }
+                    }
+
+                    json = $.extend(true, json, merge);
+                });
+
+                return json;
+            };
+        })(jQuery); 
+
+
+//~ function applyData(table, data, append){
+    //~ //Quickly appends new data rows.  Does not update rows
+    //~ if(append == true){
+        //~ table.rows.add(data);
+         
+    //~ //Locate and update rows by rowId or add if new
+    //~ }else{
+        //~ var index;
+        //~ for (var x = 0;x < data.length;x++){
+            //~ //Find row index by rowId if row exists
+            //~ index = table.row('#' + data[x].id);
+             
+            //~ //Update row data if existing, and invalidate for redraw
+            //~ if(index.length > 0){
+                //~ table.row(index[0]).data(data[x]).invalidate();
+             
+            //~ //Add row data if new
+            //~ }else{
+                //~ table.row.add(data[x]);
+            //~ }
+        //~ }
+    //~ }
+ 
+    //~ //Redraw table maintaining paging
+    //~ table.draw(false);
+//~ }
+
+function dtUpdateInsertoLD(table, data, append){
+    //Quickly appends new data rows.  Does not update rows
+    if(append == true){
+        table.rows.add(data);
+         
+    //Locate and update rows by rowId or add if new
+    }else{
+			//~ console.log('Found: '+table.rows().nodes().indexOf(data.id)+' - '+data.id)
+            found=false;
+            table.rows().every( function ( rowIdx, tableLoop, rowLoop ) {
+                if(this.data().id==data.id){
+                    table.row(rowIdx).data(data).invalidate();
+                    found=true;
+                    return false; //Break
+                }
+            });
+            if(!found){
+                table.row.add(data);
+                }
+    }
+ 
+    //Redraw table maintaining paging
+    table.draw(false);
+}
+
+function dtUpdateInsert(table, data, append){
+    //Quickly appends new data rows.  Does not update rows
+    if(append == true){
+        table.rows.add(data);
+         
+    //Locate and update rows by rowId or add if new
+    }else{
+		if(typeof(table.row('#'+data.id).id())=='undefined'){
+			// Does not exists yes
+			table.row.add(data);
+		}else{
+			// Exists, do update
+			table.row('#'+data.id).data(data).invalidate();
+		}
+    }
+ 
+    //Redraw table maintaining paging
+    table.draw(false);
+}
+
+

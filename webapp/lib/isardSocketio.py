@@ -287,17 +287,44 @@ def socketio_domains_viewer(data):
         print('HTML5')
         viewer=app.isardapi.get_domain_spice(data['pk'])
         ##### Change this when engine opens ports accordingly (without tls)
-        if viewer['port'] or True:
-            #~ dict['port'] = "5"+ dict['port']
+        if viewer['port']:
             viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
             viewer['port'] = "5"+ viewer['port']
-            
+        #~ viewer['port']=viewer['port']-1
     socketio.emit('domain_viewer',
                     json.dumps({'kind':data['kind'],'viewer':viewer}),
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
+@socketio.on('domain_add', namespace='/sio_users')
+def socketio_domains_add(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    if 'hardware' not in create_dict.keys():
+        #~ Hardware is not in create_dict
+        data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
+        create_dict['hardware']=data['create_dict']['hardware']
+        create_dict['hardware'].pop('disks',None)
+        create_dict['hypervisors_pools']=data['hypervisors_pools']
+    else:
+        create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+        create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+        create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+        create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+        create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+        create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
 
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
 
 
 ## Admin namespace
