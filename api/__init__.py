@@ -4,6 +4,7 @@ from flask import Flask
 import json
 
 
+
 if os.path.isfile('config.py'):
     path_config = 'config.py'
 elif os.path.isfile('default_config.py'):
@@ -25,6 +26,48 @@ def get_threads():
     json_d = json.dumps(d)
 
     return jsonify(threads=json_d), 200
+
+
+
+@app.route('/create_domain/bulk_to_user/<string:username>/<string:template_id>/<int:quantity>/<string:prefix>', methods=['POST'])
+def create_domain_bulk():
+    pass
+
+@app.route('/create_domain/bulk_random_to_user/<string:username>/<int:quantity>/<string:prefix>', methods=['POST'])
+def create_domain_bulk_random_to_user():
+    pass
+
+
+@app.route('/create_domain/to_user/<string:username>/<string:template_id>/<string:domain_id>', methods=['POST'])
+def create_domain_bulk_to_user():
+    pass
+
+@app.route('/create_domain/to_group/<string:group>/<string:template_id>/<int:quantity>/<string:prefix>', methods=['POST'])
+def create_domain_to_group():
+    pass
+
+
+@app.route('/action_with_domain/<string:action>/<string:domain_id>', methods=['PUT'])
+def start_domain():
+    pass
+
+
+@app.route('/action_with_domains_group_by/<string:groupby>/<string:action>/with_prefix/<string:prefix>', methods=['PUT'])
+def action_with_domains_group_by():
+    pass
+
+
+@app.route('/action_with_domains/<string:action>/from_user/<string:username>', methods=['PUT'])
+def start_domain_with_prefix():
+    pass
+
+
+@app.route('/action_with_domains/<string:action>/from_template/<string:template>', methods=['PUT'])
+def start_domain_with_prefix_from_template():
+    pass
+
+
+
 
 @app.route('/engine_info', methods=['GET'])
 def engine_info():

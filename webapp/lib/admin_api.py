@@ -57,7 +57,30 @@ class isardAdmin():
             field=r.table('hypervisors').get(id).run(db.conn)[key]
             new_field=False if field else True
             return self.check(r.table('hypervisors').get(id).update({key:new_field}).run(db.conn),'replaced')
+
+    def multiple_action(self, table, action, ids):
+        with app.app_context():
+            if action == 'toggle':
+                domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
+                domains_started=self.multiple_check_field('domains','status','Started',ids)
+                res_stopped=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn)
+                res_started=r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn)
+                return True
+            if action == 'delete':
+                domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
+                res_deleted=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn)
+                return True
+            if action == 'force_failed':
+                res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Failed'}).run(db.conn)
+                return True
+            if action == 'force_stopped':
+                res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Stopped'}).run(db.conn)
+                return True
                 
+    def multiple_check_field(self, table, field, value, ids):
+        with app.app_context():
+            return [d['id'] for d in list(r.table(table).get_all(r.args(ids)).filter({field:value}).pluck('id').run(db.conn))]
+                                    
     def get_admin_user(self):
         with app.app_context():
             ## ALERT: Should remove password (password='')
@@ -276,6 +299,57 @@ class isardAdmin():
         with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
             return dict['path'],dict['filename'], isard_db_file.read()
         
+        
+    '''
+    GRAPHS
+    '''
+    def get_domains_tree(self, id):
+        #~ Should verify something???
+        with app.app_context():
+            rdomains=r.db('isard').table('domains')
+            domains=r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name').run(db.conn)
+            dict={'name':id,'children':[]}
+            for d in domains:
+                children=r.table('domains').filter({'create_dict':{'origin':d['create_dict']['origin']}}).pluck('id','name').run(db.conn)
+                #~ print('children:'+
+                #~ children)
+                dict['children'].append({'name':d['name'],'size':100})
+            return dict
+            #~ finished=False
+            #~ while not finished:
+
+    def get_domains_tree_list(self):
+        #~ Should verify something???
+        with app.app_context():
+            rdomains=r.db('isard').table('domains').pluck('id','name','kind',{'create_dict':{'origin'}}).run(db.conn)
+            domains=[{'id':'isard','kind':'menu','name':'isard'},
+                    {'id':'bases','kind':'menu','name':'bases','parent':'isard'},
+                    {'id':'base_images','kind':'menu','name':'base_images','parent':'isard'}]
+            for d in rdomains:
+                if not d['create_dict']['origin']:
+                    if d['kind']=='base':
+                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'bases'})
+                    else:
+                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'base_images'})
+                else:
+                    domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':d['create_dict']['origin']})
+                #~ if not d['create_dict']['origin']:
+                 #~ print(d['id']+' - '+str(d['create_dict']['origin']))
+            return domains
+            
+    def get_domains_tree_csv(self, id):
+        #~ Should verify something???
+        with app.app_context():
+            rdomains=r.db('isard').table('domains')
+            domains=r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name').run(db.conn)
+            csv='id,value\n'+id+',\n'
+            #~ dict={'name':id,'children':[]}
+            for d in domains:
+                csv=csv+id+'.'+d['id']+',100\n'
+                #~ dict['children'].append({'name':d['name'],'size':100})
+            print(csv)
+            return csv
+                    
 class flatten(object):
     def __init__(self):
         None

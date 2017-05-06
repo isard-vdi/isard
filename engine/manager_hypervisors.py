@@ -268,6 +268,9 @@ class ManagerHypervisors(object):
                 new_domain = False
                 new_status = False
                 old_status = False
+                import pprint
+                log.debug(pprint.pformat(c))
+
 
                 # action deleted
                 if c['new_val'] is None:
@@ -283,6 +286,7 @@ class ManagerHypervisors(object):
                     old_status = c['old_val']['status']
                     new_status = c['new_val']['status']
                     domain_id = c['new_val']['id']
+                    log.debug('domain_id: {}'.format(domain_id))
 
                 if (new_domain is True and new_status == "Creating") or \
                         (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
@@ -294,6 +298,7 @@ class ManagerHypervisors(object):
                     # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
                 if old_status == 'CreatingDisk' and new_status == "CreatingDomain":
+                    log.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
                     ui.creating_and_test_xml_start(domain_id,
                                                    creating_from_create_dict=True)
 

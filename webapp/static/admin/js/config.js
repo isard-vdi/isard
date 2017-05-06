@@ -328,6 +328,7 @@ $(document).ready(function() {
     });
 
     socket.on('backup_data', function(data){
+        console.log('backup data received')
         var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
@@ -341,7 +342,7 @@ $(document).ready(function() {
     });
     
     socket.on('backup_delete', function(data){
-        console.log('delete')
+        console.log('backup delete')
         var data = JSON.parse(data);
         var row = backups_table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -356,6 +357,7 @@ $(document).ready(function() {
     });
 
     socket.on('sch_data', function(data){
+        console.log('sch data received')
         var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
@@ -369,7 +371,7 @@ $(document).ready(function() {
     });
     
     socket.on('sch_delete', function(data){
-        console.log('delete')
+        console.log('sch delete')
         var data = JSON.parse(data);
         var row = scheduler_table.row('#'+data.id).remove().draw();
         new PNotify({
