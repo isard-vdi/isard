@@ -11,6 +11,8 @@ import queue
 import threading
 import time
 import os
+import traceback
+import pprint
 
 from libvirt import VIR_DOMAIN_START_PAUSED,libvirtError
 from os.path import dirname as extract_dir_path
@@ -159,7 +161,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
     cmds1,cmds2, cmds3 = create_cmds_disk_template_from_domain(path_template_disk,path_domain_disk)
 
     # cmds1: Firsts commands: test if perms, df, files are ok
-    cmds_done = execute_commands(hostname, cmds1, dict_mode=True, user=user, port=port)
+    cmds_done = execute_commands(hostname, ssh_commands=cmds1, dict_mode=True, user=user, port=port)
     error_severity, move_tool, cmd_to_move = verify_output_cmds1_template_from_domain(cmds_done,
                                                                                       path_domain_disk,
                                                                                       path_template_disk,
@@ -167,8 +169,10 @@ def launch_action_create_template_disk(action, hostname, user, port):
     if error_severity == None:
 
         # move file
+        log.debug('commnad to move disk template: {}'.format(cmd_to_move))
         if move_tool == 'mv':
-            execute_commands([cmd_to_move])
+            cmds_done = execute_commands(hostname,ssh_commands=[cmd_to_move],dict_mode=False,user=user,port=port)
+
         if move_tool == 'rsync':
             execute_command_with_progress(hostname=hostname,
                                           ssh_command=cmd_to_move,
@@ -177,11 +181,11 @@ def launch_action_create_template_disk(action, hostname, user, port):
                                           port=port)
 
         # cmds2: Seconds commands: test if perms, df, files are ok
-        cmds_done = execute_commands(hostname, cmds2, dict_mode=True, user=user, port=port)
+        cmds_done = execute_commands(hostname, ssh_commands=cmds2, dict_mode=True, user=user, port=port)
         error = verify_output_cmds2(cmds_done,path_domain_disk,path_template_disk,id_domain)
         if error is None:
 
-            cmds_done = execute_commands(hostname, cmds3, dict_mode=True, user=user, port=port)
+            cmds_done = execute_commands(hostname, ssh_commands=cmds3, dict_mode=True, user=user, port=port)
             error, backing_chain_domain, backing_chain_template = verify_output_cmds3(cmds_done,path_domain_disk,path_template_disk,id_domain)
             if error is None:
                 #update_domain to status: TemplateDiskCreated
@@ -243,7 +247,7 @@ class DiskOperationsThread(threading.Thread):
                                        self.hostname,
                                        self.user,
                                        self.port)
-                if action['type'] in ['delete_disk']:
+                elif action['type'] in ['delete_disk']:
                     launch_delete_disk_action( action,
                                                self.hostname,
                                                self.user,
@@ -258,11 +262,13 @@ class DiskOperationsThread(threading.Thread):
                 elif action['type'] == 'stop_thread':
                     self.stop = True
                 else:
-                    log.debug('type action {} not supported')
+                    log.error('type action {} not supported'.format(action['type']))
             except queue.Empty:
                 pass
             except Exception as e:
-                log.error('Exception when creating disk template: {}'.format(e))
+                log.error('Exception when creating disk: {}'.format(e))
+                log.error('Action: {}'.format(pprint.pformat(action)))
+                log.error('Traceback: {}'.format(traceback.format_exc()))
                 return False
 
         if self.stop is True:
@@ -395,7 +401,7 @@ class HypWorkerThread(threading.Thread):
                 elif action['type'] == 'stop_thread':
                     self.stop = True
                 else:
-                    log.debug('type action {} not supported in queue actions'.format(action['type']))
+                    log.error('type action {} not supported in queue actions'.format(action['type']))
                     #time.sleep(0.1)
                     ## TRY DOMAIN
 

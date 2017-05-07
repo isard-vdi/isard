@@ -13,6 +13,7 @@ import string
 from lxml import etree
 from io import StringIO
 from pprint import pprint
+import traceback
 
 from .log import *
 from .functions import randomMAC
@@ -65,7 +66,13 @@ class xml_vm(object):
         # self.tree = etree.parse(StringIO(xml))
 
         parser = etree.XMLParser(remove_blank_text=True)
-        self.tree = etree.parse(StringIO(xml), parser)
+        try:
+            self.tree = etree.parse(StringIO(xml), parser)
+        except Exception as e:                                                              
+            log.error('Exception when parse xml: {}'.format(e))                        
+            log.error('xml that fail: \n{}'.format(xml))
+            log.error('Traceback: {}'.format(traceback.format_exc()))
+            return False
 
         self.vm_dict = self.dict_from_xml(self.tree)
 
