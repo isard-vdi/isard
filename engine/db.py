@@ -892,6 +892,7 @@ def stop_last_domain_status(name):
                  run(r_conn)
         close_rethink_connection(r_conn)
     except:
+
         close_rethink_connection(r_conn)
         return None
         
