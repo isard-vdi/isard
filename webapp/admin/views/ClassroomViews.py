@@ -3,50 +3,30 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-#!/usr/bin/env python
+#!flask/bin/python
 # coding=utf-8
-from flask import render_template, Response, request, redirect, url_for, stream_with_context, flash
-from webapp import app
-from flask_login import login_required, login_user, logout_user, current_user
-import time
 import json
+import time
 
-from ..lib.log import *
+from flask import render_template, Response, request, redirect, url_for, send_from_directory
+from flask_login import login_required
+
+from webapp import app
+from ...lib import admin_api
+
+app.adminapi = admin_api.isardAdmin()
 
 import rethinkdb as r
-from ..lib.flask_rethink import RethinkDB
+from ...lib.flask_rethink import RethinkDB
 db = RethinkDB(app)
 db.init_app(app)
 
-from .decorators import ownsid
+from .decorators import isAdmin
 
 import random
-@app.route('/classroom', methods=['POST','GET'])
+@app.route('/admin/classroom', methods=['POST','GET'])
 @login_required
-def classroom():
-    if request.method == 'POST':
-        None
-    hosts={}
-    
-    for r in range(1,6):
-        hosts[r]={}
-        for c in range(1,random.randrange(4,8)):
-            hosts[r][c]={'status':random.randrange(0,3),'ip':'10.200.210.'+str(r+c),'hostname':'f2a-'+str(r+c)}
-    
-    return render_template('pages/classroom.html', nav='Classroom', hosts=hosts)
-
-@app.route('/classroom_users', methods=['POST','GET'])
-@login_required
-def classroom_users():
-    if request.method == 'POST':
-        # Users from dropdown
-        None
-    return render_template('pages/classroom_users.html', nav='Classroom', users=app.isardapi.get_group_users('hisx1',['id','name','username']))
-
-import random
-@app.route('/classroom_test', methods=['POST','GET'])
-@login_required
-def classroom_test():
+def admin_classroom():
     if request.method == 'POST':
         None
     users=app.isardapi.get_group_users('hisx1',['id','name','username'])
@@ -66,6 +46,7 @@ def classroom_test():
            'online_date': '2017/05/05 13:23:04'}
 
     hosts={}
+    hosts={}
     i=0
     for r in range(0,int(len(users)/6) + (len(users) % 6 > 0)):
         hosts[r]={}
@@ -75,10 +56,25 @@ def classroom_test():
             hosts[r][c]={'status':random.randrange(0,3),'ip':users[i]['id'],'hostname':users[i]['name']}
             i=i+1
             
-    
     #~ for r in range(0,6):
         #~ hosts[r]={}
         #~ for c in range(0,random.randrange(4,8)):
             #~ hosts[r][c]={'status':random.randrange(0,3),'ip':'10.200.210.'+str(r+c),'hostname':'f2a-'+str(r+c)}
     
-    return render_template('pages/classroom_test.html', nav='Classroom', hosts=hosts)
+    return render_template('admin/pages/classroom.html', nav='Classroom')
+    
+#~ {'id':'N2M2,
+#~ 'description':'Aula del edificio de electrónica segunda planta',
+#~ 'rows':5,
+#~ 'cols':4,
+#~ 'photo_url':'http://fotos_aulas.escoladeltreball.org/foto_aula_n2m_mini.jpg'
+#~ 'enable':True
+#~ 'ssh':{
+ #~ 'enable':True
+ #~ 'user':'root'
+ #~ 'pwd':'password_de_root_de_las_aulas',
+ #~ 'ssh_key':'/isard/sshkeys/
+ #~ }
+#~ 'perms':{lo que creas, de tal forma que sólo a un determinado grupo de usuarios
+#~ les dejamos que manejen el aula, por ejemplo al grupo profes, o a los profes de elo}
+#~ }

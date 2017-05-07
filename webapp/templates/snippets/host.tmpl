@@ -5,7 +5,7 @@
                             Offline
                           {% endif%}
                           {% if hosts[r][c].status == 2 %}
-                            <img style="width: 100%; display: block;" src="https://www.escoladeltreball.org/fotosalumnesdni/<<USERID>>.JPG" alt="image" />
+                            <img style="width: 100%; display: block;" src="https://www.escoladeltreball.org/fotosalumnesdni/<<USERID>>.JPG" onerror="this.src='/static/img/user.png'" alt="image" />
                           {% endif%}
                             <div class="mask" style="height:150px">
                               <p>{{hosts[r][c].ip}}<br>{{hosts[r][c].hostname}}</p>

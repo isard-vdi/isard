@@ -174,6 +174,8 @@ class Populate(object):
             if not r.table_list().contains('users').run(db.conn):
                 log.info("Table users not found, creating...")
                 r.table_create('users', primary_key="id").run(db.conn)
+                r.table('users').index_create("group").run(db.conn)
+                r.table('users').index_wait("group").run(db.conn)
 
                 if r.table('users').get('admin').run(db.conn) is None:
                     usr = [{'id': 'admin',
@@ -769,8 +771,8 @@ class Populate(object):
                 r.table('hosts_viewers').index_wait("mac_address").run(db.conn)
                 r.table('hosts_viewers').index_create("place_id").run(db.conn)
                 r.table('hosts_viewers').index_wait("place_id").run(db.conn)
-                r.table('hosts_viewers').index_create("host_order").run(db.conn)
-                r.table('hosts_viewers').index_wait("host_order").run(db.conn)
+                #~ r.table('hosts_viewers').index_create("host_order").run(db.conn)
+                #~ r.table('hosts_viewers').index_wait("host_order").run(db.conn)
             return True
     '''
     PLACES

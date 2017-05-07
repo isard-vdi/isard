@@ -1,0 +1,43 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="right_col" role="main">
+   <div class="clearfix"></div>
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Classroom <small>Desktops distribution in classroom</small></h2>
+                        <ul class="nav navbar-right panel_toolbox">
+                        <li><div class="item form-group pull-right">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="classroom">Class: </label>
+                           <div class="col-md-5 col-sm-5 col-xs-12">
+							   <select class="form-control" id="classroom" name="classroom" >
+                                  <option value="none">Select class</option>
+                                  <option value="f2a">F2A</option>
+                                  <option value="n2i">N2I</option>
+							   </select>
+                              </div>
+                        </div>
+                        </li>
+                          <li><a class="add-new"><span
+                                  style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                          </li>
+                        </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                     
+                  </div>
+                </div>
+              </div>
+
+          </div>
+        </div>
+{% include '/admin/pages/classroom_modals.html' %}
+{% endblock %}
+{% block pagescript %}
+    <script src="/static/admin/js/classrooms.js"></script>
+{% endblock %}
