@@ -1,0 +1,75 @@
+<!-- extend base layout -->
+{% extends "admin/pages/base_graphs.html" %}
+{% block css %}
+    <link rel="stylesheet" href="/static/css/d3-bubble.css"/>
+<style>
+
+</style>
+{% endblock %}
+{% block content %}
+        <!-- page content -->
+    <div class="right_col" role="main">
+        <div class="row">
+			<div class="col-md-8 col-sm-8 col-xs-12">
+                <div class="epoch category40" id="chart" style="width: 600px; height: 200px;"></div>
+
+
+			</div>
+			<div class="col-md-4 col-sm-4 col-xs-12">
+
+                    
+
+
+			</div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block pagescript %}
+<script>
+<!--
+$(document).ready(function() {
+    $('#menu_toggle').click()
+});
+-->
+</script>
+    <script src="/bower_components/d3/d3.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/epoch/0.6.0/epoch.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/polymer/0.5.2/polymer.js"></script>
+    
+<script>
+    function timestamp() { return (new Date).getTime() / 1000; }
+  var chart = $("#chart").epoch({
+    type: "time.line",
+    axes: ["left", "bottom"],
+    data: [
+      {label: "Writes", values: [{time: timestamp(), y: 0}]},
+      {label: "Reads", values: [{time: timestamp(), y: 0}]}
+    ]
+  });
+  
+    // SocketIO
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
+
+    socket.on('connect', function() {
+        connection_done();
+        socket.emit('join_rooms',['domains_status'])
+        console.log('Listening admins namespace');
+    });
+
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+
+    socket.on('desktop_status', function(data){
+	  var data = JSON.parse(data);
+        //~ cluster.stats = data.new_val.query_engine;
+        chart.push([
+          { time: timestamp(), y: data['status']['disk_rw']['block_w_bytes_per_sec']},
+          { time: timestamp(), y: data['status']['disk_rw']['block_r_bytes_per_sec']}
+        ]);
+    });
+</script>
+{% endblock %}
