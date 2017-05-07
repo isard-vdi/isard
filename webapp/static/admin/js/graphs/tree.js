@@ -258,7 +258,7 @@ function listToTree(data) {
       }
     }
   };
-  console.log(JSON.stringify(data[0], null, 4))
+  //~ console.log(JSON.stringify(data[0], null, 4))
   return data[0];
 }
 
