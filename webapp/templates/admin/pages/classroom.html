@@ -1,6 +1,8 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <div class="right_col" role="main">
@@ -39,5 +41,11 @@
 {% include '/admin/pages/classroom_modals.html' %}
 {% endblock %}
 {% block pagescript %}
+   <!-- Ion.RangeSlider -->
+    <script src="/vendors/ion.rangeSlider/js/ion.rangeSlider.min.js"></script>
+    <!-- iCheck -->
+    <script src="/vendors/iCheck/icheck.min.js"></script> 
+    <!-- Switchery -->
+    <script src="/vendors/switchery/dist/switchery.min.js"></script>
     <script src="/static/admin/js/classrooms.js"></script>
 {% endblock %}

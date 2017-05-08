@@ -25,6 +25,20 @@ $(document).ready(function() {
 				keyboard: false
 			}).modal('show');
             $('#modalAdd').parsley();
+            $("#width").ionRangeSlider({
+                                      type: "single",
+                                      min: 1,
+                                      max: 10,
+                                      grid: true,
+                                      disable: false
+                                      }).data("ionRangeSlider");
+            $("#height").ionRangeSlider({
+                                      type: "single",
+                                      min: 1,
+                                      max: 10,
+                                      grid: true,
+                                      disable: false
+                                      }).data("ionRangeSlider");
     });	
 
 
