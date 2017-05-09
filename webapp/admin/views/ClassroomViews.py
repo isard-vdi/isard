@@ -29,32 +29,31 @@ import random
 def admin_classroom():
     if request.method == 'POST':
         None
-    users=app.isardapi.get_group_users('hisx1',['id','name','username'])
-    print(len(users))
-    print(len(users)/6)
-    print(int(len(users)/6) + (len(users) % 6 > 0))
-    host = {
-           'hostname'   : 'n2m05',
-           'place_id'   : 'n2m',
-           'ip'         : '10.200.212.201',
-           'description': 'n2m 05',
-           'mac'        : '01:02:03:04:05:06',
-           'enable'     : True,
-           'status'     : 'Offline', #Offline, online, ready_to_launch_ssh_commands
-           'login_user' : None,
-           'desktops_running':[],
-           'online_date': '2017/05/05 13:23:04'}
+    #~ users=app.isardapi.get_group_users('hisx1',['id','name','username'])
+    #~ print(len(users))
+    #~ print(len(users)/6)
+    #~ print(int(len(users)/6) + (len(users) % 6 > 0))
+    #~ host = {
+           #~ 'hostname'   : 'n2m05',
+           #~ 'place_id'   : 'n2m',
+           #~ 'ip'         : '10.200.212.201',
+           #~ 'description': 'n2m 05',
+           #~ 'mac'        : '01:02:03:04:05:06',
+           #~ 'enable'     : True,
+           #~ 'status'     : 'Offline', #Offline, online, ready_to_launch_ssh_commands
+           #~ 'login_user' : None,
+           #~ 'desktops_running':[],
+           #~ 'online_date': '2017/05/05 13:23:04'}
 
-    hosts={}
-    hosts={}
-    i=0
-    for r in range(0,int(len(users)/6) + (len(users) % 6 > 0)):
-        hosts[r]={}
-        for c in range(0,6):
-            print(str(i)+' '+str(len(users)))
-            if i == len(users): break
-            hosts[r][c]={'status':random.randrange(0,3),'ip':users[i]['id'],'hostname':users[i]['name']}
-            i=i+1
+    #~ hosts={}
+    #~ i=0
+    #~ for r in range(0,int(len(users)/6) + (len(users) % 6 > 0)):
+        #~ hosts[r]={}
+        #~ for c in range(0,6):
+            #~ print(str(i)+' '+str(len(users)))
+            #~ if i == len(users): break
+            #~ hosts[r][c]={'status':random.randrange(0,3),'ip':users[i]['id'],'hostname':users[i]['name']}
+            #~ i=i+1
             
     #~ for r in range(0,6):
         #~ hosts[r]={}
