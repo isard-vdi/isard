@@ -6,7 +6,7 @@
 -->
     <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
     <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
-<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jquery.gridster/0.5.6/jquery.gridster.css" />
+<link rel="stylesheet" href="/static/vendor/gridster.js/dist/jquery.gridster.css" />
 
 <style>
 #gridster ul {
@@ -18,7 +18,11 @@
   background: Grey;
   cursor: pointer;
   list-style: none;
+  .new {
+    background: DarkGreen !important;
+  }
 }
+
 
 
 </style>
@@ -53,7 +57,7 @@
                         </div>
                         <div id="menu-edit-save">
 -->
-                          <li><a class="menu-clear"><span
+                          <li><a class="menu-reset"><span
                                   style="color: #5499c7; "><i class="fa fa-back"></i> Reset</span></a>
                           </li>  
                           <li><a class="menu-add-one"><span
@@ -108,7 +112,7 @@
 {% include '/admin/pages/classroom_modals.html' %}
 {% endblock %}
 {% block pagescript %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.gridster/0.5.6/jquery.gridster.js"></script>
+<script src="/static/vendor/gridster.js/dist/jquery.gridster.js"></script>
 <!--
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.0/jquery-ui.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.5.0/lodash.min.js"></script>
