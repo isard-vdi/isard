@@ -826,23 +826,6 @@ def exist_domain(id):
     else:
         return False
 
-def insert_host_viewer(hostname,ip,place_id,name='',
-                       description='',mac='',status='offline'):
-    d = dict()
-    d['hostname'] = hostname
-    d['ip_address'] = ip
-    d['mac_address'] = mac
-
-    # mary_key = "hostname").run(db.conn)
-    # r.table('hosts_viewers').index_create("ip_address").run(db.conn)
-    # r.table('hosts_viewers').index_wait("ip_address").run(db.conn)
-    # r.table('hosts_viewers').index_create("mac_address").run(db.conn)
-    # r.table('hosts_viewers').index_wait("mac_address").run(db.conn)
-    # r.table('hosts_viewers').index_create("place_id").run(db.conn)
-    # r.table('hosts_viewers').index_wait("place_id").run(db.conn)
-    # r.table('hosts_viewers').index_create("host_order").run(db.conn)
-    # r.table('hosts_viewers').index_wait("host_order").run
-
 def insert_domain(dict_domain):
 
     r_conn = new_rethink_connection()
@@ -933,6 +916,88 @@ def initialize_db_status_hyps():
         return hyps_hostnames
     else:
         return dict()
+
+
+def insert_place(id_place,
+                 name,
+                 rows,
+                 cols,
+                 network_addess=None,
+                 enabled=True,
+                 description='',
+                 ssh_enable=False,
+                 ssh_user='',
+                 ssh_pwd=None,
+                 ssh_port=22,
+                 ssh_key_path=''):
+
+    r_conn = new_rethink_connection()
+    rtable=r.table('hypervisors')
+
+    rtable.insert({'id':id_place,
+                   'name':name,
+                   'description':description,
+                   'enabled': enabled,
+                   'status': 'Unmanaged', #Unmanaged / Managed
+                   'detail': 'new place created',
+                   'events_pending': [],
+                   'events_processed': [],
+                   'managed_by_user': None,
+                   'dimensions': {
+                       'w': cols,
+                       'h': rows
+                    },
+                   'network_address': network_addess,
+                   'ssh': {
+                      'enabled': ssh_enable,
+                      'user': ssh_user,
+                      'pwd': ssh_pwd,
+                      'port': ssh_port,
+                      'ssh_key': ssh_key_path
+                   },
+                   'stats': {
+                       'total_hosts': 0,
+                       'total_ping': 0,
+                       'total_login': 0,
+                       'total_desktops': 0,
+                       'total_viewers': 0,
+                       'total_vcpus': 0,
+                       'total_memory': 0
+                   }
+                   }).\
+          run(r_conn)
+
+    close_rethink_connection(r_conn)
+
+def insert_host_viewer(hostname,
+                         description,
+                         place_id,
+                         ip,
+                         row,
+                         col,
+                         mac=None,
+                         enabled=True):
+
+    r_conn = new_rethink_connection()
+    rtable=r.table('hosts_viewers')
+
+    rtable.insert({'hostname'   : hostname,
+                   'place_id'   : place_id,
+                   'ip'         : ip,
+                   'position':{'x'        : row,
+                             'y'        : col,
+                             'width'    :1,
+                             'height'   :1},
+                   'description': description,
+                   'mac'        : mac,
+                   'enabled'    : enabled,
+                   'status'     : 'Offline', #Offline, online, ready_to_launch_ssh_commands
+                   'loged_user' : None,
+                   'desktops_running':[],
+                   'status_time': time.time()}).\
+          run(r_conn)
+
+    close_rethink_connection(r_conn)
 
 def insert_hyp(id,
                hostname,
