@@ -756,3 +756,33 @@ class Populate(object):
             txt = ''.join((c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn'))
             return txt.replace(" ", "_")
 
+    '''
+    LOCATIONS
+    '''
+
+    def hosts_viewers(self):
+        with app.app_context():
+            if not r.table_list().contains('hosts_viewers').run(db.conn):
+                log.info("Table hosts_viewers not found, creating...")
+                r.table_create('hosts_viewers', primary_key="ip").run(db.conn)
+                r.table('hosts_viewers').index_create("hostname").run(db.conn)
+                r.table('hosts_viewers').index_wait("hostname").run(db.conn)
+                r.table('hosts_viewers').index_create("mac").run(db.conn)
+                r.table('hosts_viewers').index_wait("mac").run(db.conn)
+                r.table('hosts_viewers').index_create("place_id").run(db.conn)
+                r.table('hosts_viewers').index_wait("place_id").run(db.conn)
+            return True
+    '''
+    PLACES
+    '''
+
+    def places(self):
+        with app.app_context():
+            if not r.table_list().contains('places').run(db.conn):
+                log.info("Table places not found, creating...")
+                r.table_create('places', primary_key="id").run(db.conn)
+                r.table('places').index_create("network_address").run(db.conn)
+                r.table('places').index_wait("network_address").run(db.conn)
+                r.table('places').index_create("status").run(db.conn)
+                r.table('places').index_wait("status").run(db.conn)
+            return True

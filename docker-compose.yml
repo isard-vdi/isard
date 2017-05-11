@@ -1,11 +1,21 @@
 isard-webapp:
     restart: always
     build: .
+    dockerfile: Dockerfile.webapp
     links:
         - "rethinkdb-container"
     hostname: isard-webapp
     expose:
         - "5000"
+    command: python3 /isard/run_webapp.py
+
+isard-engine:
+    restart: always
+    build: .
+    dockerfile: Dockerfile.engine
+    links:
+        - "rethinkdb-container"
+    hostname: isard-engine
     command: python3 /isard/run_webapp.py
 
 rethinkdb-container:
