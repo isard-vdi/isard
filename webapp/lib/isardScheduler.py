@@ -11,6 +11,7 @@ from threading import Thread
 import time
 from webapp import app
 import rethinkdb as r
+#~ from flask import current_app
 
 from .flask_rethink import RethinkDB
 db = RethinkDB(app)
@@ -28,9 +29,18 @@ class isardScheduler():
         '''
         JOB SCHEDULER
         '''
+#~ host=app.config['RETHINKDB_HOST'],
+                                         #~ port=app.config['RETHINKDB_PORT'],
+                                         #~ auth_key=app.config['RETHINKDB_AUTH']
+        #~ rConn=r.connect(host=app.config['RETHINKDB_HOST'],
+                         #~ port=app.config['RETHINKDB_PORT'],
+                         #~ auth_key=app.config['RETHINKDB_AUTH'],
+                         #~ db=app.config['RETHINKDB_DB'])
         self.rStore=RethinkDBJobStore()
         self.scheduler = BackgroundScheduler()
-        self.scheduler.add_jobstore('rethinkdb',self.rStore, database='isard', table='scheduler_jobs')
+        self.scheduler.add_jobstore('rethinkdb',self.rStore, database='isard', table='scheduler_jobs',host=app.config['RETHINKDB_HOST'],
+                         port=app.config['RETHINKDB_PORT'],
+                         auth_key=app.config['RETHINKDB_AUTH'])
         self.scheduler.remove_all_jobs()
         #~ scheduler.add_job(alarm, 'date', run_date=alarm_time, args=[datetime.now()])
         #~ app.sched.shutdown(wait=False)
