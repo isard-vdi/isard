@@ -53,3 +53,15 @@ def logout():
     logout_ram_user(current_user.username)
     logout_user()
     return redirect(url_for('index'))
+    
+@app.route('/autologin_secret/<secret>/<user>')
+def autologin_secret(secret,user):
+    with app.app_context():
+        if r.table('config').get(1).pluck('autologin').run(db.conn)['autologin']['secret']==secret:
+            dbuser=r.table('users').get(user).run(db.conn)
+            if dbuser:
+                user=User(dbuser)
+                if user:
+                    login_user(user)
+                    return redirect(url_for('desktops'))
+        return redirect(url_for('login'))
