@@ -523,7 +523,28 @@ class Populate(object):
     '''
 
     def hypervisors(self):
-
+        '''
+        Read RethinkDB configuration from file
+        '''
+        import configparser
+        import os
+        if os.path.isfile(os.path.join(os.path.join(os.path.dirname(__file__),'../../isard.conf'))):
+            try:
+                rcfg = configparser.ConfigParser()
+                rcfg.read(os.path.join(os.path.dirname(__file__),'../../isard.conf'))
+            except Exception as e:
+                log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
+                sys.exit(0)
+        else:
+            try:
+                rcfg = configparser.ConfigParser()
+                rcfg.read(os.path.join(os.path.dirname(__file__),'../config/isard.conf'))
+            except Exception as e:
+                log.info('Aborting. Please configure your RethinkDB default hypers: /isard.conf \n exception: {}'.format(e))
+                sys.exit(0)
+                
+        docker=int(rcfg.get('DOCKER', 'ACTIVE'))
+        
         with app.app_context():
             if not r.table_list().contains('hypervisors').run(db.conn):
                 log.info("Table hypervisors not found, creating and populating with localhost")
@@ -531,7 +552,7 @@ class Populate(object):
 
                 rhypers = r.table('hypervisors')
                 log.info("Table hypervisors found, populating...")
-                if rhypers.get('localhost').run(db.conn) is None and rhypers.count().run(db.conn) == 0:
+                if rhypers.get('localhost').run(db.conn) is None and rhypers.count().run(db.conn) == 0 and not docker:
                     self.result(rhypers.insert([{'id': 'localhost',
                                                  'hostname': '127.0.0.1',
                                                  'user': 'root',
@@ -548,7 +569,28 @@ class Populate(object):
                                                  'description': 'Embedded hypervisor',
                                                  'info': []},
                                                 ]).run(db.conn))
-            return True
+            rhypers = r.table('hypervisors')
+            if docker and rhypers.count().run(db.conn) == 0:
+            
+                for key,val in dict(rcfg.items('DEFAULT_HYPERVISORS')).items():
+                    vals=val.split(',')
+                    self.result(rhypers.insert([{'id': key,
+                                                 'hostname': vals[0],
+                                                 'user': vals[1],
+                                                 'port': vals[2],
+                                                 'uri': '',
+                                                 'capabilities': {'disk_operations': True if int(vals[3]) else False,
+                                                                  'hypervisor': True if int(vals[4]) else False},
+                                                 'hypervisors_pools': [vals[5]],
+                                                 'enabled': True if int(vals[6]) else False,
+                                                 'status': 'Offline',
+                                                 'status_time': False,
+                                                 'prev_status': [],
+                                                 'detail': '',
+                                                 'description': 'Isard docker hypervisor',
+                                                 'info': []},
+                                                ]).run(db.conn))            
+        return True
 
     '''
     DOMAINS

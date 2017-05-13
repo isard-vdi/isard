@@ -255,6 +255,8 @@ class isardAdmin():
 
     def upload_backup(self,handler):
         path='./backups/'
+        if not os.path.exists(path):
+            os.makedirs(path)
         id=handler.filename.split('.tar.gz')[0]
         filename = secure_filename(handler.filename)
         handler.save(os.path.join(path+filename))
