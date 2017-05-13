@@ -59,7 +59,7 @@ def logout():
 def autologin(secret,user):
     with app.app_context():
         if r.table('config').get(1).pluck('autologin').run(db.conn)['autologin']['secret'] == secret:
-			print('Secret access granted!')
+            print('Secret access granted!')
 
         au=auth()
         user2login=r.table('users').get(user).run(db.conn)

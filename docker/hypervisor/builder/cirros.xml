@@ -1,0 +1,39 @@
+<domain type="kvm">
+  <name>cirros</name>
+  <memory unit='KiB'>1097152</memory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch='x86_64'>hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <clock offset="utc"/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none'/>
+      <source file='/isard/bases/cirros.qcow'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+    <interface type="ethernet">
+      <model type="virtio"/>
+      <script path=""/>
+      <target dev="tap100"/>
+    </interface>
+    <serial type='pty'>
+      <target port='0'/>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <graphics type='spice' port='-1' autoport='yes' listen='0.0.0.0'/>
+    <video>
+      <model type="cirrus"/>
+    </video>
+  </devices>
+</domain>
