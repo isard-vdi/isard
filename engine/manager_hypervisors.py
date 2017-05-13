@@ -43,6 +43,7 @@ class ManagerHypervisors(object):
         self.t_disk_operations = {}
         self.q_disk_operations = {}
         self.t_changes_hyps = None
+        self.t_events = None
         self.t_changes_domains = None
         self.t_broom = None
         self.t_background = None
@@ -280,6 +281,7 @@ class ManagerHypervisors(object):
                     new_domain = True
                     new_status = c['new_val']['status']
                     domain_id = c['new_val']['id']
+                    log.debug('domain_id: {}'.format(new_domain))
                     pass
 
                 if c['new_val'] is not None and c['old_val'] is not None:

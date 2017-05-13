@@ -392,3 +392,7 @@ def validCharacters(txt):
         return False
     else:
         return txt
+
+			
+		
+		

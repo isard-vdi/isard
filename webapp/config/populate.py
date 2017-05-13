@@ -128,7 +128,7 @@ class Populate(object):
                                                                             },
                                                                     'carbon':{'active':False,'server':'','port':''}},
                                                         'version':0
-                                                       }], conflict='error').run(db.conn))
+                                                       }], conflict='update').run(db.conn))
                 log.info("Table config populated with defaults.")
                 return True
             else:
@@ -804,15 +804,13 @@ class Populate(object):
         with app.app_context():
             if not r.table_list().contains('hosts_viewers').run(db.conn):
                 log.info("Table hosts_viewers not found, creating...")
-                r.table_create('hosts_viewers', primary_key="hostname").run(db.conn)
-                r.table('hosts_viewers').index_create("ip_address").run(db.conn)
-                r.table('hosts_viewers').index_wait("ip_address").run(db.conn)
-                r.table('hosts_viewers').index_create("mac_address").run(db.conn)
-                r.table('hosts_viewers').index_wait("mac_address").run(db.conn)
+                r.table_create('hosts_viewers', primary_key="ip").run(db.conn)
+                r.table('hosts_viewers').index_create("hostname").run(db.conn)
+                r.table('hosts_viewers').index_wait("hostname").run(db.conn)
+                r.table('hosts_viewers').index_create("mac").run(db.conn)
+                r.table('hosts_viewers').index_wait("mac").run(db.conn)
                 r.table('hosts_viewers').index_create("place_id").run(db.conn)
                 r.table('hosts_viewers').index_wait("place_id").run(db.conn)
-                r.table('hosts_viewers').index_create("host_order").run(db.conn)
-                r.table('hosts_viewers').index_wait("host_order").run(db.conn)
             return True
     '''
     PLACES
@@ -822,7 +820,9 @@ class Populate(object):
         with app.app_context():
             if not r.table_list().contains('places').run(db.conn):
                 log.info("Table places not found, creating...")
-                r.table_create('hosts_viewers', primary_key="place_id").run(db.conn)
-                r.table('hypervisors_events').index_create("network_address").run(db.conn)
-                r.table('hypervisors_events').index_wait("network_address").run(db.conn)
+                r.table_create('places', primary_key="id").run(db.conn)
+                r.table('places').index_create("network_address").run(db.conn)
+                r.table('places').index_wait("network_address").run(db.conn)
+                r.table('places').index_create("status").run(db.conn)
+                r.table('places').index_wait("status").run(db.conn)
             return True
