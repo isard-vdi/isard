@@ -128,7 +128,7 @@ class Populate(object):
                                                                             },
                                                                     'carbon':{'active':False,'server':'','port':''}},
                                                         'version':0
-                                                       }], conflict='error').run(db.conn))
+                                                       }], conflict='update').run(db.conn))
                 log.info("Table config populated with defaults.")
                 return True
             else:
