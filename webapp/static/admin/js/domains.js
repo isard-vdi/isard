@@ -7,17 +7,69 @@
 
 
 $(document).ready(function() {
-	$('#test').on( 'click', function () {
-		data={'id':'_eea1554300_LOGO','id2':'_cpr585864606_QWERTT','id3':'_isx47893266_ServerJournal'}
-		//~ console.log('Found: '+domains_table.rows({page: 'all'}).nodes().indexOf(data.id)+' - '+data.id)
-		console.log('Invisible: '+domains_table.row('#'+data.id).id())
+	//~ $('#test').on( 'click', function () {
+		//~ data={'id':'_eea1554300_LOGO','id2':'_cpr585864606_QWERTT','id3':'_isx47893266_ServerJournal'}
+		//~ console.log('Invisible: '+domains_table.row('#'+data.id).id())
+		//~ console.log('Visible tb: '+domains_table.row('#'+data.id3).id())
+		//~ console.log('Inexistent: '+domains_table.row('#xxxyyy').id())
+		//~ if(typeof(domains_table.row('#'+data.id3).id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
+		//~ if(typeof(domains_table.row('#xxxyyy').id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
+	//~ });
 
-		//~ console.log('Found2: '+domains_table.rows({page: 'all'}).nodes().indexOf(data.id2)+' - '+data.id2)
-		//~ console.log('Visible: '+domains_table.row('#'+data.id2).id())
-		console.log('Visible tb: '+domains_table.row('#'+data.id3).id())
-		console.log('Inexistent: '+domains_table.row('#xxxyyy').id())
-		if(typeof(domains_table.row('#'+data.id3).id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
-		if(typeof(domains_table.row('#xxxyyy').id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
+	$('.add-new-virtbuilder').on( 'click', function () {
+			setHardwareOptions('#modalAddBuilder');
+            $("#modalAdd")[0].reset();
+			$('#modalAddBuilder').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+             $('#modalAddBuilder #hardware-block').hide();
+            $('#modalAdd').parsley();
+
+	modal_add_desktops = $('#modal_add_desktops').DataTable({
+			"ajax": {
+				"url": "/admin/domains/get_builders",
+				"dataSrc": ""
+			},
+
+            "scrollY":        "125px",
+            "scrollCollapse": true,
+            "paging":         false,
+            
+            //~ "searching":         false,
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                "zeroRecords":    "No matching templates found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                "infoFiltered":   "(filtered from _MAX_ total templates)"
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+                { "data": "dwn", "width": "10px", "orderable": false},
+				{ "data": "name"},
+                { "data": "arch", "width": "10px"}
+				],
+			 "order": [[0, 'asc']],	
+             "pageLength": 10,	 
+		//~ "columnDefs": [     
+                            //~ {
+							//~ "targets": 0,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderTemplateKind(full);
+							//~ }},
+							//~ {
+							//~ "targets": 1,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderIcon1x(full)+" "+full.name;
+							//~ }},
+							//~ ]
+
+
+
+	} );  
+
 	});
 	
         $template_domain = $(".template-detail-domain");
@@ -521,4 +573,5 @@ function renderAction(data){
         } 
         return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Loading...</span></i> </div>';
 }	
+
 
