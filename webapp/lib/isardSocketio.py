@@ -354,7 +354,16 @@ def socketio_domains_update():
                     app.isardapi.app.adminapi.get_domains_tree_list(),
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
-                    
+
+@socketio.on('domain_virtualbuilder_add', namespace='/sio_admins')
+def socketio_domains_virtualbuilder_add(form_data):
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    print(create_dict)
+    #~ socketio.emit('tree_list',
+                    #~ app.isardapi.app.adminapi.get_domains_tree_list(),
+                    #~ namespace='/sio_admins', 
+                    #~ room='user_'+current_user.username)
+                                        
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():
     leave_room('admins')

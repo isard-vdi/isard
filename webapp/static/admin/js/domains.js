@@ -15,7 +15,9 @@ $(document).ready(function() {
 		//~ if(typeof(domains_table.row('#'+data.id3).id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
 		//~ if(typeof(domains_table.row('#xxxyyy').id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
 	//~ });
-
+    modal_add_desktops = $('#modal_add_desktops').DataTable()
+	initalize_modal_all_desktops_events()
+    
 	$('.add-new-virtbuilder').on( 'click', function () {
 			setHardwareOptions('#modalAddBuilder');
             $("#modalAdd")[0].reset();
@@ -23,53 +25,11 @@ $(document).ready(function() {
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-             $('#modalAddBuilder #hardware-block').hide();
+             //~ $('#modalAddBuilder #hardware-block').hide();
             $('#modalAdd').parsley();
+            modal_add_desktop_datatables();
 
-	modal_add_desktops = $('#modal_add_desktops').DataTable({
-			"ajax": {
-				"url": "/admin/domains/get_builders",
-				"dataSrc": ""
-			},
-
-            "scrollY":        "125px",
-            "scrollCollapse": true,
-            "paging":         false,
-            
-            //~ "searching":         false,
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-                "zeroRecords":    "No matching templates found",
-                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
-                "infoEmpty":      "Showing 0 to 0 of 0 templates",
-                "infoFiltered":   "(filtered from _MAX_ total templates)"
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-                { "data": "dwn", "width": "10px", "orderable": false},
-				{ "data": "name"},
-                { "data": "arch", "width": "10px"}
-				],
-			 "order": [[0, 'asc']],	
-             "pageLength": 10,	 
-		//~ "columnDefs": [     
-                            //~ {
-							//~ "targets": 0,
-							//~ "render": function ( data, type, full, meta ) {
-							  //~ return renderTemplateKind(full);
-							//~ }},
-							//~ {
-							//~ "targets": 1,
-							//~ "render": function ( data, type, full, meta ) {
-							  //~ return renderIcon1x(full)+" "+full.name;
-							//~ }},
-							//~ ]
-
-
-
-	} );  
-
+    
 	});
 	
         $template_domain = $(".template-detail-domain");
@@ -574,4 +534,146 @@ function renderAction(data){
         return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Loading...</span></i> </div>';
 }	
 
+function initalize_modal_all_desktops_events(){
+   $('#modal_add_desktops tbody').on( 'click', 'tr', function () {
+        rdata=modal_add_desktops.row(this).data()
+        console.log($(this).hasClass('selected'))
+        if ( $(this).hasClass('selected') ) {
+            $(this).removeClass('selected');
+            $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+            $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+            
+            $('#modalAddDesktop #template').val('');
+            $('#modalAddDesktop #btn-hardware').hide();
+            $('#modalAddDesktop #hardware-block').hide();
+        }
+        else {
+            modal_add_desktops.$('tr.selected').removeClass('selected');
+            $(this).addClass('selected');
+            $('#modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
+            $('#modalAddDesktop #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+            $('#modalAddDesktop #template').val(rdata['id']);
+                $('#modalAddDesktop #btn-hardware').show();
+                //~ setHardwareDomainDefaults('#modalAddDesktop',rdata['id'])
+        }
+    } );	
+	
+    $("#modalAddDesktop #send").on('click', function(e){
+            var form = $('#modalAdd');
+            console.log('inside')
 
+            form.parsley().validate();
+
+            if (form.parsley().isValid()){
+                template=$('#modalAddDesktop #template').val();
+                console.log('TEMPLATE:'+template)
+                if (template !=''){
+                    var queryString = $('#modalAdd').serialize();
+                    data=$('#modalAdd').serializeObject();
+                    console.log(data)
+                    socket.emit('domain_virtualbuilder_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                }
+            }
+        });
+        
+        $("#modalAddDesktop #btn-hardware").on('click', function(e){
+                $('#modalAddDesktop #hardware-block').show();
+        });
+        	
+}
+
+function modal_add_desktop_datatables(){
+    modal_add_desktops.destroy()
+    $('#modalAddDesktop #template').val('');
+    $('#modalAddDesktop #datatables-error-status').empty()
+    
+    $('#modal_add_desktops thead th').each( function () {
+        var title = $(this).text();
+        if(title=='Name'){
+            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+        //~ if(title=='Type'){
+                    //~ column=modal_add_desktops.columns(0)
+                    //~ var select = $('<select><option value=""><option value="base">Base</option><option value="public_template">Public</select>')
+                        //~ .appendTo( $(column.header()).empty() )
+                        //~ .on( 'change', function () {
+                            //~ var val = $.fn.dataTable.util.escapeRegex(
+                                //~ $(this).val()
+                            //~ );
+                            //~ column
+                                //~ .search( val ? '^'+val+'$' : '', true, false )
+                                //~ .draw();
+                        //~ } );
+        //~ }
+    } );
+    
+	modal_add_desktops = $('#modal_add_desktops').DataTable({
+			"ajax": {
+				"url": "/admin/domains/get_builders",
+				"dataSrc": ""
+			},
+
+            "scrollY":        "125px",
+            "scrollCollapse": true,
+            "paging":         false,
+            
+            //~ "searching":         false,
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                "zeroRecords":    "No matching templates found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                "infoFiltered":   "(filtered from _MAX_ total templates)"
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				{ "data": "name"},
+                { "data": "arch"},
+                { "data": "revision"},
+                { "data": "size"},
+                { "data": "compressed_size"}
+				],
+			 "order": [[0, 'asc']],	
+             "pageLength": 10,	 
+		//~ "columnDefs": [     
+                            //~ {
+							//~ "targets": 0,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderTemplateKind(full);
+							//~ }},
+							//~ {
+							//~ "targets": 1,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderIcon1x(full)+" "+full.name;
+							//~ }},
+							//~ ]
+
+
+
+	} );  
+
+    modal_add_desktops.columns().every( function () {
+        var that = this;
+ 
+        $( 'input', this.header() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+                that
+                    .search( this.value )
+                    .draw();
+            }
+        } );
+    } );
+
+
+
+
+//~ window.ParsleyConfig = {
+    //~ excluded: 'input[type=button], input[type=submit], input[type=reset]',
+    //~ inputs: 'input, textarea, select, input[type=hidden], :hidden',
+//~ };
+
+}
