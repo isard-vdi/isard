@@ -84,7 +84,7 @@
             <div class="modal-body" style="padding: 7px;">
                 
               <form id="modalAdd" class="form-inline form-label-left"> 
-			  <div class="x_panel" style="padding: 5px;">
+			  <div id="modalData" class="x_panel" style="padding: 5px;">
                   <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
 					<div class="x_content" style="padding: 0px;">
                         <div class="row">
@@ -102,11 +102,28 @@
 				</div>
 			  </div>
               
+			  <div id="modalInstall" class="x_panel" style="padding: 5px;">
+                  <p style="font-size: 18px;margin-bottom:0px;">Select an OS template</p>
+                        <input  id="install" name="install" type="hidden" required>
+                        <table id="modal_add_install" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                           <thead>
+                              <tr>
+                                 <th>Name</th>
+                                 <th>Vers</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                           </tbody>
+                        </table>
+                        <div id="datatables-error-status"></div>
+                     
+			  </div>
 
-			  <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">Select an Internet template</p>
-                        <input  id="template" name="template" type="hidden" required>
-                        <table id="modal_add_desktops" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+
+			  <div id="modalBuilder" class="x_panel" style="padding: 5px;">
+                  <p style="font-size: 18px;margin-bottom:0px;">Select an automated image builder</p>
+                        <input  id="builder" name="builder" type="hidden" required>
+                        <table id="modal_add_builder" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
                            <thead>
                               <tr>
                                  <th>Name</th>
@@ -123,7 +140,22 @@
                      
 			  </div>
 
-            
+			  <div id="modalIsos" class="x_panel" style="padding: 5px;">
+                  <p style="font-size: 18px;margin-bottom:0px;">Select or download ISO to boot install</p>
+                        <input  id="iso" name="iso" type="hidden" required>
+                        <table id="modal_add_isos" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                           <thead>
+                              <tr>
+                                 <th>Name</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                           </tbody>
+                        </table>
+                        <div id="datatables-error-status"></div>
+                     
+			  </div>
+              
 			  <div class="x_panel" id="hardware-block" style="padding: 5px; display: none;">
 					 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
 					{% include '/snippets/domain_hardware_edit.html' %}
