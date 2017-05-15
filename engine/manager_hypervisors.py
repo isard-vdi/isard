@@ -12,7 +12,7 @@ import pprint
 
 from .pool_hypervisors import PoolHypervisors
 from .threads import launch_try_hyps, set_unknown_domains_not_in_hyps
-from .threads import set_domains_coherence, launch_thread_worker, launch_disk_operations_thread
+from .threads import set_domains_coherence, launch_thread_worker, launch_disk_operations_thread, launch_long_operations_thread
 from .events_recolector import launch_thread_hyps_event
 from .status import launch_thread_status, launch_thread_broom
 from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status, remove_domain, get_domain
@@ -42,6 +42,8 @@ class ManagerHypervisors(object):
         self.pools = {}
         self.t_disk_operations = {}
         self.q_disk_operations = {}
+        self.t_long_operations = {}
+        self.q_long_operations = {}
         self.t_changes_hyps = None
         self.t_events = None
         self.t_changes_domains = None
@@ -76,15 +78,24 @@ class ManagerHypervisors(object):
         def check_and_start_hyps(self):
             pass
 
-        def launch_threads_disk_operations(self):
+        def launch_threads_disk_and_long_operations(self):
+
             self.manager.hypers_disk_operations = get_hypers_disk_operations()
 
             for hyp_disk_operations in self.manager.hypers_disk_operations:
+                hyp_long_operations = hyp_disk_operations
                 d = get_hyp_hostname_user_port_from_id(hyp_disk_operations)
 
                 self.manager.t_disk_operations[hyp_disk_operations], \
                 self.manager.q_disk_operations[hyp_disk_operations] = launch_disk_operations_thread(
                         hyp_id=hyp_disk_operations,
+                        hostname=d['hostname'],
+                        user=d['user'],
+                        port=d['port']
+                )
+                self.manager.t_long_operations[hyp_long_operations], \
+                self.manager.q_long_operations[hyp_long_operations] = launch_long_operations_thread(
+                        hyp_id=hyp_long_operations,
                         hostname=d['hostname'],
                         user=d['user'],
                         port=d['port']
@@ -138,7 +149,7 @@ class ManagerHypervisors(object):
                 get_threads_running()
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
-                    self.launch_threads_disk_operations()
+                    self.launch_threads_disk_and_long_operations()
 
                 # TEST HYPS AND START THREADS FROM RETHINK
                 self.test_hyps_and_start_threads()
@@ -299,7 +310,12 @@ class ManagerHypervisors(object):
                     # verificar que realmente es una template
                     # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                if old_status == 'CreatingDisk' and new_status == "CreatingDomain":
+                if (new_domain is True and new_status == "CreatingFromVirtBuilder") or \
+                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromVirtBuilder"):
+                    ui.creating_disk_from_virtbuilder(domain_id)
+
+                if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
+                        (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomain"):
                     log.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
                     ui.creating_and_test_xml_start(domain_id,
                                                    creating_from_create_dict=True)

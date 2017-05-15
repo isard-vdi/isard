@@ -32,6 +32,44 @@ def create_cmds_delete_disk(path_disk):
 
     return cmds
 
+def create_cmd_disk_from_virtbuilder(path_new_qcow,os_version,size_str,options_cmd='',user_owner='qemu',group_owner='qemu'):
+    cmds = list()
+    path_dir = extract_dir_path(path_new_qcow)
+    path_big_disk = path_new_qcow + '.big'
+    path_dir_tmp_sparsify = path_dir + '/tmp'
+    touch_test_path = path_dir + '/.touch_test'
+
+    cmd_virt_builder = 'virt-builder {os} --output {path} --size {size} --format qcow2 {options}'\
+                       .format(os=os_version, path=path_big_disk, size=size_str, options=options_cmd)
+    cmd_virt_sparsify = 'virt-sparsify --tmp {dir_tmp} {path_big_disk} {path_small_disk}'\
+                        .format(dir_tmp=path_dir_tmp_sparsify, path_big_disk=path_big_disk, path_small_disk=path_new_qcow)
+    cmd_virt_install = 'virt-install --dry-run --print-xml --disk {}'\
+                       .format(path_new_qcow)
+
+
+    cmds1.append({'title': 'mkdir dir', 'cmd': 'mkdir -p {}'.format(path_dir)})
+    cmds1.append({'title': 'mkdir dir tmp sparsify', 'cmd': 'mkdir -p {}'.format(path_dir_tmp_sparsify)})
+    cmds1.append({'title': 'pre-delete touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
+    cmds1.append({'title': 'touch', 'cmd': 'touch {}'.format(touch_test_path)})
+    cmds1.append({'title': 'readonly_touch', 'cmd': 'chmod a-wx,g+r,u+r {}'.format(touch_test_path)})
+    cmds1.append({'title': 'chgrp_touch', 'cmd': 'chgrp {} {}'.format(group_owner, touch_test_path)})
+    cmds1.append({'title': 'chown', 'cmd': 'chown {} {}'.format(user_owner, touch_test_path)})
+    cmds1.append({'title': 'verify_touch',
+                  'cmd'  : 'stat -c \'mountpoint:%m group:%G user:%U rights:%A\' {}'.format(touch_test_path)})
+    cmds1.append({'title': 'df_mountpoint', 'cmd': 'df $(stat -c \'%m\' {})'.format(touch_test_path)})
+    cmds1.append({'title': 'rm_touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
+
+    #INFO TO DEVELOPER - todo: launch virt-builder and virt-sparify in other thread to capture output to detail
+    cmds1.append({'title': 'launch virt-builder', 'cmd': cmd_virt_builder})
+    cmds1.append({'title': 'launch virt-sparsify', 'cmd': cmd_virt_sparsify})
+
+    cmds1.append({'title': 'rmdir tmp sparsify', 'cmd': 'rmdir {}'.format(path_dir_tmp_sparsify)})
+    cmds1.append({'title': 'rmdir big qcow', 'cmd': 'rm -f {}'.format(path_big_disk)})
+    cmds1.append({'title': 'test_if_qcow_exists', 'cmd': 'stat -c \'%d\' {}'.format(path_new_qcow)})
+    cmds1.append({'title': 'xml from virt-install', 'cmd': cmd_virt_install})
+
+
+    return cmds1
 
 
 def create_cmds_disk_from_base(path_base,path_new,clustersize='4k'):
@@ -315,11 +353,25 @@ def get_path_to_disk(relative_path,pool='default',type_path='groups'):
     return path_absolute, path_selected
 
 
+def get_host_long_operations_from_path(path_selected,pool='default',type_path='groups'):
+    l_threads = get_threads_names_running()
+    pool_paths = get_pool(pool)['paths']
+    paths_for_type = pool_paths[type_path]
+    hyps = [v['disk_operations'] for v in paths_for_type if v['path'] == path_selected][0]
+    #TODO must be revised to return random or less cpuload hypervisor
+    for h in hyps:
+        if 'long_op_'+h in l_threads:
+            return h
+
+    log.error('There are not hypervisors with disk_operations thread for path {}'.format(path_selected))
+    return False
+
 def get_host_disk_operations_from_path(path_selected,pool='default',type_path='groups'):
     l_threads = get_threads_names_running()
     pool_paths = get_pool(pool)['paths']
     paths_for_type = pool_paths[type_path]
     hyps = [v['disk_operations'] for v in paths_for_type if v['path'] == path_selected][0]
+    #TODO must be revised to return random or less cpuload hypervisor
     for h in hyps:
         if 'disk_op_'+h in l_threads:
             return h

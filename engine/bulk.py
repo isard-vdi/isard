@@ -1,7 +1,8 @@
 import random
 
-
-
+from .config import CONFIG_DICT
+from funcions import exec_remote_list_of_cmds_dict
+from .log import *
 from engine.db import get_domains_from_user, get_domains_from_classroom, get_domains_from_group, \
     get_domains_running_hypervisor, update_domain_status, get_domain_status, get_all_domains_with_id_and_status
 
@@ -9,6 +10,15 @@ MAX_RANDOM = 10
 
 def bulk_create(gr):
     pass
+
+def run_firefox_autologin_user(ip,username):
+    if 'autologin' in CONFIG_DICT.keys():
+        autologin_secret = CONFIG_DICT['autologin']['autologin_secret']
+        site_url = CONFIG_DICT['autologin']['url']
+        url = site_url + '/autologin_secret/' + autologin_secret + '/' + username
+        cmd_run_firefox = 'firefox {}'.format(url)
+    else:
+        log.error('autologin options not defined in CONFIG_DICT')
 
 def bulk_action_with_domains(action,
                              groupby,
