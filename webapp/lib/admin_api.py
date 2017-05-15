@@ -372,7 +372,7 @@ class isardAdmin():
                   'description': description,
                   'kind': 'desktop',
                   'user': userObj['id'],
-                  'status': 'Creating',
+                  'status': 'CreatingFromBuilder',
                   'detail': None,
                   'category': userObj['category'],
                   'group': userObj['group'],
