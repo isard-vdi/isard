@@ -355,13 +355,40 @@ def socketio_domains_update():
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
 
-@socketio.on('domain_virtualbuilder_add', namespace='/sio_admins')
+@socketio.on('domain_virtbuilder_add', namespace='/sio_admins')
 def socketio_domains_virtualbuilder_add(form_data):
-    create_dict=app.isardapi.f.unflatten_dict(form_data)
-    print(create_dict)
-    #~ socketio.emit('tree_list',
-                    #~ app.isardapi.app.adminapi.get_domains_tree_list(),
-                    #~ namespace='/sio_admins', 
+    print(form_data)
+#~ {'install': 'altlinux2.4', 
+#~ 'name': 'asldkfj', 
+#~ 'description': '', 
+#~ 'builder': 'centos-7.1', 
+#~ 'iso': '_admin_casdfasdfurrent.dsl2.iso', 
+#~ 'hypervisors_pools': 
+    #~ 'admin_test_pool'}
+    
+    #~ create_dict={}
+    #~ if 'hardware' not in create_dict.keys():
+        #Hardware is not in create_dict
+        #~ data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
+        #~ create_dict['hardware']=data['create_dict']['hardware']
+        #~ create_dict['hardware'].pop('disks',None)
+        #~ create_dict['hypervisors_pools']=data['hypervisors_pools']
+    #~ else:
+        #~ create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+        #~ create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+        #~ create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+        #~ create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+        #~ create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+        #~ create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    #~ if res is True:
+        #~ data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    #~ else:
+        #~ data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    #~ socketio.emit('add_form_result',
+                    #~ data,
+                    #~ namespace='/sio_users', 
                     #~ room='user_'+current_user.username)
                                         
 @socketio.on('disconnect', namespace='/sio_admins')

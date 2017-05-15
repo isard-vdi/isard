@@ -25,13 +25,13 @@ $(document).ready(function() {
 	initialize_modal_all_isos_events()
            
 	$('.add-new-virtbuilder').on( 'click', function () {
-			setHardwareOptions('#modalAddBuilder');
+			setHardwareOptions('#modalAddFromScratch');
             $("#modalAdd")[0].reset();
-			$('#modalAddBuilder').modal({
+			$('#modalAddFromScratch').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-             //~ $('#modalAddBuilder #hardware-block').hide();
+             //~ $('#modalAddFromScratch #hardware-block').hide();
             $('#modalAdd').parsley();
             modal_add_builder_datatables();
             modal_add_install_datatables();
@@ -556,8 +556,8 @@ function initialize_modal_all_builder_events(){
             $('#modalBuilder #datatables-error-status').html('No template selected').addClass('my-error');
             
             $('#modalBuilder #builder').val('');
-            $('#modalBuilder #btn-hardware').hide();
-            $('#modalBuilder #hardware-block').hide();
+            //~ $('#modalBuilder #btn-hardware').hide();
+            //~ $('#modalBuilder #hardware-block').hide();
         }
         else {
             modal_add_builder.$('tr.selected').removeClass('selected');
@@ -565,15 +565,35 @@ function initialize_modal_all_builder_events(){
             $('#modal_add_builder').closest('.x_panel').removeClass('datatables-error');
             $('#modalBuilder #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
             $('#modalBuilder #builder').val(rdata['id']);
-                $('#modalAddBuilder #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddBuilder',rdata['id'])
+                //~ $('#modalAddFromScratch #btn-hardware').show();
+                //~ setHardwareDomainDefaults('#modalAddFromScratch',rdata['id'])
         }
     } );	
         
-        $("#modalBuilder #btn-hardware").on('click', function(e){
-                $('#modalBuilder #hardware-block').show();
+        //~ $("#modalBuilder #btn-hardware").on('click', function(e){
+                //~ $('#modalBuilder #hardware-block').show();
+        //~ });
+
+    $("#modalAddFromScratch #send").on('click', function(e){
+            var form = $('#modalAdd');
+            console.log('inside')
+            form.parsley().validate();
+             data=$('#modalAdd').serializeObject();
+                    socket.emit('domain_virtbuilder_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
         });
-        	
+        
 }
 
 function modal_add_builder_datatables(){
@@ -723,8 +743,8 @@ function initialize_modal_all_isos_events(){
             $('#modalIsos #datatables-error-status').html('No template selected').addClass('my-error');
             
             $('#modalIsos #iso').val('');
-            $('#modalIsos #btn-hardware').hide();
-            $('#modalIsos #hardware-block').hide();
+            //~ $('#modalIsos #btn-hardware').hide();
+            //~ $('#modalIsos #hardware-block').hide();
         }
         else {
             modal_add_isos.$('tr.selected').removeClass('selected');
@@ -732,14 +752,14 @@ function initialize_modal_all_isos_events(){
             $('#modal_add_isos').closest('.x_panel').removeClass('datatables-error');
             $('#modalIsos #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
             $('#modalIsos #iso').val(rdata['id']);
-                $('#modalAddBuilder #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddBuilder',rdata['id'])
+                //~ $('#modalAddFromScratch #btn-hardware').show();
+                //~ setHardwareDomainDefaults('#modalAddFromScratch',rdata['id'])
         }
     } );	
         
-        $("#modalIsos #btn-hardware").on('click', function(e){
-                $('#modalIsos #hardware-block').show();
-        });
+        //~ $("#modalIsos #btn-hardware").on('click', function(e){
+                //~ $('#modalIsos #hardware-block').show();
+        //~ });
         	
 }
 
