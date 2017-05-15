@@ -576,7 +576,9 @@ function initialize_modal_all_builder_events(){
             $('#modal_add_builder').closest('.x_panel').addClass('datatables-error');
             $('#modalBuilder #datatables-error-status').html('No template selected').addClass('my-error');
             
-            $('#modalBuilder #builder').val('');
+            $('#modalBuilder #builder-id').val('');
+            $('#modalBuilder #icon').val('');
+            $('#modalBuilder #install-id').val('');
             //~ $('#modalBuilder #btn-hardware').hide();
             //~ $('#modalBuilder #hardware-block').hide();
         }
@@ -585,7 +587,9 @@ function initialize_modal_all_builder_events(){
             $(this).addClass('selected');
             $('#modal_add_builder').closest('.x_panel').removeClass('datatables-error');
             $('#modalBuilder #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
-            $('#modalBuilder #builder').val(rdata['id']);
+            $('#modalBuilder #builder-id').val(rdata['id']);
+            $('#modalBuilder #icon').val(rdata['icon']);
+            $('#modalBuilder #install-id').val(rdata['install_id']);
                 //~ $('#modalAddFromBuilder #btn-hardware').show();
                 //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
         }
@@ -621,7 +625,9 @@ function initialize_modal_all_builder_events(){
 
 function modal_add_builder_datatables(){
     modal_add_builder.destroy()
-    $('#modalBuilder #builder').val('');
+    $('#modalBuilder #builder-id').val('');
+    $('#modalBuilder #icon').val('');
+    $('#modalBuilder #install-id').val('');
     $('#modalBuilder #datatables-error-status').empty()
     
     $('#modal_add_builder thead th').each( function () {
@@ -783,7 +789,28 @@ function initialize_modal_all_isos_events(){
         //~ $("#modalIsos #btn-hardware").on('click', function(e){
                 //~ $('#modalIsos #hardware-block').show();
         //~ });
-        	
+
+    $("#modalAddFromIso #send").on('click', function(e){
+            var form = $('#modalAddFromIso #modalAdd');
+            console.log('inside')
+            //~ form.parsley().validate();
+            //~ var queryString = $('#modalAdd').serialize();
+            data=$('#modalAddFromIso #modalAdd').serializeObject();
+            console.log(data)
+            socket.emit('domain_virtbuilder_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        });
 }
 
 function modal_add_isos_datatables(){
