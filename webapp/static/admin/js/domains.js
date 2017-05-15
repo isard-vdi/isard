@@ -25,21 +25,42 @@ $(document).ready(function() {
 	initialize_modal_all_isos_events()
            
 	$('.add-new-virtbuilder').on( 'click', function () {
-			setHardwareOptions('#modalAddFromScratch');
-            $("#modalAdd")[0].reset();
-			$('#modalAddFromScratch').modal({
+                                //~ //Remove when engine does the job
+                                    //~ api.ajax('/admin/domains/virtrebuild','GET',{}).done(function(data) {
+                                                //~ console.log(data)
+                                                    //~ });  
+			setHardwareOptions('#modalAddFromBuilder');
+            $("#modalAddFromBuilder #modalAdd")[0].reset();
+			$('#modalAddFromBuilder').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-             //~ $('#modalAddFromScratch #hardware-block').hide();
-            $('#modalAdd').parsley();
+            $('#modalAddFromBuilder #modalAdd').parsley();
             modal_add_builder_datatables();
+            //~ modal_add_install_datatables();
+            //~ modal_add_isos_datatables();
+	});
+
+	$('.add-new-iso').on( 'click', function () {
+                                //~ //Remove when engine does the job
+                                    //~ api.ajax('/admin/domains/virtrebuild','GET',{}).done(function(data) {
+                                                //~ console.log(data)
+                                                    //~ });  
+			setHardwareOptions('#modalAddFromIso');
+            $("#modalAddFromIso #modalAdd")[0].reset();
+			$('#modalAddFromIso').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalAddFromIso #modalAdd').parsley();
+            //~ modal_add_builder_datatables();
             modal_add_install_datatables();
             modal_add_isos_datatables();
-
-    
 	});
-	
+
+
+
+
         $template_domain = $(".template-detail-domain");
 
     // Setup - add a text input to each footer cell
@@ -565,8 +586,8 @@ function initialize_modal_all_builder_events(){
             $('#modal_add_builder').closest('.x_panel').removeClass('datatables-error');
             $('#modalBuilder #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
             $('#modalBuilder #builder').val(rdata['id']);
-                //~ $('#modalAddFromScratch #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddFromScratch',rdata['id'])
+                //~ $('#modalAddFromBuilder #btn-hardware').show();
+                //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
         }
     } );	
         
@@ -574,12 +595,14 @@ function initialize_modal_all_builder_events(){
                 //~ $('#modalBuilder #hardware-block').show();
         //~ });
 
-    $("#modalAddFromScratch #send").on('click', function(e){
-            var form = $('#modalAdd');
+    $("#modalAddFromBuilder #send").on('click', function(e){
+            var form = $('#modalAddFromBuilder #modalAdd');
             console.log('inside')
-            form.parsley().validate();
-             data=$('#modalAdd').serializeObject();
-                    socket.emit('domain_virtbuilder_add',data)
+            //~ form.parsley().validate();
+            //~ var queryString = $('#modalAdd').serialize();
+            data=$('#modalAddFromBuilder #modalAdd').serializeObject();
+            console.log(data)
+            socket.emit('domain_virtbuilder_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
                 //~ console.log('TEMPLATE:'+template)
@@ -752,8 +775,8 @@ function initialize_modal_all_isos_events(){
             $('#modal_add_isos').closest('.x_panel').removeClass('datatables-error');
             $('#modalIsos #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
             $('#modalIsos #iso').val(rdata['id']);
-                //~ $('#modalAddFromScratch #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddFromScratch',rdata['id'])
+                //~ $('#modalAddFromBuilder #btn-hardware').show();
+                //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
         }
     } );	
         
