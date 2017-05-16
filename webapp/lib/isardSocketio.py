@@ -354,6 +354,30 @@ def socketio_domains_update():
                     app.isardapi.app.adminapi.get_domains_tree_list(),
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
+
+@socketio.on('classroom_update', namespace='/sio_admins')
+def socketio_classroom_update(data):
+    if app.adminapi.replace_hosts_viewers_items(data['desktops']):
+        result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+    else:
+        result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+    socketio.emit('result',
+                    result,
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+
+@socketio.on('classroom_get', namespace='/sio_admins')
+def socketio_classroom_update(data):
+    #~ if app.adminapi.get_hosts_viewers(data['place_id']):
+        #~ result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+    #~ else:
+        #~ result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+    print(data)
+    print(app.adminapi.get_hosts_viewers(data['place_id']))
+    socketio.emit('classroom_load',
+                    json.dumps(app.adminapi.get_hosts_viewers(data['place_id'])),
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
                     
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():

@@ -15,8 +15,12 @@ $(document).ready(function() {
     $('#menu_toggle').click()
 
     $('#classroom').on('change', function () {
+        console.log('emitting')
         action=$(this).val();
-        console.log(gridster.serialize())
+        console.log(action)
+        socket.emit('classroom_get',{'place_id':action});
+        console.log('emitted')
+        //~ console.log(gridster.serialize())
     } );
 
 
@@ -62,8 +66,33 @@ $(document).ready(function() {
         var form = $('#modalSave');
         data=$('#modalSave').serializeObject();
         desktops=gridster.serialize()
-        console.log(data)
+        var items=[];
+        for (var i = 0; i < desktops.length; i++) {
+            desktops[i]['place_id']=data.name;
+            desktops[i]['enabled']=true;
+            
+            //~ items.push({"description": desktops[i].description ,
+                        //~ "desktops_running": [ ],
+                        //~ "enabled": true ,
+                        //~ "hostname": desktops[i].hostname ,
+                        //~ "ip": desktops[i].id ,
+                        //~ "loged_user": null ,
+                        //~ "mac": desktops[i].mac ,
+                        //~ "place_id": data.name ,
+                        //~ "position": {
+                            //~ "size_y": desktops[i].size_y ,
+                            //~ "size_x": desktops[i].size_x ,
+                            //~ "col": desktops[i].col,
+                            //~ "row": desktops[i].row
+                        //~ } ,
+                        //~ "status": "Offline" ,
+                        //~ "status_time": 0
+
+                    //~ } );
+        };
+        //~ console.log(data)
         console.log(desktops)
+        console.log(items)
 
         
         socket.emit('classroom_update',{'classroom':data,'desktops':desktops})
@@ -92,7 +121,7 @@ $(document).ready(function() {
         //~ }).data('gridster');
     var defaults = {
         //~ widget_selector: '> li',
-        widget_margins: [5, 5],
+        //~ widget_margins: [5, 5],
         widget_base_dimensions: [100,100],
         //~ extra_rows: 1,
         //~ extra_cols: 1,
@@ -102,7 +131,7 @@ $(document).ready(function() {
         //~ max_rows: 9,
         //~ max_cosl:9,
         shift_larger_widgets_down: false,
-        //~ autogenerate_stylesheet: true,
+        autogenerate_stylesheet: true,
         avoid_overlapped_widgets: true,
         serialize_params: function ($w, wgd) {
                 return {
@@ -110,10 +139,12 @@ $(document).ready(function() {
                   mac: $w.data('mac'),
                   hostname: $w.data('hostname'),
                   description: $w.data('description'),
-                  col: wgd.col,
-                  row: wgd.row,
-                  size_x: wgd.size_x,
-                  size_y: wgd.size_y,
+                  position: {
+                      col: wgd.col,
+                      row: wgd.row,
+                      size_x: wgd.size_x,
+                      size_y: wgd.size_y,
+                   }
                 };
         },
         collision: {},
@@ -216,7 +247,16 @@ $(document).ready(function() {
     socket.on('classroom_data', function(data){
         var data = JSON.parse(data);
     });
-    
+
+    socket.on('classroom_load', function(data){
+        var data = JSON.parse(data);
+        console.log(data);
+        for (var i = 0; i < data.length; i++) {
+            console.log(data[i].position.row)
+            gridster.add_widget(tableDesktopHtml(data[i].position.col,data[i].position.row,data[i].id,data[i].position.hostname),1,1, data[i].position.col, data[i].position.row);
+        }
+    });
+
     socket.on ('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({

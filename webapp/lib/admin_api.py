@@ -95,7 +95,7 @@ class isardAdmin():
             if pluck and id:
                 return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
-            
+                        
     def get_admin_domains(self):
         with app.app_context():
             listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
@@ -299,7 +299,25 @@ class isardAdmin():
         with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
             return dict['path'],dict['filename'], isard_db_file.read()
         
-        
+
+    '''
+    CLASSROOMS
+    '''
+    def replace_hosts_viewers_items(self,list):
+        with app.app_context():
+            try:
+                print(list[0]['place_id'])
+                r.table('hosts_viewers').filter({'place_id':list[0]['place_id']}).delete().run(db.conn)
+                return self.check(r.table('hosts_viewers').insert(list).run(db.conn),'inserted')
+            except Exception as e:
+                print('error:',e)
+                return False
+
+
+    def get_hosts_viewers(self, place_id):
+        with app.app_context():
+            return list(r.table('hosts_viewers').filter({'place_id':place_id}).run(db.conn))
+                    
     '''
     GRAPHS
     '''
