@@ -50,8 +50,12 @@ class Populate(object):
         self.domains()
         log.info('Checking table domains_status')
         self.domains_status()
-        log.info('Checking table domain_xmls')
-        self.domains_xmls()
+        #~ log.info('Checking table domain_xmls')
+        #~ self.domains_xmls()
+        log.info('Checking table domain_virt_builder')
+        self.domains_virt_builder()
+        log.info('Checking table domain_virt_install')
+        self.domains_virt_install()
         log.info('Checking table isos')
         self.isos()
         log.info('Checking table boots')
@@ -619,31 +623,45 @@ class Populate(object):
     DOMAINS_XMLS: id name description xml 
     '''
 
-    def domains_xmls(self):
+    #~ def domains_xmls(self):
+        #~ with app.app_context():
+            #~ if not r.table_list().contains('domains_xmls').run(db.conn):
+                #~ log.info("Table domains_xmls not found, creating...")
+                #~ r.table_create('domains_xmls', primary_key="id").run(db.conn)
+        #~ xml_path = './webapp/config/default_xmls/'
+        #~ xmls = os.listdir(xml_path)
+        #~ xmls_list = []
+        #~ for xml in xmls:
+            #~ if xml.endswith('.xml'):
+                #~ with open(xml_path + xml, "r") as xml_file:
+                    #~ xml_data = xml_file.read()
+                #~ xmls_list.append({'id': '_admin_' + xml.split('.')[0],
+                                  #~ 'name': xml.split('.')[0],
+                                  #~ 'description': 'File name: ' + xml,
+                                  #~ 'xml': xml_data,
+                                  #~ 'allowed': {'roles': ['admin'],
+                                              #~ 'categories': False,
+                                              #~ 'groups': False,
+                                              #~ 'users': False}
+                                  #~ })
+        #~ with app.app_context():
+            #~ self.result(r.table('domains_xmls').insert(xmls_list, conflict='update').run(db.conn))
+        #~ return True
+
+    def domains_virt_builder(self):
         with app.app_context():
-            if not r.table_list().contains('domains_xmls').run(db.conn):
-                log.info("Table domains_xmls not found, creating...")
-                r.table_create('domains_xmls', primary_key="id").run(db.conn)
-        xml_path = './webapp/config/default_xmls/'
-        xmls = os.listdir(xml_path)
-        xmls_list = []
-        for xml in xmls:
-            if xml.endswith('.xml'):
-                with open(xml_path + xml, "r") as xml_file:
-                    xml_data = xml_file.read()
-                xmls_list.append({'id': '_admin_' + xml.split('.')[0],
-                                  'name': xml.split('.')[0],
-                                  'description': 'File name: ' + xml,
-                                  'xml': xml_data,
-                                  'allowed': {'roles': ['admin'],
-                                              'categories': False,
-                                              'groups': False,
-                                              'users': False}
-                                  })
-        with app.app_context():
-            self.result(r.table('domains_xmls').insert(xmls_list, conflict='update').run(db.conn))
+            if not r.table_list().contains('domains_virt_builder').run(db.conn):
+                log.info("Table domains_virt_builder not found, creating...")
+                r.table_create('domains_virt_builder', primary_key="id").run(db.conn)
         return True
 
+    def domains_virt_install(self):
+        with app.app_context():
+            if not r.table_list().contains('domains_virt_install').run(db.conn):
+                log.info("Table domains_virt_install not found, creating...")
+                r.table_create('domains_virt_install', primary_key="id").run(db.conn)
+        return True
+        
     '''
     ISOS: iso files
     '''

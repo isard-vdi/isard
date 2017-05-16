@@ -354,7 +354,45 @@ def socketio_domains_update():
                     app.isardapi.app.adminapi.get_domains_tree_list(),
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
-                    
+
+@socketio.on('domain_virtbuilder_add', namespace='/sio_admins')
+def socketio_domains_virtualbuilder_add(form_data):
+    #~ print(form_data)
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    #~ create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
+    #~ create_dict['builder']=form_dict['builder']
+    disk_size=create_dict['disk_size']+'G'
+    create_dict.pop('disk_size',None)
+    name=create_dict['name']
+    create_dict.pop('name',None)
+    description=create_dict['description']
+    create_dict.pop('description',None)
+    hyper_pools=[create_dict['hypervisors_pools']]
+    create_dict.pop('hypervisors_pools',None)
+    icon=[create_dict['icon']]
+    create_dict.pop('icon',None)
+    #~ install_id=create_dict['install_id']
+    #~ create_dict.del('disk_size',None)
+    res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+@socketio.on('domain_virtiso_add', namespace='/sio_admins')
+def socketio_domains_virtualiso_add(form_data):
+    print(form_data)
+    
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():
     leave_room('admins')
