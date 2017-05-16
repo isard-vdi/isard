@@ -54,14 +54,17 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
     
-@app.route('/autologin_secret/<secret>/<user>')
-def autologin_secret(secret,user):
+@app.route('/autologin_secret/<secret>/<user>',methods=['GET'])
+def autologin(secret,user):
     with app.app_context():
-        if r.table('config').get(1).pluck('autologin').run(db.conn)['autologin']['secret']==secret:
-            dbuser=r.table('users').get(user).run(db.conn)
-            if dbuser:
-                user=User(dbuser)
-                if user:
-                    login_user(user)
-                    return redirect(url_for('desktops'))
-        return redirect(url_for('login'))
+        if r.table('config').get(1).pluck('autologin').run(db.conn)['autologin']['secret'] == secret:
+            print('Secret access granted!')
+
+        au=auth()
+        user2login=r.table('users').get(user).run(db.conn)
+        user=User(user2login)
+        if user:
+            login_user(user)
+            return redirect(url_for('desktops'))
+        else:
+            return redicrect(url_for('login'))

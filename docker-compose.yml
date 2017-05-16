@@ -1,33 +1,82 @@
-isard-webapp:
-    restart: always
-    build: .
-    dockerfile: Dockerfile.webapp
-    links:
-        - "rethinkdb-container"
-    hostname: isard-webapp
-    expose:
-        - "5000"
-    command: python3 /isard/run_webapp.py
+version: '2'
+services:
+    isard-hypervisor:
+        restart: always
+        build:
+            context: .
+            dockerfile: docker/hypervisor/Dockerfile
+        links:
+            - "rethinkdb-container"
+        hostname: isard-hypervisor
+        ports:
+            - "55022:22"
+            - "5900-5930:5900-5930"
+        privileged: true
+        volumes:
+            - "/sys/fs/cgroup:/sys/fs/cgroup:rw"
+            - "sshkeys:/root/.ssh"
+        networks:
+            main:
+                aliases:
+                - isard-hypervisor
+        command: /usr/sbin/init
 
-isard-engine:
-    restart: always
-    build: .
-    dockerfile: Dockerfile.engine
-    links:
-        - "rethinkdb-container"
-    hostname: isard-engine
-    command: python3 /isard/run_webapp.py
+    rethinkdb-container:
+        image: rethinkdb
+        hostname: rethinkdb
+        networks:
+            main:
+                aliases:
+                - rethinkdb
 
-rethinkdb-container:
-    image: rethinkdb
-    hostname: rethinkdb
+    isard-webapp:
+        restart: always
+        build:
+            context: .
+            dockerfile: docker/webapp/Dockerfile
+        links:
+            - "rethinkdb-container"
+        hostname: isard-webapp
+        expose:
+            - "5000"
+        networks:
+            main:
+                aliases:
+                - isard-webapp
+        command: python3 /isard/run_webapp.py
 
-nginx:
-    image: marvambass/nginx-ssl-secure
-    ports:
-        - "443:443"
-    volumes:
-        - "./install/docker/nginx/:/etc/nginx/external"
-    hostname: nginx
-    links:
-        - "isard-webapp:isard-webapp"
+    isard-engine:
+        restart: always
+        build:
+            context: .
+            dockerfile: docker/engine/Dockerfile
+        links:
+            - "rethinkdb-container"
+            - "isard-hypervisor"
+        volumes:
+            - "sshkeys:/root/.ssh"
+        hostname: isard-engine
+        networks:
+            main:
+                aliases:
+                - isard-engine
+        command: bash -c '/init.sh'
+
+    nginx:
+        image: marvambass/nginx-ssl-secure
+        ports:
+            - "443:443"
+        volumes:
+            - "./docker/nginx/:/etc/nginx/external"
+        hostname: nginx
+        links:
+            - "isard-webapp:isard-webapp"
+        networks:
+            main:
+                aliases:
+                - nginx
+
+networks:
+    main:
+volumes:
+    sshkeys:
