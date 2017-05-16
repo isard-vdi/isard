@@ -303,12 +303,13 @@ class isardAdmin():
     '''
     CLASSROOMS
     '''
-    def replace_hosts_viewers_items(self,list):
+    def replace_hosts_viewers_items(self,place,hosts):
         with app.app_context():
             try:
                 print(list[0]['place_id'])
-                r.table('hosts_viewers').filter({'place_id':list[0]['place_id']}).delete().run(db.conn)
-                return self.check(r.table('hosts_viewers').insert(list).run(db.conn),'inserted')
+                r.table('hosts_viewers').filter({'place_id':hosts[0]['place_id']}).delete().run(db.conn)
+                self.check(r.table('places').insert(place, conflict='update').run(db.conn),'inserted')
+                return self.check(r.table('hosts_viewers').insert(hosts).run(db.conn),'inserted')
             except Exception as e:
                 print('error:',e)
                 return False

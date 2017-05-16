@@ -40,8 +40,11 @@
                            <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="classroom">Class: </label>
                            <div class="col-md-8 col-sm-8 col-xs-12">
 							   <select class="form-control" id="classroom" name="classroom" style="padding: 0px;">
-                                  <option value="none">Select class</option>
-                                  <option value="test1">test1</option>
+                                  <option value="">Select class</option>
+                                  {% for p in places %}
+                                    <option value="{{p.id}}">{{p.name}}</option>
+                                  {% endfor %}
+                                  
                                   <option value="n2i">N2I</option>
 							   </select>
                               </div>

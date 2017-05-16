@@ -95,7 +95,7 @@ $(document).ready(function() {
         console.log(items)
 
         
-        socket.emit('classroom_update',{'classroom':data,'desktops':desktops})
+        socket.emit('classroom_update',{'place':data,'hosts':desktops})
     });
     
     $("#modalAddClass #send").on('click', function(e){

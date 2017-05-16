@@ -357,7 +357,7 @@ def socketio_domains_update():
 
 @socketio.on('classroom_update', namespace='/sio_admins')
 def socketio_classroom_update(data):
-    if app.adminapi.replace_hosts_viewers_items(data['desktops']):
+    if app.adminapi.replace_hosts_viewers_items(data['place'],data['hosts']):
         result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
     else:
         result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
