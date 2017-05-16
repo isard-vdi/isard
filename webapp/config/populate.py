@@ -17,6 +17,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from ..auth.authentication import Password
+from .virt_builder_install_selection import update_virtbuilder, update_virtinstall, create_builders
 
 
 class Populate(object):
@@ -52,10 +53,12 @@ class Populate(object):
         self.domains_status()
         #~ log.info('Checking table domain_xmls')
         #~ self.domains_xmls()
-        log.info('Checking table domain_virt_builder')
-        self.domains_virt_builder()
-        log.info('Checking table domain_virt_install')
-        self.domains_virt_install()
+        log.info('Checking table virt_builder')
+        self.virt_builder()
+        log.info('Checking table virt_install')
+        self.virt_install()
+        log.info('Checking table builders')
+        self.builders()
         log.info('Checking table isos')
         self.isos()
         log.info('Checking table boots')
@@ -72,6 +75,7 @@ class Populate(object):
         self.backups()
         log.info('Checking table config')
         self.config()
+
 
     '''
     DATABASE
@@ -648,19 +652,6 @@ class Populate(object):
             #~ self.result(r.table('domains_xmls').insert(xmls_list, conflict='update').run(db.conn))
         #~ return True
 
-    def domains_virt_builder(self):
-        with app.app_context():
-            if not r.table_list().contains('domains_virt_builder').run(db.conn):
-                log.info("Table domains_virt_builder not found, creating...")
-                r.table_create('domains_virt_builder', primary_key="id").run(db.conn)
-        return True
-
-    def domains_virt_install(self):
-        with app.app_context():
-            if not r.table_list().contains('domains_virt_install').run(db.conn):
-                log.info("Table domains_virt_install not found, creating...")
-                r.table_create('domains_virt_install', primary_key="id").run(db.conn)
-        return True
         
     '''
     ISOS: iso files
@@ -845,3 +836,41 @@ class Populate(object):
                 r.table('places').index_wait("status").run(db.conn)
             return True
 
+    '''
+    BUILDER
+    '''
+
+    def builders(self):
+        with app.app_context():
+            if not r.table_list().contains('builders').run(db.conn):
+                log.info("Table builders not found, creating...")
+                r.table_create('builders', primary_key="id").run(db.conn)
+                r.table('builders').insert(create_builders(), conflict='update').run(db.conn)
+
+            return True
+
+
+    '''
+    VIRT BUILDER
+    '''
+
+    def virt_builder(self):
+        with app.app_context():
+            if not r.table_list().contains('virt_builder').run(db.conn):
+                log.info("Table virt_builder not found, creating...")
+                r.table_create('virt_builder', primary_key="id").run(db.conn)
+                r.table('virt_builder').insert(update_virtbuilder(), conflict='update').run(db.conn)
+
+            return True
+
+    '''
+    VIRT INSTALL
+    '''
+
+    def virt_install(self):
+        with app.app_context():
+            if not r.table_list().contains('virt_install').run(db.conn):
+                log.info("Table virt_install not found, creating...")
+                r.table_create('virt_install', primary_key="id").run(db.conn)
+                r.table('virt_install').insert(update_virtinstall(), conflict='update').run(db.conn)
+            return True

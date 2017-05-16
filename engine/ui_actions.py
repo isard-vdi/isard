@@ -443,8 +443,10 @@ class UiActions(object):
         dict_to_create['hardware']['disks'][0]['path_selected'] = path_selected
 
         size_str = dict_to_create['hardware']['disks'][0]['size']
-        options_virt_builder = dict_to_create['options_virt_builder']
-        id_domains_virt_builder = dict_to_create['id_domains_virt_builder']
+        options_virt_builder = dict_to_create['builder']['options']
+        options_virt_install = dict_to_create['install']['options']
+        id_domains_virt_builder = dict_to_create['builder']['id']
+        id_os_virt_install = dict_to_create['install']['id']
 
         #UPDATE HARDWARE DICT
         hardware_update = {}
@@ -551,10 +553,7 @@ class UiActions(object):
                 log.error('Exception message: {}'.format(e))
 
             if creating_from_virt_builder is True:
-                domain = get_domain(id_domain)
-                id_virt_viewer = domain['create_dict']['id_xml_virt_install']
-                xml_from_virt_viewer = get_xml_from_virt_viewer(id_virt_viewer)
-                update_table_field('domains', id_domain, 'xml', xml_from_template)
+                pass
 
             else:
                 domain = get_domain(id_domain)
