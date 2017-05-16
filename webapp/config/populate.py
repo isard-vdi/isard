@@ -826,3 +826,4 @@ class Populate(object):
                 r.table('places').index_create("status").run(db.conn)
                 r.table('places').index_wait("status").run(db.conn)
             return True
+
