@@ -991,16 +991,16 @@ def insert_host_viewer(hostname,
 
     rtable.insert({'hostname'   : hostname,
                    'place_id'   : place_id,
-                   'ip'         : ip,
-                   'position':{'x'        : row,
-                               'y'        : col,
-                               'width'    : 1,
-                               'height'   : 1},
+                   'id'         : ip,
+                   'position':{'row'        : row,
+                               'col'        : col,
+                               'size_x'    : 1,
+                               'size_y'   : 1},
                    'description': description,
                    'mac'        : mac,
                    'enabled'    : enabled,
                    'status'     : 'Offline', #Offline, online, ready_to_launch_ssh_commands
-                   'loged_user' : None,
+                   'logged_user' : None,
                    'desktops_running':[],
                    'status_time': time.time()}).\
           run(r_conn)
