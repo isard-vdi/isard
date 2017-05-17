@@ -955,7 +955,7 @@ def insert_place(id_place,
                        'w': cols,
                        'h': rows
                     },
-                   'network_address': network_addess,
+                   'network': network,
                    'ssh': {
                       'enabled': ssh_enable,
                       'user': ssh_user,
