@@ -375,7 +375,7 @@ def socketio_classroom_update(data):
     #~ print(data)
     #~ print(app.adminapi.get_hosts_viewers(data['place_id']))
     socketio.emit('classroom_load',
-                    json.dumps({'place': ,'hosts':app.adminapi.get_hosts_viewers(data['place_id']))),
+                    json.dumps({'place': app.adminapi.get_admin_table('places',id=data['place_id']) ,'hosts':app.adminapi.get_hosts_viewers(data['place_id'])}),
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
                     

@@ -194,6 +194,11 @@ $(document).ready(function() {
         var data = JSON.parse(data);
         console.log('received class data')
         console.log(data);
+        place=data['place']
+        data=data['hosts']
+            $('#ClassroomInfo #name').val(place.name)
+            $('#ClassroomInfo #description').val(place.description)
+            $('#ClassroomInfo #network').val(place.network)
         for (var i = 0; i < data.length; i++) {
             console.log(data[i].position.row)
             gridster.add_widget(tableDesktopHtml(data[i].position.col,data[i].position.row,data[i].id,data[i].position.hostname),1,1, data[i].position.col, data[i].position.row);
