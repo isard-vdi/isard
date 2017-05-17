@@ -62,6 +62,10 @@ class Populate(object):
         self.hypervisors_status()
         log.info('Checking table disk_operations')
         self.disk_operations()
+        log.info('Checking table hosts_viewers')
+        self.hosts_viewers()
+        log.info('Checking table places')
+        self.places()
         log.info('Checking table disposables')
         self.disposables()
         log.info('Checking table backups')
@@ -806,7 +810,7 @@ class Populate(object):
         with app.app_context():
             if not r.table_list().contains('hosts_viewers').run(db.conn):
                 log.info("Table hosts_viewers not found, creating...")
-                r.table_create('hosts_viewers', primary_key="ip").run(db.conn)
+                r.table_create('hosts_viewers', primary_key="id").run(db.conn)
                 r.table('hosts_viewers').index_create("hostname").run(db.conn)
                 r.table('hosts_viewers').index_wait("hostname").run(db.conn)
                 r.table('hosts_viewers').index_create("mac").run(db.conn)
@@ -823,8 +827,8 @@ class Populate(object):
             if not r.table_list().contains('places').run(db.conn):
                 log.info("Table places not found, creating...")
                 r.table_create('places', primary_key="id").run(db.conn)
-                r.table('places').index_create("network_address").run(db.conn)
-                r.table('places').index_wait("network_address").run(db.conn)
+                r.table('places').index_create("network").run(db.conn)
+                r.table('places').index_wait("network").run(db.conn)
                 r.table('places').index_create("status").run(db.conn)
                 r.table('places').index_wait("status").run(db.conn)
             return True

@@ -255,8 +255,6 @@ class isardAdmin():
 
     def upload_backup(self,handler):
         path='./backups/'
-        if not os.path.exists(path):
-            os.makedirs(path)
         id=handler.filename.split('.tar.gz')[0]
         filename = secure_filename(handler.filename)
         handler.save(os.path.join(path+filename))
@@ -308,18 +306,26 @@ class isardAdmin():
     def replace_hosts_viewers_items(self,place,hosts):
         with app.app_context():
             try:
-                print(list[0]['place_id'])
-                r.table('hosts_viewers').filter({'place_id':hosts[0]['place_id']}).delete().run(db.conn)
-                self.check(r.table('places').insert(place, conflict='update').run(db.conn),'inserted')
+                place['id']=app.isardapi.parse_string(place['name'])
+                r.table('places').insert(place, conflict='update').run(db.conn)
+            except Exception as e:
+                print('error on update place:',e)
+                return False
+                
+            try:
+                hosts = [dict(item, place_id=place['id']) for item in hosts]
+                hosts = [dict(item, enabled=True) for item in hosts]
+                r.table('hosts_viewers').get_all(place['id'], index='place_id').delete().run(db.conn)
+                
                 return self.check(r.table('hosts_viewers').insert(hosts).run(db.conn),'inserted')
             except Exception as e:
-                print('error:',e)
+                print('error o update hosts_viewers:',e)
                 return False
 
 
     def get_hosts_viewers(self, place_id):
         with app.app_context():
-            return list(r.table('hosts_viewers').filter({'place_id':place_id}).run(db.conn))
+            return list(r.table('hosts_viewers').get_all(place_id, index='place_id').run(db.conn))
                     
     '''
     GRAPHS

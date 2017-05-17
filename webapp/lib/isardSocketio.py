@@ -372,10 +372,10 @@ def socketio_classroom_update(data):
         #~ result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
     #~ else:
         #~ result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-    print(data)
-    print(app.adminapi.get_hosts_viewers(data['place_id']))
+    #~ print(data)
+    #~ print(app.adminapi.get_hosts_viewers(data['place_id']))
     socketio.emit('classroom_load',
-                    json.dumps(app.adminapi.get_hosts_viewers(data['place_id'])),
+                    json.dumps({'place': ,'hosts':app.adminapi.get_hosts_viewers(data['place_id']))),
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
                     

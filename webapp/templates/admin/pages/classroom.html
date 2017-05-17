@@ -28,51 +28,56 @@
 </style>
 {% endblock %}
 {% block content %}
+
 <div class="right_col" role="main">
+    
+ <form id="ClassroomInfo"> 
+    <input  id="name" name="name" required>
+    <input  id="description" name="description"  required>
+    <input  id="network" name="network" required>
+ </form>    
+    
    <div class="clearfix"></div>
             <div class="row">
               <div class="col-md-12 col-sm-12 col-xs-12">
                 <div class="x_panel">
                   <div class="x_title">
                     <h2>Classroom <small>Desktops distribution in classroom</small></h2>
+                      <div id="classroom_init">
                         <ul class="nav navbar-right panel_toolbox">
-                        <li><div class="item form-group pull-right">
-                           <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="classroom">Class: </label>
-                           <div class="col-md-8 col-sm-8 col-xs-12">
-							   <select class="form-control" id="classroom" name="classroom" style="padding: 0px;">
-                                  <option value="">Select class</option>
-                                  {% for p in places %}
-                                    <option value="{{p.id}}">{{p.name}}</option>
-                                  {% endfor %}
-                                  
-                                  <option value="n2i">N2I</option>
-							   </select>
-                              </div>
+                              <li><a class="add-new"><span
+                                      style="color: #5499c7; "><i class="fa fa-plus"></i> Add new place</span></a>
+                              </li>
+                              <li><div class="item form-group pull-right">
+                                   <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="classroom">Edit place: </label>
+                                   <div class="col-md-8 col-sm-8 col-xs-12">
+                                       <select class="form-control" id="classroom" name="classroom" style="padding: 0px;">
+                                          <option value="">Select class</option>
+                                          {% for p in places %}
+                                            <option value="{{p.id}}">{{p.name}}</option>
+                                          {% endfor %}
+                                       </select>
+                                      </div>
+                                </div>
+                              </li>
+                         </ul>
                         </div>
-                        </li>
-<!--
-                        <div id="menu-add-new">
--->
-                          <li><a class="add-new"><span
-                                  style="color: #5499c7; "><i class="fa fa-plus"></i> Add grid</span></a>
-                          </li>
-<!--
+                        <div id="classroom_edit" style="display:none">
+                            <ul class="nav navbar-right panel_toolbox">
+                              <li><span id="classroom_name"></span></li>
+                              <li><a class="menu-add-one"><span
+                                      style="color: #5499c7; "><i class="fa fa-plus"></i> Add desktop</span></a>
+                              </li>
+
+                              <li><a class="menu-reset"><span
+                                      style="color: #5499c7; "><i class="fa fa-rotate-left"></i> Reset</span></a>
+                              </li>                          
+                              <li><a class="menu-save"><span
+                                      style="color: #5499c7; "><i class="fa fa-save"></i> Save classroom</span></a>
+                              </li> 
+                            </ul>
                         </div>
-                        <div id="menu-edit-save">
--->
-                          <li><a class="menu-reset"><span
-                                  style="color: #5499c7; "><i class="fa fa-back"></i> Reset</span></a>
-                          </li>  
-                          <li><a class="menu-add-one"><span
-                                  style="color: #5499c7; "><i class="fa fa-plus"></i> Add desktop</span></a>
-                          </li>                        
-                          <li><a class="menu-save"><span
-                                  style="color: #5499c7; "><i class="fa fa-save"></i> Save classroom</span></a>
-                          </li> 
-<!--
-                        </div>
--->
-                        </ul>
+                        
                     <div class="clearfix"></div>
                   </div>
                   <div class="x_content" style="background-color:LightGrey">
@@ -113,6 +118,7 @@
           </div>
         </div>
 {% include '/admin/pages/classroom_modals.html' %}
+
 {% endblock %}
 {% block pagescript %}
 <script src="/static/vendor/gridster.js/dist/jquery.gridster.js"></script>

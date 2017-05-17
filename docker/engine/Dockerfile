@@ -6,8 +6,7 @@ RUN mkdir -p $INSTALL_PATH
 WORKDIR $INSTALL_PATH
 
 COPY ./docker/engine/requirements.pip3 requirements.pip3
-RUN dnf install wget gcc redhat-rpm-config python3-devel openssl-devel -y
-RUN dnf install libvirt-devel -y
+RUN dnf install wget gcc redhat-rpm-config python3-devel openssl-devel install libvirt-devel -y
 RUN pip3 install -r requirements.pip3
 
 RUN dnf install openssh openssh-clients -y
