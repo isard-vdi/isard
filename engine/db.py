@@ -932,7 +932,7 @@ def insert_place(id_place,
                  ssh_key_path=''):
 
     r_conn = new_rethink_connection()
-    rtable=r.table('hypervisors')
+    rtable=r.table('places')
 
     rtable.insert({'id':id_place,
                    'name':name,
@@ -984,10 +984,10 @@ def insert_host_viewer(hostname,
     rtable.insert({'hostname'   : hostname,
                    'place_id'   : place_id,
                    'ip'         : ip,
-                   'position':{'x'        : row,
-                             'y'        : col,
-                             'width'    :1,
-                             'height'   :1},
+                   'position':{'row'        : row,
+                             'col'        : col,
+                             'size_x'    :1,
+                             'size_y'   :1},
                    'description': description,
                    'mac'        : mac,
                    'enabled'    : enabled,
