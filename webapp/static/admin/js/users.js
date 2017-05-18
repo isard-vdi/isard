@@ -16,7 +16,17 @@ $(document).ready(function() {
             $('#modalAddUserForm')[0].reset();
             setModalAddUser();
 	});
-    
+
+	$('.btn-new-role').on('click', function () {
+        setQuotaOptions();
+			$('#modalAddRole').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalAddRoleForm')[0].reset();
+            //~ setModalAddUser();
+	});
+        
     var table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",

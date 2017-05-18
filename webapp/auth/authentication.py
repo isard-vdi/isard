@@ -191,7 +191,22 @@ class auth(object):
     def update_access(self,username):
         with app.app_context():
             r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)
-            
+   
+   
+'''
+VOUCHER AUTH
+'''         
+class auth_voucher(object):
+    def __init__(self):
+        None
+
+    def check(self,voucher):
+        dbv=r.table('vouchers').get(voucher).run(db.conn)
+        if dbv is None: return False
+        if not dbv['accessed']:
+            #Create user, advanced and admin_viewer
+            return True
+        return False
 '''
 PASSWORDS MANAGER
 '''
