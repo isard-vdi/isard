@@ -983,7 +983,7 @@ def insert_host_viewer(hostname,
 
     rtable.insert({'hostname'   : hostname,
                    'place_id'   : place_id,
-                   'ip'         : ip,
+                   'id'         : ip,
                    'position':{'row'        : row,
                              'col'        : col,
                              'size_x'    :1,

@@ -55,7 +55,7 @@ for l_host in l_ok:
         row = int(((order-36)*-1)/6)
         col = ((order-36)*-1) % 6
 
-    if 0 > 1:
+    if 1 > 0:
         insert_host_viewer(hostname=l_host[0],
                        description=l_host[0],
                        place_id=l_host[-1],
