@@ -34,6 +34,8 @@ class Populate(object):
         self.groups()
         log.info('Checking table users')
         self.users()
+        log.info('Checking table vouchers')
+        self.vouchers()
         log.info('Checking table hypervisors_pools')
         self.hypervisors_pools()
         log.info('Checking table hypervisors')
@@ -104,6 +106,7 @@ class Populate(object):
                                                                          'ldap_server': 'ldap://ldap.domain.org',
                                                                          'bind_dn': 'dc=domain,dc=org'}},
                                                         'disposable_desktops':{'active': False},
+                                                        'voucher_access':{'active': False},
                                                         'engine':{  'intervals':{   'status_polling':10,
                                                                                     'time_between_polling': 5,
                                                                                     'test_hyp_fail': 20,
@@ -228,6 +231,21 @@ class Populate(object):
                     self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
                     log.info("  Inserted default admin username with password isard")
             return True
+
+    '''
+    VOUCHERS
+    Grant access on new voucher
+    '''
+
+    def vouchers(self):
+        with app.app_context():
+            if not r.table_list().contains('vouchers').run(db.conn):
+                log.info("Table vouchers not found, creating...")
+                r.table_create('vouchers', primary_key="id").run(db.conn)
+                #~ r.table('users').index_create("group").run(db.conn)
+                #~ r.table('users').index_wait("group").run(db.conn)
+            return True
+
 
     '''
     ROLES
