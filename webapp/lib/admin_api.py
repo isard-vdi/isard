@@ -359,10 +359,12 @@ class isardAdmin():
     def new_domain_from_virtbuilder(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-            create_dict['install']['options']=r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
+            #~ import pprint
+            #~ pprint.pprint(create_dict)
+            create_dict['install']['options']='' #r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
         
-        parsed_name = self.parse_string(name)
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        parsed_name = app.isardapi.parse_string(name)
+        dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'size':disk_size}]   # 15G as a format
         #~ create_dict['install']['id']=install_id

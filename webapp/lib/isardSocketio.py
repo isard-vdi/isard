@@ -359,6 +359,7 @@ def socketio_domains_update():
 def socketio_domains_virtualbuilder_add(form_data):
     #~ print(form_data)
     create_dict=app.isardapi.f.unflatten_dict(form_data)
+    print(create_dict)
     #~ create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
     create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
     create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
@@ -381,9 +382,9 @@ def socketio_domains_virtualbuilder_add(form_data):
     #~ create_dict.del('disk_size',None)
     res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_users', 
