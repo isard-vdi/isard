@@ -60,7 +60,7 @@ def admin_classroom():
         #~ for c in range(0,random.randrange(4,8)):
             #~ hosts[r][c]={'status':random.randrange(0,3),'ip':'10.200.210.'+str(r+c),'hostname':'f2a-'+str(r+c)}
     
-    return render_template('admin/pages/classroom.html', nav='Classroom')
+    return render_template('admin/pages/classroom.html', nav='Classroom', places=list(r.table('places').order_by('name').run(db.conn)))
     
 #~ {'id':'N2M2,
 #~ 'description':'Aula del edificio de electrónica segunda planta',

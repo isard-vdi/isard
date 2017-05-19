@@ -5,18 +5,59 @@
 * License: AGPLv3
 */
 
-
 $(document).ready(function() {
     var gridster
     var gridHeight=0
     var gridWidth=0
+
+    var gridster_defaults = {
+            //~ widget_selector: '> li',
+            //~ widget_margins: [5, 5],
+            widget_base_dimensions: [100,100],
+            //~ extra_rows: 1,
+            //~ extra_cols: 1,
+            //~ min_cols: 1,
+            //~ min_rows: 15,
+            //~ max_size_x: 6,
+            //~ max_rows: 9,
+            //~ max_cosl:9,
+            shift_larger_widgets_down: false,
+            autogenerate_stylesheet: true,
+            avoid_overlapped_widgets: true,
+            serialize_params: function ($w, wgd) {
+                    return {
+                      id: $w.data('ip'),
+                      mac: $w.data('mac'),
+                      hostname: $w.data('hostname'),
+                      description: $w.data('description'),
+                      position: {
+                          col: wgd.col,
+                          row: wgd.row,
+                          size_x: wgd.size_x,
+                          size_y: wgd.size_y,
+                       }
+                    };
+            },
+            collision: {},
+        //~ static_class: 'custom_class',
+        draggable: {
+            items: ".gs_w:not(.custom_class)"
+        }        
+            //~ draggable: {
+                //~ distance: 12
+            //~ }
+    };
     
     $('.top_nav').hide()
     $('#menu_toggle').click()
 
     $('#classroom').on('change', function () {
         action=$(this).val();
-        console.log(gridster.serialize())
+        console.log(action)
+        $('#classroom_name').html(action);
+        gridster = $(".gridster ul").gridster(gridster_defaults).data('gridster');
+        socket.emit('classroom_get',{'place_id':action});
+        menuEdit(true);
     } );
 
 
@@ -42,31 +83,24 @@ $(document).ready(function() {
                                       grid: true,
                                       disable: false
                                       }).data("ionRangeSlider");
+            menuEdit(true);
     });	
 
    $('.menu-add-one').on( 'click', function () {
        gridster.add_widget(tableDesktopHtml(gridHeight+1,1,'ip','hostname'),1,1, gridHeight+1, 1);
        //~ enableActions();
    });
-    $('.menu-save').on( 'click', function () {
-            $("#modalSave")[0].reset();
-			$('#modalSaveClass').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalSave').parsley();
-            
+   
+   $('.menu-reset').on( 'click', function () {
+        menuEdit(false);
     });
-
-    $("#modalSaveClass #send").on('click', function(e){
-        var form = $('#modalSave');
-        data=$('#modalSave').serializeObject();
+   
+   
+    $('.menu-save').on( 'click', function () {
+        menuEdit(false);
+        data=$('#ClassroomInfo').serializeObject();
         desktops=gridster.serialize()
-        console.log(data)
-        console.log(desktops)
-
-        
-        socket.emit('classroom_update',{'classroom':data,'desktops':desktops})
+        socket.emit('classroom_update',{'place':data,'hosts':desktops})            
     });
     
     $("#modalAddClass #send").on('click', function(e){
@@ -74,75 +108,15 @@ $(document).ready(function() {
         fData=$('#modalAdd').serializeObject();
         gridWidth=fData.width
         gridHeight=fData.height
-        //~ gridster = $(".gridster ul").gridster({
-            //~ widget_margins: [5, 5],
-            //~ widget_base_dimensions: [100, 100],
-              //~ serialize_params: function ($w, wgd) {
-                //~ return {
-                  //~ id: $w.data('ip'),
-                  //~ mac: $w.data('mac'),
-                  //~ hostname: $w.data('hostname'),
-                  //~ description: $w.data('description'),
-                  //~ col: wgd.col,
-                  //~ row: wgd.row,
-                  //~ size_x: wgd.size_x,
-                  //~ size_y: wgd.size_y,
-                //~ };
-            //~ }
-        //~ }).data('gridster');
-    var defaults = {
-        //~ widget_selector: '> li',
-        widget_margins: [5, 5],
-        widget_base_dimensions: [100,100],
-        //~ extra_rows: 1,
-        //~ extra_cols: 1,
-        //~ min_cols: 1,
-        //~ min_rows: 15,
-        //~ max_size_x: 6,
-        //~ max_rows: 9,
-        //~ max_cosl:9,
-        shift_larger_widgets_down: false,
-        //~ autogenerate_stylesheet: true,
-        avoid_overlapped_widgets: true,
-        serialize_params: function ($w, wgd) {
-                return {
-                  id: $w.data('ip'),
-                  mac: $w.data('mac'),
-                  hostname: $w.data('hostname'),
-                  description: $w.data('description'),
-                  col: wgd.col,
-                  row: wgd.row,
-                  size_x: wgd.size_x,
-                  size_y: wgd.size_y,
-                };
-        },
-        collision: {},
-	//~ static_class: 'custom_class',
-	draggable: {
-        items: ".gs_w:not(.custom_class)"
-    }        
-        //~ draggable: {
-            //~ distance: 12
-        //~ }
-    };
-            gridster = $(".gridster ul").gridster(defaults).data('gridster');
+
+            gridster = $(".gridster ul").gridster(gridster_defaults).data('gridster');
     
-            $('.gridster  ul').css({'padding': '0'});  
+            $('.gridster ul').css({'padding': '0'});  
             
-            i=parseInt(fData.network.substring(fData.network.lastIndexOf(".") + 1, fData.network.length));
+            i=parseInt(fData.init_ip.substring(fData.network.lastIndexOf(".") + 1, fData.init_ip.length));
             f=fData.height*fData.width
-            network=fData.network.substring(0, fData.network.lastIndexOf(".") + 1);
-            
-            //~ ip=network+(i+r*c).toString();
-            //~ for (c = 1; c <= fData.height; c++) {
-                //~ for (r = 1; r <= fData.width; r++) {
-                    //~ net=network+i.toString()
-                    //~ console.log(net)
-                    //~ gridster.add_widget(tableDesktopHtml(r,c,net),1,1, r, c);
-                    //~ i=i+1;
-                    //gridster.add_widget.apply(gridster, [tableDesktopHtml(r,c),1,1, r, c])
-                //~ }
-            //~ }
+            network=fData.init_ip.substring(0, fData.init_ip.lastIndexOf(".") + 1);
+
             if(fData.hdirection=='r2l'){
                 for (c = fData.height; c >= 1; c--) {
                     for (r = fData.width; r >= 1; r--) {
@@ -151,7 +125,6 @@ $(document).ready(function() {
                         console.log(net)
                         gridster.add_widget(tableDesktopHtml(r,c,net,hostname),1,1, r, c);
                         i=i+1;
-                        //~ gridster.add_widget.apply(gridster, [tableDesktopHtml(r,c),1,1, r, c])
                     }
                 }
             }
@@ -162,22 +135,22 @@ $(document).ready(function() {
                         console.log(net)
                         gridster.add_widget(tableDesktopHtml(r,c,net),1,1, r, c);
                         i=i+1;
-                        //~ gridster.add_widget.apply(gridster, [tableDesktopHtml(r,c),1,1, r, c])
                     }
                 }
             }
                         
             $("#modalAdd")[0].reset();
             $("#modalAddClass").modal('hide');
+            
+            $('#ClassroomInfo #name').val(fData.name)
+            $('#ClassroomInfo #description').val(fData.description)
+            $('#ClassroomInfo #network').val(fData.network)
+            
             //~ enableActions();
         });
 
     $('.menu-reset').on( 'click', function () {
-        //~ $(".gridster ul").html='';
         gridster.data('gridster').destroy();
-        
-        //~ $(".gridster").draggable().draggable("destroy");
-        //~ $(".gridster").removeData();
     });
     
     function tableDesktopHtml(r,c,net,hostname){
@@ -216,7 +189,22 @@ $(document).ready(function() {
     socket.on('classroom_data', function(data){
         var data = JSON.parse(data);
     });
-    
+
+    socket.on('classroom_load', function(data){
+        var data = JSON.parse(data);
+        console.log('received class data')
+        console.log(data);
+        place=data['place']
+        data=data['hosts']
+            $('#ClassroomInfo #name').val(place.name)
+            $('#ClassroomInfo #description').val(place.description)
+            $('#ClassroomInfo #network').val(place.network)
+        for (var i = 0; i < data.length; i++) {
+            console.log(data[i].position.row)
+            gridster.add_widget(tableDesktopHtml(data[i].position.col,data[i].position.row,data[i].id,data[i].position.hostname),1,1, data[i].position.col, data[i].position.row);
+        }
+    });
+
     socket.on ('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -231,3 +219,14 @@ $(document).ready(function() {
     });
 
 });
+
+
+function menuEdit(on){
+    if(on){
+        $('#classroom_init').hide();
+        $('#classroom_edit').show();
+    }else{
+        $('#classroom_edit').hide();
+        $('#classroom_init').show();        
+    }
+}
