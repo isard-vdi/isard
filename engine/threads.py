@@ -411,7 +411,7 @@ class HypWorkerThread(threading.Thread):
                             domain = [d for d in self.h.conn.listAllDomains(FLAG_LIST_DOMAINS_PAUSED) if d.name() == action['id_domain']][0]
                             if domain.destroy() == 0:
                                 #domain is destroyed, all ok
-                                update_domain_status('Stopped',action['id_domain'],hyp_id=self.hyp_id,detail='Domain is created, ready to use')
+                                update_domain_status('Stopped',action['id_domain'],hyp_id='',detail='Domain is stopped in hyp{}'.format(self.hyp_id))
                                 log.debug('domain {} creating operation finalished. Started paused and destroyed in hypervisor {}. Now status is Stopped. READY TO USE'.format(action['id_domain'],self.hyp_id))
 
                                 if action['id_domain'].find('_disposable_') == 0:
@@ -452,7 +452,7 @@ class HypWorkerThread(threading.Thread):
                     log.debug('action stop domain: {}'.format(action['id_domain'][30:100]))
                     try:
                         self.h.conn.lookupByName(action['id_domain']).destroy()
-                        update_domain_status('Stopped',action['id_domain'])
+                        update_domain_status('Stopped',action['id_domain'],hyp_id='')
                         log.debug('STOPPED domain {}'.format(action['id_domain']))
                     except Exception as e:
                         update_domain_status('Failed',action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
@@ -619,7 +619,7 @@ def set_domains_coherence(dict_hyps_ready):
         if len(domains_started_in_rethink) > 0:
             domains_are_shutdown = list(set(domains_started_in_rethink).difference(set(domains_are_started)))
             for domain_stopped in domains_are_shutdown:
-                update_domain_status(status='Stopped',id_domain=domain_stopped)
+                update_domain_status(status='Stopped',id_domain=domain_stopped,hyp_id='')
         #TODO INFO TO DEVELOPER: faltaría revisar que ningún dominio está duplicado en y started en dos hypervisores
         # a nivel de libvirt, porque a nivel de rethink es imposible, y si pasa poner un erroraco gigante
         # a parte de dejarlo en unknown
