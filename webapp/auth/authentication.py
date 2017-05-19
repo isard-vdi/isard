@@ -191,7 +191,67 @@ class auth(object):
     def update_access(self,username):
         with app.app_context():
             r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)
-            
+   
+   
+'''
+VOUCHER AUTH
+'''         
+class auth_voucher(object):
+    def __init__(self):
+        None
+
+    def check(self,voucher,remote_addr):
+        dbv=r.table('vouchers').get(voucher).run(db.conn)
+        if dbv is None: return False
+        dbuser=r.table('users').get(remote_addr)
+        if dbuser:
+            #Log in
+            None
+        else:
+            #Create user
+            user=self.user_tmpl(dbv,remote_addr)
+            if r.table('categories').get(user['category']).run(db.conn) is None:
+                r.table('categories').insert({  'id':user['category'],
+                                                'name':user['category'],
+                                                'description':'',
+                                                'quota':r.table('roles').get(user['role']).run(db.conn)['quota']}).run(db.conn)
+            if r.table('groups').get(user['group']).run(db.conn) is None:
+                r.table('groups').insert({  'id':user['group'],
+                                            'name':user['group'],
+                                            'description':'',
+                                            'quota':r.table('categories').get(user['category']).run(db.conn)['quota']}).run(db.conn)
+            r.table('users').insert(user).run(db.conn)
+            return User(user)            
+        return False
+
+    def user_tmpl(self,v, remote_addr):
+        usr = [{'id': remote_addr,
+                'name': v['name'],
+                'kind': 'local',
+                'active': True,
+                'accessed': time.time(),
+                'username': 'voucher',
+                'password': '',
+                'role': v['role'],
+                'category': v['category'],
+                'group': v['group'],
+                'mail': 'admin@isard.io',
+                'quota': {'domains': {'desktops': 3,
+                                        'desktops_disk_max': 999999999,  # 1TB
+                                        'templates': 2,
+                                        'templates_disk_max': 999999999,
+                                        'running': 1,
+                                        'isos': 1,
+                                        'isos_disk_max': 999999999},
+                                        'hardware': {'vcpus': 2,
+                                                    'memory': 20000000}},  # 2GB
+                }]
+        return self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
+
+    def update_access(self,username):
+        with app.app_context():
+            r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)        
+        
 '''
 PASSWORDS MANAGER
 '''
