@@ -33,12 +33,22 @@
                   <li><a href="/templates"><i class="fa fa-cubes"></i> Templates</span></a>
                   </li>
 <!--
+                  <li><a href="/classroom"><i class="fa fa-users"></i> Classroom</span></a>
+-->
+                  <li><a><i class="fa fa-users"></i> Activity <span class="fa fa-chevron-down"></span></a>
+                    <ul class="nav child_menu">
+                      <li><a href="/classroom">Classroom</a></li>
+                      <li><a href="/classroom_users">Users</a></li>
+                      <li><a href="/classroom_test">Test</a></li>
+                    </ul>
+                  </li>
+                  </li>
+<!--
                   <li><a href="/isos/upload"><i class="fa fa-circle-o"></i> Isos</span></a>
                   </li>
 -->
                   {% endif %}
-                  <li><a href="/about"><i class="fa fa-question"></i> About</span></a>
-                  </li>
+
                 </ul>
             {% if current_user.role == 'admin' %}
                 <h3>Administrator</h3>
@@ -50,6 +60,8 @@
                   <li><a href="/isos/upload"><i class="fa fa-circle-o"></i> Isos</span></a>
                   </li>
                   <li><a href="/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</span></a>
+                  </li>
+                  <li><a href="/admin/classroom"><i class="fa fa-pencil"></i> Classrooms</span></a>
                   </li>
                   <li><a href="/admin/graphs/graphs"><i class="fa fa-area-chart"></i> Graphs</span></a>
                   </li>
@@ -65,6 +77,10 @@
                   </li>
                 </ul>
             {% endif %}
+                <ul class="nav side-menu">
+                  <li><a href="/about"><i class="fa fa-question"></i> About</span></a>
+                  </li>
+                </ul>
               </div>
 
             </div>

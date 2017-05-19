@@ -283,7 +283,14 @@ class ManagerHypervisors(object):
                 import pprint
                 log.debug(pprint.pformat(c))
 
-
+                if c['new_val'][-3:] == 'ing':
+                    new_status = c['new_val']['status'] 
+                    domain_id = c['new_val']['id']
+                    history_domain = c['new_val']['history_domain']
+                    now = time.time()
+                    update_domain_history_status(new_status,domain_id,now,history_domain)
+                    pass
+                
                 # action deleted
                 if c['new_val'] is None:
                     pass
@@ -356,6 +363,7 @@ class ManagerHypervisors(object):
                     # ui.stop_domain_from_id(id=domain_id)
                     hyp_started = get_domain_hyp_started(domain_id)
                     ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+                            
 
             r_conn.close()
 

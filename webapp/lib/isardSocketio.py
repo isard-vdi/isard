@@ -400,6 +400,30 @@ def socketio_domains_virtualbuilder_add(form_data):
 def socketio_domains_virtualiso_add(form_data):
     print(form_data)
     
+@socketio.on('classroom_update', namespace='/sio_admins')
+def socketio_classroom_update(data):
+    if app.adminapi.replace_hosts_viewers_items(data['place'],data['hosts']):
+        result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+    else:
+        result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+    socketio.emit('result',
+                    result,
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+
+@socketio.on('classroom_get', namespace='/sio_admins')
+def socketio_classroom_update(data):
+    #~ if app.adminapi.get_hosts_viewers(data['place_id']):
+        #~ result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+    #~ else:
+        #~ result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+    #~ print(data)
+    #~ print(app.adminapi.get_hosts_viewers(data['place_id']))
+    socketio.emit('classroom_load',
+                    json.dumps({'place': app.adminapi.get_admin_table('places',id=data['place_id']) ,'hosts':app.adminapi.get_hosts_viewers(data['place_id'])}),
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+                    
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():
     leave_room('admins')

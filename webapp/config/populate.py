@@ -35,6 +35,8 @@ class Populate(object):
         self.groups()
         log.info('Checking table users')
         self.users()
+        log.info('Checking table vouchers')
+        self.vouchers()
         log.info('Checking table hypervisors_pools')
         self.hypervisors_pools()
         log.info('Checking table hypervisors')
@@ -69,6 +71,10 @@ class Populate(object):
         self.hypervisors_status()
         log.info('Checking table disk_operations')
         self.disk_operations()
+        log.info('Checking table hosts_viewers')
+        self.hosts_viewers()
+        log.info('Checking table places')
+        self.places()
         log.info('Checking table disposables')
         self.disposables()
         log.info('Checking table backups')
@@ -108,6 +114,7 @@ class Populate(object):
                                                                          'ldap_server': 'ldap://ldap.domain.org',
                                                                          'bind_dn': 'dc=domain,dc=org'}},
                                                         'disposable_desktops':{'active': False},
+                                                        'voucher_access':{'active': False},
                                                         'engine':{  'intervals':{   'status_polling':10,
                                                                                     'time_between_polling': 5,
                                                                                     'test_hyp_fail': 20,
@@ -182,6 +189,8 @@ class Populate(object):
             if not r.table_list().contains('users').run(db.conn):
                 log.info("Table users not found, creating...")
                 r.table_create('users', primary_key="id").run(db.conn)
+                r.table('users').index_create("group").run(db.conn)
+                r.table('users').index_wait("group").run(db.conn)
 
                 if r.table('users').get('admin').run(db.conn) is None:
                     usr = [{'id': 'admin',
@@ -230,6 +239,21 @@ class Populate(object):
                     self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
                     log.info("  Inserted default admin username with password isard")
             return True
+
+    '''
+    VOUCHERS
+    Grant access on new voucher
+    '''
+
+    def vouchers(self):
+        with app.app_context():
+            if not r.table_list().contains('vouchers').run(db.conn):
+                log.info("Table vouchers not found, creating...")
+                r.table_create('vouchers', primary_key="id").run(db.conn)
+                #~ r.table('users').index_create("group").run(db.conn)
+                #~ r.table('users').index_wait("group").run(db.conn)
+            return True
+
 
     '''
     ROLES
@@ -813,7 +837,7 @@ class Populate(object):
         with app.app_context():
             if not r.table_list().contains('hosts_viewers').run(db.conn):
                 log.info("Table hosts_viewers not found, creating...")
-                r.table_create('hosts_viewers', primary_key="ip").run(db.conn)
+                r.table_create('hosts_viewers', primary_key="id").run(db.conn)
                 r.table('hosts_viewers').index_create("hostname").run(db.conn)
                 r.table('hosts_viewers').index_wait("hostname").run(db.conn)
                 r.table('hosts_viewers').index_create("mac").run(db.conn)
@@ -830,11 +854,12 @@ class Populate(object):
             if not r.table_list().contains('places').run(db.conn):
                 log.info("Table places not found, creating...")
                 r.table_create('places', primary_key="id").run(db.conn)
-                r.table('places').index_create("network_address").run(db.conn)
-                r.table('places').index_wait("network_address").run(db.conn)
+                r.table('places').index_create("network").run(db.conn)
+                r.table('places').index_wait("network").run(db.conn)
                 r.table('places').index_create("status").run(db.conn)
                 r.table('places').index_wait("status").run(db.conn)
             return True
+
 
     '''
     BUILDER
@@ -874,3 +899,4 @@ class Populate(object):
                 r.table_create('virt_install', primary_key="id").run(db.conn)
                 r.table('virt_install').insert(update_virtinstall(), conflict='update').run(db.conn)
             return True
+

@@ -41,6 +41,7 @@
 						  type: "single",
 						  min: 500,
 						  max: hardware.user['quota-hardware-memory']/1000,
+                          step:250,
 						  grid: true,
 						  disable: false
 						  }).data("ionRangeSlider");

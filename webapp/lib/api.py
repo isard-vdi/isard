@@ -70,7 +70,16 @@ class isard():
                 return self.check(r.table(table).insert(dict).run(db.conn),'inserted')
             except Exception as e:
                 print('error:',e)
+                return False
 
+    def add_listOfDicts2table(self,list,table):
+        with app.app_context():
+            try:
+                return self.check(r.table(table).insert(list).run(db.conn),'inserted')
+            except Exception as e:
+                print('error:',e)
+                return False
+                
     def show_disposable(self,client_ip):
         disposables_config=self.config['disposable_desktops']
         if disposables_config['active']:
@@ -122,6 +131,18 @@ class isard():
             domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).run(db.conn))
         return domains
 
+    def get_group_users(self, group,pluck=''):
+        with app.app_context():
+            users=list(r.table('users').get_all(group, index='group').order_by('username').pluck(pluck).run(db.conn))
+        return users
+
+    def get_hosts_viewers(self, place_id):
+        with app.app_context():
+            items=list(r.table('hosts_viewers').filter({'place_id':place_id}).order_by('ip').pluck(pluck).run(db.conn))
+            #~ for i in items:
+                
+        #~ return users
+            
     def get_group_domains(self, group, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():

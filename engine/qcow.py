@@ -64,7 +64,7 @@ def create_cmd_disk_from_virtbuilder(path_new_qcow,os_version,size_str,options_c
     cmds1.append({'title': 'launch virt-sparsify', 'cmd': cmd_virt_sparsify})
 
     cmds1.append({'title': 'rmdir tmp sparsify', 'cmd': 'rmdir {}'.format(path_dir_tmp_sparsify)})
-    cmds1.append({'title': 'rmdir big qcow', 'cmd': 'rm -f {}'.format(path_big_disk)})
+    cmds1.append({'title': 'rm big qcow', 'cmd': 'rm -f {}'.format(path_big_disk)})
     cmds1.append({'title': 'test_if_qcow_exists', 'cmd': 'stat -c \'%d\' {}'.format(path_new_qcow)})
     cmds1.append({'title': 'xml from virt-install', 'cmd': cmd_virt_install})
 
