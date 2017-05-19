@@ -390,6 +390,26 @@ $(document).ready(function() {
         });
     });
 
+    socket.on('add_form_result', function (data) {
+        console.log('received result')
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAddFromBuilder #modalAdd")[0].reset();
+            $("#modalAddFromBuilder").modal('hide');
+            //~ $('body').removeClass('modal-open');
+            //~ $('.modal-backdrop').remove();
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+
 
     //~ // Stream domains_source
 	//~ if (!!window.EventSource) {
