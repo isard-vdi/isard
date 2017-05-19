@@ -357,8 +357,12 @@ def socketio_domains_update():
 
 @socketio.on('domain_virtbuilder_add', namespace='/sio_admins')
 def socketio_domains_virtualbuilder_add(form_data):
+    print('add builder')
     #~ print(form_data)
     create_dict=app.isardapi.f.unflatten_dict(form_data)
+    import pprint
+    pprint.pprint(create_dict)
+    #~ print(create_dict)
     #~ create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
     create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
     create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
@@ -375,24 +379,51 @@ def socketio_domains_virtualbuilder_add(form_data):
     create_dict.pop('description',None)
     hyper_pools=[create_dict['hypervisors_pools']]
     create_dict.pop('hypervisors_pools',None)
-    icon=[create_dict['icon']]
+    icon=create_dict['icon']
     create_dict.pop('icon',None)
+    print('prenew')
     #~ install_id=create_dict['install_id']
     #~ create_dict.del('disk_size',None)
     res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    print('postnew')
     if res is True:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+    print(data)
     socketio.emit('add_form_result',
                     data,
-                    namespace='/sio_users', 
+                    namespace='/sio_admins', 
                     room='user_'+current_user.username)
 
 @socketio.on('domain_virtiso_add', namespace='/sio_admins')
 def socketio_domains_virtualiso_add(form_data):
     print(form_data)
     
+@socketio.on('classroom_update', namespace='/sio_admins')
+def socketio_classroom_update(data):
+    if app.adminapi.replace_hosts_viewers_items(data['place'],data['hosts']):
+        result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+    else:
+        result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+    socketio.emit('result',
+                    result,
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+
+@socketio.on('classroom_get', namespace='/sio_admins')
+def socketio_classroom_update(data):
+    #~ if app.adminapi.get_hosts_viewers(data['place_id']):
+        #~ result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+    #~ else:
+        #~ result=json.dumps({'title':'Desktop starting error','text':'Aula can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+    #~ print(data)
+    #~ print(app.adminapi.get_hosts_viewers(data['place_id']))
+    socketio.emit('classroom_load',
+                    json.dumps({'place': app.adminapi.get_admin_table('places',id=data['place_id']) ,'hosts':app.adminapi.get_hosts_viewers(data['place_id'])}),
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+                    
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():
     leave_room('admins')

@@ -390,6 +390,26 @@ $(document).ready(function() {
         });
     });
 
+    socket.on('add_form_result', function (data) {
+        console.log('received result')
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAddFromBuilder #modalAdd")[0].reset();
+            $("#modalAddFromBuilder").modal('hide');
+            //~ $('body').removeClass('modal-open');
+            //~ $('.modal-backdrop').remove();
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+
 
     //~ // Stream domains_source
 	//~ if (!!window.EventSource) {
@@ -587,9 +607,10 @@ function initialize_modal_all_builder_events(){
             $(this).addClass('selected');
             $('#modal_add_builder').closest('.x_panel').removeClass('datatables-error');
             $('#modalBuilder #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
-            $('#modalBuilder #builder-id').val(rdata['id']);
+            $('#modalBuilder #builder-id').val(rdata['builder-id']);
+            $('#modalBuilder #builder-options').val(rdata['builder-options']);
             $('#modalBuilder #icon').val(rdata['icon']);
-            $('#modalBuilder #install-id').val(rdata['install_id']);
+            $('#modalBuilder #install-id').val(rdata['install-id']);
                 //~ $('#modalAddFromBuilder #btn-hardware').show();
                 //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
         }
@@ -639,7 +660,7 @@ function modal_add_builder_datatables(){
     
 	modal_add_builder = $('#modal_add_builder').DataTable({
 			"ajax": {
-				"url": "/admin/table/domains_virt_builder/get",
+				"url": "/admin/table/builders/get",
 				"dataSrc": ""
 			},
             "scrollY":        "125px",
@@ -656,10 +677,10 @@ function modal_add_builder_datatables(){
 			"deferRender": true,
 			"columns": [
 				{ "data": "name"},
-                { "data": "arch"},
-                { "data": "revision"},
-                { "data": "size"},
-                { "data": "compressed_size"}
+                //~ { "data": "arch"},
+                //~ { "data": "revision"},
+                //~ { "data": "size"},
+                //~ { "data": "compressed_size"}
 				],
 			 "order": [[0, 'asc']],	
              "pageLength": 10,	 
@@ -722,7 +743,7 @@ function modal_add_install_datatables(){
     
 	modal_add_install = $('#modal_add_install').DataTable({
 			"ajax": {
-				"url": "/admin/table/domains_virt_install/get",
+				"url": "/admin/table/domains_virt_builders/get",
 				"dataSrc": ""
 			},
             "scrollY":        "125px",
@@ -761,7 +782,7 @@ function modal_add_install_datatables(){
 
 
 
-// MODAL BUILDER FUNCTIONS
+// MODAL ISOS FUNCTIONS
 function initialize_modal_all_isos_events(){
    $('#modal_add_isos tbody').on( 'click', 'tr', function () {
         rdata=modal_add_isos.row(this).data()

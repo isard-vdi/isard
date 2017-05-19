@@ -19,6 +19,10 @@
     <link href="/vendors/font-awesome/css/font-awesome.css" rel="stylesheet">
     <!-- Font Linux -->
     <link href="/bower_components/fontlinux/assets/font-linux.css" rel="stylesheet">
+    
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
+    
     <!-- iCheck -->
     <link href="/vendors/iCheck/skins/flat/green.css" rel="stylesheet">
     <!-- Datatables -->
@@ -34,6 +38,9 @@
         .dataTables_filter {float: left; position: absolute;}
         .dataTables_filter input { max-width:90px;}
    </style>
+    <style>
+    .roundbox{border-radius:4px;border:1px solid #AAAAAA;}
+    </style>
     {% block css %}{% endblock %}
   </head>
 
@@ -92,6 +99,8 @@
     <!-- Datatables -->
     <script src="/vendors/datatables.net/js/jquery.dataTables.js"></script>
     <script src="/vendors/datatables.net-bs/js/dataTables.bootstrap.js"></script>
+   <!-- Ion.RangeSlider -->
+    <script src="/vendors/ion.rangeSlider/js/ion.rangeSlider.min.js"></script>
 	<!-- PNotify -->
 	<script type="text/javascript" src="/vendors/pnotify/dist/pnotify.js"></script>
 	<script type="text/javascript" src="/vendors/pnotify/dist/pnotify.confirm.js"></script>
@@ -114,7 +123,10 @@
 <!--
     <script src="/bower_components/socket.io/gulpfile.js"></script>
 -->
+<!--
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+-->
+    <script src="/static/vendor/socket.io.min.js"></script>
 
     <!-- isard initializers -->
 <!--

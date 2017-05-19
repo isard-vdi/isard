@@ -95,7 +95,7 @@ class isardAdmin():
             if pluck and id:
                 return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
-            
+                        
     def get_admin_domains(self):
         with app.app_context():
             listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
@@ -255,8 +255,6 @@ class isardAdmin():
 
     def upload_backup(self,handler):
         path='./backups/'
-        if not os.path.exists(path):
-            os.makedirs(path)
         id=handler.filename.split('.tar.gz')[0]
         filename = secure_filename(handler.filename)
         handler.save(os.path.join(path+filename))
@@ -301,7 +299,34 @@ class isardAdmin():
         with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
             return dict['path'],dict['filename'], isard_db_file.read()
         
-        
+
+    '''
+    CLASSROOMS
+    '''
+    def replace_hosts_viewers_items(self,place,hosts):
+        with app.app_context():
+            try:
+                place['id']=app.isardapi.parse_string(place['name'])
+                r.table('places').insert(place, conflict='update').run(db.conn)
+            except Exception as e:
+                print('error on update place:',e)
+                return False
+                
+            try:
+                hosts = [dict(item, place_id=place['id']) for item in hosts]
+                hosts = [dict(item, enabled=True) for item in hosts]
+                r.table('hosts_viewers').get_all(place['id'], index='place_id').delete().run(db.conn)
+                
+                return self.check(r.table('hosts_viewers').insert(hosts).run(db.conn),'inserted')
+            except Exception as e:
+                print('error o update hosts_viewers:',e)
+                return False
+
+
+    def get_hosts_viewers(self, place_id):
+        with app.app_context():
+            return list(r.table('hosts_viewers').get_all(place_id, index='place_id').run(db.conn))
+                    
     '''
     GRAPHS
     '''
@@ -359,10 +384,12 @@ class isardAdmin():
     def new_domain_from_virtbuilder(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-            create_dict['install']['options']=r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
+            #~ import pprint
+            #~ pprint.pprint(create_dict)
+            create_dict['install']['options']='' #r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
         
-        parsed_name = self.parse_string(name)
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        parsed_name = app.isardapi.parse_string(name)
+        dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'size':disk_size}]   # 15G as a format
         #~ create_dict['install']['id']=install_id
