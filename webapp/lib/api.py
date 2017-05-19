@@ -122,6 +122,11 @@ class isard():
             domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).run(db.conn))
         return domains
 
+    def get_group_users(self, group,pluck=''):
+        with app.app_context():
+            users=list(r.table('users').get_all(group, index='group').order_by('username').pluck(pluck).run(db.conn))
+        return users
+            
     def get_group_domains(self, group, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():

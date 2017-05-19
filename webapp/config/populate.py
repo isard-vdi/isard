@@ -182,6 +182,8 @@ class Populate(object):
             if not r.table_list().contains('users').run(db.conn):
                 log.info("Table users not found, creating...")
                 r.table_create('users', primary_key="id").run(db.conn)
+                r.table('users').index_create("group").run(db.conn)
+                r.table('users').index_wait("group").run(db.conn)
 
                 if r.table('users').get('admin').run(db.conn) is None:
                     usr = [{'id': 'admin',
@@ -836,6 +838,7 @@ class Populate(object):
                 r.table('places').index_wait("status").run(db.conn)
             return True
 
+
     '''
     BUILDER
     '''
@@ -874,3 +877,4 @@ class Populate(object):
                 r.table_create('virt_install', primary_key="id").run(db.conn)
                 r.table('virt_install').insert(update_virtinstall(), conflict='update').run(db.conn)
             return True
+
