@@ -15,17 +15,18 @@ def create_builders():
                   'name': 'Fedora 25 with gnome and libre office',
                   'builder':{
                       'id': 'fedora-25',
-                      'options': """ --update
-                                     --selinux-relabel
-                                      --install "@workstation-product-environment"
-                                     --install "inkscape,tmux,@libreoffice,chromium"
-                                     --install "libreoffice-langpack-ca,langpacks-es"
-                                     --root-password password:alumne
-                                     --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
-                                     --firstboot-command 'localectl set-locale LANG=es_ES.utf8'
-                                     --firstboot-command 'localectl set-keymap es'
-                                     --firstboot-command 'systemctl isolate graphical.target'
-                                     --firstboot-command 'useradd -m -p "" guest ; chage -d 0 guest'"""
+                      'options':
+"""--update
+--selinux-relabel
+--install "@workstation-product-environment"
+--install "inkscape,tmux,@libreoffice,chromium"
+--install "libreoffice-langpack-ca,langpacks-es"
+--root-password password:alumne
+--link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+--firstboot-command 'localectl set-locale LANG=es_ES.utf8'
+--firstboot-command 'localectl set-keymap es'
+--firstboot-command 'systemctl isolate graphical.target'
+--firstboot-command 'useradd -m -p "" guest ; chage -d 0 guest'"""
                   },
                   'install':{
                       'id': 'fedora25',

@@ -9,6 +9,7 @@ import threading
 import rethinkdb as r
 import time
 import pprint
+from datetime import datetime
 
 from .pool_hypervisors import PoolHypervisors
 from .threads import launch_try_hyps, set_unknown_domains_not_in_hyps
@@ -18,7 +19,7 @@ from .status import launch_thread_status, launch_thread_broom
 from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status, remove_domain, get_domain
 from .db import new_rethink_connection, update_all_hyps_status, get_pools_from_hyp, get_domain_hyp_started
 from .db import get_if_all_disk_template_created, update_domain_status, get_hypers_disk_operations
-from .db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id
+from .db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id, update_domain_history_from_id_domain
 from .functions import get_threads_running, get_tid
 from .ui_actions import UiActions
 from .log import *
@@ -274,7 +275,7 @@ class ManagerHypervisors(object):
             #                            pluck({'id', 'name','icon','kind','description'}).\
             #                            changes(include_initial=True).run(db.conn):
 
-            for c in r.table('domains').pluck('id', 'kind', 'status').changes().run(r_conn):
+            for c in r.table('domains').pluck('id', 'kind', 'status','detail').changes().run(r_conn):
 
                 log.debug('domain changes detected in main thread')
                 new_domain = False
@@ -283,14 +284,6 @@ class ManagerHypervisors(object):
                 import pprint
                 log.debug(pprint.pformat(c))
 
-                if c['new_val'][-3:] == 'ing':
-                    new_status = c['new_val']['status'] 
-                    domain_id = c['new_val']['id']
-                    history_domain = c['new_val']['history_domain']
-                    now = time.time()
-                    update_domain_history_status(new_status,domain_id,now,history_domain)
-                    pass
-                
                 # action deleted
                 if c['new_val'] is None:
                     pass
@@ -305,8 +298,19 @@ class ManagerHypervisors(object):
                 if c['new_val'] is not None and c['old_val'] is not None:
                     old_status = c['old_val']['status']
                     new_status = c['new_val']['status']
+                    new_detail = c['new_val']['detail']
                     domain_id = c['new_val']['id']
                     log.debug('domain_id: {}'.format(domain_id))
+                    if old_status != new_status:
+                        # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
+                        # if new_status[-3:] == 'ing':
+                        if 1 > 0:
+                            date_now = datetime.now()
+                            update_domain_history_from_id_domain(domain_id,new_status,new_detail,date_now)
+                    else:
+                        # print('&&&&&&&ESTADOS IGUALES OJO &&&&&&&\n&&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.
+                        #       format(domain_id,old_status,new_status,new_detail))
+                        pass
 
                 if (new_domain is True and new_status == "Creating") or \
                         (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
@@ -317,8 +321,8 @@ class ManagerHypervisors(object):
                     # verificar que realmente es una template
                     # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                if (new_domain is True and new_status == "CreatingFromVirtBuilder") or \
-                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromVirtBuilder"):
+                if (new_domain is True and new_status == "CreatingFromBuilder") or \
+                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
                     ui.creating_disk_from_virtbuilder(domain_id)
 
                 if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
