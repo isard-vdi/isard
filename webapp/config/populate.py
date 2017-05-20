@@ -37,9 +37,11 @@ class Populate(object):
         self.users()
         log.info('Checking table vouchers')
         self.vouchers()
-        log.info('Checking table hypervisors_pools')
-        self.hypervisors_pools()
-        log.info('Checking table hypervisors')
+        #~ log.info('Checking table hypervisors_pools')
+        # Not hypervisors calls hypervisors_pools
+        # so is not needed here anymore
+        #~ self.hypervisors_pools()
+        log.info('Checking table hypervisors and pools')
         self.hypervisors()
         log.info('Checking table interfaces')
         self.interfaces()
@@ -584,6 +586,7 @@ class Populate(object):
 
                 rhypers = r.table('hypervisors')
                 log.info("Table hypervisors found, populating...")
+                ## Is not a docker
                 if rhypers.get('localhost').run(db.conn) is None and rhypers.count().run(db.conn) == 0 and not docker:
                     self.result(rhypers.insert([{'id': 'localhost',
                                                  'hostname': '127.0.0.1',
@@ -601,9 +604,11 @@ class Populate(object):
                                                  'description': 'Embedded hypervisor',
                                                  'info': []},
                                                 ]).run(db.conn))
+                    self.result(self.hypervisors_pools())
             rhypers = r.table('hypervisors')
+            ## Is a docker and there are no hypers yet
+            ## We assume this as a 'first boot configuration'
             if docker and rhypers.count().run(db.conn) == 0:
-            
                 for key,val in dict(rcfg.items('DEFAULT_HYPERVISORS')).items():
                     vals=val.split(',')
                     self.result(rhypers.insert([{'id': key,
@@ -621,7 +626,8 @@ class Populate(object):
                                                  'detail': '',
                                                  'description': 'Isard docker hypervisor',
                                                  'info': []},
-                                                ]).run(db.conn))            
+                                                ]).run(db.conn))  
+                self.result(self.hypervisors_pools(disk_operations=['isard-hypervisor']))
         return True
 
     '''
@@ -695,7 +701,7 @@ class Populate(object):
     POOLS
     '''
 
-    def hypervisors_pools(self):
+    def hypervisors_pools(self,disk_operations=['localhost']):
         with app.app_context():
             if not r.table_list().contains('hypervisors_pools').run(db.conn):
                 log.info("Table hypervisors_pools not found, creating...")
@@ -710,19 +716,19 @@ class Populate(object):
                                             'description': 'Non encrypted (not recommended)',
                                             'paths': {'bases':
                                                           [{'path':'/isard/bases',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'groups':
                                                           [{'path':'/isard/groups',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'templates':
                                                           [{'path':'/isard/templates',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'disposables':
                                                           [{'path':'/isard/disposables',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'isos':
                                                           [{'path':'/isard/isos',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       },
                                             'viewer':{'defaultMode':'Insecure',
                                                      'certificate':'',
