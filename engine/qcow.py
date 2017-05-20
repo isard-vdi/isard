@@ -32,8 +32,16 @@ def create_cmds_delete_disk(path_disk):
 
     return cmds
 
-def create_cmd_disk_from_virtbuilder(path_new_qcow,os_version,size_str,options_cmd='',user_owner='qemu',group_owner='qemu'):
-    cmds = list()
+def create_cmd_disk_from_virtbuilder(path_new_qcow,
+                                     os_version,
+                                     id_os_virt_install,
+                                     name_domain_in_xml,
+                                     size_str,
+                                     memory_in_mb,
+                                     options_cmd='',
+                                     user_owner='qemu',
+                                     group_owner='qemu'):
+    cmds1 = list()
     path_dir = extract_dir_path(path_new_qcow)
     path_big_disk = path_new_qcow + '.big'
     path_dir_tmp_sparsify = path_dir + '/tmp'
@@ -43,8 +51,8 @@ def create_cmd_disk_from_virtbuilder(path_new_qcow,os_version,size_str,options_c
                        .format(os=os_version, path=path_big_disk, size=size_str, options=options_cmd)
     cmd_virt_sparsify = 'virt-sparsify --tmp {dir_tmp} {path_big_disk} {path_small_disk}'\
                         .format(dir_tmp=path_dir_tmp_sparsify, path_big_disk=path_big_disk, path_small_disk=path_new_qcow)
-    cmd_virt_install = 'virt-install --dry-run --print-xml --disk {}'\
-                       .format(path_new_qcow)
+    cmd_virt_install = 'virt-install --import --dry-run --print-xml --disk {} --memory {} --os-variant {} --name {}'\
+                       .format(path_new_qcow, memory_in_mb, id_os_virt_install, name_domain_in_xml)
 
 
     cmds1.append({'title': 'mkdir dir', 'cmd': 'mkdir -p {}'.format(path_dir)})
@@ -68,7 +76,8 @@ def create_cmd_disk_from_virtbuilder(path_new_qcow,os_version,size_str,options_c
     cmds1.append({'title': 'test_if_qcow_exists', 'cmd': 'stat -c \'%d\' {}'.format(path_new_qcow)})
     cmds1.append({'title': 'xml from virt-install', 'cmd': cmd_virt_install})
 
-
+    s="\n".join([c['cmd'] for c in cmds1])
+    print(s)
     return cmds1
 
 

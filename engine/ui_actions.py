@@ -428,8 +428,6 @@ class UiActions(object):
     def creating_disk_from_virtbuilder(self,
                                        id_new):
         dict_domain = get_domain(id_new)
-        if 'create_dict' in dict_domain.keys():
-            dict_to_create = dict_domain['create_dict']
 
         pool_var = dict_domain['hypervisors_pools']
         pool_id = pool_var if type(pool_var) is str else pool_var[0]
@@ -443,6 +441,7 @@ class UiActions(object):
         dict_to_create['hardware']['disks'][0]['path_selected'] = path_selected
 
         size_str = dict_to_create['hardware']['disks'][0]['size']
+        memory_in_mb = int(dict_to_create['hardware']['memory']/1024)
         options_virt_builder = dict_to_create['builder']['options']
         options_virt_install = dict_to_create['install']['options']
         id_domains_virt_builder = dict_to_create['builder']['id']
@@ -457,7 +456,10 @@ class UiActions(object):
 
         cmds = create_cmd_disk_from_virtbuilder(path_new_qcow=path_new_disk,
                                                 os_version=id_domains_virt_builder,
+                                                id_os_virt_install = id_os_virt_install,
+                                                name_domain_in_xml = id_new,
                                                 size_str=size_str,
+                                                memory_in_mb= memory_in_mb,
                                                 options_cmd=options_virt_builder)
 
         action = {}

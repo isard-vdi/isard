@@ -321,8 +321,8 @@ class ManagerHypervisors(object):
                     # verificar que realmente es una template
                     # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                if (new_domain is True and new_status == "CreatingFromVirtBuilder") or \
-                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromVirtBuilder"):
+                if (new_domain is True and new_status == "CreatingFromBuilder") or \
+                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
                     ui.creating_disk_from_virtbuilder(domain_id)
 
                 if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
