@@ -37,9 +37,11 @@ class Populate(object):
         self.users()
         log.info('Checking table vouchers')
         self.vouchers()
-        log.info('Checking table hypervisors_pools')
-        self.hypervisors_pools()
-        log.info('Checking table hypervisors')
+        #~ log.info('Checking table hypervisors_pools')
+        # Not hypervisors calls hypervisors_pools
+        # so is not needed here anymore
+        #~ self.hypervisors_pools()
+        log.info('Checking table hypervisors and pools')
         self.hypervisors()
         log.info('Checking table interfaces')
         self.interfaces()
@@ -602,6 +604,7 @@ class Populate(object):
                                                  'description': 'Embedded hypervisor',
                                                  'info': []},
                                                 ]).run(db.conn))
+                    self.result(self.hypervisors_pools())
             rhypers = r.table('hypervisors')
             ## Is a docker and there are no hypers yet
             ## We assume this as a 'first boot configuration'
@@ -624,9 +627,6 @@ class Populate(object):
                                                  'description': 'Isard docker hypervisor',
                                                  'info': []},
                                                 ]).run(db.conn))  
-                ## We delete default and recreate with isard-hypervisor instead of localhost as a disk operations
-                if r.table('hypervisors_pools').get('default').run(db.conn) is not None:
-                    r.table('hypervisors_pools').get('default').delete().run(db.conn)
                 self.result(self.hypervisors_pools(disk_operations=['isard-hypervisor']))
         return True
 
