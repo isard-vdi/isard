@@ -64,6 +64,12 @@
 			}); 
 	}
 
+    //~ function resetHardware(id){
+        //~ if($(id+" #disk_size").length != 0) {
+          //~ $(id+" #disk_size")
+        //~ }
+    //~ }
+    
 	function setHardwareDomainDefaults(div_id,domain_id){
 			// id is the domain id
             $(div_id+' #hardware-interfaces option:selected').prop("selected", false);
