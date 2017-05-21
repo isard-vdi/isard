@@ -326,10 +326,16 @@ class ManagerHypervisors(object):
                     ui.creating_disk_from_virtbuilder(domain_id)
 
                 if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
-                        (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomain"):
+                        (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
                     log.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
-                    ui.creating_and_test_xml_start(domain_id,
-                                                   creating_from_create_dict=True)
+                    if new_status == "CreatingDomainFromBuilder":
+                        ui.creating_and_test_xml_start(domain_id,
+                                                       creating_from_create_dict=True,
+                                                       xml_from_virt_install=True)
+                    if new_status == "CreatingDomain":
+                        ui.creating_and_test_xml_start(domain_id,
+                                                       creating_from_create_dict=True)
+
 
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)

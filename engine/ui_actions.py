@@ -462,6 +462,8 @@ class UiActions(object):
                                                 memory_in_mb= memory_in_mb,
                                                 options_cmd=options_virt_builder)
 
+        # cmds = [{'cmd':'ls -lah > /tmp/prova.txt','title':'es un ls'}]
+
         action = {}
         action['type'] = 'create_disk_virt_builder'
         action['disk_path'] = path_new_disk
@@ -545,7 +547,8 @@ class UiActions(object):
                              detail='Creating disk operation failed when insert action in queue for disk operations')
                 log.error('Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(e))
 
-    def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False, creating_from_virt_builder=False):
+
+    def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False, xml_from_virt_install=False, xml_string=None):
         if creating_from_create_dict is True:
             try:
                 populate_dict_hardware_from_create_dict(id_domain)
@@ -554,15 +557,24 @@ class UiActions(object):
                 log.error('Traceback: \n .{}'.format(traceback.format_exc()))
                 log.error('Exception message: {}'.format(e))
 
-            if creating_from_virt_builder is True:
-                pass
+        domain = get_domain(id_domain)
 
-            else:
-                domain = get_domain(id_domain)
-                id_template = domain['create_dict']['origin']
-                template = get_domain(id_template)
-                xml_from_template = template['xml']
-                update_table_field('domains', id_domain, 'xml', xml_from_template)
+        if type(xml_string) is str:
+            xml_from = xml_string
+
+        elif xml_from_virt_install is False:
+            id_template = domain['create_dict']['origin']
+            template = get_domain(id_template)
+            xml_from = template['xml']
+
+        elif xml_from_virt_install is True:
+            xml_from = domain['xml_virt_install']
+
+        else:
+            return False
+
+
+        update_table_field('domains', id_domain, 'xml', xml_from)
 
         xml_raw = update_xml_from_dict_domain(id_domain)
         update_domain_status('CreatingDomain',id_domain,detail='xml and hardware dict updated, waiting to test if domain start paused in hypervisor')

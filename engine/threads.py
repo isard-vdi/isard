@@ -20,7 +20,7 @@ from os.path import dirname as extract_dir_path
 from time import sleep
 import threading
 # from pool_hypervisors import update_online_hypervisors
-from .db import get_hyp_hostnames_online,update_domain_hyp_started, update_all_domains_status
+from .db import get_hyp_hostnames_online,update_domain_hyp_started, update_all_domains_status, update_table_field
 from .db import update_hypervisor_failed_connection, update_hyp_status, set_unknown_domains_not_in_hyps
 from .db import update_domain_status, get_domains_started_in_hyp, get_hyp_hostname_from_id, update_domains_started_in_hyp_to_unknown
 from .functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str,execute_commands, execute_command_with_progress,get_tid
@@ -325,13 +325,10 @@ class LongOperationsThread(threading.Thread):
             try:
                 action=self.queue_actions.get(timeout=TIMEOUT_QUEUES)
                 # for ssh commands
+                id_domain = action['domain']
                 if action['type'] in ['create_disk_virt_builder']:
-                    launch_action_disk(action,
-                                       self.hostname,
-                                       self.user,
-                                       self.port)
 
-                    cmds_done = execute_commands(hostname=self.hostname,
+                    cmds_done = execute_commands(host=self.hostname,
                                                  ssh_commands=action['ssh_comands'],
                                                  dict_mode=True,
                                                  user=self.user,
@@ -342,11 +339,15 @@ class LongOperationsThread(threading.Thread):
                         log.error('some error in virt builder operations')
                         log.error('Virt Builder Failed creating disk file {} in domain {} in hypervisor {}'.format(action['disk_path'], action['domain'], self.hyp_id))
                         log.error(pprint.pprint(cmds_done))
-                        update_domain_status('Failed',action['domain'],
+                        update_domain_status('Failed',id_domain,
                                              detail='Virt Builder Failed creating disk file')
                     else:
                         log.info('Disk created from virt-builder. Domain: {} , disk: {}'.format(action['domain'],action['disk_path']))
-                        update_domain_status('CreatingDomain',action['domain'],detail='disk created from virt-builder')
+                        xml_virt_install = cmds_done[-1]['out']
+                        update_table_field('domains', id_domain, 'xml_virt_install', xml_virt_install)
+
+                        update_domain_status('CreatingDomainFromBuilder',id_domain,detail='disk created from virt-builder')
+
 
                 elif action['type'] == 'stop_thread':
                     self.stop = True
