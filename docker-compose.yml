@@ -1,5 +1,13 @@
 version: '2'
 services:
+    rethinkdb-container:
+        image: rethinkdb
+        hostname: rethinkdb
+        networks:
+            main:
+                aliases:
+                - rethinkdb
+
     isard-hypervisor:
         restart: always
         build:
@@ -20,14 +28,6 @@ services:
                 aliases:
                 - isard-hypervisor
         command: /usr/sbin/init
-
-    rethinkdb-container:
-        image: rethinkdb
-        hostname: rethinkdb
-        networks:
-            main:
-                aliases:
-                - rethinkdb
 
     isard-webapp:
         restart: always

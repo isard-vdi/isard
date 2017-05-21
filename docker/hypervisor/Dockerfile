@@ -62,6 +62,9 @@ RUN systemctl enable customlibvirtpost
 RUN mkdir /root/.ssh
 RUN mkdir /isard
 RUN mkdir /isard/bases
+RUN mkdir /isard/groups
+RUN mkdir /isard/templates
+RUN mkdir /isard/isos
 ADD ./docker/hypervisor/builder/cirros.qcow /isard/bases
 ADD ./docker/hypervisor/builder/cirros.xml /isard/bases
 
