@@ -12,7 +12,10 @@ rm -f /lib/systemd/system/basic.target.wants/*;\
 rm -f /lib/systemd/system/anaconda.target.wants/*;
 VOLUME [ “/sys/fs/cgroup” ]
 
+RUN dnf -y groupinstall "Virtualization" 
 RUN dnf -y install libvirt-daemon-driver-* libvirt-daemon libvirt-daemon-kvm qemu-kvm libguestfs-tools python3-pip && dnf clean all; \
+RUN dnf -y update; dnf clean all
+
 RUN systemctl enable libvirtd; systemctl enable virtlockd 
 
 RUN dnf install -y openssh-server openssh-clients arpwatch && dnf clean all;
@@ -65,8 +68,6 @@ RUN mkdir /isard/bases
 RUN mkdir /isard/groups
 RUN mkdir /isard/templates
 RUN mkdir /isard/isos
-ADD ./docker/hypervisor/builder/cirros.qcow /isard/bases
-ADD ./docker/hypervisor/builder/cirros.xml /isard/bases
 
 EXPOSE 22
 EXPOSE 16509
@@ -76,5 +77,5 @@ EXPOSE 55900-55900
 VOLUME [ "/sys/fs/cgroup", "/isard" ]
 
 
-CMD [“/usr/sbin/init”]
+CMD ["/usr/sbin/init"]
 
