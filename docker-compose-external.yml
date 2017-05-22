@@ -15,8 +15,10 @@ services:
         volumes:
             - "/sys/fs/cgroup:/sys/fs/cgroup:rw"
             - "sshkeys:/root/.ssh"
-            - "/isard:/isard"
             - "/isard/builder:/root/.cache/virt-builder"
+        cap_add:
+            - NET_ADMIN
+#        network_mode: "host"
         networks:
             main:
                 aliases:
