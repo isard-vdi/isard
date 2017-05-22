@@ -414,7 +414,7 @@ class ThreadHypEvents(threading.Thread):
             update_uri_hyp(hyp_id,uri)
             conn_ok = True
         except Exception as e:
-            log.eror('libvirt connection read only in events thread in hypervisor: {}'.format(hyp_id))
+            log.error('libvirt connection read only in events thread in hypervisor: {}'.format(hyp_id))
             log.error(e)
 
         if conn_ok is True:
