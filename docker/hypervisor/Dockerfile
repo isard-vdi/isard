@@ -69,6 +69,7 @@ RUN mkdir /isard/groups
 RUN mkdir /isard/templates
 RUN mkdir /isard/isos
 
+RUN export LIBGUESTFS_BACKEND=direct
 EXPOSE 22
 EXPOSE 16509
 EXPOSE 5900-5950
