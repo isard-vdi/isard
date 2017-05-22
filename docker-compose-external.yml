@@ -17,10 +17,11 @@ services:
             - "sshkeys:/root/.ssh"
             - "/isard:/isard"
             - "/isard/builder:/root/.cache/virt-builder"
-        networks:
-            main:
-                aliases:
-                - isard-hypervisor
+        net: "host"
+#        networks:
+#            main:
+#                aliases:
+#                - isard-hypervisor
         command: /usr/sbin/init
 
     rethinkdb-container:
