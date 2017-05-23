@@ -929,12 +929,13 @@ class Populate(object):
     --install "@workstation-product-environment"
     --install "inkscape,tmux,@libreoffice,chromium"
     --install "libreoffice-langpack-ca,langpacks-es"
-    --root-password password:alumne
+    --root-password password:isard
     --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
     --firstboot-command 'localectl set-locale LANG=es_ES.utf8'
     --firstboot-command 'localectl set-keymap es'
     --firstboot-command 'systemctl isolate graphical.target'
-    --firstboot-command 'useradd -m -p "" guest ; chage -d 0 guest'"""
+    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    --hostname 'isard-fedora'"""
                       },
                       'install':{
                           'id': 'fedora25',
@@ -942,6 +943,55 @@ class Populate(object):
                       }
                       }
         l.append(d_fedora25)
+        
+        d_debian8 = {'id': 'debian8_gnome_office',
+                      'name': 'Debian 8 with gnome and libre office',
+                      'builder':{
+                          'id': 'debian-8',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install 'xfce4,locales,ibus'
+    --install 'gdm3,libreoffice,libreoffice-l10n-es'
+    --install 'inkscape,tmux,chromium'
+    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    --run-command "locale-gen"
+    --root-password password:isard
+    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    --hostname 'isard-debian'"""
+                      },
+                      'install':{
+                          'id': 'debian8',
+                          'options': ''
+                      }
+                      }
+        l.append(d_debian8)
+        
+        d_ubuntu1604 = {'id': 'ubuntu1604_gnome_office',
+                      'name': 'Ubuntu 16.04 with gnome and libre office',
+                      'builder':{
+                          'id': 'ubuntu-16.04',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install "ubuntu-desktop"
+    --install "inkscape,tmux,libreoffice,chromium-bsu"
+    --install 'language-pack-es-base,language-pack-es'
+    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    --run-command "locale-gen"
+    --root-password password:isard
+    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+    --firstboot-command 'systemctl isolate graphical.target'
+    --hostname 'isard-ubuntu'"""
+                      },
+                      'install':{
+                          'id': 'ubuntu16',
+                          'options': ''
+                      }
+                      }
+        l.append(d_ubuntu1604)
         return l
 
     def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
