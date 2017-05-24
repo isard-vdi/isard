@@ -228,10 +228,12 @@ def exec_remote_list_of_cmds(hostname,commands,username='root',port=22,sudo=Fals
     returned_array = []
 
     for command in commands:
+        log.debug('command to launch in ssh in {}: {}'.format(hostname, command['cmd']))
         stdin, stdout, stderr = client.exec_command(command)
         out = stdout.read().decode('utf-8')
         err = stderr.read().decode('utf-8')
         returned_array.append({'out':out,'err':err})
+        log.debug('commnad launched / out: {} / error: {}'.format(returned_array[i]['out'], returned_array[i]['err']))
 
     client.close()
 
@@ -252,9 +254,11 @@ def exec_remote_list_of_cmds_dict(hostname,list_dict_commands,username='root',po
 
     i=0
     for command in list_dict_commands:
+        log.debug('command to launch in ssh in {}: {}'.format(hostname,command['cmd']))
         stdin, stdout, stderr = client.exec_command(command['cmd'])
         returned_array[i]['out'] = stdout.read().decode('utf-8')
         returned_array[i]['err'] = stderr.read().decode('utf-8')
+        log.debug('commnad launched / out: {} / error: {}'.format(returned_array[i]['out'], returned_array[i]['err']))
         i=i+1
 
     client.close()
