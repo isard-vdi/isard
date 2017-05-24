@@ -1,5 +1,14 @@
 version: '2'
 services:
+    grafana:
+        image: grafana/grafana
+        hostname: grafana
+        ports:
+            - "3000:3000"
+        networks:
+            main:
+                aliases:
+                - grafana
     rethinkdb-container:
         image: rethinkdb
         hostname: rethinkdb
