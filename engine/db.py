@@ -479,6 +479,14 @@ def get_domains_with_transitional_status(list_status = TRANSITIONAL_STATUS):
     close_rethink_connection(r_conn)
     return l
 
+def get_xml_from_virt_viewer(id_virt_viewer):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains_virt_install')
+
+    dict_domain = rtable.get(id_virt_viewer).run(r_conn)
+    close_rethink_connection(r_conn)
+    return dict_domain['xml']
+
 
 def change_status_to_all_domains_with_status(oldstatus,newstatus):
     r_conn = new_rethink_connection()
@@ -922,7 +930,7 @@ def insert_place(id_place,
                  name,
                  rows,
                  cols,
-                 network_addess=None,
+                 network=None,
                  enabled=True,
                  description='',
                  ssh_enable=False,
@@ -947,7 +955,7 @@ def insert_place(id_place,
                        'w': cols,
                        'h': rows
                     },
-                   'network_address': network_addess,
+                   'network': network,
                    'ssh': {
                       'enabled': ssh_enable,
                       'user': ssh_user,
@@ -992,7 +1000,7 @@ def insert_host_viewer(hostname,
                    'mac'        : mac,
                    'enabled'    : enabled,
                    'status'     : 'Offline', #Offline, online, ready_to_launch_ssh_commands
-                   'loged_user' : None,
+                   'logged_user' : None,
                    'desktops_running':[],
                    'status_time': time.time()}).\
           run(r_conn)

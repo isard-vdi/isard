@@ -51,19 +51,25 @@ def admin_domains_get():
     return json.dumps(app.adminapi.get_admin_domains()), 200, {'ContentType': 'application/json'}
 
 
-@app.route('/admin/domains/get_builders')
+
+        
+@app.route('/admin/domains/virtrebuild')
 @login_required
 @isAdmin
 def admin_domains_get_builders():
-    import subprocess
-    command_output=subprocess.getoutput(['virt-builder --list'])
-    blist=[]
-    for l in command_output.split('\n'):
-            blist.append({'dwn':False,'id':l[0:24].strip(),'arch':l[25:35].strip(),'name':l[36:].strip()})
+    #~ import subprocess
+    #~ command_output=subprocess.getoutput(['virt-builder --list'])
+    #~ blist=[]
+    #~ for l in command_output.split('\n'):
+            #~ blist.append({'dwn':False,'id':l[0:24].strip(),'arch':l[25:35].strip(),'name':l[36:].strip()})
+    #~ app.adminapi.cmd_virtbuilder('cirros-0.3.1','/isard/cirros.qcow2','1')
+    app.adminapi.update_virtbuilder()
+    app.adminapi.update_virtinstall()
+    #~ images=app.adminapi.get_admin_table('domains_virt_builder')
+    return json.dumps(''), 200, {'ContentType': 'application/json'}
 
-    return json.dumps(blist), 200, {'ContentType': 'application/json'}
 
-
+#~ http://libguestfs.org/download/builder/
 #~ @app.route('/admin/domains/datatables')
 #~ @login_required
 #~ @isAdmin

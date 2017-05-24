@@ -21,6 +21,7 @@ from .db import remove_dict_new_template_from_domain
 from time import sleep
 
 from .qcow import create_cmds_disk_from_base, create_cmds_delete_disk, create_cmds_disk_template_from_domain, get_path_to_disk, get_host_disk_operations_from_path
+from .qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from .vm import xml_vm, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
 from .db import update_domain_status,get_hyp, create_disk_template_created_list_in_domain, remove_disk_template_created_list_in_domain
 from .db import get_hyp_hostnames_online,insert_ferrary,get_ferrary,delete_domain,update_domain_viewer_started_values
@@ -423,6 +424,66 @@ class UiActions(object):
             return False
 
 
+
+    def creating_disk_from_virtbuilder(self,
+                                       id_new):
+        dict_domain = get_domain(id_new)
+        if 'create_dict' in dict_domain.keys():
+            dict_to_create = dict_domain['create_dict']
+
+        pool_var = dict_domain['hypervisors_pools']
+        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+
+        dict_to_create = dict_domain['create_dict']
+
+        relative_path = dict_to_create['hardware']['disks'][0]['file']
+        path_new_disk, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+        #UPDATE PATH IN DOMAIN
+        dict_to_create['hardware']['disks'][0]['file'] = path_new_disk
+        dict_to_create['hardware']['disks'][0]['path_selected'] = path_selected
+
+        size_str = dict_to_create['hardware']['disks'][0]['size']
+        options_virt_builder = dict_to_create['builder']['options']
+        options_virt_install = dict_to_create['install']['options']
+        id_domains_virt_builder = dict_to_create['builder']['id']
+        id_os_virt_install = dict_to_create['install']['id']
+
+        #UPDATE HARDWARE DICT
+        hardware_update = {}
+        hardware_update['disks'] = dict_to_create['hardware']['disks']
+        update_domain_dict_hardware(id_new, hardware_update)
+
+        hyp_to_disk_create = get_host_long_operations_from_path(path_selected, pool=pool_id, type_path='groups')
+
+        cmds = create_cmd_disk_from_virtbuilder(path_new_qcow=path_new_disk,
+                                                os_version=id_domains_virt_builder,
+                                                size_str=size_str,
+                                                options_cmd=options_virt_builder)
+
+        action = {}
+        action['type'] = 'create_disk_virt_builder'
+        action['disk_path'] = path_new_disk
+        action['index_disk'] = 0
+        action['domain'] = id_new
+        action['ssh_comands'] = cmds
+
+        try:
+            update_domain_status(status='RunningVirtBuilder',
+                                 id_domain=id_new,
+                                 hyp_id=False,
+                                 detail='Creating virt-builder image operation is launched in hypervisor {} ({} operations in queue)'.format(
+                                         hyp_to_disk_create,
+                                         self.manager.q_long_operations[hyp_to_disk_create].qsize()))
+            self.manager.q_long_operations[hyp_to_disk_create].put(action)
+
+        except Exception as e:
+            update_domain_status(status='FailedCreatingDomain',
+                                 id_domain=id_new,
+                                 hyp_id=False,
+                                 detail='Creating disk operation failed when insert action in queue for disk operations')
+            log.error(
+                'Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(e))
+
     def creating_disks_from_template(self,
                                      id_new):
         dict_domain = get_domain(id_new)
@@ -472,7 +533,7 @@ class UiActions(object):
                              hyp_id=False,
                              detail='Creating disk operation is launched in hypervisor {} ({} operations in queue)'.format(
                                      hyp_to_disk_create,
-                                          self.manager.q.workers[hyp_to_disk_create].qsize()))
+                                          self.manager.q_disk_operations[hyp_to_disk_create].qsize()))
                 self.manager.q_disk_operations[hyp_to_disk_create].put(action)
 
             except Exception as e:
@@ -482,7 +543,7 @@ class UiActions(object):
                              detail='Creating disk operation failed when insert action in queue for disk operations')
                 log.error('Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(e))
 
-    def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False):
+    def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False, creating_from_virt_builder=False):
         if creating_from_create_dict is True:
             try:
                 populate_dict_hardware_from_create_dict(id_domain)
@@ -490,12 +551,16 @@ class UiActions(object):
                 log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
                 log.error('Traceback: \n .{}'.format(traceback.format_exc()))
                 log.error('Exception message: {}'.format(e))
-                
-            domain = get_domain(id_domain)
-            id_template = domain['create_dict']['origin']
-            template = get_domain(id_template)
-            xml_from_template = template['xml']
-            update_table_field('domains', id_domain, 'xml', xml_from_template)
+
+            if creating_from_virt_builder is True:
+                pass
+
+            else:
+                domain = get_domain(id_domain)
+                id_template = domain['create_dict']['origin']
+                template = get_domain(id_template)
+                xml_from_template = template['xml']
+                update_table_field('domains', id_domain, 'xml', xml_from_template)
 
         xml_raw = update_xml_from_dict_domain(id_domain)
         update_domain_status('CreatingDomain',id_domain,detail='xml and hardware dict updated, waiting to test if domain start paused in hypervisor')

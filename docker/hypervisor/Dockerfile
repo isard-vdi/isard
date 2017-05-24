@@ -12,12 +12,12 @@ rm -f /lib/systemd/system/basic.target.wants/*;\
 rm -f /lib/systemd/system/anaconda.target.wants/*;
 VOLUME [ “/sys/fs/cgroup” ]
 
-RUN dnf -y install libvirt-daemon-driver-* libvirt-daemon libvirt-daemon-kvm qemu-kvm python3-pip && dnf clean all; \
+RUN dnf -y install libvirt-daemon-driver-* libvirt-daemon libvirt-daemon-kvm qemu-kvm libguestfs-tools python3-pip && dnf clean all; \
 RUN systemctl enable libvirtd; systemctl enable virtlockd 
 
 RUN dnf install -y openssh-server openssh-clients arpwatch && dnf clean all;
 
-#RUN echo "root:root" |chpasswd
+RUN echo "root:isard" |chpasswd
 RUN systemctl enable sshd
 RUN sed -i 's|[#]*PermitRootLogin no|PermitRootLogin yes|g' /etc/ssh/sshd_config
 RUN sed -i 's|[#]*PasswordAuthentication no|PasswordAuthentication yes|g' /etc/ssh/sshd_config
@@ -61,13 +61,17 @@ RUN systemctl enable customlibvirtpost
 
 RUN mkdir /root/.ssh
 RUN mkdir /isard
+RUN mkdir /isard/bases
+ADD ./docker/hypervisor/builder/cirros.qcow /isard/bases
+ADD ./docker/hypervisor/builder/cirros.xml /isard/bases
 
 EXPOSE 22
 EXPOSE 16509
 EXPOSE 5900-5950
 EXPOSE 55900-55900
 
-VOLUME [ "/sys/fs/cgroup" ]
+VOLUME [ "/sys/fs/cgroup", "/isard" ]
+
 
 CMD [“/usr/sbin/init”]
 

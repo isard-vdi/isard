@@ -721,8 +721,8 @@ function initalize_modal_all_desktops_events(){
                 template=$('#modalAddDesktop #template').val();
                 console.log('TEMPLATE:'+template)
                 if (template !=''){
-                    var queryString = $('#modalAdd').serialize();
                     data=$('#modalAdd').serializeObject();
+                    console.log(data)
                     socket.emit('domain_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');

@@ -51,7 +51,16 @@
 						  max: hardware.user['quota-hardware-vcpus'],
 						  grid: true,
 						  disable: false
-						  }).data("ionRangeSlider");		
+						  }).data("ionRangeSlider");
+                if(hardware.user['quota-domains-desktops_disk_max']/1000000>200){
+                    var dsize=200;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
+				$(id+" #disk_size").ionRangeSlider({
+						  type: "single",
+						  min: 1,
+						  max: dsize,
+						  grid: true,
+						  disable: false
+						  }).data("ionRangeSlider");
 			}); 
 	}
 
