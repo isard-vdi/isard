@@ -547,6 +547,33 @@ class UiActions(object):
                              detail='Creating disk operation failed when insert action in queue for disk operations')
                 log.error('Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(e))
 
+    def updating_from_create_dict(self, id_domain):
+        try:
+            populate_dict_hardware_from_create_dict(id_domain)
+        except Exception as e:
+            log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
+            log.error('Traceback: \n .{}'.format(traceback.format_exc()))
+            log.error('Exception message: {}'.format(e))
+            update_domain_status('Failed',id_domain,detail='Updating aborted, failed when populate hardware dictionary')
+            return False
+
+        try:
+            xml_raw = update_xml_from_dict_domain(id_domain)
+        except Exception as e:
+            log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
+            log.error('Traceback: \n .{}'.format(traceback.format_exc()))
+            log.error('Exception message: {}'.format(e))
+            update_domain_status('Failed', id_domain, detail='Updating aborted, failed when updating xml from hardware dictionary')
+            return False
+
+        update_domain_status('UpdatingDomain', id_domain, detail='xml and hardware dict updated, waiting to test if domain start paused in hypervisor')
+        pool_id = get_pool_from_domain(id_domain)
+        if pool_id is False:
+            update_domain_status('Failed', id_domain, detail='Updating aborted, domain has not pool')
+            return False
+
+        self.start_paused_domain_from_xml(xml=xml_raw, id_domain=id_domain, pool_id=pool_id)
+        return True
 
     def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False, xml_from_virt_install=False, xml_string=None):
         if creating_from_create_dict is True:

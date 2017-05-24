@@ -343,6 +343,9 @@ class ManagerHypervisors(object):
                 if old_status == 'Stopped' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
 
+                if old_status == 'Stopped' and new_status == "Updating":
+                    ui.updating_from_create_dict(domain_id)
+
                 if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
                     log.debug('disk deleted, mow remove domain form database')
                     remove_domain(domain_id)

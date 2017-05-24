@@ -338,7 +338,10 @@ class LongOperationsThread(threading.Thread):
                     if len([d for d in cmds_done if len(d['err']) > 0]) > 0:
                         log.error('some error in virt builder operations')
                         log.error('Virt Builder Failed creating disk file {} in domain {} in hypervisor {}'.format(action['disk_path'], action['domain'], self.hyp_id))
-                        log.error(pprint.pprint(cmds_done))
+                        log.debug('print cmds_done:')
+                        log.debug(pprint.pprint(cmds_done))
+                        log.debug('print ssh_comands:')
+                        log.debug(pprint.pprint(ssh_commands=action['ssh_comands']))
                         update_domain_status('Failed',id_domain,
                                              detail='Virt Builder Failed creating disk file')
                     else:
