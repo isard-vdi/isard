@@ -52,15 +52,17 @@
 						  grid: true,
 						  disable: false
 						  }).data("ionRangeSlider").update();
-                if(hardware.user['quota-domains-desktops_disk_max']/1000000>200){
-                    var dsize=200;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
-				$(id+" #disk_size").ionRangeSlider({
-						  type: "single",
-						  min: 1,
-						  max: dsize,
-						  grid: true,
-						  disable: false
-						  }).data("ionRangeSlider").update();
+                if($(id+" #disk_size").length != 0) {
+                    if(hardware.user['quota-domains-desktops_disk_max']/1000000>200){
+                        var dsize=200;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
+                    $(id+" #disk_size").ionRangeSlider({
+                              type: "single",
+                              min: 1,
+                              max: dsize,
+                              grid: true,
+                              disable: false
+                              }).data("ionRangeSlider").update();
+                }
 			}); 
 	}
     
