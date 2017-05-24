@@ -46,4 +46,4 @@ if __name__ == '__main__':
     logger.setLevel('ERROR')
     engineio_logger=logging.getLogger("engineio")
     engineio_logger.setLevel('ERROR')
-    socketio.run(app,host='0.0.0.0', port=5000, debug=True, logger=logger, engineio_logger=engineio_logger)
+    socketio.run(app,host='0.0.0.0', port=5000, debug=False, logger=logger, engineio_logger=engineio_logger)
