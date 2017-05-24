@@ -270,14 +270,17 @@ def myDomainEventCallbackRethink (conn, dom, event, detail, opaque):
                                                                                           domDetailToString(event, detail),
                                                                                           hyp_id))
 
-        d_status_hyp_started = get_domain_hyp_started_and_status_and_detail('_llarraz_tftp')
-        if d_status_hyp_started['status'] != domEventToString(event) \
+        d_status_hyp_started = get_domain_hyp_started_and_status_and_detail(dict_event['domain'])
+        if 'status' in d_status_hyp_started.keys():
+            if d_status_hyp_started['status'] != domEventToString(event) \
                 and domEventToString(event) in ['Started','Stopped','Paused']:
-            update_domain_status(id_domain = dom.name(),
+                update_domain_status(id_domain = dom.name(),
                                  status    = domEventToString(event),
                                  hyp_id    = hyp_id,
                                  detail    = domDetailToString(event, detail)
                                  )
+        else:
+            log.error('UNKNOWN STATUS in domain {}'.format(dict_event['domain']))
     else:
         log.error('domain {} launch event in hyervisor {}, but id_domain is not in database'.format(dom_id, hyp_id))
         log.error('event: {}; detail: {}'.format(domEventToString(event), domDetailToString(event, detail)))
