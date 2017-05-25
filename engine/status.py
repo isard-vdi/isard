@@ -6,10 +6,9 @@
 # coding=utf-8
 
 
-from collections import deque
 from time import time, sleep
-import rethinkdb as r
 import threading
+import traceback
 
 from .log import *
 from .config import CONFIG_DICT, POLLING_INTERVAL_TRANSITIONAL_STATES
@@ -203,18 +202,25 @@ class ThreadBroom(threading.Thread):
             hyps_to_try = set([d['hyp_started'] for d in list_domains])
             hyps_domain_started = {}
             for hyp_id in hyps_to_try:
-                hostname, port, user = get_hyp_hostname_from_id(hyp_id)
-                h = hyp(hostname, user=user, port=port)
-                if h.connected:
-                    hyps_domain_started[hyp_id] = {}
-                    hyps_domain_started[hyp_id]['hyp'] = h
-                    list_domains_from_hyp = h.get_domains()
-                    if list_domains_from_hyp is None:
-                        list_domains_from_hyp = []
-                    hyps_domain_started[hyp_id]['active_domains'] = list_domains_from_hyp
-                else:
-                    log.error('HYPERVISOR {} libvirt connection failed')
-                    hyps_domain_started[hyp_id] = False
+                try:
+                    hostname, port, user = get_hyp_hostname_from_id(hyp_id)
+                    if hostname is False:
+                        log.error('hyp {} with id has not hostname or is nos in database'.format(hyp_id))
+                    else:
+                        h = hyp(hostname, user=user, port=port)
+                        if h.connected:
+                            hyps_domain_started[hyp_id] = {}
+                            hyps_domain_started[hyp_id]['hyp'] = h
+                            list_domains_from_hyp = h.get_domains()
+                            if list_domains_from_hyp is None:
+                                list_domains_from_hyp = []
+                            hyps_domain_started[hyp_id]['active_domains'] = list_domains_from_hyp
+                        else:
+                            log.error('HYPERVISOR {} libvirt connection failed')
+                        hyps_domain_started[hyp_id] = False
+                except Exception as e:
+                    log.error('Exception when try to hypervisor {}: {}'.format(hyp_id, e))
+                    log.error('Traceback: {}'.format(traceback.format_exc()))
 
             for d in list_domains_without_hyp:
                 domain_id = d['id']
