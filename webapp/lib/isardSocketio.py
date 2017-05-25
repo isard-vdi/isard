@@ -192,11 +192,12 @@ class HypervisorsThread(threading.Thread):
                                             namespace='/sio_admins', 
                                             room='hyper')
                     else:
-                        event='hyper_data' if c['new_val']['table']=='hyper' else 'hyper_status'
-                        socketio.emit(event, 
-                                        json.dumps(app.isardapi.f.flatten_dict(c['new_val'])), 
-                                        namespace='/sio_admins', 
-                                        room='hyper')                            
+                            event='hyper_data' if c['new_val']['table']=='hyper' else 'hyper_status'
+                            socketio.emit(event, 
+                                            json.dumps(app.isardapi.f.flatten_dict(c['new_val'])), 
+                                            namespace='/sio_admins', 
+                                            room='hyper')  
+                                                
                 except Exception as e:
                     print('HypervisorsThread error:'+str(e))
                     exc_type, exc_obj, exc_tb = sys.exc_info()

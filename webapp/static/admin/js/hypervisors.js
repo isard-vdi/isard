@@ -14,7 +14,37 @@ $(document).ready(function() {
 				keyboard: false
 			}).modal('show');
 	});
-    
+
+
+      function timestamp() { return (new Date).getTime() / 1000; }
+      chart={}
+
+    //~ $('#hypervisors').on( 'draw.dt', function () {
+        //~ console.log( 'Redraw occurred at: '+new Date().getTime() );
+            //~ var chart = $("#chart").epoch({
+                    //~ type: "time.line",
+                    //~ axes: ["left", "bottom"],
+                    //~ data: [
+                      //~ {label: "Load", values: [{time: timestamp(), y: 0}]},
+                      //~ {label: "Mem", values: [{time: timestamp(), y: 0}]}
+                    //~ ]
+                  //~ });
+    //~ } );
+
+//~ $('#hypervisors').dataTable( {
+  //~ "initComplete": function(settings, json) {
+    //~ alert( 'DataTables has finished its initialisation.' );
+            //~ var chart = $("#chart").epoch({
+                    //~ type: "time.line",
+                    //~ axes: ["left", "bottom"],
+                    //~ data: [
+                      //~ {label: "Load", values: [{time: timestamp(), y: 0}]},
+                      //~ {label: "Mem", values: [{time: timestamp(), y: 0}]}
+                    //~ ]
+                  //~ });
+  //~ }
+//~ } );
+
     var table = $('#hypervisors').DataTable( {
         "ajax": {
             "url": "/admin/hypervisors/json",
@@ -39,7 +69,8 @@ $(document).ready(function() {
             { "data": "hostname", "width": "10px" },
             { "data": "hypervisors_pools", "width": "10px" },
             { "data": "status_time" , "width": "10px" },
-            { "data": "description", "visible": false}],
+            //~ { "data": "description", "visible": false},
+            { "data": "description" }],
 			 "order": [[4, 'asc']],
 			 "columnDefs": [ {
 							"targets": 2,
@@ -60,8 +91,42 @@ $(document).ready(function() {
 							"targets": 6,
 							"render": function ( data, type, full, meta ) {
 							  return moment.unix(full.status_time).fromNow();
-							}}
-             ]
+							}},
+							{
+							"targets": 7,
+							"render": function ( data, type, full, meta ) {
+							  return renderGraph(full);
+							}}                            
+             ],
+             //~ "drawCallback": function( settings ) {
+                 //~ console.log('draw')
+                //~ },
+             "initComplete": function(settings, json) {
+                //~ alert( 'DataTables has finished its initialisation.' );
+                        //~ chart = $("#chart").epoch({
+                        this.api().rows().data().each(function(r){
+                            //~ str = JSON.stringify(r);
+                            //~ str = JSON.stringify(r, null, 4);
+                            //~ console.log(str)
+                            console.log('data: '+r.id)
+                            chart[r.id]=$("#chart-"+r.id).epoch({
+                                            type: "time.line",
+                                            axes: ["right"],
+                                            ticks: {right:1},
+                                            pixelRatio: 10,
+                                            fps: 60,
+                                            windowsSize: 60,
+                                            queueSize:120,
+                                            data: [
+                                              {label: "Load", values: [{x:0, y: 100}]},
+                                              {label: "Mem", values: [{x:0, y: 100}]}
+                                              //~ {label: "Load", values: [{time: timestamp(), y: 100}]},
+                                              //~ {label: "Mem", values: [{time: timestamp(), y: 100}]}
+                                            ]
+                                          });
+                        })
+                        console.log(chart)
+              }                             
     } );
 
 	$('#hypervisors').find('tbody').on('click', 'td.details-control', function () {
@@ -121,7 +186,18 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_status', function(data){
-        console.log('status: '+data.name)
+        var data = JSON.parse(data);
+        //~ str = JSON.stringify(data);
+        //~ str = JSON.stringify(data, null, 4);
+        //~ console.log(str)
+        console.log('status: '+data.hyp_id)
+        console.log('status: '+data['cpu_percent-used'])
+        console.log('status: '+data['load-percent_free'])
+        chart[data.hyp_id].push([
+        //~ chart.push([
+          { time: timestamp(), y: data['cpu_percent-used']},
+          { time: timestamp(), y: data['load-percent_free']}
+        ]);
     });
         
     socket.on('hyper_delete', function(data){
@@ -327,3 +403,8 @@ function renderStatus(data){
 		return icon+'<br>'+data.status;
 }
 
+function renderGraph(data){
+	//~ return '<div class="epoch category40" id="chart" style="width: 1000px; height: 50px;"></div>'
+    //~ console.log('render inside render:'+data.id)
+    return '<div class="epoch category40" id="chart-'+data.id+'" style="width: 220px; height: 50px;"></div>'
+}
