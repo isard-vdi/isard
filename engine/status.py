@@ -199,7 +199,7 @@ class ThreadBroom(threading.Thread):
                 log.error('DOMAIN {} WITH STATUS {} without HYPERVISOR'.format(d['id'],d['status']))
                 update_domain_status('Unknown', d['id'], detail='starting or stoping status witouth hypervisor')
 
-            hyps_to_try = set([d['hyp_started'] for d in list_domains])
+            hyps_to_try = set([d['hyp_started'] for d in list_domains if d is str])
             hyps_domain_started = {}
             for hyp_id in hyps_to_try:
                 try:
@@ -233,7 +233,9 @@ class ThreadBroom(threading.Thread):
                 domain_id = d['id']
                 status = d['status']
                 hyp_started = d['hyp_started']
-                if hyps_domain_started[hyp_started] is not False:
+                #TODO bug sometimes hyp_started not in hyps_domain_started keys... why?
+                if hyp_started in hyps_domain_started.keys():
+                  if hyps_domain_started[hyp_started] is not False:
                     if status == 'Starting':
                         log.debug('DOMAIN: {} STATUS STARTING TO RUN IN HYPERVISOR: {}'.format(domain_id, hyp_started))
                         # try:
@@ -256,7 +258,8 @@ class ThreadBroom(threading.Thread):
                             update_domain_status('Stopped', domain_id, detail='Stopped by broom thread')
                     else:
                         log.debug('DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} '.format(domain_id, hyp_started))
-
+                else:
+                    log.error('hyp_started: {} NOT IN hyps_domain_started keys:')
 
 
             interval = 0.0
