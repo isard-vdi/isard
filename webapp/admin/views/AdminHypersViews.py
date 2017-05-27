@@ -50,6 +50,7 @@ def admin_hypervisors():
         create_dict['status']='New'
         create_dict['status_time']=''
         create_dict['uri']=''
+        create_dict['enabled']=True
         res=app.adminapi.add_hypervisor(create_dict)
         
         if res is True:
