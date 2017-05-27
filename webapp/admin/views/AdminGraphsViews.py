@@ -74,3 +74,16 @@ def admin_graphs_tree():
 def admin_graphs_tree_list():
     return json.dumps(app.adminapi.get_domains_tree_list()), 200, {'ContentType': 'application/json'}
     #~ return json.dumps(app.adminapi.get_domains_tree('_windows_7_x64_v3')), 200, {'ContentType': 'application/json'}
+
+@app.route('/admin/engine_graphs')
+@login_required
+def admin_gengine_graphs():
+    import requests
+    print(request.url)
+    response = requests.get('http://localhost:5555/engine_info')
+    print(response.json())
+    return json.dumps(response.json()), 200, {'ContentType': 'application/json'}
+    
+    
+    
+    

@@ -19,32 +19,6 @@ $(document).ready(function() {
       function timestamp() { return (new Date).getTime() / 1000; }
       chart={}
 
-    //~ $('#hypervisors').on( 'draw.dt', function () {
-        //~ console.log( 'Redraw occurred at: '+new Date().getTime() );
-            //~ var chart = $("#chart").epoch({
-                    //~ type: "time.line",
-                    //~ axes: ["left", "bottom"],
-                    //~ data: [
-                      //~ {label: "Load", values: [{time: timestamp(), y: 0}]},
-                      //~ {label: "Mem", values: [{time: timestamp(), y: 0}]}
-                    //~ ]
-                  //~ });
-    //~ } );
-
-//~ $('#hypervisors').dataTable( {
-  //~ "initComplete": function(settings, json) {
-    //~ alert( 'DataTables has finished its initialisation.' );
-            //~ var chart = $("#chart").epoch({
-                    //~ type: "time.line",
-                    //~ axes: ["left", "bottom"],
-                    //~ data: [
-                      //~ {label: "Load", values: [{time: timestamp(), y: 0}]},
-                      //~ {label: "Mem", values: [{time: timestamp(), y: 0}]}
-                    //~ ]
-                  //~ });
-  //~ }
-//~ } );
-
     var table = $('#hypervisors').DataTable( {
         "ajax": {
             "url": "/admin/hypervisors/json",
@@ -98,12 +72,7 @@ $(document).ready(function() {
 							  return renderGraph(full);
 							}}                            
              ],
-             //~ "drawCallback": function( settings ) {
-                 //~ console.log('draw')
-                //~ },
              "initComplete": function(settings, json) {
-                //~ alert( 'DataTables has finished its initialisation.' );
-                        //~ chart = $("#chart").epoch({
                         this.api().rows().data().each(function(r){
                             //~ str = JSON.stringify(r);
                             //~ str = JSON.stringify(r, null, 4);
@@ -228,53 +197,6 @@ $(document).ready(function() {
         });
     });
 
-
-    //~ // Stream hypers
-	//~ if (!!window.EventSource) {
-	  //~ var hyper_source = new EventSource('/stream/admin/hypers');
-	//~ } else {
-	  //~ // Result to xhr polling :(
-	//~ }
-
-	//~ window.onbeforeunload = function(){
-	  //~ hyper_source.close();
-	//~ };
-
-	//~ hyper_source.addEventListener('New', function(e) {
-	  //~ var data = JSON.parse(e.data);
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ table.row.add( formatHypervisorData(data)).draw();
-		//~ }else{
-		  //~ //if already exists do an update (ie. connection lost and reconnect)
-			//~ var row = table.row('#'+data.id); 
-			//~ table.row(row).data(formatHypervisorData(data));			
-		//~ }
-	//~ }, false);
-
-	//~ //Source for table updates hypervisors
-	//~ hyper_source.addEventListener('hypervisors', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ var row = table.row('#'+data.id); 
-      //~ table.row(row).data(formatHypervisorData(data));
-	//~ }, false);
-
-	//~ hyper_source.addEventListener('Deleted', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ var row = table.row('#'+data.id); 
-      //~ table.row(row).remove();
-	//~ }, false);
-
-	//~ hyper_source.addEventListener('hypervisors_status', function(e) {
-        //~ // Here will be the stats
-	//~ }, false);
-	
-	//~ hyper_source.addEventListener('error', function(e) {
-        //~ console.log('Hyper sse Error');
-        //~ if (e.readyState == EventSource.CLOSED) {
-		//~ // Connection was closed.
-	  //~ }
-	//~ }, false);
 });// document ready
 
 function renderName(data){
@@ -404,7 +326,5 @@ function renderStatus(data){
 }
 
 function renderGraph(data){
-	//~ return '<div class="epoch category40" id="chart" style="width: 1000px; height: 50px;"></div>'
-    //~ console.log('render inside render:'+data.id)
     return '<div class="epoch category40" id="chart-'+data.id+'" style="width: 220px; height: 50px;"></div>'
 }
