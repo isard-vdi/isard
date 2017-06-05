@@ -11,6 +11,7 @@ chart={}
       
 $(document).ready(function() {
 	startEngineTimer();
+	
     // SocketIO
     //~ socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
      
@@ -100,6 +101,8 @@ function startEngineTimer() {
 			  data: {},
 			  success: function (response) {
 				setStatus(true,response)
+				console.log(response)
+				setDashboard(response['dashboard']);
 			  },
 			  error: function (xhr, ajaxOptions, thrownError) {
 				setStatus(false,{})
@@ -113,6 +116,15 @@ function startEngineTimer() {
     t = setTimeout(function(){ startEngineTimer() }, 10000);
 }
 
+function setDashboard(dash){
+	console.log(dash)
+	$('.count_users').html(dash.users);
+	$('.count_desktops').html(dash.desktops);
+	$('.count_started').html(dash.started);
+	$('.count_templates').html(dash.templates);
+	$('.count_isos').html(dash.isos);
+	
+}
 
 function setStatus(online,data){
 		if(!online){

@@ -377,6 +377,13 @@ class isardAdmin():
             print(csv)
             return csv
 
+    def get_dashboard(self):
+        with app.app_context():
+            return {'users': r.db('isard').table('users').count().run(db.conn),
+                    'desktops': r.db('isard').table('domains').get_all('desktop', index='kind').count().run(db.conn),
+                    'started': r.db('isard').table('domains').get_all('Started', index='status').count().run(db.conn),
+                    'templates': r.db('isard').table('domains').filter(r.row['kind'].match('template')).count().run(db.conn),
+                    'isos': r.db('isard').table('isos').count().run(db.conn)}
     '''
     VIRT-BUILDER VIRT-INSTALL
     '''

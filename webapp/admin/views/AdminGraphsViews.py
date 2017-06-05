@@ -81,7 +81,9 @@ def admin_gengine_graphs():
     import requests
     try:
         response = requests.get('http://localhost:5555/engine_info')
-        return json.dumps(response.json()), 200, {'ContentType': 'application/json'}
+        data=response.json()
+        data['dashboard']=app.adminapi.get_dashboard()
+        return json.dumps(data), 200, {'ContentType': 'application/json'}
     except Exception as e:
         return json.dumps({}), 500, {'ContentType': 'application/json'}
     
