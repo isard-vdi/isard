@@ -3,7 +3,21 @@
 {% block css %}
     <link rel="stylesheet" href="/static/css/d3-bubble.css"/>
 <style>
-
+.blink {
+    animation-duration: 1s;
+    animation-name: blink;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+    animation-timing-function: ease-in-out;
+}
+@keyframes blink {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -12,10 +26,10 @@
 
 
   <div class="row">
-              <div class="col-md-12 col-sm-12 col-xs-12">
+              <div class="col-md-4 col-sm-12 col-xs-12">
                 <div class="x_panel">
                   <div class="x_title">
-                    <h2>Engine status <small>Backend engine threads</small></h2>
+                    <h2>Engine status <small id="last_check"></small></h2>
                     <ul class="nav navbar-right panel_toolbox">
                       <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
                       </li>
@@ -33,9 +47,14 @@
                     </ul>
                     <div class="clearfix"></div>
                   </div>
-                  <div class="x_content">
+                  <div id="status_circles_on" class="x_content" style="display:none">
 					  <div class="engine_status">
                         <ul class="list-inline prod_color">
+                          <li>
+                            <p>Global</p>
+                            <p>status</p>
+                            <div id="engine_global_circle" class=" color bg-red"></div>
+                          </li>
                           <li>
                             <p>Events</p>
                             <p>recolector</p>
@@ -58,13 +77,105 @@
                           </li>
 
                         </ul>
-                 </div>
+                    </div>
                 </div>
+                <div id="status_circles_off" class="x_content blink" style="display:none">
+					  <h1 style="color: red">Warning! Engine API not reacheable!</h1>
+                 </div>   
               </div>
-            </div>
+              </div>
+<!--
+  </div>
 
+  <div class="row">
+-->
+              <div class="col-md-8 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Isard system Load <small></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="fa fa-wrench"></i></a>
+                        <ul class="dropdown-menu" role="menu">
+                          <li><a href="#">Settings 1</a>
+                          </li>
+                          <li><a href="#">Settings 2</a>
+                          </li>
+                        </ul>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+               
 
-    </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-users"></i>
+                          </div>
+                          <div class="count">2100</div>
+
+                          <h3>Users</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-desktop"></i>
+                          </div>
+                          <div class="count">2100</div>
+
+                          <h3>Desktops</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-play"></i>
+                          </div>
+                          <div class="count">179</div>
+
+                          <h3>Running</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-cubes"></i>
+                          </div>
+                          <div class="count">179</div>
+
+                          <h3>Templates</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-circle-o"></i>
+                          </div>
+                          <div class="count">179</div>
+
+                          <h3>Isos</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+
+         </div>
+              </div>
+  </div>
 {% endblock %}
 
 {% block pagescript %}

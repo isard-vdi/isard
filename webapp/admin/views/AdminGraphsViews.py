@@ -79,11 +79,11 @@ def admin_graphs_tree_list():
 @login_required
 def admin_gengine_graphs():
     import requests
-    print(request.url)
-    response = requests.get('http://localhost:5555/engine_info')
-    print(response.json())
-    return json.dumps(response.json()), 200, {'ContentType': 'application/json'}
-    
+    try:
+        response = requests.get('http://localhost:5555/engine_info')
+        return json.dumps(response.json()), 200, {'ContentType': 'application/json'}
+    except Exception as e:
+        return json.dumps({}), 500, {'ContentType': 'application/json'}
     
     
     
