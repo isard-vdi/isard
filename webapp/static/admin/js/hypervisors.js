@@ -14,7 +14,11 @@ $(document).ready(function() {
 				keyboard: false
 			}).modal('show');
 	});
-    
+
+
+      function timestamp() { return (new Date).getTime() / 1000; }
+      chart={}
+
     var table = $('#hypervisors').DataTable( {
         "ajax": {
             "url": "/admin/hypervisors/json",
@@ -39,7 +43,8 @@ $(document).ready(function() {
             { "data": "hostname", "width": "10px" },
             { "data": "hypervisors_pools", "width": "10px" },
             { "data": "status_time" , "width": "10px" },
-            { "data": "description", "visible": false}],
+            //~ { "data": "description", "visible": false},
+            { "data": "description" }],
 			 "order": [[4, 'asc']],
 			 "columnDefs": [ {
 							"targets": 2,
@@ -60,8 +65,37 @@ $(document).ready(function() {
 							"targets": 6,
 							"render": function ( data, type, full, meta ) {
 							  return moment.unix(full.status_time).fromNow();
-							}}
-             ]
+							}},
+							{
+							"targets": 7,
+							"render": function ( data, type, full, meta ) {
+							  return renderGraph(full);
+							}}                            
+             ],
+             "initComplete": function(settings, json) {
+                        this.api().rows().data().each(function(r){
+                            //~ str = JSON.stringify(r);
+                            //~ str = JSON.stringify(r, null, 4);
+                            //~ console.log(str)
+                            console.log('data: '+r.id)
+                            chart[r.id]=$("#chart-"+r.id).epoch({
+                                            type: "time.line",
+                                            axes: ["right"],
+                                            ticks: {right:1},
+                                            pixelRatio: 10,
+                                            fps: 60,
+                                            windowsSize: 60,
+                                            queueSize:120,
+                                            data: [
+                                              {label: "Load", values: [{x:0, y: 100}]},
+                                              {label: "Mem", values: [{x:0, y: 100}]}
+                                              //~ {label: "Load", values: [{time: timestamp(), y: 100}]},
+                                              //~ {label: "Mem", values: [{time: timestamp(), y: 100}]}
+                                            ]
+                                          });
+                        })
+                        console.log(chart)
+              }                             
     } );
 
 	$('#hypervisors').find('tbody').on('click', 'td.details-control', function () {
@@ -121,7 +155,18 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_status', function(data){
-        console.log('status: '+data.name)
+        var data = JSON.parse(data);
+        //~ str = JSON.stringify(data);
+        //~ str = JSON.stringify(data, null, 4);
+        //~ console.log(str)
+        console.log('status: '+data.hyp_id)
+        console.log('status: '+data['cpu_percent-used'])
+        console.log('status: '+data['load-percent_free'])
+        chart[data.hyp_id].push([
+        //~ chart.push([
+          { time: timestamp(), y: data['cpu_percent-used']},
+          { time: timestamp(), y: data['load-percent_free']}
+        ]);
     });
         
     socket.on('hyper_delete', function(data){
@@ -152,53 +197,6 @@ $(document).ready(function() {
         });
     });
 
-
-    //~ // Stream hypers
-	//~ if (!!window.EventSource) {
-	  //~ var hyper_source = new EventSource('/stream/admin/hypers');
-	//~ } else {
-	  //~ // Result to xhr polling :(
-	//~ }
-
-	//~ window.onbeforeunload = function(){
-	  //~ hyper_source.close();
-	//~ };
-
-	//~ hyper_source.addEventListener('New', function(e) {
-	  //~ var data = JSON.parse(e.data);
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ table.row.add( formatHypervisorData(data)).draw();
-		//~ }else{
-		  //~ //if already exists do an update (ie. connection lost and reconnect)
-			//~ var row = table.row('#'+data.id); 
-			//~ table.row(row).data(formatHypervisorData(data));			
-		//~ }
-	//~ }, false);
-
-	//~ //Source for table updates hypervisors
-	//~ hyper_source.addEventListener('hypervisors', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ var row = table.row('#'+data.id); 
-      //~ table.row(row).data(formatHypervisorData(data));
-	//~ }, false);
-
-	//~ hyper_source.addEventListener('Deleted', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ var row = table.row('#'+data.id); 
-      //~ table.row(row).remove();
-	//~ }, false);
-
-	//~ hyper_source.addEventListener('hypervisors_status', function(e) {
-        //~ // Here will be the stats
-	//~ }, false);
-	
-	//~ hyper_source.addEventListener('error', function(e) {
-        //~ console.log('Hyper sse Error');
-        //~ if (e.readyState == EventSource.CLOSED) {
-		//~ // Connection was closed.
-	  //~ }
-	//~ }, false);
 });// document ready
 
 function renderName(data){
@@ -327,3 +325,6 @@ function renderStatus(data){
 		return icon+'<br>'+data.status;
 }
 
+function renderGraph(data){
+    return '<div class="epoch category40" id="chart-'+data.id+'" style="width: 220px; height: 50px;"></div>'
+}

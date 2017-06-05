@@ -5,6 +5,7 @@
 
 # coding=utf-8
 import threading
+from pprint import pprint
 import sys
 import libvirt
 from .log import *
@@ -227,13 +228,14 @@ def exec_remote_list_of_cmds(hostname,commands,username='root',port=22,sudo=Fals
 
     returned_array = []
 
+
     for command in commands:
-        log.debug('command to launch in ssh in {}: {}'.format(hostname, command['cmd']))
+        log.debug('command to launch in ssh in {}: {}'.format(hostname, command))
         stdin, stdout, stderr = client.exec_command(command)
         out = stdout.read().decode('utf-8')
         err = stderr.read().decode('utf-8')
         returned_array.append({'out':out,'err':err})
-        log.debug('commnad launched / out: {} / error: {}'.format(returned_array[i]['out'], returned_array[i]['err']))
+        log.debug('commnad launched / out: {} / error: {}'.format(out, err))
 
     client.close()
 
