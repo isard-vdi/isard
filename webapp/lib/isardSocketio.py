@@ -310,6 +310,10 @@ def socketio_domains_add(form_data):
         create_dict['hardware'].pop('disks',None)
         create_dict['hypervisors_pools']=data['hypervisors_pools']
     else:
+        if create_dict['hardware']['vcpus']=='':
+            data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
+            create_dict['hardware']['vcpus']=data['hardware']['vcpus']
+            create_dict['hardware']['memory']=data['hardware']['memory']
         create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
         create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
         create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
