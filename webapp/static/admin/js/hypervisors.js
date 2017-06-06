@@ -121,6 +121,28 @@ $(document).ready(function() {
         }
     } );
 
+    $("#modalAddHyper #send").on('click', function(e){
+            var form = $('#modalAddHyper #modalAdd');
+            console.log('inside')
+            //~ form.parsley().validate();
+            //~ var queryString = $('#modalAdd').serialize();
+            data=$('#modalAddHyper #modalAdd').serializeObject();
+            console.log(data)
+            socket.emit('hypervisor_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        });
+        
     // SocketIO
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
      
@@ -247,6 +269,7 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
+                            console.log(pk);
 							api.ajax('/admin/hypervisors/toggle','POST',{'pk':pk,'name':'enabled'}).done(function(data) {
 							});  
 						}).on('pnotify.cancel', function() {
