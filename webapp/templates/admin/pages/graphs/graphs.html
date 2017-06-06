@@ -3,25 +3,206 @@
 {% block css %}
     <link rel="stylesheet" href="/static/css/d3-bubble.css"/>
 <style>
-
+.blink {
+    animation-duration: 1s;
+    animation-name: blink;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+    animation-timing-function: ease-in-out;
+}
+@keyframes blink {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
 </style>
 {% endblock %}
 {% block content %}
         <!-- page content -->
     <div class="right_col" role="main">
-        <div class="row">
-			<div class="col-md-8 col-sm-8 col-xs-12">
-                <div class="epoch category40" id="chart" style="width: 600px; height: 200px;"></div>
 
 
-			</div>
-			<div class="col-md-4 col-sm-4 col-xs-12">
+      <div class="row">
+              <div class="col-md-4 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Engine status <small id="last_check"></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="fa fa-wrench"></i></a>
+                        <ul class="dropdown-menu" role="menu">
+                          <li><a href="#">Settings 1</a>
+                          </li>
+                          <li><a href="#">Settings 2</a>
+                          </li>
+                        </ul>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div id="status_circles_on" class="x_content" style="display:none">
+					  <div class="engine_status">
+                        <ul class="list-inline prod_color">
+                          <li>
+                            <p>Global</p>
+                            <p>status</p>
+                            <div id="engine_global_circle" class=" color bg-red"></div>
+                          </li>
+                          <li>
+                            <p>Events</p>
+                            <p>recolector</p>
+                            <div id="engine_event_circle" class=" color bg-red"></div>
+                          </li>
+                          <li>
+                            <p>Hypervisors</p>
+                            <p>changes</p>
+                            <div id="engine_hyp_circle" class=" color bg-red"></div>
+                          </li>
+                          <li>
+                            <p>Domains</p>
+                            <p>changes</p>
+                            <div id="engine_domains_circle" class=" color bg-red"></div>
+                          </li>
+                          <li>
+                            <p>Broom</p>
+                            <p>cleaning</p>
+                            <div id="engine_broom_circle" class="color bg-red"></div>
+                          </li>
 
-                    
+                        </ul>
+                    </div>
+                </div>
+                <div id="status_circles_off" class="x_content blink" style="display:none">
+					  <h1 style="color: red">Warning! Engine API not reacheable!</h1>
+                 </div>   
+              </div>
+              </div>
 
+              <div class="col-md-8 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Isard system Load <small></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="fa fa-wrench"></i></a>
+                        <ul class="dropdown-menu" role="menu">
+                          <li><a href="#">Settings 1</a>
+                          </li>
+                          <li><a href="#">Settings 2</a>
+                          </li>
+                        </ul>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+               
 
-			</div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-users"></i>
+                          </div>
+                          <div class="count count_users">...</div>
+
+                          <h3>Users</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-desktop"></i>
+                          </div>
+                          <div class="count count_desktops">...</div>
+
+                          <h3>Desktops</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-play"></i>
+                          </div>
+                          <div class="count count_started">...</div>
+
+                          <h3>Started</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-cubes"></i>
+                          </div>
+                          <div class="count count_templates">...</div>
+
+                          <h3>Templates</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+                      <div class="animated flipInY col-md-2 col-xs-12">
+                        <div class="tile-stats">
+                          <div class="icon"><i class="fa fa-circle-o"></i>
+                          </div>
+                          <div class="count count_isos">...</div>
+
+                          <h3>Isos</h3>
+<!--
+                          <p>Lorem ipsum psdea itgum rixt.</p>
+-->
+                        </div>
+                      </div>
+
+         </div>
         </div>
+      </div>
+      
+      <div class="row">
+              <div class="col-md-4 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Graphs <small id="last_check"></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="fa fa-wrench"></i></a>
+                        <ul class="dropdown-menu" role="menu">
+                          <li><a href="#">Settings 1</a>
+                          </li>
+                          <li><a href="#">Settings 2</a>
+                          </li>
+                        </ul>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div id="link_graphs" class="x_content">
+                      <a href="/admin/graphs/domains_bubbles">Started Domains Bubbles</a>
+                      <br>
+                      <a href="/admin/graphs/domains_tree">Domains Tree hierarchy</a>
+                  </div>
+                </div>
+              </div>
+      </div>
     </div>
 {% endblock %}
 
@@ -38,38 +219,6 @@ $(document).ready(function() {
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/epoch/0.6.0/epoch.min.js"></script>
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/polymer/0.5.2/polymer.js"></script>
+    <script src="/static/admin/js/graphs/graphs.js"></script>
     
-<script>
-    function timestamp() { return (new Date).getTime() / 1000; }
-  var chart = $("#chart").epoch({
-    type: "time.line",
-    axes: ["left", "bottom"],
-    data: [
-      {label: "Writes", values: [{time: timestamp(), y: 0}]},
-      {label: "Reads", values: [{time: timestamp(), y: 0}]}
-    ]
-  });
-  
-    // SocketIO
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
-
-    socket.on('connect', function() {
-        connection_done();
-        socket.emit('join_rooms',['domains_status'])
-        console.log('Listening admins namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
-    socket.on('desktop_status', function(data){
-	  var data = JSON.parse(data);
-        //~ cluster.stats = data.new_val.query_engine;
-        chart.push([
-          { time: timestamp(), y: data['status']['disk_rw']['block_w_bytes_per_sec']},
-          { time: timestamp(), y: data['status']['disk_rw']['block_r_bytes_per_sec']}
-        ]);
-    });
-</script>
 {% endblock %}
