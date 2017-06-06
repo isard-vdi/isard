@@ -224,7 +224,7 @@ def get_hyp_hostnames_online():
     r_conn = new_rethink_connection()
     rtable=r.table('hypervisors')
     l = list(rtable.\
-         filter({'enabled':True,'status':'online'}).\
+         filter({'enabled':True,'status':'Online'}).\
          pluck('id','hostname').\
          run(r_conn))
     close_rethink_connection(r_conn)
