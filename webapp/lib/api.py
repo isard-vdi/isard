@@ -17,6 +17,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from .admin_api import flatten
+from ..auth.authentication import Password  
 
 from netaddr import IPNetwork, IPAddress 
 
@@ -837,6 +838,10 @@ class isard():
         consola = consola.replace("'", "")
         return consola
 
+    def update_user_password(self,id,passwd):
+        pw=Password()
+        self.update_table_value('users',current_user.id,'password',pw.encrypt(passwd))
+        return True
     '''
     HELPERS
     '''
