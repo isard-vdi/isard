@@ -3,6 +3,8 @@
 
 {% block content %}
 <div class="right_col" role="main">
+
+<!--
 <div class="page-title">
    <div class="title_left">
       <h3>ISARD <small>VDI</small></h3>
@@ -15,28 +17,23 @@
       </div>
    </div>
 </div>
+-->
 <div class="clearfix"></div>
+<!--
 <div class="jumbotron" style="background-image: url(/static/img/isard.png); background-size: 100%; opacity: 0.5; filter: alpha(opacity=50);">
+-->
+<div class="jumbotron">
    <div class="container for-about">
-   <h1>Isard VDI</h1>
-   <p>KVM Virtual Desktops Infrastructure deployment</p>
+   <h1><img src="/static/img/isard.png" width"100px" height="130px">IsardVDI</h1>
+   <p>Virtual Desktops Infrastructure</p>
    <div class="col-lg-6">
-       <p>Features:</p>
-       <li>Create desktops and get it running in seconds.</li>
-       <li>Start your personal desktop.</li>
-       <li>Share your desktop as a template for other users.</li>
-       <li>Connect your usb devices seamlessly.</li>
-       <li>Incremental disk images which reduces storage.</li>
-       <li>Stand-alone Isard hypervisor/nas storage.</li>
-       <li>Orchestrate multiple Isard hypervisors with scalation.</li>
-       <li>Much more to come!</li>
+       <p>More info:</p>
+       <li><a href="http://isard-vdi.github.io/">Web Site</a></li>
+       <li><a href="https://github.com/isard-vdi/isard">Source Code</a></li>
     </div>
     <div class="col-lg-6 text-right">
-        <h3>Authors:</h3>
-        <b>Alberto Larraz Dalmases</b><br>
-        (alberto.larraz@gmail.com)<br>
-        <b>Josep Maria Viñolas Auquer</b><br>
-        (vinolasbcn@gmail.com) <br>
+        <h3>Contact IsardVDI</h3>
+        <b>isard.vdi@gmail.com</b><br>
         <br>
         <h3>License:</h3>
         <p><img src="/static/img/agplv3-155x51.png"></p>
@@ -75,6 +72,7 @@
 
 {% block pagescript %}
 <script src="/static/js/restful.js"></script>
+<!--
 <script>
 function KeyPress(e) {
       var evtobj = window.event? event : e;
@@ -122,4 +120,6 @@ function KeyPress(e) {
 }
 document.onkeydown = KeyPress;
 </script>
+-->
+<script src="/static/js/quota_socket.js"></script> 
 {% endblock %}
