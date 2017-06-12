@@ -65,6 +65,7 @@ class isardScheduler():
             self.scheduler.add_job(function, kind, run_date=alarm_time, jobstore=self.rStore, replace_existing=True, id=id)
         with app.app_context():
             r.table('scheduler_jobs').get(id).update({'kind':kind,'action':action,'name':action.replace('_',' '),'hour':hour,'minute':minute}).run(db.conn)
+        return True
 
     '''
     Scheduler actions
