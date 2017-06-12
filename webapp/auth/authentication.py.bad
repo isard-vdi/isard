@@ -28,7 +28,7 @@ class LocalUsers():
     
     def getUser(self,username):
         with app.app_context():
-            usr=r.table('users').get(username).run(db.conn)
+            usr=r.table('users').filter({'username':username}).run(db.conn)
         return usr
 
 class User(UserMixin):
@@ -92,7 +92,7 @@ class auth(object):
             return False
         ldap_auth=cfg['auth']['ldap']
         local_auth=cfg['auth']['local']
-        local_user=r.table('users').get(username).run(db.conn)
+        local_user=r.table('users').filter({'username':username}).run(db.conn)
         if local_user is not None:
             if local_user['kind']=='local' and local_auth['active']:
                 user_validated = self.authentication_local(username,password)
@@ -130,7 +130,7 @@ class auth(object):
         
     def authentication_local(self,username,password):
         with app.app_context():
-            dbuser=r.table('users').get(username).run(db.conn)
+            dbuser=r.table('users').filter({'username':username}).run(db.conn)
             log.info('USER:'+username)
             if dbuser is None:
                 return False
@@ -190,7 +190,7 @@ class auth(object):
    
     def update_access(self,username):
         with app.app_context():
-            r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)
+            r.table('users').filter({'username':username}).update({'accessed':time.time()}).run(db.conn)
    
    
 '''
@@ -256,8 +256,8 @@ class auth_voucher(object):
         return True
         
     def check_user_exists(self,email):
-        user=r.table('users').get(email).run(db.conn)
-        if user is None: return False
+        user=list(r.table('users').filter({'email':email}).run(db.conn))
+        if not len(user): return False
         return True
                 
     def register_user(self,voucher,email,remote_addr):
@@ -295,11 +295,11 @@ class auth_voucher(object):
         
     def user_tmpl(self,voucher, email, remote_addr):
         usr = {'id': email.replace('@','_').replace('.','_'),
-                'name': email.split('@')[0],
+                'name': email,
                 'kind': 'local',
                 'active': False,
                 'accessed': time.time(),
-                'username': email.replace('@','_').replace('.','_'),
+                'username': email,
                 'password': self.pw.encrypt(self.pw.generate_human()), #Unknown temporary key, updated on activate_user
                 'code': self.pw.encrypt(self.pw.generate_human()).replace('/','-').replace('.','_'), # Code for mail confirmation
                 'log':[{'when':time.time(),'ip':remote_addr,'action':'Register user'}],
@@ -322,7 +322,7 @@ class auth_voucher(object):
 
     def update_access(self,username):
         with app.app_context():
-            r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)        
+            r.table('users').filter({'username':username}).update({'accessed':time.time()}).run(db.conn)        
         
 '''
 PASSWORDS MANAGER

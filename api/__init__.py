@@ -74,6 +74,12 @@ def engine_info():
     d_engine = {}
     #if len(app.db.get_hyp_hostnames_online()) > 0:
     if app.m.t_backround is not None:
+        try:
+            app.m.t_background.is_alive()
+        except AttributeError:
+            d_engine['is_alive'] = False
+            return jsonify(d_engine), 200
+
         if app.m.t_background.is_alive():
             d_engine['is_alive'] = True
             d_engine['event_thread_is_alive'] = app.m.t_events.is_alive() if app.m.t_events is not None else False
