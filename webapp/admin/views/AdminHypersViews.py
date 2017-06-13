@@ -55,10 +55,11 @@ def admin_hypervisors():
         
         if res is True:
             flash('Hypervisor '+create_dict['id']+' added to the system.','success')
-            return redirect(url_for('adminHypervisors'))
+            return redirect(url_for('admin_hypervisors'))
         else:
             flash('Could not create hypervisor. Maybe you have one with the same name?','danger')
-            return render_template('pages/hypervisors_add.html',  nav="Hypervisors")
+            return redirect(url_for('admin_hypervisors'))
+            #~ return render_template('pages/hypervisors_add.html',  nav="Hypervisors")
     #~ if request.method == 'JSON':
         #~ domain = app.adminapi.get_admin_hypervisors(id)
         #~ return json.dumps(domain), 200, {'ContentType':'application/json'} 
@@ -151,7 +152,7 @@ def admin_hypervisors_pools():
         create_dict['interfaces']=[create_dict['interfaces']]
         if res is True:
             flash('Hypervisor pool '+create_dict['id']+' added to the system.','success')
-            return redirect(url_for('adminHypervisors'))
+            return redirect(url_for('admin_hypervisors'))
         else:
             flash('Could not create hypervisor pool. Maybe you have one with the same name?','danger')
             return render_template('pages/hypervisors.html',  nav="Hypervisors")
