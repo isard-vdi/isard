@@ -158,7 +158,11 @@ def extract_list_backing_chain(out_cmd_qemu_img,json_format=True):
     if json_format is True:
         if type(out) is not str:
             out = out.decode('utf-8')
-        out = json.loads(out)
+        try:
+            out = json.loads(out)
+        except Exception as e:
+            log.error('error reading backing chain, disk is created??')
+            log.error(e)
         return out
     else:
         return backing_chain_parse_list(out)

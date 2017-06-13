@@ -395,7 +395,8 @@ $(document).ready(function() {
         }
         if(data['kind']=='html5'){
             viewer=data['viewer']
-            window.open('http://'+viewer.host+'/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd);            
+            //~ window.open('http://try.isardvdi.com:8000/?host=try.isardvdi.com&port='+viewer.port+'&passwd='+viewer.passwd); 
+            window.open('http://'+viewer.host+':8000/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd);            
             
         }        
         
