@@ -73,29 +73,38 @@ def start_domain_with_prefix_from_template():
 def engine_info():
     d_engine = {}
     #if len(app.db.get_hyp_hostnames_online()) > 0:
-    if app.m.t_backround is not None:
-        try:
-            app.m.t_background.is_alive()
-        except AttributeError:
-            d_engine['is_alive'] = False
-            return jsonify(d_engine), 200
-
-        if app.m.t_background.is_alive():
-            d_engine['is_alive'] = True
-            d_engine['event_thread_is_alive'] = app.m.t_events.is_alive() if app.m.t_events is not None else False
-            d_engine['broom_thread_is_alive'] = app.m.t_broom.is_alive() if app.m.t_broom is not None else False
-            d_engine['changes_hyps_thread_is_alive'] = app.m.t_changes_hyps.is_alive() if app.m.t_changes_hyps is not None else False
-            d_engine['changes_domains_thread_is_alive'] = app.m.t_changes_domains.is_alive() if app.m.t_changes_domains is not None else False
-            d_engine['working_threads'] = list(app.m.t_workers.keys())
-            d_engine['status_threads'] = list(app.m.t_status.keys())
-            d_engine['disk_operations_threads'] = list(app.m.t_disk_operations.keys())
-            d_engine['queue_size_working_threads'] = {k:q.qsize() for k,q in app.m.q.workers.items()}
-            d_engine['queue_disk_operations_threads'] = {k:q.qsize() for k,q in app.m.q_disk_operations.items()}
+    try:
+        if app.m.t_backround is not None:
+            try:
+                app.m.t_background.is_alive()
+            except AttributeError:
+                d_engine['is_alive'] = False
+                return jsonify(d_engine), 200
+    
+            if app.m.t_background.is_alive():
+                d_engine['is_alive'] = True
+                d_engine['event_thread_is_alive'] = app.m.t_events.is_alive() if app.m.t_events is not None else False
+                d_engine['broom_thread_is_alive'] = app.m.t_broom.is_alive() if app.m.t_broom is not None else False
+                d_engine['changes_hyps_thread_is_alive'] = app.m.t_changes_hyps.is_alive() if app.m.t_changes_hyps is not None else False
+                d_engine['changes_domains_thread_is_alive'] = app.m.t_changes_domains.is_alive() if app.m.t_changes_domains is not None else False
+                d_engine['working_threads'] = list(app.m.t_workers.keys())
+                d_engine['status_threads'] = list(app.m.t_status.keys())
+                d_engine['disk_operations_threads'] = list(app.m.t_disk_operations.keys())
+                d_engine['queue_size_working_threads'] = {k:q.qsize() for k,q in app.m.q.workers.items()}
+                d_engine['queue_disk_operations_threads'] = {k:q.qsize() for k,q in app.m.q_disk_operations.items()}
+            else:
+                d_engine['is_alive'] = False
         else:
             d_engine['is_alive'] = False
-    else:
+        return jsonify(d_engine), 200
+    except AttributeError:
         d_engine['is_alive'] = False
-    return jsonify(d_engine), 200
+        print('ERROR ----- ENGINE IS DEATH')
+        return jsonify(d_engine), 200
+    except Exception as e:
+        d_engine['is_alive'] = False
+        print('ERROR ----- ENGINE IS DEATH AND EXCEPTION DETECTED') 
+        return jsonify(d_engine), 200
 
 @app.route('/domains/user/<string:username>', methods=['GET'])
 def get_domains(username):
