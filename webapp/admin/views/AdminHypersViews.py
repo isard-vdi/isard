@@ -145,6 +145,11 @@ def admin_hypervisors_get():
 def admin_hypervisors_pools():
     res=True
     if request.method == 'POST':
+        ca=request.form['viewer-certificate']
+        pre_dict=request.form
+        pre_dict.pop('viewer-certificate', None)
+        import pprint
+        pprint.pprint(pre_dict)
         create_dict=app.isardapi.f.unflatten_dict(request.form)
         create_dict['viewer']['certificate']=ca
         #check and parse name not done!
