@@ -121,7 +121,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header"  style="padding: 5px;">   
+            <div class="modal-header">   
                 <button type="button" class="close" 
                    data-dismiss="modal">
                        <span aria-hidden="true">&times;</span>
@@ -133,12 +133,43 @@
             </div>
             
             <!-- Modal Body -->
-            <div class="modal-body" style="padding: 7px;">
+            <div class="modal-body">
 
-                <form name="Form" id="changepw" action="profile_pwd" method="post"
+                <form name="Form" id="changepw" action="profile_pwd" method="post" class="form-horizontal form-label-left"
                   data-parsley-excluded="input[type=button], input[type=submit], input[type=reset], input[type=hidden], [disabled], :hidden"
                   data-parsley-trigger="keyup" data-parsley-validate>
-                  
+
+                  <div class="form-group">
+                        <label for="password1" class="control-label col-md-3 col-sm-3 col-xs-12">New Password <span class="required">*</span></label>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input id="password1" name="password" type="password" class="form-control col-md-7 col-xs-12 password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspannewpassinput"
+                            data-parsley-required-message="Please enter your new password."
+                            data-parsley-uppercase="1"
+                            data-parsley-lowercase="1"
+                            data-parsley-number="1"
+                            data-parsley-special="1"
+                            data-parsley-required />
+                          <span class="errorspannewpassinput"></span>
+                        </div>
+                  </div>
+
+                  <div class="form-group">
+                        <label for="confirm_password1" class="control-label col-md-3 col-sm-3 col-xs-12">Confirm Password <span class="required">*</span></label>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input name="Password_2" id="password2" type="password" class="form-control col-md-7 col-xs-12 password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspanconfirmnewpassinput"
+                            data-parsley-required-message="Please re-enter your new password."
+                            data-parsley-equalto="#password1"
+                            data-parsley-required />
+                          <span class="errorspanconfirmnewpassinput"></span>
+                        </div>
+                  </div>
+<!--
                   <label for="password1">New Password *</label>
                   <input id="password1" name="password" type="password" class="password"
                     data-parsley-minlength="8"
@@ -151,16 +182,29 @@
                     data-parsley-required />
                   <span class="errorspannewpassinput"></span>
                   <br>
+-->
                   
+<!--
                   <label for="confirm_password1">Confirm Password *</label>
-                  <input name="Password_2" id="password2" type="password" class="password"
+                  <input name="Password_2" id="password2" type="password" class="password col-md-7 col-xs-12"
                     data-parsley-minlength="8"
                     data-parsley-errors-container=".errorspanconfirmnewpassinput"
                     data-parsley-required-message="Please re-enter your new password."
                     data-parsley-equalto="#password1"
                     data-parsley-required />
                   <span class="errorspanconfirmnewpassinput"></span>
-                  <br>
+-->
+
+                      <div class="ln_solid"></div>
+                      <div class="form-group">
+                        <div class="col-md-6 col-sm-6 col-xs-12 col-md-offset-3">
+                          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+						  <button class="btn btn-primary" type="reset">Reset</button>
+                          <button id="send" type="submit" class="btn btn-success">Change</button>
+                        </div>
+                      </div>
+                      
+<!--
                     <ul class="nav navbar-left panel_toolbox">
                         <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
                        </li>
@@ -169,37 +213,9 @@
                         <li><button id="send" type="submit" class="btn btn-success">Change</button></li>
                        </li>
                     </ul>
-<!--
-                  <li><button id="send" type="button" class="btn btn-success">Change</button></li>
-                  <input type="submit" name="submitinfo" id="submitsignup" alt="Sign Up Now" value="Submit New Password" />
 -->
                 </form>
 
-<!--
-              <form id="modalSave" class="form-inline form-label-left"> 
-			  <div class="x_panel">
-                  <p style="font-size: 18px;">Class name</p>
-					<div class="x_content">
-                        <div class="row">
-                            <div class="col-md-4 col-xs-12">
-                                <label class="control-label" for="name">Password <span class="required">*</span>
-                                </label>
-                                  <input id="name" maxlength="15" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New class name" data-parsley-trigger="change" required type="password">
-                            </div>
-                        </div>
-                     <div class="row">
-                            <div class="col-md-4 col-xs-12">
-                                <label class="control-label" for="name">Retype   <span class="required">*</span>
-                                </label>
-                                  <input id="name" maxlength="15" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New class name" data-parsley-trigger="change" required type="password">
-                            </div>
-                     </div>
-				</div>
-			  </div>
-            </div>
--->
-            
-            <!-- Modal Footer -->
 <!--
             <div class="modal-footer" style="padding: 5px;">
                 <ul class="nav navbar-left panel_toolbox">

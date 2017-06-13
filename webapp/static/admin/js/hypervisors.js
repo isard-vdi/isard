@@ -13,6 +13,13 @@ $(document).ready(function() {
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+            $("#hypervisors_pools_dropdown").find('option').remove();
+            api.ajax('/admin/hypervisors_pools','GET','').done(function(pools) {
+				$.each(pools,function(key, value) 
+				{
+					$("#hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
+                });
+            });
 	});
 
 
