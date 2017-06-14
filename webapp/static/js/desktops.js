@@ -395,6 +395,7 @@ $(document).ready(function() {
         }
         if(data['kind']=='html5'){
             viewer=data['viewer']
+            //~ window.open('http://try.isardvdi.com:8000/?host=try.isardvdi.com&port='+viewer.port+'&passwd='+viewer.passwd); 
             window.open('http://'+viewer.host+'/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd);            
             
         }        
@@ -721,8 +722,8 @@ function initalize_modal_all_desktops_events(){
                 template=$('#modalAddDesktop #template').val();
                 console.log('TEMPLATE:'+template)
                 if (template !=''){
-                    var queryString = $('#modalAdd').serialize();
                     data=$('#modalAdd').serializeObject();
+                    console.log(data)
                     socket.emit('domain_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');

@@ -33,36 +33,59 @@
                   <li><a href="/templates"><i class="fa fa-cubes"></i> Templates</span></a>
                   </li>
 <!--
+                  <li><a href="/classroom"><i class="fa fa-users"></i> Classroom</span></a>
+-->
+<!--
+                  <li><a><i class="fa fa-users"></i> Activity <span class="fa fa-chevron-down"></span></a>
+                    <ul class="nav child_menu">
+                      <li><a href="/classroom">Classroom</a></li>
+                      <li><a href="/classroom_users">Users</a></li>
+                      <li><a href="/classroom_test">Test</a></li>
+                    </ul>
+                  </li>
+                  </li>
+-->
+<!--
                   <li><a href="/isos/upload"><i class="fa fa-circle-o"></i> Isos</span></a>
                   </li>
 -->
                   {% endif %}
-                  <li><a href="/about"><i class="fa fa-question"></i> About</span></a>
-                  </li>
+
                 </ul>
             {% if current_user.role == 'admin' %}
                 <h3>Administrator</h3>
                 <ul class="nav side-menu">
                   <li><a href="/admin/users"><i class="fa fa-user"></i> Users</span></a>
                   </li>
-                  <li><a href="/admin/domains"><i class="fa fa-desktop"></i> Domains</span></a>
+                  <li><a href="/admin/domains"><span class="fa-stack fa-lg">
+  <i class="fa fa-desktop fa-stack-1x"></i>
+  <i class="fa fa-desktop fa-stack"></i>
+</span> Domains</span></a>
+                  </li>
+                  <li><a href="/isos/upload"><i class="fa fa-circle-o"></i> Isos</span></a>
                   </li>
                   <li><a href="/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</span></a>
                   </li>
-<!--
-                  <li><a href="/admin/graphs" target="_blank"><i class="fa fa-area-chart"></i> Graphs</span></a>
+                  <li><a href="/admin/classroom"><i class="fa fa-pencil"></i> Classrooms</span></a>
                   </li>
--->
+                  <li><a href="/admin/graphs/graphs"><i class="fa fa-area-chart"></i> Graphs</span></a>
+                  </li>
+<!--
                   <li><a><i class="fa fa-bar-chart-o"></i> Graphs <span class="fa fa-chevron-down"></span></a>
                     <ul class="nav child_menu">
                       <li><a href="/admin/graphs/domains_bubbles" target="_blank">Bubbles</a></li>
                       <li><a href="/admin/graphs/domains_tree" target="_blank">Tree</a></li>
                     </ul>
                   </li>
+-->
                   <li><a href="/admin/config"><i class="fa fa-gear"></i> Config</span></a>
                   </li>
                 </ul>
             {% endif %}
+                <ul class="nav side-menu">
+                  <li><a href="/about"><i class="fa fa-question"></i> About</span></a>
+                  </li>
+                </ul>
               </div>
 
             </div>

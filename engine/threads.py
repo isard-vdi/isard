@@ -20,7 +20,7 @@ from os.path import dirname as extract_dir_path
 from time import sleep
 import threading
 # from pool_hypervisors import update_online_hypervisors
-from .db import get_hyp_hostnames_online,update_domain_hyp_started, update_all_domains_status
+from .db import get_hyp_hostnames_online,update_domain_hyp_started, update_all_domains_status, update_table_field
 from .db import update_hypervisor_failed_connection, update_hyp_status, set_unknown_domains_not_in_hyps
 from .db import update_domain_status, get_domains_started_in_hyp, get_hyp_hostname_from_id, update_domains_started_in_hyp_to_unknown
 from .functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str,execute_commands, execute_command_with_progress,get_tid
@@ -77,6 +77,22 @@ def launch_disk_operations_thread(hyp_id,hostname,user='root',port=22):
     thread_disk_operation.daemon = True
     thread_disk_operation.start()
     return thread_disk_operation,queue_disk_operation
+
+def launch_long_operations_thread(hyp_id,hostname,user='root',port=22):
+
+    if hyp_id is False:
+        return False,False
+
+    queue_long_operation = queue.Queue()
+    thread_long_operation = LongOperationsThread(name='long_op_'+hyp_id,
+                                                 hyp_id = hyp_id,
+                                                 hostname = hostname,
+                                                 queue_actions = queue_long_operation,
+                                                 user='root',
+                                                 port=22)
+    thread_long_operation.daemon = True
+    thread_long_operation.start()
+    return thread_long_operation,queue_long_operation
 
 def launch_delete_disk_action(action,hostname,user,port):
     disk_path = action['disk_path']
@@ -282,6 +298,83 @@ class DiskOperationsThread(threading.Thread):
                     update_domain_status('Failed',id_domain,detail='new disk create operation failed, thread disk operations is stopping, detail of operations cancelled in logs')
 
 
+class LongOperationsThread(threading.Thread):
+    def __init__(self, name, hyp_id,hostname,queue_actions,user='root',port=22,queue_master=None):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.hyp_id = hyp_id
+        self.hostname = hostname
+        self.user = user
+        self.port = port
+        self.stop = False
+        self.queue_actions = queue_actions
+        self.queue_master = queue_master
+
+    def run(self):
+        self.tid = get_tid()
+        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
+        self.long_operations_thread()
+
+    def long_operations_thread(self):
+        host = self.hostname
+        self.tid = get_tid()
+        log.debug('Thread to launchdisks operations in host {} with TID: {}...'.format(host, self.tid))
+
+
+        while self.stop is not True:
+            try:
+                action=self.queue_actions.get(timeout=TIMEOUT_QUEUES)
+                # for ssh commands
+                id_domain = action['domain']
+                if action['type'] in ['create_disk_virt_builder']:
+
+                    cmds_done = execute_commands(host=self.hostname,
+                                                 ssh_commands=action['ssh_comands'],
+                                                 dict_mode=True,
+                                                 user=self.user,
+                                                 port=self.port
+                                                 )
+
+                    if len([d for d in cmds_done if len(d['err']) > 0]) > 0:
+                        log.error('some error in virt builder operations')
+                        log.error('Virt Builder Failed creating disk file {} in domain {} in hypervisor {}'.format(action['disk_path'], action['domain'], self.hyp_id))
+                        log.debug('print cmds_done:')
+                        log.debug(pprint.pprint(cmds_done))
+                        log.debug('print ssh_comands:')
+                        log.debug(pprint.pprint(action['ssh_comands']))
+                        update_domain_status('Failed',id_domain,
+                                             detail='Virt Builder Failed creating disk file')
+                    else:
+                        log.info('Disk created from virt-builder. Domain: {} , disk: {}'.format(action['domain'],action['disk_path']))
+                        xml_virt_install = cmds_done[-1]['out']
+                        update_table_field('domains', id_domain, 'xml_virt_install', xml_virt_install)
+
+                        update_domain_status('CreatingDomainFromBuilder',id_domain,detail='disk created from virt-builder')
+
+
+                elif action['type'] == 'stop_thread':
+                    self.stop = True
+                else:
+                    log.error('type action {} not supported'.format(action['type']))
+            except queue.Empty:
+                pass
+            except Exception as e:
+                log.error('Exception when creating disk: {}'.format(e))
+                log.error('Action: {}'.format(pprint.pformat(action)))
+                log.error('Traceback: {}'.format(traceback.format_exc()))
+                return False
+
+        if self.stop is True:
+            while self.queue_actions.empty() is not True:
+                action=self.queue_actions.get(timeout=TIMEOUT_QUEUES)
+                if action['type'] == 'create_disk':
+                    disk_path = action['disk_path']
+                    id_domain = action['domain']
+                    log.error('operations creating disk {} for new domain {} failed. Commands, outs and errors: {}'.format(disk_path,id_domain))
+                    log.error('\n'.join(['cmd: {}'.format(action['ssh_comands'][i]) for i in range(len(action['ssh_comands']))]))
+                    update_domain_status('Failed',id_domain,detail='new disk create operation failed, thread disk operations is stopping, detail of operations cancelled in logs')
+
+
 class HypWorkerThread(threading.Thread):
     def __init__(self, name, hyp_id,queue_actions,queue_master=None):
         threading.Thread.__init__(self)
@@ -322,7 +415,7 @@ class HypWorkerThread(threading.Thread):
                             domain = [d for d in self.h.conn.listAllDomains(FLAG_LIST_DOMAINS_PAUSED) if d.name() == action['id_domain']][0]
                             if domain.destroy() == 0:
                                 #domain is destroyed, all ok
-                                update_domain_status('Stopped',action['id_domain'],hyp_id=self.hyp_id,detail='Domain is created, ready to use')
+                                update_domain_status('Stopped',action['id_domain'],hyp_id='',detail='Domain is stopped in hyp{}'.format(self.hyp_id))
                                 log.debug('domain {} creating operation finalished. Started paused and destroyed in hypervisor {}. Now status is Stopped. READY TO USE'.format(action['id_domain'],self.hyp_id))
 
                                 if action['id_domain'].find('_disposable_') == 0:
@@ -363,7 +456,7 @@ class HypWorkerThread(threading.Thread):
                     log.debug('action stop domain: {}'.format(action['id_domain'][30:100]))
                     try:
                         self.h.conn.lookupByName(action['id_domain']).destroy()
-                        update_domain_status('Stopped',action['id_domain'])
+                        update_domain_status('Stopped',action['id_domain'],hyp_id='')
                         log.debug('STOPPED domain {}'.format(action['id_domain']))
                     except Exception as e:
                         update_domain_status('Failed',action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
@@ -530,7 +623,7 @@ def set_domains_coherence(dict_hyps_ready):
         if len(domains_started_in_rethink) > 0:
             domains_are_shutdown = list(set(domains_started_in_rethink).difference(set(domains_are_started)))
             for domain_stopped in domains_are_shutdown:
-                update_domain_status(status='Stopped',id_domain=domain_stopped)
+                update_domain_status(status='Stopped',id_domain=domain_stopped,hyp_id='')
         #TODO INFO TO DEVELOPER: faltaría revisar que ningún dominio está duplicado en y started en dos hypervisores
         # a nivel de libvirt, porque a nivel de rethink es imposible, y si pasa poner un erroraco gigante
         # a parte de dejarlo en unknown

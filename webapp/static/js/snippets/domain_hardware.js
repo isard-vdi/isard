@@ -41,19 +41,31 @@
 						  type: "single",
 						  min: 500,
 						  max: hardware.user['quota-hardware-memory']/1000,
+                          step:250,
 						  grid: true,
 						  disable: false
-						  }).data("ionRangeSlider");
+						  }).data("ionRangeSlider").update();
 				$(id+" #hardware-vcpus").ionRangeSlider({
 						  type: "single",
 						  min: 1,
 						  max: hardware.user['quota-hardware-vcpus'],
 						  grid: true,
 						  disable: false
-						  }).data("ionRangeSlider");		
+						  }).data("ionRangeSlider").update();
+                if($(id+" #disk_size").length != 0) {
+                    if(hardware.user['quota-domains-desktops_disk_max']/1000000>200){
+                        var dsize=200;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
+                    $(id+" #disk_size").ionRangeSlider({
+                              type: "single",
+                              min: 1,
+                              max: dsize,
+                              grid: true,
+                              disable: false
+                              }).data("ionRangeSlider").update();
+                }
 			}); 
 	}
-
+    
 	function setHardwareDomainDefaults(div_id,domain_id){
 			// id is the domain id
             $(div_id+' #hardware-interfaces option:selected').prop("selected", false);

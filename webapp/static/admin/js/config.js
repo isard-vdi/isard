@@ -79,6 +79,29 @@ $(document).ready(function() {
         }).modal('show'); 
     });
 
+    $("#modalScheduler #send").on('click', function(e){
+            var form = $('#modalAddScheduler');
+            data=$('#modalAddScheduler').serializeObject();
+            socket.emit('scheduler_add',data)
+            $("#modalAddScheduler")[0].reset();
+            $("#modalAdd").modal('hide');
+            //~ form.parsley().validate();
+
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ console.log(data)
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        });
+
+
     $('.btn-add-disposables').on( 'click', function () {
         $('#modalDisposable').modal({
 				backdrop: 'static',
@@ -135,7 +158,7 @@ $(document).ready(function() {
                                    <button id="btn-backups-download" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-download" style="color:darkblue"></i></button>'
 				},
                 ],
-			 "order": [[1, 'asc']],
+			 "order": [[0, 'desc']],
 			 "columnDefs": [ {
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
@@ -313,8 +336,9 @@ $(document).ready(function() {
 
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['config'])
         console.log('Listening admins namespace');
+        socket.emit('join_rooms',['config'])
+        console.log('Listening config updates');
     });
 
     socket.on('connect_error', function(data) {
@@ -330,20 +354,22 @@ $(document).ready(function() {
     socket.on('backup_data', function(data){
         console.log('backup data received')
         var data = JSON.parse(data);
-		if($("#" + data.id).length == 0) {
-		  //it doesn't exist
-		  backups_table.row.add(data).draw();
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = backups_table.row('#'+data.id); 
-          backups_table.row(row).data(data).invalidate();			
-		}
-        backups_table.draw(false);
+        dtUpdateInsert(backups_table,data,false);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ backups_table.row.add(data).draw();
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = backups_table.row('#'+data.id); 
+          //~ backups_table.row(row).data(data).invalidate();			
+		//~ }
+        //~ backups_table.draw(false);
     });
     
-    socket.on('backup_delete', function(data){
-        console.log('backup delete')
+    socket.on('backup_deleted', function(data){
+        console.log('backup deleted')
         var data = JSON.parse(data);
+        console.log(data.id)
         var row = backups_table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Backup deleted",
@@ -359,19 +385,20 @@ $(document).ready(function() {
     socket.on('sch_data', function(data){
         console.log('sch data received')
         var data = JSON.parse(data);
-		if($("#" + data.id).length == 0) {
-		  //it doesn't exist
-		  scheduler_table.row.add(data).draw();
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = scheduler_table.row('#'+data.id); 
-          scheduler_table.row(row).data(data).invalidate();			
-		}
-        scheduler_table.draw(false);
+        dtUpdateInsert(scheduler_table,data,false);
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ scheduler_table.row.add(data).draw();
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = scheduler_table.row('#'+data.id); 
+          //~ scheduler_table.row(row).data(data).invalidate();			
+		//~ }
+        //~ scheduler_table.draw(false);
     });
     
-    socket.on('sch_delete', function(data){
-        console.log('sch delete')
+    socket.on('sch_deleted', function(data){
+        console.log('sch deleted')
         var data = JSON.parse(data);
         var row = scheduler_table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -398,6 +425,25 @@ $(document).ready(function() {
         });
     });
 
+    socket.on('add_form_result', function (data) {
+        console.log('received result')
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAddScheduler")[0].reset();
+            $("#modalScheduler").modal('hide');
+            //~ $('body').removeClass('modal-open');
+            //~ $('.modal-backdrop').remove();
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
 
     //~ // Stream scheduler_source
 	//~ if (!!window.EventSource) {

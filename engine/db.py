@@ -6,11 +6,13 @@
 # coding=utf-8
 import rethinkdb as r
 import json
+from collections import deque
 from .log import *
 from pprint import pprint,pformat
 import time
+from datetime import datetime
 import sys
-from .config import RETHINK_HOST, RETHINK_PORT , RETHINK_DB, TRANSITIONAL_STATUS
+from .config import RETHINK_HOST, RETHINK_PORT , RETHINK_DB, TRANSITIONAL_STATUS, MAX_QUEUE_DOMAINS_STATUS
 
 ##INFO TO DEVELOPER => TODO: PASAR A config populate => se leerá del rethink
 ## alberto => lo he de hacer independientemente de josep maria
@@ -222,7 +224,7 @@ def get_hyp_hostnames_online():
     r_conn = new_rethink_connection()
     rtable=r.table('hypervisors')
     l = list(rtable.\
-         filter({'enabled':True,'status':'online'}).\
+         filter({'enabled':True,'status':'Online'}).\
          pluck('id','hostname').\
          run(r_conn))
     close_rethink_connection(r_conn)
@@ -340,6 +342,7 @@ def update_domain_status(status,id_domain,hyp_id=None,detail=''):
         #print('ojojojo')
         results = rtable.get_all(id_domain, index='id').update({
                                                       'status':status,
+                                                      'hyp_started': '',
                                                       'detail':json.dumps(detail)}).run(r_conn)
     else:
         results = rtable.get_all(id_domain, index='id').update({'hyp_started':hyp_id,
@@ -478,6 +481,14 @@ def get_domains_with_transitional_status(list_status = TRANSITIONAL_STATUS):
     l = list(rtable.get_all(r.args(list_status), index='status').pluck('status', 'id', 'hyp_started').run(r_conn))
     close_rethink_connection(r_conn)
     return l
+
+def get_xml_from_virt_viewer(id_virt_viewer):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains_virt_install')
+
+    dict_domain = rtable.get(id_virt_viewer).run(r_conn)
+    close_rethink_connection(r_conn)
+    return dict_domain['xml']
 
 
 def change_status_to_all_domains_with_status(oldstatus,newstatus):
@@ -826,23 +837,6 @@ def exist_domain(id):
     else:
         return False
 
-def insert_host_viewer(hostname,ip,place_id,name='',
-                       description='',mac='',status='offline'):
-    d = dict()
-    d['hostname'] = hostname
-    d['ip_address'] = ip
-    d['mac_address'] = mac
-
-    # mary_key = "hostname").run(db.conn)
-    # r.table('hosts_viewers').index_create("ip_address").run(db.conn)
-    # r.table('hosts_viewers').index_wait("ip_address").run(db.conn)
-    # r.table('hosts_viewers').index_create("mac_address").run(db.conn)
-    # r.table('hosts_viewers').index_wait("mac_address").run(db.conn)
-    # r.table('hosts_viewers').index_create("place_id").run(db.conn)
-    # r.table('hosts_viewers').index_wait("place_id").run(db.conn)
-    # r.table('hosts_viewers').index_create("host_order").run(db.conn)
-    # r.table('hosts_viewers').index_wait("host_order").run
-
 def insert_domain(dict_domain):
 
     r_conn = new_rethink_connection()
@@ -892,6 +886,7 @@ def stop_last_domain_status(name):
                  run(r_conn)
         close_rethink_connection(r_conn)
     except:
+
         close_rethink_connection(r_conn)
         return None
         
@@ -932,6 +927,145 @@ def initialize_db_status_hyps():
         return hyps_hostnames
     else:
         return dict()
+
+def update_domain_history_from_id_domain(domain_id,new_status,new_detail,date_now):
+
+    r_conn = new_rethink_connection()
+    rtable=r.table('domains')
+
+    # domain_fields = rtable.get(domain_id).pluck('status','history_domain','detail','hyp_started').run(r_conn)
+    domain_fields = rtable.get(domain_id).pluck('history_domain','hyp_started').run(r_conn)
+    close_rethink_connection(r_conn)
+
+    if 'history_domain' in domain_fields:
+        history_domain = domain_fields['history_domain']
+    else:
+        history_domain = []
+
+    if new_detail is None:
+        new_detail = ''
+
+    if 'hyp_started' in domain_fields:
+        hyp_started = domain_fields['hyp_started']
+    else:
+        hyp_started = ''
+
+
+    now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
+
+    update_domain_history_status(domain_id=domain_id,
+                                 new_status=new_status,
+                                 when=now,
+                                 history_domain=history_domain,
+                                 detail=new_detail,
+                                 hyp_id=hyp_started)
+
+def update_domain_history_status(domain_id,new_status,when,history_domain,detail='',hyp_id=''):
+
+    list_history_domain = create_list_buffer_history_domain(new_status,when,history_domain,detail,hyp_id)
+
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    results = rtable.get(domain_id).update({'history_domain': list_history_domain}).run(r_conn)
+
+    close_rethink_connection(r_conn)
+    return results
+
+def create_list_buffer_history_domain(new_status,when,history_domain,detail='',hyp_id=''):
+
+    d={  'when': when,
+         'status': new_status,
+         'detail': detail,
+         'hyp_id': hyp_id }
+
+    new_history_domain = [d] + history_domain[:MAX_QUEUE_DOMAINS_STATUS]
+    return new_history_domain
+
+    # buffer_history_domain = deque(maxlen=MAX_QUEUE_DOMAINS_STATUS)
+    # buffer_history_domain.extend(reversed(history_domain))
+    # buffer_history_domain.appendleft(d)
+    # return list(buffer_history_domain)
+
+def insert_place(id_place,
+                 name,
+                 rows,
+                 cols,
+                 network=None,
+                 enabled=True,
+                 description='',
+                 ssh_enable=False,
+                 ssh_user='',
+                 ssh_pwd=None,
+                 ssh_port=22,
+                 ssh_key_path=''):
+
+    r_conn = new_rethink_connection()
+    rtable=r.table('places')
+
+    rtable.insert({'id':id_place,
+                   'name':name,
+                   'description':description,
+                   'enabled': enabled,
+                   'status': 'Unmanaged', #Unmanaged / Managed
+                   'detail': 'new place created',
+                   'events_pending': [],
+                   'events_processed': [],
+                   'managed_by_user': None,
+                   'dimensions': {
+                       'w': cols,
+                       'h': rows
+                    },
+                   'network': network,
+                   'ssh': {
+                      'enabled': ssh_enable,
+                      'user': ssh_user,
+                      'pwd': ssh_pwd,
+                      'port': ssh_port,
+                      'ssh_key': ssh_key_path
+                   },
+                   'stats': {
+                       'total_hosts': 0,
+                       'total_ping': 0,
+                       'total_login': 0,
+                       'total_desktops': 0,
+                       'total_viewers': 0,
+                       'total_vcpus': 0,
+                       'total_memory': 0
+                   }
+                   }).\
+          run(r_conn)
+
+    close_rethink_connection(r_conn)
+
+def insert_host_viewer(hostname,
+                         description,
+                         place_id,
+                         ip,
+                         row,
+                         col,
+                         mac=None,
+                         enabled=True):
+
+    r_conn = new_rethink_connection()
+    rtable=r.table('hosts_viewers')
+
+    rtable.insert({'hostname'   : hostname,
+                   'place_id'   : place_id,
+                   'id'         : ip,
+                   'position':{'row'        : row,
+                             'col'        : col,
+                             'size_x'    :1,
+                             'size_y'   :1},
+                   'description': description,
+                   'mac'        : mac,
+                   'enabled'    : enabled,
+                   'status'     : 'Offline', #Offline, online, ready_to_launch_ssh_commands
+                   'logged_user' : None,
+                   'desktops_running':[],
+                   'status_time': time.time()}).\
+          run(r_conn)
+
+    close_rethink_connection(r_conn)
 
 def insert_hyp(id,
                hostname,

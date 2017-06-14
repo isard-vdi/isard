@@ -191,11 +191,143 @@ class auth(object):
     def update_access(self,username):
         with app.app_context():
             r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)
-            
+   
+   
+'''
+VOUCHER AUTH
+'''         
+import smtplib
+class Email(object):
+    def __init__(self):
+        try:
+            self.passwd=os.environ.get('ISARDMAILKEY')
+        except Exception as e:
+            print('Environtment email password not found.')
+        
+    def send(self,to_addr_list,subject,message):
+        login = 'isard.vdi@gmail.com'
+        # In bash do: export ISARDMAILKEY=some_value
+        password = os.environ.get('ISARDMAILKEY')
+        smtpserver='smtp.gmail.com'
+        smtpport=587
+        from_addr='isard.vdi@gmail.com'
+        subject=subject
+        message=message
+        header  = 'From: %s\n' % from_addr
+        header += 'To: %s\n' % ','.join(to_addr_list)
+        # header += 'Cc: %s\n' % ','.join(cc_addr_list)
+        header += 'Subject: %s\n\n' % subject
+        message = header + message
+
+        server = smtplib.SMTP(smtpserver, smtpport)  # use both smtpserver  and -port
+        server.starttls()
+        server.login(login,password)
+        problems = server.sendmail(from_addr, to_addr_list, message)
+        server.quit()
+        #~ print 'Sent email: '+error_header
+
+    def email_validation(self,email,code):
+        subject= 'IsardVDI email verification'
+        message= 'You have requested access to IsardVDI online demo platform through this email address.\n\n'+\
+                 'Please access this link to get your demo user: https://try.isardvdi.com/voucher_validation/'+code
+        self.send([email],subject,message)
+
+    def account_activation(self,email,user,passwd):
+        subject= 'IsardVDI credentials'
+        message= 'Here you have your demo user and passwords: \n\n'+\
+                 'Username: '+user+'\n'+\
+                 'Password: '+passwd+'\n\n'+\
+                 'IsardVDI:  https://try.isardvdi.com'
+        self.send([email],subject,message)        
+        
+class auth_voucher(object):
+    def __init__(self):
+        self.pw=Password()
+        self.email=Email()
+
+    def check_voucher(self,voucher):
+        dbv=r.table('vouchers').get(voucher).run(db.conn)
+        if dbv is None: return False
+        return True
+
+    def check_validation(self,code):
+        user=list(r.table('users').filter({'code':code}).run(db.conn))
+        if not len(user): return False
+        return True
+        
+    def check_user_exists(self,email):
+        user=r.table('users').get(email).run(db.conn)
+        if user is None: return False
+        return True
+                
+    def register_user(self,voucher,email,remote_addr):
+        user=self.user_tmpl(voucher,email,remote_addr)
+        if r.table('categories').get(user['category']).run(db.conn) is None:
+                r.table('categories').insert({  'id':user['category'],
+                                                'name':user['category'],
+                                                'description':'',
+                                                'quota':r.table('roles').get(user['role']).run(db.conn)['quota']}).run(db.conn)
+        if r.table('groups').get(user['group']).run(db.conn) is None:
+                r.table('groups').insert({  'id':user['group'],
+                                            'name':user['group'],
+                                            'description':'',
+                                            'quota':r.table('categories').get(user['category']).run(db.conn)['quota']}).run(db.conn)
+        r.table('users').insert(user, conflict='update').run(db.conn)
+        
+        # Send email with code=user['code']        
+        self.email.email_validation(email,user['code'])  
+        return User(user)  
+        #~ return False
+
+    def activate_user(self,code,remote_addr):
+        user=list(r.table('users').filter({'code':code}).run(db.conn))
+        if len(user):
+            user=user[0]
+            key=self.pw.generate_human()
+            r.table('users').filter({'code':code}).update({'active':True,'password':self.pw.encrypt(key)}).run(db.conn)
+            log=list(r.table('users').filter({'code':code}).run(db.conn))[0]['log']
+            log.append({'when':time.time(),'ip':remote_addr,'action':'Activate user'})
+            r.table('users').filter({'code':code}).update({'log':log}).run(db.conn)
+            #Send mail with email=user['mail'], user=user['username'], key
+            self.email.account_activation(user['mail'], user['username'], key)
+            return True
+        return False
+        
+    def user_tmpl(self,voucher, email, remote_addr):
+        usr = {'id': email.replace('@','_').replace('.','_'),
+                'name': email.split('@')[0],
+                'kind': 'local',
+                'active': False,
+                'accessed': time.time(),
+                'username': email.replace('@','_').replace('.','_'),
+                'password': self.pw.encrypt(self.pw.generate_human()), #Unknown temporary key, updated on activate_user
+                'code': self.pw.encrypt(self.pw.generate_human()).replace('/','-').replace('.','_'), # Code for mail confirmation
+                'log':[{'when':time.time(),'ip':remote_addr,'action':'Register user'}],
+                'role': 'advanced',
+                'category': voucher,
+                'group': voucher,
+                'mail': email,
+                'quota': {'domains': {'desktops': 3,
+                                        'desktops_disk_max': 999999999,  # 1TB
+                                        'templates': 2,
+                                        'templates_disk_max': 999999999,
+                                        'running': 1,
+                                        'isos': 1,
+                                        'isos_disk_max': 999999999},
+                                        'hardware': {'vcpus': 2,
+                                                    'memory': 20000000}},  # 2GB
+                }
+        r.table('users').insert(usr, conflict='update').run(db.conn)
+        return usr
+
+    def update_access(self,username):
+        with app.app_context():
+            r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)        
+        
 '''
 PASSWORDS MANAGER
 '''
-import bcrypt
+import bcrypt,string,random
 class Password(object):
         def __init__(self):
             None
@@ -205,4 +337,9 @@ class Password(object):
                 
         def encrypt(self,plain_password):
             return bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        def generate_human(self,length=6):
+            chars = string.ascii_letters + string.digits + '!@#$*'
+            rnd = random.SystemRandom()
+            return ''.join(rnd.choice(chars) for i in range(length))
         

@@ -50,14 +50,16 @@ def admin_hypervisors():
         create_dict['status']='New'
         create_dict['status_time']=''
         create_dict['uri']=''
+        create_dict['enabled']=True
         res=app.adminapi.add_hypervisor(create_dict)
         
         if res is True:
             flash('Hypervisor '+create_dict['id']+' added to the system.','success')
-            return redirect(url_for('adminHypervisors'))
+            return redirect(url_for('admin_hypervisors'))
         else:
             flash('Could not create hypervisor. Maybe you have one with the same name?','danger')
-            return render_template('pages/hypervisors_add.html',  nav="Hypervisors")
+            return redirect(url_for('admin_hypervisors'))
+            #~ return render_template('pages/hypervisors_add.html',  nav="Hypervisors")
     #~ if request.method == 'JSON':
         #~ domain = app.adminapi.get_admin_hypervisors(id)
         #~ return json.dumps(domain), 200, {'ContentType':'application/json'} 
@@ -143,6 +145,11 @@ def admin_hypervisors_get():
 def admin_hypervisors_pools():
     res=True
     if request.method == 'POST':
+        ca=request.form['viewer-certificate']
+        pre_dict=request.form
+        pre_dict.pop('viewer-certificate', None)
+        import pprint
+        pprint.pprint(pre_dict)
         create_dict=app.isardapi.f.unflatten_dict(request.form)
         create_dict['viewer']['certificate']=ca
         #check and parse name not done!
@@ -150,7 +157,7 @@ def admin_hypervisors_pools():
         create_dict['interfaces']=[create_dict['interfaces']]
         if res is True:
             flash('Hypervisor pool '+create_dict['id']+' added to the system.','success')
-            return redirect(url_for('adminHypervisors'))
+            return redirect(url_for('admin_hypervisors'))
         else:
             flash('Could not create hypervisor pool. Maybe you have one with the same name?','danger')
             return render_template('pages/hypervisors.html',  nav="Hypervisors")

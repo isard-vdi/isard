@@ -9,16 +9,17 @@ import threading
 import rethinkdb as r
 import time
 import pprint
+from datetime import datetime
 
 from .pool_hypervisors import PoolHypervisors
 from .threads import launch_try_hyps, set_unknown_domains_not_in_hyps
-from .threads import set_domains_coherence, launch_thread_worker, launch_disk_operations_thread
+from .threads import set_domains_coherence, launch_thread_worker, launch_disk_operations_thread, launch_long_operations_thread
 from .events_recolector import launch_thread_hyps_event
 from .status import launch_thread_status, launch_thread_broom
 from .db import get_hyps_with_status, get_pool_from_domain, update_hyp_status, remove_domain, get_domain
 from .db import new_rethink_connection, update_all_hyps_status, get_pools_from_hyp, get_domain_hyp_started
 from .db import get_if_all_disk_template_created, update_domain_status, get_hypers_disk_operations
-from .db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id
+from .db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id, update_domain_history_from_id_domain
 from .functions import get_threads_running, get_tid
 from .ui_actions import UiActions
 from .log import *
@@ -42,7 +43,10 @@ class ManagerHypervisors(object):
         self.pools = {}
         self.t_disk_operations = {}
         self.q_disk_operations = {}
+        self.t_long_operations = {}
+        self.q_long_operations = {}
         self.t_changes_hyps = None
+        self.t_events = None
         self.t_changes_domains = None
         self.t_broom = None
         self.t_background = None
@@ -75,15 +79,24 @@ class ManagerHypervisors(object):
         def check_and_start_hyps(self):
             pass
 
-        def launch_threads_disk_operations(self):
+        def launch_threads_disk_and_long_operations(self):
+
             self.manager.hypers_disk_operations = get_hypers_disk_operations()
 
             for hyp_disk_operations in self.manager.hypers_disk_operations:
+                hyp_long_operations = hyp_disk_operations
                 d = get_hyp_hostname_user_port_from_id(hyp_disk_operations)
 
                 self.manager.t_disk_operations[hyp_disk_operations], \
                 self.manager.q_disk_operations[hyp_disk_operations] = launch_disk_operations_thread(
                         hyp_id=hyp_disk_operations,
+                        hostname=d['hostname'],
+                        user=d['user'],
+                        port=d['port']
+                )
+                self.manager.t_long_operations[hyp_long_operations], \
+                self.manager.q_long_operations[hyp_long_operations] = launch_long_operations_thread(
+                        hyp_id=hyp_long_operations,
                         hostname=d['hostname'],
                         user=d['user'],
                         port=d['port']
@@ -137,7 +150,7 @@ class ManagerHypervisors(object):
                 get_threads_running()
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
-                    self.launch_threads_disk_operations()
+                    self.launch_threads_disk_and_long_operations()
 
                 # TEST HYPS AND START THREADS FROM RETHINK
                 self.test_hyps_and_start_threads()
@@ -262,7 +275,7 @@ class ManagerHypervisors(object):
             #                            pluck({'id', 'name','icon','kind','description'}).\
             #                            changes(include_initial=True).run(db.conn):
 
-            for c in r.table('domains').pluck('id', 'kind', 'status').changes().run(r_conn):
+            for c in r.table('domains').pluck('id', 'kind', 'status','detail').changes().run(r_conn):
 
                 log.debug('domain changes detected in main thread')
                 new_domain = False
@@ -270,7 +283,6 @@ class ManagerHypervisors(object):
                 old_status = False
                 import pprint
                 log.debug(pprint.pformat(c))
-
 
                 # action deleted
                 if c['new_val'] is None:
@@ -280,13 +292,25 @@ class ManagerHypervisors(object):
                     new_domain = True
                     new_status = c['new_val']['status']
                     domain_id = c['new_val']['id']
+                    log.debug('domain_id: {}'.format(new_domain))
                     pass
 
                 if c['new_val'] is not None and c['old_val'] is not None:
                     old_status = c['old_val']['status']
                     new_status = c['new_val']['status']
+                    new_detail = c['new_val']['detail']
                     domain_id = c['new_val']['id']
                     log.debug('domain_id: {}'.format(domain_id))
+                    if old_status != new_status:
+                        # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
+                        # if new_status[-3:] == 'ing':
+                        if 1 > 0:
+                            date_now = datetime.now()
+                            update_domain_history_from_id_domain(domain_id,new_status,new_detail,date_now)
+                    else:
+                        # print('&&&&&&&ESTADOS IGUALES OJO &&&&&&&\n&&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.
+                        #       format(domain_id,old_status,new_status,new_detail))
+                        pass
 
                 if (new_domain is True and new_status == "Creating") or \
                         (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
@@ -297,16 +321,30 @@ class ManagerHypervisors(object):
                     # verificar que realmente es una template
                     # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                if old_status == 'CreatingDisk' and new_status == "CreatingDomain":
+                if (new_domain is True and new_status == "CreatingFromBuilder") or \
+                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
+                    ui.creating_disk_from_virtbuilder(domain_id)
+
+                if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
+                        (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
                     log.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
-                    ui.creating_and_test_xml_start(domain_id,
-                                                   creating_from_create_dict=True)
+                    if new_status == "CreatingDomainFromBuilder":
+                        ui.creating_and_test_xml_start(domain_id,
+                                                       creating_from_create_dict=True,
+                                                       xml_from_virt_install=True)
+                    if new_status == "CreatingDomain":
+                        ui.creating_and_test_xml_start(domain_id,
+                                                       creating_from_create_dict=True)
+
 
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
 
                 if old_status == 'Stopped' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
+
+                if old_status == 'Stopped' and new_status == "Updating":
+                    ui.updating_from_create_dict(domain_id)
 
                 if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
                     log.debug('disk deleted, mow remove domain form database')
@@ -338,6 +376,7 @@ class ManagerHypervisors(object):
                     # ui.stop_domain_from_id(id=domain_id)
                     hyp_started = get_domain_hyp_started(domain_id)
                     ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+                            
 
             r_conn.close()
 
