@@ -1,0 +1,6 @@
+pages:
+- ['index.md', 'Introduction']
+- ['install/linux.md', 'Installation', 'On linux']
+- ['install/docker-compose.md', 'Installation', 'Using docker-compose']
+- ['quick-start/first.md', 'Quick start', 'First steps']
+- ['about/license.md', 'About', 'License']
