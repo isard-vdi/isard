@@ -1,6 +1,16 @@
+site_name: IsardVDI
+site_url: http://www.isardvdi.com
+site_description: IsardVDI Open Source Virtual Desktops.
+site_author: IsardVDI
+
+repo_url: https://github.com/isard-vdi/isard
+
 pages:
-- ['index.md', 'Introduction']
-- ['install/linux.md', 'Installation', 'On linux']
-- ['install/docker-compose.md', 'Installation', 'Using docker-compose']
-- ['quick-start/first.md', 'Quick start', 'First steps']
-- ['about/license.md', 'About', 'License']
+- Introduction: index.md
+- Installation:
+    - On linux: install/linux.md
+    - Usind docker-compose: install/docker-compose.md
+- Quick Start: quick-start/first.md
+- About: about/license
+
+copyright: Copyright &copy; 2016 <a href="http://www.isardvdi.com">IsardVDI</a>.
