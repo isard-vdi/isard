@@ -41,11 +41,7 @@ Use only for testing purposes. Work in progress.
 
 ## Screenshots and videos: 
 
-Go to [Webpage project](http://isard-vdi.github.io/)
-
-#### Release notes:
-
-2016-02-26: v0.1 First Beta Release 
+Go to [Webpage project](http://www.isardvdi.com/)
 
 #### Future lines and roadmap
 
@@ -73,4 +69,4 @@ In 2016 we focused all our efforts on a solid and versatile software that materi
 + Alberto Larraz Dalmases
 
 ### Support/Contact
-Please send us an email to isard.vdi@gmail.com if you have any questions 
+Please send us an email to info@isardvdi.com if you have any questions 
