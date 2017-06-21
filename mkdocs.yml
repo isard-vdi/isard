@@ -13,7 +13,7 @@ repo_url: https://github.com/isard-vdi/isard
 # TOC
 pages:
 - Introduction: index.md
-- Installation: install.md
+- Installation:
     - On linux: install/linux.md
     - Using docker-compose: install/docker-compose.md
 - Quick Start: quick-start/first.md
