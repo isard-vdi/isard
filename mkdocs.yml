@@ -1,3 +1,5 @@
+docs_dir: docs
+
 # Project information
 site_name: IsardVDI
 site_url: http://www.isardvdi.com
@@ -15,13 +17,13 @@ pages:
     - On linux: install/linux.md
     - Usind docker-compose: install/docker-compose.md
 - Quick Start: quick-start/first.md
-- About: about/license
+- About: about/license.md
 
 # Copyright
 copyright: Copyright &copy; 2016 <a href="http://www.isardvdi.com">IsardVDI</a>.
 
 # Documentation and theme
-theme: 'material'
+#theme: 'material'
 
 # Options
 extra:
