@@ -341,7 +341,7 @@ class LongOperationsThread(threading.Thread):
                         log.debug('print cmds_done:')
                         log.debug(pprint.pprint(cmds_done))
                         log.debug('print ssh_comands:')
-                        log.debug(pprint.pprint(ssh_commands=action['ssh_comands']))
+                        log.debug(pprint.pprint(action['ssh_comands']))
                         update_domain_status('Failed',id_domain,
                                              detail='Virt Builder Failed creating disk file')
                     else:

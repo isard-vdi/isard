@@ -222,7 +222,7 @@ class ConfigThread(threading.Thread):
     def run(self):
         with app.app_context():
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
-                r.table('scheduler_jobs').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).run(db.conn):
+                r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
                 print('Config event:'+str(c))
                 if self.stop==True: break
@@ -230,16 +230,19 @@ class ConfigThread(threading.Thread):
                     if c['new_val'] is None:
                         event= 'backup_deleted' if c['old_val']['table']=='backups' else 'sch_deleted'
                         socketio.emit(event, 
-                                        json.dumps(c['old_val']['id']), 
+                                        json.dumps(c['old_val']), 
                                         namespace='/sio_admins', 
                                         room='config')
+                        print('EVENTO: '+event+' '+c['old_val']['id'])
                     else:
-                        print('new config val')
                         event='backup_data' if c['new_val']['table']=='backups' else 'sch_data'
-                        print(event)
+                        if event=='sch_data' and 'name' not in c['new_val'].keys():
+                            continue
                         socketio.emit(event, 
                                         json.dumps(c['new_val']),
+                                        namespace='/sio_admins', 
                                         room='config') 
+                        print('EVENTO: '+event+' '+c['old_val']['id'])
                 except Exception as e:
                     print('ConfigThread error:'+str(e))
                     
@@ -352,6 +355,7 @@ def socketio_admins_connect(join_rooms):
     if current_user.role=='admin':
         for rm in join_rooms:
             join_room(rm)
+            print('JOINED:'+rm)
 
 @socketio.on('get_tree_list', namespace='/sio_admins')
 def socketio_domains_update():
@@ -425,6 +429,31 @@ def socketio_classroom_update(data):
                     json.dumps({'place': app.adminapi.get_admin_table('places',id=data['place_id']) ,'hosts':app.adminapi.get_hosts_viewers(data['place_id'])}),
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
+
+
+@socketio.on('scheduler_add', namespace='/sio_admins')
+def socketio_scheduler_add(form_data):
+
+#~ {'action': 'delete_old_stats',
+ #~ 'hour': '00',
+ #~ 'kind': 'cron',
+ #~ 'minute': '00',
+ #~ 'older': ''}
+#~ {'action': 'delete_old_stats',
+ #~ 'hour': '00',
+ #~ 'kind': 'cron',
+ #~ 'minute': '00',
+ #~ 'older': ''}
+    res=app.scheduler.add_scheduler(form_data['kind'],form_data['action'],form_data['hour'],form_data['minute'])  
+    if res is True:
+        data=json.dumps({'result':True,'title':'New scheduler','text':'Scheduler is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'New scheduler','text':'Scheduler can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_admins', 
+                    room='config')
+
                     
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():

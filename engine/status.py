@@ -234,7 +234,7 @@ class ThreadBroom(threading.Thread):
                 status = d['status']
                 hyp_started = d['hyp_started']
                 #TODO bug sometimes hyp_started not in hyps_domain_started keys... why?
-                if hyp_started in hyps_domain_started.keys():
+                if hyp_started in hyps_domain_started.keys() and len(hyp_started) > 0:
                   if hyps_domain_started[hyp_started] is not False:
                     if status == 'Starting':
                         log.debug('DOMAIN: {} STATUS STARTING TO RUN IN HYPERVISOR: {}'.format(domain_id, hyp_started))
@@ -259,7 +259,7 @@ class ThreadBroom(threading.Thread):
                     else:
                         log.debug('DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} '.format(domain_id, hyp_started))
                 else:
-                    log.error('hyp_started: {} NOT IN hyps_domain_started keys:')
+                    log.error('hyp_started: {} NOT IN hyps_domain_started keys:'.format(hyp_started))
 
 
             interval = 0.0

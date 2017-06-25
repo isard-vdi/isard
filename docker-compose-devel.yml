@@ -1,6 +1,7 @@
 version: '2'
 services:
     rethinkdb-container:
+        restart: always
         image: rethinkdb
         hostname: rethinkdb
         ports:
@@ -68,6 +69,7 @@ services:
         command: bash -c '/init.sh'
 
     nginx:
+        restart: always
         image: marvambass/nginx-ssl-secure
         ports:
             - "443:443"

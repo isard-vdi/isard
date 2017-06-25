@@ -11,6 +11,7 @@ RUN pip3 install -r requirements.pip3
 
 RUN dnf install openssh openssh-clients -y
 COPY ./docker/engine/init.sh /
+COPY ./docker/engine/config /root/.ssh/
 COPY . .
 COPY ./docker/isard.conf ./isard.conf
 
