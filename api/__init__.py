@@ -74,7 +74,7 @@ def engine_info():
     d_engine = {}
     #if len(app.db.get_hyp_hostnames_online()) > 0:
     try:
-        if app.m.t_backround is not None:
+        if app.m.t_background is not None:
             try:
                 app.m.t_background.is_alive()
             except AttributeError:
