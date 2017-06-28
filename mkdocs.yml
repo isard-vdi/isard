@@ -1,0 +1,54 @@
+docs_dir: docs
+
+# Project information
+site_name: IsardVDI
+site_url: http://www.isardvdi.com
+site_description: IsardVDI Open Source Virtual Desktops.
+site_author: IsardVDI
+
+# Repository
+repo_name: 'isard-vdi/isard'
+repo_url: https://github.com/isard-vdi/isard
+
+# TOC
+pages:
+- Introduction: index.md
+- Installation:
+    - On linux: install/linux.md
+    - Using docker-compose: install/docker-compose.md
+- Quick Start: quick-start/first.md
+- About: about/license.md
+
+# Copyright
+copyright: Copyright &copy; 2016 <a href="http://www.isardvdi.com">IsardVDI</a>.
+
+# Documentation and theme
+#theme: 'material'
+
+# Options
+extra:
+  logo: 'images/logo.svg'
+  palette:
+    primary: 'indigo'
+    accent: 'indigo'
+  font:
+    text: 'Roboto'
+    code: 'Roboto Mono'
+  social:
+    - type: 'github'
+      link: 'https://github.com/john-doe'
+    - type: 'twitter'
+      link: 'https://twitter.com/john-doe'
+    - type: 'linkedin'
+      link: 'https://de.linkedin.com/in/john-doe'
+
+# Google Analytics
+#google_analytics:
+#  - 'UA-XXXXXXXX-X'
+#  - 'auto'
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - codehilite(guess_lang=false)
+  - toc(permalink=true)

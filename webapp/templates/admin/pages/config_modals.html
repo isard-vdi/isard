@@ -91,7 +91,7 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 
-              <form id="modalAddScheduler" class="form-horizontal form-label-left" action="{{ url_for('admin_scheduler') }}" method="POST" novalidate>
+              <form id="modalAddScheduler" class="form-horizontal form-label-left">
 			  <div class="x_panel">
                  <div class="x_content">
                      <div class="item form-group">
@@ -187,7 +187,10 @@
                      <div class="form-group">
                         <div class="col-md-6 col-md-offset-3">
                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="button" class="btn btn-success">Add job</button></li>
+<!--
                            <button id="send" type="submit" class="btn btn-success">Add job</button>
+-->
                         </div>
                      </div>
             </div>
@@ -228,11 +231,11 @@ function hiddenFields(obj) {
                   <div class="col-md-12 col-sm-12 col-xs-12">
                     <div class="x_panel">
                       <div class="x_title">
-                        <h2>Dropzone multiple file uploader</h2>
+                        <h2>Backup drag&drop upload</h2>
                         <div class="clearfix"></div>
                       </div>
                       <div class="x_content">
-                        <p>Drag multiple files to the box below for multi upload or click to select files. This is for demonstration purposes only, the files are not uploaded to any server.</p>
+                        <p>Drag multiple files to the box below for multi upload or click to select files.</p>
                         <form action="{{ url_for('admin_backup_upload') }}" class="dropzone"></form>
                         <br />
                       </div>

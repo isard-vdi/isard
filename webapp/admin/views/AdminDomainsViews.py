@@ -50,6 +50,26 @@ def admin_mdomains():
 def admin_domains_get():
     return json.dumps(app.adminapi.get_admin_domains()), 200, {'ContentType': 'application/json'}
 
+
+
+        
+@app.route('/admin/domains/virtrebuild')
+@login_required
+@isAdmin
+def admin_domains_get_builders():
+    #~ import subprocess
+    #~ command_output=subprocess.getoutput(['virt-builder --list'])
+    #~ blist=[]
+    #~ for l in command_output.split('\n'):
+            #~ blist.append({'dwn':False,'id':l[0:24].strip(),'arch':l[25:35].strip(),'name':l[36:].strip()})
+    #~ app.adminapi.cmd_virtbuilder('cirros-0.3.1','/isard/cirros.qcow2','1')
+    app.adminapi.update_virtbuilder()
+    app.adminapi.update_virtinstall()
+    #~ images=app.adminapi.get_admin_table('domains_virt_builder')
+    return json.dumps(''), 200, {'ContentType': 'application/json'}
+
+
+#~ http://libguestfs.org/download/builder/
 #~ @app.route('/admin/domains/datatables')
 #~ @login_required
 #~ @isAdmin
@@ -62,21 +82,21 @@ def admin_domains_get():
 #~ def admin_interfaces_get():
     #~ return json.dumps(app.adminapi.get_admin_networks()), 200, {'ContentType': 'application/json'}
    
-@app.route('/admin/stream/domains')
-@login_required
-@isAdmin
-def admin_stream_domains():
-        return Response(admin_domains_stream(), mimetype='text/event-stream')
+#~ @app.route('/admin/stream/domains')
+#~ @login_required
+#~ @isAdmin
+#~ def admin_stream_domains():
+        #~ return Response(admin_domains_stream(), mimetype='text/event-stream')
 
-def admin_domains_stream():
-        #~ initial=True
-        with app.app_context():
-            for c in r.table('domains').changes(include_initial=False).run(db.conn):
-                if c['new_val'] is None:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                    continue
-                if c['old_val'] is None:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                    continue             
-                if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+#~ def admin_domains_stream():
+        #initial=True
+        #~ with app.app_context():
+            #~ for c in r.table('domains').changes(include_initial=False).run(db.conn):
+                #~ if c['new_val'] is None:
+                    #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                    #~ continue
+                #~ if c['old_val'] is None:
+                    #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                    #~ continue             
+                #~ if 'detail' not in c['new_val']: c['new_val']['detail']=''
+                #~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))

@@ -207,17 +207,17 @@ def admin_table_stream(table):
             #~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
                     
 
-'''
-SCHEDULER
-'''
-@app.route('/admin/scheduler', methods=['POST'])
-@login_required
-@isAdmin
-def admin_scheduler():
-    if request.method == 'POST':
-        app.scheduler.add_scheduler(request.form['kind'],request.form['action'],request.form['hour'],request.form['minute'])        
-        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+#~ '''
+#~ SCHEDULER
+#~ '''
+#~ @app.route('/admin/scheduler', methods=['POST'])
+#~ @login_required
+#~ @isAdmin
+#~ def admin_scheduler():
+    #~ if request.method == 'POST':
+        #~ app.scheduler.add_scheduler(request.form['kind'],request.form['action'],request.form['hour'],request.form['minute'])        
+        #~ return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    #~ return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
 
 #~ @app.route('/admin/stream/scheduler')
 #~ @login_required

@@ -1,0 +1,89 @@
+version: '2'
+services:
+    rethinkdb-container:
+        restart: always
+        image: rethinkdb
+        hostname: rethinkdb
+        ports:
+            - "8080:8080"
+            - "28015:28015"
+        networks:
+            main:
+                aliases:
+                - rethinkdb
+
+    isard-hypervisor:
+        restart: always
+        build:
+            context: .
+            dockerfile: docker/hypervisor/Dockerfile
+        links:
+            - "rethinkdb-container"
+        hostname: isard-hypervisor
+        ports:
+            - "55022:22"
+            - "5900-5930:5900-5930"
+        privileged: true
+        volumes:
+            - "/sys/fs/cgroup:/sys/fs/cgroup:rw"
+            - "sshkeys:/root/.ssh"
+            - "/isard:/isard"
+            - "/isard/builder:/root/.cache/virt-builder"
+        networks:
+            main:
+                aliases:
+                - isard-hypervisor
+        command: /usr/sbin/init
+
+    isard-webapp:
+        restart: always
+        build:
+            context: .
+            dockerfile: docker/webapp/Dockerfile
+        links:
+            - "rethinkdb-container"
+        hostname: isard-webapp
+        expose:
+            - "5000"
+        networks:
+            main:
+                aliases:
+                - isard-webapp
+        command: python3 /isard/run_docker_webapp.py
+
+    isard-engine:
+        restart: always
+        build:
+            context: .
+            dockerfile: docker/engine/Dockerfile
+        links:
+            - "rethinkdb-container"
+            - "isard-hypervisor"
+        volumes:
+            - "sshkeys:/root/.ssh"
+        hostname: isard-engine
+        networks:
+            main:
+                aliases:
+                - isard-engine
+        command: bash -c '/init.sh'
+
+    nginx:
+        restart: always
+        image: marvambass/nginx-ssl-secure
+        ports:
+            - "443:443"
+        volumes:
+            - "./docker/nginx/:/etc/nginx/external"
+        hostname: nginx
+        links:
+            - "isard-webapp:isard-webapp"
+        networks:
+            main:
+                aliases:
+                - nginx
+
+networks:
+    main:
+volumes:
+    sshkeys:

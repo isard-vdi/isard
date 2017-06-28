@@ -95,7 +95,7 @@ class isardAdmin():
             if pluck and id:
                 return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
-            
+                        
     def get_admin_domains(self):
         with app.app_context():
             listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
@@ -299,7 +299,34 @@ class isardAdmin():
         with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
             return dict['path'],dict['filename'], isard_db_file.read()
         
-        
+
+    '''
+    CLASSROOMS
+    '''
+    def replace_hosts_viewers_items(self,place,hosts):
+        with app.app_context():
+            try:
+                place['id']=app.isardapi.parse_string(place['name'])
+                r.table('places').insert(place, conflict='update').run(db.conn)
+            except Exception as e:
+                print('error on update place:',e)
+                return False
+                
+            try:
+                hosts = [dict(item, place_id=place['id']) for item in hosts]
+                hosts = [dict(item, enabled=True) for item in hosts]
+                r.table('hosts_viewers').get_all(place['id'], index='place_id').delete().run(db.conn)
+                
+                return self.check(r.table('hosts_viewers').insert(hosts).run(db.conn),'inserted')
+            except Exception as e:
+                print('error o update hosts_viewers:',e)
+                return False
+
+
+    def get_hosts_viewers(self, place_id):
+        with app.app_context():
+            return list(r.table('hosts_viewers').get_all(place_id, index='place_id').run(db.conn))
+                    
     '''
     GRAPHS
     '''
@@ -349,7 +376,114 @@ class isardAdmin():
                 #~ dict['children'].append({'name':d['name'],'size':100})
             print(csv)
             return csv
-                    
+
+    def get_dashboard(self):
+        with app.app_context():
+            return {'users': r.db('isard').table('users').count().run(db.conn),
+                    'desktops': r.db('isard').table('domains').get_all('desktop', index='kind').count().run(db.conn),
+                    'started': r.db('isard').table('domains').get_all('Started', index='status').count().run(db.conn),
+                    'templates': r.db('isard').table('domains').filter(r.row['kind'].match('template')).count().run(db.conn),
+                    'isos': r.db('isard').table('isos').count().run(db.conn)}
+    '''
+    VIRT-BUILDER VIRT-INSTALL
+    '''
+
+    def new_domain_from_virtbuilder(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
+        with app.app_context():
+            userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
+            #~ import pprint
+            #~ pprint.pprint(create_dict)
+            create_dict['install']['options']='' #r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
+        
+        parsed_name = app.isardapi.parse_string(name)
+        dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
+        create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
+                                            'size':disk_size}]   # 15G as a format
+        #~ create_dict['install']['id']=install_id
+        #~ create_dict['install']['options']=install_options
+        new_domain={'id': '_'+user+'_'+parsed_name,
+                  'name': name,
+                  'description': description,
+                  'kind': 'desktop',
+                  'user': userObj['id'],
+                  'status': 'CreatingFromBuilder',
+                  'detail': None,
+                  'category': userObj['category'],
+                  'group': userObj['group'],
+                  'xml': None,
+                  'icon': icon,
+                  'server': False,
+                  'os': create_dict['builder']['id'],   #### Or name
+
+                  'create_dict': create_dict, 
+                  'hypervisors_pools': hyper_pools,
+                  'allowed': {'roles': False,
+                              'categories': False,
+                              'groups': False,
+                              'users': False}}
+        with app.app_context():
+            return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
+
+
+    def isa_group_separator(self,line):
+        return True if line.startswith('[') else False
+
+    def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
+        path=app.root_path+'/config/virt/virt-builder-files.ini'
+        import requests
+        response = requests.get(url)
+        file = open(path, "w")
+        file.write(response.text)
+        file.close()
+        import itertools
+        images=[]
+        with open(path) as f:
+            for key,group in itertools.groupby(f,self.isa_group_separator):
+                if not key:
+                    data={}
+                    for item in group:
+                        try:
+                            if item.startswith(' '): continue
+                            field,value=item.split('=')
+                            value=value.strip()
+                            data[field]=value
+                        except Exception as e:
+                            continue
+                    data['id']=data['file'].split('.xz')[0]
+                    if 'revision' not in data: data['revision']='0'
+                    images.append(data)
+        r.table('domains_virt_builder').insert(images, conflict='update').run(db.conn)
+        return True
+
+    def cmd_virtbuilder(self,id,path,size):
+        import subprocess
+        print('virt-builder '+id+' \
+             --output '+path+' \
+             --size '+size+'G \
+             --format qcow2')
+        command_output=subprocess.getoutput(['virt-builder '+id+' \
+             --output '+path+' \
+             --size '+size+'G \
+             --format qcow2'])
+        print(command_output)
+        return True
+
+    def update_virtinstall(self):
+        import subprocess
+        data = subprocess.getoutput("osinfo-query os")
+        installs=[]
+        found=False
+        for l in data.split('\n'):
+            if not found:
+                if '+' in l:
+                    found=True
+                continue
+            else:
+                v=l.split('|')
+                installs.append({'id':v[0].strip(),'name':v[1].strip(),'vers':v[2].strip(),'www':v[3].strip()})
+        r.table('domains_virt_install').insert(installs, conflict='update').run(db.conn)
+
+
 class flatten(object):
     def __init__(self):
         None

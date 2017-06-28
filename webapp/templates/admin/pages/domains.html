@@ -1,5 +1,13 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
+{% block css %}
+    <!-- Ion.RangeSlider -->
+    <link href="/vendors/normalize-css/normalize.css" rel="stylesheet">
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
+        <!-- Switchery -->
+    <link href="/vendors/switchery/dist/switchery.min.css" rel="stylesheet">
+{% endblock %}
 {% block content %}
 <div class="right_col" role="main">
     <div class="page-title">
@@ -32,13 +40,29 @@
                               </div>
                         </div>
                         </li>
+<!--
                           <li><a class="add-new-role"><span
                                   style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
                           </li>
+-->
+
+                <li class="">
+                  <a class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                    <span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span>
+                    <span class="fa fa-angle-down"></span>
+                  </a>
+                  <ul class="dropdown-menu pull-right">
+                    <li><a class="add-new-iso"> From ISO CD</a></li>
+                    <li><a class="add-new-virtbuilder"> From auto Builder</a></li>
+                  </ul>
+                </li>                          
+
+<!--
                           <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
                           </li>
                           <li><a class="close-link"><i class="fa fa-close"></i></a>
                           </li>
+-->
                         </ul>
              <div class="clearfix"></div>
         </div>
@@ -226,6 +250,7 @@
        </div>
        </div>
     <div class="clearfix"></div>
+    {% include '/admin/pages/domains_modals.html' %}
     </div>
 </div>
 

@@ -17,6 +17,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from ..auth.authentication import Password
+from .virt_builder_install_selection import update_virtbuilder, update_virtinstall, create_builders
 
 
 class Populate(object):
@@ -34,9 +35,13 @@ class Populate(object):
         self.groups()
         log.info('Checking table users')
         self.users()
-        log.info('Checking table hypervisors_pools')
-        self.hypervisors_pools()
-        log.info('Checking table hypervisors')
+        log.info('Checking table vouchers')
+        self.vouchers()
+        #~ log.info('Checking table hypervisors_pools')
+        # Now hypervisors calls hypervisors_pools
+        # so is not needed here anymore
+        #~ self.hypervisors_pools()
+        log.info('Checking table hypervisors and pools')
         self.hypervisors()
         log.info('Checking table interfaces')
         self.interfaces()
@@ -50,8 +55,14 @@ class Populate(object):
         self.domains()
         log.info('Checking table domains_status')
         self.domains_status()
-        log.info('Checking table domain_xmls')
-        self.domains_xmls()
+        #~ log.info('Checking table domain_xmls')
+        #~ self.domains_xmls()
+        log.info('Checking table virt_builder')
+        self.virt_builder()
+        log.info('Checking table virt_install')
+        self.virt_install()
+        log.info('Checking table builders')
+        self.builders()
         log.info('Checking table isos')
         self.isos()
         log.info('Checking table boots')
@@ -62,12 +73,17 @@ class Populate(object):
         self.hypervisors_status()
         log.info('Checking table disk_operations')
         self.disk_operations()
+        log.info('Checking table hosts_viewers')
+        self.hosts_viewers()
+        log.info('Checking table places')
+        self.places()
         log.info('Checking table disposables')
         self.disposables()
         log.info('Checking table backups')
         self.backups()
         log.info('Checking table config')
         self.config()
+
 
     '''
     DATABASE
@@ -100,6 +116,7 @@ class Populate(object):
                                                                          'ldap_server': 'ldap://ldap.domain.org',
                                                                          'bind_dn': 'dc=domain,dc=org'}},
                                                         'disposable_desktops':{'active': False},
+                                                        'voucher_access':{'active': False},
                                                         'engine':{  'intervals':{   'status_polling':10,
                                                                                     'time_between_polling': 5,
                                                                                     'test_hyp_fail': 20,
@@ -128,7 +145,7 @@ class Populate(object):
                                                                             },
                                                                     'carbon':{'active':False,'server':'','port':''}},
                                                         'version':0
-                                                       }], conflict='error').run(db.conn))
+                                                       }], conflict='update').run(db.conn))
                 log.info("Table config populated with defaults.")
                 return True
             else:
@@ -174,6 +191,8 @@ class Populate(object):
             if not r.table_list().contains('users').run(db.conn):
                 log.info("Table users not found, creating...")
                 r.table_create('users', primary_key="id").run(db.conn)
+                r.table('users').index_create("group").run(db.conn)
+                r.table('users').index_wait("group").run(db.conn)
 
                 if r.table('users').get('admin').run(db.conn) is None:
                     usr = [{'id': 'admin',
@@ -222,6 +241,21 @@ class Populate(object):
                     self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
                     log.info("  Inserted default admin username with password isard")
             return True
+
+    '''
+    VOUCHERS
+    Grant access on new voucher
+    '''
+
+    def vouchers(self):
+        with app.app_context():
+            if not r.table_list().contains('vouchers').run(db.conn):
+                log.info("Table vouchers not found, creating...")
+                r.table_create('vouchers', primary_key="id").run(db.conn)
+                #~ r.table('users').index_create("group").run(db.conn)
+                #~ r.table('users').index_wait("group").run(db.conn)
+            return True
+
 
     '''
     ROLES
@@ -523,7 +557,28 @@ class Populate(object):
     '''
 
     def hypervisors(self):
-
+        '''
+        Read RethinkDB configuration from file
+        '''
+        import configparser
+        import os
+        if os.path.isfile(os.path.join(os.path.join(os.path.dirname(__file__),'../../isard.conf'))):
+            try:
+                rcfg = configparser.ConfigParser()
+                rcfg.read(os.path.join(os.path.dirname(__file__),'../../isard.conf'))
+            except Exception as e:
+                log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
+                sys.exit(0)
+        #~ else:
+            #~ try:
+                #~ rcfg = configparser.ConfigParser()
+                #~ rcfg.read(os.path.join(os.path.dirname(__file__),'../config/isard.conf'))
+            #~ except Exception as e:
+                #~ log.info('Aborting. Please configure your RethinkDB default hypers: /isard.conf \n exception: {}'.format(e))
+                #~ sys.exit(0)
+                
+        #~ docker=int(rcfg.get('DOCKER', 'ACTIVE'))
+        
         with app.app_context():
             if not r.table_list().contains('hypervisors').run(db.conn):
                 log.info("Table hypervisors not found, creating and populating with localhost")
@@ -531,24 +586,50 @@ class Populate(object):
 
                 rhypers = r.table('hypervisors')
                 log.info("Table hypervisors found, populating...")
-                if rhypers.get('localhost').run(db.conn) is None and rhypers.count().run(db.conn) == 0:
-                    self.result(rhypers.insert([{'id': 'localhost',
-                                                 'hostname': '127.0.0.1',
-                                                 'user': 'root',
-                                                 'port': '22',
-                                                 'uri': '',
-                                                 'capabilities': {'disk_operations': True,
-                                                                  'hypervisor': True},
-                                                 'hypervisors_pools': ['default'],
-                                                 'enabled': False,
-                                                 'status': 'Offline',
-                                                 'status_time': False,
-                                                 'prev_status': [],
-                                                 'detail': '',
-                                                 'description': 'Embedded hypervisor',
-                                                 'info': []},
-                                                ]).run(db.conn))
-            return True
+                ## Is not a docker
+                #~ if rhypers.get('localhost').run(db.conn) is None and rhypers.count().run(db.conn) == 0: and not docker:
+                    #~ self.result(rhypers.insert([{'id': 'localhost',
+                                                 #~ 'hostname': '127.0.0.1',
+                                                 #~ 'user': 'root',
+                                                 #~ 'port': '22',
+                                                 #~ 'uri': '',
+                                                 #~ 'capabilities': {'disk_operations': True,
+                                                                  #~ 'hypervisor': True},
+                                                 #~ 'hypervisors_pools': ['default'],
+                                                 #~ 'enabled': False,
+                                                 #~ 'status': 'Offline',
+                                                 #~ 'status_time': False,
+                                                 #~ 'prev_status': [],
+                                                 #~ 'detail': '',
+                                                 #~ 'description': 'Embedded hypervisor',
+                                                 #~ 'info': []},
+                                                #~ ]).run(db.conn))
+                    #~ self.hypervisors_pools()
+            #~ rhypers = r.table('hypervisors')
+            ## Is a docker and there are no hypers yet
+            ## We assume this as a 'first boot configuration'
+                docker=True
+                if docker and rhypers.count().run(db.conn) == 0:
+                    for key,val in dict(rcfg.items('DEFAULT_HYPERVISORS')).items():
+                        vals=val.split(',')
+                        self.result(rhypers.insert([{'id': key,
+                                                     'hostname': vals[0],
+                                                     'user': vals[1],
+                                                     'port': vals[2],
+                                                     'uri': '',
+                                                     'capabilities': {'disk_operations': True if int(vals[3]) else False,
+                                                                      'hypervisor': True if int(vals[4]) else False},
+                                                     'hypervisors_pools': [vals[5]],
+                                                     'enabled': True if int(vals[6]) else False,
+                                                     'status': 'Offline',
+                                                     'status_time': False,
+                                                     'prev_status': [],
+                                                     'detail': '',
+                                                     'description': 'Default hypervisor',
+                                                     'info': []},
+                                                    ]).run(db.conn))  
+                    self.hypervisors_pools(disk_operations=[key])
+        return True
 
     '''
     DOMAINS
@@ -577,31 +658,32 @@ class Populate(object):
     DOMAINS_XMLS: id name description xml 
     '''
 
-    def domains_xmls(self):
-        with app.app_context():
-            if not r.table_list().contains('domains_xmls').run(db.conn):
-                log.info("Table domains_xmls not found, creating...")
-                r.table_create('domains_xmls', primary_key="id").run(db.conn)
-        xml_path = './webapp/config/default_xmls/'
-        xmls = os.listdir(xml_path)
-        xmls_list = []
-        for xml in xmls:
-            if xml.endswith('.xml'):
-                with open(xml_path + xml, "r") as xml_file:
-                    xml_data = xml_file.read()
-                xmls_list.append({'id': '_admin_' + xml.split('.')[0],
-                                  'name': xml.split('.')[0],
-                                  'description': 'File name: ' + xml,
-                                  'xml': xml_data,
-                                  'allowed': {'roles': ['admin'],
-                                              'categories': False,
-                                              'groups': False,
-                                              'users': False}
-                                  })
-        with app.app_context():
-            self.result(r.table('domains_xmls').insert(xmls_list, conflict='update').run(db.conn))
-        return True
+    #~ def domains_xmls(self):
+        #~ with app.app_context():
+            #~ if not r.table_list().contains('domains_xmls').run(db.conn):
+                #~ log.info("Table domains_xmls not found, creating...")
+                #~ r.table_create('domains_xmls', primary_key="id").run(db.conn)
+        #~ xml_path = './webapp/config/default_xmls/'
+        #~ xmls = os.listdir(xml_path)
+        #~ xmls_list = []
+        #~ for xml in xmls:
+            #~ if xml.endswith('.xml'):
+                #~ with open(xml_path + xml, "r") as xml_file:
+                    #~ xml_data = xml_file.read()
+                #~ xmls_list.append({'id': '_admin_' + xml.split('.')[0],
+                                  #~ 'name': xml.split('.')[0],
+                                  #~ 'description': 'File name: ' + xml,
+                                  #~ 'xml': xml_data,
+                                  #~ 'allowed': {'roles': ['admin'],
+                                              #~ 'categories': False,
+                                              #~ 'groups': False,
+                                              #~ 'users': False}
+                                  #~ })
+        #~ with app.app_context():
+            #~ self.result(r.table('domains_xmls').insert(xmls_list, conflict='update').run(db.conn))
+        #~ return True
 
+        
     '''
     ISOS: iso files
     '''
@@ -620,7 +702,7 @@ class Populate(object):
     POOLS
     '''
 
-    def hypervisors_pools(self):
+    def hypervisors_pools(self,disk_operations=['localhost']):
         with app.app_context():
             if not r.table_list().contains('hypervisors_pools').run(db.conn):
                 log.info("Table hypervisors_pools not found, creating...")
@@ -635,23 +717,21 @@ class Populate(object):
                                             'description': 'Non encrypted (not recommended)',
                                             'paths': {'bases':
                                                           [{'path':'/isard/bases',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'groups':
                                                           [{'path':'/isard/groups',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'templates':
                                                           [{'path':'/isard/templates',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'disposables':
                                                           [{'path':'/isard/disposables',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       'isos':
                                                           [{'path':'/isard/isos',
-                                                               'disk_operations': ['localhost'], 'weight': 100}],
+                                                               'disk_operations': disk_operations, 'weight': 100}],
                                                       },
-                                            'viewer':{'defaultMode':'Insecure',
-                                                     'certificate':'',
-                                                     'domain':''},
+                                            'viewer':self._secure_viewer(),
                                             'interfaces': [],
                                             'allowed': {
                                                           'roles': [],
@@ -754,6 +834,21 @@ class Populate(object):
             txt = ''.join((c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn'))
             return txt.replace(" ", "_")
 
+    def _secure_viewer(self):
+        cert_file='install/viewer-certs/ca-cert.pem'
+        try:
+            with open(cert_file, "r") as caFile:
+                ca=caFile.read()
+            from OpenSSL import crypto
+            cert = crypto.load_certificate(crypto.FILETYPE_PEM, open(cert_file).read())
+            return {'defaultMode':'Secure',
+                                'certificate':ca,
+                                'domain':cert.get_issuer().organizationName}
+        except Exception as e:
+            print(e)
+            return {'defaultMode':'Insecure',
+                                'certificate':'',
+                                'domain':''}
     '''
     LOCATIONS
     '''
@@ -762,15 +857,13 @@ class Populate(object):
         with app.app_context():
             if not r.table_list().contains('hosts_viewers').run(db.conn):
                 log.info("Table hosts_viewers not found, creating...")
-                r.table_create('hosts_viewers', primary_key="hostname").run(db.conn)
-                r.table('hosts_viewers').index_create("ip_address").run(db.conn)
-                r.table('hosts_viewers').index_wait("ip_address").run(db.conn)
-                r.table('hosts_viewers').index_create("mac_address").run(db.conn)
-                r.table('hosts_viewers').index_wait("mac_address").run(db.conn)
+                r.table_create('hosts_viewers', primary_key="id").run(db.conn)
+                r.table('hosts_viewers').index_create("hostname").run(db.conn)
+                r.table('hosts_viewers').index_wait("hostname").run(db.conn)
+                r.table('hosts_viewers').index_create("mac").run(db.conn)
+                r.table('hosts_viewers').index_wait("mac").run(db.conn)
                 r.table('hosts_viewers').index_create("place_id").run(db.conn)
                 r.table('hosts_viewers').index_wait("place_id").run(db.conn)
-                r.table('hosts_viewers').index_create("host_order").run(db.conn)
-                r.table('hosts_viewers').index_wait("host_order").run(db.conn)
             return True
     '''
     PLACES
@@ -780,7 +873,206 @@ class Populate(object):
         with app.app_context():
             if not r.table_list().contains('places').run(db.conn):
                 log.info("Table places not found, creating...")
-                r.table_create('hosts_viewers', primary_key="place_id").run(db.conn)
-                r.table('hypervisors_events').index_create("network_address").run(db.conn)
-                r.table('hypervisors_events').index_wait("network_address").run(db.conn)
+                r.table_create('places', primary_key="id").run(db.conn)
+                r.table('places').index_create("network").run(db.conn)
+                r.table('places').index_wait("network").run(db.conn)
+                r.table('places').index_create("status").run(db.conn)
+                r.table('places').index_wait("status").run(db.conn)
             return True
+
+
+    '''
+    BUILDER
+    '''
+
+    def builders(self):
+        with app.app_context():
+            if not r.table_list().contains('builders').run(db.conn):
+                log.info("Table builders not found, creating...")
+                r.table_create('builders', primary_key="id").run(db.conn)
+                r.table('builders').insert(create_builders(), conflict='update').run(db.conn)
+                self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
+            return True
+
+
+    '''
+    VIRT BUILDER
+    '''
+
+    def virt_builder(self):
+        with app.app_context():
+            if not r.table_list().contains('virt_builder').run(db.conn):
+                log.info("Table virt_builder not found, creating...")
+                r.table_create('virt_builder', primary_key="id").run(db.conn)
+                r.table('virt_builder').insert(update_virtbuilder(), conflict='update').run(db.conn)
+                self.result(r.table('virt_builder').insert(self.update_virtbuilder(), conflict='update').run(db.conn))
+            return True
+
+    '''
+    VIRT INSTALL
+    '''
+
+    def virt_install(self):
+        with app.app_context():
+            if not r.table_list().contains('virt_install').run(db.conn):
+                log.info("Table virt_install not found, creating...")
+                r.table_create('virt_install', primary_key="id").run(db.conn)
+                r.table('virt_install').insert(update_virtinstall(), conflict='update').run(db.conn)
+                self.result(r.table('virt_install').insert(self.update_virtinstall(), conflict='update').run(db.conn))
+            return True
+
+
+
+    ''''
+
+    VIRT - BUILDER
+    VIRT - INSTALL
+
+    '''
+
+
+    def create_builders(self):
+        l=[]
+        d_fedora25 = {'id': 'fedora25_gnome_office',
+                      'name': 'Fedora 25 with gnome and libre office',
+                      'builder':{
+                          'id': 'fedora-25',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install "@workstation-product-environment"
+    --install "inkscape,tmux,@libreoffice,chromium"
+    --install "libreoffice-langpack-ca,langpacks-es"
+    --root-password password:isard
+    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+    --firstboot-command 'localectl set-locale LANG=es_ES.utf8'
+    --firstboot-command 'localectl set-keymap es'
+    --firstboot-command 'systemctl isolate graphical.target'
+    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    --hostname 'isard-fedora'"""
+                      },
+                      'install':{
+                          'id': 'fedora25',
+                          'options': ''
+                      }
+                      }
+        l.append(d_fedora25)
+        
+        d_debian8 = {'id': 'debian8_gnome_office',
+                      'name': 'Debian 8 with gnome and libre office',
+                      'builder':{
+                          'id': 'debian-8',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install 'xfce4,locales,ibus'
+    --install 'gdm3,libreoffice,libreoffice-l10n-es'
+    --install 'inkscape,tmux,chromium'
+    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    --run-command "locale-gen"
+    --root-password password:isard
+    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    --hostname 'isard-debian'"""
+                      },
+                      'install':{
+                          'id': 'debian8',
+                          'options': ''
+                      }
+                      }
+        l.append(d_debian8)
+        
+        d_ubuntu1604 = {'id': 'ubuntu1604_gnome_office',
+                      'name': 'Ubuntu 16.04 with gnome and libre office',
+                      'builder':{
+                          'id': 'ubuntu-16.04',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install "ubuntu-desktop"
+    --install "inkscape,tmux,libreoffice,chromium-bsu"
+    --install 'language-pack-es-base,language-pack-es'
+    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    --run-command "locale-gen"
+    --root-password password:isard
+    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+    --firstboot-command 'systemctl isolate graphical.target'
+    --hostname 'isard-ubuntu'"""
+                      },
+                      'install':{
+                          'id': 'ubuntu16',
+                          'options': ''
+                      }
+                      }
+        l.append(d_ubuntu1604)
+        return l
+
+    def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
+
+        import urllib.request
+        with urllib.request.urlopen(url) as response:
+            f = response.read()
+
+        s = f.decode('utf-8')
+        #select only arch x86_64
+        l = [a.split(']') for a in s[1:].split('\n[') if a.find('\narch=x86_64') > 0]
+
+        list_virtbuilder = []
+        for b in l:
+            d = {a.split('=')[0]: a.split('=')[1] for a in b[1].split('notes')[0].split('\n')[1:] if
+                       len(a) > 0 and a.find('=') > 0}
+            d['id'] = b[0]
+            list_virtbuilder.append(d)
+
+        return list_virtbuilder
+
+
+    def update_virtinstall(self,from_osinfo_query=False):
+
+        if from_osinfo_query is True:
+            import subprocess
+            data = subprocess.getoutput("osinfo-query os")
+
+        else:
+            from os import path
+            from os import getcwd
+            __location__ = path.realpath(
+                    path.join(getcwd(), path.dirname(__file__)))
+            f=open(__location__+'/osinfo.txt')
+            data = f.read()
+            f.close()
+
+        installs=[]
+
+        for l in data.split('\n')[2:]:
+            if l.find('|') > 1:
+
+                v=[a.strip() for a in l.split('|')]
+
+                #DEFAULT FONT
+                font_type = 'font-awesome'
+                font_class = 'fa-linux'
+
+                for oslinux in ('fedora,centos,debian,freebsd,mageia,mandriva,opensuse,ubuntu,opensuse'.split(',')):
+                        font_type  = 'font-linux'
+                        font_class = 'fl-'+oslinux
+
+                if v[0].find('rhel') == 0 or v[0].find('rhl') == 0:
+                    font_type  = 'font-linux'
+                    font_class = 'fl-redhat'
+
+                elif v[0].find('win') == 0:
+                    font_type  = 'font-awesome'
+                    font_class = 'fa-windows'
+
+                installs.append({'id':v[0].strip(),
+                                 'name':v[1].strip(),
+                                 'vers':v[2].strip(),
+                                 'www':v[3].strip(),
+                                 'font_type':font_type,
+                                 'icon':font_class})
+
+        return installs
+
+

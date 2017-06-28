@@ -1,5 +1,5 @@
 <!-- extend base layout -->
-{% extends "admin/pages/graphs.html" %}
+{% extends "admin/pages/base_graphs.html" %}
 {% block css %}
     <style>
 
@@ -27,6 +27,7 @@
 {% endblock %}
 {% block content %}
         <!-- page content -->
+    <div class="right_col" role="main">
         <div class="row">
 			<div class="col-md-12 col-sm-12 col-xs-12">
 				<div class="text-center text-center">
@@ -35,6 +36,7 @@
 				</div>
 			</div>
         </div>
+    </div>
 {% endblock %}
 
 {% block pagescript %}
