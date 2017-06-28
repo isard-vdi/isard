@@ -48,9 +48,9 @@ def create_cmd_disk_from_virtbuilder(path_new_qcow,
     touch_test_path = path_dir + '/.touch_test'
 
     cmd_virt_builder = 'virt-builder {os}  --machine-readable --output {path} --size {size} --format qcow2 {options}'\
-                       .format(os=os_version, path=path_big_disk, size=size_str, options=options_cmd)
-    cmd_virt_sparsify = 'virt-sparsify --tmp {dir_tmp} {path_big_disk} {path_small_disk}'\
-                        .format(dir_tmp=path_dir_tmp_sparsify, path_big_disk=path_big_disk, path_small_disk=path_new_qcow)
+                       .format(os=os_version, path=path_new_qcow, size=size_str, options=options_cmd)
+    cmd_virt_sparsify = 'virt-sparsify --in-place {path_new_qcow}'\
+                        .format(path_new_qcow=path_new_qcow)
     cmd_virt_install = 'virt-install --import --dry-run --print-xml --disk {} --memory {} --os-variant {} --name {}'\
                        .format(path_new_qcow, memory_in_mb, id_os_virt_install, name_domain_in_xml)
 
