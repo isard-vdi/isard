@@ -198,7 +198,7 @@ class isardAdmin():
             for table in r.table_list().run(db.conn):
                 if table not in skip_tables:
                     isard_db[table]=list(r.table(table).run(db.conn))
-                    #~ dict['data'][table]=r.table(table).count().run(db.conn)
+                    dict['data'][table]=r.table(table).info().run(db.conn)
                     r.table('backups').get(id).update({'data':{table:r.table(table).count().run(db.conn)}}).run(db.conn)
         with app.app_context():
             dict=r.table('backups').get(id).run(db.conn)            
@@ -220,7 +220,16 @@ class isardAdmin():
             pass
         with app.app_context():
             r.table('backups').get(id).update({'status':'Finished creating'}).run(db.conn)
-            
+
+    def recreate_table(self,tbl_data):
+        if not r.table_list().contains(tbl_data['name']).run(db.conn):
+            log.info("Restoring table {}".format(k))
+            r.table_create(tbl_data['name'], primary_key=tbl_data['primary_key']).run(db.conn)
+            for idx in tbl_data['indexes']:
+                r.table(tbl_data['name']).index_create(idx).run(db.conn)
+                r.table(tbl_data['name']).index_wait(idx).run(db.conn)
+                log.info('Created index: {}'.format(idx))
+                
     def restore_db(self,id):
         import tarfile,pickle
         with app.app_context():
@@ -232,13 +241,20 @@ class isardAdmin():
             tar.close()
         with app.app_context():
             r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.rethink', 'rb') as tbl_data_file:
+            tbl_data = pickle.load(tbl_data_file)
         with open(path+id+'.json', 'rb') as isard_db_file:
             isard_db = pickle.load(isard_db_file)
         for k,v in isard_db.items():
             with app.app_context():
+                try:
+                    self.recreate_table(tbl_data[k])
+                except Exception as e:
+                    pass
                 if not r.table_list().contains(k).run(db.conn):
                     log.error("Table {} not found, should have been created on IsardVDI startup.".format(k))
-                    return False
+                    continue
+                    #~ return False
                 else:
                     log.info("Restoring table {}".format(k))
                     with app.app_context():
