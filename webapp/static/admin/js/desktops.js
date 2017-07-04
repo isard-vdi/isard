@@ -5,29 +5,6 @@
 * License: AGPLv3
 */
 
-var href = location.href;
-kind=href.match(/([^\/]*)\/*$/)[1];
-columns= [
-				{
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-				},
-				{ "data": "icon" },
-                { "data": "hyp_started", "width": "10px"},
-				{ "data": "name"},
-				{ "data": null},
-				{ "data": "status"},
-				{ "data": "kind"},
-				{ "data": "user"},
-				{ "data": "category"},
-				{ "data": "group"},
-                { "data": "accessed"},
-                ]
-if(kind!="Desktops"){
-    columns.push({"data": "derivates"});
-}
 
 $(document).ready(function() {
 	//~ $('#test').on( 'click', function () {
@@ -96,7 +73,7 @@ $(document).ready(function() {
             
 		domains_table= $('#domains').DataTable({
 			"ajax": {
-				"url": "/admin/domains/get/"+kind,
+				"url": "/admin/domains/get/desktop",
 				"dataSrc": ""
 			},
 			"language": {
@@ -104,7 +81,23 @@ $(document).ready(function() {
 			},
 			"rowId": "id",
 			"deferRender": true,
-			"columns": columns,
+			"columns": [
+				{
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+				},
+				{ "data": "icon" },
+                { "data": "hyp_started", "width": "10px"},
+				{ "data": "name"},
+				{ "data": null},
+				{ "data": "status"},
+				{ "data": "kind"},
+				{ "data": "user"},
+				{ "data": "category"},
+				{ "data": "group"},
+                { "data": "accessed"}],
 			 "order": [[4, 'asc']],
 			 "columnDefs": [ {
 							"targets": 1,

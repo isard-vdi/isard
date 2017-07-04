@@ -86,6 +86,18 @@ class isardAdmin():
             ## ALERT: Should remove password (password='')
             return self.f.table_values_bstrap(r.table('users').run(db.conn))
 
+    def get_admin_users_domains(self):
+        with app.app_context():
+            return self.f.table_values_bstrap(
+                r.table("users").merge(lambda user:
+                    {
+                        "desktops": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'desktop'}).count(),
+                        "public_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'public_template'}).count(),
+                        "user_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'user_template'}).count(),
+                        "base": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'base'}).count()
+                    }
+                ).run(db.conn))
+                
     def get_admin_table(self, table, pluck=False, id=False):
         with app.app_context():
             if id and not pluck:
@@ -96,18 +108,30 @@ class isardAdmin():
                 return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
                         
-    def get_admin_domains(self):
+    def get_admin_domains(self,kind=False):
         with app.app_context():
-            listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
-        i=0
-        while i<len(listdict):
-            if 'xml' in listdict[i]: del listdict[i]['xml']
-            if 'status' not in list(listdict[i].keys()): listdict[i]['status']='template'
-            if 'user' not in list(listdict[i].keys()): listdict[i]['user']='admin'
-            if 'category' not in list(listdict[i].keys()): listdict[i]['category']='admin'
-            if 'group' not in list(listdict[i].keys()): listdict[i]['group']='admin'
-            i=i+1
-        return listdict
+            if not kind:
+                return self.f.table_values_bstrap(r.table('domains').without('xml','hardware','create_dict').run(db.conn))
+            else:
+                 return self.f.table_values_bstrap(r.table('domains').get_all(kind,index='kind').without('xml','hardware','create_dict').run(db.conn))
+            #~ listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
+        #~ i=0
+        #~ while i<len(listdict):
+            #~ if 'xml' in listdict[i]: del listdict[i]['xml']
+            #~ if 'status' not in list(listdict[i].keys()): listdict[i]['status']='template'
+            #~ if 'user' not in list(listdict[i].keys()): listdict[i]['user']='admin'
+            #~ if 'category' not in list(listdict[i].keys()): listdict[i]['category']='admin'
+            #~ if 'group' not in list(listdict[i].keys()): listdict[i]['group']='admin'
+            #~ i=i+1
+        #~ return listdict
+
+    def get_admin_domains_with_derivates(self,kind=False):
+        with app.app_context():
+               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
+                    {
+                        "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                    }
+                ).run(db.conn))
 
     def get_admin_hypervisors(self, id=False):
         with app.app_context():
