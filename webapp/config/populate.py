@@ -614,7 +614,7 @@ class Populate(object):
                         vals=val.split(',')
                         self.result(rhypers.insert([{'id': key,
                                                      'hostname': vals[0],
-                                                     'viewer_hostname': vals[1]
+                                                     'viewer_hostname': vals[1],
                                                      'user': vals[2],
                                                      'port': vals[3],
                                                      'uri': '',
