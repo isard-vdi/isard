@@ -614,7 +614,7 @@ class Populate(object):
                         vals=val.split(',')
                         self.result(rhypers.insert([{'id': key,
                                                      'hostname': vals[0],
-                                                     'viewer_hostname': vals[1],
+                                                     'viewer_hostname': self._hypervisor_viewer_hostname(vals[1]),
                                                      'user': vals[2],
                                                      'port': vals[3],
                                                      'uri': '',
@@ -850,6 +850,16 @@ class Populate(object):
             return {'defaultMode':'Insecure',
                                 'certificate':'',
                                 'domain':''}
+
+    def _hypervisor_viewer_hostname(self,viewer_hostname):
+        hostname_file='install/viewer-certs/host_name'
+        try:
+            with open(hostname_file, "r") as hostFile:
+                return hostFile.read().strip()
+        except Exception as e:
+            return viewer_hostname
+
+        return 
     '''
     LOCATIONS
     '''
