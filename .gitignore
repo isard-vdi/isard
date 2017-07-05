@@ -28,6 +28,10 @@ engine/.idea/
 #backups
 backups/
 
+#docker run scripts
+run_docker_engine.py
+run_docker_webapp.py
+
 #Generated certs
 install/viewer-certs/*.pem
 install/viewer-certs/*.csr
