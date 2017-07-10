@@ -143,6 +143,27 @@ def admin_restore():
         return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
 
+@app.route('/admin/restore/<table>', methods=['POST'])
+@login_required
+@isAdmin
+def admin_restore_table(table):
+    global backup_data,backup_db
+    if request.method == 'POST':
+        print(table)
+        data=request.get_json(force=True)['data']
+        insert=data['new_backup_data']
+        data.pop('new_backup_data',None)
+        #~ print(data)
+        if insert:
+            if app.adminapi.insert_table_dict(table,data):
+                return json.dumps('Inserted'), 200, {'ContentType':'application/json'}
+        else:
+            id=data['id']
+            data.pop('id',None)
+            if app.adminapi.update_table_dict(table,id,data):
+                return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+    
 @app.route('/admin/backup_remove', methods=['POST'])
 @login_required
 @isAdmin
@@ -152,6 +173,31 @@ def admin_backup_remove():
         return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
 
+backup_data = {}
+backup_db=[]
+
+@app.route('/admin/backup_info', methods=['POST'])
+@login_required
+@isAdmin
+def admin_backup_info():
+    global backup_data,backup_db
+    if request.method == 'POST':
+        backup_data,backup_db=app.adminapi.info_backup_db(request.get_json(force=True)['pk'])
+        return json.dumps(backup_data), 200, {'ContentType':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+
+@app.route('/admin/backup_detailinfo', methods=['POST'])
+@login_required
+@isAdmin
+def admin_backup_detailinfo():
+    global backup_data,backup_db
+    if request.method == 'POST':
+        table=request.get_json(force=True)['table']
+        new_db=app.adminapi.check_new_values(table,backup_db[table])
+        return json.dumps(new_db), 200, {'ContentType':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+    
+    
 @app.route('/admin/backup/download/<id>', methods=['GET'])
 @login_required
 @isAdmin

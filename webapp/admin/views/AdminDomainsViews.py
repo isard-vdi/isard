@@ -56,7 +56,7 @@ def admin_domains_get(kind=False):
     if kind:
         if kind=='Desktops': kind='desktop'
         if kind=='Templates': 
-            return json.dumps(app.adminapi.get_admin_domains_with_derivates('public_template')), 200, {'ContentType': 'application/json'}
+            return json.dumps(app.adminapi.get_admin_domains_with_derivates('template')), 200, {'ContentType': 'application/json'}
         if kind=='Bases':
             return json.dumps(app.adminapi.get_admin_domains_with_derivates('base')), 200, {'ContentType': 'application/json'}
     return json.dumps(app.adminapi.get_admin_domains(kind)), 200, {'ContentType': 'application/json'}

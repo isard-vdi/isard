@@ -127,6 +127,13 @@ class isardAdmin():
 
     def get_admin_domains_with_derivates(self,kind=False):
         with app.app_context():
+            if 'template' in kind:
+               return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware').merge(lambda domain:
+                    {
+                        "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                    }
+                ).run(db.conn))
+            else:
                return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
                     {
                         "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
@@ -293,6 +300,62 @@ class isardAdmin():
             log.error(e)
             pass
 
+    def info_backup_db(self,id):
+        import tarfile,pickle
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+            #~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
+        path=dict['path']
+        with tarfile.open(path+id+'.tar.gz', "r:gz") as tar:
+            tar.extractall(path)
+            tar.close()
+        #~ with app.app_context():
+            #~ r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.rethink', 'rb') as tbl_data_file:
+            tbl_data = pickle.load(tbl_data_file)
+        with open(path+id+'.json', 'rb') as isard_db_file:
+            isard_db = pickle.load(isard_db_file)
+        i=0
+        for sch in isard_db['scheduler_jobs']:
+            isard_db['scheduler_jobs'][i].pop('job_state',None)
+            i=i+1
+            
+        try:
+            os.remove(path+id+'.json')
+            os.remove(path+id+'.rethink')
+        except OSError as e:
+            log.error(e)
+            pass
+        return tbl_data,isard_db
+
+    def check_new_values(self,table,new_data):
+        data=[]
+        actual_data=list(r.table(table).run(db.conn))
+        for n in new_data:
+            found=False
+            for a in actual_data:
+                if n['id']==a['id']:
+                    cp=n.copy()
+                    cp['new_backup_data']=False
+                    data.append(cp)
+                    found=True
+                    break
+            if not found:
+                cp=n.copy()
+                cp['new_backup_data']=True
+                data.append(cp)
+        return data
+        #~ from operator import itemgetter
+        #~ new_data, actual_data = [sorted(l, key=itemgetter('id')) 
+                              #~ for l in (new_data, actual_data)]        
+        #~ print(new_data)
+        #~ print(actual_data)
+        #~ pairs = zip(new_data,actual_data)
+        #~ print([(x, y) for x, y in pairs if x != y])
+        #~ return [(x, y) for x, y in pairs if x != y]
+            
+    
+    
     def upload_backup(self,handler):
         path='./backups/'
         id=handler.filename.split('.tar.gz')[0]
@@ -333,11 +396,7 @@ class isardAdmin():
         with app.app_context():
             r.table('backups').get(id).delete().run(db.conn)
 
-    def info_backup_db(self,id):
-        with app.app_context():
-            dict=r.table('backups').get(id).run(db.conn)
-        with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
-            return dict['path'],dict['filename'], isard_db_file.read()
+
         
 
     '''

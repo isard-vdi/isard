@@ -249,3 +249,47 @@ function hiddenFields(obj) {
 </div>
 
 
+<div class="modal fade" id="modalBackupInfo" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Backup info
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+<!--
+              <form id="modalAddBackupInfo" class="form-horizontal form-label-left">
+-->
+			  <div class="x_panel">
+                 <div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Table: <span class="required">*</span></label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <select id="backup-tables" name="backup-tables" class="form-control" required>
+                              
+                           </select>
+                        </div>
+                     </div> 
+				 </div>
+			  </div>
+
+    
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <input id="backup-id" type="hidden" value=''>
+                <table id="backup-table-detail" class="display" width="100%"></table>
+            </div>
+        </div>
+    </div>
+</div>

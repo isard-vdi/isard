@@ -155,6 +155,7 @@ $(document).ready(function() {
                 "width": "88px",
                 "defaultContent": '<button id="btn-backups-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
                                    <button id="btn-backups-restore" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i></button> \
+                                   <button id="btn-backups-info" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-info" style="color:green"></i></button> \
                                    <button id="btn-backups-download" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-download" style="color:darkblue"></i></button>'
 				},
                 ],
@@ -209,7 +210,105 @@ $(document).ready(function() {
 							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
 						anchor.dispatchEvent(ev);
         }
+        if($(this).attr('id')=='btn-backups-info'){
+						api.ajax('/admin/backup_info','POST',{'pk':data['id'],}).done(function(data) {
+                            $("#backup-tables").find('option').remove();
+                            $("#backup-tables").append('<option value="">Choose..</option>');
+                            $.each(data.data,function(key, value) 
+                            {
+                                $("#backup-tables").append('<option value=' + key + '>' + key+'('+value+')' + '</option>');
+                            });
+                            $('#backup-id').val(data['id'])
+                            $('#modalBackupInfo').modal({
+                                backdrop: 'static',
+                                keyboard: false
+                            }).modal('show');  
+                         
+                            //~ new PNotify({
+                                    //~ title: 'Delete backup',
+                                        //~ text: objToString(data.db),
+                                        //~ hide: false,
+                                        //~ opacity: 1,
+                                        //~ confirm: {confirm: true},
+                                        //~ buttons: {closer: false,sticker: false},
+                                        //~ history: {history: false},
+                                        //~ stack: stack_center
+                                    //~ }).get().on('pnotify.confirm', function() {
+                                    //~ }).on('pnotify.cancel', function() {
+                            //~ });	
+                            });
+        }        
     });                
+
+
+
+
+                            //~ backup_table_detail=''
+                            $('#backup-tables').on('change', function (e) {
+                                //~ var optionSelected = $("option:selected", this);
+                                //~ console.log(optionSelected)
+                                var valueSelected = this.value;
+                                console.log(valueSelected+' '+$('#backup-id').val())
+                                api.ajax('/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':valueSelected}).done(function(data) {
+                                    //~ console.log($('#backup-id').val())
+                                    //~ console.log(data)
+                                    //~ columns=[];
+                                    //~ $.each(data[0],function(key, value) 
+                                    //~ {
+                                        //~ if(key == 'id'){
+                                            //~ columns.push({'data':key})
+                                        //~ }
+                                    //~ });
+                                    //~ backup_table_detail.destroy()
+                                    if ( $.fn.dataTable.isDataTable( '#backup-table-detail' ) ) {
+                                        backup_table_detail.clear().rows.add(data).draw()
+                                    }else{
+                                    
+                                        backup_table_detail=$('#backup-table-detail').DataTable( {
+                                            data: data,
+                                            rowId: 'id',
+                                            columns: [
+                                                { "data": "id"},
+                                                { "data": "new_backup_data"},
+                                                {
+                                                "className":      'actions-control',
+                                                "orderable":      false,
+                                                "data":           null,
+                                                "width": "88px",
+                                                "defaultContent": '<button class="btn btn-xs btn-individual-restore" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i></button>'
+                                                },
+                                                ],
+                                             "order": [[0, 'asc']],
+                                        } );
+                                    }
+                                                    $('.btn-individual-restore').on('click', function (e){
+                                                        data=backup_table_detail.row( $(this).parents('tr') ).data();
+                                                        table=$('#backup-tables').val()
+                                                        //~ table=$('#backup-id').val()
+                                                        new PNotify({
+                                                                title: 'Restore data',
+                                                                    text: "Do you really want to restore row "+data.id+" to table "+table+"?",
+                                                                    hide: false,
+                                                                    opacity: 0.9,
+                                                                    confirm: {confirm: true},
+                                                                    buttons: {closer: false,sticker: false},
+                                                                    history: {history: false},
+                                                                    stack: stack_center
+                                                                }).get().on('pnotify.confirm', function() {
+                                                                    api.ajax('/admin/restore/'+table,'POST',{'data':data,}).done(function(data1) {
+                                                                        api.ajax('/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':table}).done(function(data2) {
+                                                                            backup_table_detail.clear().rows.add(data2).draw()
+                                                                        });
+                                                                    });  
+                                                                }).on('pnotify.cancel', function() {
+                                                        });	                                                        
+                                                    });                                    
+                                    
+                                    
+                                });
+                            });   
+
+
 
     //~ // Stream backups_source
 	//~ if (!!window.EventSource) {
