@@ -852,7 +852,7 @@ class Populate(object):
                                 'domain':''}
 
     def _hypervisor_viewer_hostname(self,viewer_hostname):
-        hostname_file='install/viewer-certs/host_name'
+        hostname_file='install/host_name'
         try:
             with open(hostname_file, "r") as hostFile:
                 return hostFile.read().strip()
