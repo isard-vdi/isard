@@ -288,7 +288,15 @@ function hiddenFields(obj) {
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <input id="backup-id" type="hidden" value=''>
-                <table id="backup-table-detail" class="display" width="100%"></table>
+                <table id="backup-table-detail" class="display" width="100%">
+                    <thead>
+                      <tr>
+                         <th>Id</th>
+                         <th>Exists</th>
+                         <th>Restore</th>
+                      </tr>
+                   </thead>
+                </table>
             </div>
         </div>
     </div>

@@ -222,7 +222,7 @@ class isardAdmin():
               'status':'Initializing'}
         with app.app_context():
             r.table('backups').insert(dict).run(db.conn)
-        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status']
+        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status','domains_status_history','hypervisors_status_history']
         isard_db={}
         with app.app_context():
             r.table('backups').get(id).update({'status':'Loading tables'}).run(db.conn)
@@ -319,7 +319,10 @@ class isardAdmin():
         for sch in isard_db['scheduler_jobs']:
             isard_db['scheduler_jobs'][i].pop('job_state',None)
             i=i+1
-            
+        #~ i=0
+        #~ for sch in isard_db['users']:
+            #~ isard_db['users'][i].pop('password',None)
+            #~ i=i+1            
         try:
             os.remove(path+id+'.json')
             os.remove(path+id+'.rethink')
