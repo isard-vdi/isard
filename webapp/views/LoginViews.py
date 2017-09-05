@@ -30,8 +30,9 @@ def login():
                 flash('Username not found or incorrect password.','warning')
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     disposables=app.isardapi.show_disposable(remote_addr)
-    #~ print(disposables)
-    return render_template('login.html', disposables=disposables if disposables else '')
+    log.info(disposables)
+    log.info(remote_addr)
+    return render_template('login_disposables.html', disposables=disposables if disposables else '')
 
 @app.route('/voucher_login', methods=['POST', 'GET'])
 def voucher_login():
@@ -75,7 +76,9 @@ def index():
         print("Something went wrong with username? Exception:",e)
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     disposables=app.isardapi.show_disposable(remote_addr)
-    return render_template('login.html', disposables=disposables if disposables else '')
+    log.info(disposables)
+    log.info(remote_addr)    
+    return render_template('login_disposables.html', disposables=disposables if disposables else '')
 
 @app.route('/logout')
 @login_required

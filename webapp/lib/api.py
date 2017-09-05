@@ -11,6 +11,7 @@ import time, json
 from webapp import app
 from flask_login import current_user
 import rethinkdb as r
+from ..lib.log import * 
 
 from .flask_rethink import RethinkDB
 db = RethinkDB(app)
@@ -733,10 +734,13 @@ class isard():
         with app.app_context():
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
             dom=app.isardapi.get_domain(template, flatten=False)
+        #~ log.info('template:'+template)
+        #~ log.info(dom)
         parent_disk=dom['hardware']['disks'][0]['file']
         create_dict=dom['create_dict']
 
         parsed_name = self.parse_string(client_ip)
+        parsed_name = client_ip.replace(".", "_")
         dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'parent':parent_disk}]
