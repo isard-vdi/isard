@@ -21,6 +21,7 @@ lxml           /doc/licenses/BSD.txt     BSD         http://lxml.de/
 
 gentelella     /LICENSE.txt              MIT         https://github.com/puikinsh/gentelella
 font-linux     /LICENSE                  Unlicense   https://github.com/Lukas-W/font-linux
+eyeos          /LICENSE			 MIT	     https://github.com/eyeos/spice-web-client
 ```
 
 

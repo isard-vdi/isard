@@ -67,8 +67,19 @@ class isardAdmin():
                 res_started=r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn)
                 return True
             if action == 'delete':
+                domains_deleting=self.multiple_check_field('domains','status','Deleting',ids)
+                res=r.table(table).get_all(r.args(domains_deleting)).delete().run(db.conn) 
+                                
                 domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
-                res_deleted=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn)
+                res=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn)
+                domains_failed=self.multiple_check_field('domains','status','Failed',ids)
+                res=r.table(table).get_all(r.args(domains_failed)).update({'status':'Deleting'}).run(db.conn) 
+                domains_creating=self.multiple_check_field('domains','status','Creating',ids)
+                res=r.table(table).get_all(r.args(domains_creating)).update({'status':'Deleting'}).run(db.conn)                                              
+                domains_creatingdisk=self.multiple_check_field('domains','status','CreatingDisk',ids)
+                res=r.table(table).get_all(r.args(domains_creatingdisk)).update({'status':'Deleting'}).run(db.conn) 
+                domains_creatingstarting=self.multiple_check_field('domains','status','CreatingAndStarting',ids)
+                res=r.table(table).get_all(r.args(domains_creatingstarting)).update({'status':'Deleting'}).run(db.conn) 
                 return True
             if action == 'force_failed':
                 res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Failed'}).run(db.conn)
