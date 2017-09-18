@@ -36,3 +36,5 @@ run_docker_webapp.py
 install/viewer-certs/*.pem
 install/viewer-certs/*.csr
 install/viewer-certs/host_name
+
+isard.conf
