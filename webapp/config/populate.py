@@ -17,7 +17,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from ..auth.authentication import Password
-from .virt_builder_install_selection import update_virtbuilder, update_virtinstall, create_builders
+#from .virt_builder_install_selection import update_virtbuilder, update_virtinstall, create_builders
 
 
 class Populate(object):
@@ -901,8 +901,10 @@ class Populate(object):
             if not r.table_list().contains('builders').run(db.conn):
                 log.info("Table builders not found, creating...")
                 r.table_create('builders', primary_key="id").run(db.conn)
-                r.table('builders').insert(create_builders(), conflict='update').run(db.conn)
-                self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
+                
+                #~ self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
+            print(self.create_builders())
+            r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn)
             return True
 
 
@@ -1017,6 +1019,21 @@ class Populate(object):
                       }
                       }
         l.append(d_ubuntu1604)
+
+        d_cirros_35 = {'id': 'cirros35',
+                      'name': 'CirrOS 3.5',
+                      'builder':{
+                          'id': 'cirros-0.3.5',
+                          'options':
+    """"""
+                      },
+                      'install':{
+                          'id': 'centos7.0',
+                          'options': ''
+                      }
+                      }
+        l.append(d_cirros_35)
+        
         return l
 
     def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):

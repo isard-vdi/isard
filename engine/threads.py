@@ -335,7 +335,7 @@ class LongOperationsThread(threading.Thread):
                                                  port=self.port
                                                  )
 
-                    if len([d for d in cmds_done if len(d['err']) > 0]) > 0:
+                    if len([d for d in cmds_done if len(d['err']) > 0]) > 1:
                         log.error('some error in virt builder operations')
                         log.error('Virt Builder Failed creating disk file {} in domain {} in hypervisor {}'.format(action['disk_path'], action['domain'], self.hyp_id))
                         log.debug('print cmds_done:')
