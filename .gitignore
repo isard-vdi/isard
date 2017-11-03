@@ -31,3 +31,4 @@ backups/
 #Generated certs
 install/viewer-certs/*.pem
 install/viewer-certs/*.csr
+test/
