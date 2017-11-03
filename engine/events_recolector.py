@@ -448,12 +448,23 @@ class ThreadHypEvents(threading.Thread):
 
         cb_ids['VIR_DOMAIN_EVENT_ID_LIFECYCLE'] = hyp_libvirt_conn.domainEventRegisterAny(None,libvirt.VIR_DOMAIN_EVENT_ID_LIFECYCLE, myDomainEventCallbackRethink, r_status)
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_REBOOT, myDomainEventRebootCallback, None)
-        cb_ids['VIR_DOMAIN_EVENT_ID_IO_ERROR'] = hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_IO_ERROR, myDomainEventIOErrorCallback, None)
-        #INFO TO DEVELOPER PROBANDO EVENTOS DE GRÁFICOS
+
+#######################################
+# IF YOU WANT TO REGISTER IN LOGS IO ERRORS UNCOMMENT THIS LINES
+#  if one domain have io errors temporally logs grows and have lot of messages
+#  by default we prefer disable this event handler
+#  
+#        cb_ids['VIR_DOMAIN_EVENT_ID_IO_ERROR'] = hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_IO_ERROR, myDomainEventIOErrorCallback, None)
+
+#        cb_ids['VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON'] = hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON, myDomainEventIOErrorReasonCallback, None)
+
+#
+########################################
+
+        #INFO TO DEVELOPER: by default registering graphics events
         if self.REGISTER_GRAPHICS_EVENTS:
             cb_ids['VIR_DOMAIN_EVENT_ID_GRAPHICS'] = hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_GRAPHICS, myDomainEventGraphicsCallbackRethink, r_status)
-
-        cb_ids['VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON'] = hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON, myDomainEventIOErrorReasonCallback, None)
+        
         cb_ids['VIR_DOMAIN_EVENT_ID_CONTROL_ERROR'] = hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_CONTROL_ERROR, myDomainEventControlErrorCallback, None)
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_BLOCK_JOB, myDomainEventBlockJobCallback, None)
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_BALLOON_CHANGE, myDomainEventBalloonChangeCallback, None)
