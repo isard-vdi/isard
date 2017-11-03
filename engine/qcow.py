@@ -32,7 +32,7 @@ def create_cmds_delete_disk(path_disk):
 
     return cmds
 
-def check_upload_folder():
+#def check_upload_folder():
 
 
 def create_cmd_disk_from_virtbuilder(path_new_qcow,
