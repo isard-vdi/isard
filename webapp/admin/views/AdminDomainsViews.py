@@ -24,13 +24,17 @@ db.init_app(app)
 from .decorators import isAdmin
 
 '''
-DOMAINS
+DOMAINS (NOT USED)
 '''
-@app.route('/admin/domains')
+@app.route('/admin/domains/render/<nav>')
 @login_required
 @isAdmin
-def admin_domains():
-    return render_template('admin/pages/domains.html', nav="Domains") 
+def admin_domains(nav='Domains'):
+    if nav=='Desktops': icon='desktop'
+    if nav=='Templates': icon='cube'
+    if nav=='Bases': icon='cubes'
+    if nav=='Domains': icon='arrows-alt'
+    return render_template('admin/pages/domains.html', nav=nav, icon=icon) 
 
 @app.route('/admin/mdomains', methods=['POST'])
 @login_required
@@ -44,15 +48,25 @@ def admin_mdomains():
     print(res)
     return json.dumps({'test':1}), 200, {'ContentType': 'application/json'}
     
+@app.route('/admin/domains/get/<kind>')
 @app.route('/admin/domains/get')
 @login_required
 @isAdmin
-def admin_domains_get():
-    return json.dumps(app.adminapi.get_admin_domains()), 200, {'ContentType': 'application/json'}
+def admin_domains_get(kind=False):
+    if kind:
+        if kind=='Desktops': kind='desktop'
+        if kind=='Templates': 
+            return json.dumps(app.adminapi.get_admin_domains_with_derivates('template')), 200, {'ContentType': 'application/json'}
+        if kind=='Bases':
+            return json.dumps(app.adminapi.get_admin_domains_with_derivates('base')), 200, {'ContentType': 'application/json'}
+    return json.dumps(app.adminapi.get_admin_domains(kind)), 200, {'ContentType': 'application/json'}
 
 
 
-        
+
+'''
+VIRT BUILDER TESTS (IMPORT NEW BUILDERS?)
+'''
 @app.route('/admin/domains/virtrebuild')
 @login_required
 @isAdmin
@@ -69,34 +83,3 @@ def admin_domains_get_builders():
     return json.dumps(''), 200, {'ContentType': 'application/json'}
 
 
-#~ http://libguestfs.org/download/builder/
-#~ @app.route('/admin/domains/datatables')
-#~ @login_required
-#~ @isAdmin
-#~ def admin_domains_datatables():
-    #~ return json.dumps(app.adminapi.get_admin_domain_datatables()), 200, {'ContentType': 'application/json'}
-
-#~ @app.route('/admin/interfaces/get')
-#~ @login_required
-#~ @isAdmin
-#~ def admin_interfaces_get():
-    #~ return json.dumps(app.adminapi.get_admin_networks()), 200, {'ContentType': 'application/json'}
-   
-#~ @app.route('/admin/stream/domains')
-#~ @login_required
-#~ @isAdmin
-#~ def admin_stream_domains():
-        #~ return Response(admin_domains_stream(), mimetype='text/event-stream')
-
-#~ def admin_domains_stream():
-        #initial=True
-        #~ with app.app_context():
-            #~ for c in r.table('domains').changes(include_initial=False).run(db.conn):
-                #~ if c['new_val'] is None:
-                    #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                    #~ continue
-                #~ if c['old_val'] is None:
-                    #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                    #~ continue             
-                #~ if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                #~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))

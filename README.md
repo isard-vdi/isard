@@ -68,5 +68,8 @@ In 2016 we focused all our efforts on a solid and versatile software that materi
 + Josep Maria Viñolas Auquer
 + Alberto Larraz Dalmases
 
+### Contributors
++ Daniel Criado Casas
+
 ### Support/Contact
 Please send us an email to info@isardvdi.com if you have any questions 

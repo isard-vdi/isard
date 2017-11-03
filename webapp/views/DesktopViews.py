@@ -187,13 +187,24 @@ def hardware():
 @login_required
 @ownsid
 def domain_genealogy():
-    gen=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)['disks_info']
+    domain=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)
+    if 'disks_info' not in domain.keys():
+        return json.dumps({'wasted':0,'free':0,'wasted_hs':0,'free_hs':0,'genealogy':[],'gen_ids':[]})
+    gen=domain['disks_info']
     gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info']
     wasted=0
-    for i,v in enumerate(gen):
-        gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
-        wasted+=gen[i]['actual-size']
-    gen_ids=app.isardapi.get_backing_ids(request.get_json(force=True)['pk'])
+    try:
+        for i,v in enumerate(gen):
+            gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
+            wasted+=gen[i]['actual-size']
+        #~ gen_ids=[]
+        #~ print('kind: '+domain['kind'])
+        #~ if domain['kind'] !='desktop':
+        gen_ids=app.isardapi.get_backing_ids(request.get_json(force=True)['pk'])
+    except Exception as e:
+        return json.dumps({'wasted':0,'free':0,'wasted_hs':0,'free_hs':0,'genealogy':[],'gen_ids':[]})
+        print(str(e))
+    #~ print(gen_ids)
     return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
 
 @app.route('/domain', methods=['POST'])
@@ -203,7 +214,10 @@ def domain():
         hs=request.get_json(force=True)['hs']
     except:
         hs=False
-    return json.dumps(app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=hs))
+    try:
+        return json.dumps(app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=hs))
+    except:
+        return json.dumps([])
 
 @app.route('/domain/alloweds', methods=['POST'])
 @login_required

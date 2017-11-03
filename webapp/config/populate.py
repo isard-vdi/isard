@@ -17,7 +17,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from ..auth.authentication import Password
-from .virt_builder_install_selection import update_virtbuilder, update_virtinstall, create_builders
+#from .virt_builder_install_selection import update_virtbuilder, update_virtinstall, create_builders
 
 
 class Populate(object):
@@ -614,13 +614,14 @@ class Populate(object):
                         vals=val.split(',')
                         self.result(rhypers.insert([{'id': key,
                                                      'hostname': vals[0],
-                                                     'user': vals[1],
-                                                     'port': vals[2],
+                                                     'viewer_hostname': self._hypervisor_viewer_hostname(vals[1]),
+                                                     'user': vals[2],
+                                                     'port': vals[3],
                                                      'uri': '',
-                                                     'capabilities': {'disk_operations': True if int(vals[3]) else False,
-                                                                      'hypervisor': True if int(vals[4]) else False},
-                                                     'hypervisors_pools': [vals[5]],
-                                                     'enabled': True if int(vals[6]) else False,
+                                                     'capabilities': {'disk_operations': True if int(vals[4]) else False,
+                                                                      'hypervisor': True if int(vals[5]) else False},
+                                                     'hypervisors_pools': [vals[6]],
+                                                     'enabled': True if int(vals[7]) else False,
                                                      'status': 'Offline',
                                                      'status_time': False,
                                                      'prev_status': [],
@@ -849,6 +850,16 @@ class Populate(object):
             return {'defaultMode':'Insecure',
                                 'certificate':'',
                                 'domain':''}
+
+    def _hypervisor_viewer_hostname(self,viewer_hostname):
+        hostname_file='install/host_name'
+        try:
+            with open(hostname_file, "r") as hostFile:
+                return hostFile.read().strip()
+        except Exception as e:
+            return viewer_hostname
+
+        return 
     '''
     LOCATIONS
     '''
@@ -890,8 +901,10 @@ class Populate(object):
             if not r.table_list().contains('builders').run(db.conn):
                 log.info("Table builders not found, creating...")
                 r.table_create('builders', primary_key="id").run(db.conn)
-                r.table('builders').insert(create_builders(), conflict='update').run(db.conn)
-                self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
+                
+                #~ self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
+            print(self.create_builders())
+            r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn)
             return True
 
 
@@ -1006,6 +1019,21 @@ class Populate(object):
                       }
                       }
         l.append(d_ubuntu1604)
+
+        d_cirros_35 = {'id': 'cirros35',
+                      'name': 'CirrOS 3.5',
+                      'builder':{
+                          'id': 'cirros-0.3.5',
+                          'options':
+    """"""
+                      },
+                      'install':{
+                          'id': 'centos7.0',
+                          'options': ''
+                      }
+                      }
+        l.append(d_cirros_35)
+        
         return l
 
     def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):

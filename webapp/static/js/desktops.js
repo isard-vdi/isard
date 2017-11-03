@@ -12,7 +12,7 @@ $(document).ready(function() {
     modal_add_desktops = $('#modal_add_desktops').DataTable()
 	initalize_modal_all_desktops_events()
  
-	$template = $(".template-detail");
+	$template = $(".template-detail-domain");
 
     
 	$('.btn-new').on('click', function () {
@@ -133,12 +133,15 @@ $(document).ready(function() {
                 row.child( addDesktopDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
                 $('#status-detail-'+row.data().id).html(row.data().detail);
-                if (!row.data().status.includes('Fail')){
-                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
-                }
                 actionsDesktopDetail();
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
-                setDomainGenealogy(row.data().id);
+                if(row.data().status=='Stopped' || row.data().status=='Started'){
+                    setDomainGenealogy(row.data().id);
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                }                
+                
+               
+                
             }
           }
     } );

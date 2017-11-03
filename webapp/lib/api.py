@@ -160,23 +160,26 @@ class isard():
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
         with app.app_context():
-            domain = r.table('domains').get(id).run(db.conn)
-        if flatten:
-            domain=self.f.flatten_dict(domain)
-            if human_size:
-                domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
-                for i,dict in enumerate(domain['disks_info']):
-                    for key in dict.keys():
-                        if 'size' in key:
-                            domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
-        else:
-            # This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields
-            if human_size:
-                domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
-                for i,dict in enumerate(domain['disks_info']):
-                    for key in dict.keys():
-                        if 'size' in key:
-                            domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
+            domain = r.table('domains').get(id).without('xml').run(db.conn)
+        try:
+            if flatten:
+                domain=self.f.flatten_dict(domain)
+                if human_size:
+                    domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
+                    for i,dict in enumerate(domain['disks_info']):
+                        for key in dict.keys():
+                            if 'size' in key:
+                                domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
+            else:
+                # This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields
+                if human_size:
+                    domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
+                    for i,dict in enumerate(domain['disks_info']):
+                        for key in dict.keys():
+                            if 'size' in key:
+                                domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
+        except Exception as e:
+            print(str(e))
         return domain   
 
     def get_backing_ids(self,id):
@@ -185,14 +188,14 @@ class isard():
             backing=r.table('domains').get(id).pluck({'disks_info':'filename'}).run(db.conn)
             for f in backing['disks_info']:
                 fname=f['filename']
-                f=f
+                f=fname
                 try:
                     idchain.append(list(r.table("domains").filter(lambda disks: disks['hardware']['disks'][0]['file']==f).pluck('id','name').run(db.conn))[0])
                 except Exception as e:
-                    print(e)
+                    #~ print(e)
                     break
         return idchain
-        
+
     def get_user_quotas(self, username, fakequota=False):
         '''
         Utilitzada

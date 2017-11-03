@@ -12,7 +12,7 @@
 <div class="right_col" role="main">
     <div class="page-title">
        <div class="title_left">
-          <h3><i id="test" class="fa fa-desktop"></i> Domains <small>All system domains</small></h3>
+          <h3><i class="fa fa-{{icon}}"></i> Admin {{ nav }} <small>You have the power</small></h3>
        </div>
        <div class="title_right">
           <div class="col-md-5 col-sm-5 col-xs-12 form-group pull-right top_search">
@@ -86,6 +86,9 @@
                          <th>Category</th>
                          <th>Group</th>
                          <th>last access</th>
+                         {% if nav!="Desktops" %}
+                         <th>Derivates</th>
+                         {% endif %}
                       </tr>
                    </thead>
                    <tfoot>
@@ -101,6 +104,9 @@
                          <th>Category</th>
                          <th>Group</th>
                          <th>last access</th>
+                         {% if nav!="Desktops" %}
+                         <th>Derivates</th>
+                         {% endif %}
                       </tr>
                    </tfoot>
                    <tbody>
@@ -256,7 +262,7 @@
     </div>
 </div>
 
-{% include '/admin/pages/domains_detail.html' %}
+{% include '/pages/desktops_detail.html' %}
 {% endblock %}
 
 {% block pagescript %}

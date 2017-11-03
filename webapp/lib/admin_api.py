@@ -97,6 +97,18 @@ class isardAdmin():
             ## ALERT: Should remove password (password='')
             return self.f.table_values_bstrap(r.table('users').run(db.conn))
 
+    def get_admin_users_domains(self):
+        with app.app_context():
+            return self.f.table_values_bstrap(
+                r.table("users").merge(lambda user:
+                    {
+                        "desktops": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'desktop'}).count(),
+                        "public_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'public_template'}).count(),
+                        "user_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'user_template'}).count(),
+                        "base": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'base'}).count()
+                    }
+                ).run(db.conn))
+                
     def get_admin_table(self, table, pluck=False, id=False):
         with app.app_context():
             if id and not pluck:
@@ -107,18 +119,37 @@ class isardAdmin():
                 return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
                         
-    def get_admin_domains(self):
+    def get_admin_domains(self,kind=False):
         with app.app_context():
-            listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
-        i=0
-        while i<len(listdict):
-            if 'xml' in listdict[i]: del listdict[i]['xml']
-            if 'status' not in list(listdict[i].keys()): listdict[i]['status']='template'
-            if 'user' not in list(listdict[i].keys()): listdict[i]['user']='admin'
-            if 'category' not in list(listdict[i].keys()): listdict[i]['category']='admin'
-            if 'group' not in list(listdict[i].keys()): listdict[i]['group']='admin'
-            i=i+1
-        return listdict
+            if not kind:
+                return self.f.table_values_bstrap(r.table('domains').without('xml','hardware','create_dict').run(db.conn))
+            else:
+                 return self.f.table_values_bstrap(r.table('domains').get_all(kind,index='kind').without('xml','hardware','create_dict').run(db.conn))
+            #~ listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
+        #~ i=0
+        #~ while i<len(listdict):
+            #~ if 'xml' in listdict[i]: del listdict[i]['xml']
+            #~ if 'status' not in list(listdict[i].keys()): listdict[i]['status']='template'
+            #~ if 'user' not in list(listdict[i].keys()): listdict[i]['user']='admin'
+            #~ if 'category' not in list(listdict[i].keys()): listdict[i]['category']='admin'
+            #~ if 'group' not in list(listdict[i].keys()): listdict[i]['group']='admin'
+            #~ i=i+1
+        #~ return listdict
+
+    def get_admin_domains_with_derivates(self,kind=False):
+        with app.app_context():
+            if 'template' in kind:
+               return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware').merge(lambda domain:
+                    {
+                        "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                    }
+                ).run(db.conn))
+            else:
+               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
+                    {
+                        "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                    }
+                ).run(db.conn))
 
     def get_admin_hypervisors(self, id=False):
         with app.app_context():
@@ -202,14 +233,14 @@ class isardAdmin():
               'status':'Initializing'}
         with app.app_context():
             r.table('backups').insert(dict).run(db.conn)
-        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status']
+        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status','domains_status_history','hypervisors_status_history']
         isard_db={}
         with app.app_context():
             r.table('backups').get(id).update({'status':'Loading tables'}).run(db.conn)
             for table in r.table_list().run(db.conn):
                 if table not in skip_tables:
                     isard_db[table]=list(r.table(table).run(db.conn))
-                    #~ dict['data'][table]=r.table(table).count().run(db.conn)
+                    dict['data'][table]=r.table(table).info().run(db.conn)
                     r.table('backups').get(id).update({'data':{table:r.table(table).count().run(db.conn)}}).run(db.conn)
         with app.app_context():
             dict=r.table('backups').get(id).run(db.conn)            
@@ -231,7 +262,16 @@ class isardAdmin():
             pass
         with app.app_context():
             r.table('backups').get(id).update({'status':'Finished creating'}).run(db.conn)
-            
+
+    def recreate_table(self,tbl_data):
+        if not r.table_list().contains(tbl_data['name']).run(db.conn):
+            log.info("Restoring table {}".format(k))
+            r.table_create(tbl_data['name'], primary_key=tbl_data['primary_key']).run(db.conn)
+            for idx in tbl_data['indexes']:
+                r.table(tbl_data['name']).index_create(idx).run(db.conn)
+                r.table(tbl_data['name']).index_wait(idx).run(db.conn)
+                log.info('Created index: {}'.format(idx))
+                
     def restore_db(self,id):
         import tarfile,pickle
         with app.app_context():
@@ -243,13 +283,20 @@ class isardAdmin():
             tar.close()
         with app.app_context():
             r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.rethink', 'rb') as tbl_data_file:
+            tbl_data = pickle.load(tbl_data_file)
         with open(path+id+'.json', 'rb') as isard_db_file:
             isard_db = pickle.load(isard_db_file)
         for k,v in isard_db.items():
             with app.app_context():
+                try:
+                    self.recreate_table(tbl_data[k])
+                except Exception as e:
+                    pass
                 if not r.table_list().contains(k).run(db.conn):
                     log.error("Table {} not found, should have been created on IsardVDI startup.".format(k))
-                    return False
+                    continue
+                    #~ return False
                 else:
                     log.info("Restoring table {}".format(k))
                     with app.app_context():
@@ -264,6 +311,65 @@ class isardAdmin():
             log.error(e)
             pass
 
+    def info_backup_db(self,id):
+        import tarfile,pickle
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+            #~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
+        path=dict['path']
+        with tarfile.open(path+id+'.tar.gz', "r:gz") as tar:
+            tar.extractall(path)
+            tar.close()
+        #~ with app.app_context():
+            #~ r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
+        with open(path+id+'.rethink', 'rb') as tbl_data_file:
+            tbl_data = pickle.load(tbl_data_file)
+        with open(path+id+'.json', 'rb') as isard_db_file:
+            isard_db = pickle.load(isard_db_file)
+        i=0
+        for sch in isard_db['scheduler_jobs']:
+            isard_db['scheduler_jobs'][i].pop('job_state',None)
+            i=i+1
+        #~ i=0
+        #~ for sch in isard_db['users']:
+            #~ isard_db['users'][i].pop('password',None)
+            #~ i=i+1            
+        try:
+            os.remove(path+id+'.json')
+            os.remove(path+id+'.rethink')
+        except OSError as e:
+            log.error(e)
+            pass
+        return tbl_data,isard_db
+
+    def check_new_values(self,table,new_data):
+        data=[]
+        actual_data=list(r.table(table).run(db.conn))
+        for n in new_data:
+            found=False
+            for a in actual_data:
+                if n['id']==a['id']:
+                    cp=n.copy()
+                    cp['new_backup_data']=False
+                    data.append(cp)
+                    found=True
+                    break
+            if not found:
+                cp=n.copy()
+                cp['new_backup_data']=True
+                data.append(cp)
+        return data
+        #~ from operator import itemgetter
+        #~ new_data, actual_data = [sorted(l, key=itemgetter('id')) 
+                              #~ for l in (new_data, actual_data)]        
+        #~ print(new_data)
+        #~ print(actual_data)
+        #~ pairs = zip(new_data,actual_data)
+        #~ print([(x, y) for x, y in pairs if x != y])
+        #~ return [(x, y) for x, y in pairs if x != y]
+            
+    
+    
     def upload_backup(self,handler):
         path='./backups/'
         id=handler.filename.split('.tar.gz')[0]
@@ -304,11 +410,7 @@ class isardAdmin():
         with app.app_context():
             r.table('backups').get(id).delete().run(db.conn)
 
-    def info_backup_db(self,id):
-        with app.app_context():
-            dict=r.table('backups').get(id).run(db.conn)
-        with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
-            return dict['path'],dict['filename'], isard_db_file.read()
+
         
 
     '''

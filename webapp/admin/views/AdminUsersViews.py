@@ -44,7 +44,8 @@ def admin_users():
 @app.route('/admin/users/get')
 @login_required
 def admin_users_get():
-    return json.dumps(app.adminapi.get_admin_user()), 200, {'ContentType': 'application/json'}
+    return json.dumps(app.adminapi.get_admin_users_domains()), 200, {'ContentType': 'application/json'}
+    #~ return json.dumps(app.adminapi.get_admin_user()), 200, {'ContentType': 'application/json'}
 
 @app.route('/admin/users/detail/<id>')
 @login_required

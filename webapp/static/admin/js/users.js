@@ -43,27 +43,37 @@ $(document).ready(function() {
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
-            { "data": "active"},
+            { "data": "active", "width": "10px"},
             { "data": "id"},
             { "data": "name"},
-            { "data": "kind"},
-            { "data": "category"},
-            { "data": "group"},
-            { "data": "role"},
-            {
-                "data": null,
-                className: "center xe-password",
-                "defaultContent": '  \
-                                <div><i class="fa fa-lock"></i> \
-                              </div>'
-            },
-            { "data": "accessed"}],
+            { "data": "role", "width": "10px"},
+            { "data": "category", "width": "10px"},
+            { "data": "group", "width": "10px"},
+            { "data": "kind", "width": "10px"},
+            //~ {
+                //~ "data": null,
+                //~ className: "center xe-password",
+                //~ "defaultContent": '  \
+                                //~ <div><i class="fa fa-lock"></i> \
+                              //~ </div>'
+            //~ },
+            { "data": "accessed"},
+            { "data": "base", "width": "10px"},
+            { "data": "user_template", "width": "10px"},
+            { "data": "public_template", "width": "10px"},
+            { "data": "desktops", "width": "10px"}],
 			 "columnDefs": [
 							{
-							"targets": 9,
+							"targets": 1,
+							"render": function ( data, type, full, meta ) {
+                                if(full.active==true){return '<i class="fa fa-check" style="color:lightgreen"></i>';}
+                                return '<i class="fa fa-close" style="color:darkgray"></i>';
+							}},
+							{
+							"targets": 8,
 							"render": function ( data, type, full, meta ) {
 							  return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ"); //moment.unix(full.accessed).fromNow();
-							}}
+							}}                            
              ]
         });
     //~ });
