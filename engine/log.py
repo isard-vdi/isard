@@ -38,7 +38,7 @@ rootLogger = log.getLogger()
 # rootLogger.addHandler(fileHandler)
 
 consoleHandler = log.StreamHandler()
-consoleHandler.setLevel(log.INFO)
+consoleHandler.setLevel(log.ERROR)
 consoleHandler.setFormatter(logFormatter)
 rootLogger.addHandler(consoleHandler)
 
