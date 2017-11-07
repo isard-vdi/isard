@@ -460,6 +460,20 @@ def get_domain_hyp_started_and_status_and_detail(id_domain):
         return {}
     return results
 
+def get_domains_with_disks():
+    r_conn = new_rethink_connection()
+    rtable=r.table('domains')
+    try:
+        l = list(rtable.pluck('id',{'disks_info':['filename']}).run(r_conn)) 
+        results = [{'id':d['id'],'filename':d['disks_info'][0]['filename']} for d in l if 'disks_info' in d.keys()]
+        close_rethink_connection(r_conn)
+    except :
+        # if results is None:
+        close_rethink_connection(r_conn)
+        return []
+    return results
+    
+
 def get_domains_with_status(status):
     r_conn = new_rethink_connection()
     rtable=r.table('domains')
@@ -685,7 +699,6 @@ def create_disk_template_created_list_in_domain(id_domain):
     return results
 
 
-
 def set_unknown_domains_not_in_hyps(hyps):
     #find domains in status Started,Paused,Unknown
     #that are not in hypervisors
@@ -797,6 +810,20 @@ def update_domains_started_in_hyp_to_unknown(hyp_id):
 #     result = rtable.filter({'id':domain_id}).update({'hyp_started':hyp_id,'detail':detail}).run(r_conn, durability="soft", noreply=True)
 #     close_rethink_connection(r_conn)
 #     return result
+
+def get_interface(id):
+
+    r_conn = new_rethink_connection()
+    rtable = r.table('interfaces')
+
+    try:
+        dict_domain = rtable.get(id).run(r_conn)
+    except:
+        log.error('interface with id {} not defined in database table interfaces')
+        dict_domain = None
+
+    close_rethink_connection(r_conn)
+    return dict_domain
 
 def get_domain(id):
 
@@ -1260,6 +1287,8 @@ def get_domain_spice(id_domain):
 
 def get_domains_from_classroom(classroom):
     return []
+
+
 
 def get_domains_from_group(group,kind='desktop'):
     r_conn = new_rethink_connection()
