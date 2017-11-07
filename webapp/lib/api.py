@@ -38,7 +38,7 @@ class isard():
         if not dict['errors']: return True
         return False
 
-    def update_desktop_status(self,user,data):
+    def update_desktop_status(self,user,data,remote_addr):
             try:
                 if data['name']=='status':
                     if data['value']=='Stopping':
@@ -54,6 +54,9 @@ class isard():
                     if data['value']=='Starting':
                         if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
                             return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                        if not self.update_domain_network(user,data['pk'],remote_addr=remote_addr):
+                            # Let interface on default value
+                            self.update_domain_network(user,data['pk'],interface_id="default")
                         if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
                             return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
@@ -61,6 +64,45 @@ class isard():
                 return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
                 return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+
+    def update_domain_network(self,user,id,interface_id=False,remote_addr=False):
+        try:
+            if interface_id:
+                with app.app_context():
+                        iface=r.table('interfaces').get(interface_id).run(db.conn)
+                        dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
+                        dict["hardware"]["interfaces"]=[iface['id']]
+                        return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
+            elif remote_addr:
+                # Automatic interface selection
+                allowed_ifaces=self.get_alloweds(user,'interfaces',pluck=['id','net'])
+                for iface in allowed_ifaces:
+                    if IPAddress(remote_addr) in IPNetwork(iface['net']):
+                        dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
+                        dict["hardware"]["interfaces"]=[iface['id']]
+                        return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
+        except Exception as e:
+            print('Error updating domain '+id+' network interface.\n'+str(e))
+        return False
+
+
+        disposables_config=self.config['disposable_desktops']
+        if disposables_config['active']:
+            with app.app_context():
+                disposables=r.table('disposables').run(db.conn)
+            for d in disposables:
+                for net in d['nets']: 
+                    if IPAddress(client_ip) in IPNetwork(net): return d
+        return False
+
+        
+        with app.app_context():
+            try:
+                interface_id=r.table('interfaces').get
+                return self.check(r.table('domains').update(dict).run(db.conn),'inserted')
+            except Exception as e:
+                print('error:',e)
+                return False
             
     def update_table_value(self, table, id, field, value):
         with app.app_context():
@@ -91,6 +133,7 @@ class isard():
                 for net in d['nets']: 
                     if IPAddress(client_ip) in IPNetwork(net): return d
         return False
+        
 #~ STATUS
     def get_domain_last_messages(self, id):
         with app.app_context():
@@ -289,7 +332,10 @@ class isard():
                 delete_allowed_key=True
             allowed_data={}
             if table is 'domains':
-                data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
+                if order:
+                    data=r.table('domains').get_all('public_template','user_template', index='kind').order_by(order).group('category').pluck({'id','name','allowed'}).run(db.conn)
+                else:
+                    data=r.table('domains').get_all('public_template','user_template', index='kind').group('category').pluck({'id','name','allowed'}).run(db.conn)
                 for group in data:
                     allowed_data[group]=[]
                     for d in data[group]:
@@ -342,7 +388,10 @@ class isard():
                         #~ print(allowed,k,dom['id'])
                 return allowed_data
             else:
-                data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
+                if order:
+                    data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
+                else:
+                    data=r.table(table).pluck(pluck).run(db.conn)
             allowed_data=[]
             for d in data:
                 # False doesn't check, [] means all allowed

@@ -271,8 +271,9 @@ def socketio_domains_disconnect():
 
 @socketio.on('domain_update', namespace='/sio_users')
 def socketio_domains_update(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     socketio.emit('result',
-                    app.isardapi.update_desktop_status(current_user.username, data),
+                    app.isardapi.update_desktop_status(current_user.username, data,remote_addr),
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
@@ -358,7 +359,7 @@ def socketio_admins_connect(join_rooms):
             print('JOINED:'+rm)
 
 @socketio.on('get_tree_list', namespace='/sio_admins')
-def socketio_domains_update():
+def socketio_get_tree_list():
     socketio.emit('tree_list',
                     app.isardapi.app.adminapi.get_domains_tree_list(),
                     namespace='/sio_admins', 
