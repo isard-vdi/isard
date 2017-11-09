@@ -20,6 +20,8 @@ except:
 
 app = Flask(__name__)
 
+
+
 @app.route('/threads', methods=['GET'])
 def get_threads():
     d=[{'prova1':'provando1', 'prova2':'provando2'}]
