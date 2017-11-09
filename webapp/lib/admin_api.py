@@ -466,13 +466,16 @@ class isardAdmin():
                     {'id':'bases','kind':'menu','name':'bases','parent':'isard'},
                     {'id':'base_images','kind':'menu','name':'base_images','parent':'isard'}]
             for d in rdomains:
-                if not d['create_dict']['origin']:
-                    if d['kind']=='base':
-                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'bases'})
+                try:
+                    if not d['create_dict']['origin']:
+                        if d['kind']=='base':
+                            domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'bases'})
+                        else:
+                            domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'base_images'})
                     else:
-                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'base_images'})
-                else:
-                    domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':d['create_dict']['origin']})
+                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':d['create_dict']['origin']})
+                except Exception as e:
+                    print('Exception on domain tree\n'+str(d)+'\n'+str(e))
                 #~ if not d['create_dict']['origin']:
                  #~ print(d['id']+' - '+str(d['create_dict']['origin']))
             return domains
