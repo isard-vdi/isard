@@ -16,7 +16,7 @@ from .pool_hypervisors import PoolHypervisors
 from .log import *
 from .db import get_domain, update_table_field, insert_domain, update_domain_dict_hardware, change_hyp_disk_operations
 from .db import update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started,get_pool_from_domain
-from .db import remove_dict_new_template_from_domain
+from .db import remove_dict_new_template_from_domain, get_interface
 #from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
@@ -54,11 +54,39 @@ class UiActions(object):
 
         xml = dict_domain['xml']
         x = xml_vm(xml)
+
+        ##### actions to customize xml
+
+        # spice password
         if ssl is True:
             x.reset_viewer_passwd()
         else:
             #only for test purposes, not use in production
             x.spice_remove_passwd_nossl()
+
+        # redo network
+        try:
+            list_interfaces = dict_domain['create_dict']['hardware']['interfaces']
+        except KeyError:
+            list_interfaces = []
+            log.info('domain {} withouth key interfaces in crate_dict'.format(id))
+
+        mac_address = []
+        for interface_index in range(len(x.vm_dict['interfaces'])):
+            mac_address.append(x.vm_dict['interfaces'][interface_index]['mac'])
+            x.remove_interface(order=interface_index)
+
+        interface_index=0
+
+        for id_interface in list_interfaces:
+            d_interface = get_interface(id_interface)
+
+            x.add_interface(type=d_interface['kind'],
+                            id=d_interface['ifname'],
+                            model_type=d_interface['model'],
+                            mac = mac_address[interface_index])
+
+            interface_index += 1
 
         x.remove_selinux_options()
         xml = x.return_xml()
