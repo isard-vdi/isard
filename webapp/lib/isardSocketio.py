@@ -307,6 +307,38 @@ def socketio_domains_add(form_data):
     #~ if current_user.role=='admin':
         #~ None
     create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+@socketio.on('domain_edit', namespace='/sio_users')
+def socketio_domain_edit(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict.pop('hardware',None)
+    res=app.isardapi.update_domain(create_dict)
+    if res is True:
+        data=json.dumps({'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('edit_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+def parseHardware(create_dict):
     if 'hardware' not in create_dict.keys():
         #~ Hardware is not in create_dict
         data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
@@ -324,18 +356,8 @@ def socketio_domains_add(form_data):
         create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
         create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
         create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
-    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
-
-    if res is True:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
-    else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
-    socketio.emit('add_form_result',
-                    data,
-                    namespace='/sio_users', 
-                    room='user_'+current_user.username)
-
-
+    return create_dict
+    
 ## Admin namespace
 @socketio.on('connect', namespace='/sio_admins')
 def socketio_admins_connect():

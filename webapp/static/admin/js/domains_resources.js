@@ -5,7 +5,7 @@
 * License: AGPLv3
 */
 
-
+ 
 $(document).ready(function() {
 
     int_table=$('#interfaces').DataTable({
@@ -46,7 +46,60 @@ $(document).ready(function() {
                 //~ break;
     });
 
-    
+	$('.add-new-interface').on( 'click', function () {
+            $("#modalInterface #modalAddInterface")[0].reset();
+            //~ setAlloweds_add('#alloweds-interface-add');
+			$('#modalInterface').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalInterface #modalAddInterface').parsley();
+            setAlloweds_add('#alloweds-interface-add');
+            
+    window.Parsley.addValidator('cidr', {
+      validateString: function(value, id) {
+                var ip = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$";
+                console.log(value.match(ip));
+                return value.match(ip);
+      },
+      messages: {
+        en: 'This string is not CIDR format'
+      }
+    });
+
+	});
+
+
+
+ //~ $.validator.addMethod('IP4Checker', function(value) {
+            //~ var ip = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$";
+                //~ return value.match(ip);
+            //~ }, 'Invalid IP address');
+
+
+
+    $("#modalInterface #send").on('click', function(e){
+            var form = $('#modalAddInterface');
+            console.log('inside')
+
+            form.parsley().validate();
+            data=$('#modalAddInterface').serializeObject();
+            data=replaceAlloweds_arrays(data)
+            //~ socket.emit('domain_virtbuilder_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        });
+
     // DISKS
     disks_table=$('#disks').DataTable({
 			"ajax": {
@@ -126,7 +179,39 @@ $(document).ready(function() {
                 //~ break;
     });
     
-    
+	$('.add-new-graphics').on( 'click', function () {
+            $("#modalGraphics #modalAddGraphics")[0].reset();
+			$('#modalGraphics').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalGraphics #modalAddGraphics').parsley();
+            setAlloweds_add('#alloweds-graphics-add');
+	});
+
+    $("#modalGraphics #send").on('click', function(e){
+            var form = $('#modalAddGraphics');
+            console.log('inside')
+            form.parsley().validate();
+            data=$('#modalAddGraphics').serializeObject();
+            data=replaceAlloweds_arrays(data)
+            //~ socket.emit('domain_virtbuilder_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        });   
+        
+        
+         
     // VIDEOS
     videos_table=$('#videos').DataTable({
 			"ajax": {
@@ -165,4 +250,64 @@ $(document).ready(function() {
             //~ case 'btn-play':        
                 //~ break;
     });
+    
+	$('.add-new-videos').on( 'click', function () {
+            $("#modalVideos #modalAddVideos")[0].reset();
+			$('#modalVideos').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalVideos #modalAddVideos').parsley();
+            setAlloweds_add('#alloweds-videos-add');
+            setRangeSliders();
+	});
+
+    $("#modalVideos #send").on('click', function(e){
+            var form = $('#modalAddVideos');
+            console.log('inside')
+            form.parsley().validate();
+            data=$('#modalAddVideos').serializeObject();
+            data=replaceAlloweds_arrays(data)
+            //~ socket.emit('domain_virtbuilder_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        }); 
+
+    function setRangeSliders(id){
+        				$("#videos-heads").ionRangeSlider({
+						  type: "single",
+						  min: 1,
+						  max: 4,
+                          step:1,
+						  grid: true,
+						  disable: false
+						  }).data("ionRangeSlider").update();
+        				$("#videos-ram").ionRangeSlider({
+						  type: "single",
+						  min: 8000,
+						  max: 128000,
+                          step:8000,
+						  grid: true,
+						  disable: false
+						  }).data("ionRangeSlider").update();
+        				$("#videos-vram").ionRangeSlider({
+						  type: "single",
+						  min: 8000,
+						  max: 128000,
+                          step:8000,
+						  grid: true,
+						  disable: false
+						  }).data("ionRangeSlider").update();                          
+    }
+        
 });

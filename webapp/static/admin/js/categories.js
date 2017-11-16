@@ -58,6 +58,6 @@ function formatCategories ( d ) {
 				'</tr>'
 	}
     return '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">'+
-        cells;
+        cells+
     '</table>';
 }

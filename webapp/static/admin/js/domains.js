@@ -577,6 +577,7 @@ function renderHypStarted(data){
 }
 
 function renderAction(data){
+    if(kind!="Bases" && kind!="Templates"){
 		status=data.status;
         if(status=='Stopped' || status=='Failed'){
             return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
@@ -588,6 +589,9 @@ function renderAction(data){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
         } 
         return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Loading...</span></i> </div>';
+    }else{
+        return ''
+    }
 }	
 
 

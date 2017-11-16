@@ -903,7 +903,7 @@ class Populate(object):
                 r.table_create('builders', primary_key="id").run(db.conn)
                 
                 #~ self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
-            print(self.create_builders())
+            #~ print(self.create_builders())
             r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn)
             return True
 
@@ -917,7 +917,7 @@ class Populate(object):
             if not r.table_list().contains('virt_builder').run(db.conn):
                 log.info("Table virt_builder not found, creating...")
                 r.table_create('virt_builder', primary_key="id").run(db.conn)
-                r.table('virt_builder').insert(update_virtbuilder(), conflict='update').run(db.conn)
+                #r.table('virt_builder').insert(update_virtbuilder(), conflict='update').run(db.conn)
                 self.result(r.table('virt_builder').insert(self.update_virtbuilder(), conflict='update').run(db.conn))
             return True
 
@@ -930,7 +930,7 @@ class Populate(object):
             if not r.table_list().contains('virt_install').run(db.conn):
                 log.info("Table virt_install not found, creating...")
                 r.table_create('virt_install', primary_key="id").run(db.conn)
-                r.table('virt_install').insert(update_virtinstall(), conflict='update').run(db.conn)
+                #r.table('virt_install').insert(self.update_virtinstall(), conflict='update').run(db.conn)
                 self.result(r.table('virt_install').insert(self.update_virtinstall(), conflict='update').run(db.conn))
             return True
 
