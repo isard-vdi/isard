@@ -903,7 +903,7 @@ class Populate(object):
                 r.table_create('builders', primary_key="id").run(db.conn)
                 
                 #~ self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
-            print(self.create_builders())
+            #~ print(self.create_builders())
             r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn)
             return True
 
