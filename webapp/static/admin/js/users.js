@@ -9,24 +9,22 @@
 $(document).ready(function() {
 
 	$('.btn-new-user').on('click', function () {
-			$('#modalAddUser').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalAddUserForm')[0].reset();
-            setModalAddUser();
+        setQuotaOptions('#users-quota');
+        $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
+        $('#modalAddUserForm')[0].reset();
+        setModalAddUser();
 	});
 
-	$('.btn-new-role').on('click', function () {
-        setQuotaOptions();
-			$('#modalAddRole').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalAddRoleForm')[0].reset();
-            //~ setModalAddUser();
-	});
-        
+    $("#modalAddUser #send").on('click', function(e){
+        var form = $('#modalAddUserForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()){
+            delete data['password2']
+            data=quota2dict($('#modalAddUserForm').serializeObject());
+            //~ socket.emit('xxx',data)
+        }
+    }); 
+
     var table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",
@@ -94,6 +92,9 @@ $(document).ready(function() {
             tr.addClass('shown');
         }
     });
+
+   
+    
 });
 
 function format ( d ) {
@@ -108,7 +109,7 @@ function format ( d ) {
 				'</tr>'
 	}
     return '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">'+
-        cells;
+        cells+
     '</table>';
 }
 

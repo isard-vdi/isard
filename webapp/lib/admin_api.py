@@ -118,7 +118,14 @@ class isardAdmin():
             if pluck and id:
                 return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
-                        
+
+    def get_admin_table_term(self, table, field, value, pluck=False):
+        with app.app_context():
+            if pluck:
+                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+            else:
+                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
+                                
     def get_admin_domains(self,kind=False):
         with app.app_context():
             if not kind:
@@ -311,6 +318,12 @@ class isardAdmin():
             log.error(e)
             pass
 
+    def download_backup(self,id):
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+        with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
+            return dict['path'],dict['filename'], isard_db_file.read()
+            
     def info_backup_db(self,id):
         import tarfile,pickle
         with app.app_context():

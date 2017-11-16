@@ -77,6 +77,7 @@ class isard():
                 # Automatic interface selection
                 allowed_ifaces=self.get_alloweds(user,'interfaces',pluck=['id','net'])
                 for iface in allowed_ifaces:
+                    #~ if iface['id']=='default': continue
                     if IPAddress(remote_addr) in IPNetwork(iface['net']):
                         dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
                         dict["hardware"]["interfaces"]=[iface['id']]
@@ -86,23 +87,23 @@ class isard():
         return False
 
 
-        disposables_config=self.config['disposable_desktops']
-        if disposables_config['active']:
-            with app.app_context():
-                disposables=r.table('disposables').run(db.conn)
-            for d in disposables:
-                for net in d['nets']: 
-                    if IPAddress(client_ip) in IPNetwork(net): return d
-        return False
+        #~ disposables_config=self.config['disposable_desktops']
+        #~ if disposables_config['active']:
+            #~ with app.app_context():
+                #~ disposables=r.table('disposables').run(db.conn)
+            #~ for d in disposables:
+                #~ for net in d['nets']: 
+                    #~ if IPAddress(client_ip) in IPNetwork(net): return d
+        #~ return False
 
         
-        with app.app_context():
-            try:
-                interface_id=r.table('interfaces').get
-                return self.check(r.table('domains').update(dict).run(db.conn),'inserted')
-            except Exception as e:
-                print('error:',e)
-                return False
+        #~ with app.app_context():
+            #~ try:
+                #~ interface_id=r.table('interfaces').get
+                #~ return self.check(r.table('domains').update(dict).run(db.conn),'inserted')
+            #~ except Exception as e:
+                #~ print('error:',e)
+                #~ return False
             
     def update_table_value(self, table, id, field, value):
         with app.app_context():
@@ -781,6 +782,14 @@ class isard():
                               'users': False}}
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
+
+    def update_domain(self, create_dict):
+        id=create_dict['id']
+        create_dict.pop('id',None)
+        #~ description=create_dict['description']
+        #~ create_dict.pop('description',None)
+        return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
+        #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
     def new_domain_disposable_from_tmpl(self, client_ip, template):
         with app.app_context():

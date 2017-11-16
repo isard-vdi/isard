@@ -32,6 +32,9 @@
 	<link href="/vendors/pnotify/dist/pnotify.buttons.css" media="all" rel="stylesheet" type="text/css" />
     <!-- iCheck -->
     <link href="/vendors/iCheck/skins/flat/green.css" rel="stylesheet">
+    
+    <link href="/vendors/select2/dist/css/select2.min.css" rel="stylesheet">
+    
     <!-- Custom Theme Style -->
     <link href="/build/css/custom.css" rel="stylesheet">
     <style>
@@ -135,7 +138,6 @@
     <script src="/static/isard.js"></script>
     <!-- isard quota sse -->
 	<script src="/static/js/quota.js"></script>
-
     <!-- flashed messages with pnotify -->
     {% with messages = get_flashed_messages(with_categories=true) %}
 	  {% if messages %}
