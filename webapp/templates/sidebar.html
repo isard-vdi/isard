@@ -10,7 +10,10 @@
 				{% if current_user.name == 'FAKEUSER' %}
                 <img src="/static/img/fakeuser.png" alt="..." class="img-circle profile_img">
                 {% else %}
+                <img src="http://orles/get/username/{{ current_user.username }}" onerror="this.src='/static/img/user.png'" alt="..." class="img-circle profile_img">
+<!--
                 <img src="/static/img/user.png" alt="..." class="img-circle profile_img">
+-->
                 {% endif %}
               </div>
               <div class="profile_info">
