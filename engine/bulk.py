@@ -1,17 +1,17 @@
 import random
 
-from .config import CONFIG_DICT
-from funcions import exec_remote_list_of_cmds_dict
-from .log import *
-from engine.db import get_domains_from_user, get_domains_from_classroom, get_domains_from_group, \
+from engine.services.db.db import get_domains_from_user, get_domains_from_classroom, get_domains_from_group, \
     get_domains_running_hypervisor, update_domain_status, get_domain_status, get_all_domains_with_id_and_status
+from engine.services.log import *
 
 MAX_RANDOM = 10
+
 
 def bulk_create(gr):
     pass
 
-def run_firefox_autologin_user(ip,username):
+
+def run_firefox_autologin_user(ip, username):
     if 'autologin' in CONFIG_DICT.keys():
         autologin_secret = CONFIG_DICT['autologin']['autologin_secret']
         site_url = CONFIG_DICT['autologin']['url']
@@ -20,31 +20,32 @@ def run_firefox_autologin_user(ip,username):
     else:
         log.error('autologin options not defined in CONFIG_DICT')
 
+
 def bulk_action_with_domains(action,
                              groupby,
                              filterby=None,
                              quantity=False,
                              prefix=False,
-                             randomize = False,
-                             template  = None):
-    domain_list = get_domain_list_groupby(groupby,filterby, quantity, randomize)
+                             randomize=False,
+                             template=None):
+    domain_list = get_domain_list_groupby(groupby, filterby, quantity, randomize)
     if action == 'start':
         starting_domain_list = []
         for domain_id in domain_list:
             status = get_domain_status(domain_id)
-            if status in ['Stopped','Failed']:
+            if status in ['Stopped', 'Failed']:
                 update_domain_status('Starting')
                 starting_domain_list.append(domain_id)
 
         return starting_domain_list
 
 
-def get_domain_list_groupby(groupby,filterby=None,quantity=None,status=None,randomize=True):
-    #role
-    #je je ... los que ocupen más disco
-    #categoria
-    #buscar en estadísticas (fecha de arranque)
-    #order by(fecha...)
+def get_domain_list_groupby(groupby, filterby=None, quantity=None, status=None, randomize=True):
+    # role
+    # je je ... los que ocupen más disco
+    # categoria
+    # buscar en estadísticas (fecha de arranque)
+    # order by(fecha...)
     # por cuanto tiempo han estado funcionando la última vez
     if groupby == 'classroom':
         domain_list_with_status = get_domains_from_classroom(filterby)
@@ -61,9 +62,9 @@ def get_domain_list_groupby(groupby,filterby=None,quantity=None,status=None,rand
         # domain_list_with_status = random.sample(domain_list_with_status,MAX_RANDOM)
 
     if status is not None:
-        domain_list = [{'id':d['id'],'status':d['status']} for d in domain_list_with_status if d['status'] == status]
+        domain_list = [{'id': d['id'], 'status': d['status']} for d in domain_list_with_status if d['status'] == status]
     else:
-        domain_list = [{'id':d['id'],'status':d['status']} for d in domain_list_with_status]
+        domain_list = [{'id': d['id'], 'status': d['status']} for d in domain_list_with_status]
 
     if quantity is not None:
         if randomize is True:
@@ -80,4 +81,3 @@ def get_domain_list_groupby(groupby,filterby=None,quantity=None,status=None,rand
             random.shuffle(domain_list)
 
     return domain_list
-

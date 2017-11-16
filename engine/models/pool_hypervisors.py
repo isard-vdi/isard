@@ -5,22 +5,15 @@
 
 # coding=utf-8
 
-from .hyp import hyp
-from .log import *
-from .db import get_hyp_hostnames, update_hyp_status, update_db_hyp_info
 # from ui_actions import UiActions
-from .db import get_hyp_hostnames_online, initialize_db_status_hyps
 #from threads import launch_threads_status_hyp, launch_thread_worker, launch_disk_operations_thread
 #from threads import dict_threads_active
-from .events_recolector import launch_thread_hyps_event
-from .functions import try_ssh
 
 
-import threading
 # from ..hyp_threads import launch_all_hyps_threads
 
-from .db import get_hypers_in_pool
-from .config import CONFIG_DICT
+from engine.services.db.db import get_hypers_in_pool
+from engine.config import CONFIG_DICT
 
 TIMEOUT_TRYING_SSH = float(CONFIG_DICT["TIMEOUTS"]["timeout_trying_ssh"])
 

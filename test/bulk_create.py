@@ -1,6 +1,7 @@
-from engine.db import insert_domain
 import pprint
 import sys
+
+from engine.services.db import insert_domain
 
 DICT_CREATE_WIN7={'allowed': {'categories': False,
              'groups': False,
