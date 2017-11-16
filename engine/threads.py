@@ -26,7 +26,7 @@ from .db import update_domain_status, get_domains_started_in_hyp, get_hyp_hostna
 from .functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str,execute_commands, execute_command_with_progress,get_tid
 from .qcow import extract_list_backing_chain,create_cmds_disk_template_from_domain, verify_output_cmds1_template_from_domain,verify_output_cmds2,verify_output_cmds3
 from .db import update_db_hyp_info, update_disk_template_created, update_disk_backing_chain
-from .vm import create_template_from_dict
+from .domain_xml import create_template_from_dict
 
 import pprint
 

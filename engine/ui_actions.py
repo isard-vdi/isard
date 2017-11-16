@@ -22,7 +22,7 @@ from time import sleep
 
 from .qcow import create_cmds_disk_from_base, create_cmds_delete_disk, create_cmds_disk_template_from_domain, get_path_to_disk, get_host_disk_operations_from_path
 from .qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
-from .vm import xml_vm, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
+from .domain_xml import DomainXML, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
 from .db import update_domain_status,get_hyp, create_disk_template_created_list_in_domain, remove_disk_template_created_list_in_domain
 from .db import get_hyp_hostnames_online,insert_ferrary,get_ferrary,delete_domain,update_domain_viewer_started_values
 from .functions import exec_remote_list_of_cmds,try_ssh, replace_path_disk
@@ -36,9 +36,8 @@ class UiActions(object):
     def action_from_api(self,action,parameters):
         if action == 'start_domain':
 
-            if 'ssl' in parameters.keys():
-                if parameters['ssl'] == False:
-                    ssl_spice = False
+            if 'ssl' in parameters.keys() and parameters['ssl'] == False:
+                ssl_spice = False
             if 'domain_id' in parameters.keys():
                 self.start_domain_from_id(parameters['domain_id'],ssl_spice)
 
@@ -48,12 +47,10 @@ class UiActions(object):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
         dict_domain = get_domain(id)
 
-        if 'pool_id' not in dict_domain.keys():
-            dict_domain['pool_id']='default'
-        pool_id = dict_domain['pool_id']
+        pool_id = dict_domain.get('pool_id', 'default')
 
         xml = dict_domain['xml']
-        x = xml_vm(xml)
+        x = DomainXML(xml)
 
         ##### actions to customize xml
 
@@ -676,7 +673,7 @@ class UiActions(object):
         else:
             dict_domain_new['server'] = dict_domain_template['server']
 
-        x = xml_vm(dict_domain_template['xml'])
+        x = DomainXML(dict_domain_template['xml'])
         x.set_name(id_new)
         x.set_title(name)
         x.set_description(description)

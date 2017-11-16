@@ -3,6 +3,8 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
+#Manage domain's xml
+
 # coding=utf-8
 
 # TODO: INFO TO DEVELOPER revisar si hacen falta todas estas librerías para este módulo
@@ -61,7 +63,7 @@ XML_SNIPPET_DISK = '''
 
 
 
-class xml_vm(object):
+class DomainXML(object):
     def __init__(self,xml):
         # self.tree = etree.parse(StringIO(xml))
 
@@ -550,7 +552,7 @@ def domain_xml_to_test(domain_id,ssl=True):
     # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
     dict_domain = get_domain(domain_id)
     xml = dict_domain['xml']
-    x = xml_vm(xml)
+    x = DomainXML(xml)
     if ssl is True:
         x.reset_viewer_passwd()
     else:
@@ -581,9 +583,9 @@ def update_xml_from_dict_domain(id_domain,xml=None):
     d = get_domain(id_domain)
     hw = d['hardware']
     if xml is None:
-        v = xml_vm(d['xml'])
+        v = DomainXML(d['xml'])
     else:
-        v = xml_vm(xml)
+        v = DomainXML(xml)
     # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
     v.set_memory(memory=hw['memory'],unit=hw['memory_unit'])
     for i in range(len(hw['disks'])):

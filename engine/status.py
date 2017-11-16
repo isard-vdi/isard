@@ -158,28 +158,28 @@ class UpdateStatus():
 
 
 
-class ThreadIsard(threading.Thread):
-    def __init__(self,
-                 group=None,
-                 target=None,
-                 name=None,
-                 args=(),
-                 kwargs=None,
-                 verbose=None):
-        self.target_function = target_function
-        self._args = args
-        self._kwargs = kwargs
-
-    def run(self):
-        self.tid = get_tid()
-        log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
-        try:
-            if self.target_function:
-                self.target_function(*self._args, **self._kwargs)
-        finally:
-            # Avoid a refcycle if the thread is running a function with
-            # an argument that has a member that points to the thread.
-            del self._target, self._args, self._kwargs
+# class ThreadIsard(threading.Thread):
+#     def __init__(self,
+#                  group=None,
+#                  target=None,
+#                  name=None,
+#                  args=(),
+#                  kwargs=None,
+#                  verbose=None):
+#         self.target_function = target_function
+#         self._args = args
+#         self._kwargs = kwargs
+#
+#     def run(self):
+#         self.tid = get_tid()
+#         log.info('starting thread: {} (TID {})'.format(self.name,self.tid))
+#         try:
+#             if self.target_function:
+#                 self.target_function(*self._args, **self._kwargs)
+#         finally:
+#             # Avoid a refcycle if the thread is running a function with
+#             # an argument that has a member that points to the thread.
+#             del self._target, self._args, self._kwargs
 
 
 class ThreadBroom(threading.Thread):

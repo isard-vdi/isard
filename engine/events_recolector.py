@@ -26,7 +26,7 @@ from .functions import hostname_to_uri, get_tid
 from .db import update_domain_status, get_id_hyp_from_uri, update_domain_viewer_started_values, insert_event_in_db, RethinkHypEvent, remove_domain_viewer_values
 from .db import get_hyp_hostname_user_port_from_id, update_uri_hyp, get_domain_status, get_domain_hyp_started_and_status_and_detail
 from .db import get_domain
-from .vm import xml_vm
+from .domain_xml import DomainXML
 
 def virEventLoopNativeRun():
     while True:
@@ -220,7 +220,7 @@ def myDomainEventCallbackRethink (conn, dom, event, detail, opaque):
         if dict_event['event'] in ('Started','Resumed'):
             try:
                 xml_started = dom.XMLDesc()
-                vm=xml_vm(xml_started)
+                vm=DomainXML(xml_started)
                 port, tlsport = vm.get_graphics_port()
                 update_domain_viewer_started_values(dom_id, hyp_id= hyp_id, port = port, tlsport = tlsport)
                 log.info('DOMAIN STARTED - {} in {} (port: {} / tlsport:{})'.format(dom_id, hyp_id, port, tlsport))
@@ -400,14 +400,8 @@ class ThreadHypEvents(threading.Thread):
     def add_hyp_to_receive_events(self,hyp_id):
         d_hyp_parameters = get_hyp_hostname_user_port_from_id(hyp_id)
         hostname = d_hyp_parameters['hostname']
-        if 'user' in d_hyp_parameters.keys():
-            user = d_hyp_parameters['user']
-        else:
-            user = 'root'
-        if 'port' in d_hyp_parameters.keys():
-            port = d_hyp_parameters['port']
-        else:
-            port = 22
+        user = d_hyp_parameters.get('user', 'root')
+        port = d_hyp_parameters.get('port', 22)
 
         uri = hostname_to_uri(hostname,user=user,port=port)
         conn_ok = False
