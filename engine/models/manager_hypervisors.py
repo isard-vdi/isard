@@ -17,10 +17,13 @@ from engine.controllers.events_recolector import launch_thread_hyps_event
 from engine.controllers.status import launch_thread_status, launch_thread_broom
 from engine.controllers.ui_actions import UiActions
 from engine.models.pool_hypervisors import PoolHypervisors
-from engine.services.db.db import get_hyps_ready_to_start, get_hyp_hostname_user_port_from_id, \
-    update_domain_history_from_id_domain, get_hyps_with_status, update_hyp_status, remove_domain, get_domain, \
-    get_if_all_disk_template_created, update_domain_status, get_hypers_disk_operations, new_rethink_connection, \
-    update_all_hyps_status, get_pools_from_hyp, get_domain_hyp_started, set_unknown_domains_not_in_hyps
+from engine.services.db.db import new_rethink_connection, \
+    get_pools_from_hyp
+from engine.services.db.hypervisors import get_hyps_ready_to_start, get_hypers_disk_operations, update_hyp_status, \
+    get_hyp_hostname_user_port_from_id, update_all_hyps_status, get_hyps_with_status
+from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_created, \
+    set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain
+from engine.services.db.domains import update_domain_status
 from engine.services.lib.functions import get_threads_running, get_tid
 from engine.services.log import *
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \

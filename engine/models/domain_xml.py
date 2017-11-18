@@ -18,8 +18,7 @@ from pprint import pprint
 
 from lxml import etree
 
-from engine.services.db.db import get_dict_from_item_in_table, update_table_field, get_domain, \
-    update_domain_dict_hardware
+from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware, get_domain
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
 

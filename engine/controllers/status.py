@@ -12,9 +12,10 @@ from time import time, sleep
 
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
 from engine.models.hyp import hyp
-from engine.services.db.db import get_last_domain_status, insert_db_domain_status, get_hyp_hostname_from_id, \
-    get_last_hyp_status, insert_db_hyp_status, update_domain_hyp_started, get_domains_with_transitional_status, \
-    update_domain_status
+from engine.services.db import update_domain_hyp_started, get_domains_with_transitional_status, \
+    update_domain_status, get_hyp_hostname_from_id
+from engine.services.db.domains_status import get_last_domain_status, insert_db_domain_status
+from engine.services.db.hypervisors_status import get_last_hyp_status, insert_db_hyp_status
 from engine.services.lib.functions import calcule_cpu_stats, calcule_disk_net_domain_load, get_tid
 from engine.services.lib.functions import state_and_cause_to_str, dict_domain_libvirt_state_to_isard_state
 from engine.services.log import *

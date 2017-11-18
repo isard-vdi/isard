@@ -18,10 +18,10 @@ import time
 import libvirt
 
 from engine.models.domain_xml import DomainXML
-from engine.services.db.db import get_domain, get_hyp_hostname_user_port_from_id, update_uri_hyp, get_domain_status, \
-    get_domain_hyp_started_and_status_and_detail, update_domain_status, get_id_hyp_from_uri, \
-    update_domain_viewer_started_values, \
-    RethinkHypEvent, remove_domain_viewer_values
+from engine.models.rethink_hyp_event import RethinkHypEvent
+from engine.services.db import update_domain_viewer_started_values, get_domain_hyp_started_and_status_and_detail, \
+    remove_domain_viewer_values, get_domain, get_domain_status, update_domain_status, get_id_hyp_from_uri, \
+    update_uri_hyp, get_hyp_hostname_user_port_from_id
 from engine.services.lib.functions import hostname_to_uri, get_tid
 from engine.services.log import *
 

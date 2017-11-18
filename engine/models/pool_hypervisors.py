@@ -12,7 +12,7 @@
 
 # from ..hyp_threads import launch_all_hyps_threads
 
-from engine.services.db.db import get_hypers_in_pool
+from engine.services.db.hypervisors import get_hypers_in_pool
 from engine.config import CONFIG_DICT
 
 TIMEOUT_TRYING_SSH = float(CONFIG_DICT["TIMEOUTS"]["timeout_trying_ssh"])

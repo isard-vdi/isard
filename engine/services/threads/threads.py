@@ -14,10 +14,12 @@ import traceback
 from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
 
 from engine.models.hyp import hyp
-from engine.services.db.db import get_domains_started_in_hyp, get_hyp_hostname_from_id, \
-    update_domains_started_in_hyp_to_unknown, update_all_domains_status, update_table_field, update_db_hyp_info, \
-    update_disk_template_created, update_disk_backing_chain, update_domain_status, update_hypervisor_failed_connection, \
-    update_hyp_status
+from engine.services.db import update_all_domains_status, update_disk_backing_chain, update_disk_template_created, \
+    get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown
+from engine.services.db.db import update_table_field
+from engine.services.db.domains import update_domain_status
+from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
+    update_hypervisor_failed_connection, update_db_hyp_info
 from engine.services.lib.functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str, \
     execute_commands, \
     execute_command_with_progress, get_tid
@@ -576,7 +578,7 @@ def launch_thread_worker(hyp_id, queue_master=None):
 
 
 def launch_try_hyps(dict_hyps, enabled_thread=True):
-    # launch try_hyp_connection_thread for all hyps
+    # launch TryHypConnectionThread for all hyps
     threads_try = {}
     hyps = {}
     for hyp_id, dict_hyp_parameters in dict_hyps.items():

@@ -14,10 +14,11 @@ from os.path import dirname as extract_dir_path
 from time import sleep
 
 from engine.models.domain_xml import DomainXML, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
-from engine.services.db.db import delete_domain, update_domain_viewer_started_values, get_domain, update_table_field, \
-    insert_domain, update_domain_dict_hardware, remove_dict_new_template_from_domain, get_interface, \
-    update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, get_pool_from_domain, \
-    update_domain_status, create_disk_template_created_list_in_domain, remove_disk_template_created_list_in_domain
+from engine.services.db import update_domain_viewer_started_values, update_table_field, \
+    get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
+    update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
+    create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
+    update_domain_status
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
