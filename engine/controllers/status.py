@@ -99,15 +99,16 @@ class UpdateStatus():
                 if dict_domain_last is not None:
                     time_elapsed = dict_domain['when'] - dict_domain_last['when']
 
-                    dict_domain['status']['cpu_usage'] = \
-                        (dict_domain['status']['procesed_stats']['cpu_time'] - \
-                         dict_domain_last['status']['procesed_stats']['cpu_time']) \
-                        / time_elapsed
+                    if 'procesed_stats' in dict_domain['status'].keys():
+                        dict_domain['status']['cpu_usage'] = \
+                            (dict_domain['status']['procesed_stats']['cpu_time'] - \
+                             dict_domain_last['status']['procesed_stats']['cpu_time']) \
+                            / time_elapsed
 
-                    dict_domain['status']['disk_rw'], dict_domain['status']['net_rw'] = \
-                        calcule_disk_net_domain_load(time_elapsed,
-                                                     dict_domain['status']['procesed_stats'],
-                                                     dict_domain_last['status']['procesed_stats'])
+                        dict_domain['status']['disk_rw'], dict_domain['status']['net_rw'] = \
+                            calcule_disk_net_domain_load(time_elapsed,
+                                                         dict_domain['status']['procesed_stats'],
+                                                         dict_domain_last['status']['procesed_stats'])
 
                 # def threading_enumerate():
                 #     # time.sleep(0.5)
