@@ -38,31 +38,58 @@ class isard():
         if not dict['errors']: return True
         return False
 
-    def update_desktop_status(self,user,data,remote_addr):
+    #~ def update_desktop_status(self,user,data,remote_addr):
+            #~ try:
+                #~ if data['name']=='status':
+                    #~ if data['value']=='Stopping':
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    #~ if data['value']=='Deleting':
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    #~ if data['value']=='Starting':
+                        #~ if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                            #~ return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                        #~ self.auto_interface_set(user,data['pk'],remote_addr)
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                #~ return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+            #~ except Exception as e:
+                #~ print('Error updating desktop status for domain '+data['pk']+': '+str(e))
+                #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+
+    def update_table_status(self,user,table,data,remote_addr):
+            item = table[:-1].capitalize()
             try:
                 if data['name']=='status':
                     if data['value']=='Stopping':
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' stopping success','text':item+' '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' stopping error','text':item+' '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Deleting':
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' deleting success','text':item+' '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' deleting error','text':item+' '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Starting':
                         if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
-                            return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':'Quota exceeded','text':item+' '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
                         self.auto_interface_set(user,data['pk'],remote_addr)
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' starting success','text':item+' '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':'Method not allowd','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
                 print('Error updating desktop status for domain '+data['pk']+': '+str(e))
-                return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
 
     def auto_interface_set(self,user,id, remote_addr):
@@ -695,19 +722,20 @@ class isard():
                 return False
             return True
         
-    def user_relative_disk_path(self, user, name):
+    def user_relative_iso_path(self, user, filename):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-
-        parsed_name = self.parse_string(name)
+        #~ name=filename.split('.iso')[0]
+        parsed_name = self.parse_string(filename)
         if not parsed_name: return False
         id = '_'+user+'_'+parsed_name
         #~ Missing check if id already exists
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        dir_disk, disk_filename = self.get_disk_path(userObj, filename)
         return {'id':id,
-                'name':parsed_name,
+                'name':filename,
                 'path':dir_disk+'/',
-                'filename':disk_filename.split('.qcow2')[0]}
+                'filename':filename,
+                'user':user}
         
     def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
         with app.app_context():
