@@ -182,32 +182,27 @@ class isard():
     def get_user_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).run(db.conn))
+            domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml').run(db.conn))
         return domains
 
-    def get_group_users(self, group,pluck=''):
-        with app.app_context():
-            users=list(r.table('users').get_all(group, index='group').order_by('username').pluck(pluck).run(db.conn))
-        return users
-
-    def get_hosts_viewers(self, place_id):
-        with app.app_context():
-            items=list(r.table('hosts_viewers').filter({'place_id':place_id}).order_by('ip').pluck(pluck).run(db.conn))
-            #~ for i in items:
-                
-        #~ return users
-            
     def get_group_domains(self, group, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(group, index='group').filter(filterdict).run(db.conn))
+            domains=self.f.table_values_bstrap(r.table('domains').get_all(group, index='group').filter(filterdict).without('xml').run(db.conn))
         return domains
 
     def get_category_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(category, index='category').filter(filterdict).run(db.conn))
+            domains=self.f.table_values_bstrap(r.table('domains').get_all(category, index='category').filter(filterdict).without('xml').run(db.conn))
         return domains
+        
+        
+        
+    def get_group_users(self, group,pluck=''):
+        with app.app_context():
+            users=list(r.table('users').get_all(group, index='group').order_by('username').pluck(pluck).run(db.conn))
+        return users
         
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???

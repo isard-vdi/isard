@@ -111,11 +111,11 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
 							  return renderIcon(full);
 							}},
-							{
-							"targets": 3,
-							"render": function ( data, type, full, meta ) {
-							  return renderName(full);
-							}},
+							//~ {
+							//~ "targets": 3,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderName(full);
+							//~ }},
 							{
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
@@ -554,14 +554,14 @@ function renderDisplay(data){
         return ''
 }
 
-function renderName(data){
-		return '<div class="block_content" > \
-      			<h2 class="title" style="height: 4px; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
-                </h2> \
-      			<p class="excerpt" >'+data.description+'</p> \
-           		</div>'
-}
+//~ function renderName(data){
+		//~ return '<div class="block_content" > \
+      			//~ <h2 class="title" style="height: 4px; margin-top: 0px;"> \
+                //~ <a>'+data.name+'</a> \
+                //~ </h2> \
+      			//~ <p class="excerpt" >'+data.description+'</p> \
+           		//~ </div>'
+//~ }
                         
 function renderIcon(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
