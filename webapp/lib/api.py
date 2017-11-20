@@ -796,6 +796,7 @@ class isard():
         create_dict.pop('id',None)
         #~ description=create_dict['description']
         #~ create_dict.pop('description',None)
+        create_dict['status']='Updating'
         return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
