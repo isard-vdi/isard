@@ -54,34 +54,42 @@ class isard():
                     if data['value']=='Starting':
                         if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
                             return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
-                        if not self.update_domain_network(user,data['pk'],remote_addr=remote_addr):
-                            # Let interface on default value
-                            self.update_domain_network(user,data['pk'],interface_id="default")
+                        self.auto_interface_set(user,data['pk'],remote_addr)
                         if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
                             return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
                             return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                 return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
+                print('Error updating desktop status for domain '+data['pk']+': '+str(e))
                 return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
+
+    def auto_interface_set(self,user,id, remote_addr):
+        with app.app_context():
+            dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
+            if dict['hardware']['interfaces'][0]=='default':
+                return self.update_domain_network(user,id,remote_addr=remote_addr)
+            else:
+                return self.update_domain_network(user,id,interface_id=dict['hardware']['interfaces'][0])
+        
     def update_domain_network(self,user,id,interface_id=False,remote_addr=False):
         try:
             if interface_id:
                 with app.app_context():
-                        iface=r.table('interfaces').get(interface_id).run(db.conn)
-                        dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
-                        dict["hardware"]["interfaces"]=[iface['id']]
-                        return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
+                    iface=r.table('interfaces').get(interface_id).run(db.conn)
+                    dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
+                    dict["hardware"]["interfaces"]=[iface['id']]
+                    return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
             elif remote_addr:
                 # Automatic interface selection
                 allowed_ifaces=self.get_alloweds(user,'interfaces',pluck=['id','net'])
                 for iface in allowed_ifaces:
-                    #~ if iface['id']=='default': continue
                     if IPAddress(remote_addr) in IPNetwork(iface['net']):
                         dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
                         dict["hardware"]["interfaces"]=[iface['id']]
                         return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
+            return True
         except Exception as e:
             print('Error updating domain '+id+' network interface.\n'+str(e))
         return False

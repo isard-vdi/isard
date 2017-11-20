@@ -27,6 +27,7 @@ $(document).ready(function() {
 				},
 				{ "data": "name"},
 				{ "data": "description"},
+                { "data": "net"},
 				{
                 "className":      'actions-control',
                 "orderable":      false,
