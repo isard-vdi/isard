@@ -191,6 +191,17 @@ $(document).ready(function() {
 				});	
                 break;
             case 'btn-display':
+                if(data['hardware-graphics-type']=='vnc'){
+                    var url = '/desktops/viewer/file/'+data['id'];
+                    var anchor = document.createElement('a');
+                        anchor.setAttribute('href', url);
+                        anchor.setAttribute('download', 'console.vnc');
+                    var ev = document.createEvent("MouseEvents");
+                        ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                        anchor.dispatchEvent(ev);                     
+                    break;
+                }
+
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
                     console.log('xpi detected')

@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, session, request
 from flask_login import login_required, login_user, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room, \
@@ -279,9 +278,9 @@ def socketio_domains_update(data):
 
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
-    if data['kind'] == 'file':
-        consola=app.isardapi.get_spice_ticket(data['pk'])
-        viewer=''
+    #~ if data['kind'] == 'file':
+        #~ consola=app.isardapi.get_viewer_ticket(data['pk'])
+        #~ viewer=''
         #~ return Response(consola, 
                         #~ mimetype="application/x-virt-viewer",
                         #~ headers={"Content-Disposition":"attachment;filename=consola.vv"})

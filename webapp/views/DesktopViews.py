@@ -75,12 +75,12 @@ def desktops_get(kind='username'):
 @app.route('/desktops/viewer/<type>/<id>')
 @login_required
 @ownsid
-def spice(type,id):
+def viewer(type,id):
     if type == 'file':
-        consola=app.isardapi.get_spice_ticket(id)
+        extension,consola=app.isardapi.get_viewer_ticket(id)
         return Response(consola, 
                         mimetype="application/x-virt-viewer",
-                        headers={"Content-Disposition":"attachment;filename=consola.vv"})
+                        headers={"Content-Disposition":"attachment;filename=consola."+extension})
     #~ if type == 'xpi':
         #~ dict=app.isardapi.get_spice_xpi(id)
         #~ return json.dumps(dict), 200, {'ContentType:':'application/json'}

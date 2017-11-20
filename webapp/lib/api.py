@@ -847,9 +847,48 @@ class isard():
         #~ ca = str(self.config['spice']['certificate'])
         #~ dict['ca']=ca
         return dict
-        
-    def get_spice_ticket(self, id):
+
+    def get_viewer_ticket(self,id):
         dict = self.get_domain_spice(id)
+        if dict['kind']=='vnc':
+            return 'vnc',self.get_vnc_ticket(dict)
+        if dict['kind']=='spice':
+            return 'vv',self.get_spice_ticket(dict)
+        return False
+        
+    def get_vnc_ticket(self, dict):
+        ## Should check if ssl in use: dict['tlsport']:
+        if dict['tlsport']:
+            return False
+        consola="""[Connection]
+        Host=%s
+        Port=%s
+        Password=%s
+
+        [Options]
+        UseLocalCursor=1
+        UseDesktopResize=1
+        FullScreen=1
+        FullColour=0
+        LowColourLevel=0
+        PreferredEncoding=ZRLE
+        AutoSelect=1
+        Shared=0
+        SendPtrEvents=1
+        SendKeyEvents=1
+        SendCutText=1
+        AcceptCutText=1
+        Emulate3=1
+        PointerEventInterval=0
+        Monitor=
+        MenuKey=F8
+        """ % (dict['host'], dict['port'], dict['passwd'])
+        consola = consola.replace("'", "")
+        return consola
+        
+        
+    def get_spice_ticket(self, dict):
+        #~ dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])
         #~ if not dict['host'].endswith(str(self.config['spice']['domain'])):
