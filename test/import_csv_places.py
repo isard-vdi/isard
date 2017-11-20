@@ -1,7 +1,10 @@
 import csv
+
 import rethinkdb as r
-from engine.db import insert_host_viewer, new_rethink_connection, insert_place
-from engine.log import log
+
+from engine.services.db import insert_host_viewer, new_rethink_connection, insert_place
+from engine.services.log import log
+
 
 class dbo (object):
     def __init__(self):

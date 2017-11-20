@@ -3,25 +3,24 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
+# Manage domain's xml
+
 # coding=utf-8
 
 # TODO: INFO TO DEVELOPER revisar si hacen falta todas estas librerías para este módulo
 
-import uuid
 import random
 import string
-from lxml import etree
+import traceback
+import uuid
 from io import StringIO
 from pprint import pprint
-import traceback
 
-from .log import *
-from .functions import randomMAC
-from .db import get_domain, update_domain_dict_hardware, update_domain_viewer_started_values
-from .db import get_dict_from_item_in_table, update_table_field
+from lxml import etree
 
-
-
+from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware, get_domain
+from engine.services.lib.functions import randomMAC
+from engine.services.log import *
 
 XML_SNIPPET_NETWORK = '''
     <interface type="network">
@@ -38,8 +37,6 @@ XML_SNIPPET_BRIDGE = '''
       <model type='virtio'/>
     </interface>
 '''
-
-
 
 XML_SNIPPET_CDROM = '''
     <disk type="file" device="cdrom">
@@ -59,17 +56,15 @@ XML_SNIPPET_DISK = '''
 '''
 
 
-
-
-class xml_vm(object):
-    def __init__(self,xml):
+class DomainXML(object):
+    def __init__(self, xml):
         # self.tree = etree.parse(StringIO(xml))
 
         parser = etree.XMLParser(remove_blank_text=True)
         try:
             self.tree = etree.parse(StringIO(xml), parser)
-        except Exception as e:                                                              
-            log.error('Exception when parse xml: {}'.format(e))                        
+        except Exception as e:
+            log.error('Exception when parse xml: {}'.format(e))
             log.error('xml that fail: \n{}'.format(xml))
             log.error('Traceback: {}'.format(traceback.format_exc()))
             return False
@@ -91,7 +86,7 @@ class xml_vm(object):
         self.reset_mac_address(mac=new_mac)
         return new_mac
 
-    def reset_mac_address(self,dev_index=0,mac=None):
+    def reset_mac_address(self, dev_index=0, mac=None):
         '''delete the mac address from xml. In the next boot libvirt create a random mac
          If you want to fix mac address mac parameter is optional.
          If there are more than one network device, the dev_index indicates the network device position
@@ -100,9 +95,9 @@ class xml_vm(object):
         if mac is None:
             mac = randomMAC()
 
-        self.tree.xpath('/domain/devices/interface')[dev_index].xpath('mac')[dev_index].set('address',mac)
+        self.tree.xpath('/domain/devices/interface')[dev_index].xpath('mac')[dev_index].set('address', mac)
 
-    def dict_from_xml(self,xml_tree=False):
+    def dict_from_xml(self, xml_tree=False):
         ## TODO INFO TO DEVELOPER: hay que montar excepciones porque si no el xml peta
         ## cuando no existe un atributo
         vm_dict = {}
@@ -111,7 +106,6 @@ class xml_vm(object):
 
         if xml_tree.xpath('/domain/devices/graphics'):
             element_graphics = xml_tree.xpath('/domain/devices/graphics')[0]
-
 
             if 'type' in self.tree.xpath('/domain/devices/graphics')[0].keys():
                 type = self.tree.xpath('/domain/devices/graphics')[0].get('type')
@@ -140,7 +134,7 @@ class xml_vm(object):
 
         if xml_tree.xpath('/domain/os/type'):
             if xml_tree.xpath('/domain/os/type')[0].get('machine'):
-                vm_dict['machine']= xml_tree.xpath('/domain/os/type')[0].get('machine')
+                vm_dict['machine'] = xml_tree.xpath('/domain/os/type')[0].get('machine')
 
         if xml_tree.xpath('/domain/memory'):
             vm_dict['memory'] = int(xml_tree.xpath('/domain/memory')[0].text)
@@ -160,13 +154,11 @@ class xml_vm(object):
         if xml_tree.xpath('/domain/vcpu'):
             vm_dict['vcpus'] = int(xml_tree.xpath('/domain/vcpu')[0].text)
 
-
         if xml_tree.xpath('/domain/devices/video/model'):
-            vm_dict['video']={}
-            for key in ('type','ram','vram','vgamem','heads'):
+            vm_dict['video'] = {}
+            for key in ('type', 'ram', 'vram', 'vgamem', 'heads'):
                 if key in self.tree.xpath('/domain/devices/video/model')[0].keys():
-                    vm_dict['video'][key]= xml_tree.xpath('/domain/devices/video/model')[0].get(key)
-
+                    vm_dict['video'][key] = xml_tree.xpath('/domain/devices/video/model')[0].get(key)
 
         if xml_tree.xpath('/domain/devices/disk[@device="disk"]'):
             vm_dict['disks'] = list()
@@ -222,7 +214,7 @@ class xml_vm(object):
 
         return vm_dict
 
-    def set_description(self,description):
+    def set_description(self, description):
         if self.tree.xpath('/domain/description'):
             self.tree.xpath('/domain/description')[0].text = description
 
@@ -235,8 +227,7 @@ class xml_vm(object):
                 if self.tree.xpath('/domain/name'):
                     self.tree.xpath('/domain/name')[0].addnext(element)
 
-
-    def set_title(self,title):
+    def set_title(self, title):
         if self.tree.xpath('/domain/title'):
             self.tree.xpath('/domain/title')[0].text = title
 
@@ -246,21 +237,21 @@ class xml_vm(object):
             if self.tree.xpath('/domain/name'):
                 self.tree.xpath('/domain/name')[0].addnext(element)
 
-    def set_memory(self,memory,unit='KiB',current=-1,max=-1):
+    def set_memory(self, memory, unit='KiB', current=-1, max=-1):
 
         if self.tree.xpath('/domain/memory'):
-            self.tree.xpath('/domain/memory')[0].set('unit',unit)
+            self.tree.xpath('/domain/memory')[0].set('unit', unit)
             self.tree.xpath('/domain/memory')[0].text = str(memory)
         else:
-            element = etree.parse(StringIO('<memory unit=\'{}\'>{}</memory>'.format(unit,memory)))
+            element = etree.parse(StringIO('<memory unit=\'{}\'>{}</memory>'.format(unit, memory)))
             self.tree.xpath('/domain/name')[0].addnext(element)
 
         if current > 0:
             if self.tree.xpath('/domain/currentMemory'):
-                self.tree.xpath('/domain/currentMemory')[0].set('unit',unit)
+                self.tree.xpath('/domain/currentMemory')[0].set('unit', unit)
                 self.tree.xpath('/domain/currentMemory')[0].text = str(current)
             else:
-                element = etree.parse(StringIO('<currentMemory unit=\'{}\'>{}</currentMemory>'.format(unit,current)))
+                element = etree.parse(StringIO('<currentMemory unit=\'{}\'>{}</currentMemory>'.format(unit, current)))
                 self.tree.xpath('/domain/memory')[0].addnext(element)
 
         else:
@@ -269,10 +260,10 @@ class xml_vm(object):
 
         if max > 0:
             if self.tree.xpath('/domain/maxMemory'):
-                self.tree.xpath('/domain/maxMemory')[0].set('unit',unit)
+                self.tree.xpath('/domain/maxMemory')[0].set('unit', unit)
                 self.tree.xpath('/domain/maxMemory')[0].text = str(max)
             else:
-                element = etree.parse(StringIO('<maxMemory unit=\'{}\'>{}</maxMemory>'.format(unit,max)))
+                element = etree.parse(StringIO('<maxMemory unit=\'{}\'>{}</maxMemory>'.format(unit, max)))
                 self.tree.xpath('/domain/maxMemory')[0].addnext(element)
 
         else:
@@ -281,17 +272,16 @@ class xml_vm(object):
 
     def set_vcpu(self, vcpus, placement='static'):
 
-        #example from libvirt.org  <vcpu placement='static' cpuset="1-4,^3,6" current="1">2</vcpu>
+        # example from libvirt.org  <vcpu placement='static' cpuset="1-4,^3,6" current="1">2</vcpu>
         if self.tree.xpath('/domain/vcpu'):
-            #self.tree.xpath('/domain/vcpu')[0].attrib.pop('placement')
-            self.tree.xpath('/domain/vcpu')[0].set('placement',placement)
+            # self.tree.xpath('/domain/vcpu')[0].attrib.pop('placement')
+            self.tree.xpath('/domain/vcpu')[0].set('placement', placement)
             self.tree.xpath('/domain/vcpu')[0].text = str(vcpus)
         else:
-            element = etree.parse(StringIO('<vcpu placement=\'{}\'>{}</vcpu>'.format(placement,vcpus))).getroot()
+            element = etree.parse(StringIO('<vcpu placement=\'{}\'>{}</vcpu>'.format(placement, vcpus))).getroot()
             self.tree.xpath('/domain/name')[0].addnext(element)
 
-
-    def add_device(self,xpath_same,element_tree,xpath_next='',xpath_previous=''):
+    def add_device(self, xpath_same, element_tree, xpath_next='', xpath_previous=''):
         # mejor añadir a la vez cds y discos para verificar que no hay lio con los hda, hdb...
 
         if self.tree.xpath('/domain/devices'):
@@ -299,11 +289,11 @@ class xml_vm(object):
             if self.tree.xpath(xpath_same):
                 self.tree.xpath(xpath_same)[-1].addnext(element_tree)
             elif xpath_next and self.tree.xpath(xpath_next):
-                    self.tree.xpath(xpath_next)[0].addprevious(element_tree)
-            elif xpath_previous and  self.tree.xpath(xpath_previous):
-                    self.tree.xpath(xpath_previous)[-1].addnext(element_tree)
+                self.tree.xpath(xpath_next)[0].addprevious(element_tree)
+            elif xpath_previous and self.tree.xpath(xpath_previous):
+                self.tree.xpath(xpath_previous)[-1].addnext(element_tree)
             else:
-                self.tree.xpath('/domain/devices')[0].insert(1,element_tree)
+                self.tree.xpath('/domain/devices')[0].insert(1, element_tree)
 
         else:
             log.debug('element /domain/devices not found in xml_etree when adding disk')
@@ -315,7 +305,7 @@ class xml_vm(object):
         xpath_same = '/domain/devices/disk[@device="disk"]'
         xpath_next = '/domain/devices/disk[@device="cdrom"]'
         xpath_previous = '/domain/devices/emulator'
-        self.add_device(xpath_same,new_disk,xpath_next=xpath_next,xpath_previous=xpath_previous)
+        self.add_device(xpath_same, new_disk, xpath_next=xpath_next, xpath_previous=xpath_previous)
 
     def add_cdrom(self):
         disk_etree = etree.parse(StringIO(XML_SNIPPET_CDROM))
@@ -323,9 +313,9 @@ class xml_vm(object):
         xpath_same = '/domain/devices/disk[@device="cdrom"]'
         xpath_previous = '/domain/devices/disk[@device="disk"]'
         xpath_next = '/domain/devices/controller'
-        self.add_device(xpath_same,new_disk,xpath_next=xpath_next,xpath_previous=xpath_previous)
+        self.add_device(xpath_same, new_disk, xpath_next=xpath_next, xpath_previous=xpath_previous)
 
-    def add_interface(self,type,id,mac=None,model_type='virtio'):
+    def add_interface(self, type, id, mac=None, model_type='virtio'):
         '''
         :param type:' bridge' OR 'network' .
                      If bridge inserts xml code for bridge,
@@ -337,18 +327,18 @@ class xml_vm(object):
 
         if type == 'bridge':
             interface_etree = etree.parse(StringIO(XML_SNIPPET_BRIDGE))
-            interface_etree.xpath('/interface')[0].xpath('source')[0].set('bridge',id)
+            interface_etree.xpath('/interface')[0].xpath('source')[0].set('bridge', id)
 
         elif type == 'network':
             interface_etree = etree.parse(StringIO(XML_SNIPPET_NETWORK))
-            interface_etree.xpath('/interface')[0].xpath('source')[0].set('network',id)
+            interface_etree.xpath('/interface')[0].xpath('source')[0].set('network', id)
 
         else:
             log.error('type of interface incorrect when adding interface in xml')
             return -1
 
-        interface_etree.xpath('/interface')[0].xpath('mac')[0].set('address',mac)
-        interface_etree.xpath('/interface')[0].xpath('model')[0].set('type',model_type)
+        interface_etree.xpath('/interface')[0].xpath('mac')[0].set('address', mac)
+        interface_etree.xpath('/interface')[0].xpath('model')[0].set('type', model_type)
 
         new_interface = interface_etree.xpath('/interface')[0]
 
@@ -356,9 +346,9 @@ class xml_vm(object):
         xpath_next = '/domain/devices/input'
         xpath_previous = '/domain/devices/controller'
 
-        self.add_device(xpath_same,new_interface,xpath_next=xpath_next,xpath_previous=xpath_previous)
+        self.add_device(xpath_same, new_interface, xpath_next=xpath_next, xpath_previous=xpath_previous)
 
-    def reset_interface(self,type,id,mac=None,model_type='virtio'):
+    def reset_interface(self, type, id, mac=None, model_type='virtio'):
         '''
         :param type:' bridge' OR 'network' .
                      If bridge inserts xml code for bridge,
@@ -370,49 +360,48 @@ class xml_vm(object):
         while len(self.tree.xpath(xpath)):
             self.remove_branch(xpath)
 
-        self.add_interface(type,id,mac,model_type)
+        self.add_interface(type, id, mac, model_type)
 
     def reset_viewer_passwd(self, ssl=True):
         passwd = ''.join([random.choice(string.ascii_letters + string.digits) for n in range(16)])
         self.set_viewer_passwd(passwd, ssl)
 
     def set_graphics_type(self, type_graphics):
-        self.tree.xpath('/domain/devices/graphics')[0].set('type',type_graphics)
+        self.tree.xpath('/domain/devices/graphics')[0].set('type', type_graphics)
 
     def set_video_type(self, type_video):
-        self.tree.xpath('/domain/devices/video/model')[0].set('type',type_video)
-
+        self.tree.xpath('/domain/devices/video/model')[0].set('type', type_video)
 
     def set_viewer_passwd(self, passwd, ssl=True):
         # if self.tree.xpath('/domain/devices/graphics')[0].get('type') == 'spice':
-            if 'password' in self.tree.xpath('/domain/devices/graphics')[0].keys():
-                self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('password')
-            self.tree.xpath('/domain/devices/graphics')[0].set('passwd',passwd)
-            self.viewer_passwd = passwd
-            if ssl is True:
-                #mode secure if you not use websockets
-                #self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode','secure')
-                #defaultMode=any is the default value, if you pop defaultMode attrib is the same
-                self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode', 'any')
-            else:
-                if 'defaultMode' in self.tree.xpath('/domain/devices/graphics')[0].keys():
-                    self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('defaultMode')
-        # else:
-        #     log.error('domain {} has not spice graphics and can not change password of spice connection'.format(self.vm_dict['name']))
+        if 'password' in self.tree.xpath('/domain/devices/graphics')[0].keys():
+            self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('password')
+        self.tree.xpath('/domain/devices/graphics')[0].set('passwd', passwd)
+        self.viewer_passwd = passwd
+        if ssl is True:
+            # mode secure if you not use websockets
+            # self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode','secure')
+            # defaultMode=any is the default value, if you pop defaultMode attrib is the same
+            self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode', 'any')
+        else:
+            if 'defaultMode' in self.tree.xpath('/domain/devices/graphics')[0].keys():
+                self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('defaultMode')
+                # else:
+                #     log.error('domain {} has not spice graphics and can not change password of spice connection'.format(self.vm_dict['name']))
 
-    def remove_disk(self,order=-1):
+    def remove_disk(self, order=-1):
         xpath = '/domain/devices/disk[@device="disk"]'
-        self.remove_device(xpath,order_num=order)
+        self.remove_device(xpath, order_num=order)
 
-    def remove_cdrom(self,order=-1):
+    def remove_cdrom(self, order=-1):
         xpath = '/domain/devices/disk[@device="cdrom"]'
-        self.remove_device(xpath,order_num=order)
+        self.remove_device(xpath, order_num=order)
 
-    def remove_interface(self,order=-1):
+    def remove_interface(self, order=-1):
         xpath = '/domain/devices/interface'
-        self.remove_device(xpath,order_num=order)
+        self.remove_device(xpath, order_num=order)
 
-    def remove_device(self,xpath,order_num=-1):
+    def remove_device(self, xpath, order_num=-1):
         if self.tree.xpath('/domain/devices'):
             if self.tree.xpath(xpath):
                 l = len(self.tree.xpath(xpath))
@@ -428,16 +417,16 @@ class xml_vm(object):
             return False
 
     def create_dict(self):
-        self.vm_dict['name']=self.name
-        self.vm_dict['uuid']=self.uuid
-        self.vm_dict['machine']=self.machine
-        self.vm_dict['disk']=[]
+        self.vm_dict['name'] = self.name
+        self.vm_dict['uuid'] = self.uuid
+        self.vm_dict['machine'] = self.machine
+        self.vm_dict['disk'] = []
         self.vm_dict['disk'].append(self.primary_disk)
-        self.vm_dict['net']=[]
+        self.vm_dict['net'] = []
         self.vm_dict['net'].append(self.primary_net)
-        self.vm_dict['spice']={}
-        self.vm_dict['spice']['port']=self.spice_port
-        self.vm_dict['spice']['passwd']=self.spice_passwd
+        self.vm_dict['spice'] = {}
+        self.vm_dict['spice']['port'] = self.spice_port
+        self.vm_dict['spice']['passwd'] = self.spice_passwd
 
     def get_graphics_port(self):
         if 'tlsPort' in self.tree.xpath('/domain/devices/graphics')[0].keys():
@@ -453,16 +442,14 @@ class xml_vm(object):
         return port, tlsPort
 
     def remove_selinux_options(self):
-        self.remove_recursive_tag('seclabel',self.tree.getroot())
+        self.remove_recursive_tag('seclabel', self.tree.getroot())
 
-    def remove_recursive_tag(self,tag,parent):
+    def remove_recursive_tag(self, tag, parent):
         for child in parent.getchildren():
             if tag == child.tag:
                 parent.remove(child)
             else:
-                self.remove_recursive_tag(tag,child)
-
-
+                self.remove_recursive_tag(tag, child)
 
     def spice_remove_passwd_nossl(self):
         if 'password' in self.tree.xpath('/domain/devices/graphics')[0].keys():
@@ -470,19 +457,15 @@ class xml_vm(object):
         if 'passwd' in self.tree.xpath('/domain/devices/graphics')[0].keys():
             self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('passwd')
         if 'defaultMode' in self.tree.xpath('/domain/devices/graphics')[0].keys():
-            #self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('defaultMode')
-            self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode','insecure')
+            # self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('defaultMode')
+            self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode', 'insecure')
 
-    def clean_xml_for_test(self,new_name,new_disk):
+    def clean_xml_for_test(self, new_name, new_disk):
         self.new_domain_uuid()
         self.set_name(new_name)
         self.set_vdisk(new_disk)
         self.new_random_mac()
         self.spice_remove_passwd_nossl()
-
-
-
-
 
     def remove_branch(self, xpath, index=0):
         self.tree.xpath(xpath)[index].getparent().remove(self.tree.xpath(xpath)[index])
@@ -497,7 +480,7 @@ class xml_vm(object):
         # <on_reboot>restart</on_reboot>
         # <on_crash>restart</on_crash>
 
-    def set_name(self,new_name):
+    def set_name(self, new_name):
         self.tree.xpath('/domain/name')[0].text = new_name
 
         # TODO INFO TO DEVELOPER: modificamos las variables internas del objeto??
@@ -506,9 +489,10 @@ class xml_vm(object):
         # self.name = new_name
         # self.vm_dict['name'] = new_name
 
-    def set_vdisk(self, new_path_vdisk,index=0):
+    def set_vdisk(self, new_path_vdisk, index=0):
         if self.tree.xpath('/domain/devices/disk[@device="disk"]'):
-            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('source')[0].set('file',new_path_vdisk)
+            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('source')[0].set('file',
+                                                                                                  new_path_vdisk)
             path = self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('source')[0].get('file')
             return path
 
@@ -517,7 +501,6 @@ class xml_vm(object):
         self.new_domain_uuid()
 
         self.dict_from_xml()
-
 
     def print_vm_dict(self):
         pprint(self.vm_dict)
@@ -528,29 +511,29 @@ class xml_vm(object):
     def print_xml(self):
         log.debug(self.return_xml())
 
-    #def __repr__(self):
+    # def __repr__(self):
     #    return self.return_xml()
 
     def __str__(self):
         return self.return_xml()
 
 
-def remove_recursive_tag(tag,parent):
+def remove_recursive_tag(tag, parent):
     for child in parent.getchildren():
         if tag == child.tag:
             parent.remove(child)
         else:
-            remove_recursive(tag,child)
+            remove_recursive(tag, child)
 
     return parent
 
 
-def domain_xml_to_test(domain_id,ssl=True):
-    id=domain_id
+def domain_xml_to_test(domain_id, ssl=True):
+    id = domain_id
     # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
     dict_domain = get_domain(domain_id)
     xml = dict_domain['xml']
-    x = xml_vm(xml)
+    x = DomainXML(xml)
     if ssl is True:
         x.reset_viewer_passwd()
     else:
@@ -569,25 +552,27 @@ def domain_xml_to_test(domain_id,ssl=True):
     log.debug('#####################################################3')
 
     x.dict_from_xml()
-    update_domain_dict_hardware(id,x.vm_dict,xml=xml)
-    #update_domain_viewer_started_values(id,passwd=x.viewer_passwd)
+    update_domain_dict_hardware(id, x.vm_dict, xml=xml)
+    # update_domain_viewer_started_values(id,passwd=x.viewer_passwd)
 
     return xml
+
 
 def create_template_from_dict(dict_template_new):
     pass
 
-def update_xml_from_dict_domain(id_domain,xml=None):
+
+def update_xml_from_dict_domain(id_domain, xml=None):
     d = get_domain(id_domain)
     hw = d['hardware']
     if xml is None:
-        v = xml_vm(d['xml'])
+        v = DomainXML(d['xml'])
     else:
-        v = xml_vm(xml)
+        v = DomainXML(xml)
     # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
-    v.set_memory(memory=hw['memory'],unit=hw['memory_unit'])
+    v.set_memory(memory=hw['memory'], unit=hw['memory_unit'])
     for i in range(len(hw['disks'])):
-        v.set_vdisk(hw['disks'][i]['file'],index=i)
+        v.set_vdisk(hw['disks'][i]['file'], index=i)
 
     v.set_name(id_domain)
     # INFO TO DEVELOPER, deberíamos poder usar la funcion v.set_description(para poner algo)
@@ -617,11 +602,11 @@ def update_xml_from_dict_domain(id_domain,xml=None):
 
     v.randomize_vm()
     v.remove_selinux_options()
-    #v.print_xml()
+    # v.print_xml()
     xml_raw = v.return_xml()
     hw_updated = v.dict_from_xml()
 
-    update_domain_dict_hardware(id_domain,hw_updated,xml=xml_raw)
+    update_domain_dict_hardware(id_domain, hw_updated, xml=xml_raw)
     return xml_raw
 
 
@@ -635,7 +620,7 @@ def populate_dict_hardware_from_create_dict(id_domain):
         new_hardware_dict = template['hardware'].copy()
 
     else:
-        #TODO domain from iso or new
+        # TODO domain from iso or new
         pass
 
     if 'hardware' in domain.keys():
@@ -645,7 +630,7 @@ def populate_dict_hardware_from_create_dict(id_domain):
     new_hardware_dict['name'] = id_domain
     new_hardware_dict['uuid'] = None
 
-    #MEMORY and CPUS
+    # MEMORY and CPUS
     new_hardware_dict['vcpus'] = create_dict['hardware']['vcpus']
     new_hardware_dict['currentMemory'] = create_dict['hardware']['memory']
     new_hardware_dict['memory'] = create_dict['hardware']['memory']
@@ -653,18 +638,18 @@ def populate_dict_hardware_from_create_dict(id_domain):
     new_hardware_dict['memory_unit'] = 'KiB' \
                                        ''
 
-    #VIDEO
+    # VIDEO
     id_video = create_dict['hardware']['videos'][0]
     new_hardware_dict['video'] = create_dict_video_from_id(id_video)
 
-    #GRAPHICS
+    # GRAPHICS
     id_graphics = create_dict['hardware']['graphics'][0]
 
     pool_var = domain['hypervisors_pools']
     id_pool = pool_var if type(pool_var) is str else pool_var[0]
-    new_hardware_dict['graphics'] = create_dict_graphics_from_id(id_graphics,id_pool)
+    new_hardware_dict['graphics'] = create_dict_graphics_from_id(id_graphics, id_pool)
 
-    #INTERFACES
+    # INTERFACES
     list_ids_interfaces = create_dict['hardware']['interfaces']
     new_hardware_dict['interfaces'] = create_list_interfaces_from_list_ids(list_ids_interfaces)
     import pprint
@@ -679,11 +664,11 @@ def populate_dict_hardware_from_create_dict(id_domain):
 
 def create_dict_video_from_id(id_video):
     dict_video = get_dict_from_item_in_table('videos', id_video)
-    d={ 'heads': dict_video['heads'],
-        'ram'  : dict_video['ram'],
-        'type' : dict_video['model'],
-        'vram' : dict_video['vram']
-       }
+    d = {'heads': dict_video['heads'],
+         'ram': dict_video['ram'],
+         'type': dict_video['model'],
+         'vram': dict_video['vram']
+         }
     return d
 
 
@@ -698,13 +683,13 @@ def create_dict_interface_hardware_from_id(id_net):
     dict_net = get_dict_from_item_in_table('interfaces', id_net)
 
     return {'type': dict_net['kind'],
-            'id':   dict_net['ifname'],
+            'id': dict_net['ifname'],
             'name': dict_net['name'],
             'model': dict_net['model'],
-            'net':  dict_net['net']}
+            'net': dict_net['net']}
 
 
-def create_dict_graphics_from_id(id,pool_id):
+def create_dict_graphics_from_id(id, pool_id):
     dict_graph = get_dict_from_item_in_table('graphics', id)
     type = dict_graph['type']
     d = {}
@@ -714,12 +699,11 @@ def create_dict_graphics_from_id(id,pool_id):
     if pool['viewer']['defaultMode'] == 'Insecure':
         d['defaultMode'] = 'Insecure'
         d['certificate'] = ''
-        d['domain']      = ''
+        d['domain'] = ''
 
     if pool['viewer']['defaultMode'] == 'Secure':
         d['defaultMode'] = 'Secure'
         d['certificate'] = pool['viewer']['certificate']
-        d['domain']      = pool['viewer']['defaultMode']
+        d['domain'] = pool['viewer']['defaultMode']
 
     return d
-

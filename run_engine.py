@@ -1,11 +1,9 @@
-from time import sleep
-from engine.manager_hypervisors import ManagerHypervisors
-from engine.functions import get_threads_running
-from engine.functions import check_tables_populated
-from api import app
-from engine import db
-
 from gevent.wsgi import WSGIServer
+
+from api import app
+from engine.models.manager_hypervisors import ManagerHypervisors
+from engine.services import db
+from engine.services.lib.functions import check_tables_populated
 
 check_tables_populated()
 app.m = ManagerHypervisors()
