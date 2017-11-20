@@ -11,8 +11,6 @@ import threading
 import time
 import traceback
 
-from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
-
 from engine.models.hyp import hyp
 from engine.services.db import update_all_domains_status, update_disk_backing_chain, update_disk_template_created, \
     get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown

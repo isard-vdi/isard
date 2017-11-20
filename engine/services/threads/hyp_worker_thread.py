@@ -2,6 +2,8 @@ import queue
 import threading
 import time
 
+from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
+
 from engine.models.hyp import hyp
 from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, \
     update_domains_started_in_hyp_to_unknown
@@ -88,8 +90,8 @@ class HypWorkerThread(threading.Thread):
                         update_domain_status('Crashed', action['id_domain'], hyp_id=self.hyp_id,
                                              detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
                         log.error(
-                            'Exception starting paused xml for domain {} in hypervisor {}. NOT LIBVIRT EXCEPTION, RARE CASE. Exception message: '.format(
-                                str(e)))
+                            'Exception starting paused xml for domain {} in hypervisor {}. NOT LIBVIRT EXCEPTION, RARE CASE. Exception message: {}'.format(
+                                    action['id_domain'], self.hyp_id, str(e)))
 
                 ## START DOMAIN
                 elif action['type'] == 'start_domain':
