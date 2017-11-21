@@ -146,13 +146,13 @@ class isardAdmin():
     def get_admin_domains_with_derivates(self,kind=False):
         with app.app_context():
             if 'template' in kind:
-               return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware').merge(lambda domain:
+                return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                     {
                         "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                     }
                 ).run(db.conn))
             else:
-               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
+               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                     {
                         "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                     }

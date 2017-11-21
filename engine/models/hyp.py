@@ -9,26 +9,18 @@ a module to control hypervisor functions and state. Overrides libvirt events and
 
 """
 
-import os
-import libvirt
 import socket
-import sys
-import pexpect
-import threading
-import datetime
 import time
-import json
-import time
-import paramiko
-
-from lxml import etree
 from io import StringIO
 
-from .log import *
-from .config import *
-from .functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
-from .functions import state_and_cause_to_str, hostname_to_uri, try_socket
+import libvirt
+import paramiko
+from lxml import etree
 
+from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
+from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
+from engine.services.log import *
+from engine.config import *
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = 4 #int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])

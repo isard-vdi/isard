@@ -111,11 +111,11 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
 							  return renderIcon(full);
 							}},
-							{
-							"targets": 3,
-							"render": function ( data, type, full, meta ) {
-							  return renderName(full);
-							}},
+							//~ {
+							//~ "targets": 3,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderName(full);
+							//~ }},
 							{
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
@@ -284,6 +284,16 @@ $(document).ready(function() {
 				});	
                 break;
             case 'btn-display':
+                if(data['create_dict-hardware-graphics'][0]=='vnc'){
+                    var url = '/desktops/viewer/file/'+data['id'];
+                    var anchor = document.createElement('a');
+                        anchor.setAttribute('href', url);
+                        anchor.setAttribute('download', 'console.vnc');
+                    var ev = document.createEvent("MouseEvents");
+                        ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                        anchor.dispatchEvent(ev);                     
+                    break;
+                }            
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
 					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
@@ -554,14 +564,14 @@ function renderDisplay(data){
         return ''
 }
 
-function renderName(data){
-		return '<div class="block_content" > \
-      			<h2 class="title" style="height: 4px; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
-                </h2> \
-      			<p class="excerpt" >'+data.description+'</p> \
-           		</div>'
-}
+//~ function renderName(data){
+		//~ return '<div class="block_content" > \
+      			//~ <h2 class="title" style="height: 4px; margin-top: 0px;"> \
+                //~ <a>'+data.name+'</a> \
+                //~ </h2> \
+      			//~ <p class="excerpt" >'+data.description+'</p> \
+           		//~ </div>'
+//~ }
                         
 function renderIcon(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'

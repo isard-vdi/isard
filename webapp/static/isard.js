@@ -326,7 +326,6 @@ function dtUpdateInsert(table, data, append){
     //Quickly appends new data rows.  Does not update rows
     if(append == true){
         table.rows.add(data);
-         
     //Locate and update rows by rowId or add if new
     }else{
 		if(typeof(table.row('#'+data.id).id())=='undefined'){

@@ -191,7 +191,7 @@ $(document).ready(function() {
 				});	
                 break;
             case 'btn-display':
-                if(data['hardware-graphics-type']=='vnc'){
+                if(data['create_dict-hardware-graphics'][0]=='vnc'){
                     var url = '/desktops/viewer/file/'+data['id'];
                     var anchor = document.createElement('a');
                         anchor.setAttribute('href', url);
