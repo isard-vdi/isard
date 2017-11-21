@@ -191,20 +191,8 @@ $(document).ready(function() {
 				});	
                 break;
             case 'btn-display':
-                if(data['create_dict-hardware-graphics'][0]=='vnc'){
-                    var url = '/desktops/viewer/file/'+data['id'];
-                    var anchor = document.createElement('a');
-                        anchor.setAttribute('href', url);
-                        anchor.setAttribute('download', 'console.vnc');
-                    var ev = document.createEvent("MouseEvents");
-                        ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                        anchor.dispatchEvent(ev);                     
-                    break;
-                }
-
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
-                    console.log('xpi detected')
                     if(isXpiBlocked()){
                             new PNotify({
                             title: "Plugin blocked",
@@ -264,7 +252,7 @@ $(document).ready(function() {
                                             });
                                             //~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
                                             
-                                                var url = '/desktops/viewer/file/'+data['id'];
+                                                var url = '/desktops/download_viewer/'+getOS()+'/'+data['id'];
                                                 var anchor = document.createElement('a');
                                                     anchor.setAttribute('href', url);
                                                     anchor.setAttribute('download', 'console.vv');
@@ -286,8 +274,6 @@ $(document).ready(function() {
 
 
 					}
-				//~ }); 
-				//~ }
                 break;
         }
     });

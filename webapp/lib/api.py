@@ -178,27 +178,7 @@ class isard():
     def get_domain_last_events(self, id):
         with app.app_context():
             return r.table('hypervisors_events').get_all(id, index='domain').order_by(r.desc('when')).limit(6).run(db.conn)
-                  
-    def get_domain_spice(self, id):
-        domain =  r.table('domains').get(id).run(db.conn)
-        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        ##### BIG TODO
-        if viewer['defaultMode'] == "Secure":
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':domain['viewer']['tlsport'],
-                    'ca':viewer['certificate'],
-                    'domain':viewer['domain'],
-                    'passwd':domain['viewer']['passwd']}
-        else:
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':False,
-                    'ca':'',
-                    'domain':'',
-                    'passwd':domain['viewer']['passwd']}
+
 
     def get_user(self, user):
         with app.app_context():
@@ -862,7 +842,33 @@ class isard():
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
+    ##### SPICE VIEWER
+    
+    def get_domain_spice(self, id):
+        ### HTML5 spice dict (isardsocketio)
+        
+        domain =  r.table('domains').get(id).run(db.conn)
+        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
+        if viewer['defaultMode'] == "Secure":
+            return {'host':domain['viewer']['hostname'],
+                    'kind':domain['hardware']['graphics']['type'],
+                    'port':domain['viewer']['port'],
+                    'tlsport':domain['viewer']['tlsport'],
+                    'ca':viewer['certificate'],
+                    'domain':viewer['domain'],
+                    'passwd':domain['viewer']['passwd']}
+        else:
+            return {'host':domain['viewer']['hostname'],
+                    'kind':domain['hardware']['graphics']['type'],
+                    'port':domain['viewer']['port'],
+                    'tlsport':False,
+                    'ca':'',
+                    'domain':'',
+                    'passwd':domain['viewer']['passwd']}
+    
     def get_spice_xpi(self, id):
+        ### Dict for XPI viewer (isardSocketio)
+        
         dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])
@@ -872,43 +878,128 @@ class isard():
         #~ dict['ca']=ca
         return dict
 
-    def get_viewer_ticket(self,id):
+
+    ######### VIEWER DOWNLOAD FUNCTIONS
+    def get_viewer_ticket(self,id,os='generic'):
+        print(id)
+        print(os)
         dict = self.get_domain_spice(id)
         if dict['kind']=='vnc':
-            return 'vnc',self.get_vnc_ticket(dict)
+            return self.get_vnc_ticket(dict,os)
         if dict['kind']=='spice':
-            return 'vv',self.get_spice_ticket(dict)
+            return self.get_spice_ticket(dict)
         return False
         
-    def get_vnc_ticket(self, dict):
+    def get_vnc_ticket(self, dict,os):
         ## Should check if ssl in use: dict['tlsport']:
         if dict['tlsport']:
             return False
-        consola="""[Connection]
-        Host=%s
-        Port=%s
-        Password=%s
+        if os in ['iOS','Windows','Android','Linux', None]:
+            consola="""[Connection]
+            Host=%s
+            Port=%s
+            Password=%s
 
-        [Options]
-        UseLocalCursor=1
-        UseDesktopResize=1
-        FullScreen=1
-        FullColour=0
-        LowColourLevel=0
-        PreferredEncoding=ZRLE
-        AutoSelect=1
-        Shared=0
-        SendPtrEvents=1
-        SendKeyEvents=1
-        SendCutText=1
-        AcceptCutText=1
-        Emulate3=1
-        PointerEventInterval=0
-        Monitor=
-        MenuKey=F8
-        """ % (dict['host'], dict['port'], dict['passwd'])
-        consola = consola.replace("'", "")
-        return consola
+            [Options]
+            UseLocalCursor=1
+            UseDesktopResize=1
+            FullScreen=1
+            FullColour=0
+            LowColourLevel=0
+            PreferredEncoding=ZRLE
+            AutoSelect=1
+            Shared=0
+            SendPtrEvents=1
+            SendKeyEvents=1
+            SendCutText=1
+            AcceptCutText=1
+            Emulate3=1
+            PointerEventInterval=0
+            Monitor=
+            MenuKey=F8
+            """ % (dict['host'], dict['port'], dict['passwd'])
+            consola = consola.replace("'", "")
+            return 'vnc','text/plain',consola
+            
+        if os in ['MacOS']:
+            vnc="vnc://"+dict['host']+":"+dict['passwd']+"@"+dict['host']+":"+dict['port']
+            consola="""<?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                <key>URL</key>
+                <string>%s</string>
+                <key>restorationAttributes</key>
+                <dict>
+                    <key>autoClipboard</key>
+                    <false/>
+                    <key>controlMode</key>
+                    <integer>1</integer>
+                    <key>isFullScreen</key>
+                    <false/>
+                    <key>quality</key>
+                    <integer>3</integer>
+                    <key>scalingMode</key>
+                    <true/>
+                    <key>screenConfiguration</key>
+                    <dict>
+                        <key>GlobalIsMixedMode</key>
+                        <false/>
+                        <key>GlobalScreen</key>
+                        <dict>
+                            <key>Flags</key>
+                            <integer>0</integer>
+                            <key>Frame</key>
+                            <string>{{0, 0}, {1920, 1080}}</string>
+                            <key>Identifier</key>
+                            <integer>0</integer>
+                            <key>Index</key>
+                            <integer>0</integer>
+                        </dict>
+                        <key>IsDisplayInfo2</key>
+                        <false/>
+                        <key>IsVNC</key>
+                        <true/>
+                        <key>ScaledSelectedScreenRect</key>
+                        <string>(0, 0, 1920, 1080)</string>
+                        <key>Screens</key>
+                        <array>
+                            <dict>
+                                <key>Flags</key>
+                                <integer>0</integer>
+                                <key>Frame</key>
+                                <string>{{0, 0}, {1920, 1080}}</string>
+                                <key>Identifier</key>
+                                <integer>0</integer>
+                                <key>Index</key>
+                                <integer>0</integer>
+                            </dict>
+                        </array>
+                    </dict>
+                    <key>selectedScreen</key>
+                    <dict>
+                        <key>Flags</key>
+                        <integer>0</integer>
+                        <key>Frame</key>
+                        <string>{{0, 0}, {1920, 1080}}</string>
+                        <key>Identifier</key>
+                        <integer>0</integer>
+                        <key>Index</key>
+                        <integer>0</integer>
+                    </dict>
+                    <key>targetAddress</key>
+                    <string>%s</string>
+                    <key>viewerScaleFactor</key>
+                    <real>1</real>
+                    <key>windowContentFrame</key>
+                    <string>{{0, 0}, {1829, 1029}}</string>
+                    <key>windowFrame</key>
+                    <string>{{45, 80}, {1829, 1097}}</string>
+                </dict>
+            </dict>
+            </plist>""" % (vnc,vnc)
+            consola = consola.replace("'", "")
+            return 'vncloc','text/plain',consola
         
         
     def get_spice_ticket(self, dict):
@@ -972,7 +1063,7 @@ class isard():
             'host-subject', 'hostname', dict['ca'])
 
         consola = consola.replace("'", "")
-        return consola
+        return 'vv','application/x-virt-viewer',consola
 
     def update_user_password(self,id,passwd):
         pw=Password()

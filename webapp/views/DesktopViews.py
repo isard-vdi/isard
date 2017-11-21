@@ -72,12 +72,12 @@ def desktops_get(kind='username'):
         return json.dumps(app.isardapi.get_group_domains(current_user.group)), 200, {'ContentType': 'application/json'}
     return url_for('desktops')
 
-@app.route('/desktops/viewer/<type>/<id>')
+@app.route('/desktops/download_viewer/<os>/<id>')
 @login_required
 @ownsid
-def viewer(type,id):
-    if type == 'file':
-        extension,consola=app.isardapi.get_viewer_ticket(id)
+def viewer_download(os,id):
+    #~ if type == 'file':
+        extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
         return Response(consola, 
                         mimetype="application/x-virt-viewer",
                         headers={"Content-Disposition":"attachment;filename=consola."+extension})
