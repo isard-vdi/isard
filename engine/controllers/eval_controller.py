@@ -98,17 +98,15 @@ class EvalController(object):
         domains = get_domains(self.user["id"])
         for d in domains:
             update_domain_status('Stopped', d['id'])
-        return "Ok"
+        return "Okey"
 
     def create_domains(self):
         """
         Create domains if necessari
         :return:
         """
-        if not self.pool:
-            return {"error": "Pool not defined"}
         data = {}
-        log.debug("CREATE DOMAINS for pool: {}".format(self.id_pool))
+        eval_log.info("CREATE DOMAINS for pool: {}".format(self.id_pool))
         dd = self._define_domains()  # Define number of domains for each template.
         for t in self.templates:
             n_domains = get_domains_count(self.user["id"], origin=t['id'])
@@ -116,7 +114,7 @@ class EvalController(object):
             i = n_domains  # index of new domain
             while (pending > 0):  # Must create more desktops from this template?
                 self._create_eval_domain(t['id'], i)
-                log.debug("DOMAIN template ({}) created number: {}".format(t['id'], i))
+                eval_log.debug("DOMAIN template ({}) created number: {}".format(t['id'], i))
                 pending -= 1
                 i += 1
                 sleep(self.params["CREATE_SLEEP_TIME"])
@@ -129,7 +127,7 @@ class EvalController(object):
         :return:
         """
         stopped_domains = get_domains_count(self.user["id"], status="Stopped")
-        while (stopped_domains < self.pool.num_eval_domains):
+        while (stopped_domains < self.num_domains):
             domains = get_domains(self.user["id"])
             for d in domains:
                 if d["status"] == "Stopping":
@@ -169,7 +167,7 @@ class EvalController(object):
         log.debug(domains)
         # TODO--> get domains from templates.
         i = 0
-        while (i < 10 and self._evaluate(self.pool)):
+        while (i < 10 and self._evaluate(self.id_pool)):
             id = domains[i]['id']
             log.debug("ID_DOMAIN: ".format(id))
             update_domain_status('Starting', id)
@@ -184,7 +182,7 @@ class EvalController(object):
         :param n:
         :return:
         """
-        n = self.pool.num_eval_domains
+        n = self.num_domains
         total_weight = sum([t['weight'] for t in self.templates])
         if total_weight == 100:
             return {t['id']: ceil(n * t['weight'] / 100) for t in self.templates}
@@ -207,11 +205,11 @@ class EvalController(object):
         d['os'] = t['os']
         insert_domain(d)
 
-    def _evaluate(self, pool):
+    def _evaluate(self, id_pool):
         """
         Evaluate pool resources.
         If pool arrive to Threshold, return False
-        :param pool:
+        :param id_pool:
         :return:
         """
         return True
