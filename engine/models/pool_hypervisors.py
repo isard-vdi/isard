@@ -12,8 +12,9 @@
 
 # from ..hyp_threads import launch_all_hyps_threads
 
-from engine.services.db.hypervisors import get_hypers_in_pool
+from engine.services.db.hypervisors import get_hypers_in_pool, get_hypers_info
 from engine.config import CONFIG_DICT
+from engine.services.log import eval_log
 
 TIMEOUT_TRYING_SSH = float(CONFIG_DICT["TIMEOUTS"]["timeout_trying_ssh"])
 
@@ -22,15 +23,6 @@ class PoolHypervisors():
     def __init__(self,id_pool):
         self.id_pool = id_pool
         self.last_index=0
-        self.num_eval_domains = self._calcule_num_domains()
-
-    def _calcule_num_domains(self):
-        """
-        Calcule num of domains for eval based on hypervisors.
-        :return:
-        """
-        # TODO
-        return 10
 
     def get_next(self,to_create_disk=False, path_selected=''):
         # NEXT RELEASES WE WILL WORK HERE

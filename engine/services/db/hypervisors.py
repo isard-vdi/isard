@@ -468,6 +468,20 @@ def get_hypers_in_pool(id_pool='default', ready_to_start=False, enable=True):
     close_rethink_connection(r_conn)
     return hyp_ids
 
+def get_hypers_info(id_pool='default', pluck=None):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+    return_operations = []
+    if not pluck:
+        results = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+             filter({'status': 'Online'}).run(r_conn))
+    else:
+        results = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                 filter({'status': 'Online'}).pluck(pluck).run(r_conn))
+
+    close_rethink_connection(r_conn)
+    return results
+
 
 # def delete_hyp(hyp_id):
 #     """

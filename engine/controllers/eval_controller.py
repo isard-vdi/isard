@@ -1,10 +1,11 @@
 # from engine import app
-from math import ceil
+from math import ceil, floor
 from time import sleep
 
 from engine import app
+from engine.models.pool_hypervisors import PoolHypervisors
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
-    get_domains_id, get_domains_count
+    get_domains_id, get_domains_count, get_pool, get_hypers_info
 from engine.services.log import *
 
 # Example of data dict for create domain
@@ -47,7 +48,7 @@ DICT_CREATE = {'allowed': {'categories': False,
                                                        }],
                                             'graphics': ['default'],
                                             'interfaces': ['default'],
-                                            'memory': 5000000,
+                                            'memory': 2000000,
                                             'vcpus': 2,
                                             'videos': ['default']},
                                'origin': None  # replace
@@ -75,16 +76,19 @@ class EvalController(object):
         self.params = {'MAX_DOMAINS': 10,
                        'CREATE_SLEEP_TIME': 1,
                        'STOP_SLEEP_TIME': 1,
-                       'START_SLEEP_TIME': 0}  # load from database?
-        self._init_pool()
+                       'START_SLEEP_TIME': 0,
+                       'TEMPLATE_MEMORY': 2000}  # in MB, info duplicated on DICT_CREATE but in bytes
+        self.num_domains = self._calcule_num_domains()
 
-    def _init_pool(self):
-        pool = app.m.pools.get(self.id_pool)
-        if pool:
-            self.pool = pool
-            self.pool.num_eval_domains = min(pool.num_eval_domains, self.params["MAX_DOMAINS"])
-        else:
-            self.pool = None
+    def _calcule_num_domains(self):
+        hyps = get_hypers_info(self.id_pool, pluck=['id', 'info'])
+        m = min(hyps, key=lambda x: x['info']['memory_in_MB'])
+        min_mem = m['info']['memory_in_MB']
+        #TODO: adjust num_domains value.
+        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000))*(len(hyps)+1)
+        n = min(self.params.get('MAX_DOMAINS', 10), num_domains)
+        eval_log.info("Num of max domains for eval: {}".format(n))
+        return n
 
     def clear_domains(self):
         """
@@ -102,10 +106,10 @@ class EvalController(object):
         :return:
         """
         if not self.pool:
-            return {"error":"Pool not defined"}
+            return {"error": "Pool not defined"}
         data = {}
         log.debug("CREATE DOMAINS for pool: {}".format(self.id_pool))
-        dd = self._define_domains() # Define number of domains for each template.
+        dd = self._define_domains()  # Define number of domains for each template.
         for t in self.templates:
             n_domains = get_domains_count(self.user["id"], origin=t['id'])
             data[t['id']] = pending = dd[t['id']] - n_domains  # number of pending domains to create
@@ -116,7 +120,7 @@ class EvalController(object):
                 pending -= 1
                 i += 1
                 sleep(self.params["CREATE_SLEEP_TIME"])
-        return {"created_domains":data}
+        return {"created_domains": data}
 
     def stop_domains(self):
         """
@@ -134,7 +138,7 @@ class EvalController(object):
                     update_domain_status('Stopped', d['id'])
                 if d["status"] == "Started":
                     update_domain_status('Stopping', d['id'])
-                # IF status == 'Stopping' what?? Bug?
+                    # IF status == 'Stopping' what?? Bug?
             sleep(self.params["STOP_SLEEP_TIME"])
             stopped_domains = get_domains_count(self.user["id"], status="Stopped")
 
@@ -157,7 +161,7 @@ class EvalController(object):
         data = {}
 
         self.create_domains()  # Create domains if necessari
-        #self.stop_domains()  # Stop domains if necessari
+        # self.stop_domains()  # Stop domains if necessari
 
         # Start domains and evaluate
         domains = get_domains(self.user["id"])
