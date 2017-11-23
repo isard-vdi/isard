@@ -49,3 +49,12 @@ rootLogger.addHandler(consoleHandler)
 
 # LOGS TO SCREEN (useful for development)
 # log.basicConfig(level=LOG_LEVEL_NUM, format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
+
+# Eval Logger
+# create file handler which logs even debug messages
+eval_log = log.getLogger('eval')
+eval_handler = log.FileHandler('eval.log')
+eval_handler.setLevel(log.DEBUG)
+eval_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+eval_handler.setFormatter(eval_formatter)
+eval_log.addHandler(eval_handler)
