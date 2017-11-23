@@ -8,11 +8,16 @@
 
 #~ from pprint import pprint
 
-import rethinkdb as r
+import random
+import string
 import time
+
+import rethinkdb as r
+
 from webapp import app
 from ..lib.flask_rethink import RethinkDB
 from ..lib.log import *
+
 db = RethinkDB(app)
 db.init_app(app)
 
@@ -22,8 +27,8 @@ from ..auth.authentication import Password
 
 class Populate(object):
     def __init__(self):
-        p = Password()
-        self.passwd = p.encrypt('isard')
+        self.p = Password()
+        self.passwd = self.p.encrypt('isard')
         self.database()
 
     def defaults(self):
@@ -240,6 +245,31 @@ class Populate(object):
                            ]
                     self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
                     log.info("  Inserted default admin username with password isard")
+                if r.table('users').get('eval').run(db.conn) is None:
+                    usr = [{'id': 'eval',
+                            'name': 'Evaluator',
+                            'kind': 'local',
+                            'active': False,
+                            'accessed': time.time(),
+                            'username': 'eval',
+                            'password': self.p.generate_human(8),
+                            'role': 'admin',
+                            'category': 'admin',
+                            'group': 'eval',
+                            'mail': 'eval@isard.io',
+                            'quota': {'domains': {'desktops': 99,
+                                                  'desktops_disk_max': 999999999,  # 1TB
+                                                  'templates': 99,
+                                                  'templates_disk_max': 999999999,
+                                                  'running': 99,
+                                                  'isos': 99,
+                                                  'isos_disk_max': 999999999},
+                                      'hardware': {'vcpus': 8,
+                                                   'memory': 20000000}},  # 10GB
+                            },
+                           ]
+                    self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
+                    log.info("  Inserted default eval username with random password")
             return True
 
     '''
@@ -377,6 +407,12 @@ class Populate(object):
                                                            'quota': r.table('roles').get('user').run(db.conn)[
                                                                'quota']
                                                            }]).run(db.conn))
+            if r.table('groups').get('eval').run(db.conn) is None:
+                self.result(r.table('groups').insert([{'id': 'eval',
+                                                       'name': 'eval',
+                                                       'description': 'Evaluator',
+                                                       'quota': r.table('roles').get('admin').run(db.conn)['quota']
+                                                       }]).run(db.conn))
         return True
 
     '''

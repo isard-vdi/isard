@@ -21,9 +21,17 @@ TIMEOUT_TRYING_SSH = float(CONFIG_DICT["TIMEOUTS"]["timeout_trying_ssh"])
 class PoolHypervisors():
     def __init__(self,id_pool):
         self.id_pool = id_pool
-
-
         self.last_index=0
+        self.num_eval_domains = self._calcule_num_domains()
+
+    def _calcule_num_domains(self):
+        """
+        Calcule num of domains for eval based on hypervisors.
+        :return:
+        """
+        # TODO
+        return 10
+
     def get_next(self,to_create_disk=False, path_selected=''):
         # NEXT RELEASES WE WILL WORK HERE
         # INFO TO DEVELOPER, SI se crea un disco podemos decidir algo distinto... en la decision de pools...

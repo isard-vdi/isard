@@ -328,6 +328,13 @@ def update_table_field(table, id_doc, field, value, merge_dict=True):
     close_rethink_connection(r_conn)
     return result
 
+def get_user(id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('users')
+
+    dict_user = rtable.get(id).run(r_conn)
+    close_rethink_connection(r_conn)
+    return dict_user
 # ~ {
 # ~ "id":  "014d0ca3-10b1-44c1-921f-4d20873c27b1" ,
 # ~ "name":  "wifislax-clone" ,

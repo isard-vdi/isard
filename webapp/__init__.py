@@ -36,8 +36,6 @@ else:
 Populate database if not exists
 '''
 from .config import populate
-p=populate.Populate()
-p.defaults()
 try:
     p=populate.Populate()
     p.defaults()

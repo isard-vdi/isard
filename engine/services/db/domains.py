@@ -391,6 +391,41 @@ def get_disks_all_domains():
     close_rethink_connection(r_conn)
     return tuples_id_disk
 
+def get_domains(user, status=None, origin=None):
+    """
+
+    :param user:
+    :param status:
+    :return:
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    obj = {'user':user}
+    if status:
+        obj['status'] = status
+    if origin:
+        obj['create_dict']={'origin':origin}
+    results = rtable.filter(obj).run(r_conn)
+    close_rethink_connection(r_conn)
+    return list(results)
+
+def get_domains_count(user, status=None, origin=None):
+    """
+
+    :param user:
+    :param status:
+    :return:
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    obj = {'user': user}
+    if status:
+        obj['status'] = status
+    if origin:
+        obj['create_dict'] = {'origin': origin}
+    result = rtable.filter(obj).count().run(r_conn)
+    close_rethink_connection(r_conn)
+    return result
 
 # def exist_domain(id):
 #     """
@@ -516,6 +551,14 @@ def get_domains_from_user(user, kind='desktop'):
     close_rethink_connection(r_conn)
     return [{'kind': s['kind'], 'id': s['id'], 'status': s['status'], 'disk': s['hardware']['disks'][0]['file']} for s
             in l]
+
+def get_domains_id(user, pool, kind='desktop'):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    #TODO: filter also by pool
+    l = list(rtable.filter({'user': user, 'kind': kind}).pluck('id').run(r_conn))
+    close_rethink_connection(r_conn)
+    return l
 
 
 def update_domain_createing_template(id_domain, template_field, status='CreatingTemplate'):

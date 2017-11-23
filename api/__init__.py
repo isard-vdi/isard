@@ -19,8 +19,43 @@ except:
 
 
 app = Flask(__name__)
+from engine.controllers.eval_controller import EvalController
+@app.route('/create_domains', methods=['GET'])
+def create_domains():
+    eval_ctrl = EvalController()
+    data=eval_ctrl.create_domains()
+    return jsonify(eval=data), 200
+
+@app.route('/destroy_domains', methods=['GET'])
+def destroy_domains():
+    eval_ctrl = EvalController()
+    data=eval_ctrl.destroy_domains()
+    return jsonify(eval=data), 200
+
+@app.route('/stop_domains', methods=['GET'])
+def stop_domains():
+    eval_ctrl = EvalController()
+    data=eval_ctrl.stop_domains()
+    return jsonify(eval=data), 200
+
+@app.route('/clear_domains', methods=['GET'])
+def clear_domains():
+    eval_ctrl = EvalController()
+    data=eval_ctrl.clear_domains()
+    return jsonify(eval=data), 200
 
 
+@app.route('/eval', methods=['GET'])
+def eval():
+    eval_ctrl = EvalController()
+    data=eval_ctrl.run()
+    return jsonify(eval=data), 200
+
+@app.route('/remove-eval', methods=['GET'])
+def remove_eval():
+    eval_ctrl = EvalController()
+    data=eval_ctrl._removeEvalDomains()
+    return jsonify(eval=data), 200
 
 @app.route('/threads', methods=['GET'])
 def get_threads():
