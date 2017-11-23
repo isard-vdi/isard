@@ -1,14 +1,11 @@
 # from engine import app
+from math import ceil
 from time import sleep
 
-from math import ceil
-
-from engine.services.log import *
+from engine import app
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
-    get_domains_from_user, get_domains_id, get_domains_count
-from api import app
-
-
+    get_domains_id, get_domains_count
+from engine.services.log import *
 
 # Example of data dict for create domain
 DICT_CREATE_WIN7 = {'allowed': {'categories': False,

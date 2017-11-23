@@ -38,31 +38,58 @@ class isard():
         if not dict['errors']: return True
         return False
 
-    def update_desktop_status(self,user,data,remote_addr):
+    #~ def update_desktop_status(self,user,data,remote_addr):
+            #~ try:
+                #~ if data['name']=='status':
+                    #~ if data['value']=='Stopping':
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    #~ if data['value']=='Deleting':
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    #~ if data['value']=='Starting':
+                        #~ if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                            #~ return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                        #~ self.auto_interface_set(user,data['pk'],remote_addr)
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                #~ return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+            #~ except Exception as e:
+                #~ print('Error updating desktop status for domain '+data['pk']+': '+str(e))
+                #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+
+    def update_table_status(self,user,table,data,remote_addr):
+            item = table[:-1].capitalize()
             try:
                 if data['name']=='status':
                     if data['value']=='Stopping':
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' stopping success','text':item+' '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' stopping error','text':item+' '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Deleting':
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' deleting success','text':item+' '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' deleting error','text':item+' '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Starting':
                         if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
-                            return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':'Quota exceeded','text':item+' '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
                         self.auto_interface_set(user,data['pk'],remote_addr)
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' starting success','text':item+' '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':'Method not allowd','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
                 print('Error updating desktop status for domain '+data['pk']+': '+str(e))
-                return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
 
     def auto_interface_set(self,user,id, remote_addr):
@@ -151,27 +178,7 @@ class isard():
     def get_domain_last_events(self, id):
         with app.app_context():
             return r.table('hypervisors_events').get_all(id, index='domain').order_by(r.desc('when')).limit(6).run(db.conn)
-                  
-    def get_domain_spice(self, id):
-        domain =  r.table('domains').get(id).run(db.conn)
-        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        ##### BIG TODO
-        if viewer['defaultMode'] == "Secure":
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':domain['viewer']['tlsport'],
-                    'ca':viewer['certificate'],
-                    'domain':viewer['domain'],
-                    'passwd':domain['viewer']['passwd']}
-        else:
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':False,
-                    'ca':'',
-                    'domain':'',
-                    'passwd':domain['viewer']['passwd']}
+
 
     def get_user(self, user):
         with app.app_context():
@@ -695,19 +702,20 @@ class isard():
                 return False
             return True
         
-    def user_relative_disk_path(self, user, name):
+    def user_relative_iso_path(self, user, filename):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-
-        parsed_name = self.parse_string(name)
+        #~ name=filename.split('.iso')[0]
+        parsed_name = self.parse_string(filename)
         if not parsed_name: return False
         id = '_'+user+'_'+parsed_name
         #~ Missing check if id already exists
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        dir_disk, disk_filename = self.get_disk_path(userObj, filename)
         return {'id':id,
-                'name':parsed_name,
+                'name':filename,
                 'path':dir_disk+'/',
-                'filename':disk_filename.split('.qcow2')[0]}
+                'filename':filename,
+                'user':user}
         
     def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
         with app.app_context():
@@ -834,7 +842,33 @@ class isard():
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
+    ##### SPICE VIEWER
+    
+    def get_domain_spice(self, id):
+        ### HTML5 spice dict (isardsocketio)
+        
+        domain =  r.table('domains').get(id).run(db.conn)
+        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
+        if viewer['defaultMode'] == "Secure":
+            return {'host':domain['viewer']['hostname'],
+                    'kind':domain['hardware']['graphics']['type'],
+                    'port':domain['viewer']['port'],
+                    'tlsport':domain['viewer']['tlsport'],
+                    'ca':viewer['certificate'],
+                    'domain':viewer['domain'],
+                    'passwd':domain['viewer']['passwd']}
+        else:
+            return {'host':domain['viewer']['hostname'],
+                    'kind':domain['hardware']['graphics']['type'],
+                    'port':domain['viewer']['port'],
+                    'tlsport':False,
+                    'ca':'',
+                    'domain':'',
+                    'passwd':domain['viewer']['passwd']}
+    
     def get_spice_xpi(self, id):
+        ### Dict for XPI viewer (isardSocketio)
+        
         dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])
@@ -844,43 +878,128 @@ class isard():
         #~ dict['ca']=ca
         return dict
 
-    def get_viewer_ticket(self,id):
+
+    ######### VIEWER DOWNLOAD FUNCTIONS
+    def get_viewer_ticket(self,id,os='generic'):
+        print(id)
+        print(os)
         dict = self.get_domain_spice(id)
         if dict['kind']=='vnc':
-            return 'vnc',self.get_vnc_ticket(dict)
+            return self.get_vnc_ticket(dict,os)
         if dict['kind']=='spice':
-            return 'vv',self.get_spice_ticket(dict)
+            return self.get_spice_ticket(dict)
         return False
         
-    def get_vnc_ticket(self, dict):
+    def get_vnc_ticket(self, dict,os):
         ## Should check if ssl in use: dict['tlsport']:
         if dict['tlsport']:
             return False
-        consola="""[Connection]
-        Host=%s
-        Port=%s
-        Password=%s
+        if os in ['iOS','Windows','Android','Linux', None]:
+            consola="""[Connection]
+            Host=%s
+            Port=%s
+            Password=%s
 
-        [Options]
-        UseLocalCursor=1
-        UseDesktopResize=1
-        FullScreen=1
-        FullColour=0
-        LowColourLevel=0
-        PreferredEncoding=ZRLE
-        AutoSelect=1
-        Shared=0
-        SendPtrEvents=1
-        SendKeyEvents=1
-        SendCutText=1
-        AcceptCutText=1
-        Emulate3=1
-        PointerEventInterval=0
-        Monitor=
-        MenuKey=F8
-        """ % (dict['host'], dict['port'], dict['passwd'])
-        consola = consola.replace("'", "")
-        return consola
+            [Options]
+            UseLocalCursor=1
+            UseDesktopResize=1
+            FullScreen=1
+            FullColour=0
+            LowColourLevel=0
+            PreferredEncoding=ZRLE
+            AutoSelect=1
+            Shared=0
+            SendPtrEvents=1
+            SendKeyEvents=1
+            SendCutText=1
+            AcceptCutText=1
+            Emulate3=1
+            PointerEventInterval=0
+            Monitor=
+            MenuKey=F8
+            """ % (dict['host'], dict['port'], dict['passwd'])
+            consola = consola.replace("'", "")
+            return 'vnc','text/plain',consola
+            
+        if os in ['MacOS']:
+            vnc="vnc://"+dict['host']+":"+dict['passwd']+"@"+dict['host']+":"+dict['port']
+            consola="""<?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                <key>URL</key>
+                <string>%s</string>
+                <key>restorationAttributes</key>
+                <dict>
+                    <key>autoClipboard</key>
+                    <false/>
+                    <key>controlMode</key>
+                    <integer>1</integer>
+                    <key>isFullScreen</key>
+                    <false/>
+                    <key>quality</key>
+                    <integer>3</integer>
+                    <key>scalingMode</key>
+                    <true/>
+                    <key>screenConfiguration</key>
+                    <dict>
+                        <key>GlobalIsMixedMode</key>
+                        <false/>
+                        <key>GlobalScreen</key>
+                        <dict>
+                            <key>Flags</key>
+                            <integer>0</integer>
+                            <key>Frame</key>
+                            <string>{{0, 0}, {1920, 1080}}</string>
+                            <key>Identifier</key>
+                            <integer>0</integer>
+                            <key>Index</key>
+                            <integer>0</integer>
+                        </dict>
+                        <key>IsDisplayInfo2</key>
+                        <false/>
+                        <key>IsVNC</key>
+                        <true/>
+                        <key>ScaledSelectedScreenRect</key>
+                        <string>(0, 0, 1920, 1080)</string>
+                        <key>Screens</key>
+                        <array>
+                            <dict>
+                                <key>Flags</key>
+                                <integer>0</integer>
+                                <key>Frame</key>
+                                <string>{{0, 0}, {1920, 1080}}</string>
+                                <key>Identifier</key>
+                                <integer>0</integer>
+                                <key>Index</key>
+                                <integer>0</integer>
+                            </dict>
+                        </array>
+                    </dict>
+                    <key>selectedScreen</key>
+                    <dict>
+                        <key>Flags</key>
+                        <integer>0</integer>
+                        <key>Frame</key>
+                        <string>{{0, 0}, {1920, 1080}}</string>
+                        <key>Identifier</key>
+                        <integer>0</integer>
+                        <key>Index</key>
+                        <integer>0</integer>
+                    </dict>
+                    <key>targetAddress</key>
+                    <string>%s</string>
+                    <key>viewerScaleFactor</key>
+                    <real>1</real>
+                    <key>windowContentFrame</key>
+                    <string>{{0, 0}, {1829, 1029}}</string>
+                    <key>windowFrame</key>
+                    <string>{{45, 80}, {1829, 1097}}</string>
+                </dict>
+            </dict>
+            </plist>""" % (vnc,vnc)
+            consola = consola.replace("'", "")
+            return 'vncloc','text/plain',consola
         
         
     def get_spice_ticket(self, dict):
@@ -944,7 +1063,7 @@ class isard():
             'host-subject', 'hostname', dict['ca'])
 
         consola = consola.replace("'", "")
-        return consola
+        return 'vv','application/x-virt-viewer',consola
 
     def update_user_password(self,id,passwd):
         pw=Password()
