@@ -232,6 +232,7 @@ $(document).ready(function() {
                 if(row.data().status=='Stopped' || row.data().status=='Started'){
                     setDomainGenealogy(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                    setDomainDerivates(row.data().id);
                 }
             }            
         }
