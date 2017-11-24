@@ -375,6 +375,7 @@ def socketio_domain_edit(form_data):
     #~ Check if user has quota and rights to do it
     #~ if current_user.role=='admin':
         #~ None
+    print('in domain edit')
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardware(create_dict)
     create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
