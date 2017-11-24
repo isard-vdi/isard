@@ -24,7 +24,7 @@ pexpect==4.2.1
 ptyprocess==0.5.1
 pyasn1==0.2.3
 pycparser==2.17
-pygobject==3.22.0
+#pygobject==3.22.0
 pygpgme==0.3
 pyldap==2.4.28
 pyparsing==2.1.10
