@@ -1,11 +1,9 @@
 # from engine import app
 from math import ceil, floor
 from time import sleep
-
-from engine import app
-from engine.models.pool_hypervisors import PoolHypervisors
+from random import shuffle
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
-    get_domains_id, get_domains_count, get_pool, get_hypers_info
+    get_domains_id, get_domains_count, get_hypers_info
 from engine.services.log import *
 
 # Example of data dict for create domain
@@ -78,17 +76,36 @@ class EvalController(object):
                        'STOP_SLEEP_TIME': 1,
                        'START_SLEEP_TIME': 0,
                        'TEMPLATE_MEMORY': 2000}  # in MB, info duplicated on DICT_CREATE but in bytes
+        self._init_domains()
+
+    def _init_domains(self):
         self.num_domains = self._calcule_num_domains()
+        self.defined_domains = self._define_domains()
 
     def _calcule_num_domains(self):
         hyps = get_hypers_info(self.id_pool, pluck=['id', 'info'])
         m = min(hyps, key=lambda x: x['info']['memory_in_MB'])
         min_mem = m['info']['memory_in_MB']
-        #TODO: adjust num_domains value.
-        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000))*(len(hyps)+1)
+        # TODO: adjust num_domains value.
+        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps) + 1)
         n = min(self.params.get('MAX_DOMAINS', 10), num_domains)
         eval_log.info("Num of max domains for eval: {}".format(n))
         return n
+
+    def _define_domains(self):
+        """
+        Define how many domains of each template must use for evaluate.
+        :param n:
+        :return:
+        """
+        n = self.num_domains
+        total_weight = sum([t['weight'] for t in self.templates])
+        if total_weight == 100:
+            return {t['id']: ceil(n * t['weight'] / 100) for t in self.templates}
+        else:
+            # Sum of weigths is different from 100, so we balance it.
+            w = 100 / len(self.templates)
+            return {t['id']: ceil(n * w / 100) for t in self.templates}
 
     def clear_domains(self):
         """
@@ -106,39 +123,35 @@ class EvalController(object):
         :return:
         """
         data = {}
+        total_created_domains = 0
         eval_log.info("CREATE DOMAINS for pool: {}".format(self.id_pool))
-        dd = self._define_domains()  # Define number of domains for each template.
+        dd = self.defined_domains  # Define number of domains for each template.
         for t in self.templates:
             n_domains = get_domains_count(self.user["id"], origin=t['id'])
             data[t['id']] = pending = dd[t['id']] - n_domains  # number of pending domains to create
             i = n_domains  # index of new domain
+            eval_log.debug("Creating {} pending domains from template: {}".format(pending, t['id']))
+            total_created_domains += pending
             while (pending > 0):  # Must create more desktops from this template?
                 self._create_eval_domain(t['id'], i)
-                eval_log.debug("DOMAIN template ({}) created number: {}".format(t['id'], i))
                 pending -= 1
                 i += 1
                 sleep(self.params["CREATE_SLEEP_TIME"])
-        return {"created_domains": data}
+        return {"total_created_domains": total_created_domains,
+                "data":data}
 
     def stop_domains(self):
         """
-        Stop domains if necessari.
-        Los dominios que voy a usar en Failed, Started o Stopped. Sino es asi, no puedo usar esto.
+        Stop domains if they are started.
         :return:
         """
-        stopped_domains = get_domains_count(self.user["id"], status="Stopped")
-        while (stopped_domains < self.num_domains):
-            domains = get_domains(self.user["id"])
-            for d in domains:
-                if d["status"] == "Stopping":
-                    update_domain_status('Stopped', d['id'])
-                if d["status"] in ("Failed", "Starting"):
-                    update_domain_status('Stopped', d['id'])
-                if d["status"] == "Started":
-                    update_domain_status('Stopping', d['id'])
-                    # IF status == 'Stopping' what?? Bug?
+        domains = get_domains(self.user["id"], status="Started")
+        eval_log.info("Stoping {} domains".format(len(domains)))
+        for d in domains:
+            update_domain_status('Stopping', d['id'])
             sleep(self.params["STOP_SLEEP_TIME"])
-            stopped_domains = get_domains_count(self.user["id"], status="Stopped")
+        return {"total_stopped_domains": len(domains),
+                "data":None}
 
     def destroy_domains(self):
         """
@@ -146,9 +159,31 @@ class EvalController(object):
         Must be removed on each defined pool.
         :return:
         """
-        ids = get_domains_id(self.user["id"], id)
+        ids = get_domains_id(self.user["id"], self.id_pool)
         for a in ids:
             update_domain_status('Deleting', a['id'])
+
+    def start_domains(self):
+        dd = self.defined_domains
+        domains_id_list = []
+        for t in self.templates:
+            n_dd = dd[t['id']] # defined domains number
+            ids = get_domains_id(self.user["id"],self.id_pool, origin=t['id'])
+            shuffle(ids)
+            if len(ids) < n_dd:
+                error_msg = "Error starting domains for eval template {}," \
+                            " needs {} domains and have {}".format(t['id'], n_dd, len(ids))
+                return {"error": error_msg}
+            [domains_id_list.append(ids.pop()) for i in range(n_dd)]
+        data = {}
+        i = 0
+        while (i < len(domains_id_list) and self._evaluate(self.id_pool)):
+            id = domains_id_list[i]
+            update_domain_status('Starting', id)
+            sleep(self.params["START_SLEEP_TIME"])
+            i += 1
+        data["started_domains"] = i
+        return data
 
     def run(self):
         """
@@ -158,38 +193,15 @@ class EvalController(object):
         """
         data = {}
 
-        self.create_domains()  # Create domains if necessari
-        # self.stop_domains()  # Stop domains if necessari
-
+        data_create = self.create_domains()  # Create domains if necessari
+        sleep(data_create.get("total_created_domains")) # Wait 1 sec more for each created domain.
+        data_stop = self.stop_domains()  # Stop domains if necessari
+        sleep(data_stop.get("total_stopped_domains")) # Wait 1 sec more for each stopped domain.
         # Start domains and evaluate
-        domains = get_domains(self.user["id"])
-        log.debug("DOMAINS: ")
-        log.debug(domains)
-        # TODO--> get domains from templates.
-        i = 0
-        while (i < 10 and self._evaluate(self.id_pool)):
-            id = domains[i]['id']
-            log.debug("ID_DOMAIN: ".format(id))
-            update_domain_status('Starting', id)
-            sleep(self.params["START_SLEEP_TIME"])
-            i += 1
-        data["started_domains"] = i
+        data_start = self.start_domains()
+        data.update(data_start)
+        #self.stop_domains()
         return data
-
-    def _define_domains(self):
-        """
-        Define how many domains of each template must use for evaluate.
-        :param n:
-        :return:
-        """
-        n = self.num_domains
-        total_weight = sum([t['weight'] for t in self.templates])
-        if total_weight == 100:
-            return {t['id']: ceil(n * t['weight'] / 100) for t in self.templates}
-        else:
-            # Sum of weigths is different from 100, so we balance it.
-            w = 100 / len(self.templates)
-            return {t['id']: ceil(n * w / 100) for t in self.templates}
 
     def _create_eval_domain(self, id_t, i):
         d = DICT_CREATE.copy()

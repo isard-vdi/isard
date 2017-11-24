@@ -552,13 +552,18 @@ def get_domains_from_user(user, kind='desktop'):
     return [{'kind': s['kind'], 'id': s['id'], 'status': s['status'], 'disk': s['hardware']['disks'][0]['file']} for s
             in l]
 
-def get_domains_id(user, pool, kind='desktop'):
+def get_domains_id(user, id_pool, kind='desktop', origin=None):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
     #TODO: filter also by pool
-    l = list(rtable.filter({'user': user, 'kind': kind}).pluck('id').run(r_conn))
+    obj = {'user': user,
+           'kind':kind}
+    if origin:
+        obj['create_dict'] = {'origin': origin}
+    l = list(rtable.filter(obj).pluck('id').run(r_conn))
     close_rethink_connection(r_conn)
-    return l
+    ids = [d['id'] for d in l]
+    return ids
 
 
 def update_domain_createing_template(id_domain, template_field, status='CreatingTemplate'):
