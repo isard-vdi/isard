@@ -2,8 +2,10 @@
 from math import ceil, floor
 from time import sleep
 from random import shuffle
+
+from engine.controllers.status import UpdateStatus
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
-    get_domains_id, get_domains_count, get_hypers_info
+    get_domains_id, get_domains_count, get_hypers_info, get_last_hyp_status, get_hyp_hostname_from_id
 from engine.services.log import *
 
 # Example of data dict for create domain
@@ -77,6 +79,17 @@ class EvalController(object):
                        'START_SLEEP_TIME': 0,
                        'TEMPLATE_MEMORY': 2000}  # in MB, info duplicated on DICT_CREATE but in bytes
         self._init_domains()
+        self._init_hyps_info()
+
+    def _init_hyps_info(self):
+        self.hyps_info = {}
+        hyps = get_hypers_info(self.id_pool, pluck=['id', 'info'])
+        for hyp in hyps:
+            percent = round(self.params.get('TEMPLATE_MEMORY', 2000) * 100 / hyp['info']['memory_in_MB'], 2)
+            hostname, port, user = get_hyp_hostname_from_id(hyp['id'])
+
+            self.hyps_info[hyp['id']] = {"percent_ram_template": percent,
+                                         "status_obj": UpdateStatus(hyp['id'], hostname, port=port, user=user)}
 
     def _init_domains(self):
         self.num_domains = self._calcule_num_domains()
@@ -87,7 +100,7 @@ class EvalController(object):
         m = min(hyps, key=lambda x: x['info']['memory_in_MB'])
         min_mem = m['info']['memory_in_MB']
         # TODO: adjust num_domains value.
-        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps) + 1)
+        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps) + 10)
         n = min(self.params.get('MAX_DOMAINS', 10), num_domains)
         eval_log.info("Num of max domains for eval: {}".format(n))
         return n
@@ -138,7 +151,7 @@ class EvalController(object):
                 i += 1
                 sleep(self.params["CREATE_SLEEP_TIME"])
         return {"total_created_domains": total_created_domains,
-                "data":data}
+                "data": data}
 
     def stop_domains(self):
         """
@@ -151,7 +164,7 @@ class EvalController(object):
             update_domain_status('Stopping', d['id'])
             sleep(self.params["STOP_SLEEP_TIME"])
         return {"total_stopped_domains": len(domains),
-                "data":None}
+                "data": None}
 
     def destroy_domains(self):
         """
@@ -167,8 +180,8 @@ class EvalController(object):
         dd = self.defined_domains
         domains_id_list = []
         for t in self.templates:
-            n_dd = dd[t['id']] # defined domains number
-            ids = get_domains_id(self.user["id"],self.id_pool, origin=t['id'])
+            n_dd = dd[t['id']]  # defined domains number
+            ids = get_domains_id(self.user["id"], self.id_pool, origin=t['id'])
             shuffle(ids)
             if len(ids) < n_dd:
                 error_msg = "Error starting domains for eval template {}," \
@@ -177,6 +190,7 @@ class EvalController(object):
             [domains_id_list.append(ids.pop()) for i in range(n_dd)]
         data = {}
         i = 0
+        #TODO: start random number of desktops without evalute and sleep(n/2)
         while (i < len(domains_id_list) and self._evaluate(self.id_pool)):
             id = domains_id_list[i]
             update_domain_status('Starting', id)
@@ -194,13 +208,13 @@ class EvalController(object):
         data = {}
 
         data_create = self.create_domains()  # Create domains if necessari
-        sleep(data_create.get("total_created_domains")) # Wait 1 sec more for each created domain.
+        sleep(data_create.get("total_created_domains"))  # Wait 1 sec more for each created domain.
         data_stop = self.stop_domains()  # Stop domains if necessari
-        sleep(data_stop.get("total_stopped_domains")) # Wait 1 sec more for each stopped domain.
+        sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
         # Start domains and evaluate
         data_start = self.start_domains()
         data.update(data_start)
-        #self.stop_domains()
+        # self.stop_domains()
         return data
 
     def _create_eval_domain(self, id_t, i):
@@ -224,5 +238,21 @@ class EvalController(object):
         :param id_pool:
         :return:
         """
+        hyps = get_hypers_info(self.id_pool, pluck=['id', 'info'])
+        for hyp in hyps:
+            #hyp_status = get_last_hyp_status(hyp['id'])
+            #TODO: get hyp status without update into db
+            hyp_status = self.hyps_info[hyp['id']]["status_obj"].update_status_hyps_rethink()
+            cond_1 = hyp_status["cpu_percent"]["idle"] < 10
+            cond_2 = hyp_status["load"]["percent_free"] < self.hyps_info[hyp['id']]["percent_ram_template"]
+            eval_log.debug("EVALUATE - Hyp: {}, cpu: {}, "
+                           "ram: {}, ram_template: {}".format(hyp['id'],
+                                                              hyp_status["cpu_percent"]["idle"],
+                                                              hyp_status["load"]["percent_free"],
+                                                              self.hyps_info[hyp['id']]["percent_ram_template"]))
+            condition_list = [cond_1, cond_2]
+            if any(condition_list):  # Enter if there is any True value on condition_list
+                eval_log.debug("EVALUATE - Return False")
+                return False
         return True
         # TODO

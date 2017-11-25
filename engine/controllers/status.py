@@ -149,6 +149,7 @@ class UpdateStatus():
             dict_hyp_status['when'] = now
 
         insert_db_hyp_status(dict_hyp_status)
+        return dict_hyp_status
 
 
 
