@@ -17,6 +17,11 @@ def destroy_domains():
     data = eval_ctrl.destroy_domains()
     return jsonify(eval=data), 200
 
+@api.route('/start_domains', methods=['GET'])
+def start_domains():
+    eval_ctrl = EvalController()
+    data = eval_ctrl.start_domains()
+    return jsonify(eval=data), 200
 
 @api.route('/stop_domains', methods=['GET'])
 def stop_domains():
@@ -43,4 +48,10 @@ def eval():
 def remove_eval():
     eval_ctrl = EvalController()
     data = eval_ctrl._removeEvalDomains()
+    return jsonify(eval=data), 200
+
+@api.route('/eval/statistics', methods=['GET'])
+def eval_statistics():
+    eval_ctrl = EvalController()
+    data = eval_ctrl._evaluate()
     return jsonify(eval=data), 200

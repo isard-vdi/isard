@@ -12,12 +12,12 @@ a module to control hypervisor functions and state. Overrides libvirt events and
 import socket
 import time
 from io import StringIO
-
+from statistics import mean
 import libvirt
 import paramiko
 from lxml import etree
 
-from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
+from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket, calcule_cpu_stats
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
 from engine.services.log import *
 from engine.config import *
@@ -65,6 +65,8 @@ class hyp(object):
         self.info_stats={}
         self.load={}
         self.capture_events = capture_events
+        self.last_load = None
+        self.cpu_percent_free = []
 
 
         # isard_preferred_keys = tuple(paramiko.ecdsakey.ECDSAKey.supported_key_format_identifiers()) + (
@@ -306,37 +308,38 @@ class hyp(object):
             self.domains=domains
 
 
-    def hyp_worker_thread(self,queue_worker):
-        log.debug('Hyp {} worker thread started ...'.format(self.hostname))
-        #h = hyp('vdesktop1')
-        while(1):
-            try:
-                d=queue_worker.get(timeout=TIMEOUT_QUEUE)
-                log.debug('received ACTION:{}; '.format(d['action']))
-                if d['action'] == 'start_domain':
-                    xml = d['xml']
-                    h.conn.createXML(xml)
-                    log.debug('domain started {} ??'.format(d['name']))
-                if d['action'] == 'hyp_info':
-                    h.conn.get_hyp_info()
-
-                log.debug('hypervisor motherboard: {}'.format(h.info['motherboard_manufacturer']))
-                #time.sleep(0.1)
-            except Queue.Empty:
-                try:
-                    if h.conn.isAlive():
-                        log.debug('hypervisor {} is alive'.format(host))
-                    else:
-                        log.debug('trying to reconnect hypervisor {}'.format(host))
-                        h.connect_to_hyp()
-                        if h.conn.isAlive():
-                            log.debug('hypervisor {} is alive'.format(host))
-
-                except libvirtError:
-                    log.debug('trying to reconnect hypervisor {}'.format(host))
-                    h.connect_to_hyp()
-                    if h.conn.isAlive():
-                        log.debug('hypervisor {} is alive'.format(host))
+    # def hyp_worker_thread(self,queue_worker):
+    #     NOT USED
+    #     log.debug('Hyp {} worker thread started ...'.format(self.hostname))
+    #     #h = hyp('vdesktop1')
+    #     while(1):
+    #         try:
+    #             d=queue_worker.get(timeout=TIMEOUT_QUEUE)
+    #             log.debug('received ACTION:{}; '.format(d['action']))
+    #             if d['action'] == 'start_domain':
+    #                 xml = d['xml']
+    #                 h.conn.createXML(xml)
+    #                 log.debug('domain started {} ??'.format(d['name']))
+    #             if d['action'] == 'hyp_info':
+    #                 h.conn.get_hyp_info()
+    #
+    #             log.debug('hypervisor motherboard: {}'.format(h.info['motherboard_manufacturer']))
+    #             #time.sleep(0.1)
+    #         except Queue.Empty:
+    #             try:
+    #                 if h.conn.isAlive():
+    #                     log.debug('hypervisor {} is alive'.format(host))
+    #                 else:
+    #                     log.debug('trying to reconnect hypervisor {}'.format(host))
+    #                     h.connect_to_hyp()
+    #                     if h.conn.isAlive():
+    #                         log.debug('hypervisor {} is alive'.format(host))
+    #
+    #             except libvirtError:
+    #                 log.debug('trying to reconnect hypervisor {}'.format(host))
+    #                 h.connect_to_hyp()
+    #                 if h.conn.isAlive():
+    #                     log.debug('hypervisor {} is alive'.format(host))
 
     def disconnect(self):
         try:
@@ -419,3 +422,23 @@ class hyp(object):
             else:
                 #log.debug('hyp {} have no vms or stats has failed'.format(self.hostname))
                 pass
+
+    def get_eval_statistics(self):
+        self.get_load()
+        if not self.last_load:
+            self.last_load = self.load
+            cpu_percent_free = 100
+        else:
+            cpu_percent = calcule_cpu_stats(self.last_load['cpu_load'], self.load['cpu_load'])[0]
+            cpu_percent_free = cpu_percent["idle"]
+
+        # Do mean of 3 cpu values. Doing this because CPU load is very sensitive.
+        if len(self.cpu_percent_free) == 3:
+            self.cpu_percent_free.pop()
+        self.cpu_percent_free.append(cpu_percent_free)
+
+        self.last_load = self.load
+        data = {"cpu_percent_free":round(mean(self.cpu_percent_free),2),
+                "ram_percent_free":self.load["percent_free"]}
+        return data
+

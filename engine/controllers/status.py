@@ -45,7 +45,7 @@ class UpdateStatus():
                 log.info(
                     'getLibVersion failed in connection testing, reconnecting to hypervisor {} from status thread'.format(
                         self.hostname))
-                self.hyp_obj = hyp(hostname, user=self.user, port=self.port)
+                self.hyp_obj = hyp(self.hostname, user=self.user, port=self.port)
                 dict_hyp_status['try_open_connection_to_hyp'] = True
                 try:
                     self.hyp_obj.conn.getLibVersion()
@@ -55,7 +55,7 @@ class UpdateStatus():
                     self.hyp_obj.connected = False
         else:
             log.info('unknown type, not hyp, reconnecting to hypervisor {] from status thread'.format(self.hostname))
-            self.hyp_obj = h = self.hyp_obj = hyp(hostname, user=self.user, port=self.port)
+            self.hyp_obj = h = self.hyp_obj = hyp(self.hostname, user=self.user, port=self.port)
             dict_hyp_status['try_open_connection_to_hyp'] = True
 
         dict_hyp_status['hyp_id'] = self.id
@@ -149,7 +149,6 @@ class UpdateStatus():
             dict_hyp_status['when'] = now
 
         insert_db_hyp_status(dict_hyp_status)
-        return dict_hyp_status
 
 
 
