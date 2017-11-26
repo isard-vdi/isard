@@ -1,12 +1,11 @@
 # from engine import app
 from math import ceil, floor
-from time import sleep
 from random import shuffle, randint
+from time import sleep
 
-from engine.controllers.status import UpdateStatus
 from engine.models.hyp import hyp
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
-    get_domains_id, get_domains_count, get_hypers_info, get_last_hyp_status, get_hyp_hostname_from_id
+    get_domains_id, get_domains_count, get_hypers_info
 from engine.services.log import *
 
 # Example of data dict for create domain
@@ -104,7 +103,7 @@ class EvalController(object):
         # TODO: adjust num_domains value.
         num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps) + 10)
         n = min(self.params.get('MAX_DOMAINS', 10), num_domains)
-        eval_log.info("Num of max domains for eval: {}".format(n))
+        eval_log.debug("Num of max domains for eval: {}".format(n))
         return n
 
     def _define_domains(self):
@@ -163,7 +162,7 @@ class EvalController(object):
         domains = get_domains(self.user["id"], status="Started")
         eval_log.info("Stoping {} domains".format(len(domains)))
         for d in domains:
-            update_domain_status('Stopping', d['id'])
+            update_domain_status('Stopping', d['id'], hyp_id=d['hyp_started'])
             sleep(self.params["STOP_SLEEP_TIME"])
         return {"total_stopped_domains": len(domains),
                 "data": None}
