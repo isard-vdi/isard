@@ -618,7 +618,6 @@ function renderHypStarted(data){
 }
 
 function renderAction(data){
-    if(kind!="Bases" && kind!="Templates"){
 		status=data.status;
         if(status=='Crashed'){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
