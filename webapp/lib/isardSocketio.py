@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, session, request
 from flask_login import login_required, login_user, logout_user, current_user
 from flask_socketio import SocketIO, emit, join_room, leave_room, \
@@ -134,6 +133,50 @@ def start_domains_status_thread():
         threads['domains_status'].start()
         print('DomainsStatusThread Started')
         
+
+## ISOS Threading
+class IsosThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.stop = False
+
+    def run(self):
+        with app.app_context():
+            for c in r.table('isos').changes(include_initial=False).run(db.conn):
+                if self.stop==True: break
+                try:
+                    if c['new_val'] is None:
+                        if not c['old_val']['id'].startswith('_'): continue
+                        data=c['old_val']
+                        event='iso_delete'
+                    else:
+                        if not c['new_val']['id'].startswith('_'): continue
+                        data=c['new_val']
+                        event='iso_data'
+                    socketio.emit(event, 
+                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                    namespace='/sio_users', 
+                                    room='user_'+data['user'])
+                    socketio.emit('user_quota', 
+                                    json.dumps(app.isardapi.get_user_quotas(data['user'])), 
+                                    namespace='/sio_users', 
+                                    room='user_'+data['user'])
+                    ## Admins should receive all updates on /admin namespace
+                    socketio.emit(event, 
+                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                    namespace='/sio_admins', 
+                                    room='domains')
+                except Exception as e:
+                    print('IsosThread error:'+str(e))
+
+def start_isos_thread():
+    global threads
+    if 'isos' not in threads: threads['isos']=None
+    if threads['isos'] is None:
+        threads['isos'] = IsosThread()
+        threads['isos'].daemon = True
+        threads['isos'].start()
+        print('IsosThread Started')
         
 ## Users Threading
 class UsersThread(threading.Thread):
@@ -275,16 +318,25 @@ def socketio_domains_disconnect():
 
 @socketio.on('domain_update', namespace='/sio_users')
 def socketio_domains_update(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     socketio.emit('result',
-                    app.isardapi.update_desktop_status(current_user.username, data),
+                    app.isardapi.update_table_status(current_user.username, 'domains', data,remote_addr),
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
+@socketio.on('iso_update', namespace='/sio_users')
+def socketio_iso_update(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    socketio.emit('result',
+                    app.isardapi.update_table_status(current_user.username, 'isos', data,remote_addr),
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+                    
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
-    if data['kind'] == 'file':
-        consola=app.isardapi.get_spice_ticket(data['pk'])
-        viewer=''
+    #~ if data['kind'] == 'file':
+        #~ consola=app.isardapi.get_viewer_ticket(data['pk'])
+        #~ viewer=''
         #~ return Response(consola, 
                         #~ mimetype="application/x-virt-viewer",
                         #~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
@@ -310,6 +362,38 @@ def socketio_domains_add(form_data):
     #~ if current_user.role=='admin':
         #~ None
     create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+@socketio.on('domain_edit', namespace='/sio_users')
+def socketio_domain_edit(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict.pop('hardware',None)
+    res=app.isardapi.update_domain(create_dict)
+    if res is True:
+        data=json.dumps({'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('edit_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+def parseHardware(create_dict):
     if 'hardware' not in create_dict.keys():
         #~ Hardware is not in create_dict
         data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
@@ -327,17 +411,31 @@ def socketio_domains_add(form_data):
         create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
         create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
         create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
-    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+    return create_dict
 
-    if res is True:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+@socketio.on('iso_add', namespace='/sio_users')
+def socketio_iso_add(form_data):
+    filename = form_data['url'].split('/')[-1]
+    iso=app.isardapi.user_relative_iso_path(current_user.username, filename)
+    if not iso:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created. It doesn\'t seem a valid url filename.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)
     else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
-    socketio.emit('add_form_result',
-                    data,
-                    namespace='/sio_users', 
-                    room='user_'+current_user.username)
-
+        dict = {**form_data, **iso}
+        dict['status']='Starting'
+        dict['percentage']=0
+        res = app.isardapi.add_dict2table(dict,'isos')
+        if res is True:
+            data=json.dumps({'result':True,'title':'New iso','text':'Iso '+iso['name']+' is being uploaded...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':True,'title':'New iso','text':'Iso '+iso['name']+' can\'t be uploaded. You have the same iso filename uploaded already.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)
 
 ## Admin namespace
 @socketio.on('connect', namespace='/sio_admins')
@@ -362,7 +460,7 @@ def socketio_admins_connect(join_rooms):
             print('JOINED:'+rm)
 
 @socketio.on('get_tree_list', namespace='/sio_admins')
-def socketio_domains_update():
+def socketio_get_tree_list():
     socketio.emit('tree_list',
                     app.isardapi.app.adminapi.get_domains_tree_list(),
                     namespace='/sio_admins', 

@@ -38,29 +38,107 @@ class isard():
         if not dict['errors']: return True
         return False
 
-    def update_desktop_status(self,user,data):
+    #~ def update_desktop_status(self,user,data,remote_addr):
+            #~ try:
+                #~ if data['name']=='status':
+                    #~ if data['value']=='Stopping':
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    #~ if data['value']=='Deleting':
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    #~ if data['value']=='Starting':
+                        #~ if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                            #~ return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                        #~ self.auto_interface_set(user,data['pk'],remote_addr)
+                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
+                            #~ return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        #~ else:
+                            #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                #~ return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+            #~ except Exception as e:
+                #~ print('Error updating desktop status for domain '+data['pk']+': '+str(e))
+                #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+
+    def update_table_status(self,user,table,data,remote_addr):
+            item = table[:-1].capitalize()
             try:
                 if data['name']=='status':
                     if data['value']=='Stopping':
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' stopping success','text':item+' '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' stopping error','text':item+' '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Deleting':
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' deleting success','text':item+' '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' deleting error','text':item+' '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Starting':
                         if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
-                            return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
-                        if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                            return json.dumps({'title':'Quota exceeded','text':item+' '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                        self.auto_interface_set(user,data['pk'],remote_addr)
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' starting success','text':item+' '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':'Method not allowd','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
-                return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                print('Error updating desktop status for domain '+data['pk']+': '+str(e))
+                return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+
+
+    def auto_interface_set(self,user,id, remote_addr):
+        with app.app_context():
+            dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
+            if dict['hardware']['interfaces'][0]=='default':
+                return self.update_domain_network(user,id,remote_addr=remote_addr)
+            else:
+                return self.update_domain_network(user,id,interface_id=dict['hardware']['interfaces'][0])
+        
+    def update_domain_network(self,user,id,interface_id=False,remote_addr=False):
+        try:
+            if interface_id:
+                with app.app_context():
+                    iface=r.table('interfaces').get(interface_id).run(db.conn)
+                    dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
+                    dict["hardware"]["interfaces"]=[iface['id']]
+                    return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
+            elif remote_addr:
+                # Automatic interface selection
+                allowed_ifaces=self.get_alloweds(user,'interfaces',pluck=['id','net'])
+                for iface in allowed_ifaces:
+                    if IPAddress(remote_addr) in IPNetwork(iface['net']):
+                        dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
+                        dict["hardware"]["interfaces"]=[iface['id']]
+                        return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
+            return True
+        except Exception as e:
+            print('Error updating domain '+id+' network interface.\n'+str(e))
+        return False
+
+
+        #~ disposables_config=self.config['disposable_desktops']
+        #~ if disposables_config['active']:
+            #~ with app.app_context():
+                #~ disposables=r.table('disposables').run(db.conn)
+            #~ for d in disposables:
+                #~ for net in d['nets']: 
+                    #~ if IPAddress(client_ip) in IPNetwork(net): return d
+        #~ return False
+
+        
+        #~ with app.app_context():
+            #~ try:
+                #~ interface_id=r.table('interfaces').get
+                #~ return self.check(r.table('domains').update(dict).run(db.conn),'inserted')
+            #~ except Exception as e:
+                #~ print('error:',e)
+                #~ return False
             
     def update_table_value(self, table, id, field, value):
         with app.app_context():
@@ -91,6 +169,7 @@ class isard():
                 for net in d['nets']: 
                     if IPAddress(client_ip) in IPNetwork(net): return d
         return False
+        
 #~ STATUS
     def get_domain_last_messages(self, id):
         with app.app_context():
@@ -99,27 +178,7 @@ class isard():
     def get_domain_last_events(self, id):
         with app.app_context():
             return r.table('hypervisors_events').get_all(id, index='domain').order_by(r.desc('when')).limit(6).run(db.conn)
-                  
-    def get_domain_spice(self, id):
-        domain =  r.table('domains').get(id).run(db.conn)
-        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        ##### BIG TODO
-        if viewer['defaultMode'] == "Secure":
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':domain['viewer']['tlsport'],
-                    'ca':viewer['certificate'],
-                    'domain':viewer['domain'],
-                    'passwd':domain['viewer']['passwd']}
-        else:
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':False,
-                    'ca':'',
-                    'domain':'',
-                    'passwd':domain['viewer']['passwd']}
+
 
     def get_user(self, user):
         with app.app_context():
@@ -130,32 +189,27 @@ class isard():
     def get_user_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).run(db.conn))
+            domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml').run(db.conn))
         return domains
 
-    def get_group_users(self, group,pluck=''):
-        with app.app_context():
-            users=list(r.table('users').get_all(group, index='group').order_by('username').pluck(pluck).run(db.conn))
-        return users
-
-    def get_hosts_viewers(self, place_id):
-        with app.app_context():
-            items=list(r.table('hosts_viewers').filter({'place_id':place_id}).order_by('ip').pluck(pluck).run(db.conn))
-            #~ for i in items:
-                
-        #~ return users
-            
     def get_group_domains(self, group, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(group, index='group').filter(filterdict).run(db.conn))
+            domains=self.f.table_values_bstrap(r.table('domains').get_all(group, index='group').filter(filterdict).without('xml').run(db.conn))
         return domains
 
     def get_category_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(category, index='category').filter(filterdict).run(db.conn))
+            domains=self.f.table_values_bstrap(r.table('domains').get_all(category, index='category').filter(filterdict).without('xml').run(db.conn))
         return domains
+        
+        
+        
+    def get_group_users(self, group,pluck=''):
+        with app.app_context():
+            users=list(r.table('users').get_all(group, index='group').order_by('username').pluck(pluck).run(db.conn))
+        return users
         
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
@@ -254,8 +308,8 @@ class isard():
 
     def get_domain_derivates(self, id):
         with app.app_context():
-            disk=r.table('domains').get(id).pluck('hardware').run(db.conn)['hardware']['disks'][0]['file']
-            return list(r.table("domains").filter(lambda hardware: hardware['disks'][0]['backing_chain'].contains(disk)).pluck('id').run(db.conn))
+            return list(r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name','kind','user').run(db.conn))
+
 
     def get_graphics(self):
         with app.app_context():
@@ -289,7 +343,10 @@ class isard():
                 delete_allowed_key=True
             allowed_data={}
             if table is 'domains':
-                data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
+                if order:
+                    data=r.table('domains').get_all('public_template','user_template', index='kind').order_by(order).group('category').pluck({'id','name','allowed'}).run(db.conn)
+                else:
+                    data=r.table('domains').get_all('public_template','user_template', index='kind').group('category').pluck({'id','name','allowed'}).run(db.conn)
                 for group in data:
                     allowed_data[group]=[]
                     for d in data[group]:
@@ -342,7 +399,10 @@ class isard():
                         #~ print(allowed,k,dom['id'])
                 return allowed_data
             else:
-                data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
+                if order:
+                    data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
+                else:
+                    data=r.table(table).pluck(pluck).run(db.conn)
             allowed_data=[]
             for d in data:
                 # False doesn't check, [] means all allowed
@@ -642,19 +702,20 @@ class isard():
                 return False
             return True
         
-    def user_relative_disk_path(self, user, name):
+    def user_relative_iso_path(self, user, filename):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-
-        parsed_name = self.parse_string(name)
+        #~ name=filename.split('.iso')[0]
+        parsed_name = self.parse_string(filename)
         if not parsed_name: return False
         id = '_'+user+'_'+parsed_name
         #~ Missing check if id already exists
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        dir_disk, disk_filename = self.get_disk_path(userObj, filename)
         return {'id':id,
-                'name':parsed_name,
+                'name':filename,
                 'path':dir_disk+'/',
-                'filename':disk_filename.split('.qcow2')[0]}
+                'filename':filename,
+                'user':user}
         
     def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
         with app.app_context():
@@ -733,6 +794,15 @@ class isard():
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
+    def update_domain(self, create_dict):
+        id=create_dict['id']
+        create_dict.pop('id',None)
+        #~ description=create_dict['description']
+        #~ create_dict.pop('description',None)
+        create_dict['status']='Updating'
+        return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
+        #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
+
     def new_domain_disposable_from_tmpl(self, client_ip, template):
         with app.app_context():
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
@@ -772,7 +842,33 @@ class isard():
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
+    ##### SPICE VIEWER
+    
+    def get_domain_spice(self, id):
+        ### HTML5 spice dict (isardsocketio)
+        
+        domain =  r.table('domains').get(id).run(db.conn)
+        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
+        if viewer['defaultMode'] == "Secure":
+            return {'host':domain['viewer']['hostname'],
+                    'kind':domain['hardware']['graphics']['type'],
+                    'port':domain['viewer']['port'],
+                    'tlsport':domain['viewer']['tlsport'],
+                    'ca':viewer['certificate'],
+                    'domain':viewer['domain'],
+                    'passwd':domain['viewer']['passwd']}
+        else:
+            return {'host':domain['viewer']['hostname'],
+                    'kind':domain['hardware']['graphics']['type'],
+                    'port':domain['viewer']['port'],
+                    'tlsport':False,
+                    'ca':'',
+                    'domain':'',
+                    'passwd':domain['viewer']['passwd']}
+    
     def get_spice_xpi(self, id):
+        ### Dict for XPI viewer (isardSocketio)
+        
         dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])
@@ -781,9 +877,133 @@ class isard():
         #~ ca = str(self.config['spice']['certificate'])
         #~ dict['ca']=ca
         return dict
-        
-    def get_spice_ticket(self, id):
+
+
+    ######### VIEWER DOWNLOAD FUNCTIONS
+    def get_viewer_ticket(self,id,os='generic'):
+        print(id)
+        print(os)
         dict = self.get_domain_spice(id)
+        if dict['kind']=='vnc':
+            return self.get_vnc_ticket(dict,os)
+        if dict['kind']=='spice':
+            return self.get_spice_ticket(dict)
+        return False
+        
+    def get_vnc_ticket(self, dict,os):
+        ## Should check if ssl in use: dict['tlsport']:
+        if dict['tlsport']:
+            return False
+        if os in ['iOS','Windows','Android','Linux', None]:
+            consola="""[Connection]
+            Host=%s
+            Port=%s
+            Password=%s
+
+            [Options]
+            UseLocalCursor=1
+            UseDesktopResize=1
+            FullScreen=1
+            FullColour=0
+            LowColourLevel=0
+            PreferredEncoding=ZRLE
+            AutoSelect=1
+            Shared=0
+            SendPtrEvents=1
+            SendKeyEvents=1
+            SendCutText=1
+            AcceptCutText=1
+            Emulate3=1
+            PointerEventInterval=0
+            Monitor=
+            MenuKey=F8
+            """ % (dict['host'], dict['port'], dict['passwd'])
+            consola = consola.replace("'", "")
+            return 'vnc','text/plain',consola
+            
+        if os in ['MacOS']:
+            vnc="vnc://"+dict['host']+":"+dict['passwd']+"@"+dict['host']+":"+dict['port']
+            consola="""<?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                <key>URL</key>
+                <string>%s</string>
+                <key>restorationAttributes</key>
+                <dict>
+                    <key>autoClipboard</key>
+                    <false/>
+                    <key>controlMode</key>
+                    <integer>1</integer>
+                    <key>isFullScreen</key>
+                    <false/>
+                    <key>quality</key>
+                    <integer>3</integer>
+                    <key>scalingMode</key>
+                    <true/>
+                    <key>screenConfiguration</key>
+                    <dict>
+                        <key>GlobalIsMixedMode</key>
+                        <false/>
+                        <key>GlobalScreen</key>
+                        <dict>
+                            <key>Flags</key>
+                            <integer>0</integer>
+                            <key>Frame</key>
+                            <string>{{0, 0}, {1920, 1080}}</string>
+                            <key>Identifier</key>
+                            <integer>0</integer>
+                            <key>Index</key>
+                            <integer>0</integer>
+                        </dict>
+                        <key>IsDisplayInfo2</key>
+                        <false/>
+                        <key>IsVNC</key>
+                        <true/>
+                        <key>ScaledSelectedScreenRect</key>
+                        <string>(0, 0, 1920, 1080)</string>
+                        <key>Screens</key>
+                        <array>
+                            <dict>
+                                <key>Flags</key>
+                                <integer>0</integer>
+                                <key>Frame</key>
+                                <string>{{0, 0}, {1920, 1080}}</string>
+                                <key>Identifier</key>
+                                <integer>0</integer>
+                                <key>Index</key>
+                                <integer>0</integer>
+                            </dict>
+                        </array>
+                    </dict>
+                    <key>selectedScreen</key>
+                    <dict>
+                        <key>Flags</key>
+                        <integer>0</integer>
+                        <key>Frame</key>
+                        <string>{{0, 0}, {1920, 1080}}</string>
+                        <key>Identifier</key>
+                        <integer>0</integer>
+                        <key>Index</key>
+                        <integer>0</integer>
+                    </dict>
+                    <key>targetAddress</key>
+                    <string>%s</string>
+                    <key>viewerScaleFactor</key>
+                    <real>1</real>
+                    <key>windowContentFrame</key>
+                    <string>{{0, 0}, {1829, 1029}}</string>
+                    <key>windowFrame</key>
+                    <string>{{45, 80}, {1829, 1097}}</string>
+                </dict>
+            </dict>
+            </plist>""" % (vnc,vnc)
+            consola = consola.replace("'", "")
+            return 'vncloc','text/plain',consola
+        
+        
+    def get_spice_ticket(self, dict):
+        #~ dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])
         #~ if not dict['host'].endswith(str(self.config['spice']['domain'])):
@@ -843,7 +1063,7 @@ class isard():
             'host-subject', 'hostname', dict['ca'])
 
         consola = consola.replace("'", "")
-        return consola
+        return 'vv','application/x-virt-viewer',consola
 
     def update_user_password(self,id,passwd):
         pw=Password()

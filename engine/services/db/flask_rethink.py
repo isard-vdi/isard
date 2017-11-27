@@ -7,12 +7,11 @@
 # coding=utf-8
 
 import rethinkdb as r
+# Since no older versions than 0.9 are supported for Flask, this is safe
+from flask import _app_ctx_stack as stack
 from flask import current_app
 
 from ..lib.log import *
-
-# Since no older versions than 0.9 are supported for Flask, this is safe
-from flask import _app_ctx_stack as stack
 
 
 class RethinkDB(object):

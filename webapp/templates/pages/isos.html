@@ -11,6 +11,7 @@
    </div>
    <div class="clearfix"></div>
             <div class="row">
+<!--
               <div class="col-md-4 col-sm-4 col-xs-12">
                 <div class="x_panel">
                   <div class="x_title">
@@ -19,7 +20,7 @@
                   </div>
                   <div class="x_content">
                     <br />
-                    <form id="upload" action="{{ url_for('isos_upload') }}" method="POST" class="form-horizontal form-label-left">
+                    <form id="upload"  method="POST" class="form-horizontal form-label-left">
 
                       <div class="form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="url">URL <span class="required">*</span>
@@ -49,7 +50,7 @@
 						  <div class="form-group">
 							<div class="col-md-6 col-md-offset-3"> 
 							   <button type="reset" class="btn btn-primary">Reset</button>
-							   <button id="send" type="submit" class="btn btn-success">Download</button>								                     
+							   <button id="send" type="button" class="btn btn-success">Download</button>								                     
 							</div>
 						 </div>
 						                       
@@ -57,11 +58,18 @@
                   </div>
                 </div>
               </div>
+-->
 
+<!--
               <div class="col-md-8 col-sm-8 col-xs-12">
+-->
                 <div class="x_panel">
                   <div class="x_title">
                     <h2>Isos list <small>Your Isos in system</small></h2>
+                        <ul class="nav navbar-right panel_toolbox">
+                            <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                           </li>
+                        </ul>
                     <div class="clearfix"></div>
                   </div>
                   <div class="x_content">
@@ -70,10 +78,13 @@
 					<table id="isos" class="table table-striped" width="100%">
 					   <thead>
 						  <tr>
+<!--
 							 <th></th>
-							 <th>Status</th>
+-->
 							 <th>Name</th>
-							 <th>Description</th>
+							 <th>Status</th>
+							 <th>Progress</th>
+                             <th></th>
 						  </tr>
 					   </thead>
 					   <tbody>
@@ -81,7 +92,10 @@
 					</table>
                   </div>
                 </div>
+<!--
               </div>
+-->
+              {% include '/pages/isos_modals.html' %}
           </div>
         </div>
 {% endblock %}

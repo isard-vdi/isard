@@ -118,7 +118,14 @@ class isardAdmin():
             if pluck and id:
                 return r.table(table).get(id).pluck(pluck).run(db.conn)           
             return self.f.table_values_bstrap(r.table(table).run(db.conn))
-                        
+
+    def get_admin_table_term(self, table, field, value, pluck=False):
+        with app.app_context():
+            if pluck:
+                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+            else:
+                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
+                                
     def get_admin_domains(self,kind=False):
         with app.app_context():
             if not kind:
@@ -152,7 +159,7 @@ class isardAdmin():
                         }
                     ).run(db.conn))
             else:
-               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
+               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                     {
                         "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                     }
@@ -318,6 +325,12 @@ class isardAdmin():
             log.error(e)
             pass
 
+    def download_backup(self,id):
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+        with open(dict['path']+dict['filename'], 'rb') as isard_db_file:
+            return dict['path'],dict['filename'], isard_db_file.read()
+            
     def info_backup_db(self,id):
         import tarfile,pickle
         with app.app_context():
@@ -473,13 +486,16 @@ class isardAdmin():
                     {'id':'bases','kind':'menu','name':'bases','parent':'isard'},
                     {'id':'base_images','kind':'menu','name':'base_images','parent':'isard'}]
             for d in rdomains:
-                if not d['create_dict']['origin']:
-                    if d['kind']=='base':
-                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'bases'})
+                try:
+                    if not d['create_dict']['origin']:
+                        if d['kind']=='base':
+                            domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'bases'})
+                        else:
+                            domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'base_images'})
                     else:
-                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':'base_images'})
-                else:
-                    domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':d['create_dict']['origin']})
+                        domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':d['create_dict']['origin']})
+                except Exception as e:
+                    print('Exception on domain tree\n'+str(d)+'\n'+str(e))
                 #~ if not d['create_dict']['origin']:
                  #~ print(d['id']+' - '+str(d['create_dict']['origin']))
             return domains

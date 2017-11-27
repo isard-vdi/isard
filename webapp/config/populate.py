@@ -608,7 +608,7 @@ class Populate(object):
             #~ rhypers = r.table('hypervisors')
             ## Is a docker and there are no hypers yet
             ## We assume this as a 'first boot configuration'
-                docker=True
+                docker=False
                 if docker and rhypers.count().run(db.conn) == 0:
                     for key,val in dict(rcfg.items('DEFAULT_HYPERVISORS')).items():
                         vals=val.split(',')
@@ -837,6 +837,7 @@ class Populate(object):
 
     def _secure_viewer(self):
         cert_file='install/viewer-certs/ca-cert.pem'
+        cert_file=''
         try:
             with open(cert_file, "r") as caFile:
                 ca=caFile.read()
@@ -903,7 +904,7 @@ class Populate(object):
                 r.table_create('builders', primary_key="id").run(db.conn)
                 
                 #~ self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
-            print(self.create_builders())
+            #~ print(self.create_builders())
             r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn)
             return True
 

@@ -1,4 +1,3 @@
-// Not implemented at all
 
 	function setAlloweds_viewer(div_id,id){
 			api.ajax('/domain/alloweds','POST',{'pk':id}).done(function(alloweds) {
@@ -20,3 +19,64 @@
                 }
 			}); 
 	}
+
+	function replaceAlloweds_arrays(data){
+		ids=['a-roles','a-categories','a-groups','a-users']
+		data['allowed']={}
+		 $.each(ids,function(idx,id) 
+         { 
+			 delete data[id];
+			 val = $('#'+id).val()  || false
+			 if(!(val) && id+'-cb' in data){val=[];}
+			 delete data[id+'-cb'];
+			 data['allowed'][id.replace('a-','')] = val; 
+		 });
+		 
+		 return data
+	}
+
+
+ 	
+	function setAlloweds_add(parentid){
+		ids=['a-roles','a-categories','a-groups','a-users']
+		 $.each(ids,function(idx,id) 
+         {   $(parentid+' #'+id+'-cb').iCheck('uncheck');
+			 $(parentid+' #'+id+'-cb').on('ifChecked', function(event){
+				  $(parentid+" #"+id).attr('disabled',false);
+			 });
+			 $(parentid+' #'+id+'-cb').on('ifUnchecked', function(event){
+				  $(parentid+" #"+id).attr('disabled',true);
+			 });
+			 $(parentid+" #"+id).attr('disabled',true);
+			 console.log(id)
+			 $(parentid+" #"+id).select2({
+				minimumInputLength: 2,
+				multiple: true,
+				ajax: {
+					type: "POST",
+					url: '/admin/table/'+id.replace('a-','')+'/post',
+					dataType: 'json',
+					contentType: "application/json",
+					delay: 250,
+					data: function (params) {
+						return  JSON.stringify({
+							term: params.term,
+							pluck: ['id','name']
+						});
+					},
+					processResults: function (data) {
+						return {
+							results: $.map(data, function (item, i) {
+								return {
+									text: item.name,
+									id: item.id
+								}
+							})
+						};
+					}
+				},
+			});	
+		});
+	
+	}
+	

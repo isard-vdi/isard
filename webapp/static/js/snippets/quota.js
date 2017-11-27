@@ -1,35 +1,36 @@
-	function setQuotaOptions(){
+	function setQuotaOptions(parentid){
         api.ajax('/hardware','GET','').done(function(hardware) {
             user=hardware.user
-				$("#quota-domains-desktops").ionRangeSlider({
+            parentid=parentid+' ';
+				$(parentid+"#quota-domains-desktops").ionRangeSlider({
 						  type: "single",
 						  min: 1,
 						  max: user['quota-domains-isos'],
 						  grid: true,
 						  disable: false
 						  }).data("ionRangeSlider");
-				$("#quota-domains-running").ionRangeSlider({
+				$(parentid+"#quota-domains-running").ionRangeSlider({
 						  type: "single",
 						  min: 1,
 						  max: user['quota-domains-isos'],
 						  grid: true,
 						  disable: false
 						  }).data("ionRangeSlider");	
-				$("#quota-domains-templates").ionRangeSlider({
+				$(parentid+"#quota-domains-templates").ionRangeSlider({
 						  type: "single",
 						  min: 1,
 						  max: user['quota-domains-isos'],
 						  grid: true,
 						  disable: false
 						  }).data("ionRangeSlider");		
-				$("#quota-domains-isos").ionRangeSlider({
+				$(parentid+"#quota-domains-isos").ionRangeSlider({
 						  type: "single",
 						  min: 1,
 						  max: user['quota-domains-isos'],
 						  grid: true,
 						  disable: false
 						  }).data("ionRangeSlider");	
-				$("#quota-hardware-memory").ionRangeSlider({
+				$(parentid+"#quota-hardware-memory").ionRangeSlider({
 						  type: "single",
 						  min: 1000,
 						  max: user['quota-hardware-memory']/1000,
@@ -37,7 +38,7 @@
 						  grid: true,
 						  disable: false
 						  }).data("ionRangeSlider");
-				$("#quota-hardware-vcpus").ionRangeSlider({
+				$(parentid+"#quota-hardware-vcpus").ionRangeSlider({
 						  type: "single",
 						  min: 1,
 						  max: user['quota-hardware-vcpus'],
@@ -46,6 +47,22 @@
 						  }).data("ionRangeSlider");	
         });
     }; 
+
+    function quota2dict(data){
+         data['quota']={'hardware':{},'domains':{}}
+         hwids=['vcpus','memory']
+		 $.each(hwids,function(idx,id){
+            delete data['quota-hardware-'+id];
+            data['quota']['hardware'][id]=parseInt($('#quota-hardware-'+id).val())  || 0
+         });
+         
+         dmids=['desktops','running','templates','isos']
+		 $.each(dmids,function(idx,id){
+            delete data['quota-domains-'+id];
+            data['quota']['domains'][id]=parseInt($('#quota-domains-'+id).val())  || 0
+         });         
+        return data
+    }
 
 	function setHardwareDomainDefaults(div_id,domain_id){
 			// id is the domain id

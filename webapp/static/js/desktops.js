@@ -193,7 +193,6 @@ $(document).ready(function() {
             case 'btn-display':
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
-                    console.log('xpi detected')
                     if(isXpiBlocked()){
                             new PNotify({
                             title: "Plugin blocked",
@@ -253,7 +252,7 @@ $(document).ready(function() {
                                             });
                                             //~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
                                             
-                                                var url = '/desktops/viewer/file/'+data['id'];
+                                                var url = '/desktops/download_viewer/'+getOS()+'/'+data['id'];
                                                 var anchor = document.createElement('a');
                                                     anchor.setAttribute('href', url);
                                                     anchor.setAttribute('download', 'console.vv');
@@ -275,8 +274,6 @@ $(document).ready(function() {
 
 
 					}
-				//~ }); 
-				//~ }
                 break;
         }
     });
@@ -344,13 +341,10 @@ $(document).ready(function() {
     });
 
     socket.on('add_form_result', function (data) {
-        console.log('received result')
         var data = JSON.parse(data);
         if(data.result){
             $("#modalAdd")[0].reset();
             $("#modalAddDesktop").modal('hide');
-            //~ $('body').removeClass('modal-open');
-            //~ $('.modal-backdrop').remove();
         }
         new PNotify({
                 title: data.title,
@@ -362,7 +356,24 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-        
+
+    socket.on('edit_form_result', function (data) {
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalEdit")[0].reset();
+            $("#modalEditDesktop").modal('hide');
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+            
     socket.on('domain_viewer', function (data) {
         var data = JSON.parse(data);
         console.log('domain_viewer event received'+data)
@@ -713,10 +724,10 @@ function initalize_modal_all_desktops_events(){
 
             if (form.parsley().isValid()){
                 template=$('#modalAddDesktop #template').val();
-                console.log('TEMPLATE:'+template)
+                //~ console.log('TEMPLATE:'+template)
                 if (template !=''){
                     data=$('#modalAdd').serializeObject();
-                    console.log(data)
+                    //~ console.log(data)
                     socket.emit('domain_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
@@ -730,6 +741,7 @@ function initalize_modal_all_desktops_events(){
         });
         	
 }
+
 function modal_edit_desktop_datatables(id){
 	$.ajax({
 		type: "GET",
@@ -737,11 +749,29 @@ function modal_edit_desktop_datatables(id){
 		success: function(data)
 		{
             console.log(data)
-			$('#modalEditDesktop #name').val(data.name);
+			$('#modalEditDesktop #name_hidden').val(data.name);
+            $('#modalEditDesktop #name').val(data.name);
 			$('#modalEditDesktop #description').val(data.description);
+            $('#modalEditDesktop #id').val(data.id);
+            setHardwareDomainDefaults('#modalEditDesktop', id);
+            //~ $('#modalEditDesktop #hardware-interfaces').val(data['create_dict-hardware-interfaces'][0]);
+            //~ $('#modalEditDesktop #hardware-vcpus').val(data['create_dict-hardware-vcpus']);
+            //~ $hm.value = 5; //parseInt(data['create_dict-hardware-vcpus'])
             //~ $('#modalEditDesktop #datatables-error-status').val(data);
 		}				
 	});
+  
     
 }
+
+    $("#modalEditDesktop #send").on('click', function(e){
+            var form = $('#modalEdit');
+            form.parsley().validate();
+            if (form.parsley().isValid()){
+                    data=$('#modalEdit').serializeObject();
+                    console.log(data);
+                    socket.emit('domain_edit',data)
+            }
+        });
+        
     

@@ -113,11 +113,11 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
 							  return renderIcon(full);
 							}},
-							{
-							"targets": 3,
-							"render": function ( data, type, full, meta ) {
-							  return renderName(full);
-							}},
+							//~ {
+							//~ "targets": 3,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderName(full);
+							//~ }},
 							{
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
@@ -234,6 +234,7 @@ $(document).ready(function() {
                 if(row.data().status=='Stopped' || row.data().status=='Started'){
                     setDomainGenealogy(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                    setDomainDerivates(row.data().id);
                 }
             }            
         }
@@ -288,49 +289,87 @@ $(document).ready(function() {
             case 'btn-display':
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
-					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(data) {
-                    if(data==false){
-						new PNotify({
-						title: "Display error",
-							text: "Can't open display, something went wrong.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-					}else{
-						if(data.tlsport){
-							openTLS(data.host, data.port, data.tlsport, data.passwd, data.ca);
-						}else{
-							openTCP(data.host, data.port, data.passwd);
-						}
-					}
-                }); 
+                    if(isXpiBlocked()){
+                            new PNotify({
+                            title: "Plugin blocked",
+                                text: "You should allow SpiceXPI plugin and then reload webpage.",
+                                hide: true,
+                                confirm: {
+                                    confirm: true,
+                                    cancel: false
+                                },
+                                //~ delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'warning'
+                            });                        
+                    }else{
+                    socket.emit('domain_viewer',{'pk':data['id'],'kind':'xpi'})                       
+                    }
 				}else{
-					//Viewer .vv Download
-					api.ajax('/desktops/viewer/xpi/'+data['id'],'GET',{}).done(function(error) {
-                    if(error==false){
-						new PNotify({
-						title: "Display error",
-							text: "Can't download display file, something went wrong.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-					}else{
-						var url = '/desktops/viewer/file/'+data['id'];
-						var anchor = document.createElement('a');
-							anchor.setAttribute('href', url);
-							anchor.setAttribute('download', 'console.vv');
-						var ev = document.createEvent("MouseEvents");
-							ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-						anchor.dispatchEvent(ev);
+                        new PNotify({
+                            title: 'Choose display connection',
+                            text: 'Open in browser (html5) or download remote-viewer file.',
+                            icon: 'glyphicon glyphicon-question-sign',
+                            hide: false,
+                            delay: 3000,
+                            confirm: {
+                                confirm: true,
+                                buttons: [
+                                    {
+                                        text: 'HTML5',
+                                        addClass: 'btn-primary',
+                                        click: function(notice){
+                                            notice.update({
+                                                title: 'You choosed html5 viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
+                                                confirm: {
+                                                    confirm: false
+                                                },
+                                                buttons: {
+                                                    closer: true,
+                                                    sticker: false
+                                                }
+                                            });                                            
+                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'html5'});
+                                        }
+                                    },
+                                    {
+                                        text: 'Download display file',
+                                        click: function(notice){
+                                            notice.update({
+                                                title: 'You choosed to download', text: 'File will be downloaded shortly', icon: true, type: 'info', hide: true,
+                                                confirm: {
+                                                    confirm: false
+                                                },
+                                                buttons: {
+                                                    closer: true,
+                                                    sticker: false
+                                                }
+                                            });
+                                            //~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
+                                            
+                                                var url = '/desktops/download_viewer/'+getOS()+'/'+data['id'];
+                                                var anchor = document.createElement('a');
+                                                    anchor.setAttribute('href', url);
+                                                    anchor.setAttribute('download', 'console.vv');
+                                                var ev = document.createEvent("MouseEvents");
+                                                    ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                                                    anchor.dispatchEvent(ev);                                              
+                                        }
+                                    },
+                                ]
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            }
+                        });                        
+
+
 					}
-				}); 
-				}
                 break;
         }
     });	
@@ -556,14 +595,14 @@ function renderDisplay(data){
         return ''
 }
 
-function renderName(data){
-		return '<div class="block_content" > \
-      			<h2 class="title" style="height: 4px; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
-                </h2> \
-      			<p class="excerpt" >'+data.description+'</p> \
-           		</div>'
-}
+//~ function renderName(data){
+		//~ return '<div class="block_content" > \
+      			//~ <h2 class="title" style="height: 4px; margin-top: 0px;"> \
+                //~ <a>'+data.name+'</a> \
+                //~ </h2> \
+      			//~ <p class="excerpt" >'+data.description+'</p> \
+           		//~ </div>'
+//~ }
                         
 function renderIcon(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
@@ -579,6 +618,7 @@ function renderHypStarted(data){
 }
 
 function renderAction(data){
+    if(kind!="Bases" && kind!="Templates"){
 		status=data.status;
         if(status=='Crashed'){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';

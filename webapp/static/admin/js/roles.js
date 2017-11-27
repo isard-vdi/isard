@@ -44,6 +44,40 @@ $(document).ready(function() {
             tr.addClass('shown');
         }
     });
+
+	$('.btn-new-role').on('click', function () {
+        setQuotaOptions('#roles-quota');
+			$('#modalAddRole').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalAddRoleForm')[0].reset();
+            //~ setModalAddUser();
+	});    
+
+    $("#modalAddRole #send").on('click', function(e){
+            var form = $('#modalAddRoleForm');
+            console.log('inside')
+
+            form.parsley().validate();
+            data=$('#modalAddRoleForm').serializeObject();
+            //~ data=replaceAlloweds_arrays(data)
+            console.log(data)
+            //~ socket.emit('domain_virtbuilder_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        }); 
+            
 });
 
 function formatRoles ( d ) {
@@ -58,6 +92,6 @@ function formatRoles ( d ) {
 				'</tr>'
 	}
     return '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">'+
-        cells;
+        cells+
     '</table>';
 }

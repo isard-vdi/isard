@@ -72,15 +72,15 @@ def desktops_get(kind='username'):
         return json.dumps(app.isardapi.get_group_domains(current_user.group)), 200, {'ContentType': 'application/json'}
     return url_for('desktops')
 
-@app.route('/desktops/viewer/<type>/<id>')
+@app.route('/desktops/download_viewer/<os>/<id>')
 @login_required
 @ownsid
-def spice(type,id):
-    if type == 'file':
-        consola=app.isardapi.get_spice_ticket(id)
+def viewer_download(os,id):
+    #~ if type == 'file':
+        extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
         return Response(consola, 
                         mimetype="application/x-virt-viewer",
-                        headers={"Content-Disposition":"attachment;filename=consola.vv"})
+                        headers={"Content-Disposition":"attachment;filename=consola."+extension})
     #~ if type == 'xpi':
         #~ dict=app.isardapi.get_spice_xpi(id)
         #~ return json.dumps(dict), 200, {'ContentType:':'application/json'}
@@ -206,6 +206,13 @@ def domain_genealogy():
         print(str(e))
     #~ print(gen_ids)
     return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
+
+@app.route('/domain_derivates', methods=['POST'])
+@login_required
+@ownsid
+def domain_derivates():
+    return json.dumps(app.isardapi.get_domain_derivates(request.get_json(force=True)['pk']))
+
 
 @app.route('/domain', methods=['POST'])
 @login_required
