@@ -42,8 +42,12 @@ class DomainsThread(threading.Thread):
                         event='desktop_delete' if data['kind']=='desktop' else 'template_delete'
                     else:
                         if not c['new_val']['id'].startswith('_'): continue
-                        data=c['new_val']
-                        event='desktop_data' if data['kind']=='desktop' else 'template_data'
+                        data=c['new_val']   
+                        if data['kind']=='desktop':
+                            event='desktop_data'
+                        else:
+                            event='template_data'
+                            data['derivates']=app.adminapi.get_admin_domains_with_derivates(id=c['new_val']['id'],kind='template')
                     socketio.emit(event, 
                                     json.dumps(app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_users', 
