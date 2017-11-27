@@ -213,7 +213,9 @@ class EvalController(object):
         # Start domains and evaluate
         data_start = self.start_domains()
         data.update(data_start)
-        # self.stop_domains()
+        data_final_statistics = self._get_final_statistics()
+        data.update(data_final_statistics)
+        #self.stop_domains()
         return data
 
     def _create_eval_domain(self, id_t, i):
@@ -243,9 +245,9 @@ class EvalController(object):
             cond_2 = statistics["ram_percent_free"] < h.percent_ram_template
             eval_log.debug("EVALUATE - Hyp: {}, cpu: {}, "
                            "ram: {}, ram_template: {}".format(h.id,
-                                                       statistics["cpu_percent_free"],
-                                                       statistics["ram_percent_free"],
-                                                       h.percent_ram_template))
+                                                              statistics["cpu_percent_free"],
+                                                              statistics["ram_percent_free"],
+                                                              h.percent_ram_template))
             condition_list = [cond_1, cond_2]
             if any(condition_list):  # Enter if there is any True value on condition_list
                 eval_log.debug("EVALUATE - Return False")
@@ -266,3 +268,20 @@ class EvalController(object):
                 return {"error": error_msg}
             [domains_id_list.append(ids.pop()) for i in range(n_dd)]
         return domains_id_list
+
+    def _get_statistics(self):
+        data = {}
+        for h in self.hyps:
+            statistics = h.get_eval_statistics()
+            data[h.id] = statistics
+        return data
+
+    def _get_final_statistics(self):
+        s = self._get_statistics()
+        domains = []
+        for id, h in s.items():
+            domains.extend(h["domains"])
+        d = {"hyps": s,
+             "total_started_domains": {"ids": domains,
+                                       "count": len(domains)}}
+        return d
