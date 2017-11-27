@@ -1,15 +1,7 @@
 from gevent.wsgi import WSGIServer
 
-from api import app
-from engine.models.manager_hypervisors import ManagerHypervisors
-from engine.services import db
-from engine.services.lib.functions import check_tables_populated
+from engine import app
 
-check_tables_populated()
-app.m = ManagerHypervisors()
-app.db = db
-# sleep(10)
-# get_threads_running()
 
 
 def run():

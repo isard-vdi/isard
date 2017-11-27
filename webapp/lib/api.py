@@ -308,8 +308,8 @@ class isard():
 
     def get_domain_derivates(self, id):
         with app.app_context():
-            disk=r.table('domains').get(id).pluck('hardware').run(db.conn)['hardware']['disks'][0]['file']
-            return list(r.table("domains").filter(lambda hardware: hardware['disks'][0]['backing_chain'].contains(disk)).pluck('id').run(db.conn))
+            return list(r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name','kind','user').run(db.conn))
+
 
     def get_graphics(self):
         with app.app_context():
