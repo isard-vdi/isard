@@ -720,8 +720,11 @@ class isard():
     def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-        parsed_name = self.parse_string(name)
-        id = '_' + user + '_' + parsed_name
+            parsed_name = self.parse_string(name)
+            id = '_' + user + '_' + parsed_name
+            # Checking if domain exists:
+            exists=r.table('domains').get(id)
+            if exists is not None: return False
         if kind=='public_template':
             ar=[]
             ac=[]
