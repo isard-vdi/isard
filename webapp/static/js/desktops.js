@@ -312,16 +312,6 @@ $(document).ready(function() {
         console.log('add or update')
         var data = JSON.parse(data);
         dtUpdateInsert(table,data,false);
-        //~ applyData(table,data,false)
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ table.row.add(data).draw();
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = table.row('#'+data.id); 
-          //~ table.row(row).data(data).invalidate();			
-		//~ }
-        //~ table.draw(false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
     
@@ -556,7 +546,7 @@ function renderAction(data){
         if(status=='Crashed'){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
         } 
-        return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Loading...</span></i> </div>';
+        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
 function renderHypStarted(data){
