@@ -6,7 +6,9 @@
 */
 
 var href = location.href;
-kind=href.match(/([^\/]*)\/*$/)[1];
+url=href.match(/([^\/]*)\/*$/)[1];
+if(url!="Desktops"){kind='template';}else{kind='desktop';}
+
 columns= [
 				{
                 "className":      'details-control',
@@ -25,7 +27,7 @@ columns= [
 				{ "data": "group"},
                 { "data": "accessed"},
                 ]
-if(kind!="Desktops"){
+if(url!="Desktops"){
     columns.push({"data": "derivates"});
 }
 
@@ -96,7 +98,7 @@ $(document).ready(function() {
             
 		domains_table= $('#domains').DataTable({
 			"ajax": {
-				"url": "/admin/domains/get/"+kind,
+				"url": "/admin/domains/get/"+url,
 				"dataSrc": ""
 			},
 			"language": {
@@ -392,7 +394,7 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
-    socket.on('desktop_data', function(data){
+    socket.on(kind+'_data', function(data){
         var data = JSON.parse(data);
         dtUpdateInsert(domains_table,data,false);
         //~ applyData(domains_table,data,false)
@@ -408,13 +410,13 @@ $(document).ready(function() {
         setDomainDetailButtonsStatus(data.id, data.status);
     });
     
-    socket.on('desktop_delete', function(data){
+    socket.on(kind+'_delete', function(data){
         console.log('delete')
         var data = JSON.parse(data);
         var row = domains_table.row('#'+data.id).remove().draw();
         new PNotify({
-                title: "Desktop deleted",
-                text: "Desktop "+data.name+" has been deleted",
+                title: kind+" deleted",
+                text: kind+" "+data.name+" has been deleted",
                 hide: true,
                 delay: 4000,
                 icon: 'fa fa-success',
@@ -618,19 +620,25 @@ function renderHypStarted(data){
 function renderAction(data){
     if(kind!="Bases" && kind!="Templates"){
 		status=data.status;
-        if(status=='Stopped' || status=='Failed'){
-            return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
-        }
-        if(status=='Started'){
-            return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
-        } 
         if(status=='Crashed'){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
         } 
-        return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Loading...</span></i> </div>';
-    }else{
-        return ''
-    }
+        if(status=='Stopped' || status=='Failed'){
+            if(url=='Desktops'){
+                return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
+            }else{
+                return '<i class="fa fa-play"></i>';
+            }
+        }
+        if(status=='Started'){
+            if(url=='Desktops'){
+                return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
+            }else{
+                return '<i class="fa fa-stop"></i>';
+            }
+        } 
+        
+        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
 
