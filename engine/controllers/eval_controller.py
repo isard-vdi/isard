@@ -6,6 +6,7 @@ from time import sleep
 from engine.models.hyp import hyp
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
     get_domains_id, get_domains_count, get_hypers_info
+from engine.services.evaluators.load_eval import LoadEval
 from engine.services.log import *
 
 # Example of data dict for create domain
@@ -69,7 +70,7 @@ DICT_CREATE = {'allowed': {'categories': False,
 
 
 class EvalController(object):
-    def __init__(self, id_pool="default", templates=[{'id': "_windows_7_x64_v3", 'weight': 100}]):
+    def __init__(self, id_pool="default", templates=[{'id': "_windows_7_x64_v3", 'weight': 100}], evaluators=["load"]):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
@@ -80,6 +81,14 @@ class EvalController(object):
                        'TEMPLATE_MEMORY': 2000}  # in MB, info duplicated on DICT_CREATE but in bytes
         self._init_domains()
         self._init_hyps()
+        self._init_evaluators(evaluators)
+
+    def _init_evaluators(self, evaluators):
+        self.evaluators = []
+        if "load" in evaluators:
+            evaluator = LoadEval(self.user['id'], self.id_pool, self.defined_domains, self.templates, self.hyps,
+                                 self.params)
+            self.evaluators.append(evaluator)
 
     def _init_hyps(self):
         self.hyps = []
@@ -177,31 +186,11 @@ class EvalController(object):
         for a in ids:
             update_domain_status('Deleting', a['id'])
 
-    def start_domains(self):
-        domains_id_list = self._get_domains_id_randomized()
-        total_domains = len(domains_id_list)
-        threshold = floor(total_domains / 2)
-        keep_starting = True
-        started_domains = 0
-        while (len(domains_id_list) and keep_starting):
-            upper_limit_random = len(domains_id_list) if len(domains_id_list) < threshold else threshold
-            n = randint(1, upper_limit_random)
-            eval_log.debug("Starting {} random domains".format(n))
-            started_domains += n
-            sleep_time = self.params["START_SLEEP_TIME"] * n
-            while (n):
-                id = domains_id_list.pop()
-                update_domain_status('Starting', id)
-                n -= 1
-            eval_log.debug("Waiting for next start {} seconds".format(sleep_time))
-            sleep(sleep_time)
-            keep_starting = self._evaluate()
-        return {"started_domains": started_domains}
-
     def run(self):
         """
-        Start all default domains for each configured pool, analyze statistics to evaluate hardware performance and stop them.
-        For real and exat evaluate must be run without any other domains running.
+        Run all default evaluators on specified pool.
+        Analyze statistics to evaluate hardware performance.
+        For real and exact evaluate must be run without any other domains running.
         :return:
         """
         data = {}
@@ -210,12 +199,12 @@ class EvalController(object):
         sleep(data_create.get("total_created_domains"))  # Wait 1 sec more for each created domain.
         data_stop = self.stop_domains()  # Stop domains if necessari
         sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
-        # Start domains and evaluate
-        data_start = self.start_domains()
-        data.update(data_start)
-        data_final_statistics = self._get_final_statistics()
-        data.update(data_final_statistics)
-        #self.stop_domains()
+        # Run evaluators
+        for e in self.evaluators:
+            d = e.run()
+            data.update(d)
+            data_stop = self.stop_domains()
+            sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
         return data
 
     def _create_eval_domain(self, id_t, i):
@@ -231,57 +220,3 @@ class EvalController(object):
         d['icon'] = t['icon']
         d['os'] = t['os']
         insert_domain(d)
-
-    def _evaluate(self):
-        """
-        Evaluate pool resources.
-        If pool arrive to Threshold, return False
-        :param id_pool:
-        :return:
-        """
-        for h in self.hyps:
-            statistics = h.get_eval_statistics()
-            cond_1 = statistics["cpu_percent_free"] < 10
-            cond_2 = statistics["ram_percent_free"] < h.percent_ram_template
-            eval_log.debug("EVALUATE - Hyp: {}, cpu: {}, "
-                           "ram: {}, ram_template: {}".format(h.id,
-                                                              statistics["cpu_percent_free"],
-                                                              statistics["ram_percent_free"],
-                                                              h.percent_ram_template))
-            condition_list = [cond_1, cond_2]
-            if any(condition_list):  # Enter if there is any True value on condition_list
-                eval_log.debug("EVALUATE - Return False")
-                return False
-        return True
-
-    def _get_domains_id_randomized(self):
-        dd = self.defined_domains
-        domains_id_list = []
-        for t in self.templates:
-            n_dd = dd[t['id']]  # defined domains number
-            ids = get_domains_id(self.user["id"], self.id_pool, origin=t['id'])
-            shuffle(ids)
-            if len(ids) < n_dd:
-                error_msg = "Error starting domains for eval template {}," \
-                            " needs {} domains and have {}".format(t['id'], n_dd, len(ids))
-                eval_log.error(error_msg)
-                return {"error": error_msg}
-            [domains_id_list.append(ids.pop()) for i in range(n_dd)]
-        return domains_id_list
-
-    def _get_statistics(self):
-        data = {}
-        for h in self.hyps:
-            statistics = h.get_eval_statistics()
-            data[h.id] = statistics
-        return data
-
-    def _get_final_statistics(self):
-        s = self._get_statistics()
-        domains = []
-        for id, h in s.items():
-            domains.extend(h["domains"])
-        d = {"hyps": s,
-             "total_started_domains": {"ids": domains,
-                                       "count": len(domains)}}
-        return d
