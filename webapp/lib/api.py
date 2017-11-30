@@ -723,7 +723,7 @@ class isard():
             parsed_name = self.parse_string(name)
             id = '_' + user + '_' + parsed_name
             # Checking if domain exists:
-            exists=r.table('domains').get(id)
+            exists=r.table('domains').get(id).run(db.conn)
             if exists is not None: return False
         if kind=='public_template':
             ar=[]
