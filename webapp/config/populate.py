@@ -6,8 +6,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-#~ from pprint import pprint
-
 import rethinkdb as r
 import time
 from webapp import app

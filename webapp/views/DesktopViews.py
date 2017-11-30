@@ -180,6 +180,10 @@ def hardware():
     dict['videos']=app.isardapi.get_alloweds(current_user.username,'videos',pluck=['id','name','description'],order='name')
     dict['boots']=app.isardapi.get_alloweds(current_user.username,'boots',pluck=['id','name','description'],order='name')
     dict['hypervisors_pools']=app.isardapi.get_alloweds(current_user.username,'hypervisors_pools',pluck=['id','name','description'],order='name')
+    dict['forced_hyps']=[]
+    if current_user.role == 'admin':
+        dict['forced_hyps']=app.adminapi.get_admin_table('hypervisors',['id','hostname','description','status'])
+    dict['forced_hyps'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
     dict['user']=app.isardapi.get_user(current_user.username)
     return json.dumps(dict)
 
@@ -414,6 +418,6 @@ def validCharacters(txt):
     else:
         return txt
 
-			
-		
-		
+            
+        
+        

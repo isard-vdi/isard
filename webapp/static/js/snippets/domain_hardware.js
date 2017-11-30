@@ -5,6 +5,7 @@
             $(id+" #hardware-videos").find('option').remove();
             $(id+" #hardware-boots").find('option').remove();
             $(id+" #hypervisors_pools").find('option').remove();
+            $(id+" #forced_hyp").find('option').remove();
             
 			api.ajax_async('/hardware','GET','').done(function(hardware) {
                 // Needs a hidden input to activate disabled dropdowns...
@@ -37,6 +38,12 @@
 				{   // hypervisors_pools is not inside hardware (take it into account when editing!)
 					$(id+" #hypervisors_pools").append('<option value=' + value.id + '>' + value.name + '</option>');
 				});
+
+				$.each(hardware.forced_hyps,function(key, value) 
+				{   // hypervisors_pools is not inside hardware (take it into account when editing!)
+					$(id+" #forced_hyp").append('<option value=' + value.id + '>' + value.hostname+' ('+value.status+')' + '</option>');
+				});
+                
 				$(id+" #hardware-memory").ionRangeSlider({
 						  type: "single",
 						  min: 500,
@@ -80,6 +87,9 @@
                 $(div_id+' #hardware-videos option[value="'+domain['hardware-video-type']+'"]').prop("selected",true);
                 $(div_id+' #hardware-boot_order option[value="'+domain['hardware-boot_order'][0]+'"]').prop("selected",true);
                 $(div_id+' #hypervisors_pools option[value="'+domain['hypervisors_pools'][0]+'"]').prop("selected",true);
+                if(domain['forced_hyp']){
+                    $(div_id+' #forced_hyp option[value="'+domain['forced_hyp']+'"]').prop("selected",true);
+                }
 				$(div_id+" #hardware-memory").data("ionRangeSlider").update({
 						  from: domain['hardware-memory']/1000
                 });
@@ -101,6 +111,12 @@
                 $(div_id+" #video").html(domain['hardware-video-type']);
                 $(div_id+" #boot").html(domain['hardware-boot_order']);
                 $(div_id+" #hypervisor_pool").html(domain['hypervisors_pools'][0]);
+                if(domain['forced_hyp']){
+                    $(div_id+" #forced_hyp").html(domain['forced_hyp']);
+                    $(div_id+" #forced_hyp").closest("tr").show();
+                }else{
+                    $(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
+                }
 			}); 
 	}
 
