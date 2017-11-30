@@ -7,6 +7,7 @@
 
 $hypervisor_template = $(".hyper-detail");
 
+
 $(document).ready(function() {
 	$('.btn-new-hyper').on('click', function () {
 			$('#modalAddHyper').modal({
@@ -101,7 +102,6 @@ $(document).ready(function() {
                                             ]
                                           });
                         })
-                        console.log(chart)
               }                             
     } );
 
@@ -116,13 +116,14 @@ $(document).ready(function() {
         }
         else {
             // Close other rows
-             if ( table.row( '.shown' ).length ) {
-                      $('.details-control', table.row( '.shown' ).node()).click();
-              }
+             //~ if ( table.row( '.shown' ).length ) {
+                      //~ $('.details-control', table.row( '.shown' ).node()).click();
+              //~ }
             // Open this row
             row.child( formatHypervisorPanel(row.data()) ).show();
             tr.addClass('shown');
             $('#status-detail-'+row.data().id).html(row.data().detail);
+            tableHypervisorDomains(row.data().id);
             actionsHyperDetail();
 
         }
@@ -155,7 +156,7 @@ $(document).ready(function() {
      
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['hyper'])
+        socket.emit('join_rooms',['hyper','domains_status'])
         console.log('Listening admins namespace');
     });
 
@@ -225,6 +226,26 @@ $(document).ready(function() {
                 type: data.type
         });
     });
+
+/////////////// DOMAINS STATUS EVENTS
+    socket.on('desktop_status', function(data){
+	  var data = JSON.parse(data);
+      dataset=getDataSet(data);
+            console.log('DESKTOP_STATUS FOR HYP: '+dataset.hyp);
+            console.log('DESKTOP_STATUS DICT BEFORE: ')
+            console.log(domains_table)
+      if($('#domains-table-'+dataset.hyp).is(':visible')){
+        dtUpdateInsert(domains_table[dataset.hyp],dataset,false)
+      }
+      console.log('DESKTOP_STATUS DICT AFTER: ')
+      console.log(domains_table);
+    });
+    
+    socket.on('desktop_stopped', function(data){
+	  var data = JSON.parse(data);
+      removeData(domains_table[data.hyp],data)
+    });
+
 
 });// document ready
 
@@ -358,3 +379,74 @@ function renderStatus(data){
 function renderGraph(data){
     return '<div class="epoch category40" id="chart-'+data.id+'" style="width: 220px; height: 50px;"></div>'
 }
+
+
+
+//////// DOMAINS STATUS EVENTS
+domains_table={}
+function tableHypervisorDomains(hyp){
+    domains_table[hyp]= $('#domains-table-'+hyp).DataTable({
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+			"rowId": "id",
+            //~ "iDisplayLength": 2,
+			"columns": [
+                { "data": "name"},
+				{ "data": "className"},
+				{ "data": "size"},
+                { "data": "net_rw"},
+                { "data": "disk_rw"}],
+			 "order": [[3, 'desc']],
+			 "columnDefs": [ {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+							  return full.size+'%';
+							}},
+                            {
+							"targets": 3,
+							"render": function ( data, type, full, meta ) {
+							  return full.net_rw+'B/s';
+							}},
+                            {
+							"targets": 4,
+							"render": function ( data, type, full, meta ) {
+							  return full.size+'B/s';
+							}}],
+    } );
+    console.log('initialized')
+    console.log(domains_table)
+}
+
+function getDataSet(data){
+    cpu=data['status']['cpu_usage']*100
+    if(cpu<0.1){
+        cpu=0.1;
+    }else{
+        cpu=(cpu).toFixed(1);
+    }
+    return {id: data['id'],
+            name: data['name'], 
+            hyp: data['hyp_started'], 
+            className: data['os'].toLowerCase().replace(/ /g,''), 
+            size: cpu,
+            disk_rw: (data['status']['disk_rw']['block_w_bytes_per_sec']+data['status']['disk_rw']['block_r_bytes_per_sec']).toFixed(1),
+            net_rw: (data['status']['net_rw']['net_w_bytes_per_sec']+data['status']['net_rw']['net_r_bytes_per_sec']).toFixed(1),
+            };
+}
+   
+function removeData(table,data){
+        var index;
+        for (var x = 0;x < data.length;x++){
+            //Find row index by rowId if row exists
+            index = table.row('#' + data[x].id);
+             
+            //Update row data if existing, and invalidate for redraw
+            if(index.length > 0){
+                table.row(index[0]).remove();
+            }
+        }
+    //Redraw table maintaining paging
+    table.draw(false);
+}
+ 
