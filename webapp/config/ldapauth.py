@@ -40,7 +40,7 @@ class myLdapAuth(object):
             }
         '''
         myuser={  'id':username,
-                'name':info[1]['displayName'][0].decode('utf-8'),
+                'name':username if 'displayName' not in info[1].keys() else info[1]['displayName'][0].decode('utf-8'),
                 'kind':'ldap',
                 'active':True,
                 'username':username,
