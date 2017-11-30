@@ -560,56 +560,64 @@ function actionsDomainDetail(){
             modal_edit_desktop_datatables(pk);
 	});
 
-	$('.btn-template').on('click', function () {
-		if($('.quota-templates .perc').text() >=100){
-            new PNotify({
-                title: "Quota for creating templates full.",
-                text: "Can't create another template, quota full.",
-                hide: true,
-                delay: 3000,
-                icon: 'fa fa-alert-sign',
-                opacity: 1,
-                type: 'error'
-            });
-		}else{	
-			var pk=$(this).closest("div").attr("data-pk");
-			setDefaultsTemplate(pk);
-			setHardwareOptions('#modalTemplateDesktop');
-			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
-			$('#modalTemplateDesktop').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-        }
-	});
 
-	$('.btn-delete').on('click', function () {
-				var pk=$(this).closest("div").attr("data-pk");
-				var name=$(this).closest("div").attr("data-name");
-				new PNotify({
-						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete virtual machine: "+name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							stack: stack_center
-						}).get().on('pnotify.confirm', function() {
-							api.ajax('/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-                                //Should return something about the result...
-							});  
-						}).on('pnotify.cancel', function() {
-				});	
-	});
-    
+    if(url=="Desktops"){
+
+        $('.btn-template').on('click', function () {
+            if($('.quota-templates .perc').text() >=100){
+                new PNotify({
+                    title: "Quota for creating templates full.",
+                    text: "Can't create another template, quota full.",
+                    hide: true,
+                    delay: 3000,
+                    icon: 'fa fa-alert-sign',
+                    opacity: 1,
+                    type: 'error'
+                });
+            }else{	
+                var pk=$(this).closest("div").attr("data-pk");
+                setDefaultsTemplate(pk);
+                setHardwareOptions('#modalTemplateDesktop');
+                setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+                $('#modalTemplateDesktop').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
+            }
+        });
+
+        $('.btn-delete').on('click', function () {
+                    var pk=$(this).closest("div").attr("data-pk");
+                    var name=$(this).closest("div").attr("data-name");
+                    new PNotify({
+                            title: 'Confirmation Needed',
+                                text: "Are you sure you want to delete virtual machine: "+name+"?",
+                                hide: false,
+                                opacity: 0.9,
+                                confirm: {
+                                    confirm: true
+                                },
+                                buttons: {
+                                    closer: false,
+                                    sticker: false
+                                },
+                                history: {
+                                    history: false
+                                },
+                                stack: stack_center
+                            }).get().on('pnotify.confirm', function() {
+                                api.ajax('/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
+                                    //Should return something about the result...
+                                });  
+                            }).on('pnotify.cancel', function() {
+                    });	
+        });
+        
+    }else{
+        $('.btn-edit').remove()  // This line should be removed when start paused without disk is tested.
+        $('.btn-delete').remove()
+        $('.btn-template').remove()
+    }
 }
 
 function setDefaultsTemplate(id) {
