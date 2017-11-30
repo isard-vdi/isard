@@ -18,7 +18,7 @@ from engine.services.db import update_domain_viewer_started_values, update_table
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
-    update_domain_status
+    update_domain_status, get_domain_force_hyp, get_hypers_in_pool
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
@@ -139,7 +139,19 @@ class UiActions(object):
     def start_domain_from_xml(self, xml, id_domain, pool_id='default'):
         failed = False
         if pool_id in self.manager.pools.keys():
-            next_hyp = self.manager.pools[pool_id].get_next()
+            force_hyp = get_domain_force_hyp(id_domain)
+            if force_hyp is not False:
+                hyps_in_pool = get_hypers_in_pool(pool_id, only_online=False)
+                if force_hyp in hyps_in_pool:
+                    next_hyp = force_hyp
+                else:
+                    log.error('force hypervisor failed for doomain {}: {}  not in hypervisors pool {}'.format(id_domain,
+                                                                                                              force_hyp,
+                                                                                                              pool_id))
+                    next_hyp = self.manager.pools[pool_id].get_next()
+            else:
+                next_hyp = self.manager.pools[pool_id].get_next()
+
             if next_hyp is not False:
                 update_domain_status(status='Starting',
                                      id_domain=id_domain,

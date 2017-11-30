@@ -28,6 +28,18 @@ def update_domain_progress(id_domain, percent):
     close_rethink_connection(r_conn)
     return results
 
+def update_domain_force_hyp(id_domain, hyp_id=None):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    if hyp_id is None:
+        hyp_id = ''
+
+    results = rtable.get_all(id_domain, index='id').update({'force_hyp' : hyp_id}).run(r_conn)
+
+    close_rethink_connection(r_conn)
+    return results
+
 
 def update_domain_status(status, id_domain, hyp_id=None, detail=''):
     r_conn = new_rethink_connection()
@@ -363,6 +375,31 @@ def get_pool_from_domain(domain_id):
     close_rethink_connection(r_conn)
     return pool
 
+def get_domain_force_hyp(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    results = list(rtable.get_all(id_domain, index='id').pluck('force_hyp').run(r_conn))
+
+    close_rethink_connection(r_conn)
+
+    #id_domain doesn't exist
+    if len(results) == 0:
+        return False
+
+    #force hyp doesn't exist as key in domain dict
+    if len(results[0]) == 0:
+        return False
+
+
+    if type(results[0]['force_hyp'] is str):
+        if len(results[0]['force_hyp']) > 0:
+            return results[0]['force_hyp']
+        else:
+            return False
+    else:
+        return False
+
 
 def get_domain(id):
     r_conn = new_rethink_connection()
@@ -387,7 +424,9 @@ def get_disks_all_domains():
     rtable = r.table('domains')
 
     domains_info_disks = rtable.pluck('id', {'hardware': [{'disks': ['file']}]}).run(r_conn)
-    tuples_id_disk = [(d['id'], d['hardware']['disks'][0]['file']) for d in domains_info_disks]
+
+    tuples_id_disk = [(d['id'], d['hardware']['disks'][0]['file']) for d in domains_info_disks if 'hardware' in d.keys()]
+
     close_rethink_connection(r_conn)
     return tuples_id_disk
 
