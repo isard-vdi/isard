@@ -614,7 +614,6 @@ function actionsDomainDetail(){
         });
         
     }else{
-        $('.btn-edit').remove()  // This line should be removed when start paused without disk is tested.
         $('.btn-delete').remove()
         $('.btn-template').remove()
     }
