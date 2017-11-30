@@ -309,16 +309,6 @@ $(document).ready(function() {
         console.log('add or update')
         var data = JSON.parse(data);
         dtUpdateInsert(table,data,false);
-        //~ applyData(table,data,false)
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ table.row.add(data).draw();
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = table.row('#'+data.id); 
-          //~ table.row(row).data(data).invalidate();			
-		//~ }
-        //~ table.draw(false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
     
@@ -372,6 +362,7 @@ $(document).ready(function() {
         if(data.result){
             $("#modalEdit")[0].reset();
             $("#modalEditDesktop").modal('hide');
+            setHardwareDomainDefaults_viewer('#hardware-'+data.id,data.id);
         }
         new PNotify({
                 title: data.title,
@@ -567,10 +558,11 @@ function renderAction(data){
         if(status=='Crashed'){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
         } 
-        return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Loading...</span></i> </div>';
+        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
 function renderHypStarted(data){
+        if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
         if('hyp_started' in data){ return data.hyp_started;}
 		return '';
 }
@@ -759,6 +751,7 @@ function modal_edit_desktop_datatables(id){
 		success: function(data)
 		{
             console.log(data)
+            $('#modalEditDesktop #forced_hyp').closest("div").remove();
 			$('#modalEditDesktop #name_hidden').val(data.name);
             $('#modalEditDesktop #name').val(data.name);
 			$('#modalEditDesktop #description').val(data.description);

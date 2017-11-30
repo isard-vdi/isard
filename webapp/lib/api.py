@@ -308,8 +308,8 @@ class isard():
 
     def get_domain_derivates(self, id):
         with app.app_context():
-            disk=r.table('domains').get(id).pluck('hardware').run(db.conn)['hardware']['disks'][0]['file']
-            return list(r.table("domains").filter(lambda hardware: hardware['disks'][0]['backing_chain'].contains(disk)).pluck('id').run(db.conn))
+            return list(r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name','kind','user').run(db.conn))
+
 
     def get_graphics(self):
         with app.app_context():
@@ -720,8 +720,11 @@ class isard():
     def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-        parsed_name = self.parse_string(name)
-        id = '_' + user + '_' + parsed_name
+            parsed_name = self.parse_string(name)
+            id = '_' + user + '_' + parsed_name
+            # Checking if domain exists:
+            exists=r.table('domains').get(id).run(db.conn)
+            if exists is not None: return False
         if kind=='public_template':
             ar=[]
             ac=[]

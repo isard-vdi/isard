@@ -30,7 +30,7 @@ def stop_last_domain_status(name):
     try:
         return rtable. \
             get_all(name, index='name'). \
-            nth(-1).update({'state': 'stopped', 'state_reason': 'not running'}). \
+            nth(-1).update({'state': 'Stopped', 'state_reason': 'not running'}). \
             run(r_conn)
         close_rethink_connection(r_conn)
     except:

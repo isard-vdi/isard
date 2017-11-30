@@ -6,18 +6,11 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-#~ from pprint import pprint
-
-import random
-import string
-import time
-
 import rethinkdb as r
-
+import time
 from webapp import app
 from ..lib.flask_rethink import RethinkDB
 from ..lib.log import *
-
 db = RethinkDB(app)
 db.init_app(app)
 

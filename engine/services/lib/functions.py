@@ -959,20 +959,26 @@ def size_format(b):
 
 
 def check_all_backing_chains(hostname, path_to_write_json=None):
-    tuples_domsin_disk = get_disks_all_domains()
+    from pprint import pprint
+    tuples_domain_disk = get_disks_all_domains()
+    pprint(tuples_domain_disk)
     cmds1 = list()
-    for domain_id, path_domain_disk in tuples_domsin_disk:
+    for domain_id, path_domain_disk in tuples_domain_disk:
         cmds1.append({'title': domain_id, 'cmd': backing_chain_cmd(path_domain_disk)})
         cmds1.append({'title': domain_id, 'cmd': 'stat -c %Y "{}"'.format(path_domain_disk)})
-        break
 
+
+    pprint(cmds1)
     array_out_err = execute_commands(hostname, cmds1, dict_mode=True)
-    from pprint import pprint
+    return array_out_err
+
     pprint(array_out_err)
     if path_to_write_json is not None:
         dict_stats = analize_backing_chains_outputs(array_out_err=array_out_err,
                                                     path_to_write_json=path_to_write_json)
-    return dict_stats
+        return dict_stats
+    else:
+        return array_out_err
 
 
 def cmd_check_os(path_disk):

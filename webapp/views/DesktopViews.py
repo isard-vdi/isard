@@ -180,6 +180,10 @@ def hardware():
     dict['videos']=app.isardapi.get_alloweds(current_user.username,'videos',pluck=['id','name','description'],order='name')
     dict['boots']=app.isardapi.get_alloweds(current_user.username,'boots',pluck=['id','name','description'],order='name')
     dict['hypervisors_pools']=app.isardapi.get_alloweds(current_user.username,'hypervisors_pools',pluck=['id','name','description'],order='name')
+    dict['forced_hyps']=[]
+    if current_user.role == 'admin':
+        dict['forced_hyps']=app.adminapi.get_admin_table('hypervisors',['id','hostname','description','status'])
+    dict['forced_hyps'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
     dict['user']=app.isardapi.get_user(current_user.username)
     return json.dumps(dict)
 
@@ -206,6 +210,13 @@ def domain_genealogy():
         print(str(e))
     #~ print(gen_ids)
     return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
+
+@app.route('/domain_derivates', methods=['POST'])
+@login_required
+@ownsid
+def domain_derivates():
+    return json.dumps(app.isardapi.get_domain_derivates(request.get_json(force=True)['pk']))
+
 
 @app.route('/domain', methods=['POST'])
 @login_required
@@ -407,6 +418,6 @@ def validCharacters(txt):
     else:
         return txt
 
-			
-		
-		
+            
+        
+        
