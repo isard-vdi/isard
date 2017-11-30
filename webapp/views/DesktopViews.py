@@ -207,6 +207,13 @@ def domain_genealogy():
     #~ print(gen_ids)
     return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
 
+@app.route('/domain_derivates', methods=['POST'])
+@login_required
+@ownsid
+def domain_derivates():
+    return json.dumps(app.isardapi.get_domain_derivates(request.get_json(force=True)['pk']))
+
+
 @app.route('/domain', methods=['POST'])
 @login_required
 def domain():
