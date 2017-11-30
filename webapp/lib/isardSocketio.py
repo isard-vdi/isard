@@ -424,7 +424,8 @@ def socketio_iso_add(form_data):
                         namespace='/sio_users', 
                         room='user_'+current_user.username)
     else:
-        dict = {**form_data, **iso}
+        #dict = {**form_data, **iso}
+        dict = {}
         dict['status']='Starting'
         dict['percentage']=0
         res = app.isardapi.add_dict2table(dict,'isos')
