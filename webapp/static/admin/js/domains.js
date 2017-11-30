@@ -678,6 +678,7 @@ function renderStatus(data){
 }
 
 function renderHypStarted(data){
+        if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
         if('hyp_started' in data){ return data.hyp_started;}
 		return '';
 }
@@ -725,7 +726,7 @@ function modal_edit_desktop_datatables(id){
             //~ $('#modalEditDesktop #datatables-error-status').val(data);
 		}				
 	});
-
+}
     $("#modalEditDesktop #send").on('click', function(e){
             var form = $('#modalEdit');
             form.parsley().validate();
@@ -736,7 +737,7 @@ function modal_edit_desktop_datatables(id){
                     console.log('is valid form')
             }
         });
-}
+
 
 
 
