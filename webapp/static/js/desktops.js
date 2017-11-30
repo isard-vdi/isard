@@ -362,6 +362,7 @@ $(document).ready(function() {
         if(data.result){
             $("#modalEdit")[0].reset();
             $("#modalEditDesktop").modal('hide');
+            setHardwareDomainDefaults_viewer('#hardware-'+data.id,data.id);
         }
         new PNotify({
                 title: data.title,
@@ -561,6 +562,7 @@ function renderAction(data){
 }	
 
 function renderHypStarted(data){
+        if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
         if('hyp_started' in data){ return data.hyp_started;}
 		return '';
 }
@@ -749,6 +751,7 @@ function modal_edit_desktop_datatables(id){
 		success: function(data)
 		{
             console.log(data)
+            $('#modalEditDesktop #forced_hyp').closest("div").remove();
 			$('#modalEditDesktop #name_hidden').val(data.name);
             $('#modalEditDesktop #name').val(data.name);
 			$('#modalEditDesktop #description').val(data.description);

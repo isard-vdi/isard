@@ -455,13 +455,17 @@ def update_hypervisor_failed_connection(id, fail_connected_reason=''):
 #     return return_operations
 
 
-def get_hypers_in_pool(id_pool='default', ready_to_start=False, enable=True):
+def get_hypers_in_pool(id_pool='default', only_online=True):
     r_conn = new_rethink_connection()
     rtable = r.table('hypervisors')
     return_operations = []
 
-    l = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+    if only_online:
+        l = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
              filter({'status': 'Online'}).pluck('id').run(r_conn))
+    else:
+        l = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                 pluck('id').run(r_conn))
 
     hyp_ids = [a['id'] for a in l]
 
