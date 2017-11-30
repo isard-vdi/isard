@@ -6,7 +6,6 @@ from time import sleep
 from engine.models.hyp import hyp
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
     get_domains_id, get_domains_count, get_hypers_info
-from engine.services.evaluators.load_eval import LoadEval
 from engine.services.log import *
 
 # Example of data dict for create domain
@@ -70,7 +69,7 @@ DICT_CREATE = {'allowed': {'categories': False,
 
 
 class EvalController(object):
-    def __init__(self, id_pool="default", templates=[{'id': "_windows_7_x64_v3", 'weight': 100}], evaluators=["load"]):
+    def __init__(self, id_pool="default", templates=[{'id': "_windows_7_x64_v3", 'weight': 100}], evaluators=["ux"]):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
@@ -87,6 +86,10 @@ class EvalController(object):
         self.evaluators = []
         if "load" in evaluators:
             evaluator = LoadEval(self.user['id'], self.id_pool, self.defined_domains, self.templates, self.hyps,
+                                 self.params)
+            self.evaluators.append(evaluator)
+        if "ux" in evaluators:
+            evaluator = UXEval(self.user['id'], self.id_pool, self.defined_domains, self.templates, self.hyps,
                                  self.params)
             self.evaluators.append(evaluator)
 
@@ -163,16 +166,17 @@ class EvalController(object):
         return {"total_created_domains": total_created_domains,
                 "data": data}
 
-    def stop_domains(self):
+    @classmethod
+    def stop_domains(cls, user_id, stop_sleep_time):
         """
         Stop domains if they are started.
         :return:
         """
-        domains = get_domains(self.user["id"], status="Started")
+        domains = get_domains(user_id, status="Started")
         eval_log.info("Stoping {} domains".format(len(domains)))
         for d in domains:
             update_domain_status('Stopping', d['id'], hyp_id=d['hyp_started'])
-            sleep(self.params["STOP_SLEEP_TIME"])
+            sleep(stop_sleep_time)
         return {"total_stopped_domains": len(domains),
                 "data": None}
 
@@ -197,13 +201,14 @@ class EvalController(object):
 
         data_create = self.create_domains()  # Create domains if necessari
         sleep(data_create.get("total_created_domains"))  # Wait 1 sec more for each created domain.
-        data_stop = self.stop_domains()  # Stop domains if necessari
+        data_stop = EvalController.stop_domains(self.user['id'],
+                                                self.params["STOP_SLEEP_TIME"])  # Stop domains if necessari
         sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
         # Run evaluators
         for e in self.evaluators:
             d = e.run()
             data.update(d)
-            data_stop = self.stop_domains()
+            data_stop = EvalController.stop_domains(self.user['id'], self.params["STOP_SLEEP_TIME"])
             sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
         return data
 
@@ -220,3 +225,6 @@ class EvalController(object):
         d['icon'] = t['icon']
         d['os'] = t['os']
         insert_domain(d)
+
+from engine.services.evaluators.load_eval import LoadEval
+from engine.services.evaluators.ux_eval import UXEval
