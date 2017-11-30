@@ -121,6 +121,16 @@ def update_all_domains_status(reset_status='Stopped',
     close_rethink_connection(r_conn)
     return results
 
+def get_domain_kind(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    results = rtable.get(id_domain).pluck('kind').run(r_conn)
+    close_rethink_connection(r_conn)
+    if results is None:
+        return ''
+
+    return results['kind']
+
 
 def get_domain_hyp_started(id_domain):
     r_conn = new_rethink_connection()
