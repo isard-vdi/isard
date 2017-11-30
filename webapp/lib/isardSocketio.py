@@ -384,16 +384,36 @@ def socketio_domain_edit(form_data):
     create_dict=parseHardware(create_dict)
     create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
     create_dict.pop('hardware',None)
-    res=app.isardapi.update_domain(create_dict)
+    res=app.isardapi.update_domain(create_dict.copy())
     if res is True:
-        data=json.dumps({'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
     socketio.emit('edit_form_result',
                     data,
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
+@socketio.on('domain_edit', namespace='/sio_admins')
+def socketio_admins_domain_edit(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    print('in domain edit')
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict.pop('hardware',None)
+    res=app.isardapi.update_domain(create_dict.copy())
+    if res is True:
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('edit_form_result',
+                    data,
+                    namespace='/sio_admins', 
+                    room='domains')
+                    
 def parseHardware(create_dict):
     if 'hardware' not in create_dict.keys():
         #~ Hardware is not in create_dict

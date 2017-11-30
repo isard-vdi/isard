@@ -362,6 +362,7 @@ $(document).ready(function() {
         if(data.result){
             $("#modalEdit")[0].reset();
             $("#modalEditDesktop").modal('hide');
+            setHardwareDomainDefaults_viewer('#hardware-'+data.id,data.id);
         }
         new PNotify({
                 title: data.title,
