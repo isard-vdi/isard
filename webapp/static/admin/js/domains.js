@@ -457,6 +457,24 @@ $(document).ready(function() {
                 type: data.type
         });
     });
+    
+    socket.on('edit_form_result', function (data) {
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalEdit")[0].reset();
+            $("#modalEditDesktop").modal('hide');
+            setHardwareDomainDefaults_viewer('#hardware-'+data.id,data.id);
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
 
 
     //~ // Stream domains_source
@@ -529,7 +547,40 @@ $(document).ready(function() {
 function actionsDomainDetail(){
     
 	$('.btn-edit').on('click', function () {
-            //Not implemented
+            var pk=$(this).closest("div").attr("data-pk");
+            console.log(pk)
+			setHardwareOptions('#modalEditDesktop');
+            $("#modalEdit")[0].reset();
+			$('#modalEditDesktop').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+             $('#hardware-block').hide();
+            $('#modalEdit').parsley();
+            modal_edit_desktop_datatables(pk);
+	});
+
+	$('.btn-template').on('click', function () {
+		if($('.quota-templates .perc').text() >=100){
+            new PNotify({
+                title: "Quota for creating templates full.",
+                text: "Can't create another template, quota full.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: 'error'
+            });
+		}else{	
+			var pk=$(this).closest("div").attr("data-pk");
+			setDefaultsTemplate(pk);
+			setHardwareOptions('#modalTemplateDesktop');
+			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+			$('#modalTemplateDesktop').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+        }
 	});
 
 	$('.btn-delete').on('click', function () {
@@ -559,6 +610,20 @@ function actionsDomainDetail(){
 				});	
 	});
     
+}
+
+function setDefaultsTemplate(id) {
+	$.ajax({
+		type: "GET",
+		url:"/desktops/templateUpdate/" + id,
+		success: function(data)
+		{
+			$('.template-id').val(id);
+			$('.template-id').attr('data-pk', id);
+            $('.template-name').val('Template '+data.name);
+            $('.template-description').val(data.description);
+		}				
+	});
 }
 
 //~ RENDER DATATABLE	
@@ -613,6 +678,7 @@ function renderStatus(data){
 }
 
 function renderHypStarted(data){
+        if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
         if('hyp_started' in data){ return data.hyp_started;}
 		return '';
 }
@@ -639,6 +705,38 @@ function renderAction(data){
         
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
+
+
+// MODAL EDIT DESKTOP
+function modal_edit_desktop_datatables(id){
+	$.ajax({
+		type: "GET",
+		url:"/desktops/templateUpdate/" + id,
+		success: function(data)
+		{
+            console.log(data)
+			$('#modalEditDesktop #name_hidden').val(data.name);
+            $('#modalEditDesktop #name').val(data.name);
+			$('#modalEditDesktop #description').val(data.description);
+            $('#modalEditDesktop #id').val(data.id);
+            setHardwareDomainDefaults('#modalEditDesktop', id);
+            //~ $('#modalEditDesktop #hardware-interfaces').val(data['create_dict-hardware-interfaces'][0]);
+            //~ $('#modalEditDesktop #hardware-vcpus').val(data['create_dict-hardware-vcpus']);
+            //~ $hm.value = 5; //parseInt(data['create_dict-hardware-vcpus'])
+            //~ $('#modalEditDesktop #datatables-error-status').val(data);
+		}				
+	});
+}
+    $("#modalEditDesktop #send").on('click', function(e){
+            var form = $('#modalEdit');
+            form.parsley().validate();
+            if (form.parsley().isValid()){
+                    data=$('#modalEdit').serializeObject();
+                    console.log(data);
+                    socket.emit('domain_edit',data)
+                    console.log('is valid form')
+            }
+        });
 
 
 
