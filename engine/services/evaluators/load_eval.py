@@ -72,6 +72,7 @@ class LoadEval(EvaluatorInterface):
         return True
 
     def _get_domains_id_randomized(self):
+        # TODO: CANVIAR PER Classmethod de EvalController
         dd = self.defined_domains
         domains_id_list = []
         for t in self.templates:

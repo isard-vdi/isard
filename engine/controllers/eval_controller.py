@@ -90,7 +90,7 @@ class EvalController(object):
             self.evaluators.append(evaluator)
         if "ux" in evaluators:
             evaluator = UXEval(self.user['id'], self.id_pool, self.defined_domains, self.templates, self.hyps,
-                                 self.params)
+                               self.params)
             self.evaluators.append(evaluator)
 
     def _init_hyps(self):
@@ -180,6 +180,21 @@ class EvalController(object):
         return {"total_stopped_domains": len(domains),
                 "data": None}
 
+    @classmethod
+    def get_domains_id_randomized(self, user_id, id_pool, dd, templates):
+        domains_id_list = []
+        for t in templates:
+            n_dd = dd[t['id']]  # defined domains number
+            ids = get_domains_id(user_id, id_pool, origin=t['id'])
+            shuffle(ids)
+            if len(ids) < n_dd:
+                error_msg = "Error starting domains for eval template {}," \
+                            " needs {} domains and have {}".format(t['id'], n_dd, len(ids))
+                eval_log.error(error_msg)
+                return {"error": error_msg}
+            [domains_id_list.append(ids.pop()) for i in range(n_dd)]
+        return domains_id_list
+
     def destroy_domains(self):
         """
         Remove all eval domains.
@@ -225,6 +240,7 @@ class EvalController(object):
         d['icon'] = t['icon']
         d['os'] = t['os']
         insert_domain(d)
+
 
 from engine.services.evaluators.load_eval import LoadEval
 from engine.services.evaluators.ux_eval import UXEval
