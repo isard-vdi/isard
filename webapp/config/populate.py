@@ -609,7 +609,7 @@ class Populate(object):
         #~ docker=int(rcfg.get('DOCKER', 'ACTIVE'))
         
         with app.app_context():
-            if not r.table_list().contains('hypervisors').run(db.conn):
+            #if not r.table_list().contains('hypervisors').run(db.conn):
                 log.info("Table hypervisors not found, creating and populating with localhost")
                 r.table_create('hypervisors', primary_key="id").run(db.conn)
 
@@ -637,7 +637,7 @@ class Populate(object):
             #~ rhypers = r.table('hypervisors')
             ## Is a docker and there are no hypers yet
             ## We assume this as a 'first boot configuration'
-                docker=False
+                docker=True
                 if docker and rhypers.count().run(db.conn) == 0:
                     for key,val in dict(rcfg.items('DEFAULT_HYPERVISORS')).items():
                         vals=val.split(',')

@@ -555,10 +555,10 @@ def update_domain_history_status(domain_id, new_status, when, history_domain, de
 def get_history_domain(domain_id):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
-    results = rtable.get(domain_id).pluck('history_domain').run(r_conn)
+    result = rtable.get(domain_id).pluck('history_domain').run(r_conn)
 
     close_rethink_connection(r_conn)
-    return results
+    return list(result['history_domain'])
 
 def get_domain_spice(id_domain):
     r_conn = new_rethink_connection()
