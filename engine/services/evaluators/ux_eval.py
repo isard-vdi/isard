@@ -27,8 +27,8 @@ class UXEval(EvaluatorInterface):
         data = {}
         self._calcule_ux()
         data["ux"] = self.ux
-        self._start_domains()
-
+        data.update(self._start_domains())
+        eval_log.debug("FINAL: {}".format(pformat(data)))
         return data
 
     def _calcule_ux(self):
@@ -92,6 +92,8 @@ class UXEval(EvaluatorInterface):
                                                                    self.templates)
         total_domains = len(domains_id_list)
         start_domains = step_domains = floor(total_domains / self.steps)
+        step = 0
+        total_results = []
         while (start_domains <= total_domains):
             eval_log.info("Starting {} domains for ux eval".format(start_domains))
             domains_ids = domains_id_list[:start_domains]
@@ -106,6 +108,9 @@ class UXEval(EvaluatorInterface):
 
             for i in range(len(threads)):
                 threads[i].join()
+            data_results = self._analyze_results(results)
+            total_results.append(data_results["total_mean"])
+            data["step_{}".format(step)] = data_results
             eval_log.debug("RESULTS: {}".format(pformat(results)))
 
             if start_domains < total_domains and start_domains + step_domains > total_domains:
@@ -113,7 +118,9 @@ class UXEval(EvaluatorInterface):
             else:
                 start_domains += step_domains
             sleep(10)  # Realxing time
+            step += 1
 
+        data["total_mean"] = self._analyze_total_results(total_results)
         return data
 
     def _calcule_ux_background(self, domain_id, results, thread_id):
@@ -148,8 +155,91 @@ class UXEval(EvaluatorInterface):
         eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
         # Compare ux with initial ux
         initial_ux = self.ux[template_id][hyp_id]
+        i_mean = initial_ux["cpu_idle"]["mean"]
+        inefficiency = {"cpu_idle": {"mean": round(ux["cpu_idle"]["mean"] / initial_ux["cpu_idle"]["mean"], 2),
+                                     "stdev": round(ux["cpu_idle"]["stdev"] / initial_ux["cpu_idle"]["stdev"], 2)},
+                        "cpu_iowait": {"mean": round(ux["cpu_iowait"]["mean"] / initial_ux["cpu_iowait"]["mean"], 2),
+                                       "stdev": round(ux["cpu_iowait"]["stdev"] / initial_ux["cpu_iowait"]["stdev"],
+                                                      2)},
+                        "execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)
+                        }
         data = {'domain_id': domain_id,
                 'hyp_id': hyp_id,
-                'initial_ux': initial_ux,
-                'real_ux': ux}
+                'ux': ux,
+                'inefficiency': inefficiency}
         results[thread_id] = data
+
+    def _analyze_results(self, results):
+        data_results = {}
+        for r in results:
+            hyp_id = r.get("hyp_id")
+            if hyp_id:
+                if hyp_id not in data_results:
+                    data_results[hyp_id] = {"cpu_idle": {"mean": [],
+                                                         "stdev": []},
+                                            "cpu_iowait": {"mean": [],
+                                                           "stdev": []},
+                                            "execution_time": []
+                                            }
+                data_results[hyp_id]["cpu_idle"]["mean"].append(r["inefficiency"]["cpu_idle"]["mean"])
+                data_results[hyp_id]["cpu_idle"]["stdev"].append(r["inefficiency"]["cpu_idle"]["stdev"])
+                data_results[hyp_id]["cpu_iowait"]["mean"].append(r["inefficiency"]["cpu_iowait"]["mean"])
+                data_results[hyp_id]["cpu_iowait"]["stdev"].append(r["inefficiency"]["cpu_iowait"]["stdev"])
+                data_results[hyp_id]["execution_time"].append(r["inefficiency"]["execution_time"])
+        total = {"cpu_idle": {"mean": [],
+                              "stdev": []},
+                 "cpu_iowait": {"mean": [],
+                                "stdev": []},
+                 "execution_time": []
+                 }
+
+        for k, r in data_results.items():
+            m = round(mean(r["cpu_idle"]["mean"]), 2)
+            total["cpu_idle"]["mean"].append(m)
+            r["cpu_idle"]["mean"] = m
+
+            m = round(mean(r["cpu_idle"]["stdev"]), 2)
+            total["cpu_idle"]["stdev"].append(m)
+            r["cpu_idle"]["stdev"] = m
+
+            m = round(mean(r["cpu_iowait"]["mean"]), 2)
+            total["cpu_iowait"]["mean"].append(m)
+            r["cpu_iowait"]["mean"] = m
+
+            m = round(mean(r["cpu_iowait"]["stdev"]), 2)
+            total["cpu_iowait"]["stdev"].append(m)
+            r["cpu_iowait"]["stdev"] = m
+
+            m = round(mean(r["execution_time"]), 2)
+            total["execution_time"].append(m)
+            r["execution_time"] = m
+
+        total["cpu_idle"]["mean"] = round(mean(total["cpu_idle"]["mean"]), 2)
+        total["cpu_idle"]["stdev"] = round(mean(total["cpu_idle"]["stdev"]), 2)
+        total["cpu_iowait"]["mean"] = round(mean(total["cpu_iowait"]["mean"]), 2)
+        total["cpu_iowait"]["stdev"] = round(mean(total["cpu_iowait"]["stdev"]), 2)
+        total["execution_time"] = round(mean(total["execution_time"]), 2)
+
+        data_results["total_mean"] = total
+        return data_results
+
+    def _analyze_total_results(self, results):
+        eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
+        total = {"cpu_idle": {"mean": [],
+                              "stdev": []},
+                 "cpu_iowait": {"mean": [],
+                                "stdev": []},
+                 "execution_time": []
+                 }
+        for r in results:
+            total["cpu_idle"]["mean"].append(r["cpu_idle"]["mean"])
+            total["cpu_idle"]["stdev"].append(r["cpu_idle"]["stdev"])
+            total["cpu_iowait"]["mean"].append(r["cpu_iowait"]["mean"])
+            total["cpu_iowait"]["stdev"].append(r["cpu_iowait"]["stdev"])
+            total["execution_time"].append(r["execution_time"])
+        total["cpu_idle"]["mean"] = round(mean(total["cpu_idle"]["mean"]), 2)
+        total["cpu_idle"]["stdev"] = round(mean(total["cpu_idle"]["stdev"]), 2)
+        total["cpu_iowait"]["mean"] = round(mean(total["cpu_iowait"]["mean"]), 2)
+        total["cpu_iowait"]["stdev"] = round(mean(total["cpu_iowait"]["stdev"]), 2)
+        total["execution_time"] = round(mean(total["execution_time"]), 2)
+        return total
