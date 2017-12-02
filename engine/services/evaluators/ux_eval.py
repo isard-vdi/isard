@@ -7,7 +7,7 @@ from threading import Thread
 
 from engine.controllers.eval_controller import EvalController
 from engine.services.db import update_domain_status, get_domains, get_domain_status, \
-    get_history_domain, get_all_hypervisor_status, update_domain_force_hyp, get_domain
+    get_history_domain, get_all_hypervisor_status, update_domain_force_hyp, get_domain, get_all_domain_status
 from engine.services.evaluators.evaluator_interface import EvaluatorInterface
 from engine.services.log import eval_log
 
@@ -22,6 +22,8 @@ class UXEval(EvaluatorInterface):
         self.params = params
         self.steps = 2  # How many steps will start domains
         self.ux = {}  # one key for each template
+        self.names = ["cpu_idle", "cpu_iowait", "cpu_usage"]
+        self.statistics = ["mean", "stdev"]
 
     def run(self):
         data = {}
@@ -71,20 +73,31 @@ class UXEval(EvaluatorInterface):
         stop_time = datetime.datetime.strptime(stop, format_time)
         execution_time = round((stop_time - start_time).total_seconds(), 2)
         eval_log.debug("EXECUTION TIME of domain {} in hypervisor {}: {}".format(domain_id, hyp_id, execution_time))
-        status = get_all_hypervisor_status(hyp_id, start=start_time.timestamp(), end=stop_time.timestamp())
+        hyp_status = get_all_hypervisor_status(hyp_id, start=start_time.timestamp(), end=stop_time.timestamp())
+        domain_status = get_all_domain_status(domain_id, start=start_time.timestamp(), end=stop_time.timestamp())
         cpu_idle = []
         cpu_iowait = []
-        for s in status:
+        cpu_usage = []
+        for s in hyp_status:
             if s["cpu_percent"]:
                 cpu_idle.append(s["cpu_percent"]["idle"])
                 cpu_iowait.append(s["cpu_percent"]["iowait"])
+        for s in domain_status:
+            cu = s["status"].get("cpu_usage")
+            if cu:
+                if cu < 0:
+                    cu = 0
+                cpu_usage.append(cu)
         ux = {"execution_time": execution_time,
-              "cpu_idle": {"max": max(cpu_idle), "min": min(cpu_idle), "mean": mean(cpu_idle),
-                           "stdev": stdev(cpu_idle)},
-              "cpu_iowait": {"max": max(cpu_iowait), "min": min(cpu_iowait), "mean": mean(cpu_iowait),
-                             "stdev": stdev(cpu_iowait)}}
+              "cpu_idle": self._statistics(cpu_idle),
+              "cpu_iowait": self._statistics(cpu_iowait),
+              "cpu_usage": self._statistics(cpu_usage)
+              }
         eval_log.debug(ux)
         return ux
+
+    def _statistics(self, list):
+        return {"max": max(list), "min": min(list), "mean": mean(list), "stdev": stdev(list)}
 
     def _start_domains(self):
         data = {}
@@ -155,14 +168,12 @@ class UXEval(EvaluatorInterface):
         eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
         # Compare ux with initial ux
         initial_ux = self.ux[template_id][hyp_id]
-        i_mean = initial_ux["cpu_idle"]["mean"]
-        inefficiency = {"cpu_idle": {"mean": round(ux["cpu_idle"]["mean"] / initial_ux["cpu_idle"]["mean"], 2),
-                                     "stdev": round(ux["cpu_idle"]["stdev"] / initial_ux["cpu_idle"]["stdev"], 2)},
-                        "cpu_iowait": {"mean": round(ux["cpu_iowait"]["mean"] / initial_ux["cpu_iowait"]["mean"], 2),
-                                       "stdev": round(ux["cpu_iowait"]["stdev"] / initial_ux["cpu_iowait"]["stdev"],
-                                                      2)},
-                        "execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)
-                        }
+        inefficiency = {"execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)}
+        for name in self.names:
+            inefficiency[name] = {}
+            for stat in self.statistics:
+                inefficiency[name][stat] = round(ux[name][stat] / initial_ux[name][stat], 2)
+
         data = {'domain_id': domain_id,
                 'hyp_id': hyp_id,
                 'ux': ux,
@@ -173,73 +184,58 @@ class UXEval(EvaluatorInterface):
         data_results = {}
         for r in results:
             hyp_id = r.get("hyp_id")
-            if hyp_id:
-                if hyp_id not in data_results:
-                    data_results[hyp_id] = {"cpu_idle": {"mean": [],
-                                                         "stdev": []},
-                                            "cpu_iowait": {"mean": [],
-                                                           "stdev": []},
-                                            "execution_time": []
-                                            }
-                data_results[hyp_id]["cpu_idle"]["mean"].append(r["inefficiency"]["cpu_idle"]["mean"])
-                data_results[hyp_id]["cpu_idle"]["stdev"].append(r["inefficiency"]["cpu_idle"]["stdev"])
-                data_results[hyp_id]["cpu_iowait"]["mean"].append(r["inefficiency"]["cpu_iowait"]["mean"])
-                data_results[hyp_id]["cpu_iowait"]["stdev"].append(r["inefficiency"]["cpu_iowait"]["stdev"])
-                data_results[hyp_id]["execution_time"].append(r["inefficiency"]["execution_time"])
-        total = {"cpu_idle": {"mean": [],
-                              "stdev": []},
-                 "cpu_iowait": {"mean": [],
-                                "stdev": []},
-                 "execution_time": []
-                 }
+            if hyp_id not in data_results:
+                data_results[hyp_id] = {"execution_time": []}
+                for name in self.names:
+                    data_results[hyp_id][name] = {}
+                    for stat in self.statistics:
+                        data_results[hyp_id][name][stat] = []
+
+            for name in self.names:
+                for stat in self.statistics:
+                    data_results[hyp_id][name][stat].append(r["inefficiency"][name][stat])
+            data_results[hyp_id]["execution_time"].append(r["inefficiency"]["execution_time"])
+
+        total = {"execution_time": []}
+        for name in self.names:
+            total[name] = {}
+            for stat in self.statistics:
+                total[name][stat] = []
 
         for k, r in data_results.items():
-            m = round(mean(r["cpu_idle"]["mean"]), 2)
-            total["cpu_idle"]["mean"].append(m)
-            r["cpu_idle"]["mean"] = m
-
-            m = round(mean(r["cpu_idle"]["stdev"]), 2)
-            total["cpu_idle"]["stdev"].append(m)
-            r["cpu_idle"]["stdev"] = m
-
-            m = round(mean(r["cpu_iowait"]["mean"]), 2)
-            total["cpu_iowait"]["mean"].append(m)
-            r["cpu_iowait"]["mean"] = m
-
-            m = round(mean(r["cpu_iowait"]["stdev"]), 2)
-            total["cpu_iowait"]["stdev"].append(m)
-            r["cpu_iowait"]["stdev"] = m
+            for name in self.names:
+                for stat in self.statistics:
+                    m = round(mean(r[name][stat]), 2)
+                    total[name][stat].append(m)
+                    r[name][stat] = m
 
             m = round(mean(r["execution_time"]), 2)
             total["execution_time"].append(m)
             r["execution_time"] = m
 
-        total["cpu_idle"]["mean"] = round(mean(total["cpu_idle"]["mean"]), 2)
-        total["cpu_idle"]["stdev"] = round(mean(total["cpu_idle"]["stdev"]), 2)
-        total["cpu_iowait"]["mean"] = round(mean(total["cpu_iowait"]["mean"]), 2)
-        total["cpu_iowait"]["stdev"] = round(mean(total["cpu_iowait"]["stdev"]), 2)
+        for name in self.names:
+            for stat in self.statistics:
+                total[name][stat] = round(mean(total[name][stat]), 2)
         total["execution_time"] = round(mean(total["execution_time"]), 2)
-
         data_results["total_mean"] = total
         return data_results
 
     def _analyze_total_results(self, results):
         eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
-        total = {"cpu_idle": {"mean": [],
-                              "stdev": []},
-                 "cpu_iowait": {"mean": [],
-                                "stdev": []},
-                 "execution_time": []
-                 }
+
+        total = {"execution_time": []}
+        for name in self.names:
+            total[name] = {}
+            for stat in self.statistics:
+                total[name][stat] = []
+
         for r in results:
-            total["cpu_idle"]["mean"].append(r["cpu_idle"]["mean"])
-            total["cpu_idle"]["stdev"].append(r["cpu_idle"]["stdev"])
-            total["cpu_iowait"]["mean"].append(r["cpu_iowait"]["mean"])
-            total["cpu_iowait"]["stdev"].append(r["cpu_iowait"]["stdev"])
+            for name in self.names:
+                for stat in self.statistics:
+                    total[name][stat].append(r[name][stat])
             total["execution_time"].append(r["execution_time"])
-        total["cpu_idle"]["mean"] = round(mean(total["cpu_idle"]["mean"]), 2)
-        total["cpu_idle"]["stdev"] = round(mean(total["cpu_idle"]["stdev"]), 2)
-        total["cpu_iowait"]["mean"] = round(mean(total["cpu_iowait"]["mean"]), 2)
-        total["cpu_iowait"]["stdev"] = round(mean(total["cpu_iowait"]["stdev"]), 2)
+        for name in self.names:
+            for stat in self.statistics:
+                total[name][stat] = round(mean(total[name][stat]), 2)
         total["execution_time"] = round(mean(total["execution_time"]), 2)
         return total
