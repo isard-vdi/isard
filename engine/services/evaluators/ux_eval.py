@@ -1,6 +1,7 @@
 from math import floor
 from statistics import mean, stdev
 import datetime
+import numpy as np
 from time import sleep
 from pprint import pformat
 from threading import Thread
@@ -122,7 +123,7 @@ class UXEval(EvaluatorInterface):
             for i in range(len(threads)):
                 threads[i].join()
             data_results = self._analyze_results(results)
-            total_results.append(data_results["total_mean"])
+            total_results.append(data_results["total"])
             data["step_{}".format(step)] = data_results
             eval_log.debug("RESULTS: {}".format(pformat(results)))
 
@@ -133,7 +134,7 @@ class UXEval(EvaluatorInterface):
             sleep(10)  # Realxing time
             step += 1
 
-        data["total_mean"] = self._analyze_total_results(total_results)
+        data["total"] = self._analyze_total_results(total_results)
         return data
 
     def _calcule_ux_background(self, domain_id, results, thread_id):
@@ -173,69 +174,44 @@ class UXEval(EvaluatorInterface):
             inefficiency[name] = {}
             for stat in self.statistics:
                 inefficiency[name][stat] = round(ux[name][stat] / initial_ux[name][stat], 2)
+        # ["domain_id","hyp_id","execution_time","inc_execution_time",
+        # "cpu_idle_max", "cpu_idle_min", "cpu_idle_mean", "cpu_idle_stdev",
+        # "cpu_iowait_max", "cpu_iowait_min", "cpu_iowait_mean", "cpu_iowait_stdev",
+        # "cpu_usage_max", "cpu_usage_min", "cpu_usage_mean", "cpu_usage_stdev",
+        # "inc_cpu_idle_mean", "inc_cpu_idle_stdev",
+        # "inc_cpu_iowait_mean", "inc_cpu_iowait_stdev",
+        # "inc_cpu_usage_mean", "inc_cpu_usage_stdev",
+        # ]
 
-        data = {'domain_id': domain_id,
-                'hyp_id': hyp_id,
-                'ux': ux,
-                'inefficiency': inefficiency}
+        data = [domain_id, hyp_id, ux["execution_time"], inefficiency["execution_time"]]
+        statistics = ["max", "min", "mean", "stdev"]
+        for name in self.names:
+            d = []
+            for s in statistics:
+                d.append(ux[name][s])
+            data.extend(d)
+        statistics = ["mean", "stdev"]
+        for name in self.names:
+            d = []
+            for s in statistics:
+                d.append(inefficiency[name][s])
+            data.extend(d)
         results[thread_id] = data
 
     def _analyze_results(self, results):
+        a = np.array(results)
         data_results = {}
-        for r in results:
-            hyp_id = r.get("hyp_id")
-            if hyp_id not in data_results:
-                data_results[hyp_id] = {"execution_time": []}
-                for name in self.names:
-                    data_results[hyp_id][name] = {}
-                    for stat in self.statistics:
-                        data_results[hyp_id][name][stat] = []
-
-            for name in self.names:
-                for stat in self.statistics:
-                    data_results[hyp_id][name][stat].append(r["inefficiency"][name][stat])
-            data_results[hyp_id]["execution_time"].append(r["inefficiency"]["execution_time"])
-
-        total = {"execution_time": []}
-        for name in self.names:
-            total[name] = {}
-            for stat in self.statistics:
-                total[name][stat] = []
-
-        for k, r in data_results.items():
-            for name in self.names:
-                for stat in self.statistics:
-                    m = round(mean(r[name][stat]), 2)
-                    total[name][stat].append(m)
-                    r[name][stat] = m
-
-            m = round(mean(r["execution_time"]), 2)
-            total["execution_time"].append(m)
-            r["execution_time"] = m
-
-        for name in self.names:
-            for stat in self.statistics:
-                total[name][stat] = round(mean(total[name][stat]), 2)
-        total["execution_time"] = round(mean(total["execution_time"]), 2)
-        data_results["total_mean"] = total
+        data_results["total"] = list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0),2))
+        for hyp in self.hyps:
+            c = np.where((a[:, 1] == hyp.id))  # Query rows by hyp_id
+            tmp = a[c]
+            hyp_stats = list(np.round(np.mean(tmp[:, 2:-1].astype(np.float), axis=0), 2))
+            data_results[hyp.id] = hyp_stats
+        eval_log.debug("TOTAL NP: {}".format(data_results["total"]))
         return data_results
 
     def _analyze_total_results(self, results):
         eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
-
-        total = {"execution_time": []}
-        for name in self.names:
-            total[name] = {}
-            for stat in self.statistics:
-                total[name][stat] = []
-
-        for r in results:
-            for name in self.names:
-                for stat in self.statistics:
-                    total[name][stat].append(r[name][stat])
-            total["execution_time"].append(r["execution_time"])
-        for name in self.names:
-            for stat in self.statistics:
-                total[name][stat] = round(mean(total[name][stat]), 2)
-        total["execution_time"] = round(mean(total["execution_time"]), 2)
-        return total
+        a = np.array(results)
+        stats = list(np.round(np.mean(a, axis=0),2))
+        return stats
