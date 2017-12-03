@@ -66,13 +66,12 @@ class UpdateStatus():
             self.hyp_obj.get_load()
             self.hyp_obj.get_domains()
             now = time()
-
             dict_hyp_status['connected'] = True
             dict_hyp_status['when'] = now
             dict_hyp_status['delay_query_load'] = now - before
             dict_hyp_status['delay_from_connect'] = now - before_connect
             dict_hyp_status['load'] = self.hyp_obj.load
-            dict_hyp_status['domains'] = self.hyp_obj.domains.keys()
+            dict_hyp_status['domains'] = [d for d in self.hyp_obj.domains.keys() if d.startswith('_')]
 
             # hyps status
 
