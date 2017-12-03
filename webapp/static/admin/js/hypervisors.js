@@ -7,6 +7,7 @@
 
 $hypervisor_template = $(".hyper-detail");
 
+//~ var table =''
 
 $(document).ready(function() {
 	$('.btn-new-hyper').on('click', function () {
@@ -27,7 +28,7 @@ $(document).ready(function() {
       function timestamp() { return (new Date).getTime() / 1000; }
       chart={}
 
-    var table = $('#hypervisors').DataTable( {
+    table = $('#hypervisors').DataTable( {
         "ajax": {
             "url": "/admin/hypervisors/json",
             "dataSrc": ""
@@ -48,12 +49,13 @@ $(document).ready(function() {
             { "data": "id" , "width": "10px" },
             { "data": "enabled", "width": "10px" },
             { "data": "status", "width": "10px" },
+            { "data": "started_domains", "width": "10px" },
             { "data": "hostname", "width": "10px" },
             { "data": "hypervisors_pools", "width": "10px" },
             { "data": "status_time" , "width": "10px" },
             //~ { "data": "description", "visible": false},
             { "data": "description" }],
-			 "order": [[4, 'asc']],
+			 "order": [[5, 'asc']],
 			 "columnDefs": [ {
 							"targets": 2,
 							"render": function ( data, type, full, meta ) {
@@ -65,27 +67,23 @@ $(document).ready(function() {
 							  return renderStatus(full);
 							}},
 							{
-							"targets": 4,
+							"targets": 5,
 							"render": function ( data, type, full, meta ) {
 							  return renderName(full);
 							}},
 							{
-							"targets": 6,
+							"targets": 7,
 							"render": function ( data, type, full, meta ) {
 							  return moment.unix(full.status_time).fromNow();
 							}},
 							{
-							"targets": 7,
+							"targets": 8,
 							"render": function ( data, type, full, meta ) {
 							  return renderGraph(full);
 							}}                            
              ],
              "initComplete": function(settings, json) {
                         this.api().rows().data().each(function(r){
-                            //~ str = JSON.stringify(r);
-                            //~ str = JSON.stringify(r, null, 4);
-                            //~ console.log(str)
-                            console.log('data: '+r.id)
                             chart[r.id]=$("#chart-"+r.id).epoch({
                                             type: "time.line",
                                             axes: ["right"],
@@ -131,11 +129,9 @@ $(document).ready(function() {
 
     $("#modalAddHyper #send").on('click', function(e){
             var form = $('#modalAddHyper #modalAdd');
-            console.log('inside')
             //~ form.parsley().validate();
             //~ var queryString = $('#modalAdd').serialize();
             data=$('#modalAddHyper #modalAdd').serializeObject();
-            console.log(data)
             socket.emit('hypervisor_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
@@ -156,8 +152,8 @@ $(document).ready(function() {
      
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['hyper','domains_status'])
-        console.log('Listening admins namespace');
+        socket.emit('join_rooms',['hyper','domains_stats'])
+        console.log('Listening admins and domains_stats namespace');
     });
 
     socket.on('connect_error', function(data) {
@@ -171,7 +167,6 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
-        console.log('add or update')
         var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
@@ -186,12 +181,8 @@ $(document).ready(function() {
 
     socket.on('hyper_status', function(data){
         var data = JSON.parse(data);
-        //~ str = JSON.stringify(data);
-        //~ str = JSON.stringify(data, null, 4);
-        //~ console.log(str)
-        console.log('status: '+data.hyp_id)
-        console.log('status: '+data['cpu_percent-used'])
-        console.log('status: '+data['load-percent_free'])
+        table.row('#'+data.hyp_id).data().started_domains=data.domains
+        table.row('#'+data.hyp_id).invalidate().draw();
         chart[data.hyp_id].push([
         //~ chart.push([
           { time: timestamp(), y: data['cpu_percent-used']},
@@ -200,7 +191,6 @@ $(document).ready(function() {
     });
         
     socket.on('hyper_delete', function(data){
-        console.log('delete')
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -213,7 +203,14 @@ $(document).ready(function() {
                 type: 'success'
         });
     });
-    
+
+    //~ socket.on('domain_event', function(data){
+        //~ var data = JSON.parse(data);
+        //~ if(data.status=='Started'){inc=1;}else{inc=-1}
+        //~ table.row('#'+data.hyp_started).data().started_domains+=inc
+        //~ table.row('#'+data.hyp_started).invalidate().draw();
+    //~ });
+        
     socket.on('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -226,26 +223,6 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-
-/////////////// DOMAINS STATUS EVENTS
-    socket.on('desktop_status', function(data){
-	  var data = JSON.parse(data);
-      dataset=getDataSet(data);
-            console.log('DESKTOP_STATUS FOR HYP: '+dataset.hyp);
-            console.log('DESKTOP_STATUS DICT BEFORE: ')
-            console.log(domains_table)
-      if($('#domains-table-'+dataset.hyp).is(':visible')){
-        dtUpdateInsert(domains_table[dataset.hyp],dataset,false)
-      }
-      console.log('DESKTOP_STATUS DICT AFTER: ')
-      console.log(domains_table);
-    });
-    
-    socket.on('desktop_stopped', function(data){
-	  var data = JSON.parse(data);
-      removeData(domains_table[data.hyp],data)
-    });
-
 
 });// document ready
 
@@ -297,7 +274,6 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-                            console.log(pk);
 							api.ajax('/admin/hypervisors/toggle','POST',{'pk':pk,'name':'enabled'}).done(function(data) {
 							});  
 						}).on('pnotify.cancel', function() {
@@ -380,73 +356,3 @@ function renderGraph(data){
     return '<div class="epoch category40" id="chart-'+data.id+'" style="width: 220px; height: 50px;"></div>'
 }
 
-
-
-//////// DOMAINS STATUS EVENTS
-domains_table={}
-function tableHypervisorDomains(hyp){
-    domains_table[hyp]= $('#domains-table-'+hyp).DataTable({
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
-			"rowId": "id",
-            //~ "iDisplayLength": 2,
-			"columns": [
-                { "data": "name"},
-				{ "data": "className"},
-				{ "data": "size"},
-                { "data": "net_rw"},
-                { "data": "disk_rw"}],
-			 "order": [[3, 'desc']],
-			 "columnDefs": [ {
-							"targets": 2,
-							"render": function ( data, type, full, meta ) {
-							  return full.size+'%';
-							}},
-                            {
-							"targets": 3,
-							"render": function ( data, type, full, meta ) {
-							  return full.net_rw+'B/s';
-							}},
-                            {
-							"targets": 4,
-							"render": function ( data, type, full, meta ) {
-							  return full.size+'B/s';
-							}}],
-    } );
-    console.log('initialized')
-    console.log(domains_table)
-}
-
-function getDataSet(data){
-    cpu=data['status']['cpu_usage']*100
-    if(cpu<0.1){
-        cpu=0.1;
-    }else{
-        cpu=(cpu).toFixed(1);
-    }
-    return {id: data['id'],
-            name: data['name'], 
-            hyp: data['hyp_started'], 
-            className: data['os'].toLowerCase().replace(/ /g,''), 
-            size: cpu,
-            disk_rw: (data['status']['disk_rw']['block_w_bytes_per_sec']+data['status']['disk_rw']['block_r_bytes_per_sec']).toFixed(1),
-            net_rw: (data['status']['net_rw']['net_w_bytes_per_sec']+data['status']['net_rw']['net_r_bytes_per_sec']).toFixed(1),
-            };
-}
-   
-function removeData(table,data){
-        var index;
-        for (var x = 0;x < data.length;x++){
-            //Find row index by rowId if row exists
-            index = table.row('#' + data[x].id);
-             
-            //Update row data if existing, and invalidate for redraw
-            if(index.length > 0){
-                table.row(index[0]).remove();
-            }
-        }
-    //Redraw table maintaining paging
-    table.draw(false);
-}
- 

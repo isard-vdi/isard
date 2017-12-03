@@ -72,9 +72,9 @@ def start_domains_thread():
         threads['domains'].start()
         print('DomainsThread Started')
 
-
-## Domains Threading
-class DomainsStatusThread(threading.Thread):
+            
+## Domains Stats Threading
+class DomainsStatsThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.stop = False
@@ -82,56 +82,64 @@ class DomainsStatusThread(threading.Thread):
 
     def run(self):
         with app.app_context():
-            for c in r.table('domains_status').pluck('name','when','status').changes(include_initial=False).run(db.conn):
+            for c in r.table('domains_status').pluck('name','when','status').merge({'table':'stats'}).changes(include_initial=False).union(
+                    r.table('domains').get_all(r.args(['Started','Stopping','Stopped']),index='status').pluck('id','name','os','hyp_started','status').merge({"table": "domains"}).changes(include_initial=False)).run(db.conn):
                 if self.stop==True: break
+                #~ import pprint
+                #~ pprint.pprint(c)
                 try:
-                    #~ print(len(list(self.domains.keys())))
-                    #~ pprint.pprint(str(list(self.domains.keys())))
-                    if c['new_val'] is not None:
+                    if c['new_val']['table'] == 'domains':
+                        if c['new_val']['status'] == 'Stopping': continue
+                        if c['new_val']['status'] == 'Stopped':
+                            c['new_val']['hyp_started']=c['old_val']['hyp_started']
+                            socketio.emit('domain_stats_stopped', 
+                                        json.dumps(c['new_val']),
+                                        namespace='/sio_admins', 
+                                        room='domains_stats') 
+                        if c['new_val']['status'] == 'Started': 
+                            data= { 'cpu': 100,
+                                    'disk_rw': 0,
+                                    'net_rw': 0}
+                            data={**c['new_val'],**data}
+                            socketio.emit('domain_stats_started', 
+                                        json.dumps(data),
+                                        namespace='/sio_admins', 
+                                        room='domains_stats') 
+                    else:
                         if not c['new_val']['name'].startswith('_'): continue
-                        #~ if not 'block_w_bytes_per_sec' in c['new_val']['status']['disk_rw']: continue
-                        if c['new_val']['name'] not in self.domains.keys():
-                            if r.table('domains').get(c['new_val']['name']).run(db.conn) is None: continue
-                            domain=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
-                            self.domains[c['new_val']['name']]=domain
-                        else:
-                            domain=self.domains[c['new_val']['name']]
-                        if domain is not None: #This if can be removed when vimet is shutdown
-                                new_dom=domain.copy()
-                                if domain['status']=='Started':
-                                    new_dom['status']=c['new_val']['status']
-                                    socketio.emit('desktop_status', 
-                                                    json.dumps(new_dom), 
-                                                    namespace='/sio_users', 
-                                                    room='user_'+c['new_val']['name'].split('_')[1])
-                                    socketio.emit('desktop_status', 
-                                                    json.dumps(new_dom), 
-                                                    namespace='/sio_admins', 
-                                                    room='domains_status')
-                                    #~ pprint.pprint(domain)
-
-                                else:
-                                    #~ print(domain['id'],domain['status'])
-                                    self.domains.pop(c['new_val']['name'],None)
-                                    socketio.emit('desktop_stopped', 
-                                                    json.dumps(new_dom), 
-                                                    namespace='/sio_admins', 
-                                                    room='domains_status')
-                                new_dom=None
+                        dom=r.table('domains').get(c['new_val']['name']).pluck('id','name','hyp_started','os').run(db.conn)
+                        data= { 'cpu': abs(round(c['new_val']['status']['cpu_usage']*100)),
+                                'disk_rw': abs(round(c['new_val']['status']['disk_rw']['block_w_bytes_per_sec']+c['new_val']['status']['disk_rw']['block_r_bytes_per_sec'])) | 1,
+                                'net_rw': abs(round(c['new_val']['status']['net_rw']['net_w_bytes_per_sec']+c['new_val']['status']['net_rw']['net_r_bytes_per_sec']))}
+                        data={**dom,**data}
+                        #~ pprint.pprint(data)
+                        # This will be useful when user desktops has real time info
+                        #~ socketio.emit('desktop_status', 
+                                        #~ json.dumps(new_dom), 
+                                        #~ namespace='/sio_users', 
+                                        #~ room='user_'+c['new_val']['name'].split('_')[1])
+                        socketio.emit('domain_stats', 
+                                        json.dumps(data), 
+                                        namespace='/sio_admins', 
+                                        room='domains_stats')
+                except r.errors.ReqlNonExistenceError:
+                    #~ print('domini inexistent')
+                    #~ raise
+                    None
                 except Exception as e:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                     print(exc_type, fname, exc_tb.tb_lineno)
                     print('DomainsStatusThread error:'+str(e))
 
-def start_domains_status_thread():
+def start_domains_stats_thread():
     global threads
-    if 'domains_status' not in threads: threads['domains_status']=None
-    if threads['domains_status'] is None:
-        threads['domains_status'] = DomainsStatusThread()
-        threads['domains_status'].daemon = True
-        threads['domains_status'].start()
-        print('DomainsStatusThread Started')
+    if 'domains_stats' not in threads: threads['domains_stats']=None
+    if threads['domains_stats'] is None:
+        threads['domains_stats'] = DomainsStatsThread()
+        threads['domains_stats'].daemon = True
+        threads['domains_stats'].start()
+        print('DomainsStatsThread Started')
         
 
 ## ISOS Threading
@@ -229,7 +237,9 @@ class HypervisorsThread(threading.Thread):
     def run(self):
         with app.app_context():
             for c in r.table('hypervisors').merge({"table": "hyper"}).changes(include_initial=False).union(
-                        r.table('hypervisors_status').merge({"table": "hyper_status"}).changes(include_initial=False)).run(db.conn):
+                        r.table('hypervisors_status').pluck('hyp_id','domains',{'cpu_percent':{'used'}},{'load':{'percent_free'}}).merge({"table": "hyper_status"}).changes(include_initial=False)).run(db.conn):
+                        #~ .union(
+                        #~ r.table('domains').get_all(r.args(['Started','Stopping','Stopped']),index='status').pluck('id','name','hyp_started','status').merge({"table": "domains"}).changes(include_initial=False)).run(db.conn):
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -237,14 +247,22 @@ class HypervisorsThread(threading.Thread):
                             socketio.emit('hyper_deleted', 
                                             json.dumps(c['old_val']['id']), 
                                             namespace='/sio_admins', 
-                                            room='hyper')
+                                            room='hyper')                           
                     else:
-                            event='hyper_data' if c['new_val']['table']=='hyper' else 'hyper_status'
-                            socketio.emit(event, 
-                                            json.dumps(app.isardapi.f.flatten_dict(c['new_val'])), 
-                                            namespace='/sio_admins', 
-                                            room='hyper')  
-                                                
+                        if c['new_val']['table']=='hyper': event='hyper_data'
+                        if c['new_val']['table']=='hyper_status': 
+                            event='hyper_status'
+                            c['new_val']['domains']=len(c['new_val']['domains'])
+                            c['new_val']['cpu_percent']['used']=round(c['new_val']['cpu_percent']['used'])
+                            c['new_val']['load']['percent_free']=round(c['new_val']['load']['percent_free'])
+                        #~ if c['new_val']['table']=='domains' and c['new_val']['id'].startswith('_') : 
+                            #~ if c['new_val']['status'] == 'Stopping': continue
+                            #~ event='domain_event'
+                            #~ if c['new_val']['status']=='Stopped': c['new_val']['hyp_started']=c['old_val']['hyp_started']
+                        socketio.emit(event, 
+                                        json.dumps(app.isardapi.f.flatten_dict(c['new_val'])), 
+                                        namespace='/sio_admins', 
+                                        room='hyper')  
                 except Exception as e:
                     print('HypervisorsThread error:'+str(e))
                     exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -271,7 +289,6 @@ class ConfigThread(threading.Thread):
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
                 r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
-                print('Config event:'+str(c))
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -280,7 +297,6 @@ class ConfigThread(threading.Thread):
                                         json.dumps(c['old_val']), 
                                         namespace='/sio_admins', 
                                         room='config')
-                        print('EVENTO: '+event+' '+c['old_val']['id'])
                     else:
                         event='backup_data' if c['new_val']['table']=='backups' else 'sch_data'
                         if event=='sch_data' and 'name' not in c['new_val'].keys():
@@ -289,7 +305,6 @@ class ConfigThread(threading.Thread):
                                         json.dumps(c['new_val']),
                                         namespace='/sio_admins', 
                                         room='config') 
-                        print('EVENTO: '+event+' '+c['old_val']['id'])
                 except Exception as e:
                     print('ConfigThread error:'+str(e))
                     
@@ -344,7 +359,6 @@ def socketio_domains_viewer(data):
         viewer=app.isardapi.get_spice_xpi(data['pk'])
 
     if data['kind'] == 'html5':
-        print('HTML5')
         viewer=app.isardapi.get_domain_spice(data['pk'])
         ##### Change this when engine opens ports accordingly (without tls)
         if viewer['port']:
@@ -379,7 +393,6 @@ def socketio_domain_edit(form_data):
     #~ Check if user has quota and rights to do it
     #~ if current_user.role=='admin':
         #~ None
-    print('in domain edit')
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardware(create_dict)
     create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
@@ -399,7 +412,6 @@ def socketio_admins_domain_edit(form_data):
     #~ Check if user has quota and rights to do it
     #~ if current_user.role=='admin':
         #~ None
-    print('in domain edit')
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardware(create_dict)
     create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
