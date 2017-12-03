@@ -168,17 +168,35 @@ class isardAdmin():
     def get_admin_hypervisors(self, id=False):
         with app.app_context():
             if id:
-                listdict = self.f.flatten_dict(r.table('hypervisors').get(id).run(db.conn))
-                print(listdict)
+                flat_dict_list = self.f.flatten_dict(r.table("hypervisors").get(id).merge(lambda hyp:
+                                    {
+                                        "started_domains": r.table('domains').get_all('Started', index='status').filter({'hyp_started':hyp['id']}).count()
+                                    }
+                                ).run(db.conn))
             else:
-                listdict = self.f.table_values_bstrap(r.table('hypervisors').run(db.conn))
+                flat_dict_list = self.f.table_values_bstrap(r.table("hypervisors").merge(lambda hyp:
+                                {
+                                    "started_domains": r.table('domains').get_all('Started', index='status').filter({'hyp_started':hyp['id']}).count()
+                                }
+                            ).run(db.conn))
             
-                i=0
-                while i<len(listdict):
-                    if 'fail_connected_reason' not in listdict[i]: listdict[i]['fail_connected_reason']=''
-                    if 'disk_operations' not in listdict[i]: listdict[i]['disk_operations']='False'
-                    i=i+1
-        return listdict            
+            print(flat_dict_list)
+            
+        #~ with app.app_context():
+            #~ if id:
+                #~ listdict = self.f.flatten_dict(r.table('hypervisors').get(id).run(db.conn))
+                #~ print(listdict)
+            #~ else:
+                #~ listdict = self.f.table_values_bstrap(r.table('hypervisors').run(db.conn))
+            
+                #~ i=0
+                #~ while i<len(listdict):
+                    #~ if 'fail_connected_reason' not in listdict[i]: listdict[i]['fail_connected_reason']=''
+                    #~ if 'disk_operations' not in listdict[i]: listdict[i]['disk_operations']='False'
+                    #~ i=i+1
+        #~ return listdict   
+        
+        return flat_dict_list
 
     def get_admin_pools(self, flat=True):
         with app.app_context():
