@@ -106,29 +106,17 @@ class UXEval(EvaluatorInterface):
                     eval_log.info("Calculing ux for template: {} in hypervisor {}".format(t['id'], hyp.id))
                     update_domain_force_hyp(domain['id'], hyp.id)
                     update_domain_status('Starting', domain['id'])
-                    i = 0
-                    while ((get_domain_status(domain['id']) == "Starting") and i < 10):
-                        sleep(1)
-                        i += 1
-                    i = 0
-                    while (self._is_started(domain['id']) and i < 10):
-                        eval_log.debug("Domain {} is started and i : {}".format(domain['id'], i))
-                        sleep(1)
-                        i += 1
-                    EvalController.stop_domains(self.user_id, self.params["STOP_SLEEP_TIME"])
+                    self._wait_starting(domain['id'])
+                    self._wait_stop(domain['id'], hyp.id)
                     self.ux[t['id']][hyp.id] = self._calcule_ux_domain(domain['id'], hyp.id, hyp.cpu_power)
             else:
                 self.ux[t['id']] = INITIAL_UX
 
             eval_log.debug("INITIAL_UX: {}".format(pformat(self.ux[t['id']])))
 
-    def _is_started(self, domain_id):
-        status = get_domain_status(domain_id)
-        return status == "Started"
-
     def _calcule_ux_domain(self, domain_id, hyp_id, hyp_cpu_power):
         hd = get_history_domain(domain_id)
-        #eval_log.debug("HISTORY_DOMAIN: {}".format(pformat(hd[:3])))
+        # eval_log.debug("HISTORY_DOMAIN: {}".format(pformat(hd[:3])))
         start = hd[2]['when']
         stop = hd[0]['when']
         format_time = "%Y-%b-%d %H:%M:%S.%f"
@@ -136,7 +124,7 @@ class UXEval(EvaluatorInterface):
         stop_time = datetime.datetime.strptime(stop, format_time)
         execution_time = round((stop_time - start_time).total_seconds(), 2)
         performance = round(execution_time / hyp_cpu_power, 2)
-        #eval_log.debug("EXECUTION TIME of domain {} in hypervisor {}: {}".format(domain_id, hyp_id, execution_time))
+        # eval_log.debug("EXECUTION TIME of domain {} in hypervisor {}: {}".format(domain_id, hyp_id, execution_time))
         hyp_status = get_all_hypervisor_status(hyp_id, start=start_time.timestamp(), end=stop_time.timestamp())
         domain_status = get_all_domain_status(domain_id, start=start_time.timestamp(), end=stop_time.timestamp())
         cpu_idle = []
@@ -154,15 +142,13 @@ class UXEval(EvaluatorInterface):
                 if cu < 0:
                     cu = 0
                 cpu_usage.append(cu)
-            else:
-                eval_log.warn("NOT CU: {}, {}".format(domain_id, hyp_id))
         ux = {"execution_time": execution_time,
               "cpu_idle": self._statistics(cpu_idle),
               "cpu_iowait": self._statistics(cpu_iowait),
               "cpu_usage": self._statistics(cpu_usage),
               "performance": performance
               }
-        #eval_log.debug(ux)
+        # eval_log.debug(ux)
         return ux
 
     def _statistics(self, list):
@@ -193,7 +179,7 @@ class UXEval(EvaluatorInterface):
             data_results = self._analyze_results(results)
             total_results.append(data_results["total"])
             data["step_{}".format(step)] = data_results
-            eval_log.debug("RESULTS: {}".format(pformat(results)))
+            # eval_log.debug("RESULTS: {}".format(pformat(results)))
 
             if start_domains < total_domains and start_domains + step_domains > total_domains:
                 start_domains = total_domains
@@ -209,21 +195,51 @@ class UXEval(EvaluatorInterface):
         eval_log.info("_calcule_ux_background: domain:{}, thread_id: {}".format(domain_id, thread_id))
         # Start
         update_domain_status('Starting', domain_id)
+        self._wait_starting(domain_id)
+
         # Get hyp_id where is running
-        i = 0
-        while ((get_domain_status(domain_id) == "Starting") and i < 10):
-            sleep(1)
-            i += 1
-        d = get_domain(domain_id)
-        assert d['status'] == "Started"
-        hyp_id = d['history_domain'][0]['hyp_id']
-        hyp = list(filter(lambda h: h.id == hyp_id, self.hyps))[0]
-        if not hyp_id:
-            eval_log.debug("History domain: {}", d['history_domain'])
-        template_id = d['create_dict']['origin']
+        hyp_id, hyp, template_id = self._get_hyp_domain_running(domain_id)
+
         # Wait until stop
+        self._wait_stop(domain_id, hyp_id)
+
+        # Calcule domain ux
+        ux = self._calcule_ux_domain(domain_id, hyp_id, hyp.cpu_power)
+        # eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
+
+        # Get increment data: actual/initial
+        initial_ux = self.ux[template_id][hyp_id]
+        increment = self._get_inc(ux, initial_ux)
+
+        # Calcule some data
+        data = self._calcule_data_from_ux(domain_id, hyp_id, ux, increment)
+
+        results[thread_id] = data
+
+    def _analyze_results(self, results):
+        results = [r for r in results if r]  # Remove None's, produced by errors
+        a = np.array(results)
+        # eval_log.debug("results_analyze_results: {}".format(a))
+        data_results = {}
+        data_results["total"] = list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0), 2))
+        for hyp in self.hyps:
+            c = np.where((a[:, 1] == hyp.id))  # Query rows by hyp_id
+            tmp = a[c]
+            #eval_log.debug("TMP: {}".format(tmp))
+            hyp_stats = list(np.round(np.mean(tmp[:, 2:-1].astype(np.float), axis=0), 2))
+            data_results[hyp.id] = hyp_stats
+        # eval_log.debug("TOTAL NP: {}".format(data_results["total"]))
+        return data_results
+
+    def _analyze_total_results(self, results):
+        # eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
+        a = np.array(results)
+        stats = list(np.round(np.mean(a, axis=0), 2))
+        return stats
+
+    def _wait_stop(self, domain_id, hyp_id):
         i = 0
-        while (self._is_started(domain_id) and i < 10):
+        while (get_domain_status(domain_id) == "Started" and i < 10):
             # eval_log.debug("Domain {} is started and i : {}".format(domain_id, i))
             sleep(1)
             i += 1
@@ -233,16 +249,33 @@ class UXEval(EvaluatorInterface):
             while ((get_domain_status(domain_id) == "Stopping") and i < 10):
                 sleep(1)
                 i += 1
-        # Calcule domain ux
-        ux = self._calcule_ux_domain(domain_id, hyp_id, hyp.cpu_power)
-        #eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
-        # Compare ux with initial ux
-        initial_ux = self.ux[template_id][hyp_id]
-        inefficiency = {"execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)}
+
+    def _wait_starting(self, domain_id):
+        i = 0
+        while ((get_domain_status(domain_id) == "Starting") and i < 10):
+            sleep(1)
+            i += 1
+
+    def _get_hyp_domain_running(self, domain_id):
+        d = get_domain(domain_id)
+        assert d['status'] == "Started"
+        hyp_id = d['history_domain'][0]['hyp_id']
+        hyp = list(filter(lambda h: h.id == hyp_id, self.hyps))[0]
+        if not hyp_id:
+            eval_log.debug("History domain: {}", d['history_domain'])
+        template_id = d['create_dict']['origin']
+        return hyp_id, hyp, template_id
+
+    def _get_inc(self, ux, initial_ux):
+        increment = {"execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)}
         for name in self.names:
-            inefficiency[name] = {}
+            increment[name] = {}
             for stat in self.statistics:
-                inefficiency[name][stat] = round(ux[name][stat] / initial_ux[name][stat], 2)
+                increment[name][stat] = round(ux[name][stat] / initial_ux[name][stat], 2)
+        return increment
+
+    def _calcule_data_from_ux(self, domain_id, hyp_id, ux, increment):
+        # DATA VALUES, order is important
         # ["domain_id","hyp_id","execution_time","inc_execution_time","performance",
         # "cpu_idle_max", "cpu_idle_min", "cpu_idle_mean", "cpu_idle_stdev",
         # "cpu_iowait_max", "cpu_iowait_min", "cpu_iowait_mean", "cpu_iowait_stdev",
@@ -251,39 +284,16 @@ class UXEval(EvaluatorInterface):
         # "inc_cpu_iowait_mean", "inc_cpu_iowait_stdev",
         # "inc_cpu_usage_mean", "inc_cpu_usage_stdev",
         # ]
-
-        data = [domain_id, hyp_id, ux["execution_time"], inefficiency["execution_time"], ux["performance"]]
+        data = [domain_id, hyp_id, ux["execution_time"], increment["execution_time"], ux["performance"]]
         statistics = ["max", "min", "mean", "stdev"]
         for name in self.names:
             d = []
             for s in statistics:
                 d.append(ux[name][s])
             data.extend(d)
-        statistics = ["mean", "stdev"]
         for name in self.names:
             d = []
-            for s in statistics:
-                d.append(inefficiency[name][s])
+            for s in self.statistics:
+                d.append(increment[name][s])
             data.extend(d)
-        results[thread_id] = data
-
-    def _analyze_results(self, results):
-        results = [r for r in results if r] # Remove None's, produced by errors
-        a = np.array(results)
-        #eval_log.debug("results_analyze_results: {}".format(a))
-        data_results = {}
-        data_results["total"] = list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0), 2))
-        for hyp in self.hyps:
-            c = np.where((a[:, 1] == hyp.id))  # Query rows by hyp_id
-            tmp = a[c]
-            eval_log.debug("TMP: {}".format(tmp))
-            hyp_stats = list(np.round(np.mean(tmp[:, 2:-1].astype(np.float), axis=0), 2))
-            data_results[hyp.id] = hyp_stats
-        #eval_log.debug("TOTAL NP: {}".format(data_results["total"]))
-        return data_results
-
-    def _analyze_total_results(self, results):
-        #eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
-        a = np.array(results)
-        stats = list(np.round(np.mean(a, axis=0), 2))
-        return stats
+        return data

@@ -6,6 +6,7 @@ from math import floor
 from random import randint, shuffle
 from time import sleep
 
+from engine.controllers.eval_controller import EvalController
 from engine.services.db import update_domain_status, get_domains_id
 from engine.services.evaluators.evaluator_interface import EvaluatorInterface
 from engine.services.log import eval_log
@@ -22,7 +23,8 @@ class LoadEval(EvaluatorInterface):
         self.params = params
 
     def start_domains(self):
-        domains_id_list = self._get_domains_id_randomized()
+        domains_id_list = EvalController.get_domains_id_randomized(self.user_id, self.id_pool, self.defined_domains,
+                                                                   self.templates)
         total_domains = len(domains_id_list)
         threshold = floor(total_domains / 2)
         keep_starting = True
@@ -71,22 +73,6 @@ class LoadEval(EvaluatorInterface):
                 eval_log.debug("EVALUATE - Return False")
                 return False
         return True
-
-    def _get_domains_id_randomized(self):
-        # TODO: CANVIAR PER Classmethod de EvalController
-        dd = self.defined_domains
-        domains_id_list = []
-        for t in self.templates:
-            n_dd = dd[t['id']]  # defined domains number
-            ids = get_domains_id(self.user_id, self.id_pool, origin=t['id'])
-            shuffle(ids)
-            if len(ids) < n_dd:
-                error_msg = "Error starting domains for eval template {}," \
-                            " needs {} domains and have {}".format(t['id'], n_dd, len(ids))
-                eval_log.error(error_msg)
-                return {"error": error_msg}
-            [domains_id_list.append(ids.pop()) for i in range(n_dd)]
-        return domains_id_list
 
     def _get_statistics(self):
         data = {}
