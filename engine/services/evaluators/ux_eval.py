@@ -161,7 +161,7 @@ class UXEval(EvaluatorInterface):
               "cpu_usage": self._statistics(cpu_usage),
               "performance": performance
               }
-        eval_log.debug(ux)
+        #eval_log.debug(ux)
         return ux
 
     def _statistics(self, list):
@@ -234,7 +234,7 @@ class UXEval(EvaluatorInterface):
                 i += 1
         # Calcule domain ux
         ux = self._calcule_ux_domain(domain_id, hyp_id, hyp.cpu_power)
-        eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
+        #eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
         # Compare ux with initial ux
         initial_ux = self.ux[template_id][hyp_id]
         inefficiency = {"execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)}
@@ -269,19 +269,20 @@ class UXEval(EvaluatorInterface):
     def _analyze_results(self, results):
         results = [r for r in results if r] # Remove None's, produced by errors
         a = np.array(results)
-        eval_log.debug("results_analyze_results: {}".format(a))
+        #eval_log.debug("results_analyze_results: {}".format(a))
         data_results = {}
         data_results["total"] = list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0), 2))
         for hyp in self.hyps:
             c = np.where((a[:, 1] == hyp.id))  # Query rows by hyp_id
             tmp = a[c]
+            eval_log.debug("TMP: {}".format(tmp))
             hyp_stats = list(np.round(np.mean(tmp[:, 2:-1].astype(np.float), axis=0), 2))
             data_results[hyp.id] = hyp_stats
-        eval_log.debug("TOTAL NP: {}".format(data_results["total"]))
+        #eval_log.debug("TOTAL NP: {}".format(data_results["total"]))
         return data_results
 
     def _analyze_total_results(self, results):
-        eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
+        #eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
         a = np.array(results)
         stats = list(np.round(np.mean(a, axis=0), 2))
         return stats

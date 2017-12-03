@@ -67,10 +67,13 @@ DICT_CREATE = {'allowed': {'categories': False,
                'user': 'eval',
                'xml': None}
 
-#templates = [{'id': "_windows_7_x64_v3", 'weight': 100}],
-#templates=[{'id': "centos_7", 'weight': 100}]
+
+# templates = [{'id': "_windows_7_x64_v3", 'weight': 100}],
+# templates=[{'id': "centos_7", 'weight': 100}]
 class EvalController(object):
-    def __init__(self, id_pool="default", templates=[{'id': "_windows_7_x64_v3", 'weight': 100}], evaluators=["ux"]):
+    def __init__(self, id_pool="default",
+                 templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
+                 evaluators=["ux"]):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
@@ -156,7 +159,8 @@ class EvalController(object):
         dd = self.defined_domains  # Define number of domains for each template.
         for t in self.templates:
             n_domains = get_domains_count(self.user["id"], origin=t['id'])
-            data[t['id']] = pending = dd[t['id']] - n_domains  # number of pending domains to create
+            p = dd[t['id']] - n_domains # number of pending domains to create
+            data[t['id']] = pending = p if p >= 0 else 0  # number of pending domains to create
             i = n_domains  # index of new domain
             eval_log.debug("Creating {} pending domains from template: {}".format(pending, t['id']))
             total_created_domains += pending
@@ -195,6 +199,7 @@ class EvalController(object):
                 eval_log.error(error_msg)
                 return {"error": error_msg}
             [domains_id_list.append(ids.pop()) for i in range(n_dd)]
+        shuffle(domains_id_list)
         return domains_id_list
 
     def destroy_domains(self):
