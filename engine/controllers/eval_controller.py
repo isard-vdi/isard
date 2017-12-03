@@ -67,7 +67,8 @@ DICT_CREATE = {'allowed': {'categories': False,
                'user': 'eval',
                'xml': None}
 
-
+#templates = [{'id': "_windows_7_x64_v3", 'weight': 100}],
+#templates=[{'id': "centos_7", 'weight': 100}]
 class EvalController(object):
     def __init__(self, id_pool="default", templates=[{'id': "_windows_7_x64_v3", 'weight': 100}], evaluators=["ux"]):
         self.user = get_user('eval')
@@ -102,6 +103,7 @@ class EvalController(object):
             hyp_obj = hyp(h['hostname'])
             hyp_obj.id = h['id']
             hyp_obj.percent_ram_template = percent
+            hyp_obj.cpu_power = round(h['info']['cpu_cores'] * h['info']['cpu_mhz'] / 1e3, 1)
             self.hyps.append(hyp_obj)
 
     def _init_domains(self):

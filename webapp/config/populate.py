@@ -609,7 +609,7 @@ class Populate(object):
         #~ docker=int(rcfg.get('DOCKER', 'ACTIVE'))
         
         with app.app_context():
-            #if not r.table_list().contains('hypervisors').run(db.conn):
+            if not r.table_list().contains('hypervisors').run(db.conn):
                 log.info("Table hypervisors not found, creating and populating with localhost")
                 r.table_create('hypervisors', primary_key="id").run(db.conn)
 
