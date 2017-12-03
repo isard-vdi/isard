@@ -72,6 +72,7 @@ INITIAL_UX = {'hdani1': {'cpu_idle': {'max': 100,
 
 class UXEval(EvaluatorInterface):
     def __init__(self, user_id, id_pool, dd, templates, hyps, params):
+        self.name = "ux_eval"
         self.user_id = user_id
         self.id_pool = id_pool
         self.defined_domains = dd
@@ -87,7 +88,7 @@ class UXEval(EvaluatorInterface):
     def run(self):
         data = {}
         self._calcule_ux()
-        data["ux"] = self.ux
+        data["initial_ux"] = self.ux
         data.update(self._start_domains())
         eval_log.debug("FINAL: {}".format(pformat(data)))
         return data

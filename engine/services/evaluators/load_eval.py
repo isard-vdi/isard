@@ -13,6 +13,7 @@ from engine.services.log import eval_log
 
 class LoadEval(EvaluatorInterface):
     def __init__(self, user_id, id_pool, dd, templates, hyps, params):
+        self.name = "load_eval"
         self.user_id = user_id
         self.id_pool = id_pool
         self.defined_domains = dd

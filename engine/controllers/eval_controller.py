@@ -73,7 +73,7 @@ DICT_CREATE = {'allowed': {'categories': False,
 class EvalController(object):
     def __init__(self, id_pool="default",
                  templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
-                 evaluators=["ux"]):
+                 evaluators=["load","ux"]):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
@@ -229,7 +229,7 @@ class EvalController(object):
         # Run evaluators
         for e in self.evaluators:
             d = e.run()
-            data.update(d)
+            data[e.name] = d
             data_stop = EvalController.stop_domains(self.user['id'], self.params["STOP_SLEEP_TIME"])
             sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
         return data
