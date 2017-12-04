@@ -75,8 +75,8 @@ class EvalController(object):
     def __init__(self, id_pool="default",
                  # templates=[{'id': "centos_7", 'weight': 100}],
                  templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
-                 # evaluators=["ux"]
-                 evaluators=["load","ux"]
+                 evaluators=["ux"]
+                 # evaluators=["load","ux"]
                  ):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?

@@ -234,14 +234,15 @@ class UXEval(EvaluatorInterface):
 
         # Calcule domain ux
         ux = self._calcule_ux_domain(stats, et, hyp.cpu_power)
-        # ux = self._calcule_ux_domain(domain_id, hyp_id, hyp.cpu_power, template_id)
+        graphyte.send(template_id + '.execution_time', ux["execution_time"])
+        graphyte.send(template_id + '.performance', ux["performance"])
         # eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
 
         # Get increment data: actual/initial
         initial_ux = self.ux[template_id][hyp_id]
         increment = self._get_inc(ux, initial_ux)
-        # graphyte.send(hyp_id + '.inc_cpu_idle', increment["cpu_idle"]["mean"])
-        # graphyte.send(hyp_id + '.inc_cpu_iowait', increment["cpu_iowait"]["mean"])
+        graphyte.send(hyp_id + '.inc_hyp_cpu_usage', increment["cpu_hyp_usage"]["mean"])
+        graphyte.send(hyp_id + '.inc_hyp_cpu_iowait', increment["cpu_hyp_iowait"]["mean"])
         # Calcule some data
         data = self._calcule_data_from_ux(domain_id, hyp_id, template_id, ux, increment)
 
@@ -279,7 +280,6 @@ class UXEval(EvaluatorInterface):
         return stats
 
     def _wait_stop(self, domain_id, hyp):
-        # ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
         stats = []
         i = 0
         start_time = time.time()
@@ -287,10 +287,15 @@ class UXEval(EvaluatorInterface):
             tmp = []
             s = hyp.get_ux_eval_statistics(domain_id)
             # eval_log.debug(s)
-            tmp.append(s.get("ram_hyp_usage"))
-            tmp.append(s.get("cpu_hyp_usage"))
-            tmp.append(s.get("cpu_hyp_iowait"))
-            tmp.append(s.get("cpu_usage"))
+            # tmp.append(s.get("ram_hyp_usage"))
+            # tmp.append(s.get("cpu_hyp_usage"))
+            # tmp.append(s.get("cpu_hyp_iowait"))
+            # tmp.append(s.get("cpu_usage"))
+            for name in self.names:
+                value = s.get(name)
+                tmp.append(value)
+                if value:
+                    graphyte.send(hyp.id + '.' + name, value)
             # eval_log.debug(tmp)
             stats.append(tmp)
             # eval_log.debug("Domain {} is started and i : {}".format(domain_id, i))
