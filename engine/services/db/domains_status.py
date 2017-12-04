@@ -48,18 +48,20 @@ def insert_db_domain_status(dict_domain_status):
     close_rethink_connection(r_conn)
 
 
-def get_all_domain_status(name, start=None, end=None):
+def get_all_domain_status(name, start=None, stop=None, history=False):
     r_conn = new_rethink_connection()
-    rtable = r.table('domains_status')
-    if start and end:
-        results = rtable.filter({'name': name}).filter(lambda s: start <= s['when'] and s['when'] <= end).order_by(
+    table = "domains_status" if not history else "domains_status_history"
+    rtable = r.table(table)
+    obj = {'name': name}
+    if start and stop:
+        results = rtable.filter(obj).filter(lambda s: start <= s['when'] and s['when'] <= stop).order_by(
             r.desc('when')).run(r_conn)
     elif start:
-        results = rtable.filter({'name': name}).filter(lambda s: start <= s['when']).order_by(r.desc('when')).run(
+        results = rtable.filter(obj).filter(lambda s: start <= s['when']).order_by(r.desc('when')).run(
             r_conn)
-    elif end:
-        results = rtable.filter({'name': name}).filter(lambda s: s['when'] <= end).order_by(r.desc('when')).run(r_conn)
+    elif stop:
+        results = rtable.filter(obj).filter(lambda s: s['when'] <= stop).order_by(r.desc('when')).run(r_conn)
     else:
-        results = rtable.filter({'name': name}).order_by(r.desc('when')).run(r_conn)
+        results = rtable.filter(obj).order_by(r.desc('when')).run(r_conn)
     close_rethink_connection(r_conn)
     return list(results)

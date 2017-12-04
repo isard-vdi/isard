@@ -135,7 +135,11 @@ class UXEval(EvaluatorInterface):
         graphyte.send(hyp_id + '.performance', performance)
         # eval_log.debug("EXECUTION TIME of domain {} in hypervisor {}: {}".format(domain_id, hyp_id, execution_time))
         hyp_status = get_all_hypervisor_status(hyp_id, start=start_time.timestamp(), end=stop_time.timestamp())
-        domain_status = get_all_domain_status(domain_id, start=start_time.timestamp(), end=stop_time.timestamp())
+        domain_status = get_all_domain_status(domain_id, start=start_time.timestamp(),
+                                              stop=stop_time.timestamp())
+        domain_status_history = get_all_domain_status(domain_id, start=start_time.timestamp(),
+                                                      stop=stop_time.timestamp(), history=True)
+        domain_status.extend(domain_status_history)
         cpu_idle = []
         cpu_hyp_usage = []
         cpu_iowait = []
@@ -147,8 +151,12 @@ class UXEval(EvaluatorInterface):
                 cpu_idle.append(s["cpu_percent"]["idle"])
                 cpu_hyp_usage.append(max(100 - s["cpu_percent"]["idle"], 0))
                 cpu_iowait.append(s["cpu_percent"]["iowait"])
+        if len(hyp_status) == 0:
+            eval_log.warn("len(hyp_status) == 0  {}, {}".format(domain_id, hyp_id))
         if len(domain_status) == 0:
             eval_log.warn("len(domain_status) == 0  {}, {}".format(domain_id, hyp_id))
+        eval_log.debug("DOMAIN_STATUS: {}".format(domain_status))
+        eval_log.debug("DOMAIN_STATUS_HISTORY: {}".format(domain_status_history))
         for s in domain_status:
             cu = s["status"].get("cpu_usage")
             # eval_log.debug("USage: {}".format(s["status"].get("cpu_usage")))
@@ -167,6 +175,7 @@ class UXEval(EvaluatorInterface):
         return ux
 
     def _statistics(self, list):
+        # sd = stdev(list) if len(list) >= 2 else 0
         return {"max": max(list), "min": min(list), "mean": mean(list), "stdev": stdev(list)}
 
     def _start_domains(self):
@@ -249,8 +258,6 @@ class UXEval(EvaluatorInterface):
                     hyp_stats = list(np.round(np.mean(tmp[:, 3:-1].astype(np.float), axis=0), 2))
                     data_results[t['id']][hyp.id] = {"inc_execution_time_percent": round((hyp_stats[1] - 1) * 100, 2),
                                                      "inc_execution_time": hyp_stats[1],
-                                                     "cpu_idle_mean": hyp_stats[5],
-                                                     "inc_cpu_idle_mean": hyp_stats[9],
                                                      "cpu_hyp_usage_mean": hyp_stats[19],
                                                      "inc_cpu_hyp_usage_mean": hyp_stats[21],
                                                      }
