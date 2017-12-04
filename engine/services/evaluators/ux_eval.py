@@ -2,7 +2,7 @@
 UX Evaluator.
 Must be called from EvalController
 """
-import datetime
+import time
 from math import floor
 from pprint import pformat
 from statistics import mean, stdev
@@ -14,66 +14,82 @@ import numpy as np
 
 from engine.controllers.eval_controller import EvalController
 from engine.services.db import update_domain_status, get_domains, get_domain_status, \
-    get_history_domain, get_all_hypervisor_status, update_domain_force_hyp, get_domain, get_all_domain_status
+    update_domain_force_hyp, get_domain
 from engine.services.evaluators.evaluator_interface import EvaluatorInterface
 from engine.services.log import eval_log
 
-INITIAL_UX = {'hdani1': {'cpu_idle': {'max': 100,
-                                      'mean': 99.75641961852861,
-                                      'min': 47.568,
-                                      'stdev': 2.0159202785773984},
-                         'cpu_iowait': {'max': 0.495,
-                                        'mean': 0.0012068119891008174,
-                                        'min': 0,
-                                        'stdev': 0.014845970586484016},
-                         'cpu_usage': {'max': 0.048348400062018175,
-                                       'mean': 0.007547425720455162,
-                                       'min': 0,
-                                       'stdev': 0.016614037929014606},
-                         'execution_time': 10.81,
-                         'performance': 4.5},
-              'hdani2': {'cpu_idle': {'max': 100,
-                                      'mean': 99.7663840283456,
-                                      'min': 45.73,
-                                      'stdev': 1.827776326242979},
-                         'cpu_iowait': {'max': 2.37,
-                                        'mean': 0.002293540474243663,
-                                        'min': 0,
-                                        'stdev': 0.05007970979203264},
-                         'cpu_usage': {'max': 0.048348400062018175,
-                                       'mean': 0.008490853935512056,
-                                       'min': 0,
-                                       'stdev': 0.017501534467715258},
-                         'execution_time': 10.92,
-                         'performance': 4.55},
-              'hdani3': {'cpu_idle': {'max': 100,
-                                      'mean': 99.91376927267774,
-                                      'min': 63.258,
-                                      'stdev': 0.9335489863770705},
-                         'cpu_iowait': {'max': 0.896,
-                                        'mean': 0.001030781803323345,
-                                        'min': 0,
-                                        'stdev': 0.022803374204505084},
-                         'cpu_usage': {'max': 0.048348400062018175,
-                                       'mean': 0.0067926831484096456,
-                                       'min': 0,
-                                       'stdev': 0.015844653223508334},
-                         'execution_time': 10.86,
-                         'performance': 4.53},
-              'hdani4': {'cpu_idle': {'max': 100,
-                                      'mean': 99.92492502726282,
-                                      'min': 86.559,
-                                      'stdev': 0.594055439659702},
-                         'cpu_iowait': {'max': 0.147,
-                                        'mean': 0.0003214285714285714,
-                                        'min': 0,
-                                        'stdev': 0.004392460621570733},
-                         'cpu_usage': {'max': 0.048348400062018175,
-                                       'mean': 0.009703833069156636,
-                                       'min': 0,
-                                       'stdev': 0.018537044585853736},
-                         'execution_time': 10.82,
-                         'performance': 4.51}}
+INITIAL_UX = {'hdani1': {'cpu_hyp_iowait': {'max': 0.0,
+                                            'mean': 0.0,
+                                            'min': 0.0,
+                                            'stdev': 0.0},
+                         'cpu_hyp_usage': {'max': 84.16,
+                                           'mean': 55.218,
+                                           'min': 50.49,
+                                           'stdev': 10.42257038034924},
+                         'cpu_usage': {'max': 1.64,
+                                       'mean': 1.0822222222222222,
+                                       'min': 1.0,
+                                       'stdev': 0.21075920963138106},
+                         'execution_time': 11.059932470321655,
+                         'performance': 4.61,
+                         'ram_hyp_usage': {'max': 11.09,
+                                           'mean': 8.125,
+                                           'min': 6.98,
+                                           'stdev': 1.6846578947140045}},
+              'hdani2': {'cpu_hyp_iowait': {'max': 0.0,
+                                            'mean': 0.0,
+                                            'min': 0.0,
+                                            'stdev': 0.0},
+                         'cpu_hyp_usage': {'max': 79.4,
+                                           'mean': 54.99,
+                                           'min': 50.75,
+                                           'stdev': 8.819305843180379},
+                         'cpu_usage': {'max': 1.57,
+                                       'mean': 1.0744444444444445,
+                                       'min': 1.0,
+                                       'stdev': 0.1863539046485954},
+                         'execution_time': 11.058387041091919,
+                         'performance': 4.61,
+                         'ram_hyp_usage': {'max': 11.08,
+                                           'mean': 8.029,
+                                           'min': 7.07,
+                                           'stdev': 1.4524114048329726}},
+              'hdani3': {'cpu_hyp_iowait': {'max': 0.17,
+                                            'mean': 0.017,
+                                            'min': 0.0,
+                                            'stdev': 0.053758720222862454},
+                         'cpu_hyp_usage': {'max': 20.59,
+                                           'mean': 17.911,
+                                           'min': 16.86,
+                                           'stdev': 1.3919247265726855},
+                         'cpu_usage': {'max': 1.13,
+                                       'mean': 1.0344444444444445,
+                                       'min': 1.0,
+                                       'stdev': 0.04530759073022727},
+                         'execution_time': 11.057267427444458,
+                         'performance': 4.61,
+                         'ram_hyp_usage': {'max': 4.39,
+                                           'mean': 3.341,
+                                           'min': 3.06,
+                                           'stdev': 0.45969675995280956}},
+              'hdani4': {'cpu_hyp_iowait': {'max': 0.12,
+                                            'mean': 0.012,
+                                            'min': 0.0,
+                                            'stdev': 0.03794733192202055},
+                         'cpu_hyp_usage': {'max': 20.39,
+                                           'mean': 14.315999999999999,
+                                           'min': 12.61,
+                                           'stdev': 2.4264661089283277},
+                         'cpu_usage': {'max': 1.5,
+                                       'mean': 1.0855555555555556,
+                                       'min': 1.01,
+                                       'stdev': 0.15828069300384612},
+                         'execution_time': 11.053992748260498,
+                         'performance': 4.61,
+                         'ram_hyp_usage': {'max': 3.42,
+                                           'mean': 2.645,
+                                           'min': 2.4,
+                                           'stdev': 0.365612119906086}}}
 
 
 class UXEval(EvaluatorInterface):
@@ -88,9 +104,21 @@ class UXEval(EvaluatorInterface):
         self.params = params
         self.steps = 2  # How many steps will start domains
         self.ux = {}  # one key for each template
-        self.names = ["cpu_idle", "cpu_hyp_usage", "cpu_iowait", "cpu_usage"]
-        self.statistics = ["mean", "stdev"]
-        self.calcule_ux = True
+        self.names = ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
+        self.statistics = ["max", "min", "mean", "stdev"]
+        self.inc_statistics = ["mean", "stdev"]
+        self.calcule_ux = False
+        self.data_ux_names = ["execution_time", "inc_execution_time", "performance"]
+        self._init_data_ux_names()
+
+    def _init_data_ux_names(self):
+        for name in self.names:
+            for s in self.statistics:
+                self.data_ux_names.append(name + "_" + s)
+        for name in self.names:
+            for s in self.inc_statistics:
+                self.data_ux_names.append("inc" + "_" + name + "_" + s)
+        eval_log.info("Data UX Names: {}".format(self.data_ux_names))
 
     def run(self):
         data = {}
@@ -113,65 +141,37 @@ class UXEval(EvaluatorInterface):
                     eval_log.info("Calculing ux for template: {} in hypervisor {}".format(t['id'], hyp.id))
                     update_domain_force_hyp(domain['id'], hyp.id)
                     update_domain_status('Starting', domain['id'])
+                    hyp.launch_eval_statistics()
+                    sleep(2)
                     self._wait_starting(domain['id'])
-                    self._wait_stop(domain['id'], hyp.id)
-                    self.ux[t['id']][hyp.id] = self._calcule_ux_domain(domain['id'], hyp.id, hyp.cpu_power, t['id'])
+                    stats, et = self._wait_stop(domain['id'], hyp)
+                    hyp.stop_eval_statistics()
+                    sleep(2)
+                    # self.ux[t['id']][hyp.id] = self._calcule_ux_domain(domain['id'], hyp.id, hyp.cpu_power, t['id'])
+                    self.ux[t['id']][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
             else:
                 self.ux[t['id']] = INITIAL_UX
 
             eval_log.debug("INITIAL_UX: {}".format(pformat(self.ux[t['id']])))
 
-    def _calcule_ux_domain(self, domain_id, hyp_id, hyp_cpu_power, template_id):
-        hd = get_history_domain(domain_id)
-        # eval_log.debug("HISTORY_DOMAIN: {}".format(pformat(hd[:3])))
-        start = hd[2]['when']
-        stop = hd[0]['when']
-        format_time = "%Y-%b-%d %H:%M:%S.%f"
-        start_time = datetime.datetime.strptime(start, format_time)
-        stop_time = datetime.datetime.strptime(stop, format_time)
-        execution_time = round((stop_time - start_time).total_seconds(), 2)
-        performance = round(execution_time / hyp_cpu_power, 2)
-        graphyte.send(template_id + '.execution_time', execution_time)
-        graphyte.send(hyp_id + '.performance', performance)
-        # eval_log.debug("EXECUTION TIME of domain {} in hypervisor {}: {}".format(domain_id, hyp_id, execution_time))
-        hyp_status = get_all_hypervisor_status(hyp_id, start=start_time.timestamp(), end=stop_time.timestamp())
-        domain_status = get_all_domain_status(domain_id, start=start_time.timestamp(),
-                                              stop=stop_time.timestamp())
-        domain_status_history = get_all_domain_status(domain_id, start=start_time.timestamp(),
-                                                      stop=stop_time.timestamp(), history=True)
-        domain_status.extend(domain_status_history)
-        cpu_idle = []
-        cpu_hyp_usage = []
-        cpu_iowait = []
-        cpu_usage = []
-        for s in hyp_status:
-            if s["cpu_percent"]:
-                graphyte.send(hyp_id + '.cpu_idle', s["cpu_percent"]["idle"], timestamp=s["when"])
-                graphyte.send(hyp_id + '.cpu_iowait', s["cpu_percent"]["iowait"], timestamp=s["when"])
-                cpu_idle.append(s["cpu_percent"]["idle"])
-                cpu_hyp_usage.append(max(100 - s["cpu_percent"]["idle"], 0))
-                cpu_iowait.append(s["cpu_percent"]["iowait"])
-        if len(hyp_status) == 0:
-            eval_log.warn("len(hyp_status) == 0  {}, {}".format(domain_id, hyp_id))
-        if len(domain_status) == 0:
-            eval_log.warn("len(domain_status) == 0  {}, {}".format(domain_id, hyp_id))
-        eval_log.debug("DOMAIN_STATUS: {}".format(domain_status))
-        eval_log.debug("DOMAIN_STATUS_HISTORY: {}".format(domain_status_history))
-        for s in domain_status:
-            cu = s["status"].get("cpu_usage")
-            # eval_log.debug("USage: {}".format(s["status"].get("cpu_usage")))
-            if cu:
-                if cu < 0:
-                    cu = 0
-                cpu_usage.append(cu)
-        ux = {"execution_time": execution_time,
-              "cpu_idle": self._statistics(cpu_idle),
-              "cpu_hyp_usage": self._statistics(cpu_hyp_usage),
-              "cpu_iowait": self._statistics(cpu_iowait),
-              "cpu_usage": self._statistics(cpu_usage),
-              "performance": performance
-              }
-        # eval_log.debug(ux)
+    def _calcule_ux_domain(self, stats, et, cpu_power):
+        # eval_log.debug("STATS: {}".format(stats))
+        # ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
+        a = np.array(stats)
+        ram_hyp_usage = list(filter(None.__ne__, list(a[:, 0])))
+        cpu_hyp_usage = list(filter(None.__ne__, list(a[:, 1])))
+        cpu_hyp_iowait = list(filter(None.__ne__, list(a[:, 2])))
+        cpu_usage = list(filter(None.__ne__, list(a[:, 3])))
+        performance = round(et / cpu_power, 2)
+        ux = {
+            "execution_time": et,
+            "performance": performance,
+            "ram_hyp_usage": self._statistics(ram_hyp_usage),
+            "cpu_hyp_usage": self._statistics(cpu_hyp_usage),
+            "cpu_hyp_iowait": self._statistics(cpu_hyp_iowait),
+            "cpu_usage": self._statistics(cpu_usage),
+        }
+        # eval_log.debug("UX: {}".format(ux))
         return ux
 
     def _statistics(self, list):
@@ -179,6 +179,9 @@ class UXEval(EvaluatorInterface):
         return {"max": max(list), "min": min(list), "mean": mean(list), "stdev": stdev(list)}
 
     def _start_domains(self):
+        for hyp in self.hyps:
+            hyp.launch_eval_statistics()
+
         data = {}
         domains_id_list = EvalController.get_domains_id_randomized(self.user_id, self.id_pool, self.defined_domains,
                                                                    self.templates)
@@ -193,8 +196,8 @@ class UXEval(EvaluatorInterface):
             results = [None] * start_domains
             i = 0
             while (i < start_domains):
-                domains_id = domains_ids[i]
-                threads[i] = Thread(target=self._calcule_ux_background, args=(domains_id, results, i))
+                domain_id = domains_ids[i]
+                threads[i] = Thread(target=self._calcule_ux_background, args=(domain_id, results, i))
                 threads[i].start()
                 i += 1
 
@@ -209,9 +212,11 @@ class UXEval(EvaluatorInterface):
                 start_domains = total_domains
             else:
                 start_domains += step_domains
-            sleep(10)  # Realxing time
+            sleep(10)  # Relaxing time
             step += 1
 
+        for hyp in self.hyps:
+            hyp.stop_eval_statistics()
         data["total"] = self._analyze_total_results(total_results)
         return data
 
@@ -225,17 +230,18 @@ class UXEval(EvaluatorInterface):
         hyp_id, hyp, template_id = self._get_hyp_domain_running(domain_id)
 
         # Wait until stop
-        self._wait_stop(domain_id, hyp_id)
+        stats, et = self._wait_stop(domain_id, hyp)
 
         # Calcule domain ux
-        ux = self._calcule_ux_domain(domain_id, hyp_id, hyp.cpu_power, template_id)
+        ux = self._calcule_ux_domain(stats, et, hyp.cpu_power)
+        # ux = self._calcule_ux_domain(domain_id, hyp_id, hyp.cpu_power, template_id)
         # eval_log.debug("UX: domain_id: {}, hyp_id:{} , pformat(ux): {}".format(domain_id, hyp_id, pformat(ux)))
 
         # Get increment data: actual/initial
         initial_ux = self.ux[template_id][hyp_id]
         increment = self._get_inc(ux, initial_ux)
-        graphyte.send(hyp_id + '.inc_cpu_idle', increment["cpu_idle"]["mean"])
-        graphyte.send(hyp_id + '.inc_cpu_iowait', increment["cpu_iowait"]["mean"])
+        # graphyte.send(hyp_id + '.inc_cpu_idle', increment["cpu_idle"]["mean"])
+        # graphyte.send(hyp_id + '.inc_cpu_iowait', increment["cpu_iowait"]["mean"])
         # Calcule some data
         data = self._calcule_data_from_ux(domain_id, hyp_id, template_id, ux, increment)
 
@@ -252,15 +258,17 @@ class UXEval(EvaluatorInterface):
         for t in self.templates:
             data_results[t['id']] = {}
             for hyp in self.hyps:
-                c = np.where((a[:, 1] == hyp.id) & (a[:, 2] == t['id']))  # Query rows by hyp_id
+                c = np.where((a[:, 1] == hyp.id) & (a[:, 2] == t['id']))  # Query rows by hyp_id and template_id
                 tmp = a[c]
                 if len(tmp) > 0:
                     hyp_stats = list(np.round(np.mean(tmp[:, 3:-1].astype(np.float), axis=0), 2))
-                    data_results[t['id']][hyp.id] = {"inc_execution_time_percent": round((hyp_stats[1] - 1) * 100, 2),
-                                                     "inc_execution_time": hyp_stats[1],
-                                                     "cpu_hyp_usage_mean": hyp_stats[19],
-                                                     "inc_cpu_hyp_usage_mean": hyp_stats[21],
-                                                     }
+                    statistics_names = ["inc_execution_time", "execution_time",
+                                        "ram_hyp_usage_mean", "inc_ram_hyp_usage_mean",
+                                        "cpu_hyp_usage_mean", "inc_cpu_hyp_usage_mean"]
+                    eval_log.debug(self.data_ux_names)
+                    data_results[t['id']][hyp.id] = {sn: hyp_stats[self.data_ux_names.index(sn)] for sn in
+                                                     statistics_names}
+                    data_results[t['id']][hyp.id]["inc_execution_time_percent"] = round((hyp_stats[1] - 1) * 100, 2)
         # eval_log.debug("TOTAL NP: {}".format(data_results["total"]))
         return data_results
 
@@ -270,18 +278,33 @@ class UXEval(EvaluatorInterface):
         stats = list(np.round(np.mean(a, axis=0), 2))
         return stats
 
-    def _wait_stop(self, domain_id, hyp_id):
+    def _wait_stop(self, domain_id, hyp):
+        # ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
+        stats = []
         i = 0
+        start_time = time.time()
         while (get_domain_status(domain_id) == "Started" and i < 10):
+            tmp = []
+            s = hyp.get_ux_eval_statistics(domain_id)
+            # eval_log.debug(s)
+            tmp.append(s.get("ram_hyp_usage"))
+            tmp.append(s.get("cpu_hyp_usage"))
+            tmp.append(s.get("cpu_hyp_iowait"))
+            tmp.append(s.get("cpu_usage"))
+            # eval_log.debug(tmp)
+            stats.append(tmp)
             # eval_log.debug("Domain {} is started and i : {}".format(domain_id, i))
             sleep(1)
             i += 1
         if get_domain_status(domain_id) == "Started":
-            update_domain_status('Stopping', domain_id, hyp_id)  # Force stop
+            update_domain_status('Stopping', domain_id, hyp.id)  # Force stop
             i = 0
             while ((get_domain_status(domain_id) == "Stopping") and i < 10):
                 sleep(1)
                 i += 1
+        execution_time = time.time() - start_time
+        # eval_log.debug(stats)
+        return stats, execution_time
 
     def _wait_starting(self, domain_id):
         i = 0
@@ -303,32 +326,22 @@ class UXEval(EvaluatorInterface):
         increment = {"execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)}
         for name in self.names:
             increment[name] = {}
-            for stat in self.statistics:
-                increment[name][stat] = round(ux[name][stat] / initial_ux[name][stat], 2)
+            for stat in self.inc_statistics:
+                initial = 0.01 if initial_ux[name][stat] == 0 else initial_ux[name][stat]
+                increment[name][stat] = round(ux[name][stat] / initial, 2)
         return increment
 
     def _calcule_data_from_ux(self, domain_id, hyp_id, template_id, ux, increment):
-        # DATA VALUES, order is important
-        # 0 ["domain_id","hyp_id","template_id", "execution_time","inc_execution_time","performance",
-        # 6 "cpu_idle_max", "cpu_idle_min", "cpu_idle_mean", "cpu_idle_stdev",
-        # 10 "cpu_hyp_usage_max", "cpu_hyp_usage_min", "cpu_hyp_usage_mean", "cpu_hyp_usage_stdev",
-        # 14 "cpu_iowait_max", "cpu_iowait_min", "cpu_iowait_mean", "cpu_iowait_stdev",
-        # 18 "cpu_usage_max", "cpu_usage_min", "cpu_usage_mean", "cpu_usage_stdev",
-        # 22 "inc_cpu_idle_mean", "inc_cpu_idle_stdev",
-        # 24 "inc_cpu_hyp_usage_mean", "inc_cpu_hyp_usage_stdev",
-        # 26 "inc_cpu_iowait_mean", "inc_cpu_iowait_stdev",
-        # 28 "inc_cpu_usage_mean", "inc_cpu_usage_stdev",
-        # ]
-        data = [domain_id, hyp_id, template_id, ux["execution_time"], increment["execution_time"], ux["performance"]]
-        statistics = ["max", "min", "mean", "stdev"]
+        data = [domain_id, hyp_id, template_id,
+                ux["execution_time"], increment["execution_time"], ux["performance"]]
         for name in self.names:
             d = []
-            for s in statistics:
+            for s in self.statistics:
                 d.append(ux[name][s])
             data.extend(d)
         for name in self.names:
             d = []
-            for s in self.statistics:
+            for s in self.inc_statistics:
                 d.append(increment[name][s])
             data.extend(d)
         return data
