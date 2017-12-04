@@ -1,6 +1,6 @@
 # from engine import app
 from math import ceil, floor
-from random import shuffle, randint
+from random import shuffle
 from time import sleep
 
 from engine.models.hyp import hyp
@@ -70,10 +70,11 @@ DICT_CREATE = {'allowed': {'categories': False,
 
 # templates = [{'id': "_windows_7_x64_v3", 'weight': 100}],
 # templates=[{'id': "centos_7", 'weight': 100}]
+# evaluators=["load","ux"]
 class EvalController(object):
     def __init__(self, id_pool="default",
                  templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
-                 evaluators=["load","ux"]):
+                 evaluators=["ux"]):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
@@ -159,7 +160,7 @@ class EvalController(object):
         dd = self.defined_domains  # Define number of domains for each template.
         for t in self.templates:
             n_domains = get_domains_count(self.user["id"], origin=t['id'])
-            p = dd[t['id']] - n_domains # number of pending domains to create
+            p = dd[t['id']] - n_domains  # number of pending domains to create
             data[t['id']] = pending = p if p >= 0 else 0  # number of pending domains to create
             i = n_domains  # index of new domain
             eval_log.debug("Creating {} pending domains from template: {}".format(pending, t['id']))

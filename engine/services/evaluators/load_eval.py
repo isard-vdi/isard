@@ -3,18 +3,21 @@ Load Evaluator.
 Must be called from EvalController
 """
 from math import floor
-from random import randint, shuffle
+from random import randint
 from time import sleep
 
+import graphyte
+
 from engine.controllers.eval_controller import EvalController
-from engine.services.db import update_domain_status, get_domains_id
+from engine.services.db import update_domain_status
 from engine.services.evaluators.evaluator_interface import EvaluatorInterface
 from engine.services.log import eval_log
 
 
 class LoadEval(EvaluatorInterface):
     def __init__(self, user_id, id_pool, dd, templates, hyps, params):
-        self.name = "load_eval"
+        self.name = "load"
+        graphyte.init('grafana', prefix='isard-eval.{}'.format(self.name))
         self.user_id = user_id
         self.id_pool = id_pool
         self.defined_domains = dd
@@ -34,6 +37,7 @@ class LoadEval(EvaluatorInterface):
             n = randint(1, upper_limit_random)
             eval_log.debug("Starting {} random domains".format(n))
             started_domains += n
+            graphyte.send('started-domains', n)
             sleep_time = self.params["START_SLEEP_TIME"] * n
             while (n):
                 id = domains_id_list.pop()
@@ -61,6 +65,12 @@ class LoadEval(EvaluatorInterface):
         """
         for h in self.hyps:
             statistics = h.get_eval_statistics()
+
+            graphyte.send(h.id + '.cpu_percent_free', statistics["cpu_percent_free"])
+            graphyte.send(h.id + '.ram_percent_free', statistics["ram_percent_free"])
+            graphyte.send(h.id + '.percent_ram_template', h.percent_ram_template)
+            graphyte.send(h.id + '.n_domains', len(statistics["domains"]))
+
             cond_1 = statistics["cpu_percent_free"] < 10
             cond_2 = statistics["ram_percent_free"] < h.percent_ram_template
             eval_log.debug("EVALUATE - Hyp: {}, cpu: {}, "
