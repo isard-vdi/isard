@@ -22,6 +22,8 @@ from engine.services.db import get_dict_from_item_in_table, update_table_field, 
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
 
+DEFAULT_BALLOON = 0.80
+
 XML_SNIPPET_NETWORK = '''
     <interface type="network">
       <source network="default"/>
@@ -570,7 +572,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     else:
         v = DomainXML(xml)
     # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
-    v.set_memory(memory=hw['memory'], unit=hw['memory_unit'])
+    v.set_memory(memory=hw['memory'], unit=hw['memory_unit'],current=int(hw.get('currentMemory',hw['memory'])*DEFAULT_BALLOON))
     for i in range(len(hw['disks'])):
         v.set_vdisk(hw['disks'][i]['file'], index=i)
 
@@ -632,11 +634,10 @@ def populate_dict_hardware_from_create_dict(id_domain):
 
     # MEMORY and CPUS
     new_hardware_dict['vcpus'] = create_dict['hardware']['vcpus']
-    new_hardware_dict['currentMemory'] = create_dict['hardware']['memory']
+    new_hardware_dict['currentMemory'] = create_dict['hardware'].get('currentMemory',int(create_dict['hardware']['memory'] * DEFAULT_BALLOON))
     new_hardware_dict['memory'] = create_dict['hardware']['memory']
     new_hardware_dict['currentMemory_unit'] = 'KiB'
-    new_hardware_dict['memory_unit'] = 'KiB' \
-                                       ''
+    new_hardware_dict['memory_unit'] = 'KiB'
 
     # VIDEO
     id_video = create_dict['hardware']['videos'][0]
