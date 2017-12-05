@@ -112,6 +112,15 @@ class UXEval(EvaluatorInterface):
         self.calcule_ux = True
         self.data_ux_names = ["execution_time", "inc_execution_time", "performance"]
         self._init_data_ux_names()
+        self.ux_values = {"execution_time": {"min": 0,
+                                             "max": 30,
+                                             "weigth": 50,
+                                             "unit": "percent"},
+                          "cpu_hyp_iowait_stdev": {"min": 0,
+                                                   "max": 30,
+                                                   "weigth": 50,
+                                                   "unit": "percent"}
+                          }
 
     def _init_data_ux_names(self):
         for name in self.names:
@@ -359,12 +368,18 @@ class UXEval(EvaluatorInterface):
         return hyp_id, hyp, template_id
 
     def _get_inc(self, ux, initial_ux):
-        increment = {"execution_time": round(ux["execution_time"] / initial_ux["execution_time"], 2)}
+        inc_et = max(round(ux["execution_time"] / initial_ux["execution_time"], 2), 1)
+        increment = {
+            "execution_time": inc_et,
+            "execution_time_percent": round((inc_et - 1) * 100, 2)
+        }
         for name in self.names:
             increment[name] = {}
             for stat in self.inc_statistics:
                 initial = 0.01 if initial_ux[name][stat] == 0 else initial_ux[name][stat]
-                increment[name][stat] = round(ux[name][stat] / initial, 2)
+                inc = max(round(ux[name][stat] / initial, 2), 1)
+                increment[name][stat] = inc
+                increment[name][stat + "_percent"] = round((inc - 1) * 100, 2)
         return increment
 
     def _calcule_data_from_ux(self, domain_id, hyp_id, template_id, ux, increment):
@@ -380,4 +395,24 @@ class UXEval(EvaluatorInterface):
             for s in self.inc_statistics:
                 d.append(increment[name][s])
             data.extend(d)
+        score = self._ux_score(increment)
+        data.append(score)
+        eval_log.debug("domain_id: {}, hyp_id: {}, score: {}".format(domain_id, hyp_id, score))
         return data
+
+    def _ux_score(self, increment):
+        # eval_log.debug(increment)
+        # eval_log.debug(self.ux_values)
+        score_execution_time = (1 - ((increment["execution_time_percent"] / (self.ux_values["execution_time"]["max"] -
+                                                                             self.ux_values["execution_time"][
+                                                                                 "min"])))) * (
+                                   self.ux_values["execution_time"]["weigth"] / 100)
+
+        score_cpu_hyp_iowait_stdev = (1 - (
+            (increment["cpu_hyp_iowait"]["stdev_percent"] / (
+                self.ux_values["cpu_hyp_iowait_stdev"]["max"] -
+                self.ux_values["cpu_hyp_iowait_stdev"][
+                    "min"])))) * (
+                                         self.ux_values["cpu_hyp_iowait_stdev"]["weigth"] / 100)
+        score = score_execution_time + score_cpu_hyp_iowait_stdev
+        return score * 10
