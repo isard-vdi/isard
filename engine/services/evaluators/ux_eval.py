@@ -103,11 +103,13 @@ class UXEval(EvaluatorInterface):
         self.hyps = hyps
         self.params = params
         self.steps = 2  # How many steps will start domains
+        self.real_stop = True  # Wait for auto stop domain
+        self.time_to_stop = 20  # Force to stop after X seconds
         self.ux = {}  # one key for each template
         self.names = ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
         self.statistics = ["max", "min", "mean", "stdev"]
         self.inc_statistics = ["mean", "stdev"]
-        self.calcule_ux = False
+        self.calcule_ux = True
         self.data_ux_names = ["execution_time", "inc_execution_time", "performance"]
         self._init_data_ux_names()
 
@@ -266,7 +268,6 @@ class UXEval(EvaluatorInterface):
                     statistics_names = ["inc_execution_time", "execution_time",
                                         "ram_hyp_usage_mean", "inc_ram_hyp_usage_mean",
                                         "cpu_hyp_usage_mean", "inc_cpu_hyp_usage_mean"]
-                    eval_log.debug(self.data_ux_names)
                     data_results[t['id']][hyp.id] = {sn: hyp_stats[self.data_ux_names.index(sn)] for sn in
                                                      statistics_names}
                     data_results[t['id']][hyp.id]["inc_execution_time_percent"] = round((hyp_stats[1] - 1) * 100, 2)
@@ -283,14 +284,9 @@ class UXEval(EvaluatorInterface):
         stats = []
         i = 0
         start_time = time.time()
-        while (get_domain_status(domain_id) == "Started" and i < 10):
+        while (get_domain_status(domain_id) == "Started" and (self.real_stop or i < self.time_to_stop)):
             tmp = []
             s = hyp.get_ux_eval_statistics(domain_id)
-            # eval_log.debug(s)
-            # tmp.append(s.get("ram_hyp_usage"))
-            # tmp.append(s.get("cpu_hyp_usage"))
-            # tmp.append(s.get("cpu_hyp_iowait"))
-            # tmp.append(s.get("cpu_usage"))
             for name in self.names:
                 value = s.get(name)
                 tmp.append(value)
