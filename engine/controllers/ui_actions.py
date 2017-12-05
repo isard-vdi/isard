@@ -663,6 +663,7 @@ class UiActions(object):
                              description,
                              cpu,
                              ram,
+                             current_ram=-1,
                              id_net=None,
                              force_server=None,
                              only_cmds=False,
@@ -718,7 +719,7 @@ class UiActions(object):
         new_path_disk = path_to_disk_dir + '/' + disk_filename
 
         x.set_vcpu(cpu)
-        x.set_memory(ram)
+        x.set_memory(ram,current=current_ram)
         x.set_vdisk(new_path_disk)
         x.randomize_vm()
 
