@@ -73,7 +73,8 @@ DICT_CREATE = {'allowed': {'categories': False,
 # evaluators=["load","ux"]
 class EvalController(object):
     def __init__(self, id_pool="default",
-                 templates=[{'id': "_admin_ubuntu_17_eval", 'weight': 100}],
+                 # templates=[{'id': "_admin_ubuntu_17_eval", 'weight': 100}],
+                 templates=[{'id': "centos_7", 'weight': 100}],
                  # templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
                  evaluators=["ux"]
                  # evaluators=["load","ux"]

@@ -103,8 +103,8 @@ class UXEval(EvaluatorInterface):
         self.hyps = hyps
         self.params = params
         self.steps = 2  # How many steps will start domains
-        self.real_stop = True  # Wait for auto stop domain
-        self.time_to_stop = 20  # Force to stop after X seconds
+        self.real_stop = False  # Wait for auto stop domain
+        self.time_to_stop = 5  # Force to stop after X seconds
         self.ux = {}  # one key for each template
         self.names = ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
         self.statistics = ["max", "min", "mean", "stdev"]
@@ -132,29 +132,59 @@ class UXEval(EvaluatorInterface):
 
     def _calcule_ux(self):
         """
-        Calcule average ux for each template on each hyp.
+        Calcule initial ux for each template on each hyp.
         :return:
         """
         for t in self.templates:
-            domain = get_domains(self.user_id, origin=t['id'])[0]
+            domains = get_domains(self.user_id, origin=t['id'])
             if self.calcule_ux:
-                self.ux[t['id']] = {}
-                for hyp in self.hyps:
-                    eval_log.info("Calculing ux for template: {} in hypervisor {}".format(t['id'], hyp.id))
-                    update_domain_force_hyp(domain['id'], hyp.id)
-                    update_domain_status('Starting', domain['id'])
-                    hyp.launch_eval_statistics()
-                    sleep(2)
-                    self._wait_starting(domain['id'])
-                    stats, et = self._wait_stop(domain['id'], hyp)
-                    hyp.stop_eval_statistics()
-                    sleep(2)
-                    # self.ux[t['id']][hyp.id] = self._calcule_ux_domain(domain['id'], hyp.id, hyp.cpu_power, t['id'])
-                    self.ux[t['id']][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
+                if len(domains) >= len(self.hyps):  # Enought domains for run in parallel?
+                    self._initial_ux_parallel(t['id'], domains)
+                else:
+                    self._initial_ux_sequencial(t['id'], domains[0]['id'])
             else:
                 self.ux[t['id']] = INITIAL_UX
 
             eval_log.debug("INITIAL_UX: {}".format(pformat(self.ux[t['id']])))
+
+    def _initial_ux_parallel(self, template_id, domains):
+        self.ux[template_id] = {}
+        threads = [None] * len(self.hyps)
+        results = [None] * len(self.hyps)
+        for i in range(len(self.hyps)):
+            domain_id = domains[i]['id']
+            hyp = self.hyps[i]
+            hyp.launch_eval_statistics()
+            eval_log.info("Calculing ux for template: {} in hypervisor {}. Domain: {}".format(template_id, hyp.id, domain_id))
+            update_domain_force_hyp(domain_id, hyp.id)
+            threads[i] = Thread(target=self._get_stats_background, args=(domain_id, results, i, hyp))
+            threads[i].start()
+        for i in range(len(self.hyps)):
+            threads[i].join()
+            hyp = self.hyps[i]
+            hyp.stop_eval_statistics()
+            stats, et = results[i]
+            self.ux[template_id][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
+
+    def _initial_ux_sequencial(self, template_id, domain_id):
+        self.ux[template_id] = {}
+        for hyp in self.hyps:
+            eval_log.info("Calculing ux for template: {} in hypervisor {}".format(t['id'], hyp.id))
+            update_domain_force_hyp(domain_id, hyp.id)
+            update_domain_status('Starting', domain_id)
+            hyp.launch_eval_statistics()
+            sleep(2)
+            self._wait_starting(domain_id)
+            stats, et = self._wait_stop(domain_id, hyp)
+            hyp.stop_eval_statistics()
+            sleep(2)
+            self.ux[template_id][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
+
+    def _get_stats_background(self, domain_id, results, i, hyp):
+        update_domain_status('Starting', domain_id)
+        self._wait_starting(domain_id)
+        stats, et = self._wait_stop(domain_id, hyp)
+        results[i] = (stats, et)
 
     def _calcule_ux_domain(self, stats, et, cpu_power):
         # eval_log.debug("STATS: {}".format(stats))
@@ -230,7 +260,7 @@ class UXEval(EvaluatorInterface):
 
         # Get hyp_id where is running
         hyp_id, hyp, template_id = self._get_hyp_domain_running(domain_id)
-
+        eval_log.info("_calcule_ux_background: domain:{}, thread_id: {}, hyp_id: {}".format(domain_id, thread_id, hyp_id))
         # Wait until stop
         stats, et = self._wait_stop(domain_id, hyp)
 
