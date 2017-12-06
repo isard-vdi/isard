@@ -129,6 +129,7 @@ class UXEval(EvaluatorInterface):
         for name in self.names:
             for s in self.inc_statistics:
                 self.data_ux_names.append("inc" + "_" + name + "_" + s)
+                self.data_ux_names.append("inc" + "_" + name + "_" + s + "_percent")
         eval_log.info("Data UX Names: {}".format(self.data_ux_names))
 
     def run(self):
@@ -223,6 +224,7 @@ class UXEval(EvaluatorInterface):
         # sd = stdev(list) if len(list) >= 2 else 0
         return {"max": max(list), "min": min(list), "mean": mean(list), "stdev": stdev(list)}
 
+    ################# Main Function
     def _start_domains(self):
         for hyp in self.hyps:
             hyp.launch_eval_statistics()
@@ -249,7 +251,7 @@ class UXEval(EvaluatorInterface):
             for i in range(len(threads)):
                 threads[i].join()
             data_results = self._analyze_step_results(results)
-            total_results.append(data_results["total"])
+            total_results.append(results)
             data["step_{}".format(step)] = data_results
             # eval_log.debug("RESULTS: {}".format(pformat(results)))
 
@@ -299,7 +301,8 @@ class UXEval(EvaluatorInterface):
         a = np.array(results)
         eval_log.debug("results_analyze_results: {}".format(a))
         data_results = {}
-        data_results["total"] = list(np.round(np.mean(a[:, 3:-1].astype(np.float), axis=0), 2))
+        total = list(np.round(np.mean(a[:, 3:-1].astype(np.float), axis=0), 2))
+        data_results["total"] = {"score": total[-1]}
         # eval_log.debug(
         #     "total_analyze_results: {}".format(list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0), 2))))
         for t in self.templates:
@@ -309,20 +312,27 @@ class UXEval(EvaluatorInterface):
                 tmp = a[c]
                 if len(tmp) > 0:
                     hyp_stats = list(np.round(np.mean(tmp[:, 3:-1].astype(np.float), axis=0), 2))
-                    statistics_names = ["inc_execution_time", "execution_time",
-                                        "ram_hyp_usage_mean", "inc_ram_hyp_usage_mean",
-                                        "cpu_hyp_usage_mean", "inc_cpu_hyp_usage_mean"]
+                    statistics_names = ["inc_cpu_hyp_iowait_stdev_percent"
+                                        # "inc_execution_time", "execution_time",
+                                        # "inc_hyp_cpu_iowait_stdev", "execution_time",
+                                        # "ram_hyp_usage_mean", "inc_ram_hyp_usage_mean",
+                                        # "cpu_hyp_usage_mean", "inc_cpu_hyp_usage_mean"
+                                        ]
                     data_results[t['id']][hyp.id] = {sn: hyp_stats[self.data_ux_names.index(sn)] for sn in
                                                      statistics_names}
                     data_results[t['id']][hyp.id]["inc_execution_time_percent"] = round((hyp_stats[1] - 1) * 100, 2)
+                    data_results[t['id']][hyp.id]["score"] = hyp_stats[-1]
         # eval_log.debug("TOTAL NP: {}".format(data_results["total"]))
         return data_results
 
     def _analyze_total_results(self, results):
-        # eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
-        a = np.array(results)
-        stats = list(np.round(np.mean(a, axis=0), 2))
-        return stats
+        eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
+        total = np.array(results[0])
+        for i in range(1, len(results)):
+            np.append(total, results[i])
+        means = list(np.round(np.mean(total[:, 3:-1].astype(np.float), axis=0), 2))
+
+        return {"score": means[-1]}
 
     def _wait_stop(self, domain_id, hyp):
         stats = []
@@ -395,6 +405,7 @@ class UXEval(EvaluatorInterface):
             d = []
             for s in self.inc_statistics:
                 d.append(increment[name][s])
+                d.append(increment[name][s + "_percent"])
             data.extend(d)
         score = self._ux_score(increment)
         data.append(score)
