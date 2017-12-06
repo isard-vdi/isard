@@ -482,6 +482,7 @@ class hyp(object):
             ds = self.domain_stats.get(domain_id)
             lds = self.last_domain_stats.get(domain_id)
             if ds and lds:
+                eval_log.info("Ballon.current: {}, Ballon.max: {}".format(ds["raw_stats"]["balloon.current"], ds["raw_stats"]["balloon.maximum"]))
                 time_elapsed = ds['when'] - lds['when']
                 if time_elapsed != 0:
                     cpu_usage = (ds['procesed_stats']['cpu_time'] - lds['procesed_stats']['cpu_time']) / time_elapsed

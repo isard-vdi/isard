@@ -104,7 +104,7 @@ class UXEval(EvaluatorInterface):
         self.params = params
         self.steps = 2  # How many steps will start domains
         self.real_stop = False  # Wait for auto stop domain
-        self.time_to_stop = 5  # Force to stop after X seconds
+        self.time_to_stop = 15  # Force to stop after X seconds
         self.ux = {}  # one key for each template
         self.names = ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
         self.statistics = ["max", "min", "mean", "stdev"]

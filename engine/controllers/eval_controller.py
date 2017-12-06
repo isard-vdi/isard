@@ -73,8 +73,9 @@ DICT_CREATE = {'allowed': {'categories': False,
 # evaluators=["load","ux"]
 class EvalController(object):
     def __init__(self, id_pool="default",
-                 # templates=[{'id': "_admin_ubuntu_17_eval", 'weight': 100}],
-                 templates=[{'id': "centos_7", 'weight': 100}],
+                 templates=[{'id': "_admin_ubuntu_17_eval", 'weight': 100}],
+                 # templates=[{'id': "centos_7", 'weight': 100}],
+                 # templates=[{'id': "_windows_7_x64_v3", 'weight': 100}],
                  # templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
                  evaluators=["ux"]
                  # evaluators=["load","ux"]
@@ -246,6 +247,8 @@ class EvalController(object):
         disk_path = "{}/{}/{}/{}.qcow2".format(self.user['category'], self.user['group'], self.user['id'], id_domain)
         d['create_dict']['hardware']['disks'][0]['file'] = disk_path
         d['create_dict']['hardware']['disks'][0]['parent'] = t['disks_info'][0]['filename']
+        d['create_dict']['hardware']['memory'] = t['create_dict']['hardware']['memory']
+        d['create_dict']['hardware']['currentMemory'] = 200000
         d['create_dict']['origin'] = t['id']
         d['id'] = id_domain
         d['name'] = id_domain[1:]  # remove first char
