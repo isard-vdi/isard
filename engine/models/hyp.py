@@ -20,7 +20,8 @@ import paramiko
 from lxml import etree
 
 from engine.config import *
-from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket, calcule_cpu_stats
+from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket, calcule_cpu_stats, \
+    calcule_disk_net_domain_load
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
 from engine.services.log import *
 
@@ -382,6 +383,23 @@ class hyp(object):
                         # todo VER QUE HACEMOS SI ESTÁ EN PAUSA, YA QUE TIENE RAM RESERVADA??
                         # libvirt.VIR_DOMAIN_PAUSED
                         domain_sysname = r[0].name()
+                        # if domain_sysname == "_eval__admin_ubuntu_17_eval_0":
+                        # if domain_sysname == "_eval__windows_7_x64_v3_0":
+                        #     eval_log.warn("STATISTICS DOMAIN: {}, {}".format(domain_sysname, r[1]))
+                        # with open("/isard/stats.csv","a") as f:
+                        #     tmp = []
+                        #     tmp.append(domain_sysname)
+                        #     tmp.append(r[1].get("balloon.maximum"))
+                        #     tmp.append(r[1].get("balloon.current"))
+                        #     tmp.append(r[1].get("balloon.rss"))
+                        #     tmp.append(r[1].get("balloon.unused"))
+                        #     tmp.append(r[1].get("balloon.usable"))
+                        #     tmp.append(r[1].get("balloon.available"))
+                        #     tmp = [str(v)for v in tmp]
+                        #     msg = ",".join(tmp)+"\n"
+                        #     f.write(",".join(tmp)+"\n")
+                        #     # f.write("Testing...")
+
                         domain_state = r[0].state()
                         self.domain_stats[domain_sysname] = dict()
                         self.domain_stats[domain_sysname]['when'] = time.time()
@@ -466,6 +484,15 @@ class hyp(object):
         self.last_domain_stats = None
 
     def get_ux_eval_statistics(self, domain_id):
+        # dom = self.conn.lookupByName(domain_id)
+        # # eval_log.debug("blockStats: {}".format(dom.blockStats()))
+        # eval_log.debug("cpuStats: {}".format(dom.getCPUStats(False)))
+        # m = dom.memoryStats()
+        # current = m['rss']
+        # total = m['actual']
+        # pcentCurrMem = current * 100.0 / total
+        # pcentCurrMem = max(0.0, min(pcentCurrMem, 100.0))
+
         data = {}
         pf = self.load.get('percent_free')
         if pf:
@@ -482,11 +509,23 @@ class hyp(object):
             ds = self.domain_stats.get(domain_id)
             lds = self.last_domain_stats.get(domain_id)
             if ds and lds:
-                eval_log.info("Ballon.current: {}, Ballon.max: {}".format(ds["raw_stats"]["balloon.current"], ds["raw_stats"]["balloon.maximum"]))
+                # eval_log.info("Ballon.current: {}, Ballon.max: {}".format(ds["raw_stats"]["balloon.current"],
+                #                                                           ds["raw_stats"]["balloon.maximum"]))
                 time_elapsed = ds['when'] - lds['when']
-                if time_elapsed != 0:
+                if time_elapsed > 0:
                     cpu_usage = (ds['procesed_stats']['cpu_time'] - lds['procesed_stats']['cpu_time']) / time_elapsed
                     data["cpu_usage"] = round(cpu_usage, 2)
+
+                    # disk_rw, net_rw = calcule_disk_net_domain_load(time_elapsed, ds['procesed_stats'],
+                    #                                                lds['procesed_stats'])
+
+                    # data.update(disk_rw)
+                    # data.update(net_rw)
+                    # data.update(ds['procesed_stats'])
+                    # eval_log.debug("memoryStats: {}, Usage: {}".format(m, pcentCurrMem))
+                    # balloonUsage = round(ds["raw_stats"]["balloon.rss"]*100/ds["raw_stats"]["balloon.maximum"],2)
+                    # eval_log.debug("ballonStats: {}".format(balloonUsage))
+
             else:
                 if not ds:
                     eval_log.debug("Domain stats not found")

@@ -331,6 +331,7 @@ class UXEval(EvaluatorInterface):
         while (get_domain_status(domain_id) == "Started" and (self.real_stop or i < self.time_to_stop)):
             tmp = []
             s = hyp.get_ux_eval_statistics(domain_id)
+            # eval_log.debug("UX Stats: {}".format(pformat(s)))
             for name in self.names:
                 value = s.get(name)
                 tmp.append(value)
