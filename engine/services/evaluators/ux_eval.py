@@ -114,13 +114,18 @@ class UXEval(EvaluatorInterface):
         self._init_data_ux_names()
         self.ux_values = {"execution_time": {"min": 0,
                                              "max": 30,
-                                             "weigth": 50,
+                                             "weight": 40,
                                              "unit": "percent"},
                           "cpu_hyp_iowait_stdev": {"min": 0,
                                                    "max": 30,
-                                                   "weigth": 50,
-                                                   "unit": "percent"}
+                                                   "weight": 30,
+                                                   "unit": "percent"},
+                          "cpu_usage_mean": {"min": 0,
+                                             "max": 30,
+                                             "weight": 30,
+                                             "unit": "percent"}
                           }
+        self.weights_ux_values = sum(v['weight'] for v in self.ux_values.values())
 
     def _init_data_ux_names(self):
         for name in self.names:
@@ -137,7 +142,7 @@ class UXEval(EvaluatorInterface):
         self._calcule_ux()
         data["initial_ux"] = self.ux
         data.update(self._start_domains())
-        eval_log.debug("FINAL: {}".format(pformat(data)))
+        # eval_log.debug("FINAL: {}".format(pformat(data)))
         return data
 
     def _calcule_ux(self):
@@ -268,7 +273,7 @@ class UXEval(EvaluatorInterface):
         return data
 
     def _calcule_ux_background(self, domain_id, results, thread_id):
-        eval_log.info("_calcule_ux_background: domain:{}, thread_id: {}".format(domain_id, thread_id))
+        # eval_log.info("_calcule_ux_background: domain:{}, thread_id: {}".format(domain_id, thread_id))
         # Start
         update_domain_status('Starting', domain_id)
         self._wait_starting(domain_id)
@@ -301,7 +306,7 @@ class UXEval(EvaluatorInterface):
         a = np.array(results)
         eval_log.debug("results_analyze_results: {}".format(a))
         data_results = {}
-        total = list(np.round(np.mean(a[:, 3:-1].astype(np.float), axis=0), 2))
+        total = list(np.round(np.mean(a[:, 3:].astype(np.float), axis=0), 2))
         data_results["total"] = {"score": total[-1]}
         # eval_log.debug(
         #     "total_analyze_results: {}".format(list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0), 2))))
@@ -311,8 +316,10 @@ class UXEval(EvaluatorInterface):
                 c = np.where((a[:, 1] == hyp.id) & (a[:, 2] == t['id']))  # Query rows by hyp_id and template_id
                 tmp = a[c]
                 if len(tmp) > 0:
-                    hyp_stats = list(np.round(np.mean(tmp[:, 3:-1].astype(np.float), axis=0), 2))
-                    statistics_names = ["inc_cpu_hyp_iowait_stdev_percent"
+                    hyp_stats = list(np.round(np.mean(tmp[:, 3:].astype(np.float), axis=0), 2))
+                    statistics_names = ["inc_cpu_hyp_iowait_stdev_percent",
+                                        "inc_cpu_usage_mean_percent",
+                                        "inc_cpu_usage_stdev_percent"
                                         # "inc_execution_time", "execution_time",
                                         # "inc_hyp_cpu_iowait_stdev", "execution_time",
                                         # "ram_hyp_usage_mean", "inc_ram_hyp_usage_mean",
@@ -326,12 +333,12 @@ class UXEval(EvaluatorInterface):
         return data_results
 
     def _analyze_total_results(self, results):
-        eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
+        # eval_log.debug("_analyze_total_results: {}".format(pformat(results)))
         total = np.array(results[0])
         for i in range(1, len(results)):
-            np.append(total, results[i])
-        means = list(np.round(np.mean(total[:, 3:-1].astype(np.float), axis=0), 2))
-
+            total = np.append(total, results[i], axis=0)
+        eval_log.debug("TOTAL: {}".format(total))
+        means = list(np.round(np.mean(total[:, 3:].astype(np.float), axis=0), 2))
         return {"score": means[-1]}
 
     def _wait_stop(self, domain_id, hyp):
@@ -413,18 +420,32 @@ class UXEval(EvaluatorInterface):
         return data
 
     def _ux_score(self, increment):
-        # eval_log.debug(increment)
-        # eval_log.debug(self.ux_values)
-        score_execution_time = (1 - ((increment["execution_time_percent"] / (self.ux_values["execution_time"]["max"] -
-                                                                             self.ux_values["execution_time"][
-                                                                                 "min"])))) * (
-                                   self.ux_values["execution_time"]["weigth"] / 100)
+        total_score = 0
+        for value in self.ux_values.keys():
+            xv, vmax, vmin, wv = getattr(self, "_ux_score_" + value)(increment)  # Call scorer function
+            score = (1 - min(xv / (vmax - vmin), 1)) * wv / self.weights_ux_values
+            eval_log.debug("Partial_ Score ({}): {}".format(value, score))
+            total_score += score
 
-        score_cpu_hyp_iowait_stdev = (1 - (
-            (increment["cpu_hyp_iowait"]["stdev_percent"] / (
-                self.ux_values["cpu_hyp_iowait_stdev"]["max"] -
-                self.ux_values["cpu_hyp_iowait_stdev"][
-                    "min"])))) * (
-                                         self.ux_values["cpu_hyp_iowait_stdev"]["weigth"] / 100)
-        score = score_execution_time + score_cpu_hyp_iowait_stdev
-        return score * 10
+        return total_score * 10
+
+    def _ux_score_execution_time(self, increment):
+        xv = increment["execution_time_percent"]
+        vmax = self.ux_values["execution_time"]["max"]
+        vmin = self.ux_values["execution_time"]["min"]
+        wv = self.ux_values["execution_time"]["weight"]
+        return xv, vmax, vmin, wv
+
+    def _ux_score_cpu_hyp_iowait_stdev(self, increment):
+        xv = increment["cpu_hyp_iowait"]["stdev_percent"]
+        vmax = self.ux_values["cpu_hyp_iowait_stdev"]["max"]
+        vmin = self.ux_values["cpu_hyp_iowait_stdev"]["min"]
+        wv = self.ux_values["cpu_hyp_iowait_stdev"]["weight"]
+        return xv, vmax, vmin, wv
+
+    def _ux_score_cpu_usage_mean(self, increment):
+        xv = increment["cpu_usage"]["mean_percent"]
+        vmax = self.ux_values["cpu_usage_mean"]["max"]
+        vmin = self.ux_values["cpu_usage_mean"]["min"]
+        wv = self.ux_values["cpu_usage_mean"]["weight"]
+        return xv, vmax, vmin, wv
