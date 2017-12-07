@@ -103,7 +103,7 @@ class UXEval(EvaluatorInterface):
         self.hyps = hyps
         self.params = params
         self.steps = 2  # How many steps will start domains
-        self.real_stop = False  # Wait for auto stop domain
+        self.real_stop = True  # Wait for auto stop domain
         self.time_to_stop = 15  # Force to stop after X seconds
         self.initial_ux = {}  # one key for each template
         self.names = ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
@@ -202,7 +202,7 @@ class UXEval(EvaluatorInterface):
     def _get_stats_background(self, domain_id, results, i, hyp):
         update_domain_status('Starting', domain_id)
         self._wait_starting(domain_id)
-        stats, et = self._wait_stop(domain_id, hyp)
+        stats, et, stop_by_timeout = self._wait_stop(domain_id, hyp)
         results[i] = (stats, et)
 
     def _calcule_ux_domain(self, stats, et, cpu_power):
@@ -256,8 +256,13 @@ class UXEval(EvaluatorInterface):
             for i in range(len(threads)):
                 threads[i].join()
             data_results = self._analyze_step_results(results)
-            total_results.append(results)
+            total_results.append([r[0] for r in results if r])
             data["step_{}".format(step)] = data_results
+            if data_results["total"]["timeouts"] > 1:
+                for hyp in self.hyps:
+                    hyp.stop_eval_statistics()
+                data["total"] = self._analyze_total_results(total_results)
+                break
             # eval_log.debug("RESULTS: {}".format(pformat(results)))
 
             if start_domains < total_domains and start_domains + step_domains > total_domains:
@@ -283,7 +288,11 @@ class UXEval(EvaluatorInterface):
         eval_log.info(
             "_calcule_ux_background: domain:{}, thread_id: {}, hyp_id: {}".format(domain_id, thread_id, hyp_id))
         # Wait until stop
-        stats, et = self._wait_stop(domain_id, hyp)
+        et = self.initial_ux[template_id][hyp_id]["execution_time"]
+        et_inc_max = self.ux_scorers["execution_time"]["max"]
+        timeout = et * (1 + et_inc_max/100)
+        eval_log.info("TIMEOUT: {}, ET: {}".format(timeout, et))
+        stats, et, stop_by_timeout = self._wait_stop(domain_id, hyp, timeout=timeout)
 
         # Calcule domain ux
         ux = self._calcule_ux_domain(stats, et, hyp.cpu_power)
@@ -299,16 +308,18 @@ class UXEval(EvaluatorInterface):
         # Calcule some data
         data = self._calcule_data_from_ux(domain_id, hyp_id, template_id, ux, increment)
 
-        results[thread_id] = data
+        results[thread_id] = (data, stop_by_timeout)
 
-    def _analyze_step_results(self, results):
-        results = [r for r in results if r]  # Remove None's, produced by errors
+    def _analyze_step_results(self, results_timeouts):
+        results = [r[0] for r in results_timeouts if r]  # Remove None's, produced by errors
+        timeouts = [r[1] for r in results_timeouts if r and r[1] is True]  # Get any True value
         a = np.array(results)
         eval_log.debug("results_analyze_results: {}".format(a))
         data_results = {}
         total = list(np.round(np.mean(a[:, 3:].astype(np.float), axis=0), 2))
         data_results["total"] = {"score": total[-1],
-                                 "n_domains":len(results)}
+                                 "n_domains":len(results),
+                                 "timeouts":len(timeouts)}
         # eval_log.debug(
         #     "total_analyze_results: {}".format(list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0), 2))))
         for t in self.templates:
@@ -342,11 +353,13 @@ class UXEval(EvaluatorInterface):
         means = list(np.round(np.mean(total[:, 3:].astype(np.float), axis=0), 2))
         return {"score": means[-1]}
 
-    def _wait_stop(self, domain_id, hyp):
+    def _wait_stop(self, domain_id, hyp, timeout=9999):
         stats = []
         i = 0
         start_time = time.time()
-        while (get_domain_status(domain_id) == "Started" and (self.real_stop or i < self.time_to_stop)):
+        while (get_domain_status(domain_id) == "Started"
+               and (self.real_stop or i < self.time_to_stop)
+               and i < timeout):
             tmp = []
             s = hyp.get_ux_eval_statistics(domain_id)
             # eval_log.debug("UX Stats: {}".format(pformat(s)))
@@ -360,15 +373,17 @@ class UXEval(EvaluatorInterface):
             # eval_log.debug("Domain {} is started and i : {}".format(domain_id, i))
             sleep(1)
             i += 1
+
         if get_domain_status(domain_id) == "Started":
             update_domain_status('Stopping', domain_id, hyp.id)  # Force stop
-            i = 0
-            while ((get_domain_status(domain_id) == "Stopping") and i < 10):
+            j = 0
+            while ((get_domain_status(domain_id) == "Stopping") and j < 10):
                 sleep(1)
-                i += 1
+                j += 1
         execution_time = time.time() - start_time
-        # eval_log.debug(stats)
-        return stats, execution_time
+        stop_by_timeout = i >= timeout or execution_time > timeout
+        eval_log.debug("Execution_time: {}, stop_by_time_out: {}, i_value: {}, timeout: {}".format(execution_time, stop_by_timeout, i, timeout))
+        return stats, execution_time, stop_by_timeout
 
     def _wait_starting(self, domain_id):
         i = 0
@@ -417,7 +432,11 @@ class UXEval(EvaluatorInterface):
             data.extend(d)
         score = self._ux_score(increment)
         data.append(score)
-        eval_log.debug("domain_id: {}, hyp_id: {}, score: {}".format(domain_id, hyp_id, score))
+        # eval_log.debug("domain_id: {}, hyp_id: {}, score: {}".format(domain_id, hyp_id, score))
+        names= ["domain_id", "hyp_id", "template_id", "execution_time", "inc_execution_time", "performance"]
+        names.extend(self.data_ux_names)
+        tmp = dict(zip(names, data))
+        eval_log.debug("domain_ux_data: {}".format(tmp))
         return data
 
     def _ux_score(self, increment):
