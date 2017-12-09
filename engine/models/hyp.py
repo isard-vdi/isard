@@ -460,7 +460,7 @@ class hyp(object):
         self.last_load = self.load
         self.get_domains()
         data = {"cpu_percent_free": round(mean(self.cpu_percent_free), 2),
-                "ram_percent_free": self.load["percent_free"],
+                "ram_percent_free": self.load.get("percent_free"),
                 "domains": list(self.domains.keys())}
         return data
 

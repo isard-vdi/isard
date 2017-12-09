@@ -83,11 +83,11 @@ class EvalController(object):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
-        self.params = {'MAX_DOMAINS': 10,
+        self.params = {'MAX_DOMAINS': 50,
                        'CREATE_SLEEP_TIME': 1,
                        'STOP_SLEEP_TIME': 1,
                        'START_SLEEP_TIME': 3,
-                       'TEMPLATE_MEMORY': 2000}  # in MB, info duplicated on DICT_CREATE but in bytes
+                       'TEMPLATE_MEMORY': 1000}  # in MB, info duplicated on DICT_CREATE but in bytes
         self._init_domains()
         self._init_hyps()
         self._init_evaluators(evaluators)
@@ -124,8 +124,8 @@ class EvalController(object):
         m = min(hyps, key=lambda x: x['info']['memory_in_MB'])
         min_mem = m['info']['memory_in_MB']
         # TODO: adjust num_domains value.
-        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps) + 10)
-        n = min(self.params.get('MAX_DOMAINS', 10), num_domains)
+        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps)+1)
+        n = min(self.params.get('MAX_DOMAINS'), num_domains)
         eval_log.debug("Num of max domains for eval: {}".format(n))
         return n
 

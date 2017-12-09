@@ -25,7 +25,15 @@ class LoadEval(EvaluatorInterface):
         self.hyps = hyps
         self.params = params
 
-    def start_domains(self):
+    def run(self):
+        data = {}
+        data_start = self._start_domains()
+        data.update(data_start)
+        data_final_statistics = self._get_final_statistics()
+        data.update(data_final_statistics)
+        return data
+
+    def _start_domains(self):
         domains_id_list = EvalController.get_domains_id_randomized(self.user_id, self.id_pool, self.defined_domains,
                                                                    self.templates)
         total_domains = len(domains_id_list)
@@ -48,14 +56,6 @@ class LoadEval(EvaluatorInterface):
             keep_starting = self._evaluate()
         return {"started_domains": started_domains}
 
-    def run(self):
-        data = {}
-        data_start = self.start_domains()
-        data.update(data_start)
-        data_final_statistics = self._get_final_statistics()
-        data.update(data_final_statistics)
-        return data
-
     def _evaluate(self):
         """
         Evaluate pool resources.
@@ -72,7 +72,7 @@ class LoadEval(EvaluatorInterface):
             graphyte.send(h.id + '.n_domains', len(statistics["domains"]))
 
             cond_1 = statistics["cpu_percent_free"] < 10
-            cond_2 = statistics["ram_percent_free"] < h.percent_ram_template
+            cond_2 = statistics.get("ram_percent_free", 100) < h.percent_ram_template
             eval_log.debug("EVALUATE - Hyp: {}, cpu: {}, "
                            "ram: {}, ram_template: {}".format(h.id,
                                                               statistics["cpu_percent_free"],

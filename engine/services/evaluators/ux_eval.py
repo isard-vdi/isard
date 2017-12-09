@@ -3,7 +3,7 @@ UX Evaluator.
 Must be called from EvalController
 """
 import time
-from math import floor
+from math import floor, ceil
 from pprint import pformat
 from statistics import mean, stdev
 from threading import Thread
@@ -102,7 +102,7 @@ class UXEval(EvaluatorInterface):
         self.templates = templates
         self.hyps = hyps
         self.params = params
-        self.steps = 2  # How many steps will start domains
+        self.steps = 3  # How many steps will start domains
         self.real_stop = True  # Wait for auto stop domain
         self.time_to_stop = 15  # Force to stop after X seconds
         self.initial_ux = {}  # one key for each template
@@ -114,15 +114,15 @@ class UXEval(EvaluatorInterface):
         self._init_data_ux_names()
         self.ux_scorers = {"execution_time": {"min": 0,
                                              "max": 30,
-                                             "weight": 40,
+                                             "weight": 60,
                                              "unit": "percent"},
                           "cpu_hyp_iowait_stdev": {"min": 0,
                                                    "max": 30,
-                                                   "weight": 30,
+                                                   "weight": 20,
                                                    "unit": "percent"},
                           "cpu_usage_mean": {"min": 0,
                                              "max": 30,
-                                             "weight": 30,
+                                             "weight": 20,
                                              "unit": "percent"}
                            }
         self.total_weights_ux_scorers = sum(v['weight'] for v in self.ux_scorers.values())
@@ -179,6 +179,8 @@ class UXEval(EvaluatorInterface):
             threads[i].join()
             hyp = self.hyps[i]
             hyp.stop_eval_statistics()
+            if not results[i]:
+                raise Exception("Need to reset")
             stats, et = results[i]
             self.initial_ux[template_id][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
             domain_id = domains[i]['id']
@@ -258,7 +260,7 @@ class UXEval(EvaluatorInterface):
             data_results = self._analyze_step_results(results)
             total_results.append([r[0] for r in results if r])
             data["step_{}".format(step)] = data_results
-            if data_results["total"]["timeouts"] > 1:
+            if data_results["total"]["timeouts"] > ceil(data_results["total"]["n_domains"]/2):
                 for hyp in self.hyps:
                     hyp.stop_eval_statistics()
                 data["total"] = self._analyze_total_results(total_results)
@@ -446,7 +448,6 @@ class UXEval(EvaluatorInterface):
             score = (1 - min(xv / (vmax - vmin), 1)) * wv / self.total_weights_ux_scorers
             eval_log.debug("Partial_ Score ({}): {}".format(value, score))
             total_score += score
-
         return total_score * 10
 
     def _ux_score_execution_time(self, increment):
