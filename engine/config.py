@@ -32,7 +32,7 @@ RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
 RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
 with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
     rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
-print(rconfig)
+#print(rconfig)
 
 
 MAX_QUEUE_DOMAINS_STATUS = rconfig['stats']['max_queue_domains_status']
