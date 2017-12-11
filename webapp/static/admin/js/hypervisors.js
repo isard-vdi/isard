@@ -7,6 +7,8 @@
 
 $hypervisor_template = $(".hyper-detail");
 
+//~ var table =''
+
 $(document).ready(function() {
 	$('.btn-new-hyper').on('click', function () {
 			$('#modalAddHyper').modal({
@@ -26,7 +28,7 @@ $(document).ready(function() {
       function timestamp() { return (new Date).getTime() / 1000; }
       chart={}
 
-    var table = $('#hypervisors').DataTable( {
+    table = $('#hypervisors').DataTable( {
         "ajax": {
             "url": "/admin/hypervisors/json",
             "dataSrc": ""
@@ -47,12 +49,13 @@ $(document).ready(function() {
             { "data": "id" , "width": "10px" },
             { "data": "enabled", "width": "10px" },
             { "data": "status", "width": "10px" },
+            { "data": "started_domains", "width": "10px" },
             { "data": "hostname", "width": "10px" },
             { "data": "hypervisors_pools", "width": "10px" },
             { "data": "status_time" , "width": "10px" },
             //~ { "data": "description", "visible": false},
             { "data": "description" }],
-			 "order": [[4, 'asc']],
+			 "order": [[5, 'asc']],
 			 "columnDefs": [ {
 							"targets": 2,
 							"render": function ( data, type, full, meta ) {
@@ -64,27 +67,23 @@ $(document).ready(function() {
 							  return renderStatus(full);
 							}},
 							{
-							"targets": 4,
+							"targets": 5,
 							"render": function ( data, type, full, meta ) {
 							  return renderName(full);
 							}},
 							{
-							"targets": 6,
+							"targets": 7,
 							"render": function ( data, type, full, meta ) {
 							  return moment.unix(full.status_time).fromNow();
 							}},
 							{
-							"targets": 7,
+							"targets": 8,
 							"render": function ( data, type, full, meta ) {
 							  return renderGraph(full);
 							}}                            
              ],
              "initComplete": function(settings, json) {
                         this.api().rows().data().each(function(r){
-                            //~ str = JSON.stringify(r);
-                            //~ str = JSON.stringify(r, null, 4);
-                            //~ console.log(str)
-                            console.log('data: '+r.id)
                             chart[r.id]=$("#chart-"+r.id).epoch({
                                             type: "time.line",
                                             axes: ["right"],
@@ -101,7 +100,6 @@ $(document).ready(function() {
                                             ]
                                           });
                         })
-                        console.log(chart)
               }                             
     } );
 
@@ -116,13 +114,14 @@ $(document).ready(function() {
         }
         else {
             // Close other rows
-             if ( table.row( '.shown' ).length ) {
-                      $('.details-control', table.row( '.shown' ).node()).click();
-              }
+             //~ if ( table.row( '.shown' ).length ) {
+                      //~ $('.details-control', table.row( '.shown' ).node()).click();
+              //~ }
             // Open this row
             row.child( formatHypervisorPanel(row.data()) ).show();
             tr.addClass('shown');
             $('#status-detail-'+row.data().id).html(row.data().detail);
+            tableHypervisorDomains(row.data().id);
             actionsHyperDetail();
 
         }
@@ -130,11 +129,9 @@ $(document).ready(function() {
 
     $("#modalAddHyper #send").on('click', function(e){
             var form = $('#modalAddHyper #modalAdd');
-            console.log('inside')
             //~ form.parsley().validate();
             //~ var queryString = $('#modalAdd').serialize();
             data=$('#modalAddHyper #modalAdd').serializeObject();
-            console.log(data)
             socket.emit('hypervisor_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
@@ -155,8 +152,8 @@ $(document).ready(function() {
      
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['hyper'])
-        console.log('Listening admins namespace');
+        socket.emit('join_rooms',['hyper','domains_stats'])
+        console.log('Listening admins and domains_stats namespace');
     });
 
     socket.on('connect_error', function(data) {
@@ -170,7 +167,6 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
-        console.log('add or update')
         var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
@@ -185,12 +181,8 @@ $(document).ready(function() {
 
     socket.on('hyper_status', function(data){
         var data = JSON.parse(data);
-        //~ str = JSON.stringify(data);
-        //~ str = JSON.stringify(data, null, 4);
-        //~ console.log(str)
-        console.log('status: '+data.hyp_id)
-        console.log('status: '+data['cpu_percent-used'])
-        console.log('status: '+data['load-percent_free'])
+        table.row('#'+data.hyp_id).data().started_domains=data.domains
+        table.row('#'+data.hyp_id).invalidate().draw();
         chart[data.hyp_id].push([
         //~ chart.push([
           { time: timestamp(), y: data['cpu_percent-used']},
@@ -199,7 +191,6 @@ $(document).ready(function() {
     });
         
     socket.on('hyper_delete', function(data){
-        console.log('delete')
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -212,7 +203,14 @@ $(document).ready(function() {
                 type: 'success'
         });
     });
-    
+
+    //~ socket.on('domain_event', function(data){
+        //~ var data = JSON.parse(data);
+        //~ if(data.status=='Started'){inc=1;}else{inc=-1}
+        //~ table.row('#'+data.hyp_started).data().started_domains+=inc
+        //~ table.row('#'+data.hyp_started).invalidate().draw();
+    //~ });
+        
     socket.on('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -276,7 +274,6 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-                            console.log(pk);
 							api.ajax('/admin/hypervisors/toggle','POST',{'pk':pk,'name':'enabled'}).done(function(data) {
 							});  
 						}).on('pnotify.cancel', function() {
@@ -358,3 +355,4 @@ function renderStatus(data){
 function renderGraph(data){
     return '<div class="epoch category40" id="chart-'+data.id+'" style="width: 220px; height: 50px;"></div>'
 }
+
