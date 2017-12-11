@@ -41,6 +41,7 @@ TIME_BETWEEN_POLLING = rconfig['intervals']['time_between_polling']
 TEST_HYP_FAIL_INTERVAL = rconfig['intervals']['test_hyp_fail']
 POLLING_INTERVAL_BACKGROUND = rconfig['intervals']['background_polling']
 POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig['intervals']['transitional_states_polling']
+CARBON = rconfig['carbon']
 
 TRANSITIONAL_STATUS = ('Starting', 'Stopping')
 

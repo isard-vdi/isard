@@ -8,6 +8,7 @@ from time import sleep
 
 import graphyte
 
+from engine.config import CARBON
 from engine.controllers.eval_controller import EvalController
 from engine.services.db import update_domain_status
 from engine.services.evaluators.evaluator_interface import EvaluatorInterface
@@ -17,7 +18,7 @@ from engine.services.log import eval_log
 class LoadEval(EvaluatorInterface):
     def __init__(self, user_id, id_pool, dd, templates, hyps, params):
         self.name = "load"
-        graphyte.init('grafana', prefix='isard-eval.{}'.format(self.name))
+        self.sender = graphyte.Sender(CARBON['server'], prefix='isard-eval.{}'.format(self.name), port=CARBON['port'])
         self.user_id = user_id
         self.id_pool = id_pool
         self.defined_domains = dd
@@ -45,7 +46,7 @@ class LoadEval(EvaluatorInterface):
             n = randint(1, upper_limit_random)
             eval_log.debug("Starting {} random domains".format(n))
             started_domains += n
-            graphyte.send('started-domains', n)
+            self.sender.send('started-domains', n)
             sleep_time = self.params["START_SLEEP_TIME"] * n
             while (n):
                 id = domains_id_list.pop()
@@ -66,10 +67,10 @@ class LoadEval(EvaluatorInterface):
         for h in self.hyps:
             statistics = h.get_eval_statistics()
 
-            graphyte.send(h.id + '.cpu_percent_free', statistics["cpu_percent_free"])
-            graphyte.send(h.id + '.ram_percent_free', statistics["ram_percent_free"])
-            graphyte.send(h.id + '.percent_ram_template', h.percent_ram_template)
-            graphyte.send(h.id + '.n_domains', len(statistics["domains"]))
+            self.sender.send(h.id + '.cpu_percent_free', statistics["cpu_percent_free"])
+            self.sender.send(h.id + '.ram_percent_free', statistics["ram_percent_free"])
+            self.sender.send(h.id + '.percent_ram_template', h.percent_ram_template)
+            self.sender.send(h.id + '.n_domains', len(statistics["domains"]))
 
             cond_1 = statistics["cpu_percent_free"] < 10
             cond_2 = statistics.get("ram_percent_free", 100) < h.percent_ram_template
