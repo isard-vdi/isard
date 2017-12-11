@@ -560,6 +560,26 @@ function actionsDomainDetail(){
             modal_edit_desktop_datatables(pk);
 	});
 
+	$('.btn-xml').on('click', function () {
+            var pk=$(this).closest("div").attr("data-pk");
+            $("#modalEditXmlForm")[0].reset();
+			$('#modalEditXml').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalEditXmlForm #id').val(pk);
+            $.ajax({
+                type: "GET",
+                url:"/admin/domains/xml/" + pk,
+                success: function(data)
+                {
+                    var data = JSON.parse(data);
+                    $('#xml').val(data);
+                }				
+            });
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+	});
 
     if(url=="Desktops"){
 
@@ -745,6 +765,19 @@ function modal_edit_desktop_datatables(id){
             }
         });
 
+    $("#modalEditXml #send").on('click', function(e){
+            var form = $('#modalEditXmlForm');
+            //~ form.parsley().validate();
+            //~ if (form.parsley().isValid()){
+                    id=$('#modalEditXmlForm #id').val();
+                    xml=$('#modalEditXmlForm #xml').val();
+                    api.ajax('/admin/domains/xml/'+id,'POST',{'xml':xml}).done(function(data) {
+                        $("#modalEditXmlForm")[0].reset();
+                        $("#modalEditXml").modal('hide');
+                        console.log('updated')
+                	}); 
+            //~ }
+        });
 
 
 

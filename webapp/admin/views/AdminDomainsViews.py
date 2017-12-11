@@ -64,6 +64,19 @@ def admin_domains_get(kind=False):
             return json.dumps(app.adminapi.get_admin_domains_with_derivates(kind='base')), 200, {'ContentType': 'application/json'}
     return json.dumps(app.adminapi.get_admin_domains(kind)), 200, {'ContentType': 'application/json'}
 
+@app.route('/admin/domains/xml/<id>', methods=['POST','GET'])
+@login_required
+@isAdmin
+def admin_domains_xml(id):
+    print('in domains xml')
+    if request.method == 'POST':
+        res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
+        if res:
+            return json.dumps(res), 200,  {'ContentType': 'application/json'}
+        else:
+            return json.dumps(res), 500,  {'ContentType': 'application/json'}
+    return json.dumps(app.adminapi.get_admin_table('domains',pluck='xml',id=id)['xml']), 200, {'ContentType': 'application/json'}
+
 
 
 
