@@ -2,11 +2,12 @@ import json
 
 from flask import Blueprint, jsonify
 
-from engine import app
+from flask import current_app
 
 
 api = Blueprint('api', __name__)
 
+app = current_app
 from . import evaluate
 
 @api.route('/threads', methods=['GET'])
