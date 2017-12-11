@@ -58,3 +58,13 @@ eval_handler.setLevel(log.DEBUG)
 eval_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
 eval_handler.setFormatter(eval_formatter)
 eval_log.addHandler(eval_handler)
+
+
+# Hypervisor Manager Logger (For the Balance Algorithm)
+# create file handler which logs even debug messages
+hypman_log = log.getLogger('hypman')
+hypman_handler = log.FileHandler('hypman.log')
+hypman_handler.setLevel(log.DEBUG)
+hypman_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
+hypman_handler.setFormatter(hypman_formatter)
+hypman_log.addHandler(hypman_handler)
