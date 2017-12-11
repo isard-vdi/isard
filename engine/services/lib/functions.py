@@ -157,6 +157,9 @@ def calcule_cpu_stats(start, end, round_digits=3):
     diff_time = {}
     percent = {}
     total_diff_time = sum(end.values()) - sum(start.values())
+    #sum of all times in all cpus, for example for 12 cpus and 5 seconds between samples
+    #total_diff_time_in_seconds must be 60
+    total_diff_time_in_seconds = total_diff_time / 1000000000
     for k in start.keys():
         diff_time[k] = end[k] - start[k]
         percent[k] = round((diff_time[k] / float(total_diff_time)) * 100.0, round_digits)

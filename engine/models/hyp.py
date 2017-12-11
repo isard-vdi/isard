@@ -295,15 +295,18 @@ class hyp(object):
         keys of dictionary are names
         """
         if self.connected:
-            ##TODO INFO TO DEVELOPER ==> haría falta poner un try por si se ha perdido la conexión??
-            ids = self.conn.listDomainsID()
-            domains={}
-            for id in ids:
-                domain = self.conn.lookupByID(id)
-                name = domain.name()
-                domains[name]=domain
+            try:
+                ids = self.conn.listDomainsID()
+                domains={}
+                for id in ids:
+                    domain = self.conn.lookupByID(id)
+                    name = domain.name()
+                    domains[name]=domain
 
-            self.domains=domains
+                self.domains=domains
+            except:
+                log.error('error when try to list domain in hypervisor {}'.format(self.hostname))
+                self.domains = {}
 
 
     def hyp_worker_thread(self,queue_worker):
