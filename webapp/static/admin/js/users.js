@@ -95,18 +95,11 @@ $(document).ready(function() {
 
 
 
-    reconnect=-1;
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
-    console.log(socket)
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
      
     socket.on('connect', function() {
         connection_done();
-        reconnect+=1;
-        if(reconnect){
-            console.log(reconnect+' reconnects to websocket. Refreshing datatables');
-            table.ajax.reload();
-            // Should have a route to update quota via ajax...
-        }
+        socket.emit('join_rooms',['users'])
         console.log('Listening users namespace');
     });
 
@@ -114,11 +107,11 @@ $(document).ready(function() {
       connection_lost();
     });
     
-    socket.on('user_quota', function(data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
+    //~ socket.on('user_quota', function(data) {
+        //~ console.log('Quota update')
+        //~ var data = JSON.parse(data);
+        //~ drawUserQuota(data);
+    //~ });
     
 });
 
