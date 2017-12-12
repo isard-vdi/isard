@@ -7,7 +7,7 @@ from engine.services.log import hypman_log as hmlog
 
 
 class CentralManager(BalancerInterface):
-    def __init__(self, hyps):
+    def __init__(self, hyps=None):
         self.hyps = hyps
         self._init_hyps()
         self._init_eval_statistics()  # TODO remove this when Alberto implements new statistics feature

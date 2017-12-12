@@ -3,7 +3,7 @@ from engine.services.db import get_hypers_in_pool
 
 
 class RoundRobin(BalancerInterface):
-    def __init__(self, id_pool):
+    def __init__(self, id_pool=None):
         self.id_pool = id_pool
         self.last_index = 0
 

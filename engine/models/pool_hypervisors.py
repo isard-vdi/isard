@@ -5,22 +5,14 @@
 
 # coding=utf-8
 
-# from ui_actions import UiActions
-# from threads import launch_threads_status_hyp, launch_thread_worker, launch_disk_operations_thread
-# from threads import dict_threads_active
 
 
-# from ..hyp_threads import launch_all_hyps_threads
 from time import sleep
 from traceback import format_exc
 
-from engine.config import CONFIG_DICT
-from engine.services.balancers.central_manager import CentralManager
-from engine.services.balancers.round_robin import RoundRobin
+from engine.services.balancers.balancer_factory import BalancerFactory
 from engine.services.db.hypervisors import get_hypers_in_pool
 from engine.services.log import hypman_log as hmlog
-
-TIMEOUT_TRYING_SSH = float(CONFIG_DICT["TIMEOUTS"]["timeout_trying_ssh"])
 
 
 class PoolHypervisors():
@@ -36,11 +28,10 @@ class PoolHypervisors():
             hmlog.error(format_exc())
 
     def init_balancer(self, manager, hyps_ready_count):
-        if self.balancer_name == "round_robin":
-            self.balancer = RoundRobin(self.id_pool)
-        elif self.balancer_name == "central_manager":
-            hyps_obj = self.get_hyps_obj(manager, hyps_ready_count)
-            self.balancer = CentralManager(hyps_obj)
+        hyps = self.get_hyps_obj(manager, hyps_ready_count)
+        kwargs = {"id_pool": self.id_pool,
+                  "hyps": hyps}
+        self.balancer = BalancerFactory.create(self.balancer_name, **kwargs)
 
     def get_hyps_obj(self, manager, hyps_ready_count):
         hyps_obj = {}
