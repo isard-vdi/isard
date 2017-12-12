@@ -670,11 +670,14 @@ function setDomainDetailButtonsStatus(id,status){
           }
 }
 	
-function icon(name){
-       if(name=='windows' || name=='linux'){
-           return "<i class='fa fa-"+name+" fa-2x '></i>";
+function icon(data){
+       viewer=""
+       viewerIP="'No client viewer'"
+       if(data['viewer-client_since']){viewer=" style='color:green' ";viewerIP="'Viewer client from IP: "+data['viewer-client_addr']+"'";}
+       if(data.icon=='windows' || data.icon=='linux'){
+           return "<i class='fa fa-"+data.icon+" fa-2x ' "+viewer+" title="+viewerIP+"></i>";
         }else{
-            return "<span class='fl-"+name+" fa-2x'></span>";
+            return "<span class='fl-"+data.icon+" fa-2x' "+viewer+" title="+viewerIP+"></span>";
 		}       
 }
     
@@ -697,7 +700,7 @@ function renderDisplay(data){
 //~ }
                         
 function renderIcon(data){
-		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data)+'</span>'
 }
 
 function renderStatus(data){
