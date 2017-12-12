@@ -44,7 +44,6 @@ def admin_domains(nav='Domains'):
 @isAdmin
 def admin_mdomains():
     dict=request.get_json(force=True)
-    print('vamoo')
     #~ original_domains=app.adminapi.multiple_action('domains',dict['action'],dict['ids'])
     desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
     res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)

@@ -193,9 +193,14 @@ $(document).ready(function() {
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
 							api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                                $('#mactions option[value="none"]').prop("selected",true);
                 			}); 
 						}).on('pnotify.cancel', function() {
-				});	
+                            $('#mactions option[value="none"]').prop("selected",true);
+				});
+        
+        console.log('done')
+        
     } );
 
     $('#domains').find('tbody').on('click', 'td.details-control', function () {

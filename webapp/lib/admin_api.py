@@ -61,24 +61,24 @@ class isardAdmin():
     def multiple_action(self, table, action, ids):
         with app.app_context():
             if action == 'toggle':
-                domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
-                domains_started=self.multiple_check_field('domains','status','Started',ids)
+                domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)
+                domains_started=self.multiple_check_field(table,'status','Started',ids)
                 res_stopped=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn)
                 res_started=r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn)
                 return True
             if action == 'delete':
-                domains_deleting=self.multiple_check_field('domains','status','Deleting',ids)
+                domains_deleting=self.multiple_check_field(table,'status','Deleting',ids)
                 res=r.table(table).get_all(r.args(domains_deleting)).delete().run(db.conn) 
                                 
-                domains_stopped=self.multiple_check_field('domains','status','Stopped',ids)
+                domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)
                 res=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn)
-                domains_failed=self.multiple_check_field('domains','status','Failed',ids)
+                domains_failed=self.multiple_check_field(table,'status','Failed',ids)
                 res=r.table(table).get_all(r.args(domains_failed)).update({'status':'Deleting'}).run(db.conn) 
-                domains_creating=self.multiple_check_field('domains','status','Creating',ids)
+                domains_creating=self.multiple_check_field(table,'status','Creating',ids)
                 res=r.table(table).get_all(r.args(domains_creating)).update({'status':'Deleting'}).run(db.conn)                                              
-                domains_creatingdisk=self.multiple_check_field('domains','status','CreatingDisk',ids)
+                domains_creatingdisk=self.multiple_check_field(table,'status','CreatingDisk',ids)
                 res=r.table(table).get_all(r.args(domains_creatingdisk)).update({'status':'Deleting'}).run(db.conn) 
-                domains_creatingstarting=self.multiple_check_field('domains','status','CreatingAndStarting',ids)
+                domains_creatingstarting=self.multiple_check_field(table,'status','CreatingAndStarting',ids)
                 res=r.table(table).get_all(r.args(domains_creatingstarting)).update({'status':'Deleting'}).run(db.conn) 
                 return True
             if action == 'force_failed':
@@ -86,6 +86,10 @@ class isardAdmin():
                 return True
             if action == 'force_stopped':
                 res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Stopped'}).run(db.conn)
+                return True
+            if action == "stop_noviewer":
+                domains_tostop=self.multiple_check_field(table,'status','Started',ids)
+                res=r.table(table).get_all(r.args(domains_tostop)).filter(~r.row.has_fields({'viewer':'client_since'})).update({'status':'Stopping'}).run(db.conn)
                 return True
                 
     def multiple_check_field(self, table, field, value, ids):
@@ -132,16 +136,6 @@ class isardAdmin():
                 return self.f.table_values_bstrap(r.table('domains').without('xml','hardware','create_dict').run(db.conn))
             else:
                  return self.f.table_values_bstrap(r.table('domains').get_all(kind,index='kind').without('xml','hardware','create_dict').run(db.conn))
-            #~ listdict=self.f.table_values_bstrap(r.table('domains').run(db.conn))
-        #~ i=0
-        #~ while i<len(listdict):
-            #~ if 'xml' in listdict[i]: del listdict[i]['xml']
-            #~ if 'status' not in list(listdict[i].keys()): listdict[i]['status']='template'
-            #~ if 'user' not in list(listdict[i].keys()): listdict[i]['user']='admin'
-            #~ if 'category' not in list(listdict[i].keys()): listdict[i]['category']='admin'
-            #~ if 'group' not in list(listdict[i].keys()): listdict[i]['group']='admin'
-            #~ i=i+1
-        #~ return listdict
 
     def get_admin_domains_with_derivates(self,id=False,kind=False):
         with app.app_context():
