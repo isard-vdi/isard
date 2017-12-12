@@ -285,12 +285,6 @@ $(document).ready(function() {
      
     socket.on('connect', function() {
         connection_done();
-        //~ reconnect+=1;
-        //~ if(reconnect){
-            //~ console.log(reconnect+' reconnects to websocket. Refreshing datatables');
-            //~ table.ajax.reload();
-            //~ // Should have a route to update quota via ajax...
-        //~ }
         console.log('Listening users namespace');
     });
 
@@ -299,20 +293,17 @@ $(document).ready(function() {
     });
     
     socket.on('user_quota', function(data) {
-        console.log('Quota update')
         var data = JSON.parse(data);
         drawUserQuota(data);
     });
 
     socket.on('desktop_data', function(data){
-        console.log('add or update')
         var data = JSON.parse(data);
         dtUpdateInsert(table,data,false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
     
     socket.on('desktop_delete', function(data){
-        console.log('delete')
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -376,7 +367,6 @@ $(document).ready(function() {
             
     socket.on('domain_viewer', function (data) {
         var data = JSON.parse(data);
-        console.log('domain_viewer event received'+data)
         if(data['kind']=='xpi'){
             viewer=data['viewer']
                         if(viewer==false){
@@ -422,7 +412,6 @@ $(document).ready(function() {
 function actionsDesktopDetail(){
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
-            console.log(pk)
 			setHardwareOptions('#modalEditDesktop');
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
@@ -695,7 +684,6 @@ function modal_add_desktop_datatables(){
 function initalize_modal_all_desktops_events(){
    $('#modal_add_desktops tbody').on( 'click', 'tr', function () {
         rdata=modal_add_desktops.row(this).data()
-        console.log($(this).hasClass('selected'))
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
@@ -725,10 +713,8 @@ function initalize_modal_all_desktops_events(){
 
             if (form.parsley().isValid()){
                 template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
                 if (template !=''){
                     data=$('#modalAdd').serializeObject();
-                    //~ console.log(data)
                     socket.emit('domain_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
@@ -749,7 +735,6 @@ function modal_edit_desktop_datatables(id){
 		url:"/desktops/templateUpdate/" + id,
 		success: function(data)
 		{
-            console.log(data)
             $('#modalEditDesktop #forced_hyp').closest("div").remove();
 			$('#modalEditDesktop #name_hidden').val(data.name);
             $('#modalEditDesktop #name').val(data.name);
@@ -771,7 +756,6 @@ function modal_edit_desktop_datatables(id){
             form.parsley().validate();
             if (form.parsley().isValid()){
                     data=$('#modalEdit').serializeObject();
-                    console.log(data);
                     socket.emit('domain_edit',data)
             }
         });
