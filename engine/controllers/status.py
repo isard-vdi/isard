@@ -40,6 +40,10 @@ class UpdateStatus:
         self.fifo_recent_hyp_stats = deque([], maxlen=max_len_queue_previous_hyp_stats)
         self.recent_domains_stats = {}
 
+        hyp_stats = {
+
+        }
+
     def try_connect_hyp(self):
         if type(self.hyp_obj) is hyp:
             try:

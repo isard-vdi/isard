@@ -293,53 +293,55 @@ class hyp(object):
         """
         return dictionary with domain objects of libvirt
         keys of dictionary are names
+        domains can be started or paused
         """
         if self.connected:
+            self.domains = {}
             try:
-                ids = self.conn.listDomainsID()
-                domains={}
-                for id in ids:
-                    domain = self.conn.lookupByID(id)
-                    name = domain.name()
-                    domains[name]=domain
-
-                self.domains=domains
+                for d in h.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
+                    try:
+                        domain_name = d.name()
+                    except:
+                        log.info('unkown domain fail when trying to get his name, power off??')
+                        continue
+                    if domain_name[0] == '_':
+                        self.domains[domain_name] = d
             except:
                 log.error('error when try to list domain in hypervisor {}'.format(self.hostname))
                 self.domains = {}
 
-
-    def hyp_worker_thread(self,queue_worker):
-        log.debug('Hyp {} worker thread started ...'.format(self.hostname))
-        #h = hyp('vdesktop1')
-        while(1):
-            try:
-                d=queue_worker.get(timeout=TIMEOUT_QUEUE)
-                log.debug('received ACTION:{}; '.format(d['action']))
-                if d['action'] == 'start_domain':
-                    xml = d['xml']
-                    h.conn.createXML(xml)
-                    log.debug('domain started {} ??'.format(d['name']))
-                if d['action'] == 'hyp_info':
-                    h.conn.get_hyp_info()
-
-                log.debug('hypervisor motherboard: {}'.format(h.info['motherboard_manufacturer']))
-                #time.sleep(0.1)
-            except Queue.Empty:
-                try:
-                    if h.conn.isAlive():
-                        log.debug('hypervisor {} is alive'.format(host))
-                    else:
-                        log.debug('trying to reconnect hypervisor {}'.format(host))
-                        h.connect_to_hyp()
-                        if h.conn.isAlive():
-                            log.debug('hypervisor {} is alive'.format(host))
-
-                except libvirtError:
-                    log.debug('trying to reconnect hypervisor {}'.format(host))
-                    h.connect_to_hyp()
-                    if h.conn.isAlive():
-                        log.debug('hypervisor {} is alive'.format(host))
+    #
+    # def hyp_worker_thread(self,queue_worker):
+    #     log.debug('Hyp {} worker thread started ...'.format(self.hostname))
+    #     #h = hyp('vdesktop1')
+    #     while(1):
+    #         try:
+    #             d=queue_worker.get(timeout=TIMEOUT_QUEUE)
+    #             log.debug('received ACTION:{}; '.format(d['action']))
+    #             if d['action'] == 'start_domain':
+    #                 xml = d['xml']
+    #                 h.conn.createXML(xml)
+    #                 log.debug('domain started {} ??'.format(d['name']))
+    #             if d['action'] == 'hyp_info':
+    #                 h.conn.get_hyp_info()
+    #
+    #             log.debug('hypervisor motherboard: {}'.format(h.info['motherboard_manufacturer']))
+    #             #time.sleep(0.1)
+    #         except Queue.Empty:
+    #             try:
+    #                 if h.conn.isAlive():
+    #                     log.debug('hypervisor {} is alive'.format(host))
+    #                 else:
+    #                     log.debug('trying to reconnect hypervisor {}'.format(host))
+    #                     h.connect_to_hyp()
+    #                     if h.conn.isAlive():
+    #                         log.debug('hypervisor {} is alive'.format(host))
+    #
+    #             except libvirtError:
+    #                 log.debug('trying to reconnect hypervisor {}'.format(host))
+    #                 h.connect_to_hyp()
+    #                 if h.conn.isAlive():
+    #                     log.debug('hypervisor {} is alive'.format(host))
 
     def disconnect(self):
         try:
@@ -364,55 +366,68 @@ class hyp(object):
             self.load['free_ram_total'] = l['cached'] + l['free']
             self.load['percent_free'] = round(float(self.load['free_ram_total'])*100/l['total'],2)
 
-            if not l_stats:
 
-                l_stats = self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
+                #l_stats = self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
+                d_all_domain_stats = {l[0].name(): {'stats' : l[1],
+                                                    'state':l[0].state(),
+                                                    'd':l[0]}
+                                     for l in
+                                          h.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE)}
+
+                #remove stats from domains not started with _ (all domains in isard start with _)
+                for domain_name in list(d_all_domain_stats.keys()):
+                    if domain_name[0] != '_':
+                        del d_all_domain_stats[domain_name]
+
                 now = time.time()
 
-            if l_stats:
-                self.load['total_vm'] = len(l_stats)
+            if d_all_domain_stats:
+                self.load['total_vm'] = len(d_all_domain_stats)
 
-                ## getFreeMemory in MB
-                self.load['free_memory'] = int(self.conn.getFreeMemory() / (1024 * 1024))
                 vm_mem_max_total = 0
                 vm_mem_with_ballon_total = 0
                 vm_vcpus_total = 0
 
-                for r in l_stats:
+                for domain_sysname,d_info in d_all_domain_stats.items():
                     try:
                         #todo VER QUE HACEMOS SI ESTÁ EN PAUSA, YA QUE TIENE RAM RESERVADA??
                         # libvirt.VIR_DOMAIN_PAUSED
-                        domain_sysname = r[0].name()
-                        domain_state  = r[0].state()
+                        raw_stats = d_info['stats']
+                        domain_state = d_info['state']
+
+
                         self.domain_stats[domain_sysname]=dict()
-                        self.domain_stats[domain_sysname]['raw_stats'] = r[1]
+                        self.domain_stats[domain_sysname]['raw_stats'] = raw_stats
                         self.domain_stats[domain_sysname]['hyp'] = self.hostname
+
                         state,reason = state_and_cause_to_str(domain_state[0],domain_state[1])
                         self.domain_stats[domain_sysname]['state'] = state
                         self.domain_stats[domain_sysname]['state_reason'] = reason
                         try:
-                            self.domain_stats[domain_sysname]['procesed_stats'] = new_dict_from_raw_dict_stats(r[1])
+                            self.domain_stats[domain_sysname]['procesed_stats'] = new_dict_from_raw_dict_stats(raw_stats)
                         except Exception as e:
                             log.warning('Procesing stats for domain {} with state {}({}) failed'.format(domain_sysname,state,reason))
 
                         #stats_json = json.dumps(r[1])
-                        if 'cpu.time' in r[1].keys():
+                        if 'cpu.time' in raw_stats.keys():
                             time_cpu = r[1]['cpu.time']
                         else:
                             time_cpu = 0
 
                         #self.domain_stats[domain_sysname]['cputime'] = time_cpu
 
-                        if r[0].state()[0] == libvirt.VIR_DOMAIN_RUNNING:
-                            vm_mem_max_total += r[1]['balloon.maximum']
-                            if 'balloon.current' in r[1].keys():
-                                vm_mem_with_ballon_total += r[1]['balloon.current']
+                        if state == 'running':
+                            # vm_mem_max_total += r[1]['balloon.maximum']
+                            # if 'balloon.current' in r[1].keys():
+                            #     vm_mem_with_ballon_total += r[1]['balloon.current']
                             vm_vcpus_total += r[1]['vcpu.current']
+
                     except libvirt.libvirtError as e:
 
                         log.error('libvirt Error getting domains in hyp class. Other thread stop domain?? {}'.format(e))
                     except Exception as e:
                         log.error(e)
+
                 self.load['vm_mem_max_total'] = int(vm_mem_max_total / 1024)
                 self.load['vm_mem_with_ballon_total'] = int(vm_mem_with_ballon_total / 1024)
                 self.load['vm_vcpus_total'] = vm_vcpus_total
