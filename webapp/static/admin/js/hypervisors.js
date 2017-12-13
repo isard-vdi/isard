@@ -81,10 +81,6 @@ $(document).ready(function() {
              ],
              "initComplete": function(settings, json) {
                         this.api().rows().data().each(function(r){
-                            //~ str = JSON.stringify(r);
-                            //~ str = JSON.stringify(r, null, 4);
-                            //~ console.log(str)
-                            console.log('data: '+r.id)
                             chart[r.id]=$("#chart-"+r.id).epoch({
                                             type: "time.line",
                                             axes: ["right"],
@@ -101,7 +97,6 @@ $(document).ready(function() {
                                             ]
                                           });
                         })
-                        console.log(chart)
               }                             
     } );
 
@@ -130,11 +125,9 @@ $(document).ready(function() {
 
     $("#modalAddHyper #send").on('click', function(e){
             var form = $('#modalAddHyper #modalAdd');
-            console.log('inside')
             //~ form.parsley().validate();
             //~ var queryString = $('#modalAdd').serialize();
             data=$('#modalAddHyper #modalAdd').serializeObject();
-            console.log(data)
             socket.emit('hypervisor_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
@@ -170,7 +163,6 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
-        console.log('add or update')
         var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
@@ -185,12 +177,6 @@ $(document).ready(function() {
 
     socket.on('hyper_status', function(data){
         var data = JSON.parse(data);
-        //~ str = JSON.stringify(data);
-        //~ str = JSON.stringify(data, null, 4);
-        //~ console.log(str)
-        console.log('status: '+data.hyp_id)
-        console.log('status: '+data['cpu_percent-used'])
-        console.log('status: '+data['load-percent_free'])
         chart[data.hyp_id].push([
         //~ chart.push([
           { time: timestamp(), y: data['cpu_percent-used']},
@@ -199,7 +185,6 @@ $(document).ready(function() {
     });
         
     socket.on('hyper_delete', function(data){
-        console.log('delete')
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -276,7 +261,6 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-                            console.log(pk);
 							api.ajax('/admin/hypervisors/toggle','POST',{'pk':pk,'name':'enabled'}).done(function(data) {
 							});  
 						}).on('pnotify.cancel', function() {

@@ -15,14 +15,31 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from ..auth.authentication import Password
-#from .virt_builder_install_selection import update_virtbuilder, update_virtinstall, create_builders
 
 
 class Populate(object):
     def __init__(self):
         p = Password()
         self.passwd = p.encrypt('isard')
-        self.database()
+        #~ self.database()
+
+    '''
+    DATABASE
+    '''
+
+    def database(self):
+        try:
+            with app.app_context():
+                if not r.db_list().contains(app.config['RETHINKDB_DB']).run(db.conn):
+                    log.warning('Database {} not found, creating new one.'.format(app.config['RETHINKDB_DB']))
+                    self.result(r.db_create(app.config['RETHINKDB_DB']).run(db.conn))
+                log.info('Database {} found.'.format(app.config['RETHINKDB_DB']))
+                return True
+        except Exception as e:
+            log.error('Can not connect to rethinkdb database!')
+            log.error('Please check that you have an isard.conf file (or copy it from isard.conf.default.')
+            return False
+
 
     def defaults(self):
         log.info('Checking table roles')
@@ -35,10 +52,6 @@ class Populate(object):
         self.users()
         log.info('Checking table vouchers')
         self.vouchers()
-        #~ log.info('Checking table hypervisors_pools')
-        # Now hypervisors calls hypervisors_pools
-        # so is not needed here anymore
-        #~ self.hypervisors_pools()
         log.info('Checking table hypervisors and pools')
         self.hypervisors()
         log.info('Checking table interfaces')
@@ -53,8 +66,6 @@ class Populate(object):
         self.domains()
         log.info('Checking table domains_status')
         self.domains_status()
-        #~ log.info('Checking table domain_xmls')
-        #~ self.domains_xmls()
         log.info('Checking table virt_builder')
         self.virt_builder()
         log.info('Checking table virt_install')
@@ -81,23 +92,6 @@ class Populate(object):
         self.backups()
         log.info('Checking table config')
         self.config()
-
-
-    '''
-    DATABASE
-    '''
-
-    def database(self):
-        try:
-            with app.app_context():
-                if not r.db_list().contains(app.config['RETHINKDB_DB']).run(db.conn):
-                    log.warning('Database {} not found, creating new one.'.format(app.config['RETHINKDB_DB']))
-                    self.result(r.db_create(app.config['RETHINKDB_DB']).run(db.conn))
-                log.info('Database {} found.'.format(app.config['RETHINKDB_DB']))
-                return True
-        except Exception as e:
-            log.error(e)
-            return False
 
     '''
     CONFIG
@@ -551,6 +545,20 @@ class Populate(object):
             return True
 
     '''
+    ISOS: iso files
+    '''
+
+    def isos(self):
+        with app.app_context():
+            if not r.table_list().contains('isos').run(db.conn):
+                log.info("Table isos not found, creating...")
+                r.table_create('isos', primary_key="id").run(db.conn)
+                r.table('isos').index_create("user").run(db.conn)
+                r.table('isos').index_wait("user").run(db.conn)
+
+        return True
+
+    '''
     HYPERVISORS
     '''
 
@@ -567,15 +575,6 @@ class Populate(object):
             except Exception as e:
                 log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
                 sys.exit(0)
-        #~ else:
-            #~ try:
-                #~ rcfg = configparser.ConfigParser()
-                #~ rcfg.read(os.path.join(os.path.dirname(__file__),'../config/isard.conf'))
-            #~ except Exception as e:
-                #~ log.info('Aborting. Please configure your RethinkDB default hypers: /isard.conf \n exception: {}'.format(e))
-                #~ sys.exit(0)
-                
-        #~ docker=int(rcfg.get('DOCKER', 'ACTIVE'))
         
         with app.app_context():
             if not r.table_list().contains('hypervisors').run(db.conn):
@@ -584,30 +583,8 @@ class Populate(object):
 
                 rhypers = r.table('hypervisors')
                 log.info("Table hypervisors found, populating...")
-                ## Is not a docker
-                #~ if rhypers.get('localhost').run(db.conn) is None and rhypers.count().run(db.conn) == 0: and not docker:
-                    #~ self.result(rhypers.insert([{'id': 'localhost',
-                                                 #~ 'hostname': '127.0.0.1',
-                                                 #~ 'user': 'root',
-                                                 #~ 'port': '22',
-                                                 #~ 'uri': '',
-                                                 #~ 'capabilities': {'disk_operations': True,
-                                                                  #~ 'hypervisor': True},
-                                                 #~ 'hypervisors_pools': ['default'],
-                                                 #~ 'enabled': False,
-                                                 #~ 'status': 'Offline',
-                                                 #~ 'status_time': False,
-                                                 #~ 'prev_status': [],
-                                                 #~ 'detail': '',
-                                                 #~ 'description': 'Embedded hypervisor',
-                                                 #~ 'info': []},
-                                                #~ ]).run(db.conn))
-                    #~ self.hypervisors_pools()
-            #~ rhypers = r.table('hypervisors')
-            ## Is a docker and there are no hypers yet
-            ## We assume this as a 'first boot configuration'
-                docker=False
-                if docker and rhypers.count().run(db.conn) == 0:
+                #~ docker=False
+                if rhypers.count().run(db.conn) == 0:
                     for key,val in dict(rcfg.items('DEFAULT_HYPERVISORS')).items():
                         vals=val.split(',')
                         self.result(rhypers.insert([{'id': key,
@@ -631,74 +608,7 @@ class Populate(object):
         return True
 
     '''
-    DOMAINS
-    '''
-
-    def domains(self):
-        with app.app_context():
-            if not r.table_list().contains('domains').run(db.conn):
-                log.info("Table domains not found, creating...")
-                r.table_create('domains', primary_key="id").run(db.conn)
-                r.table('domains').index_create("status").run(db.conn)
-                r.table('domains').index_wait("status").run(db.conn)
-                r.table('domains').index_create("hyp_started").run(db.conn)
-                r.table('domains').index_wait("hyp_started").run(db.conn)
-                r.table('domains').index_create("user").run(db.conn)
-                r.table('domains').index_wait("user").run(db.conn)
-                r.table('domains').index_create("group").run(db.conn)
-                r.table('domains').index_wait("group").run(db.conn)
-                r.table('domains').index_create("category").run(db.conn)
-                r.table('domains').index_wait("category").run(db.conn)
-                r.table('domains').index_create("kind").run(db.conn)
-                r.table('domains').index_wait("kind").run(db.conn)
-            return True
-
-    '''
-    DOMAINS_XMLS: id name description xml 
-    '''
-
-    #~ def domains_xmls(self):
-        #~ with app.app_context():
-            #~ if not r.table_list().contains('domains_xmls').run(db.conn):
-                #~ log.info("Table domains_xmls not found, creating...")
-                #~ r.table_create('domains_xmls', primary_key="id").run(db.conn)
-        #~ xml_path = './webapp/config/default_xmls/'
-        #~ xmls = os.listdir(xml_path)
-        #~ xmls_list = []
-        #~ for xml in xmls:
-            #~ if xml.endswith('.xml'):
-                #~ with open(xml_path + xml, "r") as xml_file:
-                    #~ xml_data = xml_file.read()
-                #~ xmls_list.append({'id': '_admin_' + xml.split('.')[0],
-                                  #~ 'name': xml.split('.')[0],
-                                  #~ 'description': 'File name: ' + xml,
-                                  #~ 'xml': xml_data,
-                                  #~ 'allowed': {'roles': ['admin'],
-                                              #~ 'categories': False,
-                                              #~ 'groups': False,
-                                              #~ 'users': False}
-                                  #~ })
-        #~ with app.app_context():
-            #~ self.result(r.table('domains_xmls').insert(xmls_list, conflict='update').run(db.conn))
-        #~ return True
-
-        
-    '''
-    ISOS: iso files
-    '''
-
-    def isos(self):
-        with app.app_context():
-            if not r.table_list().contains('isos').run(db.conn):
-                log.info("Table isos not found, creating...")
-                r.table_create('isos', primary_key="id").run(db.conn)
-                r.table('isos').index_create("user").run(db.conn)
-                r.table('isos').index_wait("user").run(db.conn)
-
-        return True
-
-    '''
-    POOLS
+    HYPERVISORS POOLS
     '''
 
     def hypervisors_pools(self,disk_operations=['localhost']):
@@ -778,6 +688,29 @@ class Populate(object):
                 r.table('hypervisors_status_history').index_create("hyp_id").run(db.conn)
                 r.table('hypervisors_status_history').index_wait("hyp_id").run(db.conn)
             return True
+
+    '''
+    DOMAINS
+    '''
+
+    def domains(self):
+        with app.app_context():
+            if not r.table_list().contains('domains').run(db.conn):
+                log.info("Table domains not found, creating...")
+                r.table_create('domains', primary_key="id").run(db.conn)
+                r.table('domains').index_create("status").run(db.conn)
+                r.table('domains').index_wait("status").run(db.conn)
+                r.table('domains').index_create("hyp_started").run(db.conn)
+                r.table('domains').index_wait("hyp_started").run(db.conn)
+                r.table('domains').index_create("user").run(db.conn)
+                r.table('domains').index_wait("user").run(db.conn)
+                r.table('domains').index_create("group").run(db.conn)
+                r.table('domains').index_wait("group").run(db.conn)
+                r.table('domains').index_create("category").run(db.conn)
+                r.table('domains').index_wait("category").run(db.conn)
+                r.table('domains').index_create("kind").run(db.conn)
+                r.table('domains').index_wait("kind").run(db.conn)
+            return True
             
     '''
     DOMAINS_STATUS
@@ -800,6 +733,7 @@ class Populate(object):
                 r.table('domains_status_history').index_create("hyp_id").run(db.conn)
                 r.table('domains_status_history').index_wait("hyp_id").run(db.conn)
             return True
+            
     '''
     DISK_OPERATIONS
     '''
@@ -859,6 +793,7 @@ class Populate(object):
             return viewer_hostname
 
         return 
+        
     '''
     LOCATIONS
     '''
@@ -875,6 +810,7 @@ class Populate(object):
                 r.table('hosts_viewers').index_create("place_id").run(db.conn)
                 r.table('hosts_viewers').index_wait("place_id").run(db.conn)
             return True
+            
     '''
     PLACES
     '''

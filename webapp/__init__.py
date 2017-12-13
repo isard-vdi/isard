@@ -10,8 +10,6 @@ from flask import Flask, send_from_directory
 from .lib.log import *
 import os
 
-log.info('ISARD logging started.')
-
 app = Flask(__name__, static_url_path='')
 
 '''
@@ -22,6 +20,11 @@ You can generate one with:
 And paste it here.
 '''
 app.secret_key = "Change this key!//\xf7\x83\xbe\x17\xfa\xa3zT\n\\]m\xa6\x8bF\xdd\r\xf7\x9e\x1d\x1f\x14'"
+
+
+from webapp.lib.load_config import loadConfig
+cfg=loadConfig(app)
+if not cfg.init_app(app): exit(0)
 
 '''
 Debug should be removed on production!
@@ -35,26 +38,17 @@ else:
 '''
 Populate database if not exists
 '''
-from .config import populate
-p=populate.Populate()
+from .config.populate import Populate
+p=Populate()
+if not p.database(): exit(0)
 p.defaults()
-try:
-    p=populate.Populate()
-    p.defaults()
-    log.info("Database up and populated. Isard webapp running on port 5000.")
-except Exception as e:
-    log.error('Is rethink up an running? Can not connect! Aborting start. Please refer to documentation.\n Exception: '+str(e))
-    exit(0)
 
 
 '''
-Scheduler tests
+Scheduler
 '''
 from .lib.isardScheduler import isardScheduler
 app.scheduler=isardScheduler()
-#~ app.scheduler.addDate('domains',{'status':'Started'},{'status':'Stopping'},10)
-#~ app.scheduler.clean_stats()
-#~ app.scheduler.stop_domains_without_viewer()
 
 '''
 Authentication types
