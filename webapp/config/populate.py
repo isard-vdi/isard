@@ -19,8 +19,8 @@ from ..auth.authentication import Password
 
 class Populate(object):
     def __init__(self):
-        p = Password()
-        self.passwd = p.encrypt('isard')
+        self.p = Password()
+        self.passwd = self.p.encrypt('isard')
 
     '''
     DATABASE
