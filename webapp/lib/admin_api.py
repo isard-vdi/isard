@@ -174,7 +174,6 @@ class isardAdmin():
                                 }
                             ).run(db.conn))
             
-            print(flat_dict_list)
             
         #~ with app.app_context():
             #~ if id:
@@ -454,7 +453,7 @@ class isardAdmin():
                 place['id']=app.isardapi.parse_string(place['name'])
                 r.table('places').insert(place, conflict='update').run(db.conn)
             except Exception as e:
-                print('error on update place:',e)
+                log.error('error on update place:',e)
                 return False
                 
             try:
@@ -464,7 +463,7 @@ class isardAdmin():
                 
                 return self.check(r.table('hosts_viewers').insert(hosts).run(db.conn),'inserted')
             except Exception as e:
-                print('error o update hosts_viewers:',e)
+                log.error('error o update hosts_viewers:',e)
                 return False
 
 
@@ -483,12 +482,8 @@ class isardAdmin():
             dict={'name':id,'children':[]}
             for d in domains:
                 children=r.table('domains').filter({'create_dict':{'origin':d['create_dict']['origin']}}).pluck('id','name').run(db.conn)
-                #~ print('children:'+
-                #~ children)
                 dict['children'].append({'name':d['name'],'size':100})
             return dict
-            #~ finished=False
-            #~ while not finished:
 
     def get_domains_tree_list(self):
         #~ Should verify something???
@@ -507,9 +502,7 @@ class isardAdmin():
                     else:
                         domains.append({'id':d['id'],'kind':d['kind'],'name':d['name'],'parent':d['create_dict']['origin']})
                 except Exception as e:
-                    print('Exception on domain tree\n'+str(d)+'\n'+str(e))
-                #~ if not d['create_dict']['origin']:
-                 #~ print(d['id']+' - '+str(d['create_dict']['origin']))
+                    log.error('Exception on domain tree\n'+str(d)+'\n'+str(e))
             return domains
             
     def get_domains_tree_csv(self, id):
@@ -522,7 +515,6 @@ class isardAdmin():
             for d in domains:
                 csv=csv+id+'.'+d['id']+',100\n'
                 #~ dict['children'].append({'name':d['name'],'size':100})
-            print(csv)
             return csv
 
     def get_dashboard(self):
@@ -539,8 +531,6 @@ class isardAdmin():
     def new_domain_from_virtbuilder(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-            #~ import pprint
-            #~ pprint.pprint(create_dict)
             create_dict['install']['options']='' #r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
         
         parsed_name = app.isardapi.parse_string(name)
@@ -605,15 +595,14 @@ class isardAdmin():
 
     def cmd_virtbuilder(self,id,path,size):
         import subprocess
-        print('virt-builder '+id+' \
-             --output '+path+' \
-             --size '+size+'G \
-             --format qcow2')
+        #~ log.info('virt-builder '+id+' \
+             #~ --output '+path+' \
+             #~ --size '+size+'G \
+             #~ --format qcow2')
         command_output=subprocess.getoutput(['virt-builder '+id+' \
              --output '+path+' \
              --size '+size+'G \
              --format qcow2'])
-        print(command_output)
         return True
 
     def update_virtinstall(self):

@@ -61,7 +61,7 @@ class DomainsThread(threading.Thread):
                                     namespace='/sio_admins', 
                                     room='domains')
                 except Exception as e:
-                    print('DomainsThread error:'+str(e))
+                    log.error('DomainsThread error:'+str(e))
 
 def start_domains_thread():
     global threads
@@ -70,7 +70,7 @@ def start_domains_thread():
         threads['domains'] = DomainsThread()
         threads['domains'].daemon = True
         threads['domains'].start()
-        print('DomainsThread Started')
+        log.info('DomainsThread Started')
 
             
 ## Domains Stats Threading
@@ -88,58 +88,49 @@ class DomainsStatsThread(threading.Thread):
                 #~ import pprint
                 #~ pprint.pprint(c)
                 try:
-                    if c['new_val']['table'] == 'domains':
-                        if c['new_val']['status'] == 'Stopping': continue
-                        if c['new_val']['status'] == 'Stopped':
-                            c['new_val']['hyp_started']=c['old_val']['hyp_started']
-                            socketio.emit('domain_stats_stopped', 
-                                        json.dumps(c['new_val']),
-                                        namespace='/sio_admins', 
-                                        room='domains_stats') 
-                        if c['new_val']['status'] == 'Started': 
-                            data= { 'cpu': 100,
-                                    'disk_rw': 0,
-                                    'net_rw': 0}
-                            data={**c['new_val'],**data}
-                            socketio.emit('domain_stats_started', 
-                                        json.dumps(data),
-                                        namespace='/sio_admins', 
-                                        room='domains_stats') 
-                    else:
+                    if c['new_val'] is not None:
                         if not c['new_val']['name'].startswith('_'): continue
-                        dom=r.table('domains').get(c['new_val']['name']).pluck('id','name','hyp_started','os').run(db.conn)
-                        data= { 'cpu': abs(round(c['new_val']['status']['cpu_usage']*100)),
-                                'disk_rw': abs(round(c['new_val']['status']['disk_rw']['block_w_bytes_per_sec']+c['new_val']['status']['disk_rw']['block_r_bytes_per_sec'])) | 1,
-                                'net_rw': abs(round(c['new_val']['status']['net_rw']['net_w_bytes_per_sec']+c['new_val']['status']['net_rw']['net_r_bytes_per_sec']))}
-                        data={**dom,**data}
-                        #~ pprint.pprint(data)
-                        # This will be useful when user desktops has real time info
-                        #~ socketio.emit('desktop_status', 
-                                        #~ json.dumps(new_dom), 
-                                        #~ namespace='/sio_users', 
-                                        #~ room='user_'+c['new_val']['name'].split('_')[1])
-                        socketio.emit('domain_stats', 
-                                        json.dumps(data), 
-                                        namespace='/sio_admins', 
-                                        room='domains_stats')
-                except r.errors.ReqlNonExistenceError:
-                    #~ print('domini inexistent')
-                    #~ raise
-                    None
+                        if c['new_val']['name'] not in self.domains.keys():
+                            if r.table('domains').get(c['new_val']['name']).run(db.conn) is None: continue
+                            domain=r.table('domains').get(c['new_val']['name']).pluck('id','name','status','hyp_started','os').run(db.conn)
+                            self.domains[c['new_val']['name']]=domain
+                        else:
+                            domain=self.domains[c['new_val']['name']]
+                        if domain is not None: #This if can be removed when vimet is shutdown
+                                new_dom=domain.copy()
+                                if domain['status']=='Started':
+                                    new_dom['status']=c['new_val']['status']
+                                    socketio.emit('desktop_status', 
+                                                    json.dumps(new_dom), 
+                                                    namespace='/sio_users', 
+                                                    room='user_'+c['new_val']['name'].split('_')[1])
+                                    socketio.emit('desktop_status', 
+                                                    json.dumps(new_dom), 
+                                                    namespace='/sio_admins', 
+                                                    room='domains_status')
+
+                                else:
+                                    self.domains.pop(c['new_val']['name'],None)
+                                    socketio.emit('desktop_stopped', 
+                                                    json.dumps(new_dom), 
+                                                    namespace='/sio_admins', 
+                                                    room='domains_status')
+                                new_dom=None
                 except Exception as e:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    print(exc_type, fname, exc_tb.tb_lineno)
-                    print('DomainsStatusThread error:'+str(e))
+                    log.error(exc_type, fname, exc_tb.tb_lineno)
+                    log.error('DomainsStatusThread error:'+str(e))
 
 def start_domains_stats_thread():
     global threads
+
     if 'domains_stats' not in threads: threads['domains_stats']=None
     if threads['domains_stats'] is None:
         threads['domains_stats'] = DomainsStatsThread()
         threads['domains_stats'].daemon = True
         threads['domains_stats'].start()
-        print('DomainsStatsThread Started')
+        log.info('DomainsStatsThread Started')
         
 
 ## ISOS Threading
@@ -175,7 +166,7 @@ class IsosThread(threading.Thread):
                                     namespace='/sio_admins', 
                                     room='domains')
                 except Exception as e:
-                    print('IsosThread error:'+str(e))
+                    log.error('IsosThread error:'+str(e))
 
 def start_isos_thread():
     global threads
@@ -184,7 +175,7 @@ def start_isos_thread():
         threads['isos'] = IsosThread()
         threads['isos'].daemon = True
         threads['isos'].start()
-        print('IsosThread Started')
+        log.info('IsosThread Started')
         
 ## Users Threading
 class UsersThread(threading.Thread):
@@ -217,7 +208,7 @@ class UsersThread(threading.Thread):
                                     namespace='/sio_admins', 
                                     room='users')
                 except Exception as e:
-                    print('UsersThread error:'+str(e))
+                    log.error('UsersThread error:'+str(e))
 
 def start_users_thread():
     global threads
@@ -226,7 +217,7 @@ def start_users_thread():
         threads['users'] = UsersThread()
         threads['users'].daemon = True
         threads['users'].start()
-        print('UsersThread Started')       
+        log.info('UsersThread Started')       
 
 ## Hypervisors Threading
 class HypervisorsThread(threading.Thread):
@@ -264,10 +255,10 @@ class HypervisorsThread(threading.Thread):
                                         namespace='/sio_admins', 
                                         room='hyper')  
                 except Exception as e:
-                    print('HypervisorsThread error:'+str(e))
+                    log.error('HypervisorsThread error:'+str(e))
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    print(exc_type, fname, exc_tb.tb_lineno)
+                    log.error(exc_type, fname, exc_tb.tb_lineno)
                     
 def start_hypervisors_thread():
     global threads
@@ -276,7 +267,7 @@ def start_hypervisors_thread():
         threads['hypervisors'] = HypervisorsThread()
         threads['hypervisors'].daemon = True
         threads['hypervisors'].start()
-        print('HypervisorsThread Started')  
+        log.info('HypervisorsThread Started')  
 
 ## Config Threading
 class ConfigThread(threading.Thread):
@@ -288,7 +279,6 @@ class ConfigThread(threading.Thread):
         with app.app_context():
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
                 r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).run(db.conn):
-                #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -306,7 +296,7 @@ class ConfigThread(threading.Thread):
                                         namespace='/sio_admins', 
                                         room='config') 
                 except Exception as e:
-                    print('ConfigThread error:'+str(e))
+                    log.error('ConfigThread error:'+str(e))
                     
 def start_config_thread():
     global threads
@@ -315,12 +305,11 @@ def start_config_thread():
         threads['config'] = ConfigThread()
         threads['config'].daemon = True
         threads['config'].start()
-        print('ConfigThread Started')
+        log.info('ConfigThread Started')
 
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')
 def socketio_users_connect():
-    #~ print('sid:'+request.sid)
     join_room('user_'+current_user.username)
     socketio.emit('user_quota', 
                     json.dumps(app.isardapi.get_user_quotas(current_user.username, current_user.quota)), 
@@ -329,7 +318,7 @@ def socketio_users_connect():
     
 @socketio.on('disconnect', namespace='/sio_users')
 def socketio_domains_disconnect():
-    print('user:'+current_user.username+' disconnected')
+    log.debug('USER: '+current_user.username+' DISCONNECTED')
 
 @socketio.on('domain_update', namespace='/sio_users')
 def socketio_domains_update(data):
@@ -474,7 +463,6 @@ def socketio_iso_add(form_data):
 ## Admin namespace
 @socketio.on('connect', namespace='/sio_admins')
 def socketio_admins_connect():
-    #~ print('sid:'+request.sid)
     if current_user.role=='admin':
         join_room('admins')
         join_room('user_'+current_user.username)
@@ -487,11 +475,10 @@ def socketio_admins_connect():
 
 @socketio.on('join_rooms', namespace='/sio_admins')
 def socketio_admins_connect(join_rooms):
-    #~ print('sid:'+request.sid)
     if current_user.role=='admin':
         for rm in join_rooms:
             join_room(rm)
-            print('JOINED:'+rm)
+            log.debug('USER: '+current_user.username+' JOINED ROOM: '+rm)
 
 @socketio.on('get_tree_list', namespace='/sio_admins')
 def socketio_get_tree_list():
@@ -502,19 +489,13 @@ def socketio_get_tree_list():
 
 @socketio.on('domain_virtbuilder_add', namespace='/sio_admins')
 def socketio_domains_virtualbuilder_add(form_data):
-    #~ print(form_data)
     create_dict=app.isardapi.f.unflatten_dict(form_data)
-    #~ import pprint
-    #~ pprint.pprint(create_dict)
-    #~ print(create_dict)
-    #~ create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
     create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
     create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
     create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
     create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
     create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
     create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
-    #~ create_dict['builder']=form_dict['builder']
     disk_size=create_dict['disk_size']+'G'
     create_dict.pop('disk_size',None)
     name=create_dict['name']
@@ -526,8 +507,6 @@ def socketio_domains_virtualbuilder_add(form_data):
     icon=create_dict['icon']
     create_dict.pop('icon',None)
     create_dict['builder']['options']=create_dict['builder']['options'].replace('\r\n','')
-    #~ install_id=create_dict['install_id']
-    #~ create_dict.del('disk_size',None)
     res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
         data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
@@ -540,7 +519,7 @@ def socketio_domains_virtualbuilder_add(form_data):
 
 @socketio.on('domain_virtiso_add', namespace='/sio_admins')
 def socketio_domains_virtualiso_add(form_data):
-    print(form_data)
+    log.debug(form_data)
     
 @socketio.on('classroom_update', namespace='/sio_admins')
 def socketio_classroom_update(data):
@@ -595,6 +574,6 @@ def socketio_scheduler_add(form_data):
 def socketio_admins_disconnect():
     leave_room('admins')
     leave_room('user_'+current_user.username)
-    print('admin user:'+current_user.username+' disconnected')
+    log.debug('USER: '+current_user.username+' DISCONNECTED')
     
 

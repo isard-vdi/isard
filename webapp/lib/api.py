@@ -88,7 +88,7 @@ class isard():
                             return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                 return json.dumps({'title':'Method not allowd','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
-                print('Error updating desktop status for domain '+data['pk']+': '+str(e))
+                log.error('Error updating desktop status for domain '+data['pk']+': '+str(e))
                 return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
 
@@ -118,7 +118,7 @@ class isard():
                         return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
             return True
         except Exception as e:
-            print('Error updating domain '+id+' network interface.\n'+str(e))
+            log.error('Error updating domain '+id+' network interface.\n'+str(e))
         return False
 
 
@@ -149,7 +149,7 @@ class isard():
             try:
                 return self.check(r.table(table).insert(dict).run(db.conn),'inserted')
             except Exception as e:
-                print('error:',e)
+                log.error('error add_dict2table:',e)
                 return False
 
     def add_listOfDicts2table(self,list,table):
@@ -157,7 +157,7 @@ class isard():
             try:
                 return self.check(r.table(table).insert(list).run(db.conn),'inserted')
             except Exception as e:
-                print('error:',e)
+                log.error('error listOfDicts2table:',e)
                 return False
                 
     def show_disposable(self,client_ip):
@@ -233,7 +233,7 @@ class isard():
                             if 'size' in key:
                                 domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
-            print(str(e))
+            log.error('get_domain: '+str(e))
         return domain   
 
     def get_backing_ids(self,id):
@@ -246,6 +246,7 @@ class isard():
                 try:
                     idchain.append(list(r.table("domains").filter(lambda disks: disks['hardware']['disks'][0]['file']==f).pluck('id','name').run(db.conn))[0])
                 except Exception as e:
+                    log.error('get_backing_ids:'+str(e))
                     #~ print(e)
                     break
         return idchain
@@ -884,8 +885,6 @@ class isard():
 
     ######### VIEWER DOWNLOAD FUNCTIONS
     def get_viewer_ticket(self,id,os='generic'):
-        print(id)
-        print(os)
         dict = self.get_domain_spice(id)
         if dict['kind']=='vnc':
             return self.get_vnc_ticket(dict,os)
