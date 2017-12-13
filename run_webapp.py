@@ -32,8 +32,20 @@ if __name__ == '__main__':
     
     import logging
     logger=logging.getLogger("socketio")
-    #~ level = logging.getLevelName('ERROR')
+    #level = logging.getLevelName('ERROR')
     logger.setLevel('ERROR')
     engineio_logger=logging.getLogger("engineio")
     engineio_logger.setLevel('ERROR')
-    socketio.run(app,host='0.0.0.0', port=5000, debug=False) #, logger=logger) #, engineio_logger=engineio_logger)
+    #~ import logging
+    #~ logging.basicConfig(level=logging.ERROR)
+    #~ logger = logging.getLogger(__name__)    
+    #~ socketio.run(app,host='0.0.0.0', port=5000, debug=False) #, engineio_logger=engineio_logger)
+
+
+    #~ import logging
+    #~ logger=logging.getLogger("socketio")
+    #~ #level = logging.getLevelName('ERROR')
+    #~ logger.setLevel('ERROR')
+    #~ engineio_logger=logging.getLogger("engineio")
+    #~ engineio_logger.setLevel('ERROR')
+    socketio.run(app,host='0.0.0.0', port=5000, debug=False) #, logger=logger, engineio_logger=engineio_logger)

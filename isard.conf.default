@@ -5,7 +5,7 @@ DBNAME:			isard
 
 [LOG]
 NAME:   isard
-LEVEL:  DEBUG
+LEVEL:  WARNING
 FILE:   msg.log
 
 [DEFAULT_HYPERVISORS]

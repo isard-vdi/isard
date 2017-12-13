@@ -7,7 +7,7 @@
 # coding=utf-8
 
 from flask import Flask, send_from_directory
-from .lib.log import *
+
 import os
 
 app = Flask(__name__, static_url_path='')
@@ -26,10 +26,11 @@ from webapp.lib.load_config import loadConfig
 cfg=loadConfig(app)
 if not cfg.init_app(app): exit(0)
 
+from .lib.log import *
 '''
 Debug should be removed on production!
 '''
-app.debug = True
+#~ app.debug = True
 if app.debug:
     log.warning('Debug mode: {}'.format(app.debug))
 else:

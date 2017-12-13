@@ -9,15 +9,24 @@
 import logging as log
 import configparser
 import os
-try:
-    rcfg = configparser.ConfigParser()
-    rcfg.read(os.path.join(os.path.dirname(__file__),'../config/isard.conf'))
-except Exception as e:
-    log.info('Aborting. Please configure your RethinkDB database: config/isard.conf \n exception: {}'.format(e))
-    sys.exit(0)
-LOG_LEVEL = rcfg.get('LOG', 'LEVEL')
-LOG_FILE  = rcfg.get('LOG', 'FILE')
+from webapp import app
 
+
+
+#~ import logging as log
+#~ log.basicConfig(level=log.INFO)
+#~ logger = log.getLogger(__name__) 
+
+#~ try:
+    #~ rcfg = configparser.ConfigParser()
+    #~ rcfg.read(os.path.join(os.path.dirname(__file__),'../../isard.conf'))
+#~ except Exception as e:
+    #~ log.info('Aborting. Please configure your log level in: isard.conf \n exception: {}'.format(e))
+    #~ sys.exit(0)
+    
+#~ LOG_LEVEL = rcfg.get('LOG', 'LEVEL')
+#~ LOG_FILE  = rcfg.get('LOG', 'FILE')
+LOG_LEVEL = app.config['LOG_LEVEL']
 # LOG FORMATS
 LOG_FORMAT='%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s'
 LOG_DATE_FORMAT='%Y/%m/%d %H:%M:%S'

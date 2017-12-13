@@ -68,7 +68,7 @@ LOCAL AUTHENTICATION AGAINS RETHINKDB USERS TABLE
 try:
     import ldap
 except Exception as e:
-    log.error('No ldap module found, disabling')
+    log.warning('No ldap module found, disabling ldap authentication')
     
 from ..config.ldapauth import myLdapAuth
 class auth(object):
