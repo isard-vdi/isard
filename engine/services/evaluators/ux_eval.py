@@ -170,7 +170,6 @@ class UXEval(EvaluatorInterface):
         for i in range(len(self.hyps)):
             domain_id = domains[i]['id']
             hyp = self.hyps[i]
-            hyp.launch_eval_statistics()
             eval_log.info(
                 "Calculing ux for template: {} in hypervisor {}. Domain: {}".format(template_id, hyp.id, domain_id))
             update_domain_force_hyp(domain_id, hyp.id)
@@ -179,7 +178,6 @@ class UXEval(EvaluatorInterface):
         for i in range(len(self.hyps)):
             threads[i].join()
             hyp = self.hyps[i]
-            hyp.stop_eval_statistics()
             if not results[i]:
                 raise Exception("Need to reset")
             stats, et = results[i]
@@ -190,7 +188,7 @@ class UXEval(EvaluatorInterface):
     def _initial_ux_sequencial(self, template_id, domain_id):
         self.initial_ux[template_id] = {}
         for hyp in self.hyps:
-            eval_log.info("Calculing ux for template: {} in hypervisor {}".format(t['id'], hyp.id))
+            eval_log.info("Calculing ux for template: {} in hypervisor {}".format(template_id, hyp.id))
             update_domain_force_hyp(domain_id, hyp.id)
             update_domain_status('Starting', domain_id)
             hyp.launch_eval_statistics()
@@ -203,13 +201,16 @@ class UXEval(EvaluatorInterface):
         update_domain_force_hyp(domain_id, '')  # Clean force_hyp
 
     def _get_stats_background(self, domain_id, results, i, hyp):
+        hyp.launch_eval_statistics()
+        sleep(2)
         update_domain_status('Starting', domain_id)
         self._wait_starting(domain_id)
         stats, et, stop_by_timeout = self._wait_stop(domain_id, hyp)
         results[i] = (stats, et)
+        hyp.stop_eval_statistics()
 
     def _calcule_ux_domain(self, stats, et, cpu_power):
-        # eval_log.debug("STATS: {}".format(stats))
+        eval_log.debug("STATS: {}".format(stats))
         # ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
         a = np.array(stats)
         ram_hyp_usage = list(filter(None.__ne__, list(a[:, 0])))

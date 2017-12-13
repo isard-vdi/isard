@@ -105,7 +105,7 @@ class UiActions(object):
     def start_paused_domain_from_xml(self, xml, id_domain, pool_id):
         failed = False
         if pool_id in self.manager.pools.keys():
-            next_hyp = self.manager.pools[pool_id].get_next()
+            next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
             log.debug('//////////////////////')
             if next_hyp is not False:
                 log.debug('next_hyp={}'.format(next_hyp))
@@ -148,9 +148,9 @@ class UiActions(object):
                     log.error('force hypervisor failed for doomain {}: {}  not in hypervisors pool {}'.format(id_domain,
                                                                                                               force_hyp,
                                                                                                               pool_id))
-                    next_hyp = self.manager.pools[pool_id].get_next()
+                    next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
             else:
-                next_hyp = self.manager.pools[pool_id].get_next()
+                next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
 
             if next_hyp is not False:
                 update_domain_status(status='Starting',

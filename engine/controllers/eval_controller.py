@@ -248,8 +248,7 @@ class EvalController(object):
         d['create_dict']['hardware']['disks'][0]['file'] = disk_path
         d['create_dict']['hardware']['disks'][0]['parent'] = t['disks_info'][0]['filename']
         d['create_dict']['hardware']['memory'] = t['create_dict']['hardware']['memory']
-        # d['create_dict']['hardware']['memory'] = 2000000
-        # d['create_dict']['hardware']['currentMemory'] = 2000000
+        d['create_dict']['hardware']['currentMemory'] = t['create_dict']['hardware']['memory'] # / 0,7?  =>  +30 %
         d['create_dict']['origin'] = t['id']
         d['id'] = id_domain
         d['name'] = id_domain[1:]  # remove first char

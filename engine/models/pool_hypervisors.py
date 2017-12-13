@@ -47,7 +47,8 @@ class PoolHypervisors():
             hyps_obj[hyp_id] = manager.t_status[hyp_id].status_obj.hyp_obj
         return hyps_obj
 
-    def get_next(self, to_create_disk=False, path_selected=''):
+    def get_next(self, domain_id=None, to_create_disk=False, path_selected=''):
         args = {'to_create_disk': to_create_disk,
-                'path_selected': path_selected}
+                'path_selected': path_selected,
+                'domain_id':domain_id}
         return self.balancer.get_next(args)

@@ -3,6 +3,7 @@ from threading import Thread
 from time import sleep
 
 from engine.services.balancers.balancer_interface import BalancerInterface
+from engine.services.db import get_domain
 from engine.services.log import hypman_log as hmlog
 
 
@@ -22,7 +23,8 @@ class CentralManager(BalancerInterface):
     def get_next(self, args):
         to_create_disk = args.get("to_create_disk")
         path_selected = args.get("path_selected")
-
+        domain_id = args.get("domain_id")
+        hmlog.info("---------------------------------------------")
         for hyp_id, hyp in self.hyps.items():
             hmlog.info("Calculing PS for hyp: {}".format(hyp_id))
             cpu_free, cpu_power, cpu_ratio, ram_free = self._get_stats(hyp)
@@ -30,7 +32,10 @@ class CentralManager(BalancerInterface):
             hyp.ps = ps
         hyp_id_best_ps, hyp = max(self.hyps.items(), key=lambda v: v[1].ps)
         hmlog.info("Max PS of hyp: {}".format(hyp_id_best_ps))
-        # TODO re-calcule hyp.balancer_load
+        hmlog.info("---------------------------------------------")
+        if domain_id:
+            d = get_domain(domain_id)
+            self._recalcule_stats(hyp, d)
         return hyp_id_best_ps
 
     def calcule_ps(self, cpu_free, cpu_power, cpu_ratio, ram_free):
@@ -68,6 +73,16 @@ class CentralManager(BalancerInterface):
         cpu_ratio = hyp.info["cpu_cores"] if vcpus == 0 else round(hyp.info["cpu_cores"] / vcpus, 2)
         ram_free = hyp.balancer_load.get("percent_free", 100)
         return cpu_free, cpu_power, cpu_ratio, ram_free
+
+    def _recalcule_stats(self, hyp, domain):
+        vcpus = domain["hardware"]["vcpus"]
+        # cpu_free -= (2% * vcpus)
+        hyp_vcpus = hyp.balancer_load.get("vm_vcpus_total", 0)
+        hyp.balancer_load["vm_vcpus_total"] = hyp_vcpus + vcpus
+        ram = domain["hardware"]["currentMemory"]/1024 # Memory in MB
+        hyp_ram = hyp.info["memory_in_MB"]
+        ram_free = hyp.balancer_load.get("percent_free", 100)
+        hyp.balancer_load["percent_free"] = ram_free - (ram/hyp_ram * 100)
 
     def _start_refresh_stats(self, interval=30):
         self.running_refresh_stats = True

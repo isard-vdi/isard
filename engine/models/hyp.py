@@ -470,7 +470,6 @@ class hyp(object):
         t.start()
 
     def stop_eval_statistics(self):
-        # eval_log.debug("stop_eval_statistics")
         self.running_eval_statistics = False
 
     def _refresh_ux_eval_statistics(self, interval):
@@ -484,15 +483,10 @@ class hyp(object):
         self.last_domain_stats = None
 
     def get_ux_eval_statistics(self, domain_id):
-        # dom = self.conn.lookupByName(domain_id)
-        # # eval_log.debug("blockStats: {}".format(dom.blockStats()))
-        # eval_log.debug("cpuStats: {}".format(dom.getCPUStats(False)))
-        # m = dom.memoryStats()
-        # current = m['rss']
-        # total = m['actual']
-        # pcentCurrMem = current * 100.0 / total
-        # pcentCurrMem = max(0.0, min(pcentCurrMem, 100.0))
-
+        """
+        :param domain_id:
+        :return: data {"ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"} when they are available
+        """
         data = {}
         pf = self.load.get('percent_free')
         if pf:
@@ -509,26 +503,9 @@ class hyp(object):
             ds = self.domain_stats.get(domain_id)
             lds = self.last_domain_stats.get(domain_id)
             if ds and lds:
-                # eval_log.info("Ballon.current: {}, Ballon.max: {}".format(ds["raw_stats"]["balloon.current"],
-                #                                                           ds["raw_stats"]["balloon.maximum"]))
                 time_elapsed = ds['when'] - lds['when']
-                if time_elapsed > 0:
+                if time_elapsed > 0 and ds.get("procesed_stats") and lds.get("procesed_stats"):
                     cpu_usage = (ds['procesed_stats']['cpu_time'] - lds['procesed_stats']['cpu_time']) / time_elapsed
                     data["cpu_usage"] = round(cpu_usage, 2)
 
-                    # disk_rw, net_rw = calcule_disk_net_domain_load(time_elapsed, ds['procesed_stats'],
-                    #                                                lds['procesed_stats'])
-
-                    # data.update(disk_rw)
-                    # data.update(net_rw)
-                    # data.update(ds['procesed_stats'])
-                    # eval_log.debug("memoryStats: {}, Usage: {}".format(m, pcentCurrMem))
-                    # balloonUsage = round(ds["raw_stats"]["balloon.rss"]*100/ds["raw_stats"]["balloon.maximum"],2)
-                    # eval_log.debug("ballonStats: {}".format(balloonUsage))
-
-            else:
-                if not ds:
-                    eval_log.debug("Domain stats not found")
-                if not lds:
-                    eval_log.debug("Last domain stats not found")
         return data
