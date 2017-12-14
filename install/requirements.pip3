@@ -39,3 +39,4 @@ Werkzeug==0.11.15
 xmltodict==0.10.2
 pyOpenSSL==17.0.0
 graphyte==1.4
+numpy==1.12.0
