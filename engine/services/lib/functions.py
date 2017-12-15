@@ -153,7 +153,7 @@ def test_hypervisor_conn(uri):
         return False
 
 
-def calcule_cpu_stats(start, end, round_digits=3):
+def calcule_cpu_hyp_stats(start, end, round_digits=3):
     diff_time = {}
     percent = {}
     total_diff_time = sum(end.values()) - sum(start.values())
@@ -165,6 +165,7 @@ def calcule_cpu_stats(start, end, round_digits=3):
         percent[k] = round((diff_time[k] / float(total_diff_time)) * 100.0, round_digits)
     percent['used'] = percent['iowait'] + percent['kernel'] + percent['user']
     return percent, diff_time, total_diff_time
+
 
 
 DEFAULT_SIZE_TO_DISK = '10G'

@@ -17,7 +17,7 @@ from engine.services.db import update_domain_hyp_started, get_domains_with_trans
     update_domain_status, get_hyp_hostname_from_id
 from engine.services.db.domains_status import get_last_domain_status, insert_db_domain_status
 from engine.services.db.hypervisors_status import get_last_hyp_status, insert_db_hyp_status
-from engine.services.lib.functions import calcule_cpu_stats, calcule_disk_net_domain_load, get_tid
+from engine.services.lib.functions import calcule_cpu_hyp_stats, calcule_disk_net_domain_load, get_tid
 from engine.services.lib.functions import state_and_cause_to_str, dict_domain_libvirt_state_to_isard_state
 from engine.services.log import *
 
@@ -117,8 +117,8 @@ class UpdateStatus:
 
                     if time_elapased_from_last_hyp_stats < self.rate_allowed_diff_between_samples * self.polling_interval:
                         try:
-                            dict_hyp_status['cpu_percent'] = calcule_cpu_stats(dict_last_hyp_status['load']['cpu_load'],
-                                                                               dict_hyp_status['load']['cpu_load'])[0]
+                            dict_hyp_status['cpu_percent'] = calcule_cpu_hyp_stats(dict_last_hyp_status['load']['cpu_load'],
+                                                                                   dict_hyp_status['load']['cpu_load'])[0]
                         except:
                             log.error('error calculating cpu_percent in hyp_id {} '.format(self.hyp_id))
                             dict_hyp_status['cpu_percent'] = {'user': 0.0, 'iowait': 0.0, 'kernel': 0.0, 'used': 0.0,
@@ -142,7 +142,7 @@ class UpdateStatus:
 
                 # domain_status
                 all_domains_stats = {}
-                for name, status in self.hyp_obj.domain_stats.items():
+                for name, status in self.hyp_obj.domains_stats.items():
                     if name in dict_hyp_status['domains']:
                         if name not in self.recent_domains_stats.keys():
                             self.recent_domains_stats[name] = deque([], maxlen=max_len_queue_previous_domain_stats)
