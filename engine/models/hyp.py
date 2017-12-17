@@ -22,6 +22,7 @@ import pandas as pd
 
 from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
+from engine.services.lib.functions import calcule_cpu_hyp_stats
 from engine.services.log import *
 from engine.config import *
 
@@ -66,7 +67,6 @@ class hyp(object):
         self.eventLoopThread = None
         self.info={}
         self.info_stats={}
-        self.load={}
         self.capture_events = capture_events
 
         self.create_stats_vars()
@@ -210,8 +210,8 @@ class hyp(object):
             self.connected = False
 
         #set_hyp_status(self.hostname,status_code)
-        
-    
+
+
 
     def get_hyp_info(self):
 
@@ -399,8 +399,66 @@ class hyp(object):
             log.error('can not get stats from libvirt if hypervisor {} is not connected'.format(self.hostname))
             return False
 
+    def process_hypervisor_stats(self,raw_stats):
+        if len(self.info) == 0:
+            self.get_hyp_info()
+
+        now_raw_stats_hyp = {}
+        now_raw_stats_hyp['cpu_stats'] = raw_stats['cpu']
+        now_raw_stats_hyp['mem_stats'] = raw_stats['memory']
+        now_raw_stats_hyp['time_utc'] = raw_stats['time_utc']
+        now_raw_stats_hyp['datetime'] = datetime.utcfromtimestamp(raw_stats['time_utc'])
+
+        self.stats_raw_hyp.append(now_raw_stats_hyp)
+
+        sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, \
+        sum_disk_rd, sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx = self.process_domains_stats(raw_stats)
+
+        if len(self.stats_raw_hyp) > 1:
+            hyp_stats = {}
+
+            hyp_stats['num_domains'] = sum_domains
+
+            cpu_percents = calcule_cpu_hyp_stats(self.stats_raw_hyp[-2]['cpu_stats'],self.stats_raw_hyp[-1]['cpu_stats'])[0]
+
+            hyp_stats['cpu_load'] = round(cpu_percents['used'],2)
+            hyp_stats['cpu_iowait'] = round(cpu_percents['iowait'],2)
+            hyp_stats['vcpus'] = sum_vcpus
+            hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']) * 100, 2)
+
+            hyp_stats['mem_load_rate']    = round(((raw_stats['memory']['total'] -
+                                              raw_stats['memory']['free'] -
+                                              raw_stats['memory']['cached']) / raw_stats['memory']['total'] ) * 100, 2)
+            hyp_stats['mem_cached_rate']  = round(raw_stats['memory']['cached'] / raw_stats['memory']['total'] * 100, 2)
+            hyp_stats['mem_free_gb'] = round((raw_stats['memory']['cached'] + raw_stats['memory']['free']) / 1024 / 1024 , 2)
+
+            hyp_stats['mem_domains_gb'] = round(sum_memory / 1024 / 1024, 3)
+            hyp_stats['mem_domains_max_gb'] = round(sum_memory_max / 1024 / 1024, 3)
+            hyp_stats['mem_balloon_rate'] = round(sum_memory / sum_memory_max,4) * 100
+
+            hyp_stats['disk_wr'] = sum_disk_wr
+            hyp_stats['disk_rd'] = sum_disk_rd
+            hyp_stats['disk_wr_reqs'] = sum_disk_wr_reqs
+            hyp_stats['disk_rd_reqs'] = sum_disk_rd_reqs
+            hyp_stats['net_tx'] = sum_net_tx
+            hyp_stats['net_rx'] = sum_net_rx
+
+            self.stats_hyp_now = hyp_stats.copy()
+
+            fields = ['num_domains', 'vcpus', 'vcpu_cpu_rate', 'cpu_load', 'cpu_iowait',
+                      'mem_load_rate', 'mem_free_gb', 'mem_cached_rate',
+                      'mem_balloon_rate', 'mem_domains_gb','mem_domains_max_gb',
+                      'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
+                      'net_tx', 'net_rx', ]
+
+            self.stats_hyp = self.stats_hyp.append(pd.DataFrame(hyp_stats,
+                                                                columns=fields,
+                                                                index=[timestamp]))
+
 
     def process_domains_stats(self,raw_stats):
+        if len(self.info) == 0:
+            self.get_hyp_info()
         d_all_domain_stats = raw_stats['domains']
 
         previous_domains = set(self.stats_domains.keys())
@@ -423,6 +481,14 @@ class hyp(object):
 
         sum_vcpus = 0
         sum_memory = 0
+        sum_domains = 0
+        sum_memory_max = 0
+        sum_disk_wr = 0
+        sum_disk_rd = 0
+        sum_net_tx = 0
+        sum_net_rx = 0
+        sum_disk_wr_reqs = 0
+        sum_disk_rd_reqs = 0
 
         for d, raw in d_all_domain_stats.items():
             raw['stats']['now_utc_time'] = raw_stats['time_utc']
@@ -433,12 +499,18 @@ class hyp(object):
 
             if len(self.stats_raw_domains[d]) > 1:
 
+                sum_domains += 1
+
                 d_stats = {}
 
                 current = self.stats_raw_domains[d][-1]
                 previous = self.stats_raw_domains[d][-2]
 
                 delta = current['now_utc_time'] - previous['now_utc_time']
+                if delta == 0:
+                    log.error('same value in now_utc_time, must call get_stats_from_libvirt')
+                    break
+
                 timestamp = datetime.utcfromtimestamp(current['now_utc_time'])
 
                 sum_vcpus += current['vcpu.current']
@@ -463,12 +535,13 @@ class hyp(object):
                     mem_balloon = 0
                     mem_max = 0
 
-                d_stats['ram_load']    = round(mem_used / (self.info['memory_in_MB']/1024), 2)
+                d_stats['mem_load']    = round(mem_used / (self.info['memory_in_MB']/1024), 2)
                 d_stats['mem_used']    = mem_used
                 d_stats['mem_balloon'] = mem_balloon
                 d_stats['mem_max']     = mem_max
 
                 sum_memory += mem_used
+                sum_memory_max += mem_max
 
                 total_block_wr = 0
                 total_block_wr_reqs = 0
@@ -488,6 +561,10 @@ class hyp(object):
                 d_stats['disk_rd'] = total_block_rd / delta / 1024
                 d_stats['disk_wr_reqs'] = total_block_wr_reqs / delta
                 d_stats['disk_rd_reqs'] = total_block_rd_reqs / delta
+                sum_disk_wr      = d_stats['disk_wr']
+                sum_disk_rd      = d_stats['disk_rd']
+                sum_disk_wr_reqs = d_stats['disk_wr_reqs']
+                sum_disk_rd_reqs = d_stats['disk_rd_reqs']
 
                 total_net_tx = 0
                 total_net_rx = 0
@@ -499,10 +576,20 @@ class hyp(object):
 
                 d_stats['net_tx'] = total_net_tx / delta / 1000
                 d_stats['net_rx'] = total_net_rx / delta / 1000
+                sum_net_tx += d_stats['net_tx']
+                sum_net_rx += d_stats['net_rx']
+
+
+                fields = "cpu_load / mem_load / mem_used / mem_balloon / mem_max / " + \
+                         "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
+                fields = [s.strip() for s in fields.split('/')]
 
                 self.stats_domains[d] = self.stats_domains[d].append(pd.DataFrame(d_stats,
-                                                                                  columns=d_stats.keys(),
+                                                                                  columns=fields,
                                                                                   index=[timestamp]))
+
+        return sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, sum_disk_rd, \
+               sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx
 
 
     def create_stats_vars(self):
@@ -529,8 +616,6 @@ class hyp(object):
 
 
     def get_load(self):
-        self.domains_stats=dict()
-        self.load=dict()
 
         if len(self.info) == 0:
             self.get_hyp_info()
@@ -540,7 +625,8 @@ class hyp(object):
         if raw_stats is False:
             return False
 
-        self.process_domains_stats(raw_stats)
+        self.process_hypervisor_stats(raw_stats)
+
         return True
             #
             #
@@ -586,24 +672,6 @@ class hyp(object):
             # #
             # #
             # # HYPERVISORS
-            # # id: 'asdf'
-            # # domains: []
-            # # stats:
-            # # when: timestamp,
-            # # 0:
-            # # cpu_load: %
-            # # cpu_iowait: %
-            # # ram_load: %
-            # # ram_cached: %
-            # # ram_free: GB
-            # # vcpu_count: n
-            # # domains_count: n
-            # #
-            # # processed:
-            # # ratio_cpu: vcpus / cpus( > 1
-            # # overcommit)
-            # # ratio_ram_sinballoons:
-            # # ratio_ram_conballoons:
             #
             # if d_all_domain_stats:
             #     self.load['total_vm'] = len(d_all_domain_stats)
