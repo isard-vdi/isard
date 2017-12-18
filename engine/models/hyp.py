@@ -407,7 +407,7 @@ class hyp(object):
         now_raw_stats_hyp['cpu_stats'] = raw_stats['cpu']
         now_raw_stats_hyp['mem_stats'] = raw_stats['memory']
         now_raw_stats_hyp['time_utc'] = raw_stats['time_utc']
-        now_raw_stats_hyp['datetime'] = datetime.utcfromtimestamp(raw_stats['time_utc'])
+        now_raw_stats_hyp['datetime'] = timestamp = datetime.utcfromtimestamp(raw_stats['time_utc'])
 
         self.stats_raw_hyp.append(now_raw_stats_hyp)
 
@@ -432,9 +432,12 @@ class hyp(object):
             hyp_stats['mem_cached_rate']  = round(raw_stats['memory']['cached'] / raw_stats['memory']['total'] * 100, 2)
             hyp_stats['mem_free_gb'] = round((raw_stats['memory']['cached'] + raw_stats['memory']['free']) / 1024 / 1024 , 2)
 
-            hyp_stats['mem_domains_gb'] = round(sum_memory / 1024 / 1024, 3)
-            hyp_stats['mem_domains_max_gb'] = round(sum_memory_max / 1024 / 1024, 3)
-            hyp_stats['mem_balloon_rate'] = round(sum_memory / sum_memory_max,4) * 100
+            hyp_stats['mem_domains_gb'] = round(sum_memory, 3)
+            hyp_stats['mem_domains_max_gb'] = round(sum_memory_max, 3)
+            if sum_memory_max > 0:
+                hyp_stats['mem_balloon_rate'] = round(sum_memory / sum_memory_max * 100, 2)
+            else:
+                hyp_stats['mem_balloon_rate'] = 0
 
             hyp_stats['disk_wr'] = sum_disk_wr
             hyp_stats['disk_rd'] = sum_disk_rd
@@ -469,6 +472,7 @@ class hyp(object):
         for d in remove_domains:
             del self.stats_domains[d]
             del self.stats_raw_domains[d]
+            del self.stats_domains_now[d]
             # TODO: buen momento para asegurarse que la máquina se quedó en Stopped,
             # podríamos ahorrarnos esa  comprobación en el thread broom ??
 
@@ -478,6 +482,7 @@ class hyp(object):
         for d in add_domains:
             self.stats_domains[d] = pd.DataFrame()
             self.stats_raw_domains[d] = deque(maxlen=self.stats_queue_lenght_domains_raw_stats)
+            self.stats_domains_now[d] = dict()
 
         sum_vcpus = 0
         sum_memory = 0
@@ -557,14 +562,14 @@ class hyp(object):
 
 
                 #KB/s
-                d_stats['disk_wr'] = total_block_wr / delta / 1024
-                d_stats['disk_rd'] = total_block_rd / delta / 1024
-                d_stats['disk_wr_reqs'] = total_block_wr_reqs / delta
-                d_stats['disk_rd_reqs'] = total_block_rd_reqs / delta
-                sum_disk_wr      = d_stats['disk_wr']
-                sum_disk_rd      = d_stats['disk_rd']
-                sum_disk_wr_reqs = d_stats['disk_wr_reqs']
-                sum_disk_rd_reqs = d_stats['disk_rd_reqs']
+                d_stats['disk_wr'] = round(total_block_wr / delta / 1024,3)
+                d_stats['disk_rd'] = round(total_block_rd / delta / 1024,3)
+                d_stats['disk_wr_reqs'] = round(total_block_wr_reqs / delta,3)
+                d_stats['disk_rd_reqs'] = round(total_block_rd_reqs / delta,3)
+                sum_disk_wr      += d_stats['disk_wr']
+                sum_disk_rd      += d_stats['disk_rd']
+                sum_disk_wr_reqs += d_stats['disk_wr_reqs']
+                sum_disk_rd_reqs += d_stats['disk_rd_reqs']
 
                 total_net_tx = 0
                 total_net_rx = 0
@@ -574,8 +579,8 @@ class hyp(object):
                         total_net_tx += current['net.' +str(n)+ '.tx.bytes'] - previous['net.' +str(n)+ '.tx.bytes']
                         total_net_rx += current['net.' +str(n)+ '.rx.bytes'] - previous['net.' +str(n)+ '.rx.bytes']
 
-                d_stats['net_tx'] = total_net_tx / delta / 1000
-                d_stats['net_rx'] = total_net_rx / delta / 1000
+                d_stats['net_tx'] = round(total_net_tx / delta / 1000, 3)
+                d_stats['net_rx'] = round(total_net_rx / delta / 1000, 3)
                 sum_net_tx += d_stats['net_tx']
                 sum_net_rx += d_stats['net_rx']
 
@@ -584,6 +589,7 @@ class hyp(object):
                          "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
                 fields = [s.strip() for s in fields.split('/')]
 
+                self.stats_domains_now[d] = d_stats.copy()
                 self.stats_domains[d] = self.stats_domains[d].append(pd.DataFrame(d_stats,
                                                                                   columns=fields,
                                                                                   index=[timestamp]))
@@ -608,11 +614,16 @@ class hyp(object):
         self.stats_medium_sample_period = 60
         self.stats_max_history = 600
 
-        self.stats_hyp = dict()
+        self.stats_hyp_now = dict()
+        self.stats_domains_now = dict()
         self.stats_raw_hyp = deque(maxlen=self.stats_queue_lenght_hyp_raw_stats)
-
-        self.stats_domains = dict()
         self.stats_raw_domains = dict()
+
+        #Pandas dataframe
+        self.stats_hyp = pd.DataFrame()
+
+        #Dictionary of pandas dataframes
+        self.stats_domains = dict()
 
 
     def get_load(self):
