@@ -11,19 +11,22 @@ a module to control hypervisor functions and state. Overrides libvirt events and
 
 import socket
 import time
+from datetime import datetime
 from io import StringIO
+from collections import deque
 from statistics import mean
 from threading import Thread
 
 import libvirt
 import paramiko
 from lxml import etree
+import pandas as pd
 
-from engine.config import *
-from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket, calcule_cpu_stats, \
-    calcule_disk_net_domain_load
+from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
+from engine.services.lib.functions import calcule_cpu_hyp_stats
 from engine.services.log import *
+from engine.config import *
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = 4  # int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
@@ -65,12 +68,9 @@ class hyp(object):
         self.eventLoopThread = None
         self.info = {}
         self.info_stats = {}
-        self.load = {}
-        self.domain_stats = {}
         self.capture_events = capture_events
-        self.last_load = None
-        self.last_domain_stats = None
-        self.cpu_percent_free = []
+
+        self.create_stats_vars()
 
         # isard_preferred_keys = tuple(paramiko.ecdsakey.ECDSAKey.supported_key_format_identifiers()) + (
         #    'ssh-rsa',
@@ -297,20 +297,25 @@ class hyp(object):
         """
         return dictionary with domain objects of libvirt
         keys of dictionary are names
+        domains can be started or paused
         """
         if self.connected:
-            ##TODO INFO TO DEVELOPER ==> haría falta poner un try por si se ha perdido la conexión??
-            ids = self.conn.listDomainsID()
-            domains = {}
-            for id in ids:
-                domain = self.conn.lookupByID(id)
-                name = domain.name()
-                domains[name] = domain
+            self.domains = {}
+            try:
+                for d in h.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
+                    try:
+                        domain_name = d.name()
+                    except:
+                        log.info('unkown domain fail when trying to get his name, power off??')
+                        continue
+                    if domain_name[0] == '_':
+                        self.domains[domain_name] = d
+            except:
+                log.error('error when try to list domain in hypervisor {}'.format(self.hostname))
+                self.domains = {}
 
-            self.domains = domains
-
+    #
     # def hyp_worker_thread(self,queue_worker):
-    #     NOT USED
     #     log.debug('Hyp {} worker thread started ...'.format(self.hostname))
     #     #h = hyp('vdesktop1')
     #     while(1):
@@ -350,98 +355,382 @@ class hyp(object):
             log.error('error closing connexion for hypervisor {}'.format(self.hostname))
             self.set_status(HYP_STATUS_ERROR_WHEN_CLOSE_CONNEXION)
 
-    def get_load(self, l_stats=False, now=False):
-        self.domain_stats = dict()
-        self.load = dict()
-
+    def get_stats_from_libvirt(self, exclude_domains_not_isard=True):
+        raw_stats = {}
         if self.connected:
-            cpu_load = self.conn.getCPUStats(libvirt.VIR_NODE_CPU_STATS_ALL_CPUS)
-            l = self.conn.getMemoryStats(-1, 0)
-            # todo VER QUE HACEMOS CON ESTO...
-            self.load['cpu_load'] = cpu_load
-            self.load['ram_cached'] = l['cached']
-            self.load['ram_free'] = l['free']
+            # get CPU Stats
+            try:
+                raw_stats['cpu'] = self.conn.getCPUStats(libvirt.VIR_NODE_CPU_STATS_ALL_CPUS)
+            except:
+                log.error('getCPUStats fail in hypervisor {}'.format(self.hostname))
+                return False
 
-            self.load['free_ram_total'] = l['cached'] + l['free']
-            self.load['percent_free'] = round(float(self.load['free_ram_total']) * 100 / l['total'], 2)
+            # get Memory Stats
+            try:
+                raw_stats['memory'] = self.conn.getMemoryStats(-1, 0)
+            except:
+                log.error('getAllDomainStats fail in hypervisor {}'.format(self.hostname))
+                return False
 
-            if not l_stats:
-                l_stats = self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
-                now = time.time()
+            # get All Domain Stats
+            try:
+                # l_stats = self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
+                raw_stats['domains'] = {l[0].name(): {'stats': l[1],
+                                                      'state': l[0].state(),
+                                                      'd': l[0]}
+                                        for l in
+                                        self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE)}
 
-            if l_stats:
-                self.load['total_vm'] = len(l_stats)
+                raw_stats['time_utc'] = time.time()
 
-                ## getFreeMemory in MB
-                self.load['free_memory'] = int(self.conn.getFreeMemory() / (1024 * 1024))
-                vm_mem_max_total = 0
-                vm_mem_with_ballon_total = 0
-                vm_vcpus_total = 0
+                # remove stats from domains not started with _ (all domains in isard start with _)
+                if exclude_domains_not_isard is True:
+                    for domain_name in list(raw_stats['domains'].keys()):
+                        if domain_name[0] != '_':
+                            del raw_stats['domains'][domain_name]
 
-                for r in l_stats:
-                    try:
-                        # todo VER QUE HACEMOS SI ESTÁ EN PAUSA, YA QUE TIENE RAM RESERVADA??
-                        # libvirt.VIR_DOMAIN_PAUSED
-                        domain_sysname = r[0].name()
-                        # if domain_sysname == "_eval__admin_ubuntu_17_eval_0":
-                        # if domain_sysname == "_eval__windows_7_x64_v3_0":
-                        #     eval_log.warn("STATISTICS DOMAIN: {}, {}".format(domain_sysname, r[1]))
-                        # with open("/isard/stats.csv","a") as f:
-                        #     tmp = []
-                        #     tmp.append(domain_sysname)
-                        #     tmp.append(r[1].get("balloon.maximum"))
-                        #     tmp.append(r[1].get("balloon.current"))
-                        #     tmp.append(r[1].get("balloon.rss"))
-                        #     tmp.append(r[1].get("balloon.unused"))
-                        #     tmp.append(r[1].get("balloon.usable"))
-                        #     tmp.append(r[1].get("balloon.available"))
-                        #     tmp = [str(v)for v in tmp]
-                        #     msg = ",".join(tmp)+"\n"
-                        #     f.write(",".join(tmp)+"\n")
-                        #     # f.write("Testing...")
+            except:
+                log.error('getAllDomainStats fail in hypervisor {}'.format(self.hostname))
+                return False
 
-                        domain_state = r[0].state()
-                        self.domain_stats[domain_sysname] = dict()
-                        self.domain_stats[domain_sysname]['when'] = time.time()
-                        self.domain_stats[domain_sysname]['raw_stats'] = r[1]
-                        self.domain_stats[domain_sysname]['hyp'] = self.hostname
-                        state, reason = state_and_cause_to_str(domain_state[0], domain_state[1])
-                        self.domain_stats[domain_sysname]['state'] = state
-                        self.domain_stats[domain_sysname]['state_reason'] = reason
-                        try:
-                            self.domain_stats[domain_sysname]['procesed_stats'] = new_dict_from_raw_dict_stats(r[1])
-                        except Exception as e:
-                            log.warning(
-                                'Procesing stats for domain {} with state {}({}) failed'.format(domain_sysname, state,
-                                                                                                reason))
+            return raw_stats
 
-                        # stats_json = json.dumps(r[1])
-                        if 'cpu.time' in r[1].keys():
-                            time_cpu = r[1]['cpu.time']
-                        else:
-                            time_cpu = 0
+        else:
+            log.error('can not get stats from libvirt if hypervisor {} is not connected'.format(self.hostname))
+            return False
 
-                        # self.domain_stats[domain_sysname]['cputime'] = time_cpu
+    def process_hypervisor_stats(self, raw_stats):
+        if len(self.info) == 0:
+            self.get_hyp_info()
 
-                        if r[0].state()[0] == libvirt.VIR_DOMAIN_RUNNING:
-                            vm_mem_max_total += r[1]['balloon.maximum']
-                            if 'balloon.current' in r[1].keys():
-                                vm_mem_with_ballon_total += r[1]['balloon.current']
-                            vm_vcpus_total += r[1]['vcpu.current']
-                    except libvirt.libvirtError as e:
+        now_raw_stats_hyp = {}
+        now_raw_stats_hyp['cpu_stats'] = raw_stats['cpu']
+        now_raw_stats_hyp['mem_stats'] = raw_stats['memory']
+        now_raw_stats_hyp['time_utc'] = raw_stats['time_utc']
+        now_raw_stats_hyp['datetime'] = datetime.utcfromtimestamp(raw_stats['time_utc'])
 
-                        log.error('libvirt Error getting domains in hyp class. Other thread stop domain?? {}'.format(e))
-                    except Exception as e:
-                        log.error(e)
-                self.load['vm_mem_max_total'] = int(vm_mem_max_total / 1024)
-                self.load['vm_mem_with_ballon_total'] = int(vm_mem_with_ballon_total / 1024)
-                self.load['vm_vcpus_total'] = vm_vcpus_total
+        self.stats_raw_hyp.append(now_raw_stats_hyp)
 
+        sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, \
+        sum_disk_rd, sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx = self.process_domains_stats(raw_stats)
 
+        if len(self.stats_raw_hyp) > 1:
+            hyp_stats = {}
 
-            else:
-                # log.debug('hyp {} have no vms or stats has failed'.format(self.hostname))
-                pass
+            hyp_stats['num_domains'] = sum_domains
+
+            cpu_percents = \
+            calcule_cpu_hyp_stats(self.stats_raw_hyp[-2]['cpu_stats'], self.stats_raw_hyp[-1]['cpu_stats'])[0]
+
+            hyp_stats['cpu_load'] = round(cpu_percents['used'], 2)
+            hyp_stats['cpu_iowait'] = round(cpu_percents['iowait'], 2)
+            hyp_stats['vcpus'] = sum_vcpus
+            hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']) * 100, 2)
+
+            hyp_stats['mem_load_rate'] = round(((raw_stats['memory']['total'] -
+                                                 raw_stats['memory']['free'] -
+                                                 raw_stats['memory']['cached']) / raw_stats['memory']['total']) * 100,
+                                               2)
+            hyp_stats['mem_cached_rate'] = round(raw_stats['memory']['cached'] / raw_stats['memory']['total'] * 100, 2)
+            hyp_stats['mem_free_gb'] = round(
+                (raw_stats['memory']['cached'] + raw_stats['memory']['free']) / 1024 / 1024, 2)
+
+            hyp_stats['mem_domains_gb'] = round(sum_memory / 1024 / 1024, 3)
+            hyp_stats['mem_domains_max_gb'] = round(sum_memory_max / 1024 / 1024, 3)
+            hyp_stats['mem_balloon_rate'] = round(sum_memory / sum_memory_max, 4) * 100
+
+            hyp_stats['disk_wr'] = sum_disk_wr
+            hyp_stats['disk_rd'] = sum_disk_rd
+            hyp_stats['disk_wr_reqs'] = sum_disk_wr_reqs
+            hyp_stats['disk_rd_reqs'] = sum_disk_rd_reqs
+            hyp_stats['net_tx'] = sum_net_tx
+            hyp_stats['net_rx'] = sum_net_rx
+
+            self.stats_hyp_now = hyp_stats.copy()
+
+            fields = ['num_domains', 'vcpus', 'vcpu_cpu_rate', 'cpu_load', 'cpu_iowait',
+                      'mem_load_rate', 'mem_free_gb', 'mem_cached_rate',
+                      'mem_balloon_rate', 'mem_domains_gb', 'mem_domains_max_gb',
+                      'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
+                      'net_tx', 'net_rx', ]
+
+            self.stats_hyp = self.stats_hyp.append(pd.DataFrame(hyp_stats,
+                                                                columns=fields,
+                                                                index=[timestamp]))
+
+    def process_domains_stats(self, raw_stats):
+        if len(self.info) == 0:
+            self.get_hyp_info()
+        d_all_domain_stats = raw_stats['domains']
+
+        previous_domains = set(self.stats_domains.keys())
+        current_domains = set(d_all_domain_stats.keys())
+        add_domains = current_domains.difference(previous_domains)
+        remove_domains = previous_domains.difference(current_domains)
+
+        for d in remove_domains:
+            del self.stats_domains[d]
+            del self.stats_raw_domains[d]
+            # TODO: buen momento para asegurarse que la máquina se quedó en Stopped,
+            # podríamos ahorrarnos esa  comprobación en el thread broom ??
+
+            # TODO: también es el momento de guardar en histórico las estadísticas de ese dominio,
+            # esto nos permite hacer análisis posterior
+
+        for d in add_domains:
+            self.stats_domains[d] = pd.DataFrame()
+            self.stats_raw_domains[d] = deque(maxlen=self.stats_queue_lenght_domains_raw_stats)
+
+        sum_vcpus = 0
+        sum_memory = 0
+        sum_domains = 0
+        sum_memory_max = 0
+        sum_disk_wr = 0
+        sum_disk_rd = 0
+        sum_net_tx = 0
+        sum_net_rx = 0
+        sum_disk_wr_reqs = 0
+        sum_disk_rd_reqs = 0
+
+        for d, raw in d_all_domain_stats.items():
+            raw['stats']['now_utc_time'] = raw_stats['time_utc']
+            raw['stats']['now_datetime'] = datetime.utcfromtimestamp(raw_stats['time_utc'])
+
+            self.stats_raw_domains[d].append(raw['stats'])
+
+            if len(self.stats_raw_domains[d]) > 1:
+
+                sum_domains += 1
+
+                d_stats = {}
+
+                current = self.stats_raw_domains[d][-1]
+                previous = self.stats_raw_domains[d][-2]
+
+                delta = current['now_utc_time'] - previous['now_utc_time']
+                if delta == 0:
+                    log.error('same value in now_utc_time, must call get_stats_from_libvirt')
+                    break
+
+                timestamp = datetime.utcfromtimestamp(current['now_utc_time'])
+
+                sum_vcpus += current['vcpu.current']
+
+                d_stats['cpu_load'] = round(
+                    (current['cpu.time'] - current['cpu.time']) / 1000000000 / self.info['cpu_threads'], 3)
+
+                d_balloon = {k: v / 1024 for k, v in current.items() if k[:5] == 'ballo'}
+
+                # balloon is running and monitorized if balloon.unused key is disposable
+                if 'balloon.unused' in d_balloon.keys():
+                    mem_used = round((d_balloon['balloon.current'] - d_balloon['balloon.unused']) / 1024.0, 3)
+                    mem_balloon = round(d_balloon['balloon.current'] / 1024.0, 3)
+                    mem_max = round(d_balloon['balloon.maximum'] / 1024.0, 3)
+
+                elif 'balloon.maximum' in d_balloon.keys():
+                    mem_used = round(d_balloon['balloon.maximum'] / 1024.0, 3)
+                    mem_balloon = round(d_balloon['balloon.maximum'] / 1024.0, 3)
+                    mem_max = round(d_balloon['balloon.maximum'] / 1024.0, 3)
+
+                else:
+                    mem_used = 0
+                    mem_balloon = 0
+                    mem_max = 0
+
+                d_stats['mem_load'] = round(mem_used / (self.info['memory_in_MB'] / 1024), 2)
+                d_stats['mem_used'] = mem_used
+                d_stats['mem_balloon'] = mem_balloon
+                d_stats['mem_max'] = mem_max
+
+                sum_memory += mem_used
+                sum_memory_max += mem_max
+
+                total_block_wr = 0
+                total_block_wr_reqs = 0
+                total_block_rd = 0
+                total_block_rd_reqs = 0
+
+                if 'block.count' in current.keys():
+                    for n in range(current['block.count']):
+                        total_block_wr += current['block.' + str(n) + '.wr.bytes'] - previous[
+                            'block.' + str(n) + '.wr.bytes']
+                        total_block_rd += current['block.' + str(n) + '.rd.bytes'] - previous[
+                            'block.' + str(n) + '.rd.bytes']
+                        total_block_wr_reqs += current['block.' + str(n) + '.wr.reqs'] - previous[
+                            'block.' + str(n) + '.wr.reqs']
+                        total_block_rd_reqs += current['block.' + str(n) + '.rd.reqs'] - previous[
+                            'block.' + str(n) + '.rd.reqs']
+
+                # KB/s
+                d_stats['disk_wr'] = total_block_wr / delta / 1024
+                d_stats['disk_rd'] = total_block_rd / delta / 1024
+                d_stats['disk_wr_reqs'] = total_block_wr_reqs / delta
+                d_stats['disk_rd_reqs'] = total_block_rd_reqs / delta
+                sum_disk_wr = d_stats['disk_wr']
+                sum_disk_rd = d_stats['disk_rd']
+                sum_disk_wr_reqs = d_stats['disk_wr_reqs']
+                sum_disk_rd_reqs = d_stats['disk_rd_reqs']
+
+                total_net_tx = 0
+                total_net_rx = 0
+
+                if 'net.count' in current.keys():
+                    for n in range(current['net.count']):
+                        total_net_tx += current['net.' + str(n) + '.tx.bytes'] - previous['net.' + str(n) + '.tx.bytes']
+                        total_net_rx += current['net.' + str(n) + '.rx.bytes'] - previous['net.' + str(n) + '.rx.bytes']
+
+                d_stats['net_tx'] = total_net_tx / delta / 1000
+                d_stats['net_rx'] = total_net_rx / delta / 1000
+                sum_net_tx += d_stats['net_tx']
+                sum_net_rx += d_stats['net_rx']
+
+                fields = "cpu_load / mem_load / mem_used / mem_balloon / mem_max / " + \
+                         "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
+                fields = [s.strip() for s in fields.split('/')]
+
+                self.stats_domains[d] = self.stats_domains[d].append(pd.DataFrame(d_stats,
+                                                                                  columns=fields,
+                                                                                  index=[timestamp]))
+
+        return sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, sum_disk_rd, \
+               sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx
+
+    def create_stats_vars(self):
+
+        self.stats_queue_lenght_hyp_raw_stats = 3
+        self.stats_queue_lenght_domains_raw_stats = 3
+
+        self.stats_polling_interval = 5
+
+        self.stats_booting_time = 120
+        self.stats_near_size_window = 300
+        self.stats_medium_size_window = 2 * 3600
+        self.stats_long_size_window = 24 * 3600
+
+        self.stats_near_sample_period = self.stats_polling_interval
+        self.stats_medium_sample_period = 60
+        self.stats_max_history = 600
+
+        self.stats_hyp = dict()
+        self.stats_raw_hyp = deque(maxlen=self.stats_queue_lenght_hyp_raw_stats)
+
+        self.stats_domains = dict()
+        self.stats_raw_domains = dict()
+
+    def get_load(self):
+
+        if len(self.info) == 0:
+            self.get_hyp_info()
+
+        raw_stats = self.get_stats_from_libvirt()
+
+        if raw_stats is False:
+            return False
+
+        self.process_hypervisor_stats(raw_stats)
+
+        return True
+        #
+        #
+        #
+        # h.get_domains()
+        # d=h.domains['_admin_win7-admin']
+        # d.setMemoryFlags(2684*1024,VIR_DOMAIN_AFFECT_LIVE)
+        # 1334/110:
+        # h=hyp('vdesktop4')
+        # h.get_domains()
+        # while True:
+        #     sleep(1)
+        #     d_balloon=[{k:v/1024 for k,v in d[1].items() if k[:5] == 'ballo' } for d in h.conn.getAllDomainStats() if d[0].name() == '_admin_win7-admin' ][0]
+        #     pprint(d_balloon)
+        #     print("in GB: {0:.2f}".format((d_balloon['balloon.available']-d_balloon['balloon.unused'])/1024))
+        #     print("in GB: {0:.2f}".format((d_balloon['balloon.current']-d_balloon['balloon.unused'])/1024))
+        #     print("in MB: {0:.2f}".format(d_balloon['balloon.available']-d_balloon['balloon.unused']-(d_balloon['balloon.available']-d_balloon['balloon.current'])))
+
+        #
+        #
+        #
+        #
+        # #todo VER QUE HACEMOS CON ESTO...
+        # self.load['cpu_load'] = cpu_load
+        # self.load['ram_cached'] = memory_stats['cached']
+        # self.load['ram_free'] = memory_stats['free']
+        #
+        # self.load['free_ram_total'] = memory_stats['cached'] + memory_stats['free']
+        # self.load['percent_free'] = round(float(self.load['free_ram_total'])*100/memory_stats['total'],2)
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        # now = time.time()
+        #
+        #
+        # #
+        # #     5:
+        # #     15:
+        # #
+        # #
+        # # HYPERVISORS
+        #
+        # if d_all_domain_stats:
+        #     self.load['total_vm'] = len(d_all_domain_stats)
+        #
+        #     vm_mem_max_total = 0
+        #     vm_mem_with_ballon_total = 0
+        #     vm_vcpus_total = 0
+        #
+        #     for domain_sysname,d_info in d_all_domain_stats.items():
+        #         try:
+        #             #todo VER QUE HACEMOS SI ESTÁ EN PAUSA, YA QUE TIENE RAM RESERVADA??
+        #             # libvirt.VIR_DOMAIN_PAUSED
+        #             raw_stats = d_info['stats']
+        #             domain_state = d_info['state']
+        #
+        #
+        #             self.domains_stats[domain_sysname]=dict()
+        #             self.domains_stats[domain_sysname]['raw_stats'] = raw_stats
+        #             self.domains_stats[domain_sysname]['hyp'] = self.hostname
+        #
+        #             state,reason = state_and_cause_to_str(domain_state[0],domain_state[1])
+        #             self.domains_stats[domain_sysname]['state'] = state
+        #             self.domains_stats[domain_sysname]['state_reason'] = reason
+        #             try:
+        #                 self.domains_stats[domain_sysname]['procesed_stats'] = new_dict_from_raw_dict_stats(raw_stats)
+        #             except Exception as e:
+        #                 log.warning('Procesing stats for domain {} with state {}({}) failed'.format(domain_sysname,state,reason))
+        #
+        #             #stats_json = json.dumps(r[1])
+        #             if 'cpu.time' in raw_stats.keys():
+        #                 time_cpu = r[1]['cpu.time']
+        #             else:
+        #                 time_cpu = 0
+        #
+        #             #self.domain_stats[domain_sysname]['cputime'] = time_cpu
+        #
+        #             if state == 'running':
+        #                 # vm_mem_max_total += r[1]['balloon.maximum']
+        #                 # if 'balloon.current' in r[1].keys():
+        #                 #     vm_mem_with_ballon_total += r[1]['balloon.current']
+        #                 vm_vcpus_total += r[1]['vcpu.current']
+        #
+        #         except libvirt.libvirtError as e:
+        #
+        #             log.error('libvirt Error getting domains in hyp class. Other thread stop domain?? {}'.format(e))
+        #         except Exception as e:
+        #             log.error(e)
+        #
+        #     self.load['vm_mem_max_total'] = int(vm_mem_max_total / 1024)
+        #     self.load['vm_mem_with_ballon_total'] = int(vm_mem_with_ballon_total / 1024)
+        #     self.load['vm_vcpus_total'] = vm_vcpus_total
+        #
+        #
+        #
+        # else:
+        #     #log.debug('hyp {} have no vms or stats has failed'.format(self.hostname))
+        #     pass
 
     def get_eval_statistics(self):
         self.get_load()
@@ -486,26 +775,20 @@ class hyp(object):
         """
         :param domain_id:
         :return: data {"ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"} when they are available
+
+        fields = ['num_domains', 'vcpus', 'vcpu_cpu_rate', 'cpu_load', 'cpu_iowait',
+                      'mem_load_rate', 'mem_free_gb', 'mem_cached_rate',
+                      'mem_balloon_rate', 'mem_domains_gb','mem_domains_max_gb',
+                      'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
+                      'net_tx', 'net_rx', ]
+        self.stats_hyp_now.get('mem_load_rate')
         """
         data = {}
-        pf = self.load.get('percent_free')
-        if pf:
-            data["ram_hyp_usage"] = round(100 - pf, 2)
-        if self.load and self.last_load:
-            try:
-                cpu_percent = calcule_cpu_stats(self.last_load['cpu_load'], self.load['cpu_load'])[0]
-                data["cpu_hyp_usage"] = round(cpu_percent["used"], 2)
-                data["cpu_hyp_iowait"] = round(cpu_percent["iowait"], 2)
-            except Exception as e:
-                eval_log.error("Error cpu_percent: {}".format(e))
-
-        if self.last_domain_stats:
-            ds = self.domain_stats.get(domain_id)
-            lds = self.last_domain_stats.get(domain_id)
-            if ds and lds:
-                time_elapsed = ds['when'] - lds['when']
-                if time_elapsed > 0 and ds.get("procesed_stats") and lds.get("procesed_stats"):
-                    cpu_usage = (ds['procesed_stats']['cpu_time'] - lds['procesed_stats']['cpu_time']) / time_elapsed
-                    data["cpu_usage"] = round(cpu_usage, 2)
+        data["ram_hyp_usage"] = self.stats_hyp_now.get('mem_load_rate')
+        data["cpu_hyp_usage"] = self.stats_hyp_now.get('cpu_load')
+        data["cpu_hyp_iowait"] = self.stats_hyp_now.get('cpu_iowait')
+        domain_stats = self.stats_domains.get(domain_id)
+        if domain_stats:
+            data["cpu_usage"] = domain_stats[-1].get()
 
         return data

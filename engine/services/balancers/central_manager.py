@@ -11,7 +11,6 @@ class CentralManager(BalancerInterface):
     def __init__(self, hyps=None):
         self.hyps = hyps
         self._init_hyps()
-        self._init_eval_statistics()  # TODO remove this when Alberto implements new statistics feature
         self._get_actual_stats()
         self.thread_refresh_stats = self._start_refresh_stats()
 
@@ -44,45 +43,43 @@ class CentralManager(BalancerInterface):
         :return:
         """
         rv = 1 if ram_free > 15 else ram_free / 100
-        # # rv = ram_free / 100
-        # rv = random()
+        cv = 1 if cpu_ratio < 1 else 1 / cpu_ratio  # 1/cpu_ratio = inverse
         cpu_free /= 100
-        ps = cpu_free * cpu_power * rv * cpu_ratio
+        ps = cpu_free * cpu_power * rv * cv
         hmlog.debug(
             "cpu_free: {}, cpu_power: {}, cpu_ratio: {}, ram_free: {}, rv: {}, ps: {}".format(cpu_free, cpu_power,
                                                                                               cpu_ratio, ram_free, rv,
                                                                                               ps))
-        return round(ps,2)
+        return round(ps, 2)
 
     def _init_hyps(self):
         for id, hyp in self.hyps.items():
             hyp.get_hyp_info()
             hyp.info["cpu_power"] = round(hyp.info["cpu_cores"] * hyp.info["cpu_threads"] * hyp.info["cpu_mhz"] / 1000,
                                           2)
-
-    def _init_eval_statistics(self):
-        """ REMOVE WHEN ALBERT FINISH STATISTICS FEATURE """
-        for id, hyp in self.hyps.items():
-            hyp.launch_eval_statistics()
+            while(not getattr(hyp, "stats_hyp_now", None)):
+                hmlog.info("Waiting for stats_hyp_now: {}".format(id))
+                sleep(2)
 
     def _get_stats(self, hyp):
         """TODO: change this when Alberto implements new statistics feature """
         cpu_free = round(random() * 100, 2)
         cpu_power = hyp.info["cpu_power"]
-        vcpus = hyp.balancer_load.get("vm_vcpus_total", 0)
-        cpu_ratio = hyp.info["cpu_cores"] if vcpus == 0 else round(hyp.info["cpu_cores"] / vcpus, 2)
-        ram_free = hyp.balancer_load.get("percent_free", 100)
+        cpu_ratio = hyp.balancer_load.get("vcpu_cpu_rate", 0)
+        ram_free = hyp.balancer_load.get("mem_free", 100)
         return cpu_free, cpu_power, cpu_ratio, ram_free
 
     def _recalcule_stats(self, hyp, domain):
         vcpus = domain["hardware"]["vcpus"]
         # cpu_free -= (2% * vcpus)
-        hyp_vcpus = hyp.balancer_load.get("vm_vcpus_total", 0)
-        hyp.balancer_load["vm_vcpus_total"] = hyp_vcpus + vcpus
-        ram = domain["hardware"]["currentMemory"]/1024 # Memory in MB
+        hyp_vcpus = hyp.balancer_load.get("vcpus", 0)
+        sum_vcpus = hyp_vcpus + vcpus
+        hyp.balancer_load["vcpus"] = sum_vcpus
+        hyp.balancer_load['vcpu_cpu_rate'] = round((sum_vcpus / hyp.info['cpu_threads']) * 100, 2)
+        ram = domain["hardware"]["currentMemory"] / 1024  # Memory in MB
         hyp_ram = hyp.info["memory_in_MB"]
-        ram_free = hyp.balancer_load.get("percent_free", 100)
-        hyp.balancer_load["percent_free"] = ram_free - (ram/hyp_ram * 100)
+        ram_free = hyp.balancer_load.get("mem_free", 100)
+        hyp.balancer_load["mem_free"] = ram_free - (ram / hyp_ram * 100)
 
     def _start_refresh_stats(self, interval=30):
         self.running_refresh_stats = True
@@ -95,10 +92,11 @@ class CentralManager(BalancerInterface):
 
     def _refresh_stats(self, interval):
         while (self.running_refresh_stats):
-            # self.get_load()  # En teoria esto no hara falta cuando lo haga el Alberto.
             self._get_actual_stats()
             sleep(interval)
 
     def _get_actual_stats(self):
         for id, hyp in self.hyps.items():
-            hyp.balancer_load = hyp.load.copy()
+            hyp.balancer_load = hyp.stats_hyp_now.copy()
+            hyp.balancer_load["cpu_free"] = 100 - hyp.balancer_load.get('cpu_load', 0)
+            hyp.balancer_load["mem_free"] = 100 - hyp.balancer_load.get('mem_load_rate', 0)
