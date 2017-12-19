@@ -762,43 +762,12 @@ class hyp(object):
             #     pass
 
     def get_eval_statistics(self):
-        self.get_load()
-        if not self.last_load:
-            self.last_load = self.load
-            cpu_percent_free = 100
-        else:
-            cpu_percent = calcule_cpu_stats(self.last_load['cpu_load'], self.load['cpu_load'])[0]
-            cpu_percent_free = cpu_percent["idle"]
-
-        # Do mean of 3 cpu values. Doing this because CPU load is very sensitive.
-        if len(self.cpu_percent_free) == 3:
-            self.cpu_percent_free.pop()
-        self.cpu_percent_free.append(cpu_percent_free)
-
-        self.last_load = self.load
-        self.get_domains()
-        data = {"cpu_percent_free": round(mean(self.cpu_percent_free), 2),
-                "ram_percent_free": self.load.get("percent_free"),
-                "domains": list(self.domains.keys())}
+        cpu_percent_free = 100 - self.stats_hyp_now.get('cpu_load', 0)
+        ram_percent_free = 100 - self.stats_hyp_now.get('mem_load_rate', 0)
+        data = {"cpu_percent_free": cpu_percent_free,
+                "ram_percent_free": ram_percent_free,
+                "domains": list(self.stats_domains_now.keys())}
         return data
-
-    # def launch_eval_statistics(self, interval=1):
-    #     self.running_eval_statistics = True
-    #     t = Thread(target=self._refresh_ux_eval_statistics, args=(interval,))
-    #     t.start()
-    #
-    # def stop_eval_statistics(self):
-    #     self.running_eval_statistics = False
-    #
-    # def _refresh_ux_eval_statistics(self, interval):
-    #     while (self.running_eval_statistics):
-    #         self.last_load = self.load  # First time load is {}
-    #         self.last_domain_stats = self.domain_stats  # First time domain_stats is {}
-    #         self.get_load()
-    #         time.sleep(interval)
-    #     # OUT OF WHILE, thread finished
-    #     self.last_load = None
-    #     self.last_domain_stats = None
 
     def get_ux_eval_statistics(self, domain_id):
         """
