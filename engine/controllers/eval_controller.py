@@ -2,6 +2,7 @@
 from math import ceil, floor
 from random import shuffle
 from time import sleep
+from flask import current_app
 
 from engine.models.hyp import hyp
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
@@ -106,10 +107,11 @@ class EvalController(object):
     def _init_hyps(self):
         self.hyps = []
         hyps = get_hypers_info(self.id_pool, pluck=['id', 'hostname', 'info'])
+        manager = current_app.m
         for h in hyps:
             # TODO: calcule percent as hyp method
             percent = round(self.params.get('TEMPLATE_MEMORY', 2000) * 100 / h['info']['memory_in_MB'], 2)
-            hyp_obj = hyp(h['hostname'])
+            hyp_obj = manager.t_status[h['id']].status_obj.hyp_obj
             hyp_obj.id = h['id']
             hyp_obj.percent_ram_template = percent
             hyp_obj.cpu_power = round(h['info']['cpu_cores'] * h['info']['cpu_mhz'] / 1e3, 1)

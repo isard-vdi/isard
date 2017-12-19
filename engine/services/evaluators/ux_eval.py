@@ -8,6 +8,7 @@ from pprint import pformat
 from statistics import mean, stdev
 from threading import Thread
 from time import sleep
+from traceback import print_exc
 
 import graphyte
 import numpy as np
@@ -18,6 +19,7 @@ from engine.services.db import update_domain_status, get_domains, get_domain_sta
     update_domain_force_hyp, get_domain
 from engine.services.evaluators.evaluator_interface import EvaluatorInterface
 from engine.services.log import eval_log
+from engine.services.log import hypman_log as hmlog
 
 INITIAL_UX = {'hdani1': {'cpu_hyp_iowait': {'max': 0.0,
                                             'mean': 0.0,
@@ -114,17 +116,17 @@ class UXEval(EvaluatorInterface):
         self.data_ux_names = ["execution_time", "inc_execution_time", "performance"]
         self._init_data_ux_names()
         self.ux_scorers = {"execution_time": {"min": 0,
-                                             "max": 30,
-                                             "weight": 60,
-                                             "unit": "percent"},
-                          "cpu_hyp_iowait_stdev": {"min": 0,
-                                                   "max": 30,
-                                                   "weight": 20,
-                                                   "unit": "percent"},
-                          "cpu_usage_mean": {"min": 0,
-                                             "max": 30,
-                                             "weight": 20,
-                                             "unit": "percent"}
+                                              "max": 30,
+                                              "weight": 60,
+                                              "unit": "percent"},
+                           "cpu_hyp_iowait_stdev": {"min": 0,
+                                                    "max": 30,
+                                                    "weight": 20,
+                                                    "unit": "percent"},
+                           "cpu_usage_mean": {"min": 0,
+                                              "max": 30,
+                                              "weight": 20,
+                                              "unit": "percent"}
                            }
         self.total_weights_ux_scorers = sum(v['weight'] for v in self.ux_scorers.values())
 
@@ -142,6 +144,7 @@ class UXEval(EvaluatorInterface):
         data = {}
         self._calcule_ux()
         data["initial_ux"] = self.initial_ux
+        sleep(35)
         data.update(self._start_domains())
         # eval_log.debug("FINAL: {}".format(pformat(data)))
         return data
@@ -191,23 +194,23 @@ class UXEval(EvaluatorInterface):
             eval_log.info("Calculing ux for template: {} in hypervisor {}".format(template_id, hyp.id))
             update_domain_force_hyp(domain_id, hyp.id)
             update_domain_status('Starting', domain_id)
-            hyp.launch_eval_statistics()
+            # hyp.launch_eval_statistics()
             sleep(2)
             self._wait_starting(domain_id)
             stats, et = self._wait_stop(domain_id, hyp)
-            hyp.stop_eval_statistics()
+            # hyp.stop_eval_statistics()
             sleep(2)
             self.initial_ux[template_id][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
         update_domain_force_hyp(domain_id, '')  # Clean force_hyp
 
     def _get_stats_background(self, domain_id, results, i, hyp):
-        hyp.launch_eval_statistics()
+        # hyp.launch_eval_statistics()
         sleep(2)
         update_domain_status('Starting', domain_id)
         self._wait_starting(domain_id)
         stats, et, stop_by_timeout = self._wait_stop(domain_id, hyp)
         results[i] = (stats, et)
-        hyp.stop_eval_statistics()
+        # hyp.stop_eval_statistics()
 
     def _calcule_ux_domain(self, stats, et, cpu_power):
         eval_log.debug("STATS: {}".format(stats))
@@ -235,8 +238,8 @@ class UXEval(EvaluatorInterface):
 
     ################# Main Function
     def _start_domains(self):
-        for hyp in self.hyps:
-            hyp.launch_eval_statistics()
+        # for hyp in self.hyps:
+        #     hyp.launch_eval_statistics()
 
         data = {}
         domains_id_list = EvalController.get_domains_id_randomized(self.user_id, self.id_pool, self.defined_domains,
@@ -262,22 +265,23 @@ class UXEval(EvaluatorInterface):
             data_results = self._analyze_step_results(results)
             total_results.append([r[0] for r in results if r])
             data["step_{}".format(step)] = data_results
-            if data_results["total"]["timeouts"] > ceil(data_results["total"]["n_domains"]/2):
-                for hyp in self.hyps:
-                    hyp.stop_eval_statistics()
+            if data_results["total"]["timeouts"] > ceil(data_results["total"]["n_domains"] / 2):
+                # for hyp in self.hyps:
+                #     hyp.stop_eval_statistics()
                 data["total"] = self._analyze_total_results(total_results)
                 break
             # eval_log.debug("RESULTS: {}".format(pformat(results)))
+            hmlog.debug("################## STEP: {}".format(step))
 
             if start_domains < total_domains and start_domains + step_domains > total_domains:
                 start_domains = total_domains
             else:
                 start_domains += step_domains
-            sleep(10)  # Relaxing time
+            sleep(35)  # Relaxing time
             step += 1
 
-        for hyp in self.hyps:
-            hyp.stop_eval_statistics()
+        # for hyp in self.hyps:
+        #     hyp.stop_eval_statistics()
         data["total"] = self._analyze_total_results(total_results)
         return data
 
@@ -294,7 +298,7 @@ class UXEval(EvaluatorInterface):
         # Wait until stop
         et = self.initial_ux[template_id][hyp_id]["execution_time"]
         et_inc_max = self.ux_scorers["execution_time"]["max"]
-        timeout = et * (1 + et_inc_max/100)
+        timeout = et * (1 + et_inc_max / 100)
         eval_log.info("TIMEOUT: {}, ET: {}".format(timeout, et))
         stats, et, stop_by_timeout = self._wait_stop(domain_id, hyp, timeout=timeout)
 
@@ -322,8 +326,8 @@ class UXEval(EvaluatorInterface):
         data_results = {}
         total = list(np.round(np.mean(a[:, 3:].astype(np.float), axis=0), 2))
         data_results["total"] = {"score": total[-1],
-                                 "n_domains":len(results),
-                                 "timeouts":len(timeouts)}
+                                 "n_domains": len(results),
+                                 "timeouts": len(timeouts)}
         # eval_log.debug(
         #     "total_analyze_results: {}".format(list(np.round(np.mean(a[:, 2:-1].astype(np.float), axis=0), 2))))
         for t in self.templates:
@@ -357,7 +361,7 @@ class UXEval(EvaluatorInterface):
         means = list(np.round(np.mean(total[:, 3:].astype(np.float), axis=0), 2))
         return {"score": means[-1]}
 
-    def _wait_stop(self, domain_id, hyp, timeout=9999):
+    def _wait_stop(self, domain_id, hyp, timeout=150):
         stats = []
         i = 0
         start_time = time.time()
@@ -386,7 +390,9 @@ class UXEval(EvaluatorInterface):
                 j += 1
         execution_time = time.time() - start_time
         stop_by_timeout = i >= timeout or execution_time > timeout
-        eval_log.debug("Execution_time: {}, stop_by_time_out: {}, i_value: {}, timeout: {}".format(execution_time, stop_by_timeout, i, timeout))
+        eval_log.debug(
+            "Execution_time: {}, stop_by_time_out: {}, i_value: {}, timeout: {}".format(execution_time, stop_by_timeout,
+                                                                                        i, timeout))
         return stats, execution_time, stop_by_timeout
 
     def _wait_starting(self, domain_id):
@@ -398,10 +404,12 @@ class UXEval(EvaluatorInterface):
     def _get_hyp_domain_running(self, domain_id):
         d = get_domain(domain_id)
         assert d['status'] == "Started"
-        hyp_id = d['history_domain'][0]['hyp_id']
-        hyp = list(filter(lambda h: h.id == hyp_id, self.hyps))[0]
-        if not hyp_id:
-            eval_log.debug("History domain: {}", d['history_domain'])
+        hyp_id = d["hyp_started"]
+        try:
+            hyp = list(filter(lambda h: h.id == hyp_id, self.hyps))[0]
+        except:
+            hmlog.debug("Hyp_id: {}".format(hyp_id))
+            hmlog.debug(print_exc())
         template_id = d['create_dict']['origin']
         return hyp_id, hyp, template_id
 
@@ -437,7 +445,7 @@ class UXEval(EvaluatorInterface):
         score = self._ux_score(increment)
         data.append(score)
         # eval_log.debug("domain_id: {}, hyp_id: {}, score: {}".format(domain_id, hyp_id, score))
-        names= ["domain_id", "hyp_id", "template_id", "execution_time", "inc_execution_time", "performance"]
+        names = ["domain_id", "hyp_id", "template_id", "execution_time", "inc_execution_time", "performance"]
         names.extend(self.data_ux_names)
         tmp = dict(zip(names, data))
         eval_log.debug("domain_ux_data: {}".format(tmp))

@@ -97,90 +97,90 @@ class UpdateStatus:
         if self.hyp_obj.connected:
             before = time()
             self.hyp_obj.get_load()
-            self.hyp_obj.get_domains()
-            now = time()
-            dict_hyp_status['connected'] = True
-            dict_hyp_status['when'] = now
-            dict_hyp_status['delay_query_load'] = now - before
-            dict_hyp_status['delay_from_connect'] = now - before_connect
-            dict_hyp_status['load'] = self.hyp_obj.load
-            dict_hyp_status['domains'] = [d for d in self.hyp_obj.domains.keys() if d.startswith('_')]
-
-            # hyps status
-
-            dict_last_hyp_status = get_last_hyp_status(self.id)
-
-            if dict_last_hyp_status is not None:
-                try:
-                    dict_hyp_status['cpu_percent'] = calcule_cpu_stats(dict_last_hyp_status['load']['cpu_load'],
-                                                                       dict_hyp_status['load']['cpu_load'])[0]
-                except:
-                    log.error('error calculating cpu_percent in hyp_id {} '.format(self.id))
-            else:
-                dict_hyp_status['cpu_percent'] = False
-
-            # domain_status
-            for name, status in self.hyp_obj.domain_stats.items():
-                dict_domain = dict()
-                dict_domain['when'] = now
-                dict_domain['name'] = name
-                dict_domain['status'] = status
-
-                dict_domain_last = get_last_domain_status(name)
-
-                if dict_domain_last is not None:
-                    time_elapsed = dict_domain['when'] - dict_domain_last['when']
-
-                    if 'procesed_stats' in dict_domain['status'].keys():
-                        dict_domain['status']['cpu_usage'] = \
-                            (dict_domain['status']['procesed_stats']['cpu_time'] - \
-                             dict_domain_last['status']['procesed_stats']['cpu_time']) \
-                            / time_elapsed
-
-                        dict_domain['status']['disk_rw'], dict_domain['status']['net_rw'] = \
-                            calcule_disk_net_domain_load(time_elapsed,
-                                                         dict_domain['status']['procesed_stats'],
-                                                         dict_domain_last['status']['procesed_stats'])
-
-                # def threading_enumerate():
-                #     # time.sleep(0.5)
-                #     e = threading.enumerate()
-                #     l = [t._Thread__name for t in e]
-                #     l.sort()
-                #     for i in l:
-                #         log.debug('Thread running: {}'.format(i))
-                #     return e
-                # #OJO INFO TO DEVELOPER
-                # log.debug('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-                # threading_enumerate()
-                insert_db_domain_status(dict_domain)
-
-                # INFO TO DEVELOPER, REVISAR SI EL ESTADO NO ES STARTED
-                # y tampoco tengo clalro que es lo que pasa
-                # falta mirar que pasa si ese dominio no está en la base de datos,
-                # también falta terminar de pensar que pasa si aparece como stoppped...
-                # if exist_domain(name):
-                #     in_db_domain = get_domain_hyp_started_and_status_and_detail(name)
-                #     if 'hyp_started' not in in_db_domain.keys():
-                #         if dict_domain['status']['state'] ==  'running':
-                #             update_domain_hyp_started(domain_id=name,
-                #                                       hyp_id=dict_domain['status']['hyp'],
-                #                                       detail=dict_domain['status']['state_reason'])
-                #
-                #     elif dict_domain['status']['hyp'] != in_db_domain['hyp_started']:
-                #         ## OJO INFO TO DEVELOPER, NO MODIFICAMOS ESTADO
-                #         if dict_domain['status']['state'] ==  'running':
-                #             update_domain_hyp_started(domain_id=name,
-                #                                       hyp_id=dict_domain['status']['hyp'],
-                #                                       detail=dict_domain['status']['state_reason'])
-                # self.hyp_obj.disconnect()
-        else:
-            log.error('#########################################################')
-            log.error('hypervisor {} connect fail in status thread'.format(self.hostname))
-            dict_hyp_status['connected'] = False
-            dict_hyp_status['when'] = now
-
-        insert_db_hyp_status(dict_hyp_status)
+            # self.hyp_obj.get_domains()
+        #     now = time()
+        #     dict_hyp_status['connected'] = True
+        #     dict_hyp_status['when'] = now
+        #     dict_hyp_status['delay_query_load'] = now - before
+        #     dict_hyp_status['delay_from_connect'] = now - before_connect
+        #     dict_hyp_status['load'] = self.hyp_obj.load
+        #     dict_hyp_status['domains'] = [d for d in self.hyp_obj.domains.keys() if d.startswith('_')]
+        #
+        #     # hyps status
+        #
+        #     dict_last_hyp_status = get_last_hyp_status(self.id)
+        #
+        #     if dict_last_hyp_status is not None:
+        #         try:
+        #             dict_hyp_status['cpu_percent'] = calcule_cpu_stats(dict_last_hyp_status['load']['cpu_load'],
+        #                                                                dict_hyp_status['load']['cpu_load'])[0]
+        #         except:
+        #             log.error('error calculating cpu_percent in hyp_id {} '.format(self.id))
+        #     else:
+        #         dict_hyp_status['cpu_percent'] = False
+        #
+        #     # domain_status
+        #     for name, status in self.hyp_obj.domain_stats.items():
+        #         dict_domain = dict()
+        #         dict_domain['when'] = now
+        #         dict_domain['name'] = name
+        #         dict_domain['status'] = status
+        #
+        #         dict_domain_last = get_last_domain_status(name)
+        #
+        #         if dict_domain_last is not None:
+        #             time_elapsed = dict_domain['when'] - dict_domain_last['when']
+        #
+        #             if 'procesed_stats' in dict_domain['status'].keys():
+        #                 dict_domain['status']['cpu_usage'] = \
+        #                     (dict_domain['status']['procesed_stats']['cpu_time'] - \
+        #                      dict_domain_last['status']['procesed_stats']['cpu_time']) \
+        #                     / time_elapsed
+        #
+        #                 dict_domain['status']['disk_rw'], dict_domain['status']['net_rw'] = \
+        #                     calcule_disk_net_domain_load(time_elapsed,
+        #                                                  dict_domain['status']['procesed_stats'],
+        #                                                  dict_domain_last['status']['procesed_stats'])
+        #
+        #         # def threading_enumerate():
+        #         #     # time.sleep(0.5)
+        #         #     e = threading.enumerate()
+        #         #     l = [t._Thread__name for t in e]
+        #         #     l.sort()
+        #         #     for i in l:
+        #         #         log.debug('Thread running: {}'.format(i))
+        #         #     return e
+        #         # #OJO INFO TO DEVELOPER
+        #         # log.debug('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+        #         # threading_enumerate()
+        #         insert_db_domain_status(dict_domain)
+        #
+        #         # INFO TO DEVELOPER, REVISAR SI EL ESTADO NO ES STARTED
+        #         # y tampoco tengo clalro que es lo que pasa
+        #         # falta mirar que pasa si ese dominio no está en la base de datos,
+        #         # también falta terminar de pensar que pasa si aparece como stoppped...
+        #         # if exist_domain(name):
+        #         #     in_db_domain = get_domain_hyp_started_and_status_and_detail(name)
+        #         #     if 'hyp_started' not in in_db_domain.keys():
+        #         #         if dict_domain['status']['state'] ==  'running':
+        #         #             update_domain_hyp_started(domain_id=name,
+        #         #                                       hyp_id=dict_domain['status']['hyp'],
+        #         #                                       detail=dict_domain['status']['state_reason'])
+        #         #
+        #         #     elif dict_domain['status']['hyp'] != in_db_domain['hyp_started']:
+        #         #         ## OJO INFO TO DEVELOPER, NO MODIFICAMOS ESTADO
+        #         #         if dict_domain['status']['state'] ==  'running':
+        #         #             update_domain_hyp_started(domain_id=name,
+        #         #                                       hyp_id=dict_domain['status']['hyp'],
+        #         #                                       detail=dict_domain['status']['state_reason'])
+        #         # self.hyp_obj.disconnect()
+        # else:
+        #     log.error('#########################################################')
+        #     log.error('hypervisor {} connect fail in status thread'.format(self.hostname))
+        #     dict_hyp_status['connected'] = False
+        #     dict_hyp_status['when'] = now
+        #
+        # insert_db_hyp_status(dict_hyp_status)
 
 
 

@@ -428,7 +428,7 @@ class hyp(object):
             hyp_stats['cpu_load'] = round(cpu_percents['used'],2)
             hyp_stats['cpu_iowait'] = round(cpu_percents['iowait'],2)
             hyp_stats['vcpus'] = sum_vcpus
-            hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']) * 100, 2)
+            hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']), 2)
 
             hyp_stats['mem_load_rate']    = round(((raw_stats['memory']['total'] -
                                               raw_stats['memory']['free'] -
@@ -523,7 +523,8 @@ class hyp(object):
 
                 sum_vcpus += current['vcpu.current']
 
-                d_stats['cpu_load'] = round((current['cpu.time'] - current['cpu.time']) / 1000000000 / self.info['cpu_threads'],3)
+                if current.get('cpu.time') and previous.get('cpu.time'):
+                    d_stats['cpu_load'] = round((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'],3)
 
                 d_balloon={k:v/1024 for k,v in current.items() if k[:5] == 'ballo' }
 
@@ -557,11 +558,20 @@ class hyp(object):
                 total_block_rd_reqs = 0
 
                 if 'block.count' in current.keys():
+                    values = [(".wr.bytes",total_block_wr) ,
+                              (".rd.bytes", total_block_rd),
+                              (".wr.reqs", total_block_wr_reqs),
+                              (".rd.reqs", total_block_rd_reqs)]
                     for n in range(current['block.count']):
-                        total_block_wr += current['block.'+str(n)+'.wr.bytes'] - previous['block.'+str(n)+'.wr.bytes']
-                        total_block_rd += current['block.'+str(n)+'.rd.bytes'] - previous['block.'+str(n)+'.rd.bytes']
-                        total_block_wr_reqs += current['block.'+str(n)+'.wr.reqs'] - previous['block.'+str(n)+'.wr.reqs']
-                        total_block_rd_reqs += current['block.'+str(n)+'.rd.reqs'] - previous['block.'+str(n)+'.rd.reqs']
+                        for value, var in values:
+                            current_value = current.get('block.'+str(n)+value)
+                            previous_value = previous.get('block.'+str(n)+value)
+                            if current_value and previous_value:
+                                var += current_value - previous_value
+                        # total_block_wr += current['block.'+str(n)+'.wr.bytes'] - previous['block.'+str(n)+'.wr.bytes']
+                        # total_block_rd += current['block.'+str(n)+'.rd.bytes'] - previous['block.'+str(n)+'.rd.bytes']
+                        # total_block_wr_reqs += current['block.'+str(n)+'.wr.reqs'] - previous['block.'+str(n)+'.wr.reqs']
+                        # total_block_rd_reqs += current['block.'+str(n)+'.rd.reqs'] - previous['block.'+str(n)+'.rd.reqs']
 
 
                 #KB/s
@@ -578,9 +588,16 @@ class hyp(object):
                 total_net_rx = 0
 
                 if 'net.count' in current.keys():
+                    values = [(".tx.bytes", total_net_tx),
+                              (".rx.bytes", total_net_rx)]
                     for n in range(current['net.count']):
-                        total_net_tx += current['net.' +str(n)+ '.tx.bytes'] - previous['net.' +str(n)+ '.tx.bytes']
-                        total_net_rx += current['net.' +str(n)+ '.rx.bytes'] - previous['net.' +str(n)+ '.rx.bytes']
+                        for value, var in values:
+                            current_value = current.get('net.' + str(n) + value)
+                            previous_value = previous.get('net.' + str(n) + value)
+                            if current_value and previous_value:
+                                var += current_value - previous_value
+                        # total_net_tx += current['net.' +str(n)+ '.tx.bytes'] - previous['net.' +str(n)+ '.tx.bytes']
+                        # total_net_rx += current['net.' +str(n)+ '.rx.bytes'] - previous['net.' +str(n)+ '.rx.bytes']
 
                 d_stats['net_tx'] = round(total_net_tx / delta / 1000, 3)
                 d_stats['net_rx'] = round(total_net_rx / delta / 1000, 3)
@@ -765,23 +782,23 @@ class hyp(object):
                 "domains": list(self.domains.keys())}
         return data
 
-    def launch_eval_statistics(self, interval=1):
-        self.running_eval_statistics = True
-        t = Thread(target=self._refresh_ux_eval_statistics, args=(interval,))
-        t.start()
-
-    def stop_eval_statistics(self):
-        self.running_eval_statistics = False
-
-    def _refresh_ux_eval_statistics(self, interval):
-        while (self.running_eval_statistics):
-            self.last_load = self.load  # First time load is {}
-            self.last_domain_stats = self.domain_stats  # First time domain_stats is {}
-            self.get_load()
-            time.sleep(interval)
-        # OUT OF WHILE, thread finished
-        self.last_load = None
-        self.last_domain_stats = None
+    # def launch_eval_statistics(self, interval=1):
+    #     self.running_eval_statistics = True
+    #     t = Thread(target=self._refresh_ux_eval_statistics, args=(interval,))
+    #     t.start()
+    #
+    # def stop_eval_statistics(self):
+    #     self.running_eval_statistics = False
+    #
+    # def _refresh_ux_eval_statistics(self, interval):
+    #     while (self.running_eval_statistics):
+    #         self.last_load = self.load  # First time load is {}
+    #         self.last_domain_stats = self.domain_stats  # First time domain_stats is {}
+    #         self.get_load()
+    #         time.sleep(interval)
+    #     # OUT OF WHILE, thread finished
+    #     self.last_load = None
+    #     self.last_domain_stats = None
 
     def get_ux_eval_statistics(self, domain_id):
         """
@@ -799,8 +816,7 @@ class hyp(object):
         data["ram_hyp_usage"] = self.stats_hyp_now.get('mem_load_rate')
         data["cpu_hyp_usage"] = self.stats_hyp_now.get('cpu_load')
         data["cpu_hyp_iowait"] = self.stats_hyp_now.get('cpu_iowait')
-        domain_stats = self.stats_domains.get(domain_id)
+        domain_stats = self.stats_domains_now.get(domain_id)
         if domain_stats:
-            data["cpu_usage"] = domain_stats[-1].get()
-
+            data["cpu_usage"] = domain_stats.get('cpu_load')
         return data
