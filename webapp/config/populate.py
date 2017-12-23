@@ -71,6 +71,8 @@ class Populate(object):
         self.hypervisors_status()
         log.info('Checking table disk_operations')
         self.disk_operations()
+        log.info('Checking table eval_results')
+        self.eval_results()
         log.info('Checking table hosts_viewers')
         self.hosts_viewers()
         log.info('Checking table places')
@@ -840,6 +842,22 @@ class Populate(object):
             if not r.table_list().contains('disk_operations').run(db.conn):
                 log.info("Table disk_operations not found, creating...")
                 r.table_create('disk_operations', primary_key="id").run(db.conn)
+            return True
+
+    '''
+        DISK_OPERATIONS
+        '''
+
+    def eval_results(self):
+        with app.app_context():
+            if not r.table_list().contains('eval_results').run(db.conn):
+                log.info("Table eval_results not found, creating...")
+                r.table_create('eval_results', primary_key="id").run(db.conn)
+                # code --> Identify group of eval results.
+                # This group of results was taken over the same pool and hypervisors characteristics.
+                # Example: code: A
+                r.table('eval_results').index_create("code").run(db.conn)
+                r.table('eval_results').index_wait("code").run(db.conn)
             return True
 
     '''

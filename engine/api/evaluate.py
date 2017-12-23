@@ -1,6 +1,9 @@
-from flask import jsonify
+import inspect
+import time
+from flask import jsonify, request
 
 from engine.controllers.eval_controller import EvalController
+from engine.services.db.eval_results import insert_eval_result
 from . import api
 
 
@@ -55,3 +58,28 @@ def eval_statistics():
     eval_ctrl = EvalController()
     data = eval_ctrl._evaluate()
     return jsonify(eval=data), 200
+
+@api.route('/eval', methods=['POST'])
+def new_eval():
+    """
+    templates = [{'id': "_admin_ubuntu_17_eval_wget", 'weight': 100}]
+    evaluators = ["load"]
+    :return:
+    """
+    kwargs = request.json
+    code = kwargs.get("code")
+    eval_ctrl_class = EvalController
+    args = inspect.getfullargspec(eval_ctrl_class.__init__).args
+    params = {k: v for k, v in kwargs.items() if k in args}
+    eval_ctrl = eval_ctrl_class(**params)
+    data = eval_ctrl.run()
+    now = time.time()
+    obj = {
+        "id": "{}_{}".format(code, now),
+        "code": code,
+        "params": params,
+        "result": data,
+        "when": now
+    }
+    insert_eval_result(obj)
+    return jsonify(obj), 200

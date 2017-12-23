@@ -8,7 +8,7 @@ from pprint import pformat
 from statistics import mean, stdev
 from threading import Thread
 from time import sleep
-from traceback import print_exc
+from traceback import format_exc
 
 import graphyte
 import numpy as np
@@ -409,7 +409,7 @@ class UXEval(EvaluatorInterface):
             hyp = list(filter(lambda h: h.id == hyp_id, self.hyps))[0]
         except:
             hmlog.debug("Hyp_id: {}".format(hyp_id))
-            hmlog.debug(print_exc())
+            hmlog.debug(format_exc())
         template_id = d['create_dict']['origin']
         return hyp_id, hyp, template_id
 

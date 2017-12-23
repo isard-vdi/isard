@@ -48,7 +48,7 @@ class LoadEval(EvaluatorInterface):
         keep_starting = True
         started_domains = 0
         while (len(domains_id_list) and keep_starting):
-            n = max(int(len(domains_id_list)/4), 1)
+            n = max(int(len(domains_id_list) / 4), 1)
             # upper_limit_random = len(domains_id_list) if len(domains_id_list) < threshold else threshold
             # n = randint(1, upper_limit_random)
             eval_log.debug("Starting {} random domains".format(n))
@@ -59,7 +59,7 @@ class LoadEval(EvaluatorInterface):
                 update_domain_status('Starting', id)
                 n -= 1
             eval_log.debug("Waiting for next start {} seconds".format(sleep_time))
-            while(sleep_time > 0 and keep_starting):
+            while (sleep_time > 0 and keep_starting):
                 sleep(5)
                 keep_starting = self._evaluate()
                 sleep_time -= 5
@@ -88,25 +88,16 @@ class LoadEval(EvaluatorInterface):
                 return False
         return True
 
-    def _get_statistics(self):
-        data = {}
-        for h in self.hyps:
-            statistics = self._process_stats(h)
-            data[h.id] = statistics
-        return data
-
     def _get_final_statistics(self):
-        s = self._get_statistics()
-        domains = []
-        for id, h in s.items():
-            domains.extend(h["domains"])
-        d = {"hyps": s,
-             "total_started_domains": {"ids": domains,
-                                       "count": len(domains)}}
+        data = {h.id: self._process_stats(h) for h in self.hyps}
+        d = {
+            "hyps": data,
+            "total_started_domains": sum(h["domains_count"] for h in data.values())
+        }
         return d
 
     def _process_stats(self, hyp):
-        stats = hyp.stats_hyp[-3:] # Get 3 last rows of stats data
+        stats = hyp.stats_hyp[-3:]  # Get 3 last rows of stats data
         cpu_load = stats['cpu_load'].mean()
         cpu_free = round(100 - cpu_load, 2)
         # cpu_percent_free = 100 - hyp.stats_hyp_now.get('cpu_load', 0)
@@ -116,23 +107,24 @@ class LoadEval(EvaluatorInterface):
 
         data = {"cpu_percent_free": cpu_free,
                 "ram_percent_free": ram_percent_free,
-                "domains": list(hyp.stats_domains_now.keys())}
+                "domains_count": len(hyp.stats_domains_now)}
         return data
 
-    def _launch_thread_grafana_stats(self,interval=1):
+    def _launch_thread_grafana_stats(self, interval=1):
         self.running_grafana_stats = True
         t = Thread(target=self._grafana_stats, args=(interval,))
         t.start()
         return t
 
     def _grafana_stats(self, interval):
-        while(self.running_grafana_stats):
+        while (self.running_grafana_stats):
             for h in self.hyps:
                 statistics = self._process_stats(h)
                 self.sender.send(h.id + '.cpu_percent_free', statistics["cpu_percent_free"])
                 self.sender.send(h.id + '.ram_percent_free', statistics["ram_percent_free"])
                 self.sender.send(h.id + '.percent_ram_template', h.percent_ram_template)
-                self.sender.send(h.id + '.n_domains', len(statistics["domains"]))
+                self.sender.send(h.id + '.n_domains', statistics["domains_count"])
+            self.sender.send('n_domains', sum(h["domains_count"] for f in self.hyps))
             sleep(interval)
 
     def _stop_grafana_stats(self):
