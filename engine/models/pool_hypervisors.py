@@ -18,8 +18,8 @@ from engine.services.log import hypman_log as hmlog
 class PoolHypervisors():
     def __init__(self, id_pool, manager, hyps_ready_count):
         self.id_pool = id_pool
-        # self.balancer_name = "round_robin"  # get from config?
-        self.balancer_name = "central_manager"  # get from config?
+        self.balancer_name = "round_robin"  # get from config?
+        # self.balancer_name = "central_manager"  # get from config?
         try:
             self.init_balancer(manager, hyps_ready_count)
         except:

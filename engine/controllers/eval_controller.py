@@ -193,10 +193,12 @@ class EvalController(object):
         :return:
         """
         domains = get_domains(user_id, status="Started")
-        eval_log.info("Stoping {} domains".format(len(domains)))
-        for d in domains:
-            update_domain_status('Stopping', d['id'], hyp_id=d['hyp_started'])
-            sleep(stop_sleep_time)
+        while(len(domains) > 0):
+            eval_log.info("Stoping {} domains".format(len(domains)))
+            for d in domains:
+                update_domain_status('Stopping', d['id'], hyp_id=d['hyp_started'])
+                sleep(stop_sleep_time)
+            domains = get_domains(user_id, status="Started")
         return {"total_stopped_domains": len(domains),
                 "data": None}
 
@@ -246,6 +248,7 @@ class EvalController(object):
             for e in self.evaluators:
                 d = e.run()
                 data[e.name] = d
+                sleep(10)
                 data_stop = EvalController.stop_domains(self.user['id'], self.params["STOP_SLEEP_TIME"])
                 sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
         except:

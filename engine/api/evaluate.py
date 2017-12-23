@@ -72,14 +72,21 @@ def new_eval():
     args = inspect.getfullargspec(eval_ctrl_class.__init__).args
     params = {k: v for k, v in kwargs.items() if k in args}
     eval_ctrl = eval_ctrl_class(**params)
-    data = eval_ctrl.run()
-    now = time.time()
-    obj = {
-        "id": "{}_{}".format(code, now),
-        "code": code,
-        "params": params,
-        "result": data,
-        "when": now
-    }
-    insert_eval_result(obj)
-    return jsonify(obj), 200
+    iterations = kwargs.get("iterations", 1)
+    objs=[]
+    for i in range(iterations):
+        data = eval_ctrl.run()
+        now = time.time()
+        obj = {
+            "id": "{}_{}".format(code, now),
+            "code": code,
+            "params": params,
+            "result": data,
+            "when": now
+        }
+        insert_eval_result(obj)
+        if data.get("load"):
+            d_load = data["load"]["total_started_domains"]
+        objs.append((d_load, None))
+        time.sleep(20)
+    return jsonify(objs), 200
