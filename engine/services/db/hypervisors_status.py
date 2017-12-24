@@ -41,5 +41,6 @@ def get_all_hypervisor_status(hyp_id, start=None, end=None):
             r_conn)
     else:
         results = rtable.filter({'hyp_id': hyp_id}).order_by(r.desc('when')).run(r_conn)
+    results = list(results)
     close_rethink_connection(r_conn)
-    return list(results)
+    return results

@@ -455,8 +455,9 @@ def get_domains(user, status=None, origin=None):
     if origin:
         obj['create_dict']={'origin':origin}
     results = rtable.filter(obj).run(r_conn)
+    results = list(results)
     close_rethink_connection(r_conn)
-    return list(results)
+    return results
 
 def get_domains_count(user, status=None, origin=None):
     """
@@ -556,9 +557,9 @@ def get_history_domain(domain_id):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
     result = rtable.get(domain_id).pluck('history_domain').run(r_conn)
-
+    results = list(result['history_domain'])
     close_rethink_connection(r_conn)
-    return list(result['history_domain'])
+    return results
 
 def get_domain_spice(id_domain):
     r_conn = new_rethink_connection()

@@ -3,6 +3,7 @@ import time
 from flask import jsonify, request
 
 from engine.controllers.eval_controller import EvalController
+from engine.services.csv.eval import eval_to_csv
 from engine.services.db.eval_results import insert_eval_result
 from . import api
 
@@ -85,6 +86,7 @@ def new_eval():
             "when": now
         }
         insert_eval_result(obj)
+        eval_to_csv(code, data)
         if data.get("load"):
             d_load = data["load"]["total_started_domains"]
         objs.append((d_load, None))
