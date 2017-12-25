@@ -306,7 +306,7 @@ class hyp(object):
         if self.connected:
             self.domains = {}
             try:
-                for d in h.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
+                for d in self.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
                     try:
                         domain_name = d.name()
                     except:

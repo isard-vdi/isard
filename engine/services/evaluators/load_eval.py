@@ -29,9 +29,9 @@ class LoadEval(EvaluatorInterface):
         self.hyps = hyps
         self.params = params
         self.running_grafana_stats = False
-        self.t_grafana_stats = self._launch_thread_grafana_stats()
 
     def run(self):
+        self.t_grafana_stats = self._launch_thread_grafana_stats()
         data = {}
         data_start = self._start_domains()
         data.update(data_start)
@@ -64,6 +64,7 @@ class LoadEval(EvaluatorInterface):
                 keep_starting = self._evaluate()
                 sleep_time -= 5
             keep_starting = self._evaluate()
+        sleep(20)
         return {"started_domains": started_domains}
 
     def _evaluate(self):
@@ -73,6 +74,7 @@ class LoadEval(EvaluatorInterface):
         :param id_pool:
         :return:
         """
+        overload = 0
         for h in self.hyps:
             statistics = self._process_stats(h)
             cond_1 = statistics["cpu_percent_free"] < 10
@@ -84,9 +86,10 @@ class LoadEval(EvaluatorInterface):
                                                               h.percent_ram_template))
             condition_list = [cond_1, cond_2]
             if any(condition_list):  # Enter if there is any True value on condition_list
-                eval_log.debug("EVALUATE - Return False")
-                return False
-        return True
+                overload += 1
+                eval_log.debug("EVALUATE - Overload: {}".format(overload))
+                # return False
+        return overload < 1
 
     def _get_final_statistics(self):
         data = {h.id: self._process_stats(h) for h in self.hyps}
@@ -118,13 +121,15 @@ class LoadEval(EvaluatorInterface):
 
     def _grafana_stats(self, interval):
         while (self.running_grafana_stats):
+            total_domains = 0
             for h in self.hyps:
                 statistics = self._process_stats(h)
                 self.sender.send(h.id + '.cpu_percent_free', statistics["cpu_percent_free"])
                 self.sender.send(h.id + '.ram_percent_free', statistics["ram_percent_free"])
                 self.sender.send(h.id + '.percent_ram_template', h.percent_ram_template)
                 self.sender.send(h.id + '.n_domains', statistics["domains_count"])
-            self.sender.send('n_domains', sum(h["domains_count"] for f in self.hyps))
+                total_domains += statistics["domains_count"]
+            self.sender.send('n_domains', total_domains)
             sleep(interval)
 
     def _stop_grafana_stats(self):

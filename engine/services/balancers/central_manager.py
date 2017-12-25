@@ -45,19 +45,29 @@ class CentralManager(BalancerInterface):
         Calcule priority service value from params
         :return:
         """
+        cpu_free = 0 if cpu_free < 25 else cpu_free
+
         # rv = 1 if ram_free > 15 else ram_free / 100
-        rv = ram_free / 100
+        ram_free = ram_free / 100
+        rv = ram_free
         # cv = 1 if cpu_ratio < 1 else 1 / cpu_ratio  # 1/cpu_ratio = inverse
         cv = 1 if cpu_ratio == 0 else cpu_ratio  # 1/cpu_ratio = inverse
         cpu_free /= 100
+        cpu_free *= cpu_free
         # cp = max(math.log(cpu_power), 1)
         cp = 1
-        ps = cpu_free * cp * rv #* cv
+        weight_cpu_power = 0.1 if cpu_ratio > 1 else 0.2
+        ps = (0.4 * cpu_free) + (0.4 * ram_free) + (weight_cpu_power * cpu_power)
+        if cpu_ratio > 1:
+            i_cpu_ratio = 1/cpu_ratio
+            ps += 0.1 * i_cpu_ratio
         hmlog.debug(
-            "cpu_free: {}, cpu_power: {}, cpu_ratio: {}, ram_free: {}, rv: {}, cp: {}, ps: {}".format(cpu_free, cpu_power,
-                                                                                              cpu_ratio, ram_free, rv, cp,
-                                                                                              ps))
-        return round(ps, 2)
+            "cpu_free: {}, cpu_power: {}, cpu_ratio: {}, ram_free: {}, rv: {}, cp: {}, ps: {}".format(cpu_free,
+                                                                                                      cpu_power,
+                                                                                                      cpu_ratio,
+                                                                                                      ram_free, rv, cp,
+                                                                                                      ps))
+        return round(ps, 5)
 
     def _init_hyps(self):
         for id, hyp in self.hyps.items():
@@ -80,17 +90,21 @@ class CentralManager(BalancerInterface):
             # while (not getattr(hyp, "stats_hyp_now", None)):
             #     hmlog.info("Waiting for stats_hyp_now: {}".format(id))
             #     sleep(2)
+        total_cpu_power = sum(hyp.info["cpu_power"] for hyp in self.hyps.values())
+        for id, hyp in self.hyps.items():
+            hyp.info["cpu_power_normalized"] = round(hyp.info["cpu_power"] / total_cpu_power, 2)
 
     def _get_stats(self, hyp):
         cpu_free = hyp.balancer_load.get("cpu_free", 100)
-        cpu_power = hyp.info["cpu_power"]
+        # cpu_power = hyp.info["cpu_power"]
+        cpu_power = hyp.info["cpu_power_normalized"]
         cpu_ratio = hyp.balancer_load.get("vcpu_cpu_rate", 0)
         ram_free = hyp.balancer_load.get("mem_free", 100)
         return cpu_free, cpu_power, cpu_ratio, ram_free
 
     def _recalcule_stats(self, hyp, domain):
         vcpus = domain["hardware"]["vcpus"]
-        hyp.balancer_load["cpu_free"] -= 2 * vcpus #(2% * vcpus)
+        hyp.balancer_load["cpu_free"] -= 2 * vcpus  # (2% * vcpus)
         hyp_vcpus = hyp.balancer_load.get("vcpus", 0)
         sum_vcpus = hyp_vcpus + vcpus
         hyp.balancer_load["vcpus"] = sum_vcpus
@@ -100,7 +114,7 @@ class CentralManager(BalancerInterface):
         ram_free = hyp.balancer_load.get("mem_free", 100)
         hyp.balancer_load["mem_free"] = ram_free - (ram / hyp_ram * 100)
 
-    def _start_refresh_stats(self, interval=30):
+    def _start_refresh_stats(self, interval=10):
         self.running_refresh_stats = True
         t = Thread(target=self._refresh_stats, args=(interval,))
         t.start()

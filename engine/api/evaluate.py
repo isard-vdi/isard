@@ -90,5 +90,5 @@ def new_eval():
         if data.get("load"):
             d_load = data["load"]["total_started_domains"]
         objs.append((d_load, None))
-        time.sleep(20)
+        time.sleep(40)
     return jsonify(objs), 200

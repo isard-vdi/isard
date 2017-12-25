@@ -89,7 +89,7 @@ class EvalController(object):
         self.params = {'MAX_DOMAINS': 50,
                        'POOLING_INTERVAL': 1,
                        'CREATE_SLEEP_TIME': 1,
-                       'STOP_SLEEP_TIME': 1,
+                       'STOP_SLEEP_TIME': 2,
                        'START_SLEEP_TIME': 3,
                        'TEMPLATE_MEMORY': 1000}  # in MB, info duplicated on DICT_CREATE but in bytes
         self._init_domains()
