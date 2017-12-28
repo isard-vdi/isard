@@ -53,7 +53,34 @@ def eval_to_csv(code, data):
             row.append(data["load"]["started_domains"])
             row.append(data["load"]["total_started_domains"])
         elif "ux" in data:
-            pass
+            steps = 3
+            template = "_admin_ubuntu_17_eval_wget"
+            hyps = [hyp for hyp in data["ux"]["step_0"][template]]
+            values = [value for value in data["ux"]["step_0"][template][hyps[0]]]
+            total_values = [value for value in data["ux"]["total"]]
+            if write_header:
+                header = ["code"]
+                for s in range(steps):
+                    str_step = "step_{}".format(s)
+                    for hyp in sorted(hyps):
+                        for value in sorted(values):
+                            header.append("{}_{}_{}".format(str_step, hyp, value))
+                    for value in sorted(total_values):
+                        header.append("{}_{}".format(str_step, value))
+                header.append("total_score")
+                results.writerow(header)
+            row = [code]
+            for s in range(steps):
+                str_step = "step_{}".format(s)
+                step = data["ux"].get(str_step)
+                for hyp in sorted(hyps):
+                    for value in sorted(values):
+                        x = step[template][hyp][value] if step and step[template].get(hyp) else None
+                        row.append(x)
+                for value in sorted(total_values):
+                    x = step["total"][value] if step else None
+                    row.append(x)
+            row.append(data["ux"]["total"]["score"])
         else:
             pass
         results.writerow(row)

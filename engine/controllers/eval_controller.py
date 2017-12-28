@@ -80,12 +80,15 @@ class EvalController(object):
                  # templates=[{'id': "centos_7", 'weight': 100}],
                  # templates=[{'id': "_windows_7_x64_v3", 'weight': 100}],
                  # templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
-                 evaluators=["load"]
+                 evaluators=["ux"],
+                 # max_domains=None,
+                 max_domains=14,
                  # evaluators=["load","ux"]
                  ):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
+        self.max_domains = max_domains
         self.params = {'MAX_DOMAINS': 50,
                        'POOLING_INTERVAL': 1,
                        'CREATE_SLEEP_TIME': 1,
@@ -122,7 +125,8 @@ class EvalController(object):
             self.hyps.append(hyp_obj)
 
     def _init_domains(self):
-        self.num_domains = self._calcule_num_domains()
+        self.num_domains = self.max_domains if self.max_domains else self._calcule_num_domains()
+        eval_log.debug("Num of max domains for eval: {}".format(self.num_domains))
         self.defined_domains = self._define_domains()
 
     def _calcule_num_domains(self):
@@ -134,7 +138,7 @@ class EvalController(object):
         # num_domains = ceil(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps)+2)
         # n = min(self.params.get('MAX_DOMAINS'), num_domains)
         # n = 20
-        eval_log.debug("Num of max domains for eval: {}".format(n))
+        # eval_log.debug("Num of max domains for eval: {}".format(n))
         return n
 
     def _define_domains(self):

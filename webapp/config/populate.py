@@ -402,12 +402,12 @@ class Populate(object):
                                                            'quota': r.table('roles').get('user').run(db.conn)[
                                                                'quota']
                                                            }]).run(db.conn))
-            if r.table('groups').get('eval').run(db.conn) is None:
-                self.result(r.table('groups').insert([{'id': 'eval',
-                                                       'name': 'eval',
-                                                       'description': 'Evaluator',
-                                                       'quota': r.table('roles').get('admin').run(db.conn)['quota']
-                                                       }]).run(db.conn))
+                if r.table('groups').get('eval').run(db.conn) is None:
+                    self.result(r.table('groups').insert([{'id': 'eval',
+                                                           'name': 'eval',
+                                                           'description': 'Evaluator',
+                                                           'quota': r.table('roles').get('admin').run(db.conn)['quota']
+                                                           }]).run(db.conn))
         return True
 
     '''
@@ -845,8 +845,8 @@ class Populate(object):
             return True
 
     '''
-        DISK_OPERATIONS
-        '''
+        EVAL
+    '''
 
     def eval_results(self):
         with app.app_context():
@@ -858,6 +858,10 @@ class Populate(object):
                 # Example: code: A
                 r.table('eval_results').index_create("code").run(db.conn)
                 r.table('eval_results').index_wait("code").run(db.conn)
+
+            if not r.table_list().contains('eval_initial_ux').run(db.conn):
+                log.info("Table eval_initial_ux not found, creating...")
+                r.table_create('eval_initial_ux', primary_key="id").run(db.conn)
             return True
 
     '''
