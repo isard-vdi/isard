@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!-- Meta, title, CSS, favicons, etc. -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Installation | Isard</title>
+
+  </head>
+
+  <style>
+      body {
+          background: #fff;
+        background: -moz-linear-gradient(#fff, #999);
+        background: -webkit-linear-gradient(#fff, #999);
+        background: -o-linear-gradient(#fff, #999);
+     }
+  </style>
+
+  <style>
+    input[type=button] {
+        color:#08233e;
+        font:2.4em Futura, ‘Century Gothic’, AppleGothic, sans-serif;
+        font-size:70%;
+        padding:14px;
+        background-color:rgba(255,204,0,1);
+        border:1px solid #ffcc00;
+        -moz-border-radius:10px;
+        -webkit-border-radius:10px;
+        border-radius:10px;
+        border-bottom:1px solid #9f9f9f;
+        -moz-box-shadow:inset 0 1px 0 rgba(255,255,255,0.5);
+        -webkit-box-shadow:inset 0 1px 0 rgba(255,255,255,0.5);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,0.5);
+        cursor:pointer;
+    }
+    input[type=button]:hover {
+        background-color:rgba(255,204,0,0.8);
+    }
+
+  </style>
+  <style>
+    pre {
+        font-family: "Courier 10 Pitch", Courier, monospace;
+        font-size: 95%;
+        line-height: 140%;
+        white-space: pre;
+        white-space: pre-wrap;
+        white-space: -moz-pre-wrap;
+        white-space: -o-pre-wrap;
+    }       
+    
+    code {
+        font-family: Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
+        font-size: 95%;
+        line-height: 140%;
+        white-space: pre;
+        white-space: pre-wrap;
+        white-space: -moz-pre-wrap;
+        white-space: -o-pre-wrap;
+        background: #faf8f0;
+    }
+    
+    #content code {
+        display: block;
+        padding: 0.5em 1em;
+        border: 1px solid #bebab0;
+    }  
+  </style>
+  
+  <style>
+    .modalDialog {
+        position: fixed;
+        font-family: Arial, Helvetica, sans-serif;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 99999;
+        opacity:0;
+        -webkit-transition: opacity 400ms ease-in;
+        -moz-transition: opacity 400ms ease-in;
+        transition: opacity 400ms ease-in;
+        pointer-events: none;
+    }
+    .modalDialog:target {
+        opacity:1;
+        pointer-events: auto;
+    }
+    .modalDialog > div {
+        width: 80%;
+        position: relative;
+        margin: 10% auto;
+        padding: 5px 20px 13px 20px;
+        border-radius: 10px;
+        background: #fff;
+        background: -moz-linear-gradient(#fff, #999);
+        background: -webkit-linear-gradient(#fff, #999);
+        background: -o-linear-gradient(#fff, #999);
+    }
+    .close {
+        background: #606061;
+        color: #FFFFFF;
+        line-height: 25px;
+        position: absolute;
+        right: -12px;
+        text-align: center;
+        top: -10px;
+        width: 24px;
+        text-decoration: none;
+        font-weight: bold;
+        -webkit-border-radius: 12px;
+        -moz-border-radius: 12px;
+        border-radius: 12px;
+        -moz-box-shadow: 1px 1px 3px #000;
+        -webkit-box-shadow: 1px 1px 3px #000;
+        box-shadow: 1px 1px 3px #000;
+    }
+    .close:hover {
+        background: #00d9ff;
+    }  
+  </style>
+  <body>
+
+    <h1>IsardVDI | Installation</h1>
+    <h2>1/4 - Checklist</h2>
+        {% for line in msg %}
+            <p style="color:red">
+                {{line}}
+            </p>
+        {% endfor %}
+    </p>
+    
+    {% if chk.docker == true %}<span style="color:blue">Seems a Docker installation</span>{% else %}<span style="color:blue">Seems a Host installation</span>{% endif %}
+    <table>
+        <tr>
+            <td>JS and CSS libraries (yarn):</td>
+            <td><b>{% if chk.yarn == true %}<span style="color:green">OK</span>{% else %}<span style="color:red">Not installed</span>{% endif %}</b></td>
+            <td>{% if chk.yarn == false %}<a href="#jsModal">Open Modal</a><input type="button" value="+Info">{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Configuration file (isard.conf):</td>
+            <td><b>{% if chk.config == true %}<span style="color:green">OK</span>{% else %}<span style="color:red">Not found</span>{% endif %}</b></td>
+            <td>{% if chk.config == false %}<input type="button" value="+Info" onClick="">{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Configuration file syntax (isard.conf):</td>
+            <td><b>{% if chk.config_stx == true %}<span style="color:green">OK</span>{% else %}<span style="color:red">Incorrect</span>{% endif %}</b></td>
+            <td>{% if chk.config_stx == false %}<input type="button" value="+Info" onClick="">{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Internet connection:</td>
+            <td><b>{% if chk.internet == true %}<span style="color:green">OK</span>{% else %}<span style="color:red">No connection</span>{% endif %}</b></td>
+            <td>{% if chk.internet == false %}<input type="button" value="+Info" onClick="">{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Database service (RethinkDB):</td>
+            <td><b>{% if chk.rethinkdb == true %}<span style="color:green">OK</span>{% else %}<span style="color:red">Can't contact</span>{% endif %}</b></td>
+            <td>{% if chk.rethinkdb == false %}<input type="button" value="+Info" onClick="">{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Database isard:</td>
+            <td><b>{% if chk.isard_db == true %}<span style="color:green">OK</span>{% else %}<span style="color:red">Not found</span>{% endif %}</b></td>
+            <td>{% if chk.isard_db == false %}<input type="button" value="+Info" onClick="">{% endif %}</td>
+        </tr>
+<!--
+        <tr>
+            <td>Type of install:</td>
+            <td><b>{% if chk.docker == true %}<span style="color:green">Docker</span>{% else %}<span style="color:green">Host</span>{% endif %}</b></td>
+        </tr>
+-->
+        <tr>
+            <td>Hypervisor online:</td>
+            <td><b>{% if chk.hypervisor == true %}<span style="color:green">OK</span>{% else %}<span style="color:orange">No</span>{% endif %}</b></td>
+            <td>{% if chk.hypervisor == false %}<input type="button" value="+Info" onClick="">{% endif %}</td>
+        </tr>
+        <tr>
+            <td>Isard engine:</td>
+            <td><b>{% if chk.engine == true %}<span style="color:green">OK</span>{% else %}<span style="color:red">No</span>{% endif %}</b></td>
+            <td>{% if chk.engine == false %}<input type="button" value="+Info" onClick="">{% endif %}</td>
+        </tr>
+        <tr>
+            <td><input type="button" value="Fix" onClick="window.location.reload()"></td>
+            <td>{% if chk.continue == false %}
+                    <input type="button" value="Check again" onClick="window.location.reload()">
+                {% else %}
+                    <input type="button" value="Continue" style="background-color:green;" onClick="/wizard">
+                {% endif %}
+                </td>
+        </tr>
+    </table>
+
+    
+
+  </body>
+
+
+
+
+    <div id="jsModal" class="modalDialog">
+        <div><a href="#close" title="Close" class="close">X</a>
+            <h2>How to install JS ans CSS libraries</h2>
+            <p>Fedora/CentOS.</p>
+            <pre><code>sudo dnf install npm && npm -g install yarn</code></pre>
+            <pre><code>yarn</code></pre>
+            <p><a href="https://yarnpkg.com/lang/en/docs/install/" target="_blank">https://yarnpkg.com/lang/en/docs/install/</a></p>
+        </div>
+    </div>
+
+    <div id="configModal" class="modalDialog">
+        <div><a href="#close" title="Close" class="close">X</a>
+            <h2>Could not find isard.conf file</h2>
+            <p>Fedora/CentOS.</p>
+            <pre><code>sudo dnf install npm && npm -g install yarn</code></pre>
+            <pre><code>yarn</code></pre>
+            <p><a href="https://yarnpkg.com/lang/en/docs/install/" target="_blank">https://yarnpkg.com/lang/en/docs/install/</a></p>
+        </div>
+    </div>
+      
+  <script></script>
+</html>

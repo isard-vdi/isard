@@ -26,7 +26,10 @@ from webapp import app
     
 #~ LOG_LEVEL = rcfg.get('LOG', 'LEVEL')
 #~ LOG_FILE  = rcfg.get('LOG', 'FILE')
-LOG_LEVEL = app.config['LOG_LEVEL']
+try:
+    LOG_LEVEL = app.config['LOG_LEVEL']
+except Exception as e:
+    LOG_LEVEL = 'INFO'
 # LOG FORMATS
 LOG_FORMAT='%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s'
 LOG_DATE_FORMAT='%Y/%m/%d %H:%M:%S'

@@ -25,8 +25,14 @@ from netaddr import IPNetwork, IPAddress
 class isard():
     def __init__(self):
         with app.app_context():
-            self.config=r.table('config').get(1).run(db.conn)
-            self.f=flatten()
+            try:
+                self.config=r.table('config').get(1).run(db.conn)
+                self.f=flatten()
+            except Exception as e:
+                log.error('Unable to read config table from RethinkDB isard database')
+                log.error('If you need to recreate isard database you should activate wizard again:')
+                log.error('   REMOVE install/.wizard file  (rm install/.wizard) and start isard again')
+                exit(1)
         pass
 
     #~ GENERIC
@@ -1080,7 +1086,7 @@ class isard():
         if type(txt) is not str:
             txt = txt.decode('utf-8')
         #locale.setlocale(locale.LC_ALL, 'ca_ES')
-        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$", re.L)
+        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$") #, re.L)
         if not prog.match(txt):
             return False
         else:

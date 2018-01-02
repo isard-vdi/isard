@@ -11,8 +11,13 @@ from threading import Thread
 import time
 from webapp import app
 from werkzeug import secure_filename
-import os
+
 from datetime import datetime, timedelta
+import requests, itertools, socket
+import tarfile,pickle,os
+import subprocess
+from contextlib import closing
+    
 import rethinkdb as r
 
 from ..lib.log import * 
@@ -35,8 +40,8 @@ class isardAdmin():
         if not dict['errors']: return True
         return False
 
-    import socket
-    from contextlib import closing
+
+
 
     def check_socket(host, port):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
@@ -201,7 +206,11 @@ class isardAdmin():
     def insert_table_dict(self, table, dict):
         with app.app_context():
             return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
-                            
+
+    def insert_or_update_table_dict(self, table, dict):
+        with app.app_context():
+            return r.table(table).insert(dict, conflict='update').run(db.conn)
+                                        
     def update_table_dict(self, table, id, dict):
         with app.app_context():
             return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
@@ -245,7 +254,6 @@ class isardAdmin():
     BACKUP & RESTORE
     '''
     def backup_db(self):
-        import tarfile,pickle,os
         id='isard_backup_'+datetime.now().strftime("%Y%m%d-%H%M%S")
         path='./backups/'
         os.makedirs(path,exist_ok=True)
@@ -298,7 +306,6 @@ class isardAdmin():
                 log.info('Created index: {}'.format(idx))
                 
     def restore_db(self,id):
-        import tarfile,pickle
         with app.app_context():
             dict=r.table('backups').get(id).run(db.conn)
             r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
@@ -343,7 +350,6 @@ class isardAdmin():
             return dict['path'],dict['filename'], isard_db_file.read()
             
     def info_backup_db(self,id):
-        import tarfile,pickle
         with app.app_context():
             dict=r.table('backups').get(id).run(db.conn)
             #~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
@@ -406,7 +412,6 @@ class isardAdmin():
         id=handler.filename.split('.tar.gz')[0]
         filename = secure_filename(handler.filename)
         handler.save(os.path.join(path+filename))
-        import tarfile,pickle
         #~ with app.app_context():
             #~ dict=r.table('backups').get(id).run(db.conn)
             #~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
@@ -568,12 +573,10 @@ class isardAdmin():
 
     def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
         path=app.root_path+'/config/virt/virt-builder-files.ini'
-        import requests
         response = requests.get(url)
         file = open(path, "w")
         file.write(response.text)
         file.close()
-        import itertools
         images=[]
         with open(path) as f:
             for key,group in itertools.groupby(f,self.isa_group_separator):
@@ -594,7 +597,6 @@ class isardAdmin():
         return True
 
     def cmd_virtbuilder(self,id,path,size):
-        import subprocess
         #~ log.info('virt-builder '+id+' \
              #~ --output '+path+' \
              #~ --size '+size+'G \
@@ -606,7 +608,6 @@ class isardAdmin():
         return True
 
     def update_virtinstall(self):
-        import subprocess
         data = subprocess.getoutput("osinfo-query os")
         installs=[]
         found=False
@@ -620,7 +621,37 @@ class isardAdmin():
                 installs.append({'id':v[0].strip(),'name':v[1].strip(),'vers':v[2].strip(),'www':v[3].strip()})
         r.table('domains_virt_install').insert(installs, conflict='update').run(db.conn)
 
+    '''
+    RESOURCES
+    '''
 
+    def get_remote_resources(self):
+        with app.app_context():
+            url=r.table('config').get('1').pluck('resources_url').run(db.conn)['url']
+        path=app.root_path+'/config/virt/virt-builder-files.ini'
+        response = requests.get(url)
+        file = open(path, "w")
+        file.write(response.text)
+        file.close()
+        images=[]
+        with open(path) as f:
+            for key,group in itertools.groupby(f,self.isa_group_separator):
+                if not key:
+                    data={}
+                    for item in group:
+                        try:
+                            if item.startswith(' '): continue
+                            field,value=item.split('=')
+                            value=value.strip()
+                            data[field]=value
+                        except Exception as e:
+                            continue
+                    data['id']=data['file'].split('.xz')[0]
+                    if 'revision' not in data: data['revision']='0'
+                    images.append(data)
+        r.table('domains_virt_builder').insert(images, conflict='update').run(db.conn)
+        return True
+        
 class flatten(object):
     def __init__(self):
         None

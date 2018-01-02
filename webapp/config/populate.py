@@ -8,35 +8,46 @@
 
 import rethinkdb as r
 import time
-from webapp import app
-from ..lib.flask_rethink import RethinkDB
+#~ from webapp import app
+#~ from ..lib.flask_rethink import RethinkDB
 from ..lib.log import *
-db = RethinkDB(app)
-db.init_app(app)
+import sys
+#~ db = RethinkDB(app)
+#~ db.init_app(app)
 
 from ..auth.authentication import Password
+
+from ..lib.load_config import load_config
 
 
 class Populate(object):
     def __init__(self):
+        self.cfg=load_config()
+        try:
+            self.conn = r.connect( self.cfg['RETHINKDB_HOST'],self.cfg['RETHINKDB_PORT'],self.cfg['RETHINKDB_DB']).repl()
+        except Exception as e:
+            None
         self.p = Password()
         self.passwd = self.p.encrypt('isard')
-
+        
     '''
     DATABASE
     '''
 
     def database(self):
         try:
-            with app.app_context():
-                if not r.db_list().contains(app.config['RETHINKDB_DB']).run(db.conn):
-                    log.warning('Database {} not found, creating new one.'.format(app.config['RETHINKDB_DB']))
-                    self.result(r.db_create(app.config['RETHINKDB_DB']).run(db.conn))
-                log.info('Database {} found.'.format(app.config['RETHINKDB_DB']))
-                return True
+            #~ with app.app_context():
+                if not r.db_list().contains(self.cfg['RETHINKDB_DB']).run():
+                    log.warning('Database {} not found, creating new one.'.format(self.cfg['RETHINKDB_DB']))
+                    r.db_create(self.cfg['RETHINKDB_DB']).run()
+                    return 1
+                log.info('Database {} found.'.format(self.cfg['RETHINKDB_DB']))
+                return 2
         except Exception as e:
-            log.error('Can not connect to rethinkdb database!')
-            log.error('Please check that you have an isard.conf file (or copy it from isard.conf.default.')
+            #~ exc_type, exc_obj, exc_tb = sys.exc_info()
+            #~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            #~ log.error(exc_type, fname, exc_tb.tb_lineno)
+            log.error('Can not connect to rethinkdb database! Is it running on HOST:'+self.cfg['RETHINKDB_HOST']+' PORT:'+self.cfg['RETHINKDB_PORT']+' DB:'+self.cfg['RETHINKDB_DB']+' ??')
             return False
 
 
@@ -98,9 +109,9 @@ class Populate(object):
 
     def config(self):
         with app.app_context():
-            if not r.table_list().contains('config').run(db.conn):
+            if not r.table_list().contains('config').run():
                 log.warning("Table config not found, creating new one.")
-                r.table_create('config', primary_key='id').run(db.conn)
+                r.table_create('config', primary_key='id').run()
                 self.result(r.table('config').insert([{'id': 1,
                                                        'auth': {'local': {'active': True},
                                                                 'ldap': {'active': False,
@@ -135,8 +146,10 @@ class Populate(object):
                                                                             'retries_hyp_is_alive': 3
                                                                             },
                                                                     'carbon':{'active':False,'server':'','port':''}},
-                                                        'version':0
-                                                       }], conflict='update').run(db.conn))
+                                                        'version':0,
+                                                        'resources': {'code':False,
+                                                                    'url':'http://www.isardvdi.com:5050'}
+                                                       }], conflict='update').run())
                 log.info("Table config populated with defaults.")
                 return True
             else:
@@ -148,16 +161,16 @@ class Populate(object):
 
     def disposables(self):
         with app.app_context():
-            if not r.table_list().contains('disposables').run(db.conn):
+            if not r.table_list().contains('disposables').run():
                 log.info("Table disposables not found, creating and populating defaults...")
-                r.table_create('disposables', primary_key="id").run(db.conn)
+                r.table_create('disposables', primary_key="id").run()
                 self.result(r.table('disposables').insert([{'id': 'default',
                                                          'active': False,
                                                          'name': 'Default',
                                                          'description': 'Default disposable desktops',
                                                          'nets':[],
                                                          'disposables':[]  #{'id':'','name':'','description':''}
-                                                         }]).run(db.conn))
+                                                         }]).run())
                 
             return True                
 
@@ -167,9 +180,9 @@ class Populate(object):
 
     def backups(self):
         with app.app_context():
-            if not r.table_list().contains('backups').run(db.conn):
+            if not r.table_list().contains('backups').run():
                 log.info("Table backups not found, creating and populating defaults...")
-                r.table_create('backups', primary_key="id").run(db.conn)
+                r.table_create('backups', primary_key="id").run()
             return True                
 
     '''
@@ -179,13 +192,13 @@ class Populate(object):
 
     def users(self):
         with app.app_context():
-            if not r.table_list().contains('users').run(db.conn):
+            if not r.table_list().contains('users').run():
                 log.info("Table users not found, creating...")
-                r.table_create('users', primary_key="id").run(db.conn)
-                r.table('users').index_create("group").run(db.conn)
-                r.table('users').index_wait("group").run(db.conn)
+                r.table_create('users', primary_key="id").run()
+                r.table('users').index_create("group").run()
+                r.table('users').index_wait("group").run()
 
-                if r.table('users').get('admin').run(db.conn) is None:
+                if r.table('users').get('admin').run() is None:
                     usr = [{'id': 'admin',
                            'name': 'Administrator',
                            'kind': 'local',
@@ -210,7 +223,7 @@ class Populate(object):
                           {'id': 'disposable',
                            'name': 'Disposable',
                            'kind': 'local',
-                           'active': True,
+                           'active': False,
                            'accessed': time.time(),
                            'username': 'disposable',
                            'password': self.passwd,
@@ -229,9 +242,9 @@ class Populate(object):
                                                   'memory': 20000000}},  # 10GB
                            }
                            ]
-                    self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
+                    self.result(r.table('users').insert(usr, conflict='update').run())
                     log.info("  Inserted default admin username with password isard")
-                if r.table('users').get('eval').run(db.conn) is None:
+                if r.table('users').get('eval').run() is None:
                     usr = [{'id': 'eval',
                             'name': 'Evaluator',
                             'kind': 'local',
@@ -254,7 +267,7 @@ class Populate(object):
                                                    'memory': 20000000}},  # 10GB
                             },
                            ]
-                    self.result(r.table('users').insert(usr, conflict='update').run(db.conn))
+                    self.result(r.table('users').insert(usr, conflict='update').run())
                     log.info("  Inserted default eval username with random password")
             return True
 
@@ -265,11 +278,11 @@ class Populate(object):
 
     def vouchers(self):
         with app.app_context():
-            if not r.table_list().contains('vouchers').run(db.conn):
+            if not r.table_list().contains('vouchers').run():
                 log.info("Table vouchers not found, creating...")
-                r.table_create('vouchers', primary_key="id").run(db.conn)
-                #~ r.table('users').index_create("group").run(db.conn)
-                #~ r.table('users').index_wait("group").run(db.conn)
+                r.table_create('vouchers', primary_key="id").run()
+                #~ r.table('users').index_create("group").run()
+                #~ r.table('users').index_wait("group").run()
             return True
 
 
@@ -279,9 +292,9 @@ class Populate(object):
 
     def roles(self):
         with app.app_context():
-            if not r.table_list().contains('roles').run(db.conn):
+            if not r.table_list().contains('roles').run():
                 log.info("Table roles not found, creating and populating...")
-                r.table_create('roles', primary_key="id").run(db.conn)
+                r.table_create('roles', primary_key="id").run()
                 self.result(r.table('roles').insert([{'id': 'user',
                                                       'name': 'User',
                                                       'description': 'Can create desktops and start it',
@@ -320,7 +333,7 @@ class Populate(object):
                                                                             'isos_disk_max': 8000000},
                                                                 'hardware': {'vcpus': 4,
                                                                              'memory': 4000000}}  # 10GB
-                                                      }]).run(db.conn))
+                                                      }]).run())
             return True
 
     '''
@@ -329,31 +342,31 @@ class Populate(object):
 
     def categories(self):
         with app.app_context():
-            if not r.table_list().contains('categories').run(db.conn):
+            if not r.table_list().contains('categories').run():
                 log.info("Table categories not found, creating...")
-                r.table_create('categories', primary_key="id").run(db.conn)
+                r.table_create('categories', primary_key="id").run()
 
-                if r.table('categories').get('admin').run(db.conn) is None:
+                if r.table('categories').get('admin').run() is None:
                     self.result(r.table('categories').insert([{'id': 'admin',
                                                                'name': 'Admin',
                                                                'description': 'Administrator',
-                                                               'quota': r.table('roles').get('admin').run(db.conn)[
+                                                               'quota': r.table('roles').get('admin').run()[
                                                                    'quota']
-                                                               }]).run(db.conn))
-                if r.table('categories').get('local').run(db.conn) is None:
+                                                               }]).run())
+                if r.table('categories').get('local').run() is None:
                     self.result(r.table('categories').insert([{'id': 'local',
                                                                'name': 'Local',
                                                                'description': 'Local users',
-                                                               'quota': r.table('roles').get('user').run(db.conn)[
+                                                               'quota': r.table('roles').get('user').run()[
                                                                    'quota']
-                                                               }]).run(db.conn))
-                if r.table('categories').get('disposables').run(db.conn) is None:
+                                                               }]).run())
+                if r.table('categories').get('disposables').run() is None:
                     self.result(r.table('categories').insert([{'id': 'disposables',
                                                                'name': 'disposables',
                                                                'description': 'Disposable desktops',
-                                                               'quota': r.table('roles').get('user').run(db.conn)[
+                                                               'quota': r.table('roles').get('user').run()[
                                                                    'quota']
-                                                               }]).run(db.conn))
+                                                               }]).run())
             return True
 
     '''
@@ -362,43 +375,43 @@ class Populate(object):
 
     def groups(self):
         with app.app_context():
-            if not r.table_list().contains('groups').run(db.conn):
+            if not r.table_list().contains('groups').run():
                 log.info("Table groups not found, creating...")
-                r.table_create('groups', primary_key="id").run(db.conn)
+                r.table_create('groups', primary_key="id").run()
 
-                if r.table('groups').get('admin').run(db.conn) is None:
+                if r.table('groups').get('admin').run() is None:
                     self.result(r.table('groups').insert([{'id': 'admin',
                                                            'name': 'admin',
                                                            'description': 'Administrator',
-                                                           'quota': r.table('roles').get('admin').run(db.conn)['quota']
-                                                           }]).run(db.conn))
-                if r.table('groups').get('users').run(db.conn) is None:
+                                                           'quota': r.table('roles').get('admin').run()['quota']
+                                                           }]).run())
+                if r.table('groups').get('users').run() is None:
                     self.result(r.table('groups').insert([{'id': 'local',
                                                            'name': 'local',
                                                            'description': 'Local users',
-                                                           'quota': r.table('roles').get('user').run(db.conn)['quota']
-                                                           }]).run(db.conn))
+                                                           'quota': r.table('roles').get('user').run()['quota']
+                                                           }]).run())
 
-                if r.table('groups').get('advanced').run(db.conn) is None:
+                if r.table('groups').get('advanced').run() is None:
                     self.result(r.table('groups').insert([{'id': 'advanced',
                                                            'name': 'Advanced',
                                                            'description': 'Advanced users',
-                                                           'quota': r.table('roles').get('advanced').run(db.conn)[
+                                                           'quota': r.table('roles').get('advanced').run()[
                                                                'quota']
-                                                           }]).run(db.conn))
-                if r.table('groups').get('disposables').run(db.conn) is None:
+                                                           }]).run())
+                if r.table('groups').get('disposables').run() is None:
                     self.result(r.table('groups').insert([{'id': 'disposables',
                                                            'name': 'disposables',
                                                            'description': 'Disposable desktops',
-                                                           'quota': r.table('roles').get('user').run(db.conn)[
+                                                           'quota': r.table('roles').get('user').run()[
                                                                'quota']
-                                                           }]).run(db.conn))
-            if r.table('groups').get('eval').run(db.conn) is None:
+                                                           }]).run())
+            if r.table('groups').get('eval').run() is None:
                 self.result(r.table('groups').insert([{'id': 'eval',
                                                        'name': 'eval',
                                                        'description': 'Evaluator',
-                                                       'quota': r.table('roles').get('admin').run(db.conn)['quota']
-                                                       }]).run(db.conn))
+                                                       'quota': r.table('roles').get('admin').run()['quota']
+                                                       }]).run())
         return True
 
     '''
@@ -407,17 +420,17 @@ class Populate(object):
 
     def interfaces(self):
         with app.app_context():
-            if not r.table_list().contains('interfaces').run(db.conn):
+            if not r.table_list().contains('interfaces').run():
                 log.info("Table interfaces not found, creating and populating default network...")
-                r.table_create('interfaces', primary_key="id").run(db.conn)
-                r.table("interfaces").index_create("roles", multi=True).run(db.conn)
-                r.table("interfaces").index_wait("roles").run(db.conn)
-                r.table("interfaces").index_create("categories", multi=True).run(db.conn)
-                r.table("interfaces").index_wait("categories").run(db.conn)
-                r.table("interfaces").index_create("groups", multi=True).run(db.conn)
-                r.table("interfaces").index_wait("groups").run(db.conn)
-                r.table("interfaces").index_create("users", multi=True).run(db.conn)
-                r.table("interfaces").index_wait("users").run(db.conn)
+                r.table_create('interfaces', primary_key="id").run()
+                r.table("interfaces").index_create("roles", multi=True).run()
+                r.table("interfaces").index_wait("roles").run()
+                r.table("interfaces").index_create("categories", multi=True).run()
+                r.table("interfaces").index_wait("categories").run()
+                r.table("interfaces").index_create("groups", multi=True).run()
+                r.table("interfaces").index_wait("groups").run()
+                r.table("interfaces").index_create("users", multi=True).run()
+                r.table("interfaces").index_wait("users").run()
                 self.result(r.table('interfaces').insert([{'id': 'default',
                                                            'name': 'Default',
                                                            'description': 'Default network',
@@ -430,7 +443,7 @@ class Populate(object):
                                                                'categories': [],
                                                                'groups': [],
                                                                'users': []}
-                                                           }]).run(db.conn))
+                                                           }]).run())
             return True
 
     '''
@@ -439,9 +452,9 @@ class Populate(object):
 
     def graphics(self):
         with app.app_context():
-            if not r.table_list().contains('graphics').run(db.conn):
+            if not r.table_list().contains('graphics').run():
                 log.info("Table graphics not found, creating and populating default network...")
-                r.table_create('graphics', primary_key="id").run(db.conn)
+                r.table_create('graphics', primary_key="id").run()
                 self.result(r.table('graphics').insert([{'id': 'default',
                                                          'name': 'Default',
                                                          'description': 'Spice viewer',
@@ -461,7 +474,7 @@ class Populate(object):
                                                              'categories': False,
                                                              'groups': False,
                                                              'users': False}
-                                                         }]).run(db.conn))
+                                                         }]).run())
             return True
 
     '''
@@ -470,9 +483,9 @@ class Populate(object):
 
     def videos(self):
         with app.app_context():
-            if not r.table_list().contains('videos').run(db.conn):
+            if not r.table_list().contains('videos').run():
                 log.info("Table videos not found, creating and populating default network...")
-                r.table_create('videos', primary_key="id").run(db.conn)
+                r.table_create('videos', primary_key="id").run()
                 self.result(r.table('videos').insert([{'id': 'qxl32',
                                                        'name': 'QXL 32MB',
                                                        'description': 'QXL 32MB',
@@ -512,7 +525,7 @@ class Populate(object):
                                                            #~ 'groups': False,
                                                            #~ 'users': False}
                                                        #~ }
-                                                       ]).run(db.conn))
+                                                       ]).run())
             return True
 
     '''
@@ -521,9 +534,9 @@ class Populate(object):
 
     def boots(self):
         with app.app_context():
-            if not r.table_list().contains('boots').run(db.conn):
+            if not r.table_list().contains('boots').run():
                 log.info("Table boots not found, creating and populating default network...")
-                r.table_create('boots', primary_key="id").run(db.conn)
+                r.table_create('boots', primary_key="id").run()
                 self.result(r.table('boots').insert([{'id': 'disk',
                                                       'name': 'Hard Disk',
                                                       'description': 'Boot based on hard disk list order',
@@ -548,7 +561,7 @@ class Populate(object):
                                                           'categories': False,
                                                           'groups': False,
                                                           'users': False}}
-                                                     ]).run(db.conn))
+                                                     ]).run())
             return True
 
     '''
@@ -557,9 +570,9 @@ class Populate(object):
 
     def disks(self):
         with app.app_context():
-            if not r.table_list().contains('disks').run(db.conn):
+            if not r.table_list().contains('disks').run():
                 log.info("Table disks not found, creating and populating default disk...")
-                r.table_create('disks', primary_key="id").run(db.conn)
+                r.table_create('disks', primary_key="id").run()
                 self.result(r.table('disks').insert([{'id': 'default',
                                                       'name': 'Default',
                                                       'description': 'Default',
@@ -571,7 +584,7 @@ class Populate(object):
                                                           'categories': [],
                                                           'groups': [],
                                                           'users': []}}
-                                                     ]).run(db.conn))
+                                                     ]).run())
             return True
 
     '''
@@ -580,11 +593,11 @@ class Populate(object):
 
     def isos(self):
         with app.app_context():
-            if not r.table_list().contains('isos').run(db.conn):
+            if not r.table_list().contains('isos').run():
                 log.info("Table isos not found, creating...")
-                r.table_create('isos', primary_key="id").run(db.conn)
-                r.table('isos').index_create("user").run(db.conn)
-                r.table('isos').index_wait("user").run(db.conn)
+                r.table_create('isos', primary_key="id").run()
+                r.table('isos').index_create("user").run()
+                r.table('isos').index_wait("user").run()
 
         return True
 
@@ -607,13 +620,13 @@ class Populate(object):
                 sys.exit(0)
         
         with app.app_context():
-            if not r.table_list().contains('hypervisors').run(db.conn):
+            if not r.table_list().contains('hypervisors').run():
                 log.info("Table hypervisors not found, creating and populating with localhost")
-                r.table_create('hypervisors', primary_key="id").run(db.conn)
+                r.table_create('hypervisors', primary_key="id").run()
 
                 rhypers = r.table('hypervisors')
                 log.info("Table hypervisors found, populating...")
-                if rhypers.count().run(db.conn) == 0:
+                if rhypers.count().run() == 0:
                     for key,val in dict(rcfg.items('DEFAULT_HYPERVISORS')).items():
                         vals=val.split(',')
                         self.result(rhypers.insert([{'id': key,
@@ -632,7 +645,7 @@ class Populate(object):
                                                      'detail': '',
                                                      'description': 'Default hypervisor',
                                                      'info': []},
-                                                    ]).run(db.conn))  
+                                                    ]).run())  
                     self.hypervisors_pools(disk_operations=[key])
         return True
 
@@ -642,13 +655,13 @@ class Populate(object):
 
     def hypervisors_pools(self,disk_operations=['localhost']):
         with app.app_context():
-            if not r.table_list().contains('hypervisors_pools').run(db.conn):
+            if not r.table_list().contains('hypervisors_pools').run():
                 log.info("Table hypervisors_pools not found, creating...")
-                r.table_create('hypervisors_pools', primary_key="id").run(db.conn)
+                r.table_create('hypervisors_pools', primary_key="id").run()
 
                 rpools = r.table('hypervisors_pools')
 
-                self.result(rpools.delete().run(db.conn))
+                self.result(rpools.delete().run())
                 log.info("Table hypervisors_pools found, populating...")
                 self.result(rpools.insert([{'id': 'default',
                                             'name': 'Default',
@@ -676,7 +689,7 @@ class Populate(object):
                                                           'categories': [],
                                                           'groups': [],
                                                           'users': []}
-                                            }], conflict='update').run(db.conn))
+                                            }], conflict='update').run())
             return True
 
     '''
@@ -685,15 +698,15 @@ class Populate(object):
 
     def hypervisors_events(self):
         with app.app_context():
-            if not r.table_list().contains('hypervisors_events').run(db.conn):
+            if not r.table_list().contains('hypervisors_events').run():
                 log.info("Table hypervisors_events not found, creating...")
-                r.table_create('hypervisors_events', primary_key="id").run(db.conn)
-                r.table('hypervisors_events').index_create("domain").run(db.conn)
-                r.table('hypervisors_events').index_wait("domain").run(db.conn)
-                r.table('hypervisors_events').index_create("event").run(db.conn)
-                r.table('hypervisors_events').index_wait("event").run(db.conn)
-                r.table('hypervisors_events').index_create("hyp_id").run(db.conn)
-                r.table('hypervisors_events').index_wait("hyp_id").run(db.conn)
+                r.table_create('hypervisors_events', primary_key="id").run()
+                r.table('hypervisors_events').index_create("domain").run()
+                r.table('hypervisors_events').index_wait("domain").run()
+                r.table('hypervisors_events').index_create("event").run()
+                r.table('hypervisors_events').index_wait("event").run()
+                r.table('hypervisors_events').index_create("hyp_id").run()
+                r.table('hypervisors_events').index_wait("hyp_id").run()
             return True
 
     '''
@@ -702,20 +715,20 @@ class Populate(object):
 
     def hypervisors_status(self):
         with app.app_context():
-            if not r.table_list().contains('hypervisors_status').run(db.conn):
+            if not r.table_list().contains('hypervisors_status').run():
                 log.info("Table hypervisors_status not found, creating...")
-                r.table_create('hypervisors_status', primary_key="id").run(db.conn)
-                r.table('hypervisors_status').index_create("connected").run(db.conn)
-                r.table('hypervisors_status').index_wait("connected").run(db.conn)
-                r.table('hypervisors_status').index_create("hyp_id").run(db.conn)
-                r.table('hypervisors_status').index_wait("hyp_id").run(db.conn)
-            if not r.table_list().contains('hypervisors_status_history').run(db.conn):
+                r.table_create('hypervisors_status', primary_key="id").run()
+                r.table('hypervisors_status').index_create("connected").run()
+                r.table('hypervisors_status').index_wait("connected").run()
+                r.table('hypervisors_status').index_create("hyp_id").run()
+                r.table('hypervisors_status').index_wait("hyp_id").run()
+            if not r.table_list().contains('hypervisors_status_history').run():
                 log.info("Table hypervisors_status_history not found, creating...")
-                r.table_create('hypervisors_status_history', primary_key="id").run(db.conn)
-                r.table('hypervisors_status_history').index_create("connected").run(db.conn)
-                r.table('hypervisors_status_history').index_wait("connected").run(db.conn)
-                r.table('hypervisors_status_history').index_create("hyp_id").run(db.conn)
-                r.table('hypervisors_status_history').index_wait("hyp_id").run(db.conn)
+                r.table_create('hypervisors_status_history', primary_key="id").run()
+                r.table('hypervisors_status_history').index_create("connected").run()
+                r.table('hypervisors_status_history').index_wait("connected").run()
+                r.table('hypervisors_status_history').index_create("hyp_id").run()
+                r.table('hypervisors_status_history').index_wait("hyp_id").run()
             return True
 
     '''
@@ -724,21 +737,21 @@ class Populate(object):
 
     def domains(self):
         with app.app_context():
-            if not r.table_list().contains('domains').run(db.conn):
+            if not r.table_list().contains('domains').run():
                 log.info("Table domains not found, creating...")
-                r.table_create('domains', primary_key="id").run(db.conn)
-                r.table('domains').index_create("status").run(db.conn)
-                r.table('domains').index_wait("status").run(db.conn)
-                r.table('domains').index_create("hyp_started").run(db.conn)
-                r.table('domains').index_wait("hyp_started").run(db.conn)
-                r.table('domains').index_create("user").run(db.conn)
-                r.table('domains').index_wait("user").run(db.conn)
-                r.table('domains').index_create("group").run(db.conn)
-                r.table('domains').index_wait("group").run(db.conn)
-                r.table('domains').index_create("category").run(db.conn)
-                r.table('domains').index_wait("category").run(db.conn)
-                r.table('domains').index_create("kind").run(db.conn)
-                r.table('domains').index_wait("kind").run(db.conn)
+                r.table_create('domains', primary_key="id").run()
+                r.table('domains').index_create("status").run()
+                r.table('domains').index_wait("status").run()
+                r.table('domains').index_create("hyp_started").run()
+                r.table('domains').index_wait("hyp_started").run()
+                r.table('domains').index_create("user").run()
+                r.table('domains').index_wait("user").run()
+                r.table('domains').index_create("group").run()
+                r.table('domains').index_wait("group").run()
+                r.table('domains').index_create("category").run()
+                r.table('domains').index_wait("category").run()
+                r.table('domains').index_create("kind").run()
+                r.table('domains').index_wait("kind").run()
             return True
             
     '''
@@ -747,20 +760,20 @@ class Populate(object):
 
     def domains_status(self):
         with app.app_context():
-            if not r.table_list().contains('domains_status').run(db.conn):
+            if not r.table_list().contains('domains_status').run():
                 log.info("Table domains_status not found, creating...")
-                r.table_create('domains_status', primary_key="id").run(db.conn)
-                r.table('domains_status').index_create("name").run(db.conn)
-                r.table('domains_status').index_wait("name").run(db.conn)
-                r.table('domains_status').index_create("hyp_id").run(db.conn)
-                r.table('domains_status').index_wait("hyp_id").run(db.conn)
-            if not r.table_list().contains('domains_status_history').run(db.conn):
+                r.table_create('domains_status', primary_key="id").run()
+                r.table('domains_status').index_create("name").run()
+                r.table('domains_status').index_wait("name").run()
+                r.table('domains_status').index_create("hyp_id").run()
+                r.table('domains_status').index_wait("hyp_id").run()
+            if not r.table_list().contains('domains_status_history').run():
                 log.info("Table domains_status_history not found, creating...")
-                r.table_create('domains_status_history', primary_key="id").run(db.conn)
-                r.table('domains_status_history').index_create("name").run(db.conn)
-                r.table('domains_status_history').index_wait("name").run(db.conn)
-                r.table('domains_status_history').index_create("hyp_id").run(db.conn)
-                r.table('domains_status_history').index_wait("hyp_id").run(db.conn)
+                r.table_create('domains_status_history', primary_key="id").run()
+                r.table('domains_status_history').index_create("name").run()
+                r.table('domains_status_history').index_wait("name").run()
+                r.table('domains_status_history').index_create("hyp_id").run()
+                r.table('domains_status_history').index_wait("hyp_id").run()
             return True
             
     '''
@@ -769,9 +782,9 @@ class Populate(object):
 
     def disk_operations(self):
         with app.app_context():
-            if not r.table_list().contains('disk_operations').run(db.conn):
+            if not r.table_list().contains('disk_operations').run():
                 log.info("Table disk_operations not found, creating...")
-                r.table_create('disk_operations', primary_key="id").run(db.conn)
+                r.table_create('disk_operations', primary_key="id").run()
             return True
 
     '''
@@ -808,7 +821,7 @@ class Populate(object):
                                 'certificate':ca,
                                 'domain':cert.get_issuer().organizationName}
         except Exception as e:
-            print(e)
+            log.warning('Using insecure viewer. Non ssl encrypted!')
             return {'defaultMode':'Insecure',
                                 'certificate':'',
                                 'domain':''}
@@ -829,15 +842,15 @@ class Populate(object):
 
     def hosts_viewers(self):
         with app.app_context():
-            if not r.table_list().contains('hosts_viewers').run(db.conn):
+            if not r.table_list().contains('hosts_viewers').run():
                 log.info("Table hosts_viewers not found, creating...")
-                r.table_create('hosts_viewers', primary_key="id").run(db.conn)
-                r.table('hosts_viewers').index_create("hostname").run(db.conn)
-                r.table('hosts_viewers').index_wait("hostname").run(db.conn)
-                r.table('hosts_viewers').index_create("mac").run(db.conn)
-                r.table('hosts_viewers').index_wait("mac").run(db.conn)
-                r.table('hosts_viewers').index_create("place_id").run(db.conn)
-                r.table('hosts_viewers').index_wait("place_id").run(db.conn)
+                r.table_create('hosts_viewers', primary_key="id").run()
+                r.table('hosts_viewers').index_create("hostname").run()
+                r.table('hosts_viewers').index_wait("hostname").run()
+                r.table('hosts_viewers').index_create("mac").run()
+                r.table('hosts_viewers').index_wait("mac").run()
+                r.table('hosts_viewers').index_create("place_id").run()
+                r.table('hosts_viewers').index_wait("place_id").run()
             return True
             
     '''
@@ -846,13 +859,13 @@ class Populate(object):
 
     def places(self):
         with app.app_context():
-            if not r.table_list().contains('places').run(db.conn):
+            if not r.table_list().contains('places').run():
                 log.info("Table places not found, creating...")
-                r.table_create('places', primary_key="id").run(db.conn)
-                r.table('places').index_create("network").run(db.conn)
-                r.table('places').index_wait("network").run(db.conn)
-                r.table('places').index_create("status").run(db.conn)
-                r.table('places').index_wait("status").run(db.conn)
+                r.table_create('places', primary_key="id").run()
+                r.table('places').index_create("network").run()
+                r.table('places').index_wait("network").run()
+                r.table('places').index_create("status").run()
+                r.table('places').index_wait("status").run()
             return True
 
 
@@ -862,13 +875,9 @@ class Populate(object):
 
     def builders(self):
         with app.app_context():
-            if not r.table_list().contains('builders').run(db.conn):
+            if not r.table_list().contains('builders').run():
                 log.info("Table builders not found, creating...")
-                r.table_create('builders', primary_key="id").run(db.conn)
-                
-                #~ self.result(r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn))
-            #~ print(self.create_builders())
-            r.table('builders').insert(self.create_builders(), conflict='update').run(db.conn)
+                r.table_create('builders', primary_key="id").run()
             return True
 
 
@@ -878,11 +887,9 @@ class Populate(object):
 
     def virt_builder(self):
         with app.app_context():
-            if not r.table_list().contains('virt_builder').run(db.conn):
+            if not r.table_list().contains('virt_builder').run():
                 log.info("Table virt_builder not found, creating...")
-                r.table_create('virt_builder', primary_key="id").run(db.conn)
-                #r.table('virt_builder').insert(update_virtbuilder(), conflict='update').run(db.conn)
-                self.result(r.table('virt_builder').insert(self.update_virtbuilder(), conflict='update').run(db.conn))
+                r.table_create('virt_builder', primary_key="id").run()
             return True
 
     '''
@@ -891,180 +898,7 @@ class Populate(object):
 
     def virt_install(self):
         with app.app_context():
-            if not r.table_list().contains('virt_install').run(db.conn):
+            if not r.table_list().contains('virt_install').run():
                 log.info("Table virt_install not found, creating...")
-                r.table_create('virt_install', primary_key="id").run(db.conn)
-                #r.table('virt_install').insert(self.update_virtinstall(), conflict='update').run(db.conn)
-                self.result(r.table('virt_install').insert(self.update_virtinstall(), conflict='update').run(db.conn))
+                r.table_create('virt_install', primary_key="id").run()
             return True
-
-
-
-    ''''
-
-    VIRT - BUILDER
-    VIRT - INSTALL
-
-    '''
-
-
-    def create_builders(self):
-        l=[]
-        d_fedora25 = {'id': 'fedora25_gnome_office',
-                      'name': 'Fedora 25 with gnome and libre office',
-                      'builder':{
-                          'id': 'fedora-25',
-                          'options':
-    """--update
-    --selinux-relabel
-    --install "@workstation-product-environment"
-    --install "inkscape,tmux,@libreoffice,chromium"
-    --install "libreoffice-langpack-ca,langpacks-es"
-    --root-password password:isard
-    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
-    --firstboot-command 'localectl set-locale LANG=es_ES.utf8'
-    --firstboot-command 'localectl set-keymap es'
-    --firstboot-command 'systemctl isolate graphical.target'
-    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
-    --hostname 'isard-fedora'"""
-                      },
-                      'install':{
-                          'id': 'fedora25',
-                          'options': ''
-                      }
-                      }
-        l.append(d_fedora25)
-        
-        d_debian8 = {'id': 'debian8_gnome_office',
-                      'name': 'Debian 8 with gnome and libre office',
-                      'builder':{
-                          'id': 'debian-8',
-                          'options':
-    """--update
-    --selinux-relabel
-    --install 'xfce4,locales,ibus'
-    --install 'gdm3,libreoffice,libreoffice-l10n-es'
-    --install 'inkscape,tmux,chromium'
-    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
-    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
-    --run-command "locale-gen"
-    --root-password password:isard
-    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
-    --hostname 'isard-debian'"""
-                      },
-                      'install':{
-                          'id': 'debian8',
-                          'options': ''
-                      }
-                      }
-        l.append(d_debian8)
-        
-        d_ubuntu1604 = {'id': 'ubuntu1604_gnome_office',
-                      'name': 'Ubuntu 16.04 with gnome and libre office',
-                      'builder':{
-                          'id': 'ubuntu-16.04',
-                          'options':
-    """--update
-    --selinux-relabel
-    --install "ubuntu-desktop"
-    --install "inkscape,tmux,libreoffice,chromium-bsu"
-    --install 'language-pack-es-base,language-pack-es'
-    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
-    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
-    --run-command "locale-gen"
-    --root-password password:isard
-    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
-    --firstboot-command 'systemctl isolate graphical.target'
-    --hostname 'isard-ubuntu'"""
-                      },
-                      'install':{
-                          'id': 'ubuntu16',
-                          'options': ''
-                      }
-                      }
-        l.append(d_ubuntu1604)
-
-        d_cirros_35 = {'id': 'cirros35',
-                      'name': 'CirrOS 3.5',
-                      'builder':{
-                          'id': 'cirros-0.3.5',
-                          'options':
-    """"""
-                      },
-                      'install':{
-                          'id': 'centos7.0',
-                          'options': ''
-                      }
-                      }
-        l.append(d_cirros_35)
-        
-        return l
-
-    def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
-
-        import urllib.request
-        with urllib.request.urlopen(url) as response:
-            f = response.read()
-
-        s = f.decode('utf-8')
-        #select only arch x86_64
-        l = [a.split(']') for a in s[1:].split('\n[') if a.find('\narch=x86_64') > 0]
-
-        list_virtbuilder = []
-        for b in l:
-            d = {a.split('=')[0]: a.split('=')[1] for a in b[1].split('notes')[0].split('\n')[1:] if
-                       len(a) > 0 and a.find('=') > 0}
-            d['id'] = b[0]
-            list_virtbuilder.append(d)
-
-        return list_virtbuilder
-
-
-    def update_virtinstall(self,from_osinfo_query=False):
-
-        if from_osinfo_query is True:
-            import subprocess
-            data = subprocess.getoutput("osinfo-query os")
-
-        else:
-            from os import path
-            from os import getcwd
-            __location__ = path.realpath(
-                    path.join(getcwd(), path.dirname(__file__)))
-            f=open(__location__+'/osinfo.txt')
-            data = f.read()
-            f.close()
-
-        installs=[]
-
-        for l in data.split('\n')[2:]:
-            if l.find('|') > 1:
-
-                v=[a.strip() for a in l.split('|')]
-
-                #DEFAULT FONT
-                font_type = 'font-awesome'
-                font_class = 'fa-linux'
-
-                for oslinux in ('fedora,centos,debian,freebsd,mageia,mandriva,opensuse,ubuntu,opensuse'.split(',')):
-                        font_type  = 'font-linux'
-                        font_class = 'fl-'+oslinux
-
-                if v[0].find('rhel') == 0 or v[0].find('rhl') == 0:
-                    font_type  = 'font-linux'
-                    font_class = 'fl-redhat'
-
-                elif v[0].find('win') == 0:
-                    font_type  = 'font-awesome'
-                    font_class = 'fa-windows'
-
-                installs.append({'id':v[0].strip(),
-                                 'name':v[1].strip(),
-                                 'vers':v[2].strip(),
-                                 'www':v[3].strip(),
-                                 'font_type':font_type,
-                                 'icon':font_class})
-
-        return installs
-
-
