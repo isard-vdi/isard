@@ -43,7 +43,6 @@ def wizard():
 #~ @wapp.route('/wizard/get_resources_list', methods=['GET'])
 #~ def get_resources_list():
     #~ url='http://isardvdi.com:5050/info'
-    #~ key='pepinillo'
     #~ try:
         #~ r= requests.post(url, headers={'Authorization':key},allow_redirects=False, verify=False)
         #~ if r.status_code==200:

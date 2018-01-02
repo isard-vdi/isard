@@ -512,19 +512,19 @@ class Populate(object):
                                                            'groups': [],
                                                            'users': []},
                                                        }
-                                                      #~ {'id': 'cirrus',
-                                                       #~ 'name': 'Cirrus',
-                                                       #~ 'description': 'Not functional',
-                                                       #~ 'ram': 65536,
-                                                       #~ 'vram': 65536,
-                                                       #~ 'model': 'cirrus',
-                                                       #~ 'heads': 1,
-                                                       #~ 'allowed': {
-                                                           #~ 'roles': ['admin'],
-                                                           #~ 'categories': False,
-                                                           #~ 'groups': False,
-                                                           #~ 'users': False}
-                                                       #~ }
+                                                      {'id': 'vga',
+                                                       'name': 'VGA',
+                                                       'description': 'For old OSs',
+                                                       'ram': 16384,
+                                                       'vram': 16384,
+                                                       'model': 'vga',
+                                                       'heads': 1,
+                                                       'allowed': {
+                                                           'roles': ['admin'],
+                                                           'categories': False,
+                                                           'groups': False,
+                                                           'users': False}
+                                                       }
                                                        ]).run())
             return True
 
