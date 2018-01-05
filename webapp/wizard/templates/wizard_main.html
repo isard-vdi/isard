@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!-- Meta, title, CSS, favicons, etc. -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Installation | Isard</title>
+
+    <!-- Bootstrap -->
+    <link href="/vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="/vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Custom Theme Style -->
+<!--
+    <link href="/build/css/custom.min.css" rel="stylesheet">
+-->
+    <link href="/vendors/jQuery-Smart-Wizard/styles/demo_style.css" rel="stylesheet" type="text/css">
+    <link href="/vendors/jQuery-Smart-Wizard/styles/smart_wizard.css" rel="stylesheet" type="text/css">
+
+  </head>
+
+  <body>
+    <div class="demoHead">   
+      <div>
+        <div style="float:left;">
+          <h1>IsardVDI</h1>
+          <h2>installation wizard</h2>
+        </div>
+        <div style="float:right;" class="demoNavLinks">
+          <a href="https://github.com/mstratman/jQuery-Smart-Wizard/tarball/master" class="btn">Contact</a>
+          <a href="https://github.com/mstratman/jQuery-Smart-Wizard/blob/master/README.md" class="btn">Documentation</a>
+          <a href="https://github.com/mstratman/jQuery-Smart-Wizard" class="btn">Github</a>
+        </div>
+        <div style="clear:both;"></div>
+      </div>
+
+    </div>
+
+    <table align="center" border="0" cellpadding="0" cellspacing="0">
+    <tr><td> 
+
+
+            <div id="wizard" class="swMain">
+              <ul>
+                <li><a href="#step-1">
+                      <label class="stepNumber">1</label>
+                      <span class="stepDesc">
+                         Configuration<br />
+                         <small>isard.conf file</small>
+                      </span>
+                  </a></li>
+                <li><a href="#step-2">
+                      <label class="stepNumber">2</label>
+                      <span class="stepDesc">
+                         Database<br />
+                         <small>RethinkDB service</small>
+                      </span>
+                  </a></li>
+                <li><a href="#step-3">
+                      <label class="stepNumber">3</label>
+                      <span class="stepDesc">
+                         Password<br />
+                         <small>Protect admin account</small>
+                      </span>
+                  </a></li>    
+                <li><a href="#step-4">
+                      <label class="stepNumber">4</label>
+                      <span class="stepDesc">
+                         Connection<br />
+                         <small>Internet connection</small>
+                      </span>                   
+                   </a></li>
+                <li><a href="#step-5">
+                      <label class="stepNumber">5</label>
+                      <span class="stepDesc">
+                         Engine<br />
+                         <small>Backend engine</small>
+                      </span>                   
+                  </a></li>
+                <li><a href="#step-6">
+                      <label class="stepNumber">6</label>
+                      <span class="stepDesc">
+                         Hypervisor<br />
+                         <small>Available hypervisors</small>
+                      </span>                   
+                  </a></li>
+                <li><a href="#step-7">
+                      <label class="stepNumber">7</label>
+                      <span class="stepDesc">
+                         Updates<br />
+                         <small>Media and config updates</small>
+                      </span>                   
+                  </a></li>
+              </ul>
+              <div id="step-1">   
+                  <h2 class="StepTitle">Step 1. Configuration file</h2>
+                   <!-- step content -->
+              </div>
+              <div id="step-2">
+                  <h2 class="StepTitle">Step 2 Content</h2> 
+                   <!-- step content -->
+              </div>                      
+              <div id="step-3">
+                  <h2 class="StepTitle">Step 3. Set admin user password</h2>  
+                  {% include 'passwd_form.html' %}
+                   <!-- step content -->
+              </div>
+              <div id="step-4">
+                  <h2 class="StepTitle">Step 4 Title</h2>   
+                   <!-- step content -->                         
+              </div>
+              <div id="step-5">
+                  <h2 class="StepTitle">Step 5 Title</h2>   
+                   <!-- step content -->                         
+              </div>
+              <div id="step-6">
+                  <h2 class="StepTitle">Step 6 Title</h2>   
+                   <!-- step content -->                         
+              </div>              
+              <div id="step-7">
+                  <h2 class="StepTitle">Step 7 Title</h2>   
+                   <!-- step content -->                         
+              </div> 
+            </div>
+    </div>
+</td></tr>
+</table>
+  </body>
+    <!-- jQuery -->
+    <script src="/vendors/jquery/dist/jquery.min.js"></script>
+    
+<!--
+    <script type="text/javascript" src="jquery-1.4.2.min.js"></script>
+-->
+    <script type="text/javascript" src="/vendors/jQuery-Smart-Wizard/js/jquery.smartWizard.js"></script>
+    <!-- Parsley -->
+<!--
+    <script src="/vendors/parsleyjs/dist/parsley.min.js"></script>
+-->
+
+<script type="text/javascript">
+$(document).ready(function(){
+    // Smart Wizard         
+    $('#wizard').smartWizard({
+        contentURL:'/content',
+        contentCache:false,
+        onLeaveStep:leaveAStepCallback,
+        onFinish:onFinishCallback
+    });
+
+    function setErrors(){
+        $.post( "/errors", function( data ) {
+            var data = JSON.parse(data);
+            $.each(data,function(i,d){ 
+                $("#wizard").smartWizard('setError', d); 
+            });
+            return data;
+        });
+        
+    }
+    //~ var errors=setErrors()
+    
+    //~ $("#wizard").smartWizard('showMessage', 'Hello, World!');
+
+    
+    function leaveAStepCallback(obj, context){
+        //~ alert("Leaving step " + context.fromStep + " to go to step " + context.toStep);
+        return validateSteps(context.fromStep); // return false to stay on step and true to continue navigation 
+    }
+
+    function onFinishCallback(objs, context){
+        console.log('finish click')
+        if(validateAllSteps()){
+            console.log('all steps valid')
+            //~ $('form').submit();
+        }
+    }
+
+    // Your Step validation logic
+    function validateSteps(stepnumber){
+        var isStepValid = true;
+        //~ if(stepnumber == 1){
+            $.post( "/validate/"+stepnumber, function( data ) {
+                var data = JSON.parse(data);
+                console.log(data)
+                if(data){
+                    $("#wizard").smartWizard('setError', {'stepnum':stepnumber,'iserror':false}); 
+                    $("#wizard").smartWizard("goToStep",stepnumber);
+                    return true;
+                }else{
+                    $("#wizard").smartWizard('setError', {'stepnum':stepnumber,'iserror':true}); 
+                    $("#wizard").smartWizard("goToStep",stepnumber);
+                    return false;}
+            });    
+            return true;        
+        //~ }
+
+    }
+    
+    function validateAllSteps(){
+        var isStepValid = true;
+        // all step validation logic     
+        return isStepValid;
+    }          
+});
+</script>
+</html>

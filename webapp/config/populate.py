@@ -82,8 +82,8 @@ class Populate(object):
         self.virt_install()
         log.info('Checking table builders')
         self.builders()
-        log.info('Checking table isos')
-        self.isos()
+        log.info('Checking table media')
+        self.media()
         log.info('Checking table boots')
         self.boots()
         log.info('Checking table hypervisors_events')
@@ -511,7 +511,7 @@ class Populate(object):
                                                            'categories': [],
                                                            'groups': [],
                                                            'users': []},
-                                                       }
+                                                       },
                                                       {'id': 'vga',
                                                        'name': 'VGA',
                                                        'description': 'For old OSs',
@@ -588,16 +588,16 @@ class Populate(object):
             return True
 
     '''
-    ISOS: iso files
+    ISOS and FLOPPY:
     '''
 
-    def isos(self):
+    def media(self):
         with app.app_context():
-            if not r.table_list().contains('isos').run():
-                log.info("Table isos not found, creating...")
-                r.table_create('isos', primary_key="id").run()
-                r.table('isos').index_create("user").run()
-                r.table('isos').index_wait("user").run()
+            if not r.table_list().contains('media').run():
+                log.info("Table media not found, creating...")
+                r.table_create('media', primary_key="id").run()
+                r.table('media').index_create("status").run()
+                r.table('media').index_wait("user").run()
 
         return True
 

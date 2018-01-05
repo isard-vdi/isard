@@ -25,11 +25,37 @@ LOG_LEVEL_NUM = wlog.getLevelName(LOG_LEVEL)
 wlog.basicConfig(format=LOG_FORMAT,datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
 
 
+'''
+PASSWORDS MANAGER
+'''
+import bcrypt,string,random
+class Password(object):
+        def __init__(self):
+            None
+
+        def valid(self,plain_password,enc_password):
+            return bcrypt.checkpw(plain_password.encode('utf-8'), enc_password.encode('utf-8'))
+                
+        def encrypt(self,plain_password):
+            return bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        def generate_human(self,length=6):
+            chars = string.ascii_letters + string.digits + '!@#$*'
+            rnd = random.SystemRandom()
+            return ''.join(rnd.choice(chars) for i in range(length))
+            
+        
+
 class Wizard():
     def __init__(self):
         self.doWizard=True if self.first_start() else False
         if self.doWizard: # WIZARD WAS FORCED BY DELETING install/.wizard file
             wlog.warning('Starting initial configuration wizard')
+            if not self.check_js(first=True):
+                print('Javascript and CSS not installed!')
+                print(' Please install yarn: https://yarnpkg.com/lang/en/docs/install')
+                print(' and run yarn from install folder before starting again.')
+                exit(1)
             try:
                 if self.check_rethinkdb():
                     if not self.check_isard_database():
@@ -79,7 +105,9 @@ class Wizard():
         os.mknod(path)
 
 
-    def check_js(self,path='bower_components/gentelella'):
+    def check_js(self,first=False,path='bower_components/gentelella'):
+        if first:
+            return os.path.exists(os.path.join(os.path.dirname(__file__).rsplit('/',1)[0]+'/'+path))
         return os.path.exists(os.path.join(self.wapp.root_path+'/../',path))
         
     def check_config_file(self):
@@ -111,6 +139,40 @@ class Wizard():
         except Exception as e:
             return False
 
+    def check_password(self):
+        try:
+            pw=Password()
+            usr = r.table('users').get('admin').run()
+            if usr is None:
+                usr = [{'id': 'admin',
+                           'name': 'Administrator',
+                           'kind': 'local',
+                           'active': True,
+                           'accessed': time.time(),
+                           'username': 'admin',
+                           'password': pw.encrypt('isard'),
+                           'role': 'admin',
+                           'category': 'admin',
+                           'group': 'admin',
+                           'mail': 'admin@isard.io',
+                           'quota': {'domains': {'desktops': 99,
+                                                 'desktops_disk_max': 999999999,  # 1TB
+                                                 'templates': 99,
+                                                 'templates_disk_max': 999999999,
+                                                 'running': 99,
+                                                 'isos': 99,
+                                                 'isos_disk_max': 999999999},
+                                     'hardware': {'vcpus': 8,
+                                                  'memory': 20000000}},  # 10GB
+                           }]
+                r.table('users').insert(usr, conflict='update').run()
+                return False # Password must be changed so we return false
+            if pw.valid('isard',usr['password']):
+                return False # Password must be changed
+            return True
+        except Exception as e:
+            return False
+        
     def create_isard_database(self):
         from ..config.populate import Populate
         p=Populate()
@@ -150,6 +212,7 @@ class Wizard():
                     'internet':self.check_server('isardvdi.com'),
                     'rethinkdb':self.check_rethinkdb(),
                     'isard_db':self.check_isard_database(),
+                    'passwd':self.check_password(),
                     'docker':True if 'isard-hypervisor' in dict.keys() else False,
                     'hyper':self.check_hypervisor() if self.check_isard_database() else False,
                     'engine':self.check_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')}  
@@ -160,14 +223,51 @@ class Wizard():
                     'internet':self.check_server('isardvdi.com'),
                     'rethinkdb':self.check_rethinkdb(),
                     'isard_db':self.check_isard_database(),
+                    'passwd':self.check_password(),
                     'docker':self.check_docker(),
                     'hyper':self.check_hypervisor(),
                     'engine':self.check_engine()}
         res['continue']=res['yarn'] and res['config_stx'] and res['isard_db'] and res['engine']
         return res
 
+    def check_steps(self):
+        res = self.check_all()
+        errors=[]
+        if not res['config'] or not res['config_stx']: 
+            errors.append({'stepnum':1,'iserror':True})
+        else:
+            errors.append({'stepnum':2,'iserror':False})
+            
+        if not res['rethinkdb'] or not res['isard_db']: 
+            errors.append({'stepnum':2,'iserror':True})
+        else:
+            errors.append({'stepnum':3,'iserror':False})
+            
+        if not res['passwd']: 
+            errors.append({'stepnum':3,'iserror':True})
+        else:
+            errors.append({'stepnum':3,'iserror':False})
+            
+        if not res['internet']: 
+            errors.append({'stepnum':4,'iserror':True})
+        else:
+            errors.append({'stepnum':4,'iserror':False})
+            
+        if not res['engine']: 
+            errors.append({'stepnum':5,'iserror':True})
+        else:
+            errors.append({'stepnum':5,'iserror':False})
+            
+        if not res['hyper']: 
+            errors.append({'stepnum':6,'iserror':True})
+        else:
+            errors.append({'stepnum':6,'iserror':False})
+            
+        #~ if res['updates']: errors.append(7)
+        return errors
+        
     def fake_check_all(self):
-        return {'yarn':False,
+        return {'yarn':True,
                 'config':False,
                 'config_stx':False,
                 'internet':False,
@@ -191,24 +291,33 @@ class Wizard():
             def send_vendors(path):
                 return send_from_directory(os.path.join(self.wapp.root_path+'/../', 'bower_components/gentelella/vendors'), path)
 
+            @self.wapp.route('/errors', methods=['POST'])
+            def errors():
+                return json.dumps(self.check_steps())
+                
             @self.wapp.route('/', methods=['GET'])
             def base():
-                chk=self.check_all()
-                #~ chk=self.fake_check_all()
+                #~ chk=self.check_all()
+                chk=self.fake_check_all()
                 msg=''
                 if not chk['yarn']:
                     msg='Javascript and CSS libraries not found. Please install it running yarn on install folder.'
                     return render_template('missing_yarn.html',chk=chk, msg=msg.split('\n'))
+                return render_template('wizard_main.html',chk=chk, msg=msg.split('\n'))
                 if not chk['config']:
                     msg+='\nIsard main configuration file isard.conf missing. Please copy (or rename) isard.conf.default to isard.conf.'
+                    return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
                 if not chk['config_stx']:
                     msg+='\nMain configuration file isard.conf can not be read. Please check configuration from isard.conf.default.'
-                if not chk['internet']:
-                    msg+='\nCan not reach Internet. Please check your Internet connection.'
+                    return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
                 if not chk['rethinkdb']:
                     msg+='\nUnable to connect to Rethinkdb server using isard.conf parameters. Is RethinkDB service running?'
+                    return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
                 if not chk['isard_db']:
                     msg+='\nRethinkDb isard database not found on server. You should create it now.'
+                    return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
+                if not chk['internet']:
+                    msg+='\nCan not reach Internet. Please check your Internet connection.'
                 #~ msg='Everything seems ok. You can continue'
                 return render_template('missing_yarn.html',chk=chk, msg=msg.split('\n'))
     
@@ -221,7 +330,6 @@ class Wizard():
             def wizard_passwd():
                 if request.method == 'POST':
                     wlog.info(request.form['passwd'])
-                wlog.error('You did a get...')
                 return render_template('wizard_pwd.html')
 
             @self.wapp.route('/shutdown', methods=['GET'])
@@ -232,6 +340,48 @@ class Wizard():
                 time.sleep(4)
                 return redirect('/wizard')
 
-        
+
+
+
+            @self.wapp.route('/validate/<step>', methods=['POST'])
+            def wizard_validate_step(step):
+                print('im on step '+step)
+                if request.method == 'POST':
+                    if step is '1':
+                        return self.check_config_file() and self.check_config_syntax()
+                    if step is '2':
+                        return self.check_rethinkdb() and self.check_isard_database()
+                                            
+            @self.wapp.route('/content', methods=['POST'])
+            def wizard_content():
+                global html
+                if request.method == 'POST':
+                    step=request.form['step_number']
+                    print(step)
+                    if step == '1':
+                        print('step 1')
+                        if not self.check_config_file():
+                            return html[1]['noconfig']
+                        elif not self.check_config_syntax():
+                            return html[1]['nosyntax']
+                        return html[1]['ok']
+                    if step == '2':
+                        return 'step2'
+                    #~ step=request.get_json(force=True)['step_number']
+                    #~ import random
+                    #~ rand=random.random() * 100
+                    #~ return html[1]['ko'].replace('%step%',str(rand))
+                    
+html={}                    
+html[1]={'ok': '''<h2 class="StepTitle">Step 1. Configuration</h2>
+                <h3>Configuration file found and correct<h3>''',
+        'noconfig': '''<h2 class="StepTitle">Step 1. Configuration</h2>
+                <h3>Configuration file not found<h3>
+                <p>Do you want to use the default configuration found?<p>
+                <button type="config-copy" class="btn btn-default submit">Fix</button>''',
+        'nosyntax': '''<h2 class="StepTitle">Step 1. Configuration</h2>
+                <h3>Configuration file has incorrect syntax.<h3>
+                <p>Please review sample isard.conf.default file and update
+                your isard.conf file accordingly<p>'''}
         
         

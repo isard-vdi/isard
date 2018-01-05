@@ -133,49 +133,51 @@ def start_domains_stats_thread():
         log.info('DomainsStatsThread Started')
         
 
-## ISOS Threading
-class IsosThread(threading.Thread):
+## MEDIA Threading
+class MediaThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.stop = False
 
     def run(self):
         with app.app_context():
-            for c in r.table('isos').changes(include_initial=False).run(db.conn):
+            for c in r.table('media').changes(include_initial=False).run(db.conn):
+                #~ .pluck('id','percentage')
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
-                        if not c['old_val']['id'].startswith('_'): continue
+                        #~ if not c['old_val']['id'].startswith('_'): continue
                         data=c['old_val']
-                        event='iso_delete'
+                        event='media_delete'
                     else:
-                        if not c['new_val']['id'].startswith('_'): continue
+                        #~ if not c['new_val']['id'].startswith('_'): continue
+                        
                         data=c['new_val']
-                        event='iso_data'
-                    socketio.emit(event, 
-                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
-                                    namespace='/sio_users', 
-                                    room='user_'+data['user'])
-                    socketio.emit('user_quota', 
-                                    json.dumps(app.isardapi.get_user_quotas(data['user'])), 
-                                    namespace='/sio_users', 
-                                    room='user_'+data['user'])
+                        event='media_data'
+                    #~ socketio.emit(event, 
+                                    #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                    #~ namespace='/sio_users', 
+                                    #~ room='user_'+data['user'])
+                    #~ socketio.emit('user_quota', 
+                                    #~ json.dumps(app.isardapi.get_user_quotas(data['user'])), 
+                                    #~ namespace='/sio_users', 
+                                    #~ room='user_'+data['user'])
                     ## Admins should receive all updates on /admin namespace
                     socketio.emit(event, 
                                     json.dumps(app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_admins', 
-                                    room='domains')
+                                    room='media')
                 except Exception as e:
-                    log.error('IsosThread error:'+str(e))
+                    log.error('MediaThread error:'+str(e))
 
-def start_isos_thread():
+def start_media_thread():
     global threads
-    if 'isos' not in threads: threads['isos']=None
-    if threads['isos'] is None:
-        threads['isos'] = IsosThread()
-        threads['isos'].daemon = True
-        threads['isos'].start()
-        log.info('IsosThread Started')
+    if 'media' not in threads: threads['media']=None
+    if threads['media'] is None:
+        threads['media'] = MediaThread()
+        threads['media'].daemon = True
+        threads['media'].start()
+        log.info('MediaThread Started')
         
 ## Users Threading
 class UsersThread(threading.Thread):
@@ -328,11 +330,11 @@ def socketio_domains_update(data):
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
-@socketio.on('iso_update', namespace='/sio_users')
-def socketio_iso_update(data):
+@socketio.on('media_update', namespace='/sio_users')
+def socketio_media_update(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     socketio.emit('result',
-                    app.isardapi.update_table_status(current_user.username, 'isos', data,remote_addr),
+                    app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
                     
@@ -435,11 +437,11 @@ def parseHardware(create_dict):
         create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
     return create_dict
 
-@socketio.on('iso_add', namespace='/sio_users')
-def socketio_iso_add(form_data):
+@socketio.on('media_add', namespace='/sio_users')
+def socketio_media_add(form_data):
     filename = form_data['url'].split('/')[-1]
-    iso=app.isardapi.user_relative_iso_path(current_user.username, filename)
-    if not iso:
+    media=app.isardapi.user_relative_media_path(current_user.username, filename)
+    if not media:
         data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created. It doesn\'t seem a valid url filename.','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
@@ -450,11 +452,11 @@ def socketio_iso_add(form_data):
         dict = {}
         dict['status']='Starting'
         dict['percentage']=0
-        res = app.isardapi.add_dict2table(dict,'isos')
+        res = app.isardapi.add_dict2table(dict,'media')
         if res is True:
-            data=json.dumps({'result':True,'title':'New iso','text':'Iso '+iso['name']+' is being uploaded...','icon':'success','type':'success'})
+            data=json.dumps({'result':True,'title':'New media','text':'Media '+media['name']+' is being uploaded...','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':True,'title':'New iso','text':'Iso '+iso['name']+' can\'t be uploaded. You have the same iso filename uploaded already.','icon':'warning','type':'error'})
+            data=json.dumps({'result':True,'title':'New media','text':'Media '+media['name']+' can\'t be uploaded. You have the same media filename uploaded already.','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/sio_users', 

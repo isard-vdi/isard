@@ -47,9 +47,9 @@ $(document).ready(function() {
 
 
 
-    table['isos']=$('#isos_tbl').DataTable({
+    table['media']=$('#media_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/isos",
+				"url": "/admin/updates/media",
 				"dataSrc": ""
 			},
 			"language": {
@@ -77,7 +77,7 @@ $(document).ready(function() {
 							}}]
     } );
 
-    $('#isos_tbl').find(' tbody').on( 'click', 'button', function () {
+    $('#media_tbl').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
         console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
@@ -220,6 +220,8 @@ function renderIcon(data){
 }
 
 function icon(name){
+    if(name.startsWith("fa-")){return "<i class='fa "+name+" fa-2x '></i>";}
+    if(name.startsWith("fl-")){return "<span class='"+name+" fa-2x'></span>";}
        if(name=='windows' || name=='linux'){
            return "<i class='fa fa-"+name+" fa-2x '></i>";
         }else{

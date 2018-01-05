@@ -10,7 +10,11 @@ db.init_app(app)
 class Updates(object):
     def __init__(self):
         self.updateFromConfig()
-        
+        # This should be an option to the user
+        if not self.isRegistered(): 
+            self.register()
+            self.updateFromConfig()
+    
     def updateFromConfig(self):
         with app.app_context():
             cfg=r.table('config').get(1).pluck('resources').run(db.conn)['resources']
@@ -34,17 +38,21 @@ class Updates(object):
             print("Error contacting.\n"+str(e))
         return False
 
-    def getNewKind(self,kind='builders'):
+    def getNewKind(self,kind,username):
         web=self.getKind(kind=kind)
         dbb=list(r.table(kind).run(db.conn))
-        print(len(web)-len(dbb))
         result=[]
         for w in web:
             found=False
             for d in dbb:
-                if d['id']==w['id']:
-                    found=True
-                    continue
+                if kind == 'domains':
+                    if d['id']=='_'+username+'_'+w['id']:
+                        found=True
+                        continue
+                else:
+                    if d['id']==w['id']:
+                        found=True
+                        continue
             if not found: result.append(w)
         return result
         #~ return [i for i in web for j in dbb if i['id']==j['id']]
