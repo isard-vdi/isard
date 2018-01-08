@@ -532,8 +532,8 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
     else:
         hyp_started = ''
 
-    now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
-
+    #now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
+    now = time.time()
     update_domain_history_status(domain_id=domain_id,
                                  new_status=new_status,
                                  when=now,
