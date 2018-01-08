@@ -159,15 +159,34 @@ def desktops_add_disposable():
     res=True
     if request.method == 'POST':
         remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-        template=hs=request.get_json(force=True)['pk']
-        app.isardapi.new_domain_disposable_from_tmpl(remote_addr,template)
-        #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+        template=request.get_json(force=True)['pk']
+        ## Checking permissions
+        disposables = app.isardapi.show_disposable(remote_addr)
+        print([d['id'] for d in disposables['disposables'] if d['id']==template])
+        if disposables and len([d['id'] for d in disposables['disposables'] if d['id']==template]):
+            #~ {'active': True,
+             #~ 'description': 'prova',
+             #~ 'disposables': [{'description': '',
+                              #~ 'id': '_biblioteca1',
+                              #~ 'name': 'biblioteca1'}],
+             #~ 'id': 'taller',
+             #~ 'name': 'taller',
+             #~ 'nets': ['10.200.108.0/24']}
 
+
+
+        
+            app.isardapi.new_domain_disposable_from_tmpl(remote_addr,template)
+        #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+        else:
+            res=False
         if res is True:
             flash('Disposable desktop created.','success')
+            print('Created desktop')
             return json.dumps('Updated'), 200, {'ContentType':'application/json'}
         else:
             flash('Could not update.','danger')
+            print('Failed creating desktop')
             return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
                         
 @app.route('/hardware', methods=['GET'])

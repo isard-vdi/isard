@@ -41,7 +41,30 @@ class DomainsThread(threading.Thread):
                         event='desktop_delete' if data['kind']=='desktop' else 'template_delete'
                     else:
                         if not c['new_val']['id'].startswith('_'): continue
-                        data=c['new_val']   
+                        data=c['new_val'] 
+                          
+                        ## Disposables on login
+                        if data['user']=='disposable':
+                            print('im a disposable: '+data['id'])
+                            event='desktop_data'
+                            socketio.emit(event, 
+                                            json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                            namespace='/sio_admins', 
+                                            room='domains')                              
+                            ip=False
+                            try:
+                                ip=data['viewer']['client_addr']
+                            except Exception as e:
+                                print(data['id']+' is disposable but has no viewer client addr')
+                                continue
+                            if ip:
+                                socketio.emit(event, 
+                                                json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                                namespace='/sio_disposables', 
+                                                room='disposables_'+ip)                                        
+                            continue
+                        ## End disposables
+                        
                         if data['kind']=='desktop':
                             event='desktop_data'
                         else:
@@ -460,6 +483,49 @@ def socketio_iso_add(form_data):
                         namespace='/sio_users', 
                         room='user_'+current_user.username)
 
+
+## Disposables
+@socketio.on('connect', namespace='/sio_disposables')
+def socketio_disposables_connect():
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if app.isardapi.show_disposable(remote_addr):
+        import pprint
+        print(remote_addr)
+        pprint.pprint(app.isardapi.show_disposable(remote_addr))
+        print('JOINED DISPOSABLE: '+remote_addr.replace('.','_'))
+        join_room('disposables_'+remote_addr)
+    None
+    #~ if current_user.role=='admin':
+        #~ join_room('disposable_'+ip)
+        #~ socketio.emit('user_quota', 
+                        #~ json.dumps(app.isardapi.get_user_quotas(current_user.username, current_user.quota)), 
+                        #~ namespace='/sio_admins', 
+                        #~ room='user_'+current_user.username)
+
+#~ @socketio.on('join_client', namespace='/sio_disposables')
+#~ def socketio_disposables_joinclient(clientip):
+    #~ print('CLIENT IP DISPOSABLE: '+clientip)
+    #~ ## If clientip in disposable pool....
+    #~ join_room(clientip)
+                                    
+@socketio.on('domain_add', namespace='/sio_disposables')
+def socketio_domains_add(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
 ## Admin namespace
 @socketio.on('connect', namespace='/sio_admins')
 def socketio_admins_connect():
@@ -573,7 +639,10 @@ def socketio_scheduler_add(form_data):
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():
     leave_room('admins')
-    leave_room('user_'+current_user.username)
+    try:
+        leave_room('user_'+current_user.username)
+    except Exception as e:
+        log.debug('USER has leaved without disconnect')
     log.debug('USER: '+current_user.username+' DISCONNECTED')
     
 

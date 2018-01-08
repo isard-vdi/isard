@@ -107,10 +107,12 @@
     <script src="/static/js/restful.js"></script>
     {% if disposables %}
         <!-- Spice viewer -->
+        <script src="/static/vendor/socket.io.min.js"></script>
         <script src="/static/js/viewer.js"></script> 
         <script src="/static/js/disposables.js"></script>
         <script>
             $('#disposable').on('change', function() {
+                console.log(this.value)
                 api.ajax('/desktops_add_disposable','POST',{'pk':this.value}).done(function(data) {
                     console.log( data );
                 });

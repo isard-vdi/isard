@@ -280,7 +280,7 @@ $(document).ready(function() {
 
 
     // SocketIO
-    reconnect=-1;
+    //~ reconnect=-1;
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
      
     socket.on('connect', function() {
