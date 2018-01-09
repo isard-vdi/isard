@@ -17,6 +17,8 @@ def login():
     if request.method == 'POST':
         if request.form['user'] is '' or request.form['password'] is '':
             flash("Can't leave it blank",'danger')
+        elif request.form['user'].startswith(' '):
+            flash('Username not found or incorrect password.','warning')
         else:
             au=auth()
             user=au.check(request.form['user'],request.form['password'])
