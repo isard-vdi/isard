@@ -808,7 +808,15 @@ class isard():
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
     def new_domain_disposable_from_tmpl(self, client_ip, template):
+        parsed_name = self.parse_string(client_ip)
+        parsed_name = client_ip.replace(".", "_")        
         with app.app_context():
+            exists_domain=r.table('domains').get('_disposable_'+parsed_name).run(db.conn)
+            if exists_domain is not None:
+                print('EL DOMINI JA EXISTEIX!!!!')
+                r.table('domains').get('_disposable_'+parsed_name).update({'status':'Unknown'}).run(db.conn)
+                r.table('domains').get('_disposable_'+parsed_name).update({'status':'CreatingAndStarting'}).run(db.conn)
+                return '_disposable_'+parsed_name
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
             dom=app.isardapi.get_domain(template, flatten=False)
         #~ log.info('template:'+template)
@@ -816,8 +824,7 @@ class isard():
         parent_disk=dom['hardware']['disks'][0]['file']
         create_dict=dom['create_dict']
 
-        parsed_name = self.parse_string(client_ip)
-        parsed_name = client_ip.replace(".", "_")
+
         dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'parent':parent_disk}]
@@ -844,7 +851,10 @@ class isard():
                               'groups': False,
                               'users': False}}
         with app.app_context():
-            return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
+            if self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted'):
+                return new_domain['id']
+            else:
+                return False
 
     ##### SPICE VIEWER
     
