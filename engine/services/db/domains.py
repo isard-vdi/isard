@@ -492,7 +492,6 @@ def get_domains_count(user, status=None, origin=None):
 #     else:
 #         return False
 
-
 def insert_domain(dict_domain):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
@@ -620,6 +619,15 @@ def get_domains_id(user, id_pool, kind='desktop', origin=None):
     close_rethink_connection(r_conn)
     ids = [d['id'] for d in l]
     return ids
+
+
+def update_domain_start_after_created(id_domain,created_done=True):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    rtable.get(id_domain).update(
+        {'start_after_created': created_done}).run(r_conn)
+    close_rethink_connection(r_conn)
 
 
 def update_domain_createing_template(id_domain, template_field, status='CreatingTemplate'):

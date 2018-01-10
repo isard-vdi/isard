@@ -102,15 +102,18 @@ class UiActions(object):
         hyp = self.start_domain_from_xml(xml, id, pool_id=pool_id)
         return hyp
 
-    def start_paused_domain_from_xml(self, xml, id_domain, pool_id):
+    def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
         failed = False
         if pool_id in self.manager.pools.keys():
             next_hyp = self.manager.pools[pool_id].get_next()
             log.debug('//////////////////////')
             if next_hyp is not False:
                 log.debug('next_hyp={}'.format(next_hyp))
+                dict_action = {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain}
+                if start_after_created is True:
+                    dict_action['start_after_created'] = True
                 self.manager.q.workers[next_hyp].put(
-                    {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain})
+                    dict_action)
                 update_domain_status(status='CreatingDomain',
                                      id_domain=id_domain,
                                      hyp_id=False,
@@ -650,7 +653,17 @@ class UiActions(object):
         update_domain_status('CreatingDomain', id_domain,
                              detail='xml and hardware dict updated, waiting to test if domain start paused in hypervisor')
         pool_id = get_pool_from_domain(id_domain)
-        self.start_paused_domain_from_xml(xml=xml_raw, id_domain=id_domain, pool_id=pool_id)
+
+        start_after_created = False
+        if 'start_after_created' in domain.keys():
+            if domain['start_after_created'] is True:
+                start_after_created = True
+
+        self.start_paused_domain_from_xml(xml=xml_raw,
+                                          id_domain=id_domain,
+                                          pool_id=pool_id,
+                                          start_after_created=start_after_created)
+
 
     # INFO TO DEVELOPER: HAY QUE QUITAR CATEGORY Y GROUP DE LOS PARÁMETROS QUE RECIBE LA FUNCIÓN
     def domain_from_template(self,
