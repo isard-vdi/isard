@@ -159,6 +159,12 @@ class isardAdmin():
                     }
                 ).run(db.conn))
 
+    def get_admin_templates(self,term):
+        with app.app_context():
+            data1 = r.table('domains').get_all('base', index='kind').filter(r.row['name'].match(term)).order_by('name').pluck({'id','name','kind','group','icon','user','description'}).run(db.conn)
+            data2 = r.table('domains').filter(r.row['kind'].match("template")).filter(r.row['name'].match(term))    .order_by('name').pluck({'id','name','kind','group','icon','user','description'}).run(db.conn)
+        return data1+data2
+            
     def get_admin_hypervisors(self, id=False):
         with app.app_context():
             if id:

@@ -106,7 +106,8 @@ $(document).ready(function() {
         $('#modalDisposable').modal({
 				backdrop: 'static',
 				keyboard: false
-        }).modal('show'); 
+        }).modal('show');
+        setTemplates()
     });
         
     $('.btn-backup').on( 'click', function () {
@@ -694,3 +695,80 @@ function renderDisposables(data){
 function activateDisposables(){
        
 }
+
+function setTemplates(){
+
+			 $('#disposables').select2({
+				minimumInputLength: 2,
+				multiple: true,
+				ajax: {
+					type: "POST",
+					url: '/admin/getAllTemplates',
+					dataType: 'json',
+					contentType: "application/json",
+					delay: 250,
+					data: function (params) {
+						return  JSON.stringify({
+							term: params.term,
+							pluck: ['id','name']
+						});
+					},
+					processResults: function (data) {
+						return {
+							results: $.map(data, function (item, i) {
+								return {
+									text: item.name,
+									id: item.id
+								}
+							})
+						};
+					}
+				},
+			});	
+};
+
+	//~ modal_add_desktops = $('#modal_add_desktops').DataTable({
+			//~ "ajax": {
+				//~ "url": "/desktops/getAllTemplates",
+				//~ "dataSrc": ""
+			//~ },
+
+            //~ "scrollY":        "125px",
+            //~ "scrollCollapse": true,
+            //~ "paging":         false,
+            
+            //"searching":         false,
+			//~ "language": {
+				//~ "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                //~ "zeroRecords":    "No matching templates found",
+                //~ "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                //~ "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                //~ "infoFiltered":   "(filtered from _MAX_ total templates)"
+			//~ },
+			//~ "rowId": "id",
+			//~ "deferRender": true,
+			//~ "columns": [
+                //~ { "data": "kind", "width": "10px", "orderable": false},
+				//~ { "data": "name"},
+                //~ { "data": "group", "width": "10px"},
+                //~ { "data": "username"}
+				//~ ],
+			 //~ "order": [[0, 'asc']],	
+             //~ "pageLength": 5,	 
+		//~ "columnDefs": [     
+                            //~ {
+							//~ "targets": 0,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderTemplateKind(full);
+							//~ }},
+							//~ {
+							//~ "targets": 1,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderIcon1x(full)+" "+full.name;
+							//~ }},
+							//~ ]
+
+
+
+	//~ } );  
+    

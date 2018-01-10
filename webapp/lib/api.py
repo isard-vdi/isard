@@ -1090,7 +1090,7 @@ class isard():
         if type(txt) is not str:
             txt = txt.decode('utf-8')
         #locale.setlocale(locale.LC_ALL, 'ca_ES')
-        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$", re.L)
+        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$")
         if not prog.match(txt):
             return False
         else:

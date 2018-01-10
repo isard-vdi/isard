@@ -52,7 +52,15 @@ def admin_table_post(table):
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
 
-
+@app.route('/admin/getAllTemplates', methods=["POST"])
+@login_required
+def admin_get_all_templates():
+    if request.method == 'POST':
+        data=request.get_json(force=True)
+        result=app.adminapi.get_admin_templates(data['term'])
+        return json.dumps(result), 200, {'ContentType':'application/json'}
+    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+    
 @app.route('/admin/delete', methods=["POST"])
 @login_required
 @isAdmin
@@ -111,7 +119,9 @@ def admin_disposable_add():
         dsps=[]
         #~ Next 2 lines should be removed when form returns a list
         nets=[request.form['nets']]
-        disposables=[request.form['disposables']]
+        print(request.form)
+        disposables=request.form.getlist('disposables')
+        #~ disposables=[request.form['disposables']]
         for d in disposables:
             dsps.append(app.adminapi.get_admin_table('domains',pluck=['id','name','description'],id=d))
         disposable=[{'id': app.isardapi.parse_string(request.form['name']),
