@@ -1,6 +1,7 @@
 import queue
 import threading
 import time
+from time import sleep
 
 from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
 
@@ -46,36 +47,81 @@ class HypWorkerThread(threading.Thread):
                         self.h.conn.createXML(action['xml'], flags=VIR_DOMAIN_START_PAUSED)
                         # 32 is the constant for domains paused
                         # reference: https://libvirt.org/html/libvirt-libvirt-domain.html#VIR_CONNECT_LIST_DOMAINS_PAUSED
-                        FLAG_LIST_DOMAINS_PAUSED = 32
-                        if len([d for d in self.h.conn.listAllDomains(FLAG_LIST_DOMAINS_PAUSED) if
-                                d.name() == action['id_domain']]) == 1:
-                            # domain started in pause mode
-                            domain = [d for d in self.h.conn.listAllDomains(FLAG_LIST_DOMAINS_PAUSED) if
-                                      d.name() == action['id_domain']][0]
-                            if domain.destroy() == 0:
-                                # domain is destroyed, all ok
-                                update_domain_status('Stopped', action['id_domain'], hyp_id='',
-                                                     detail='Domain is stopped in hyp{}'.format(self.hyp_id))
-                                log.debug(
-                                    'domain {} creating operation finalished. Started paused and destroyed in hypervisor {}. Now status is Stopped. READY TO USE'.format(
-                                        action['id_domain'], self.hyp_id))
 
-                                if action['id_domain'].find('_disposable_') == 0:
-                                    update_domain_status('Starting', action['id_domain'],
-                                                         detail='Disposable domain starting')
+                        FLAG_LIST_DOMAINS_PAUSED = 32
+                        list_all_domains = self.h.conn.listAllDomains(FLAG_LIST_DOMAINS_PAUSED)
+                        list_names_domains = [d.name() for d in list_all_domains]
+                        dict_domains = dict(zip(list_names_domains,list_all_domains))
+                        if action['id_domain'] in list_names_domains:
+                            # domain started in pause mode
+                            domain = dict_domains[action['id_domain']]
+                            domain_active = True
+                            try:
+                                domain.isActive()
+                                domain.destroy()
+                                domain_active = False
+
+                            except libvirtError as e:
+                                from pprint import pformat
+                                error_msg = pformat(e.get_error_message())
+
+                                update_domain_status('FailedCreatingDomain', action['id_domain'], hyp_id=self.hyp_id,
+                                                     detail='domain {} failed when try to destroy from paused domain in hypervisor {}. creating domain operation is aborted')
+                                log.error(
+                                        'Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} '.format(
+                                                action['id_domain'], self.hyp_id, error_msg))
+                                continue
+
+
+                            if domain_active is False:
+                                # domain is destroyed, all ok
+                                update_domain_status('CreatingDomain', action['id_domain'], hyp_id='',
+                                                      detail='Domain created and test OK: Started, paused and now stopped in hyp {}'.format(self.hyp_id))
+                                log.debug(
+                                        'domain {} creating operation finalished. Started paused and destroyed in hypervisor {}. Now status is Stopped. READY TO USE'.format(
+                                                action['id_domain'], self.hyp_id))
+
+                                # if action['id_domain'].find('_disposable_') == 0:
+                                #
+                                #     update_domain_status('Starting', action['id_domain'],
+                                #                          detail='Disposable domain starting')
+
+                                # we wait 0.5 second to don't update events
+                                # events from started, paused and stopped don't updated in db status
+                                # if previous status is CreatingDomain
+                                sleep(0.5)
+
+                                check_if_start = False
+                                if 'start_after_created' in action.keys():
+                                    if action['start_after_created'] is True:
+                                        check_if_start = True
+                                        try:
+                                            self.h.conn.createXML(action['xml'], flags=VIR_DOMAIN_START_PAUSED)
+                                            update_domain_status('Started', action['id_domain'],
+                                                                 detail='Started after created')
+                                        except:
+                                            update_domain_status('Failed', action['id_domain'],
+                                                                 detail='Failed when starting after created')
+
+                                if check_if_start is False:
+                                    update_domain_status('Stopped', action['id_domain'], hyp_id='',
+                                                         detail='Domain {} created OK. Ready to Start'.format(
+                                                         action['id_domain']))
+
+
                             else:
                                 update_domain_status('Crashed', action['id_domain'], hyp_id=self.hyp_id,
                                                      detail='Domain is created, started in pause mode but not destroyed,creating domain operation is aborted')
                                 log.error(
-                                    'domain {} started paused but not destroyed in hypervisor {}, must be destroyed'.format(
-                                        action['id_domain'], self.hyp_id))
+                                        'domain {} started paused but not destroyed in hypervisor {}, must be destroyed'.format(
+                                                action['id_domain'], self.hyp_id))
                         else:
                             update_domain_status('Crashed', action['id_domain'], hyp_id=self.hyp_id,
                                                  detail='XML for domain {} can not start in pause mode in hypervisor {}, creating domain operation is aborted by unknown cause'.format(
-                                                     action['id_domain'], self.hyp_id))
+                                                         action['id_domain'], self.hyp_id))
                             log.error(
-                                'XML for domain {} can not start in pause mode in hypervisor {}, creating domain operation is aborted, not exception, rare case, unknown cause'.format(
-                                    action['id_domain'], self.hyp_id))
+                                    'XML for domain {} can not start in pause mode in hypervisor {}, creating domain operation is aborted, not exception, rare case, unknown cause'.format(
+                                            action['id_domain'], self.hyp_id))
 
                     except libvirtError as e:
                         from pprint import pformat

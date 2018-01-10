@@ -653,9 +653,9 @@ def populate_dict_hardware_from_create_dict(id_domain):
     # INTERFACES
     list_ids_interfaces = create_dict['hardware']['interfaces']
     new_hardware_dict['interfaces'] = create_list_interfaces_from_list_ids(list_ids_interfaces)
-    import pprint
-    pprint.pprint(new_hardware_dict)
-    print('############### domain {}'.format(id_domain))
+    #import pprint
+    #pprint.pprint(new_hardware_dict)
+    #print('############### domain {}'.format(id_domain))
     update_table_field('domains',
                        id_domain,
                        'hardware',
@@ -692,6 +692,10 @@ def create_dict_interface_hardware_from_id(id_net):
 
 def create_dict_graphics_from_id(id, pool_id):
     dict_graph = get_dict_from_item_in_table('graphics', id)
+    if dict_graph is None:
+        log.error('{} not defined as id in graphics table, value default is used'.format(id))
+        dict_graph = get_dict_from_item_in_table('graphics', 'default')
+
     type = dict_graph['type']
     d = {}
     d['type'] = type
