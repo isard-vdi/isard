@@ -136,9 +136,12 @@ $(document).ready(function() {
         
     backups_table=$('#table-backups').DataTable({
 			"ajax": {
-				"url": "/admin/table/backups/get",
-				"dataSrc": ""
+				"url": "/admin/tabletest/backups/post",
+                "contentType": "application/json",
+                "type": 'POST',
+                "data": function(d){return JSON.stringify({'order':'filename'})}
 			},
+            "sAjaxDataProp": "",
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
 			},
@@ -164,7 +167,10 @@ $(document).ready(function() {
 			 "columnDefs": [ {
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-							  return moment.unix(full.when).fromNow();
+                              if ( type === 'display' || type === 'filter' ) {
+                                    return moment.unix(full.when).fromNow();
+                              }                                 
+                              return data;  
 							}}]
     } );        
  

@@ -128,11 +128,21 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
 							  return renderStatus(full);
 							}},
-							{
-							"targets": 10,
-							"render": function ( data, type, full, meta ) {
-							  return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm"); //moment.unix(full.accessed).fromNow();
-							}},
+							//~ {
+							//~ "targets": 10,
+							//~ "render": function ( data, type, full, meta ) {
+                                //~ return full.accessed;
+                                //~ return moment.unix(full.accessed).toISOString("YYYY-MM-DD HH:mm");
+                                //~ console.log(full)
+                              //~ if(!('accessed' in full)){full['accessed']=0}
+                              //~ if ( type === 'display' || type === 'filter' ) {
+                                  //~ return moment.unix(full.accessed).fromNow();
+                                    //~ return moment.unix(full.accessed).toISOString("YYYY-MM-DD HH:mm"); //moment.unix(full.accessed).fromNow();
+                              //~ }  
+                              //~ if(data=='' || data==none){data=0}                               
+                              //~ return full.accessed;                                 
+							  //~ return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm"); //moment.unix(full.accessed).fromNow();
+							//~ }},
                             {
 							"targets": 2,
 							"render": function ( data, type, full, meta ) {

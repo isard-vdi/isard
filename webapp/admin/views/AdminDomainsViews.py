@@ -56,12 +56,16 @@ def admin_mdomains():
 @isAdmin
 def admin_domains_get(kind=False):
     if kind:
-        if kind=='Desktops': kind='desktop'
+        if kind=='Desktops': 
+            print('im a desktop kind')
+            kind='desktop'
+            #~ for d in app.adminapi.get_admin_domains(kind):
+                #~ print(len(d['history_domain']))
         if kind=='Templates': 
             return json.dumps(app.adminapi.get_admin_domains_with_derivates(kind='template')), 200, {'ContentType': 'application/json'}
         if kind=='Bases':
             return json.dumps(app.adminapi.get_admin_domains_with_derivates(kind='base')), 200, {'ContentType': 'application/json'}
-    return json.dumps(app.adminapi.get_admin_domains(kind)), 200, {'ContentType': 'application/json'}
+    return json.dumps(app.adminapi.get_admin_domains_with_derivates(kind=kind)), 200, {'ContentType': 'application/json'}
 
 @app.route('/admin/domains/xml/<id>', methods=['POST','GET'])
 @login_required

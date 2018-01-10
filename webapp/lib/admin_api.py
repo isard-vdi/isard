@@ -113,15 +113,21 @@ class isardAdmin():
                     }
                 ).run(db.conn))
                 
-    def get_admin_table(self, table, pluck=False, id=False):
+    def get_admin_table(self, table, pluck=False, id=False, order=False):
         with app.app_context():
             if id and not pluck:
-                return r.table(table).get(id).run(db.conn)
+                    return r.table(table).get(id).run(db.conn)
             if pluck and not id:
-                return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
+                if order:
+                    return self.f.table_values_bstrap(r.table(table).order_by(order).pluck(pluck).run(db.conn))
+                else:
+                    return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
             if pluck and id:
-                return r.table(table).get(id).pluck(pluck).run(db.conn)           
-            return self.f.table_values_bstrap(r.table(table).run(db.conn))
+                return r.table(table).get(id).pluck(pluck).run(db.conn) 
+            if order:
+                return self.f.table_values_bstrap(r.table(table).order_by(order).run(db.conn))
+            else:
+                return self.f.table_values_bstrap(r.table(table).run(db.conn))
 
     def get_admin_table_term(self, table, field, value, pluck=False):
         with app.app_context():
@@ -130,34 +136,60 @@ class isardAdmin():
             else:
                 return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
                                 
-    def get_admin_domains(self,kind=False):
-        with app.app_context():
-            if not kind:
-                return self.f.table_values_bstrap(r.table('domains').without('xml','hardware','create_dict').run(db.conn))
-            else:
-                 return self.f.table_values_bstrap(r.table('domains').get_all(kind,index='kind').without('xml','hardware','create_dict').run(db.conn))
+    #~ def get_admin_domains(self,kind=False):
+        #~ with app.app_context():
+            #~ if not kind:
+                #~ return self.f.table_values_bstrap(r.table('domains').without('xml','hardware','create_dict').run(db.conn))
+            #~ else:
+                 #~ return self.f.table_values_bstrap(r.table('domains').get_all(kind,index='kind').without('xml','hardware','create_dict').run(db.conn))
 
     def get_admin_domains_with_derivates(self,id=False,kind=False):
         with app.app_context():
             if 'template' in kind:
+                print('in templates')
                 if not id:
-                    return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware').merge(lambda domain:
+                    return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
-                    return list(r.table("domains").get(id).without('xml','hardware').merge(lambda domain:
+                    return list(r.table("domains").get(id).without('xml','hardware','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
+            elif kind == 'base':
+                if not id:
+                    return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware','history_domain').merge(lambda domain:
+                        {
+                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                        }
+                    ).run(db.conn))
+                if id:
+                    return list(r.table("domains").get(id).without('xml','hardware','history_domain').merge(lambda domain:
+                        {
+                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                        }
+                    ).run(db.conn))                
             else:
-               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware','history_domain').merge(lambda domain:
+               print('im in desktops')
+               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
                     {
-                        "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                        #~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count(),
+                        "accessed": domain['history_domain'][0]['when'].default(0)
+                            #~ domain['history_domain'].default('0') | 0
+                            #~ domain['history_domain'][0]['when'].default(0)
                     }
                 ).run(db.conn))
+
+    def safe_history(self,domain):
+        try:
+            #~ print('when:'+domain['history_domain'][0]['when'])
+            return domain['history_domain'][0]['when']
+        except:
+            #~ print('except:0')
+            return 0
 
     def get_admin_templates(self,term):
         with app.app_context():

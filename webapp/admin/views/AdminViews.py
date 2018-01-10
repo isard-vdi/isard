@@ -41,6 +41,24 @@ def admin_table_get(table):
             result[i].pop('job_state', None)
     return json.dumps(result), 200, {'ContentType':'application/json'} 
 
+@app.route('/admin/tabletest/<table>/post', methods=["POST"])
+@login_required
+def admin_tabletest_post(table):
+    if request.method == 'POST':
+        data=request.get_json(force=True)
+        print(data)
+        if 'pluck' not in data.keys():
+            data['pluck']=False
+        if 'order' not in data.keys():
+            data['order']=False
+            #~ result=app.adminapi.get_admin_table(table)
+        import pprint
+        
+        pprint.pprint(app.adminapi.get_admin_table(table,pluck=data['pluck'],order=data['order']))
+        result=app.adminapi.get_admin_table(table,pluck=data['pluck'],order=data['order'])
+        return json.dumps(result), 200, {'ContentType':'application/json'}
+    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+    
 @app.route('/admin/table/<table>/post', methods=["POST"])
 @login_required
 def admin_table_post(table):
@@ -48,6 +66,8 @@ def admin_table_post(table):
         data=request.get_json(force=True)
         if 'pluck' not in data.keys():
             data['pluck']=False
+        #~ if 'order' not in data.keys():
+            #~ data['order']=False
         result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'])
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
