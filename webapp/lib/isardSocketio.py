@@ -30,6 +30,7 @@ class DomainsThread(threading.Thread):
         self.stop = False
 
     def run(self):
+        starteddict={}
         with app.app_context():
             for c in r.table('domains').without('xml','hardware','viewer').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
@@ -61,10 +62,20 @@ class DomainsThread(threading.Thread):
                                 # ~ continue
                             # ~ if ip:
                                 # ~ print('EMITTED DISPOSABLE DATA')
-                            socketio.emit(event, 
-                                                json.dumps(app.isardapi.f.flatten_dict(data)), 
-                                                namespace='/sio_disposables', 
-                                                room='disposables_'+ip)                                        
+                            # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
+                            if data['status']=='Started' and c['old_val']['status']!='Started': # and data['detail']=='':
+                                print('SEND EVENT: disposables_'+ip)
+                                # ~ if starteddict=={}:
+                                    # ~ starteddict=data
+                                    # ~ starteddict['detail']='hander'
+                                # ~ else:
+                                    # ~ import pprint
+                                    # ~ pprint.pprint( dict(set(starteddict) ^ set(data)))
+                                # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
+                                socketio.emit('disposable_data', 
+                                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                                    namespace='/sio_disposables', 
+                                                    room='disposables_'+ip)                                        
                             continue
                         ## End disposables
                         
@@ -495,6 +506,7 @@ def socketio_iso_add(form_data):
 def socketio_disposables_connect():
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if app.isardapi.show_disposable(remote_addr):
+        print('JOINED:'+remote_addr)
         join_room('disposables_'+remote_addr)
     # ~ None
     #~ if current_user.role=='admin':
