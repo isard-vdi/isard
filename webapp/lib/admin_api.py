@@ -296,7 +296,7 @@ class isardAdmin():
               'status':'Initializing'}
         with app.app_context():
             r.table('backups').insert(dict).run(db.conn)
-        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status','domains_status_history','hypervisors_status_history']
+        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status','domains_status_history','hypervisors_status_history','disk_operations']
         isard_db={}
         with app.app_context():
             r.table('backups').get(id).update({'status':'Loading tables'}).run(db.conn)

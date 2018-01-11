@@ -1068,3 +1068,5 @@ class Populate(object):
         return installs
 
 
+
+### disk_operations table not used anymore (delete if exists and remove creation)
