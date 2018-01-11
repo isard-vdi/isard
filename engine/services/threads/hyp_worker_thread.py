@@ -39,7 +39,7 @@ class HypWorkerThread(threading.Thread):
                 # do={type:'start_domain','xml':'xml','id_domain'='prova'}
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
 
-                log.debug('recibe {}'.format(action['type']))
+                log.debug('received action in working thread {}'.format(action['type']))
 
                 if action['type'] == 'start_paused_domain':
                     log.debug('xml to start some lines...: {}'.format(action['xml'][30:100]))
@@ -156,8 +156,18 @@ class HypWorkerThread(threading.Thread):
                     log.debug('action stop domain: {}'.format(action['id_domain'][30:100]))
                     try:
                         self.h.conn.lookupByName(action['id_domain']).destroy()
-                        update_domain_status('Stopped', action['id_domain'], hyp_id='')
+
                         log.debug('STOPPED domain {}'.format(action['id_domain']))
+
+                        check_if_delete = action.get('delete_after_stopped',False)
+
+                        if check_if_delete is True:
+                            update_domain_status('Stopped', action['id_domain'], hyp_id='')
+                            update_domain_status('Deleting', action['id_domain'], hyp_id='')
+                        else:
+                            update_domain_status('Stopped', action['id_domain'], hyp_id='')
+
+
                     except Exception as e:
                         update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
                         log.debug('exception in stopping domain {}: '.format(e))

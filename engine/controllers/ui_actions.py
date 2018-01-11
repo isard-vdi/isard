@@ -18,7 +18,7 @@ from engine.services.db import update_domain_viewer_started_values, update_table
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
-    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind
+    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
@@ -212,25 +212,19 @@ class UiActions(object):
         else:
             self.stop_domain(id, hyp_id)
 
-    def stop_domain(self, id_domain, hyp_id):
+    def stop_domain(self, id_domain, hyp_id, delete_after_stopped=False):
         update_domain_status(status='Stopping',
                              id_domain=id_domain,
                              hyp_id=hyp_id,
                              detail='desktop stopping in hyp {}'.format(hyp_id))
-        self.manager.q.workers[hyp_id].put({'type': 'stop_domain', 'id_domain': id_domain})
-        return True
 
-    # def create_template_from_domain(self,id_new,
-    #                                 id_template,
-    #                                 name,
-    #                                 description,
-    #                                 cpu,
-    #                                 ram,
-    #                                 id_net=None,
-    #                                 force_server=None,
-    #                                 disk_filename=None):
-    #
-    #     pass
+        from pprint import pprint
+        action = {'type': 'stop_domain',
+                  'id_domain': id_domain,
+                  'delete_after_stopped': delete_after_stopped}
+
+        self.manager.q.workers[hyp_id].put(action)
+        return True
 
 
 
