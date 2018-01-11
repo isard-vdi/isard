@@ -809,27 +809,39 @@ class isard():
 
     def new_domain_disposable_from_tmpl(self, client_ip, template):
         parsed_name = self.parse_string(client_ip)
-        parsed_name = client_ip.replace(".", "_")        
+        parsed_name = client_ip.replace(".", "_") 
+        old_rnd=False       
         with app.app_context():
-            exists_domain=r.table('domains').get('_disposable_'+parsed_name).run(db.conn)
-            if exists_domain is not None:
-                print('EL DOMINI JA EXISTEIX!!!!')
-                r.table('domains').get('_disposable_'+parsed_name).update({'status':'Unknown'}).run(db.conn)
-                r.table('domains').get('_disposable_'+parsed_name).update({'status':'CreatingAndStarting'}).run(db.conn)
-                return '_disposable_'+parsed_name
+            # Check if exists disposable for that ip (parsed name)
+            exists_domain = list(r.table('domains').filter(lambda domain:
+                                                    domain['id'].match('^_disposable_'+parsed_name+'_')
+                                                ).run(db.conn))
+            if len(exists_domain) > 1:
+                log.error('More than one disposable domain match beginning with _disposable_'+parsed_name)
+                return False
+            if len(exists_domain) == 1:
+                # If only one exists, stop, deleteit!
+                old_rnd=exists_domain[0]['id'].split('_')[-1]
+                r.table('domains').get(exists_domain[0]['id']).update({'status':'StoppingAndDeleting'}).run(db.conn)
+            # Create new disposable
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
             dom=app.isardapi.get_domain(template, flatten=False)
-        #~ log.info('template:'+template)
-        #~ log.info(dom)
+
         parent_disk=dom['hardware']['disks'][0]['file']
         create_dict=dom['create_dict']
 
-
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        from string import digits, ascii_lowercase
+        chars = digits + ascii_lowercase
+        new_rnd=old_rnd
+        while new_rnd==old_rnd: new_rnd="".join([random.choice(chars) for i in range(4)])
+        
+        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name+'_'+new_rnd)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'parent':parent_disk}]
 
-        new_domain={'id': '_disposable_'+parsed_name,
+
+        
+        new_domain={'id': '_disposable_'+parsed_name+'_'+new_rnd,
                   'name': parsed_name,
                   'description': 'Disposable desktop',
                   'kind': 'desktop',

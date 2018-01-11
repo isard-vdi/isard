@@ -42,6 +42,7 @@ class DomainsThread(threading.Thread):
                     else:
                         if not c['new_val']['id'].startswith('_'): continue
                         data=c['new_val'] 
+                        data['accessed']=time.time()
                           
                         ## Disposables on login
                         if data['user']=='disposable':
@@ -50,16 +51,17 @@ class DomainsThread(threading.Thread):
                             socketio.emit(event, 
                                             json.dumps(app.isardapi.f.flatten_dict(data)), 
                                             namespace='/sio_admins', 
-                                            room='domains')                              
-                            ip=False
-                            try:
-                                ip=data['viewer']['client_addr']
-                            except Exception as e:
-                                # ~ print(data['id']+' is disposable but has no viewer client addr')
-                                continue
-                            if ip:
+                                            room='domains')   
+                                                                       
+                            ip=data['name'].replace('_','.')
+                            # ~ try:
+                                # ~ ip=data['viewer']['client_addr']
+                            # ~ except Exception as e:
+                                # ~ # print(data['id']+' is disposable but has no viewer client addr')
+                                # ~ continue
+                            # ~ if ip:
                                 # ~ print('EMITTED DISPOSABLE DATA')
-                                socketio.emit(event, 
+                            socketio.emit(event, 
                                                 json.dumps(app.isardapi.f.flatten_dict(data)), 
                                                 namespace='/sio_disposables', 
                                                 room='disposables_'+ip)                                        
@@ -493,12 +495,8 @@ def socketio_iso_add(form_data):
 def socketio_disposables_connect():
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if app.isardapi.show_disposable(remote_addr):
-        import pprint
-        print(remote_addr)
-        pprint.pprint(app.isardapi.show_disposable(remote_addr))
-        print('JOINED DISPOSABLE: '+remote_addr.replace('.','_'))
         join_room('disposables_'+remote_addr)
-    None
+    # ~ None
     #~ if current_user.role=='admin':
         #~ join_room('disposable_'+ip)
         #~ socketio.emit('user_quota', 
@@ -518,7 +516,7 @@ def socketio_disposables_add(data):
     template=data['pk'] ##request.get_json(force=True)['pk']
     ## Checking permissions
     disposables = app.isardapi.show_disposable(remote_addr)
-    print([d['id'] for d in disposables['disposables'] if d['id']==template])
+    # ~ print([d['id'] for d in disposables['disposables'] if d['id']==template])
     if disposables and len([d['id'] for d in disposables['disposables'] if d['id']==template]):
         id=app.isardapi.new_domain_disposable_from_tmpl(remote_addr,template)
     else:
@@ -542,13 +540,10 @@ def socketio_disposables_add(data):
     # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
     # ~ create_dict=parseHardware(create_dict)
     # ~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
-    print('ID IS: '+str(id))
     if id:
         data=json.dumps({'result':True,'title':'New disposable','text':'Disposable '+id+' for your client is being created. Please wait...','icon':'success','type':'success'})
     else:
         data=json.dumps({'result':True,'title':'New disposable','text':'Disposable for your can\'t be created. Please try again.','icon':'warning','type':'error'})
-    print('disposables_'+remote_addr)
-    print(data)
     socketio.emit('result',
                     data,
                     namespace='/sio_disposables', 

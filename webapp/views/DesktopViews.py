@@ -104,25 +104,25 @@ def viewer_download(os,id):
                     #~ 'passwd':domain['viewer']['passwd']}
         
          
-#~ Serves desktops and templates (domains)
-# ~ @app.route('/domains/update', methods=['POST'])
-# ~ @login_required
-# ~ @ownsid
-# ~ def domains_update():
-    # ~ if request.method == 'POST':
-        # ~ try:
-            # ~ args = request.get_json(force=True)
-        # ~ except:
-            # ~ args = request.form.to_dict()
-        # ~ try:
-            # ~ if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
-                 # ~ return json.dumps('Quota for starting domains full.'), 500, {'ContentType':'application/json'}
-            # ~ if app.isardapi.update_table_value('domains', args['pk'], args['name'], args['value']):
-                # ~ return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-            # ~ else:
-                # ~ return json.dumps('This is not a valid value.'), 500, {'ContentType':'application/json'}
-        # ~ except Exception as e:
-            # ~ return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
+# ~ #~ Serves desktops and templates (domains)
+@app.route('/domains/update', methods=['POST'])
+@login_required
+@ownsid
+def domains_update():
+    if request.method == 'POST':
+        try:
+            args = request.get_json(force=True)
+        except:
+            args = request.form.to_dict()
+        try:
+            if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                 return json.dumps('Quota for starting domains full.'), 500, {'ContentType':'application/json'}
+            if app.isardapi.update_table_value('domains', args['pk'], args['name'], args['value']):
+                return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+            else:
+                return json.dumps('This is not a valid value.'), 500, {'ContentType':'application/json'}
+        except Exception as e:
+            return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
 
 
 #~ from pprint import pprint
