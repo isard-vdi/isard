@@ -96,9 +96,9 @@ class HypWorkerThread(threading.Thread):
                                     if action['start_after_created'] is True:
                                         check_if_start = True
                                         try:
-                                            self.h.conn.createXML(action['xml'], flags=VIR_DOMAIN_START_PAUSED)
-                                            update_domain_status('Started', action['id_domain'],
+                                            update_domain_status('Starting', action['id_domain'],
                                                                  detail='Started after created')
+                                            self.h.conn.createXML(action['xml'])
                                         except:
                                             update_domain_status('Failed', action['id_domain'],
                                                                  detail='Failed when starting after created')
