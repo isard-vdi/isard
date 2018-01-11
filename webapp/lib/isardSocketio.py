@@ -378,6 +378,32 @@ def socketio_iso_update(data):
                     
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
+    if current_user.role == 'admin': sendViewer(data)
+    id=data['pk']
+            
+    if id.startswith('_'+current_user.id+'_'):
+        sendViewer(data)
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr)     
+    
+@socketio.on('disposable_viewer', namespace='/sio_disposables')
+def socketio_domains_viewer(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        sendViewer(data)
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr)        
+
+                        
+def sendViewer(data):                        
     #~ if data['kind'] == 'file':
         #~ consola=app.isardapi.get_viewer_ticket(data['pk'])
         #~ viewer=''
@@ -390,15 +416,22 @@ def socketio_domains_viewer(data):
     if data['kind'] == 'html5':
         viewer=app.isardapi.get_domain_spice(data['pk'])
         ##### Change this when engine opens ports accordingly (without tls)
+    if viewer is not False:
         if viewer['port']:
             viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
             viewer['port'] = "5"+ viewer['port']
-        #~ viewer['port']=viewer['port']-1
-    socketio.emit('domain_viewer',
-                    json.dumps({'kind':data['kind'],'viewer':viewer}),
-                    namespace='/sio_users', 
-                    room='user_'+current_user.username)
-
+            #~ viewer['port']=viewer['port']-1
+        socketio.emit('domain_viewer',
+                        json.dumps({'kind':data['kind'],'viewer':viewer}),
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)
+                        
 @socketio.on('domain_add', namespace='/sio_users')
 def socketio_domains_add(form_data):
     #~ Check if user has quota and rights to do it

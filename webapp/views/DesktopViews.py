@@ -77,10 +77,15 @@ def desktops_get(kind='username'):
 @ownsid
 def viewer_download(os,id):
     #~ if type == 'file':
+    # ~ viewer=app.isardapi.get_viewer_ticket(id,os)
+    try:
         extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
         return Response(consola, 
-                        mimetype=mimetype,
-                        headers={"Content-Disposition":"attachment;filename=consola."+extension})
+                    mimetype=mimetype,
+                    headers={"Content-Disposition":"attachment;filename=consola."+extension})
+    except Exception as e:
+        print('Download viewer error:'+str(e))
+        return Response('Error in viewer',mimetype='application/txt')
     #~ if type == 'xpi':
         #~ dict=app.isardapi.get_spice_xpi(id)
         #~ return json.dumps(dict), 200, {'ContentType:':'application/json'}
@@ -103,7 +108,15 @@ def viewer_download(os,id):
                     #~ 'domain':viewer['domain'],
                     #~ 'passwd':domain['viewer']['passwd']}
         
-         
+@app.route('/disposable/download_viewer/<os>/<id>')
+def viewer_disposable_download(os,id):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if id.startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
+        return Response(consola, 
+                        mimetype=mimetype,
+                        headers={"Content-Disposition":"attachment;filename=consola."+extension})
+                        
 # ~ #~ Serves desktops and templates (domains)
 @app.route('/domains/update', methods=['POST'])
 @login_required
