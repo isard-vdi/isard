@@ -52,10 +52,6 @@ function startClientViewerSocket(socket){
     
 
 function getClientViewer(data,socket){
-    
-    
-    
-    
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
                     if(isXpiBlocked()){

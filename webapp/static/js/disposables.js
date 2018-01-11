@@ -19,8 +19,6 @@ $(document).ready(function() {
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_disposables');
      
     socket.on('connect', function() {
-        //~ connection_done();
-        //~ socket.emit('join_client',['domains'])
         console.log('Listening disposables namespace');
     });
 

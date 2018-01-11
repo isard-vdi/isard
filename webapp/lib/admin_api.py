@@ -146,7 +146,6 @@ class isardAdmin():
     def get_admin_domains_with_derivates(self,id=False,kind=False):
         with app.app_context():
             if 'template' in kind:
-                print('in templates')
                 if not id:
                     return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                         {
@@ -173,7 +172,6 @@ class isardAdmin():
                         }
                     ).run(db.conn))                
             else:
-               print('im in desktops')
                return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
                     {
                         #~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count(),
@@ -364,6 +362,8 @@ class isardAdmin():
                     log.info("Restoring table {}".format(k))
                     with app.app_context():
                         r.table('backups').get(id).update({'status':'Updating table: '+k}).run(db.conn)
+                    # Avoid updating admin user!
+                    if k == 'users': v[:] = [u for u in v if u.get('id') != 'admin']
                     log.info(r.table(k).insert(v, conflict='update').run(db.conn))
         with app.app_context():
             r.table('backups').get(id).update({'status':'Finished restoring'}).run(db.conn)

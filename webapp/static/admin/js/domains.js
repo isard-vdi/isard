@@ -32,14 +32,6 @@ if(url!="Desktops"){
 }
 
 $(document).ready(function() {
-	//~ $('#test').on( 'click', function () {
-		//~ data={'id':'_eea1554300_LOGO','id2':'_cpr585864606_QWERTT','id3':'_isx47893266_ServerJournal'}
-		//~ console.log('Invisible: '+domains_table.row('#'+data.id).id())
-		//~ console.log('Visible tb: '+domains_table.row('#'+data.id3).id())
-		//~ console.log('Inexistent: '+domains_table.row('#xxxyyy').id())
-		//~ if(typeof(domains_table.row('#'+data.id3).id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
-		//~ if(typeof(domains_table.row('#xxxyyy').id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
-	//~ });
     modal_add_builder = $('#modal_add_builder').DataTable()
 	initialize_modal_all_builder_events()
 
@@ -50,10 +42,6 @@ $(document).ready(function() {
 	initialize_modal_all_isos_events()
            
 	$('.add-new-virtbuilder').on( 'click', function () {
-                                //~ //Remove when engine does the job
-                                    //~ api.ajax('/admin/domains/virtrebuild','GET',{}).done(function(data) {
-                                                //~ console.log(data)
-                                                    //~ });  
 			setHardwareOptions('#modalAddFromBuilder');
             $("#modalAddFromBuilder #modalAdd")[0].reset();
 			$('#modalAddFromBuilder').modal({
@@ -67,10 +55,6 @@ $(document).ready(function() {
 	});
 
 	$('.add-new-iso').on( 'click', function () {
-                                //~ //Remove when engine does the job
-                                    //~ api.ajax('/admin/domains/virtrebuild','GET',{}).done(function(data) {
-                                                //~ console.log(data)
-                                                    //~ });  
 			setHardwareOptions('#modalAddFromIso');
             $("#modalAddFromIso #modalAdd")[0].reset();
 			$('#modalAddFromIso').modal({
@@ -332,16 +316,6 @@ $(document).ready(function() {
     socket.on(kind+'_data', function(data){
         var data = JSON.parse(data);
         dtUpdateInsert(domains_table,data,false);
-        //~ applyData(domains_table,data,false)
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ domains_table.row.add(data).draw();
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = domains_table.row('#'+data.id); 
-          //~ domains_table.row(row).data(data).invalidate();			
-		//~ }
-        //~ domains_table.draw(false);
         setDomainDetailButtonsStatus(data.id, data.status);
     });
     
@@ -410,72 +384,6 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-
-
-    //~ // Stream domains_source
-	//~ if (!!window.EventSource) {
-	  //~ var domains_source = new EventSource('/admin/stream/domains');
-      //~ console.log('Listening domains...');
-	//~ } else {
-	  // Result to xhr polling :(
-	//~ }
-
-	//~ window.onbeforeunload = function(){
-	  //~ domains_source.close();
-	//~ };
-
-	//~ domains_source.addEventListener('open', function(e) {
-	  //~ // Connection was opened.
-	//~ }, false);
-
-	//~ domains_source.addEventListener('error', function(e) {
-	  //~ if (e.readyState == EventSource.CLOSED) {
-		//~ // Connection was closed.
-	  //~ }
-     
-	//~ }, false);
-
-	//~ domains_source.addEventListener('New', function(e) {
-	  //~ var data = JSON.parse(e.data);
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ domains_table.row.add(data).draw();
-            //~ new PNotify({
-                //~ title: "Domain added",
-                //~ text: "Domain "+data.name+" has been created",
-                //~ hide: true,
-                //~ delay: 2000,
-                //~ icon: 'fa fa-success',
-                //~ opacity: 1,
-                //~ type: 'success'
-            //~ });          
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = table.row('#'+data.id); 
-          //~ domains_table.row(row).data(data);			
-		//~ }
-	//~ }, false);
-
-	//~ domains_source.addEventListener('Status', function(e) {
-          //~ var data = JSON.parse(e.data);
-          //~ var row = domains_table.row('#'+data.id); 
-          //~ domains_table.row(row).data(data);
-          //~ setDomainDetailButtonsStatus(data.id, data.status);
-	//~ }, false);
-
-	//~ domains_source.addEventListener('Deleted', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ var row = table.row('#'+data.id).remove().draw();
-            //~ new PNotify({
-                //~ title: "Domain deleted",
-                //~ text: "Domain "+data.name+" has been deleted",
-                //~ hide: true,
-                //~ delay: 2000,
-                //~ icon: 'fa fa-success',
-                //~ opacity: 1,
-                //~ type: 'info'
-            //~ });
-	//~ }, false);
     
 });
 
@@ -685,10 +593,6 @@ function modal_edit_desktop_datatables(id){
 			$('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
             setHardwareDomainDefaults('#modalEditDesktop', id);
-            //~ $('#modalEditDesktop #hardware-interfaces').val(data['create_dict-hardware-interfaces'][0]);
-            //~ $('#modalEditDesktop #hardware-vcpus').val(data['create_dict-hardware-vcpus']);
-            //~ $hm.value = 5; //parseInt(data['create_dict-hardware-vcpus'])
-            //~ $('#modalEditDesktop #datatables-error-status').val(data);
 		}				
 	});
 }

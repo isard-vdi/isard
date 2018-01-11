@@ -274,6 +274,9 @@ $(document).ready(function() {
                                         backup_table_detail=$('#backup-table-detail').DataTable( {
                                             data: data,
                                             rowId: 'id',
+                                            //~ language: {
+                                                //~ "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+                                            //~ },
                                             columns: [
                                                 { "data": "id"},
                                                 { "data": "new_backup_data"},
