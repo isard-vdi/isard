@@ -251,7 +251,7 @@ $(document).ready(function() {
 
 
                             //~ backup_table_detail=''
-                            $('#backup-tables').on('change', function (e) {
+    $('#backup-tables').on('change', function (e) {
                                 //~ var optionSelected = $("option:selected", this);
                                 //~ console.log(optionSelected)
                                 var valueSelected = this.value;
@@ -278,8 +278,8 @@ $(document).ready(function() {
                                                 //~ "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
                                             //~ },
                                             columns: [
-                                                { "data": "id"},
-                                                { "data": "new_backup_data"},
+                                                { "data": "id", "width": "88px"},
+                                                { "data": "description", "width": "88px"},
                                                 {
                                                 "className":      'actions-control',
                                                 "orderable":      false,
@@ -289,6 +289,15 @@ $(document).ready(function() {
                                                 },
                                                 ],
                                              "order": [[0, 'asc']],
+                                             "columnDefs": [ {
+                                                            "targets": 2,
+                                                            "render": function ( data, type, full, meta ) {
+                                                              if(full.new_backup_data){
+                                                                  return '<button class="btn btn-xs btn-individual-restore" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i>New</button>';
+                                                              }else{
+                                                                  return '<button class="btn btn-xs btn-individual-restore" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i>Exists</button>'
+                                                              }
+                                                            }}]
                                         } );
                                     }
                                                     $('.btn-individual-restore').on('click', function (e){
@@ -307,12 +316,56 @@ $(document).ready(function() {
                                                                 }).get().on('pnotify.confirm', function() {
                                                                     api.ajax('/admin/restore/'+table,'POST',{'data':data,}).done(function(data1) {
                                                                         api.ajax('/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':table}).done(function(data2) {
-                                                                            backup_table_detail.clear().rows.add(data2).draw()
+                                                                            data['new_backup_data']=false
+                                                                            dtUpdateInsert(backup_table_detail,data,false);
+                                                                            //~ setDomainDetailButtonsStatus(data.id, data.status);
+                                                                            //~ backup_table_detail.clear().rows.add(data2).draw()
                                                                         });
                                                                     });  
                                                                 }).on('pnotify.cancel', function() {
                                                         });	                                                        
-                                                    });                                    
+                                                    }); 
+                                                    
+                                                    $('.btn-bulk-restore').on('click', function(e) {
+                                                        names=''
+                                                        ids=[]
+                                                        if(backup_table_detail.rows('.active').data().length){
+                                                            $.each(backup_table_detail.rows('.active').data(),function(key, value){
+                                                                names+=value['name']+'\n';
+                                                                ids.push(value['id']);
+                                                            });
+                                                            var text = "You are about to restore these desktops:\n\n "+names
+                                                        }else{ 
+                                                            $.each(backup_table_detail.rows({filter: 'applied'}).data(),function(key, value){
+                                                                ids.push(value['id']);
+                                                            });
+                                                            var text = "You are about to restore "+backup_table_detail.rows({filter: 'applied'}).data().length+". All the desktops in list!"
+                                                        }
+                                                                new PNotify({
+                                                                        title: 'Warning!',
+                                                                            text: text,
+                                                                            hide: false,
+                                                                            opacity: 0.9,
+                                                                            confirm: {
+                                                                                confirm: true
+                                                                            },
+                                                                            buttons: {
+                                                                                closer: false,
+                                                                                sticker: false
+                                                                            },
+                                                                            history: {
+                                                                                history: false
+                                                                            },
+                                                                            stack: stack_center
+                                                                        }).get().on('pnotify.confirm', function() {
+                                                                            //~ api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                                                                                //~ $('#mactions option[value="none"]').prop("selected",true);
+                                                                            //~ }); 
+                                                                        }).on('pnotify.cancel', function() {
+                                                                            //~ $('#mactions option[value="none"]').prop("selected",true);
+                                                                });                                                        
+                                                        
+                                                    });                                
                                     
                                     
                                 });

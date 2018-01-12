@@ -411,23 +411,41 @@ class isardAdmin():
             pass
         return tbl_data,isard_db
 
+    #~ def check_new_values(self,table,new_data):
+        #~ data=[]
+        #~ actual_data=list(r.table(table).run(db.conn))
+        #~ for n in new_data:
+            #~ found=False
+            #~ for a in actual_data:
+                #~ if n['id']==a['id']:
+                    #~ cp=n.copy()
+                    #~ cp['new_backup_data']=False
+                    #~ data.append(cp)
+                    #~ found=True
+                    #~ break
+            #~ if not found:
+                #~ cp=n.copy()
+                #~ cp['new_backup_data']=True
+                #~ data.append(cp)
+        #~ return data
+
     def check_new_values(self,table,new_data):
-        data=[]
-        actual_data=list(r.table(table).run(db.conn))
-        for n in new_data:
+        backup=new_data
+        dbb=list(r.table(table).run(db.conn))
+        result=[]
+        for b in backup:
             found=False
-            for a in actual_data:
-                if n['id']==a['id']:
-                    cp=n.copy()
-                    cp['new_backup_data']=False
-                    data.append(cp)
+            for d in dbb:
+                if d['id']==b['id']:
                     found=True
+                    b['new_backup_data']=False
+                    result.append(b)
                     break
-            if not found:
-                cp=n.copy()
-                cp['new_backup_data']=True
-                data.append(cp)
-        return data
+            if not found: 
+                b['new_backup_data']=True
+                result.append(b)
+        return result
+        
         #~ from operator import itemgetter
         #~ new_data, actual_data = [sorted(l, key=itemgetter('id')) 
                               #~ for l in (new_data, actual_data)]        
