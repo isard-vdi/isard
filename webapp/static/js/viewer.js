@@ -36,15 +36,14 @@ function startClientViewerSocket(socket){
         }        
         
          if(data['kind']=='file'){
-            //~ viewer=data['viewer']
-            var url = '/desktops/viewer/file/'+data['id'];
-            var anchor = document.createElement('a');
-                anchor.setAttribute('href', url);
-                anchor.setAttribute('download', 'console.vv');
+            var viewerFile = new Blob([data['content']], {type: data['mime']});
+            var a = document.createElement('a');
+                a.download = 'console.'+data['ext'];
+                a.href = window.URL.createObjectURL(viewerFile);
             var ev = document.createEvent("MouseEvents");
                 ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                anchor.dispatchEvent(ev);        
-        }
+                a.dispatchEvent(ev);              
+                    }
     });
 
 
@@ -111,15 +110,7 @@ function getClientViewer(data,socket){
                                                     sticker: false
                                                 }
                                             });
-                                            //~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
-                                            
-                                                var url = '/desktops/download_viewer/'+getOS()+'/'+data['id'];
-                                                var anchor = document.createElement('a');
-                                                    anchor.setAttribute('href', url);
-                                                    anchor.setAttribute('download', 'console.vv');
-                                                var ev = document.createEvent("MouseEvents");
-                                                    ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                                                    anchor.dispatchEvent(ev);                                              
+                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
                                         }
                                     },
                                 ]
