@@ -146,7 +146,6 @@ class isardAdmin():
     def get_admin_domains_with_derivates(self,id=False,kind=False):
         with app.app_context():
             if 'template' in kind:
-                print('in templates')
                 if not id:
                     return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                         {
@@ -173,7 +172,6 @@ class isardAdmin():
                         }
                     ).run(db.conn))                
             else:
-               print('im in desktops')
                return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
                     {
                         #~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count(),
@@ -364,6 +362,8 @@ class isardAdmin():
                     log.info("Restoring table {}".format(k))
                     with app.app_context():
                         r.table('backups').get(id).update({'status':'Updating table: '+k}).run(db.conn)
+                    # Avoid updating admin user!
+                    if k == 'users': v[:] = [u for u in v if u.get('id') != 'admin']
                     log.info(r.table(k).insert(v, conflict='update').run(db.conn))
         with app.app_context():
             r.table('backups').get(id).update({'status':'Finished restoring'}).run(db.conn)
@@ -411,23 +411,41 @@ class isardAdmin():
             pass
         return tbl_data,isard_db
 
+    #~ def check_new_values(self,table,new_data):
+        #~ data=[]
+        #~ actual_data=list(r.table(table).run(db.conn))
+        #~ for n in new_data:
+            #~ found=False
+            #~ for a in actual_data:
+                #~ if n['id']==a['id']:
+                    #~ cp=n.copy()
+                    #~ cp['new_backup_data']=False
+                    #~ data.append(cp)
+                    #~ found=True
+                    #~ break
+            #~ if not found:
+                #~ cp=n.copy()
+                #~ cp['new_backup_data']=True
+                #~ data.append(cp)
+        #~ return data
+
     def check_new_values(self,table,new_data):
-        data=[]
-        actual_data=list(r.table(table).run(db.conn))
-        for n in new_data:
+        backup=new_data
+        dbb=list(r.table(table).run(db.conn))
+        result=[]
+        for b in backup:
             found=False
-            for a in actual_data:
-                if n['id']==a['id']:
-                    cp=n.copy()
-                    cp['new_backup_data']=False
-                    data.append(cp)
+            for d in dbb:
+                if d['id']==b['id']:
                     found=True
+                    b['new_backup_data']=False
+                    result.append(b)
                     break
-            if not found:
-                cp=n.copy()
-                cp['new_backup_data']=True
-                data.append(cp)
-        return data
+            if not found: 
+                b['new_backup_data']=True
+                result.append(b)
+        return result
+        
         #~ from operator import itemgetter
         #~ new_data, actual_data = [sorted(l, key=itemgetter('id')) 
                               #~ for l in (new_data, actual_data)]        

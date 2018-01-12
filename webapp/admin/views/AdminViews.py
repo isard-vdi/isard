@@ -46,15 +46,14 @@ def admin_table_get(table):
 def admin_tabletest_post(table):
     if request.method == 'POST':
         data=request.get_json(force=True)
-        print(data)
         if 'pluck' not in data.keys():
             data['pluck']=False
         if 'order' not in data.keys():
             data['order']=False
             #~ result=app.adminapi.get_admin_table(table)
-        import pprint
+        #~ import pprint
         
-        pprint.pprint(app.adminapi.get_admin_table(table,pluck=data['pluck'],order=data['order']))
+        #~ pprint.pprint(app.adminapi.get_admin_table(table,pluck=data['pluck'],order=data['order']))
         result=app.adminapi.get_admin_table(table,pluck=data['pluck'],order=data['order'])
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
@@ -139,7 +138,7 @@ def admin_disposable_add():
         dsps=[]
         #~ Next 2 lines should be removed when form returns a list
         nets=[request.form['nets']]
-        print(request.form)
+        #~ print(request.form)
         disposables=request.form.getlist('disposables')
         #~ disposables=[request.form['disposables']]
         for d in disposables:
@@ -191,7 +190,7 @@ def admin_restore():
 def admin_restore_table(table):
     global backup_data,backup_db
     if request.method == 'POST':
-        print(table)
+        #~ print(table)
         data=request.get_json(force=True)['data']
         insert=data['new_backup_data']
         data.pop('new_backup_data',None)

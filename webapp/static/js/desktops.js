@@ -558,10 +558,6 @@ function modal_add_desktop_datatables(){
 
 
 
-//~ window.ParsleyConfig = {
-    //~ excluded: 'input[type=button], input[type=submit], input[type=reset]',
-    //~ inputs: 'input, textarea, select, input[type=hidden], :hidden',
-//~ };
 
 }
 
@@ -625,10 +621,6 @@ function modal_edit_desktop_datatables(id){
 			$('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
             setHardwareDomainDefaults('#modalEditDesktop', id);
-            //~ $('#modalEditDesktop #hardware-interfaces').val(data['create_dict-hardware-interfaces'][0]);
-            //~ $('#modalEditDesktop #hardware-vcpus').val(data['create_dict-hardware-vcpus']);
-            //~ $hm.value = 5; //parseInt(data['create_dict-hardware-vcpus'])
-            //~ $('#modalEditDesktop #datatables-error-status').val(data);
 		}				
 	});
   
