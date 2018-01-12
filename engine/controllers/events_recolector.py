@@ -327,7 +327,10 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
             if d_status_hyp_started['status'] != domEventToString(event) \
                     and domEventToString(event) in ['Started', 'Stopped', 'Suspended']:
                 previous_status = get_domain_status(dom.name())
-                if previous_status in ['CreatingDomain']:
+                if previous_status in ['CreatingDomain',
+                                       'Deleting',
+                                       'DeletingDomainDisk',
+                                       'DiskDeleted']:
                     # domain continues in the previous status
 
                     # update_domain_status(id_domain=dom.name(),
