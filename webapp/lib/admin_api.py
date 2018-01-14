@@ -21,6 +21,7 @@ from .flask_rethink import RethinkDB
 db = RethinkDB(app)
 db.init_app(app)
 
+from ..auth.authentication import Password
 
 class isardAdmin():
     def __init__(self):
@@ -276,6 +277,28 @@ class isardAdmin():
     def getUnflatten(self,dict):
         f=flatten()
         return f.unflatten_dict(dict)
+
+    '''
+    USERS
+    '''
+    def add_user(self,user):
+        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
+        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
+        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
+        p = Password()
+        usr = {'kind': 'local',
+               'active': True,
+                'accessed': time.time(),
+                'password': p.encrypt(user['password'])}
+        del user['password']
+        user={**usr, **user}
+        qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                    'templates_disk_max': 99999999,
+                    'isos_disk_max': 99999999}
+        user['quota']['domains']={**qdomains, **user['quota']['domains']}
+        import pprint
+        pprint.pprint(user)
+        res=True
 
     '''
     BACKUP & RESTORE

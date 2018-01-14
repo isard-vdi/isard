@@ -347,6 +347,27 @@ def start_config_thread():
         threads['config'].start()
         log.info('ConfigThread Started')
 
+
+## Users namespace
+@socketio.on('user_add', namespace='/sio_admins')
+def socketio_user_add(form_data):
+    if current_user.role == 'admin': 
+        create_dict=app.isardapi.f.unflatten_dict(form_data)
+        # ~ create_dict=parseHardware(create_dict)
+        print(create_dict)
+        res=app.adminapi.add_user(create_dict)
+        # ~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+        res=True
+        if res is True:
+            data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='users')
+                    
+                    
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')
 def socketio_users_connect():

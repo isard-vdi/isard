@@ -25,18 +25,19 @@ USERS
 @app.route('/admin/users', methods=['POST','GET'])
 @login_required
 def admin_users():
-    res=True
-    if request.method == 'POST':
-        create_dict=app.isardapi.f.unflatten_dict(request.form)
-        create_dict.pop('password2', None)
-        create_dict['kind']='local'
-        
-        if res is True:
-            flash('Hypervisor '+create_dict['id']+' added to the system.','success')
-            return redirect(url_for('admin_users'))
-        else:
-            flash('Could not create user. Maybe you have one with the same name?','danger')
-            return redirect(url_for('admin_users'))
+    # ~ res=True
+    # ~ if request.method == 'POST':
+        # ~ create_dict=app.isardapi.f.unflatten_dict(request.form)
+        # ~ create_dict.pop('password2', None)
+        # ~ create_dict['kind']='local'
+        # ~ import pprint
+        # ~ pprint.pprint(create_dict)
+        # ~ if res is True:
+            # ~ flash('Hypervisor '+create_dict['id']+' added to the system.','success')
+            # ~ return redirect(url_for('admin_users'))
+        # ~ else:
+            # ~ flash('Could not create user. Maybe you have one with the same name?','danger')
+            # ~ return redirect(url_for('admin_users'))
 
     return render_template('admin/pages/users.html', nav="Users")
 

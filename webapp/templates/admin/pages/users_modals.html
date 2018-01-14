@@ -17,7 +17,7 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 
-              <form id="modalAddUserForm" class="form-horizontal form-label-left" action="{{ url_for('admin_users') }}" method="POST" novalidate>
+              <form id="modalAddUserForm" class="form-horizontal form-label-left">
 			  <div class="x_panel">
 					<div class="x_content">
 <!--
@@ -34,7 +34,17 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Username <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
+							<input id="id" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="id" placeholder="Login username" data-parsley-trigger="change" required type="text">
+<!--
                            <input id="id" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="id" placeholder="Login username" required="required" type="text">
+-->
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Mail
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="mail" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="mail" placeholder="Login username" type="email" data-parsley-trigger="change">
                         </div>
                      </div>
                       <div class="item form-group">
@@ -52,21 +62,21 @@
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <select id="role" class="form-control" required>
+                           <select id="role" name="role" class="form-control" required>
                            </select>
                         </div>
                      </div>
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <select id="category" class="form-control" required>
+                           <select id="category" name="category" class="form-control" required>
                            </select>
                         </div>
                      </div>   
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <select id="group" class="form-control" required>
+                           <select id="group" name="group" class="form-control" required>
                            </select>
                         </div>
                      </div>                                       
@@ -90,7 +100,7 @@
                      <div class="form-group">
                         <div class="col-md-6 col-md-offset-3">
                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="submit" class="btn btn-success">Create domain</button>
+                           <button id="send" type="button" class="btn btn-success">Create user</button>
                         </div>
                      </div>
             </div>
