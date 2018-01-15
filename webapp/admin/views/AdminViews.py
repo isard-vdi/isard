@@ -34,6 +34,7 @@ def admin():
  
 @app.route('/admin/table/<table>/get')
 @login_required
+@isAdmin
 def admin_table_get(table):
     result=app.adminapi.get_admin_table(table)
     if table == 'scheduler_jobs': 
