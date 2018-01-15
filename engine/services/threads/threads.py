@@ -47,7 +47,7 @@ def threading_enumerate():
     l = [t._Thread__name for t in e]
     l.sort()
     for i in l:
-        log.debug('Thread running: {}'.format(i))
+        threads_log.debug('Thread running: {}'.format(i))
     return e
 
 

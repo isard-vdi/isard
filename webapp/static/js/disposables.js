@@ -9,7 +9,7 @@ $(document).ready(function() {
             $('#disposable').on('change', function() {
                 if(this.value!="default"){
                     socket.emit('disposables_add',{'pk':this.value}) 
-                    $('#disposable').prop("disabled",true);
+                    //$('#disposable').prop("disabled",true);
                     $('#disposable option[value="default"]').text(' Wait till '+$("#disposable option[value='"+this.value+"']").text()+' viewer opens...');
                     $('#disposable option[value="default"]').prop("selected",true);
                 }
