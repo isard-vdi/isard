@@ -129,6 +129,23 @@
 </td></tr>
 </table>
   </body>
+  
+    <div id="registerModal" class="modalDialog">
+        <div><a href="#close" title="Close" class="close">X</a>
+            <h2>Do you want to access updates and demo domains on IsardVDI?</h2>
+            <p>No personal information will be registered.</p>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="registerCancel" type="button" class="btn btn-info" style="display: none;">No</button></li>
+                    <li><button id="registerOK" type="button" class="btn btn-success">Yes</button></li>
+                   </li>
+                </ul>            
+<!--
+            <pre><code>sudo dnf install npm && npm -g install yarn</code></pre>
+            <pre><code>yarn</code></pre>
+            <p><a href="https://yarnpkg.com/lang/en/docs/install/" target="_blank">https://yarnpkg.com/lang/en/docs/install/</a></p>
+-->
+        </div>
+    </div>
     <!-- jQuery -->
     <script src="/vendors/jquery/dist/jquery.min.js"></script>
     
@@ -143,7 +160,14 @@
 
 <script type="text/javascript">
 $(document).ready(function(){
-    // Smart Wizard         
+    // Smart Wizard  
+    
+
+			$('#registerModal').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+
     $('#wizard').smartWizard({
         contentURL:'/content',
         contentCache:false,

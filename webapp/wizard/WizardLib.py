@@ -304,6 +304,8 @@ class Wizard():
                     msg='Javascript and CSS libraries not found. Please install it running yarn on install folder.'
                     return render_template('missing_yarn.html',chk=chk, msg=msg.split('\n'))
                 return render_template('wizard_main.html',chk=chk, msg=msg.split('\n'))
+                
+                
                 if not chk['config']:
                     msg+='\nIsard main configuration file isard.conf missing. Please copy (or rename) isard.conf.default to isard.conf.'
                     return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
