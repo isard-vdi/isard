@@ -30,6 +30,7 @@ $(document).ready(function() {
 
     $("#modalAddUser #role").on('change', function(e){
         console.log($(this).val())
+        setHardwareDomainDefaults('#users-quota','_aillera_M2')
     });
 
     var table=$('#users').DataTable( {
