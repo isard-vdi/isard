@@ -117,14 +117,14 @@ class isardAdmin():
     def get_admin_table(self, table, pluck=False, id=False, order=False):
         with app.app_context():
             if id and not pluck:
-                    return r.table(table).get(id).run(db.conn)
+                    return self.f.flatten_dict(r.table(table).get(id).run(db.conn))
             if pluck and not id:
                 if order:
                     return self.f.table_values_bstrap(r.table(table).order_by(order).pluck(pluck).run(db.conn))
                 else:
                     return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
             if pluck and id:
-                return r.table(table).get(id).pluck(pluck).run(db.conn) 
+                return self.f.flatten_dict(r.table(table).get(id).pluck(pluck).run(db.conn))
             if order:
                 return self.f.table_values_bstrap(r.table(table).order_by(order).run(db.conn))
             else:

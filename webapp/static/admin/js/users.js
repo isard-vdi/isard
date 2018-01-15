@@ -29,10 +29,15 @@ $(document).ready(function() {
 
 
     $("#modalAddUser #role").on('change', function(e){
-        console.log($(this).val())
-        setHardwareDomainDefaults('#users-quota','_aillera_M2')
+        setQuotaTableDefaults('#users-quota','roles',$(this).val())
     });
-
+    $("#modalAddUser #category").on('change', function(e){
+        setQuotaTableDefaults('#users-quota','categories',$(this).val())
+    });
+    $("#modalAddUser #group").on('change', function(e){
+        setQuotaTableDefaults('#users-quota','groups',$(this).val())
+    });
+        
     var table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",
