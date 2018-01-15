@@ -27,6 +27,11 @@ $(document).ready(function() {
         }
     }); 
 
+
+    $("#modalAddUser #role").on('change', function(e){
+        console.log($(this).val())
+    });
+
     var table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",

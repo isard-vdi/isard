@@ -296,9 +296,7 @@ class isardAdmin():
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}
         user['quota']['domains']={**qdomains, **user['quota']['domains']}
-        import pprint
-        pprint.pprint(user)
-        res=True
+        return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
     '''
     BACKUP & RESTORE

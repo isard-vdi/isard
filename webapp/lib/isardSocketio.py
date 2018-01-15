@@ -356,12 +356,10 @@ def socketio_user_add(form_data):
         # ~ create_dict=parseHardware(create_dict)
         print(create_dict)
         res=app.adminapi.add_user(create_dict)
-        # ~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
-        res=True
         if res is True:
-            data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+            data=json.dumps({'result':True,'title':'New user','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+            data=json.dumps({'result':False,'title':'New user','text':'User '+create_dict['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/sio_admins', 
@@ -473,7 +471,7 @@ def socketio_domains_add(form_data):
     if res is True:
         data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_users', 
@@ -556,7 +554,7 @@ def socketio_iso_add(form_data):
         if res is True:
             data=json.dumps({'result':True,'title':'New iso','text':'Iso '+iso['name']+' is being uploaded...','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':True,'title':'New iso','text':'Iso '+iso['name']+' can\'t be uploaded. You have the same iso filename uploaded already.','icon':'warning','type':'error'})
+            data=json.dumps({'result':False,'title':'New iso','text':'Iso '+iso['name']+' can\'t be uploaded. You have the same iso filename uploaded already.','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/sio_users', 
@@ -674,7 +672,7 @@ def socketio_domains_virtualbuilder_add(form_data):
     if res is True:
         data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_admins', 
@@ -726,7 +724,7 @@ def socketio_scheduler_add(form_data):
     if res is True:
         data=json.dumps({'result':True,'title':'New scheduler','text':'Scheduler is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New scheduler','text':'Scheduler can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New scheduler','text':'Scheduler can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_admins', 
