@@ -56,6 +56,7 @@ def admin_updates_update(kind):
                 d['id']='_'+current_user.id+'_'+d['id']
                 d['percentage']=0
                 d['status']='DownloadStarting'
+                d['detail']=''
                 d.update(get_user_data())
                 for disk in d['hardware']['disks']:
                     disk['file']=current_user.path+disk['file']

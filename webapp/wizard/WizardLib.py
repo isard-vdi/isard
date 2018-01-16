@@ -86,7 +86,7 @@ class Wizard():
         self.wapp = Flask(__name__)
         self.wizard_routes()
         wlog.info('ISARD WEBCONFIG AVAILABLE AT http://localhost:5000')
-        self.wapp.run()        
+        self.wapp.run(host='0.0.0.0', port=5000, debug=False)        
                 
     def shutdown_server(self):
         func = request.environ.get('werkzeug.server.shutdown')
@@ -184,7 +184,7 @@ class Wizard():
 
     def valid_engine(self):
         from ..lib.load_config import load_config
-        dict=load_config()        
+        dict=load_config()['DEFAULT_HYPERVISORS']    
         return self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')  
 
     def valid_hypervisor(self):
@@ -221,9 +221,9 @@ class Wizard():
                     'rethinkdb':self.valid_rethinkdb(),
                     'isard_db':self.valid_isard_database(),
                     'passwd':self.valid_password(),
-                    'docker':True if 'isard-hypervisor' in dict.keys() else False,
+                    'docker':True if 'isard-hypervisor' in dict['DEFAULT_HYPERVISORS'].keys() else False,
                     'hyper':self.valid_hypervisor() if self.valid_isard_database() else False,
-                    'engine':self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')}  
+                    'engine':self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict['DEFAULT_HYPERVISORS'].keys() else 'localhost:5555')}  
         else:
             res =  {'yarn':self.valid_js(),
                     'config':self.valid_config_file(),
