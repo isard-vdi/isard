@@ -27,6 +27,7 @@ from webapp.wizard import WizardLib
 w=WizardLib.Wizard()
 # This will start a Wizard Flask app that will continue on wizard finish.
 w=None
+print('Starting isard webapp...')
 if not os.path.exists('./install/.wizard'): exit(1)
 
 from webapp.lib.load_config import loadConfig

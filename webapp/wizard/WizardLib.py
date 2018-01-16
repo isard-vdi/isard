@@ -16,7 +16,7 @@ import sys, json, requests, os
 public_key='$2b$12$LA4uosV80.jkE430c8.wsOI.xIjQ0om7mpQZ0w/G.atH4/83ySTGW'
 
 import rethinkdb as r
-
+import time
 import logging as wlog
 LOG_LEVEL='INFO'
 LOG_FORMAT='%(asctime)s - WIZARD - %(levelname)s: %(message)s'
@@ -71,11 +71,11 @@ class Wizard():
             self.run_server()
             
         else: # WIZARD NOT FORCED. SOMETHING IS NOT GOING AS EXPECTED WITH DATABASE?
-            if not self.check_rethinkdb():
+            if not self.valid_rethinkdb():
                 wlog.error('Can not connect to rethinkdb database! Is it running?')
                 exit(1)
             else:
-                if not self.check_isard_database():
+                if not self.valid_isard_database():
                     wlog.error('Database isard not found!')
                     wlog.error('If you need to recreate isard database you should activate wizard again:')
                     wlog.error('   REMOVE install/.wizard file  (rm install/.wizard) and start isard again')
@@ -104,7 +104,9 @@ class Wizard():
         path='./install/.wizard'
         os.mknod(path)
 
-
+    '''
+    CHECK VALID ITEMS
+    '''
     def valid_js(self,first=False,path='bower_components/gentelella'):
         if first:
             return os.path.exists(os.path.join(os.path.dirname(__file__).rsplit('/',1)[0]+'/'+path))
@@ -179,31 +181,15 @@ class Wizard():
             wlog.error(exc_type, fname, exc_tb.tb_lineno)
             wlog.error(e)
             return False
-        
-    def create_isard_database(self):
-        from ..config.populate import Populate
-        p=Populate()
-        if p.database():
-            p.defaults()
-            return True
-        return False
-
-    #~ def check_docker(self):
-        
-        #~ # If hypervisor is isard-hypervisor
-        
-        #~ return False
-        
-    def valid_hypervisor(self):
-        # Database hypervisor status
-        # options: localhost or isard-hypervisor
-        return False
 
     def valid_engine(self):
         from ..lib.load_config import load_config
         dict=load_config()        
         return self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')  
-              
+
+    def valid_hypervisor(self):
+        return True
+                      
     def valid_server(self,server):
         import http.client as httplib
         conn = httplib.HTTPConnection(server, timeout=5)
@@ -215,6 +201,15 @@ class Wizard():
             conn.close()
             return False        
 
+        
+    def create_isard_database(self):
+        from ..config.populate import Populate
+        p=Populate()
+        if p.database():
+            p.defaults()
+            return True
+        return False
+        
     def check_all(self):
         from ..lib.load_config import load_config
         dict=load_config()
@@ -275,24 +270,7 @@ class Wizard():
             errors.append({'stepnum':6,'iserror':True})
         else:
             errors.append({'stepnum':6,'iserror':False})
-            
-        #~ if res['updates']: errors.append(7)
         return errors
-        
-    def fake_check_all(self):
-        return {'yarn':True,
-                'config':False,
-                'config_stx':False,
-                'internet':False,
-                'rethinkdb':False,
-                'docker':False,
-                'hyper':False,
-                'engine':False,
-                'isard_db':False,
-                'continue':True}
-                
-    def get_isardvdi_resources():
-        None
     
     def wizard_routes(self):
             # Static
@@ -311,58 +289,34 @@ class Wizard():
             @self.wapp.route('/', methods=['GET'])
             def base():
                 chk=self.check_all()
-                import pprint
-                pprint.pprint(chk)
-                # ~ chk=self.fake_check_all()
                 msg=''
                 if not chk['yarn']:
                     msg='Javascript and CSS libraries not found. Please install it running yarn on install folder.'
                     return render_template('missing_yarn.html',chk=chk, msg=msg.split('\n'))
                 return render_template('wizard_main.html',chk=chk, msg=msg.split('\n'))
-                
-                
-                # ~ if not chk['config']:
-                    # ~ msg+='\nIsard main configuration file isard.conf missing. Please copy (or rename) isard.conf.default to isard.conf.'
-                    # ~ return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
-                # ~ if not chk['config_stx']:
-                    # ~ msg+='\nMain configuration file isard.conf can not be read. Please check configuration from isard.conf.default.'
-                    # ~ return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
-                # ~ if not chk['rethinkdb']:
-                    # ~ msg+='\nUnable to connect to Rethinkdb server using isard.conf parameters. Is RethinkDB service running?'
-                    # ~ return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
-                # ~ if not chk['isard_db']:
-                    # ~ msg+='\nRethinkDb isard database not found on server. You should create it now.'
-                    # ~ return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
-                # ~ if not chk['internet']:
-                    # ~ msg+='\nCan not reach Internet. Please check your Internet connection.'
-                # ~ #~ msg='Everything seems ok. You can continue'
-                # ~ return render_template('missing_yarn.html',chk=chk, msg=msg.split('\n'))
     
             # Flask routes
-            @self.wapp.route('/create_db', methods=['GET'])
+            @self.wapp.route('/create_db', methods=['POST'])
             def wizard_createdb():
-                return self.create_isard_database()
+                return json.dumps(self.create_isard_database())
 
             @self.wapp.route('/passwd', methods=['GET','POST'])
             def wizard_passwd():
                 if request.method == 'POST':
                     pw=Password()
                     r.db('isard').table('users').get('admin').update({'password':pw.encrypt(request.get_json(force=True))}).run()
-                    # ~ wlog.info(request.get_json(force=True))
-                    # ~ wlog.info(request.form['passwd'])
                     return json.dumps(True)
                 return render_template('wizard_pwd.html')
 
-            @self.wapp.route('/shutdown', methods=['GET'])
+            @self.wapp.route('/shutdown', methods=['POST'])
             def wizard_shutdown():
                 # This shutdowns wizard flask server and allows for main isard src to continue loading.
+                self.done_start()
                 self.shutdown_server()
                 self.doWizard=False
-                time.sleep(4)
-                return redirect('/wizard')
-
-
-
+                # ~ time.sleep(10)
+                # ~ return redirect('/')
+                return json.dumps(True)
 
             @self.wapp.route('/validate/<step>', methods=['POST'])
             def wizard_validate_step(step):
@@ -388,48 +342,46 @@ class Wizard():
                 global html
                 if request.method == 'POST':
                     step=request.form['step_number']
-                    print(step)
                     if step == '1':
-                        print('step 1')
                         if not self.valid_config_file():
-                            print('No config file found')
                             return html[1]['noconfig']
                         elif not self.valid_config_syntax():
-                            print('No correct syntax')
                             return html[1]['nosyntax']
                         return html[1]['ok']
                     if step == '2':
                         db=self.valid_rethinkdb()
                         isard=self.valid_isard_database()
                         if not db:
-                            return 'Rethinkdb database not running'
+                            return html[2]['noservice']
                         if not isard:
-                            return 'Database isard not populated'
-                        return 'Database service up and isard database populated'
+                            return html[2]['nodatabase']
+                        return html[2]['ok']
                     if step == '3':
                         if not self.valid_password():
                             return html[3]['ko']
                         return html[3]['ok']
                     if step == '4':
                         if not self.valid_server('isardvdi.com'):
-                            return 'No internet connection'
-                        return 'Internet connection alive'                                                
+                            return html[4]['ko']
+                        return html[4]['ok']                                              
                     if step == '5':
                         if not self.valid_engine():
-                            return 'No engine'
-                        return 'Engine ok' 
+                            return html[5]['ko']
+                        return html[5]['ok']  
                     if step == '6':
                         if not (self.valid_hypervisor() if self.valid_isard_database() else False):
-                            return 'No hypervisor'
+                            return html[6]['ko']
+                        return html[6]['ok']  
                         return 'Hypervisor online' 
                     if step == '7':
                         if not self.valid_server('isardvdi.com:5050'):
                             return 'Isard update website seems down...'
                         return 'This updates are available'                         
-                    #~ step=request.get_json(force=True)['step_number']
-                    #~ import random
-                    #~ rand=random.random() * 100
-                    #~ return html[1]['ko'].replace('%step%',str(rand))
+
+
+'''
+WIZARD STEPS DESCRIPTIONS
+'''
                     
 html={}                    
 html[1]={'ok': '''   <h2 class="StepTitle">Step 1. Configuration</h2> 
@@ -469,6 +421,7 @@ html[1]={'ok': '''   <h2 class="StepTitle">Step 1. Configuration</h2>
                                 <h3 style="color:darkred">Configuration file <b>isard.conf</b> not found on root installation.</h3>
                              </div>                             
                           </div><!--end row-->
+                          <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 1);"><button id="populate" type="button" class="btn btn-success">Check again</button></a>
                           <hr><br><br>
                           <div class="row">
                             <div class="col-md-12">
@@ -500,6 +453,7 @@ html[1]={'ok': '''   <h2 class="StepTitle">Step 1. Configuration</h2>
                                 <h3 style="color:darkred">Configuration file <b>isard.conf</b> hasn't got a correct syntax.</h3>
                              </div>                             
                           </div><!--end row-->
+                          <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 1);"><button id="populate" type="button" class="btn btn-success">Check again</button></a>
                           <hr><br><br>
                           <div class="row">
                             <div class="col-md-12">
@@ -513,6 +467,86 @@ html[1]={'ok': '''   <h2 class="StepTitle">Step 1. Configuration</h2>
                           </div>
                        </div><!--end container-->
                     </section> '''}
+
+html[2]={'ok':'''   <h2 class="StepTitle">Step 2. Rethinkdb database service and isard database.</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Rethinkdb database service found.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Database isard found.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <div class="row">
+                            <div class="col-md-12">
+                                <h2 align="center" style="color:green"><b>You can continue to next step...</b></h2>
+                            </div>
+                          </div>
+                       </div><!--end container-->
+                    </section> ''',
+        'noservice': '''   <h2 class="StepTitle">Step 2. Rethinkdb database service and isard database.</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Rethinkdb service not found.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                            <div class="col-md-12">
+                                <p>Please check database parameters in isard.conf file and Rethinkdb service.</p>
+                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 2);"><button id="populate" type="button" class="btn btn-success">Check again</button></a>
+                            </div>
+                          </div>
+                       </div><!--end container-->
+                    </section> ''',
+        'nodatabase': '''   <h2 class="StepTitle">Step 2. Rethinkdb database service and isard database.</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Rethinkdb database service found.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred"> Database isard not found.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                            <div id="populate-div" class="col-md-12">
+                                <p>You need to populate an initial isard database.</p>
+                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 2);"><button id="populate" type="button" class="btn btn-success">Check again</button></a>
+                                <a href="javascript:void(0);" onclick="createDB();"><button id="populate" type="button" class="btn btn-warning">Populate isard database!</button></a>
+                            </div>
+                            <div id="populating-div" class="col-md-12" style="display:none">
+                                <p><i class='fa fa-cog fa-spin fa-3x fa-fw'></i>Creating isard tables...<p>
+                            </div>  
+                          </div>
+                       </div><!--end container-->
+                    </section> '''}
+                                
 html[3]={'ok':'''   <h2 class="StepTitle">Step 1. Change default admin password</h2> 
                     <section>
                        <div class="container">
@@ -527,7 +561,7 @@ html[3]={'ok':'''   <h2 class="StepTitle">Step 1. Change default admin password<
                           <hr><br><br>
                           <div class="row">
                              <div class="col-md-12">
-                                <p>In case you want to update the actual password <a href="#registerModal">click here</a></p
+                                <p>In case you want to update the actual password <a data-toggle="modal" href="#passwdModal">click here</a></p>
                              </div>                             
                           </div><!--end row-->
                        </div><!--end container-->
@@ -546,20 +580,125 @@ html[3]={'ok':'''   <h2 class="StepTitle">Step 1. Change default admin password<
                           <hr><br><br>
                           <div class="row">
                              <div class="col-md-12">
-                                <a href="#registerModal"><button id="send" type="button" class="btn btn-warning">Change password!</button></a>
+                                <button type="button" data-toggle="modal" data-target="#passwdModal" class="btn btn-warning">Change password</button>
+                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 3);"><button  type="button" class="btn btn-success">Check again</button></a>
                              </div>                             
                           </div><!--end row-->
                        </div><!--end container-->
-                    </section> '''
-            ''''''}
+                    </section> '''}
+
+html[4]={'ok':'''   <h2 class="StepTitle">Step 4. Internet connection</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Seems to be an Internet connection. You can continue.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                       </div><!--end container-->
+                    </section> ''',
+        'ko':'''   <h2 class="StepTitle">Step 4. Internet connection</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Can't connect to Internet.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                             <div class="col-md-12">
+                                <a href="javascript:void(0);" onclick="skipInternet();$('#wizard').smartWizard('goToStep', 5);"><button  type="button" class="btn btn-warning">Skip Internet check</button></a>
+                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 4);"><button  type="button" class="btn btn-success">Check again</button></a>
+                             </div>                             
+                          </div><!--end row-->
+                       </div><!--end container-->
+                    </section> '''}        
+
+html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Isard Engine</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Isard engine is running. You can continue.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                       </div><!--end container-->
+                    </section> ''',
+        'ko':'''   <h2 class="StepTitle">Step 5. Isard Engine</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Can't contact isard engine.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                             <div class="col-md-12">
+                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 5);"><button type="button" class="btn btn-success">Check again</button></a>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                            <div class="col-md-12">
+                                <p>Please check that engine is running.</p>
+                                <p> It can be started with: <b>python3 run_engine.py</b>
+                            </div>
+                          </div>                          
+                       </div><!--end container-->
+                    </section> '''}          
         
-        
-        
-        
-                          # ~ <hr><br><br>
-                          # ~ <div class="row">
-                             # ~ <div class="col-md-12">
-                             
-                             # ~ <p>In case you want to update actual password <a href="#registerModal">click here</a></p
-                             # ~ </div>                             
-                          # ~ </div><!--end row-->
+html[6]={'ok':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Found a running hypervisor. You can continue</h3>
+                             </div>                             
+                          </div><!--end row-->
+                       </div><!--end container-->
+                    </section> ''',
+        'ko':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Can't contact any hypervisor.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                             <div class="col-md-12">
+                                <a href="javascript:void(0);" onclick="skipHypervisor();$('#wizard').smartWizard('goToStep', 7);"><button type="button" class="btn btn-warning">Skip Hypervisor check</button></a>
+                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 6);"><button  type="button" class="btn btn-success">Check again</button></a>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                            <div class="col-md-12">
+                                <p>Please check that engine is running.</p>
+                                <p> It can be started with: <b>python3 run_engine.py</b>
+                            </div>
+                          </div>                          
+                       </div><!--end container-->
+                    </section> '''} 
+                            

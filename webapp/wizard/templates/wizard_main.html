@@ -13,65 +13,10 @@
     <link href="/vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="/vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
-    <!-- Custom Theme Style -->
-<!--
-    <link href="/build/css/custom.min.css" rel="stylesheet">
--->
+    <!-- jquery smart wizard -->
     <link href="/vendors/jQuery-Smart-Wizard/styles/demo_style.css" rel="stylesheet" type="text/css">
     <link href="/vendors/jQuery-Smart-Wizard/styles/smart_wizard.css" rel="stylesheet" type="text/css">
-  <style>
-    .modalDialog {
-        position: fixed;
-        font-family: Arial, Helvetica, sans-serif;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 99999;
-        opacity:0;
-        -webkit-transition: opacity 400ms ease-in;
-        -moz-transition: opacity 400ms ease-in;
-        transition: opacity 400ms ease-in;
-        pointer-events: none;
-    }
-    .modalDialog:target {
-        opacity:1;
-        pointer-events: auto;
-    }
-    .modalDialog > div {
-        width: 300px;
-        position: relative;
-        margin: 10% auto;
-        padding: 5px 20px 13px 20px;
-        border-radius: 10px;
-        background: #fff;
-        background: -moz-linear-gradient(#fff, #999);
-        background: -webkit-linear-gradient(#fff, #999);
-        background: -o-linear-gradient(#fff, #999);
-    }
-    .close {
-        background: #606061;
-        color: #FFFFFF;
-        line-height: 25px;
-        position: absolute;
-        right: -12px;
-        text-align: center;
-        top: -10px;
-        width: 24px;
-        text-decoration: none;
-        font-weight: bold;
-        -webkit-border-radius: 12px;
-        -moz-border-radius: 12px;
-        border-radius: 12px;
-        -moz-box-shadow: 1px 1px 3px #000;
-        -webkit-box-shadow: 1px 1px 3px #000;
-        box-shadow: 1px 1px 3px #000;
-    }
-    .close:hover {
-        background: #00d9ff;
-    }  
-  </style>
+
   </head>
 
   <body>
@@ -92,9 +37,7 @@
     </div>
 
     <table align="center" border="0" cellpadding="0" cellspacing="0">
-    <tr><td> 
-
-
+        <tr><td> 
             <div id="wizard" class="swMain">
               <ul>
                 <li><a href="#step-1">
@@ -176,50 +119,123 @@
                    <!-- step content -->                         
               </div> 
             </div>
-    </div>
-</td></tr>
-</table>
-  </body>
-  
-    <div id="registerModal" class="modalDialog">
-        <div><a href="#close" title="Close" class="close">X</a>
-            <h2>Change default admin user password</h2>
-                <form name="Form" id="changepw" class="form-horizontal form-label-left"
-                  data-parsley-excluded="input[type=button], input[type=submit], input[type=reset], input[type=hidden], [disabled], :hidden"
-                  data-parsley-trigger="keyup" data-parsley-validate>
-                  <div>
-                          <input id="password1" name="password" type="password" class="form-control col-md-7 col-xs-12 password"
-                            placeholder="New password"
-                            data-parsley-minlength="8"
-                            data-parsley-errors-container=".errorspannewpassinput"
-                            data-parsley-required-message="Please enter your new password."
-                            data-parsley-uppercase="1"
-                            data-parsley-lowercase="1"
-                            data-parsley-number="1"
-                            data-parsley-special="1"
-                            data-parsley-required 
-                            autofocus />
-                          <span class="errorspannewpassinput"></span>
+        </td></tr>
+    </table>
+</body>
+
+<div class="modal fade" id="registerModal" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Register app
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <div class="row">
+                  <div class="col-md-12 col-sm-12 col-xs-12">
+                    <div class="x_panel">
+                      <div class="x_title">
+                        <h2>Backup drag&drop upload</h2>
+                        <div class="clearfix"></div>
+                      </div>
+                      <div class="x_content">
+                        <p>Drag multiple files to the box below for multi upload or click to select files.</p>
+                        <br />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                          <input name="Password_2" id="password2" type="password" class="form-control col-md-7 col-xs-12 password"
-                          placeholder="Repeat password"
-                            data-parsley-minlength="8"
-                            data-parsley-errors-container=".errorspanconfirmnewpassinput"
-                            data-parsley-required-message="Please re-enter your new password."
-                            data-parsley-equalto="#password1"
-                            data-parsley-required />
-                          <span class="errorspanconfirmnewpassinput"></span>
-                  </div>
-                  <div>
-                    <button type="submit" class="btn btn-default submit">Update</button>
-                  </div>
-                </form>           
+                </div>
+
+            </div>
         </div>
     </div>
+</div>
+
+<div class="modal fade" id="passwdModal" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Register app
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <div class="row">
+                  <div class="col-md-12 col-sm-12 col-xs-12">
+                    <div class="x_panel">
+                      <div class="x_title">
+                        <h2>Update admin user password</h2>
+                        <div class="clearfix"></div>
+                      </div>
+                      <div class="x_content">
+                        <form name="Form" id="changepw" class="form-horizontal form-label-left"
+                          data-parsley-excluded="input[type=button], input[type=submit], input[type=reset], input[type=hidden], [disabled], :hidden"
+                          data-parsley-trigger="keyup" data-parsley-validate>
+                          <div>
+                                  <input id="password1" name="password" type="password" class="form-control col-md-7 col-xs-12 password"
+                                    placeholder="New password"
+                                    data-parsley-minlength="8"
+                                    data-parsley-errors-container=".errorspannewpassinput"
+                                    data-parsley-required-message="Please enter your new password."
+                                    data-parsley-uppercase="1"
+                                    data-parsley-lowercase="1"
+                                    data-parsley-number="1"
+                                    data-parsley-special="1"
+                                    data-parsley-required 
+                                    autofocus />
+                                  <span class="errorspannewpassinput"></span>
+                          </div>
+                          <div>
+                                  <input name="Password_2" id="password2" type="password" class="form-control col-md-7 col-xs-12 password"
+                                  placeholder="Repeat password"
+                                    data-parsley-minlength="8"
+                                    data-parsley-errors-container=".errorspanconfirmnewpassinput"
+                                    data-parsley-required-message="Please re-enter your new password."
+                                    data-parsley-equalto="#password1"
+                                    data-parsley-required />
+                                  <span class="errorspanconfirmnewpassinput"></span>
+                          </div>
+                          <div>
+                            <button type="submit" class="btn btn-default submit">Update</button>
+                          </div>
+                        </form>           
+
+                        <br />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+      
     <!-- jQuery -->
     <script src="/vendors/jquery/dist/jquery.min.js"></script>
-    
+    <!-- Bootstrap -->
+    <script src="/vendors/bootstrap/dist/js/bootstrap.js"></script>    
 <!--
     <script type="text/javascript" src="jquery-1.4.2.min.js"></script>
 -->
@@ -230,20 +246,30 @@
     <script src="/vendors/parsleyjs/dist/parsley.min.js"></script>
 
 <script type="text/javascript">
+var skip_internet=false;
+var skip_hypervisor=false;
+function skipInternet(){
+    skip_internet=true;
+}
+function skipHypervisor(){
+    skip_hypervisor=true;
+}
 $(document).ready(function(){
     // Smart Wizard  
     
             //~ $('#registerModal').dialog('open');
-			//~ $('#registerModal').modal({
-				//~ backdrop: 'static',
-				//~ keyboard: false
-			//~ }).modal('show');
+			$('#registerModal').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
 
     $('#wizard').smartWizard({
         contentURL:'/content',
         contentCache:false,
         onLeaveStep:leaveAStepCallback,
-        onFinish:onFinishCallback
+        //~ onShowStep: showStepCallback,
+        onFinish:onFinishCallback,
+        transitionEffect: 'slide'
     });
 
     function setErrors(){
@@ -257,44 +283,96 @@ $(document).ready(function(){
         
     }
     //~ var errors=setErrors()
-    
+
+        function setError(stepnumber){
+            $("#wizard").smartWizard('setError',{stepnum:stepnumber,iserror:true});
+        }    
     //~ $("#wizard").smartWizard('showMessage', 'Hello, World!');
 
     
     function leaveAStepCallback(obj, context){
         //~ alert("Leaving step " + context.fromStep + " to go to step " + context.toStep);
+
+        if(context.fromStep==4 && skip_internet){setError(4); return true;}
+        if(context.fromStep==6 && skip_hypervisor){setError(6); return true;}
         if(validateSteps(context.fromStep)=='true'){
             return true;
         }else{
+            $("#wizard").smartWizard('goToStep', context.fromStep);
             return false};
         //~ return validateSteps(context.fromStep); // return false to stay on step and true to continue navigation 
     }
 
     function onFinishCallback(objs, context){
-        console.log('finish click')
+        //~ console.log('finish click')
         if(validateAllSteps()){
-            console.log('all steps valid')
+            result = $.ajax({
+                    type: "POST",
+                    url: "/shutdown",
+                    async: false
+                }).responseText; 
+            shutdown()
+            //~ window.location.replace('/');
+            //~ console.log('all steps valid')
             //~ $('form').submit();
         }
     }
 
     // Your Step validation logic
     function validateSteps(stepnumber){
-            return $.ajax({
-        type: "POST",
-        url: "/validate/"+stepnumber,
-        async: false
-    }).responseText;
+        return $.ajax({
+            type: "POST",
+            url: "/validate/"+stepnumber,
+            async: false
+        }).responseText;
     }
     
     function validateAllSteps(){
         var isStepValid = true;
         // all step validation logic     
         return isStepValid;
-    }          
+    }  
+    
+    //~ function showStepCallback(obj, context){  
+            //~ result= $.ajax({
+                //~ type: "POST",
+                //~ url: "/content",
+                //~ data: {'step_number':context.toStep},
+                //~ async: false
+            //~ }).responseText;
+        //~ $('#step-'+context.toStep).html(result);
+        //~ alert('Content shown');
+        //~ alert("Leaving step " + context.fromStep + " to go to step " + context.toStep);
+    //~ }  
+    
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+            async function shutdown() {
+              await sleep(2000);
+              window.location.replace('/');
+            }
+
 });
 </script>
 <script>
+        function createDB(){
+               $('#populate-div').hide();
+               $('#populating-div').show();
+
+               result=$.ajax({
+                    type: "POST",
+                    url: "/create_db",
+                    async: false
+                }).responseText;
+                //~ if(result=='true'){$('#populate').hide();}
+                $('#wizard').smartWizard('goToStep', 2);
+        }     
+</script>
+<script>
+$(document).ready(function(){
+    
+    
     $("#changepw").parsley();
     $("#changepw").on('submit', function(e) {
         var f = $(this);
@@ -309,28 +387,17 @@ $(document).ready(function(){
                     contentType: "application/json; charset=utf-8",
                     traditional: true,
                     success: function (data) {
-                        console.log(data);
-                        $(this).hide();
+                        //~ $("#changepw").reset();
+                        $("#passwdModal").modal('hide');
+                        $('#wizard').smartWizard('goToStep', 3);
                     }                    
                 });
         }
-         //~ else {
-          //~ alert('O formulário não é válido');
-        //~ }
 
         e.preventDefault();
       });
-  
-    //~ $("#registerModal #updatepw").on('click', function(e){
-        //~ var form = $('#changepw');
-        //~ form.parsley().validate();
-        //~ if (form.parsley().isValid()){
-            //~ console.log('data valid')
-            //~ // data=$('#changepw').serializeObject();
-            //~ // console.log(data)
-            //~ return true;
-        //~ }
-        //~ return false;
-    //~ }); 
+
+    
+});   
 </script>
 </html>

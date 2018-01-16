@@ -597,8 +597,9 @@ class Populate(object):
                 log.info("Table media not found, creating...")
                 r.table_create('media', primary_key="id").run()
                 r.table('media').index_create("status").run()
+                r.table('media').index_wait("status").run()
+                r.table('media').index_create("user").run()
                 r.table('media').index_wait("user").run()
-
         return True
 
     '''
