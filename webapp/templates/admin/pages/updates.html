@@ -1,0 +1,168 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="right_col" role="main">
+   <div class="page-title">
+      <div class="title_left">
+         <h3><i class="fa fa-cloud-download"></i> Updates <small>Get resources from IsardVDI</small></h3>
+      </div>
+   </div>
+   <div class="clearfix"></div>
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Domains <small>Download pre created domains as bases </small></h2>
+                        <li class="">
+                            <ul class="nav navbar-right panel_toolbox">
+                                <li><a id="domains" class="btn-new update"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
+                               </li>
+                            </ul>
+                        </li>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+					<table id="domains_tbl" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Name</th>
+                             <th></th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                 </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 col-sm-6 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Media <small>Download useful isos and floppy</small></h2>
+                        <li class="">
+                            <ul class="nav navbar-right panel_toolbox">
+                                <li><a id="media" class="btn-new update"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
+                               </li>
+                            </ul>
+                        </li>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+					<table id="media_tbl" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Name</th>
+                             <th></th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6 col-sm-6 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Builders <small>Create your desktops</small></h2>
+                        <li class="">
+                            <ul class="nav navbar-right panel_toolbox">
+                                <li><a id="builders" class="btn-new update"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
+                               </li>
+                            </ul>
+                        </li>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+					<table id="builders_tbl" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Name</th>
+                             <th></th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                 </div>
+                </div>
+              </div>
+          </div>
+
+
+          <div class="row">
+              <div class="col-md-6 col-sm-6 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Virt installs <small>Desktop configurations for diverse OSs</small></h2>
+                        <li class="">
+                            <ul class="nav navbar-right panel_toolbox">
+                                <li><a id="virt_install" class="btn-new update"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
+                               </li>
+                            </ul>
+                        </li>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+					<table id="virt_install_tbl" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Name</th>
+                             <th></th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-sm-6 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Virt builders <small>Already created minimal OSs</small></h2>
+                        <li class="">
+                            <ul class="nav navbar-right panel_toolbox">
+                                <li><a id="virt_builder" class="btn-new update"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
+                               </li>
+                            </ul>
+                        </li>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+					<table id="virt_builder_tbl" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Name</th>
+                             <th></th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                  </div>
+                </div>
+              </div>
+              
+          </div>
+
+</div>
+{% endblock %}
+{% block pagescript %}
+    <!-- bootstrap-progressbar -->
+    <script src="/vendors/bootstrap-progressbar/bootstrap-progressbar.min.js"></script>
+    <script src="/static/js/restful.js"></script>
+    <script src="/admin/js/updates.js"></script>
+{% endblock %}

@@ -26,7 +26,7 @@ if __name__ == '__main__':
     isardSocketio.start_domains_thread()
     isardSocketio.start_domains_stats_thread()
     isardSocketio.start_users_thread()
-    isardSocketio.start_isos_thread()
+    isardSocketio.start_media_thread()
     isardSocketio.start_hypervisors_thread()
     isardSocketio.start_config_thread()
     

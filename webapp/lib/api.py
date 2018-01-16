@@ -25,8 +25,14 @@ from netaddr import IPNetwork, IPAddress
 class isard():
     def __init__(self):
         with app.app_context():
-            self.config=r.table('config').get(1).run(db.conn)
-            self.f=flatten()
+            try:
+                self.config=r.table('config').get(1).run(db.conn)
+                self.f=flatten()
+            except Exception as e:
+                log.error('Unable to read config table from RethinkDB isard database')
+                log.error('If you need to recreate isard database you should activate wizard again:')
+                log.error('   REMOVE install/.wizard file  (rm install/.wizard) and start isard again')
+                exit(1)
         pass
 
     #~ GENERIC
@@ -262,7 +268,7 @@ class isard():
             desktops=r.table('domains').get_all(user, index='user').filter({'kind': 'desktop'}).count().run(db.conn)
             desktopsup=r.table('domains').get_all(user, index='user').filter({'kind': 'desktop','status':'Started'}).count().run(db.conn)
             templates=r.table('domains').get_all(user, index='user').filter({'kind': 'user_template'}).count().run(db.conn)
-            isos=r.table('isos').get_all(user, index='user').count().run(db.conn)
+            isos=r.table('media').get_all(user, index='user').count().run(db.conn)
             try:
                 qpdesktops=desktops*100/user_obj['quota']['domains']['desktops']
             except Exception as e:
@@ -703,10 +709,9 @@ class isard():
                 return False
             return True
         
-    def user_relative_iso_path(self, user, filename):
+    def user_relative_media_path(self, user, filename):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-        #~ name=filename.split('.iso')[0]
         parsed_name = self.parse_string(filename)
         if not parsed_name: return False
         id = '_'+user+'_'+parsed_name
