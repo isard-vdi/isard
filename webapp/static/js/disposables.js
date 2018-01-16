@@ -9,7 +9,7 @@ $(document).ready(function() {
             $('#disposable').on('change', function() {
                 if(this.value!="default"){
                     socket.emit('disposables_add',{'pk':this.value}) 
-                    //$('#disposable').prop("disabled",true);
+                    $('#disposable').prop("disabled",true);
                     $('#disposable option[value="default"]').text(' Wait till '+$("#disposable option[value='"+this.value+"']").text()+' viewer opens...');
                     $('#disposable option[value="default"]').prop("selected",true);
                 }
@@ -33,10 +33,51 @@ $(document).ready(function() {
 			$('#disposable option[value="default"]').text('Choose a desktop...');
 			$('#disposable option[value="default"]').prop("selected",true);
 			$('#disposable').prop("disabled",false);
-			getViewer(data)
+			getClientViewer(data,socket)
 	  }										
         
     });
+
+    socket.on('disposable_viewer', function (data) {
+        var data = JSON.parse(data);
+        if(data['kind']=='xpi'){
+            viewer=data['viewer']
+                        if(viewer==false){
+                            new PNotify({
+                            title: "Display error",
+                                text: "Can't open display, something went wrong.",
+                                hide: true,
+                                delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'error'
+                            });
+                        }else{
+                            if(viewer.tlsport){
+                                openTLS(viewer.host, viewer.port, viewer.tlsport, viewer.passwd, viewer.ca);
+                            }else{
+                                openTCP(viewer.host, viewer.port, viewer.passwd);
+                            }
+                        }
+        }
+        if(data['kind']=='html5'){
+            viewer=data['viewer']
+            //~ window.open('http://try.isardvdi.com:8000/?host=try.isardvdi.com&port='+viewer.port+'&passwd='+viewer.passwd); 
+            window.open('http://'+viewer.host+'/?host='+viewer.host+'&port='+viewer.port+'&passwd='+viewer.passwd);            
+            
+        }        
+        
+         if(data['kind']=='file'){
+            var viewerFile = new Blob([data['content']], {type: data['mime']});
+            var a = document.createElement('a');
+                a.download = 'console.'+data['ext'];
+                a.href = window.URL.createObjectURL(viewerFile);
+            var ev = document.createEvent("MouseEvents");
+                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                a.dispatchEvent(ev);              
+                    }
+    });
+
 
     socket.on('result', function (data) {
         var data = JSON.parse(data);
@@ -55,7 +96,7 @@ $(document).ready(function() {
 
 
 
-function getViewer(data){
+function getClientViewer(data,socket){
 				if(detectXpiPlugin()){
 					//SPICE-XPI Plugin
                     if(isXpiBlocked()){
@@ -115,15 +156,7 @@ function getViewer(data){
                                                     sticker: false
                                                 }
                                             });
-                                            //~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
-                                            
-                                                var url = '/disposable/download_viewer/'+getOS()+'/'+data['id'];
-                                                var anchor = document.createElement('a');
-                                                    anchor.setAttribute('href', url);
-                                                    anchor.setAttribute('download', 'console.vv');
-                                                var ev = document.createEvent("MouseEvents");
-                                                    ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                                                    anchor.dispatchEvent(ev);                                              
+                                            socket.emit('disposable_viewer',{'pk':data['id'],'kind':'file'});
                                         }
                                     },
                                 ]
@@ -139,5 +172,6 @@ function getViewer(data){
 
 
 					}
-    
+
 }
+
