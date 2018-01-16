@@ -174,7 +174,10 @@ class Wizard():
             print('Passwd is not isard')
             return True
         except Exception as e:
-            print('Exception:' +str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            wlog.error(exc_type, fname, exc_tb.tb_lineno)
+            wlog.error(e)
             return False
         
     def create_isard_database(self):
@@ -234,9 +237,9 @@ class Wizard():
                     'rethinkdb':self.valid_rethinkdb(),
                     'isard_db':self.valid_isard_database(),
                     'passwd':self.valid_password(),
-                    'docker':self.valid_docker(),
+                    'docker':False,
                     'hyper':self.valid_hypervisor(),
-                    'engine':self.valid_engine()}
+                    'engine':False}
         res['continue']=res['yarn'] and res['config_stx'] and res['isard_db'] and res['engine']
         return res
 
@@ -389,8 +392,10 @@ class Wizard():
                     if step == '1':
                         print('step 1')
                         if not self.valid_config_file():
+                            print('No config file found')
                             return html[1]['noconfig']
                         elif not self.valid_config_syntax():
+                            print('No correct syntax')
                             return html[1]['nosyntax']
                         return html[1]['ok']
                     if step == '2':
@@ -427,16 +432,134 @@ class Wizard():
                     #~ return html[1]['ko'].replace('%step%',str(rand))
                     
 html={}                    
-html[1]={'ok': '''<h2 class="StepTitle">Step 1. Configuration</h2>
-                <h3>Configuration file found and correct<h3>''',
-        'noconfig': '''<h2 class="StepTitle">Step 1. Configuration</h2>
-                <h3>Configuration file not found<h3>
-                <p>Do you want to use the default configuration found?<p>
-                <button type="config-copy" class="btn btn-default submit">Fix</button>''',
-        'nosyntax': '''<h2 class="StepTitle">Step 1. Configuration</h2>
-                <h3>Configuration file has incorrect syntax.<h3>
-                <p>Please review sample isard.conf.default file and update
-                your isard.conf file accordingly<p>'''}
-html[3]={'ok':''' ''',
-        'ko':'''<a href="#registerModal">Open</a>'''}
+html[1]={'ok': '''   <h2 class="StepTitle">Step 1. Configuration</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Configuration file <b>isard.conf</b> found on root installation.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Configuration file <b>isard.conf</b> has correct syntax.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <div class="row">
+                            <div class="col-md-12">
+                                <h2 align="center" style="color:green"><b>You can continue to next step...</b></h2>
+                            </div>
+                          </div>
+                       </div><!--end container-->
+                    </section> ''',
+        'noconfig': '''   <h2 class="StepTitle">Step 1. Configuration</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Configuration file <b>isard.conf</b> not found on root installation.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                            <div class="col-md-12">
+                                <p>Please copy a default config install file as isard.conf:</p>
+                                <ul>
+                                    <li>isard.conf.default</li>
+                                    <li>isard.conf.docker</li>
+                                </ul>
+                            </div>
+                          </div>
+                       </div><!--end container-->
+                    </section> ''',
+        'nosyntax': '''   <h2 class="StepTitle">Step 1. Configuration</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Configuration file <b>isard.conf</b> found on root installation.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Configuration file <b>isard.conf</b> hasn't got a correct syntax.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                            <div class="col-md-12">
+                                <p>Please check your <b>isard.conf</b> file syntax!</p>
+                                <p>You can check for correct syntax on default configuration files:</p>
+                                <ul>
+                                    <li>isard.conf.default</li>
+                                    <li>isard.conf.docker</li>
+                                </ul>
+                            </div>
+                          </div>
+                       </div><!--end container-->
+                    </section> '''}
+html[3]={'ok':'''   <h2 class="StepTitle">Step 1. Change default admin password</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Default user <b>admin</b> has an updated password. You can continue.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                             <div class="col-md-12">
+                                <p>In case you want to update the actual password <a href="#registerModal">click here</a></p
+                             </div>                             
+                          </div><!--end row-->
+                       </div><!--end container-->
+                    </section> ''',
+        'ko':'''   <h2 class="StepTitle">Step 1. Change default admin password</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Default user <b>admin</b> needs a new password.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                             <div class="col-md-12">
+                                <a href="#registerModal"><button id="send" type="button" class="btn btn-warning">Change password!</button></a>
+                             </div>                             
+                          </div><!--end row-->
+                       </div><!--end container-->
+                    </section> '''
+            ''''''}
         
+        
+        
+        
+                          # ~ <hr><br><br>
+                          # ~ <div class="row">
+                             # ~ <div class="col-md-12">
+                             
+                             # ~ <p>In case you want to update actual password <a href="#registerModal">click here</a></p
+                             # ~ </div>                             
+                          # ~ </div><!--end row-->
