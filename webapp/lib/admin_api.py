@@ -26,6 +26,7 @@ from .flask_rethink import RethinkDB
 db = RethinkDB(app)
 db.init_app(app)
 
+from ..auth.authentication import Password
 
 class isardAdmin():
     def __init__(self):
@@ -118,15 +119,21 @@ class isardAdmin():
                     }
                 ).run(db.conn))
                 
-    def get_admin_table(self, table, pluck=False, id=False):
+    def get_admin_table(self, table, pluck=False, id=False, order=False):
         with app.app_context():
             if id and not pluck:
-                return r.table(table).get(id).run(db.conn)
+                    return self.f.flatten_dict(r.table(table).get(id).run(db.conn))
             if pluck and not id:
-                return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
+                if order:
+                    return self.f.table_values_bstrap(r.table(table).order_by(order).pluck(pluck).run(db.conn))
+                else:
+                    return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
             if pluck and id:
-                return r.table(table).get(id).pluck(pluck).run(db.conn)           
-            return self.f.table_values_bstrap(r.table(table).run(db.conn))
+                return self.f.flatten_dict(r.table(table).get(id).pluck(pluck).run(db.conn))
+            if order:
+                return self.f.table_values_bstrap(r.table(table).order_by(order).run(db.conn))
+            else:
+                return self.f.table_values_bstrap(r.table(table).run(db.conn))
 
     def get_admin_table_term(self, table, field, value, pluck=False):
         with app.app_context():
@@ -135,35 +142,65 @@ class isardAdmin():
             else:
                 return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
                                 
-    def get_admin_domains(self,kind=False):
-        with app.app_context():
-            if not kind:
-                return self.f.table_values_bstrap(r.table('domains').without('xml','hardware','create_dict').run(db.conn))
-            else:
-                 return self.f.table_values_bstrap(r.table('domains').get_all(kind,index='kind').without('xml','hardware','create_dict').run(db.conn))
+    #~ def get_admin_domains(self,kind=False):
+        #~ with app.app_context():
+            #~ if not kind:
+                #~ return self.f.table_values_bstrap(r.table('domains').without('xml','hardware','create_dict').run(db.conn))
+            #~ else:
+                 #~ return self.f.table_values_bstrap(r.table('domains').get_all(kind,index='kind').without('xml','hardware','create_dict').run(db.conn))
 
     def get_admin_domains_with_derivates(self,id=False,kind=False):
         with app.app_context():
             if 'template' in kind:
                 if not id:
-                    return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware').merge(lambda domain:
+                    return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
-                    return list(r.table("domains").get(id).without('xml','hardware').merge(lambda domain:
+                    return list(r.table("domains").get(id).without('xml','hardware','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
+            elif kind == 'base':
+                if not id:
+                    return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware','history_domain').merge(lambda domain:
+                        {
+                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                        }
+                    ).run(db.conn))
+                if id:
+                    return list(r.table("domains").get(id).without('xml','hardware','history_domain').merge(lambda domain:
+                        {
+                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                        }
+                    ).run(db.conn))                
             else:
-               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware','history_domain').merge(lambda domain:
+               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
                     {
-                        "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                        #~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count(),
+                        "accessed": domain['history_domain'][0]['when'].default(0)
+                            #~ domain['history_domain'].default('0') | 0
+                            #~ domain['history_domain'][0]['when'].default(0)
                     }
                 ).run(db.conn))
 
+    def safe_history(self,domain):
+        try:
+            #~ print('when:'+domain['history_domain'][0]['when'])
+            return domain['history_domain'][0]['when']
+        except:
+            #~ print('except:0')
+            return 0
+
+    def get_admin_templates(self,term):
+        with app.app_context():
+            data1 = r.table('domains').get_all('base', index='kind').filter(r.row['name'].match(term)).order_by('name').pluck({'id','name','kind','group','icon','user','description'}).run(db.conn)
+            data2 = r.table('domains').filter(r.row['kind'].match("template")).filter(r.row['name'].match(term))    .order_by('name').pluck({'id','name','kind','group','icon','user','description'}).run(db.conn)
+        return data1+data2
+            
     def get_admin_hypervisors(self, id=False):
         with app.app_context():
             if id:
@@ -251,6 +288,26 @@ class isardAdmin():
         return f.unflatten_dict(dict)
 
     '''
+    USERS
+    '''
+    def add_user(self,user):
+        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
+        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
+        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
+        p = Password()
+        usr = {'kind': 'local',
+               'active': True,
+                'accessed': time.time(),
+                'password': p.encrypt(user['password'])}
+        del user['password']
+        user={**usr, **user}
+        qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                    'templates_disk_max': 99999999,
+                    'isos_disk_max': 99999999}
+        user['quota']['domains']={**qdomains, **user['quota']['domains']}
+        return self.check(r.table('users').insert(user).run(db.conn),'inserted')
+
+    '''
     BACKUP & RESTORE
     '''
     def backup_db(self):
@@ -266,7 +323,7 @@ class isardAdmin():
               'status':'Initializing'}
         with app.app_context():
             r.table('backups').insert(dict).run(db.conn)
-        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status','domains_status_history','hypervisors_status_history']
+        skip_tables=['backups','domains_status','hypervisors_events','hypervisors_status','domains_status_history','hypervisors_status_history','disk_operations']
         isard_db={}
         with app.app_context():
             r.table('backups').get(id).update({'status':'Loading tables'}).run(db.conn)
@@ -333,6 +390,8 @@ class isardAdmin():
                     log.info("Restoring table {}".format(k))
                     with app.app_context():
                         r.table('backups').get(id).update({'status':'Updating table: '+k}).run(db.conn)
+                    # Avoid updating admin user!
+                    if k == 'users': v[:] = [u for u in v if u.get('id') != 'admin']
                     log.info(r.table(k).insert(v, conflict='update').run(db.conn))
         with app.app_context():
             r.table('backups').get(id).update({'status':'Finished restoring'}).run(db.conn)
@@ -379,23 +438,41 @@ class isardAdmin():
             pass
         return tbl_data,isard_db
 
+    #~ def check_new_values(self,table,new_data):
+        #~ data=[]
+        #~ actual_data=list(r.table(table).run(db.conn))
+        #~ for n in new_data:
+            #~ found=False
+            #~ for a in actual_data:
+                #~ if n['id']==a['id']:
+                    #~ cp=n.copy()
+                    #~ cp['new_backup_data']=False
+                    #~ data.append(cp)
+                    #~ found=True
+                    #~ break
+            #~ if not found:
+                #~ cp=n.copy()
+                #~ cp['new_backup_data']=True
+                #~ data.append(cp)
+        #~ return data
+
     def check_new_values(self,table,new_data):
-        data=[]
-        actual_data=list(r.table(table).run(db.conn))
-        for n in new_data:
+        backup=new_data
+        dbb=list(r.table(table).run(db.conn))
+        result=[]
+        for b in backup:
             found=False
-            for a in actual_data:
-                if n['id']==a['id']:
-                    cp=n.copy()
-                    cp['new_backup_data']=False
-                    data.append(cp)
+            for d in dbb:
+                if d['id']==b['id']:
                     found=True
+                    b['new_backup_data']=False
+                    result.append(b)
                     break
-            if not found:
-                cp=n.copy()
-                cp['new_backup_data']=True
-                data.append(cp)
-        return data
+            if not found: 
+                b['new_backup_data']=True
+                result.append(b)
+        return result
+        
         #~ from operator import itemgetter
         #~ new_data, actual_data = [sorted(l, key=itemgetter('id')) 
                               #~ for l in (new_data, actual_data)]        

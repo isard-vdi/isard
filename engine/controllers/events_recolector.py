@@ -298,7 +298,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                 "Defined",
                 "Undefined",
                 # "Started",
-                "Suspended",
+                # "Suspended",
                 # "Resumed",
                 # "Stopped",
                 # "Shutdown",
@@ -325,17 +325,31 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
         d_status_hyp_started = get_domain_hyp_started_and_status_and_detail(dict_event['domain'])
         if 'status' in d_status_hyp_started.keys():
             if d_status_hyp_started['status'] != domEventToString(event) \
-                    and domEventToString(event) in ['Started', 'Stopped', 'Paused']:
-                update_domain_status(id_domain=dom.name(),
-                                     status=domEventToString(event),
-                                     hyp_id=hyp_id,
-                                     detail=domDetailToString(event, detail)
-                                     )
+                    and domEventToString(event) in ['Started', 'Stopped', 'Suspended']:
+                previous_status = get_domain_status(dom.name())
+                if previous_status in ['CreatingDomain',
+                                       'Deleting',
+                                       'DeletingDomainDisk',
+                                       'DiskDeleted']:
+                    # domain continues in the previous status
+
+                    # update_domain_status(id_domain=dom.name(),
+                    #                      status=previous_status,
+                    #                      hyp_id=hyp_id,
+                    #                      detail="Event received: " + domDetailToString(event, detail)
+                    #                      )
+                    pass
+                else:
+                    update_domain_status(id_domain=dom.name(),
+                                         status=domEventToString(event),
+                                         hyp_id=hyp_id,
+                                         detail="Event received: " + domDetailToString(event, detail)
+                                         )
         else:
             log.error('UNKNOWN STATUS in domain {}'.format(dict_event['domain']))
     else:
-        log.error('domain {} launch event in hyervisor {}, but id_domain is not in database'.format(dom_id, hyp_id))
-        log.error('event: {}; detail: {}'.format(domEventToString(event), domDetailToString(event, detail)))
+        log.info('domain {} launch event in hyervisor {}, but id_domain is not in database'.format(dom_id, hyp_id))
+        log.info('event: {}; detail: {}'.format(domEventToString(event), domDetailToString(event, detail)))
 
 
 last_timestamp_event_graphics = dict()

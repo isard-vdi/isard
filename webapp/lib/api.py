@@ -813,21 +813,40 @@ class isard():
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
     def new_domain_disposable_from_tmpl(self, client_ip, template):
+        parsed_name = self.parse_string(client_ip)
+        parsed_name = client_ip.replace(".", "_") 
+        old_rnd=False       
         with app.app_context():
+            # Check if exists disposable for that ip (parsed name)
+            exists_domain = list(r.table('domains').filter(lambda domain:
+                                                    domain['id'].match('^_disposable_'+parsed_name+'_')
+                                                ).run(db.conn))
+            if len(exists_domain) > 1:
+                log.error('More than one disposable domain match beginning with _disposable_'+parsed_name)
+                return False
+            if len(exists_domain) == 1:
+                # If only one exists, stop, deleteit!
+                old_rnd=exists_domain[0]['id'].split('_')[-1]
+                r.table('domains').get(exists_domain[0]['id']).update({'status':'StoppingAndDeleting'}).run(db.conn)
+            # Create new disposable
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
             dom=app.isardapi.get_domain(template, flatten=False)
-        #~ log.info('template:'+template)
-        #~ log.info(dom)
+
         parent_disk=dom['hardware']['disks'][0]['file']
         create_dict=dom['create_dict']
 
-        parsed_name = self.parse_string(client_ip)
-        parsed_name = client_ip.replace(".", "_")
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        from string import digits, ascii_lowercase
+        chars = digits + ascii_lowercase
+        new_rnd=old_rnd
+        while new_rnd==old_rnd: new_rnd="".join([random.choice(chars) for i in range(4)])
+        
+        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name+'_'+new_rnd)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'parent':parent_disk}]
 
-        new_domain={'id': '_disposable_'+parsed_name,
+
+        
+        new_domain={'id': '_disposable_'+parsed_name+'_'+new_rnd,
                   'name': parsed_name,
                   'description': 'Disposable desktop',
                   'kind': 'desktop',
@@ -849,31 +868,37 @@ class isard():
                               'groups': False,
                               'users': False}}
         with app.app_context():
-            return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
+            if self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted'):
+                return new_domain['id']
+            else:
+                return False
 
     ##### SPICE VIEWER
     
     def get_domain_spice(self, id):
         ### HTML5 spice dict (isardsocketio)
-        
-        domain =  r.table('domains').get(id).run(db.conn)
-        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        if viewer['defaultMode'] == "Secure":
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':domain['viewer']['tlsport'],
-                    'ca':viewer['certificate'],
-                    'domain':viewer['domain'],
-                    'passwd':domain['viewer']['passwd']}
-        else:
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':False,
-                    'ca':'',
-                    'domain':'',
-                    'passwd':domain['viewer']['passwd']}
+        try:
+            domain =  r.table('domains').get(id).run(db.conn)
+            viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
+            if viewer['defaultMode'] == "Secure":
+                return {'host':domain['viewer']['hostname'],
+                        'kind':domain['hardware']['graphics']['type'],
+                        'port':domain['viewer']['port'],
+                        'tlsport':domain['viewer']['tlsport'],
+                        'ca':viewer['certificate'],
+                        'domain':viewer['domain'],
+                        'passwd':domain['viewer']['passwd']}
+            else:
+                return {'host':domain['viewer']['hostname'],
+                        'kind':domain['hardware']['graphics']['type'],
+                        'port':domain['viewer']['port'],
+                        'tlsport':False,
+                        'ca':'',
+                        'domain':'',
+                        'passwd':domain['viewer']['passwd']}
+        except Exception as e:
+            log.error('Viewer for domain '+id+' exception:'+str(e))
+            return False
     
     def get_spice_xpi(self, id):
         ### Dict for XPI viewer (isardSocketio)
@@ -890,11 +915,13 @@ class isard():
 
     ######### VIEWER DOWNLOAD FUNCTIONS
     def get_viewer_ticket(self,id,os='generic'):
-        dict = self.get_domain_spice(id)
-        if dict['kind']=='vnc':
-            return self.get_vnc_ticket(dict,os)
-        if dict['kind']=='spice':
-            return self.get_spice_ticket(dict)
+        viewer = self.get_domain_spice(id)
+        if viewer is not False:
+            dict=viewer
+            if dict['kind']=='vnc':
+                return self.get_vnc_ticket(dict,os)
+            if dict['kind']=='spice':
+                return self.get_spice_ticket(dict)
         return False
         
     def get_vnc_ticket(self, dict,os):
@@ -1085,7 +1112,7 @@ class isard():
         if type(txt) is not str:
             txt = txt.decode('utf-8')
         #locale.setlocale(locale.LC_ALL, 'ca_ES')
-        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$") #, re.L)
+        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$")
         if not prog.match(txt):
             return False
         else:

@@ -19,12 +19,25 @@ $(document).ready(function() {
         var form = $('#modalAddUserForm');
         form.parsley().validate();
         if (form.parsley().isValid()){
-            delete data['password2']
+            
             data=quota2dict($('#modalAddUserForm').serializeObject());
-            //~ socket.emit('xxx',data)
+            delete data['password2']
+            console.log(data)
+            socket.emit('user_add',data)
         }
     }); 
 
+
+    $("#modalAddUser #role").on('change', function(e){
+        setQuotaTableDefaults('#users-quota','roles',$(this).val())
+    });
+    $("#modalAddUser #category").on('change', function(e){
+        setQuotaTableDefaults('#users-quota','categories',$(this).val())
+    });
+    $("#modalAddUser #group").on('change', function(e){
+        setQuotaTableDefaults('#users-quota','groups',$(this).val())
+    });
+        
     var table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",
@@ -106,7 +119,24 @@ $(document).ready(function() {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    
+
+    socket.on('add_form_result', function (data) {
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAddUserForm")[0].reset();
+            $("#modalAddUser").modal('hide');
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+       
     //~ socket.on('user_quota', function(data) {
         //~ console.log('Quota update')
         //~ var data = JSON.parse(data);

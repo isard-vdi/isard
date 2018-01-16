@@ -77,10 +77,15 @@ def desktops_get(kind='username'):
 @ownsid
 def viewer_download(os,id):
     #~ if type == 'file':
+    # ~ viewer=app.isardapi.get_viewer_ticket(id,os)
+    try:
         extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
         return Response(consola, 
-                        mimetype="application/x-virt-viewer",
-                        headers={"Content-Disposition":"attachment;filename=consola."+extension})
+                    mimetype=mimetype,
+                    headers={"Content-Disposition":"attachment;filename=consola."+extension})
+    except Exception as e:
+        print('Download viewer error:'+str(e))
+        return Response('Error in viewer',mimetype='application/txt')
     #~ if type == 'xpi':
         #~ dict=app.isardapi.get_spice_xpi(id)
         #~ return json.dumps(dict), 200, {'ContentType:':'application/json'}
@@ -103,8 +108,16 @@ def viewer_download(os,id):
                     #~ 'domain':viewer['domain'],
                     #~ 'passwd':domain['viewer']['passwd']}
         
-         
-#~ Serves desktops and templates (domains)
+@app.route('/disposable/download_viewer/<os>/<id>')
+def viewer_disposable_download(os,id):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if id.startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
+        return Response(consola, 
+                        mimetype=mimetype,
+                        headers={"Content-Disposition":"attachment;filename=consola."+extension})
+                        
+# ~ #~ Serves desktops and templates (domains)
 @app.route('/domains/update', methods=['POST'])
 @login_required
 @ownsid
@@ -154,21 +167,40 @@ def domains_update():
             #~ flash('Could not create desktop. Maybe you have one with the same name?','danger')
             #~ return redirect(url_for('desktops'))
 
-@app.route('/desktops_add_disposable', methods=['POST'])
-def desktops_add_disposable():
-    res=True
-    if request.method == 'POST':
-        remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-        template=hs=request.get_json(force=True)['pk']
-        app.isardapi.new_domain_disposable_from_tmpl(remote_addr,template)
-        #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+# ~ @app.route('/desktops_add_disposable', methods=['POST'])
+# ~ def desktops_add_disposable():
+    # ~ res=True
+    # ~ if request.method == 'POST':
+        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ template=request.get_json(force=True)['pk']
+        # ~ ## Checking permissions
+        # ~ disposables = app.isardapi.show_disposable(remote_addr)
+        # ~ print([d['id'] for d in disposables['disposables'] if d['id']==template])
+        # ~ if disposables and len([d['id'] for d in disposables['disposables'] if d['id']==template]):
+            # ~ # {'active': True,
+             # ~ # 'description': 'prova',
+             # ~ # 'disposables': [{'description': '',
+                              # ~ #~ 'id': '_biblioteca1',
+                              # ~ #~ 'name': 'biblioteca1'}],
+             # ~ # 'id': 'taller',
+             # ~ # 'name': 'taller',
+             # ~ # 'nets': ['10.200.108.0/24']}
 
-        if res is True:
-            flash('Disposable desktop created.','success')
-            return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-        else:
-            flash('Could not update.','danger')
-            return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
+
+
+        
+            # ~ app.isardapi.new_domain_disposable_from_tmpl(remote_addr,template)
+        # ~ # res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+        # ~ else:
+            # ~ res=False
+        # ~ if res is True:
+            # ~ flash('Disposable desktop created.','success')
+            # ~ print('Created desktop')
+            # ~ return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+        # ~ else:
+            # ~ flash('Could not update.','danger')
+            # ~ print('Failed creating desktop')
+            # ~ return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
                         
 @app.route('/hardware', methods=['GET'])
 @login_required
@@ -294,12 +326,12 @@ def desktops_template():
 #~ def disconnect():
     #~ print("%s disconnected" % (current_user.username))
     
-def desktops_stream():
-        with app.app_context():
-            for c in r.table('domains').get_all(current_user.username, index='user').merge({"table": "domains"}).changes(include_initial=False).run(db.conn):
-                if c['new_val'] is not None:
-                   print('new event for user '+current_user.username+' desktop:'+c['new_val']['id'])
-                   emit('status_desktop',c['new_val'])
+# ~ def desktops_stream():
+        # ~ with app.app_context():
+            # ~ for c in r.table('domains').get_all(current_user.username, index='user').merge({"table": "domains"}).changes(include_initial=False).run(db.conn):
+                # ~ if c['new_val'] is not None:
+                   # ~ print('new event for user '+current_user.username+' desktop:'+c['new_val']['id'])
+                   # ~ emit('status_desktop',c['new_val'])
 
 #~ @app.route('/stream/desktops')
 #~ @login_required
@@ -332,31 +364,31 @@ def desktops_stream():
                     #~ print('THIS IS A DOMAIN STATUS')
                     #~ print(c['new_val']['name'],c['new_val']['status']['cpu_usage'])
 
-@app.route('/stream/disposable')
-def sse_request_disposable():
-    id = '_disposable_'+app.isardapi.parse_string(request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr)
-    return Response(event_disposable_stream(id), mimetype='text/event-stream')
+# ~ @app.route('/stream/disposable')
+# ~ def sse_request_disposable():
+    # ~ id = '_disposable_'+app.isardapi.parse_string(request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr)
+    # ~ return Response(event_disposable_stream(id), mimetype='text/event-stream')
 
-def event_disposable_stream(id):
-    with app.app_context():
-        for c in r.table('domains').get(id).changes(include_initial=False).run(db.conn):
-            if 'new_val' in c:
-                if c['new_val']['status'] == 'Started':
-                    yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Started',time.time(),json.dumps(c['new_val']))
+# ~ def event_disposable_stream(id):
+    # ~ with app.app_context():
+        # ~ for c in r.table('domains').get(id).changes(include_initial=False).run(db.conn):
+            # ~ if 'new_val' in c:
+                # ~ if c['new_val']['status'] == 'Started':
+                    # ~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Started',time.time(),json.dumps(c['new_val']))
 
 
-@app.route('/stream/backend')
-@login_required
-def sse_request_backend():
-        return Response(event_stream_backend(current_user.username, current_user.quota), mimetype='text/event-stream')
+# ~ @app.route('/stream/backend')
+# ~ @login_required
+# ~ def sse_request_backend():
+        # ~ return Response(event_stream_backend(current_user.username, current_user.quota), mimetype='text/event-stream')
 
-import random
-def event_stream_backend(username,quota):
-        yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Quota',time.time(),json.dumps(app.isardapi.get_user_quotas(username, quota)))
-        with app.app_context():
-            for c in r.table('domains').get_all(username, index='user').filter({'kind': 'desktop'}).changes(include_initial=False).run(db.conn):
-                    yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Quota',time.time(),json.dumps(app.isardapi.get_user_quotas(username, quota)))
-                    continue
+# ~ import random
+# ~ def event_stream_backend(username,quota):
+        # ~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Quota',time.time(),json.dumps(app.isardapi.get_user_quotas(username, quota)))
+        # ~ with app.app_context():
+            # ~ for c in r.table('domains').get_all(username, index='user').filter({'kind': 'desktop'}).changes(include_initial=False).run(db.conn):
+                    # ~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Quota',time.time(),json.dumps(app.isardapi.get_user_quotas(username, quota)))
+                    # ~ continue
 
 @app.route('/desktops/filterTemplate/<kind>', methods=['GET'])
 @app.route('/desktops/filterTemplate/<kind>/category/<category>', methods=['GET'])
@@ -405,18 +437,15 @@ def templateUpdate(id):
 
 ## Helpers
 
-def _code(txt):
-    None
-
-def validCharacters(txt):
-    import re, unicodedata, locale
-    txt=txt.decode('utf-8')
-    locale.setlocale(locale.LC_ALL, 'ca_ES')
-    prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$".decode('UTF-8'), re.L)
-    if not prog.match(txt):
-        return False
-    else:
-        return txt
+# ~ def validCharacters(txt):
+    # ~ import re, unicodedata, locale
+    # ~ txt=txt.decode('utf-8')
+    # ~ locale.setlocale(locale.LC_ALL, 'ca_ES')
+    # ~ prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$".decode('UTF-8'), re.L)
+    # ~ if not prog.match(txt):
+        # ~ return False
+    # ~ else:
+        # ~ return txt
 
             
         

@@ -23,7 +23,7 @@ from engine.services.db.hypervisors import get_hyps_ready_to_start, get_hypers_d
     get_hyp_hostname_user_port_from_id, update_all_hyps_status, get_hyps_with_status
 from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_created, \
     set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain
-from engine.services.db.domains import update_domain_status
+from engine.services.db.domains import update_domain_status, update_domain_start_after_created, update_domain_delete_after_stopped
 from engine.services.lib.functions import get_threads_running, get_tid
 from engine.services.log import *
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
@@ -320,6 +320,11 @@ class ManagerHypervisors(object):
                         (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
                     ui.creating_disks_from_template(domain_id)
 
+                if (new_domain is True and new_status == "CreatingAndStarting"):
+                    update_domain_start_after_created(domain_id)
+                    ui.creating_disks_from_template(domain_id)
+
+
                     # INFO TO DEVELOPER
                     # recoger template de la que hay que derivar
                     # verificar que realmente es una template
@@ -375,10 +380,19 @@ class ManagerHypervisors(object):
                         (old_status == 'Failed' and new_status == "Starting"):
                     ui.start_domain_from_id(id=domain_id, ssl=True)
 
-                if old_status == 'Started' and new_status == "Stopping":
+                if (old_status == 'Started' and new_status == "Stopping" ) or \
+                        (old_status == 'Suspended' and new_status == "Stopping" ):
                     # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
                     # ui.stop_domain_from_id(id=domain_id)
                     hyp_started = get_domain_hyp_started(domain_id)
                     ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+
+                if (old_status == 'Started' and new_status == "StoppingAndDeleting" ) or \
+                        (old_status == 'Suspended' and new_status == "StoppingAndDeleting" ):
+                    # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
+                    # ui.stop_domain_from_id(id=domain_id)
+                    hyp_started = get_domain_hyp_started(domain_id)
+                    print(hyp_started)
+                    ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started, delete_after_stopped=True)
 
             r_conn.close()

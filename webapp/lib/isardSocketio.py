@@ -30,6 +30,7 @@ class DomainsThread(threading.Thread):
         self.stop = False
 
     def run(self):
+        starteddict={}
         with app.app_context():
             for c in r.table('domains').without('xml','hardware','viewer').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
@@ -41,7 +42,43 @@ class DomainsThread(threading.Thread):
                         event='desktop_delete' if data['kind']=='desktop' else 'template_delete'
                     else:
                         if not c['new_val']['id'].startswith('_'): continue
-                        data=c['new_val']   
+                        data=c['new_val'] 
+                        data['accessed']=time.time()
+                          
+                        ## Disposables on login
+                        if data['user']=='disposable':
+                            # ~ print('im a disposable: '+data['id'])
+                            event='desktop_data'
+                            socketio.emit(event, 
+                                            json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                            namespace='/sio_admins', 
+                                            room='domains')   
+                                                                       
+                            ip=data['name'].replace('_','.')
+                            # ~ try:
+                                # ~ ip=data['viewer']['client_addr']
+                            # ~ except Exception as e:
+                                # ~ # print(data['id']+' is disposable but has no viewer client addr')
+                                # ~ continue
+                            # ~ if ip:
+                                # ~ print('EMITTED DISPOSABLE DATA')
+                            # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
+                            if data['status']=='Started' and c['old_val']['status']!='Started': # and data['detail']=='':
+                                print('SEND EVENT: disposables_'+ip)
+                                # ~ if starteddict=={}:
+                                    # ~ starteddict=data
+                                    # ~ starteddict['detail']='hander'
+                                # ~ else:
+                                    # ~ import pprint
+                                    # ~ pprint.pprint( dict(set(starteddict) ^ set(data)))
+                                # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
+                                socketio.emit('disposable_data', 
+                                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                                    namespace='/sio_disposables', 
+                                                    room='disposables_'+ip)                                        
+                            continue
+                        ## End disposables
+                        
                         if data['kind']=='desktop':
                             event='desktop_data'
                         else:
@@ -201,7 +238,7 @@ class UsersThread(threading.Thread):
                                     namespace='/sio_users', 
                                     room='user_'+data['id'])
                     socketio.emit('user_quota', 
-                                    json.dumps(app.isardapi.get_user_quotas(data['user'])), 
+                                    json.dumps(app.isardapi.get_user_quotas(data['id'])), 
                                     namespace='/sio_users', 
                                     room='user_'+data['id'])
                     ## Admins should receive all updates on /admin namespace
@@ -211,6 +248,9 @@ class UsersThread(threading.Thread):
                                     room='users')
                 except Exception as e:
                     log.error('UsersThread error:'+str(e))
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    log.error(exc_type, fname, exc_tb.tb_lineno)
 
 def start_users_thread():
     global threads
@@ -309,6 +349,25 @@ def start_config_thread():
         threads['config'].start()
         log.info('ConfigThread Started')
 
+
+## Users namespace
+@socketio.on('user_add', namespace='/sio_admins')
+def socketio_user_add(form_data):
+    if current_user.role == 'admin': 
+        create_dict=app.isardapi.f.unflatten_dict(form_data)
+        # ~ create_dict=parseHardware(create_dict)
+        print(create_dict)
+        res=app.adminapi.add_user(create_dict)
+        if res is True:
+            data=json.dumps({'result':True,'title':'New user','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':False,'title':'New user','text':'User '+create_dict['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='users')
+                    
+                    
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')
 def socketio_users_connect():
@@ -340,27 +399,68 @@ def socketio_media_update(data):
                     
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
-    #~ if data['kind'] == 'file':
-        #~ consola=app.isardapi.get_viewer_ticket(data['pk'])
-        #~ viewer=''
-        #~ return Response(consola, 
-                        #~ mimetype="application/x-virt-viewer",
-                        #~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
-    if data['kind'] == 'xpi':
-        viewer=app.isardapi.get_spice_xpi(data['pk'])
+    if current_user.role == 'admin': 
+        sendViewer(data)
+    else:
+        id=data['pk']
+                
+        if id.startswith('_'+current_user.id+'_'):
+            sendViewer(data)
+        else:
+            msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+            socketio.emit('result',
+                            msg,
+                            namespace='/sio_disposables', 
+                            room='disposable_'+remote_addr)     
+    
+@socketio.on('disposable_viewer', namespace='/sio_disposables')
+def socketio_domains_viewer(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        sendViewer(data)
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr)        
 
-    if data['kind'] == 'html5':
-        viewer=app.isardapi.get_domain_spice(data['pk'])
-        ##### Change this when engine opens ports accordingly (without tls)
-        if viewer['port']:
-            viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
-            viewer['port'] = "5"+ viewer['port']
-        #~ viewer['port']=viewer['port']-1
-    socketio.emit('domain_viewer',
-                    json.dumps({'kind':data['kind'],'viewer':viewer}),
-                    namespace='/sio_users', 
-                    room='user_'+current_user.username)
+                        
+def sendViewer(data):                        
+    if data['kind'] == 'file':
+        consola=app.isardapi.get_viewer_ticket(data['pk'])
+        # ~ viewer=
+        socketio.emit('domain_viewer',
+                        json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)  
+        
+        # ~ return Response(consola, 
+                        # ~ mimetype="application/x-virt-viewer",
+                        # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
+    else:
+        if data['kind'] == 'xpi':
+            viewer=app.isardapi.get_spice_xpi(data['pk'])
 
+        if data['kind'] == 'html5':
+            viewer=app.isardapi.get_domain_spice(data['pk'])
+            ##### Change this when engine opens ports accordingly (without tls)
+        if viewer is not False:
+            if viewer['port']:
+                viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
+                viewer['port'] = "5"+ viewer['port']
+                #~ viewer['port']=viewer['port']-1
+            socketio.emit('domain_viewer',
+                            json.dumps({'kind':data['kind'],'viewer':viewer}),
+                            namespace='/sio_users', 
+                            room='user_'+current_user.username)
+        else:
+            msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+            socketio.emit('result',
+                            msg,
+                            namespace='/sio_users', 
+                            room='user_'+current_user.username)
+                        
 @socketio.on('domain_add', namespace='/sio_users')
 def socketio_domains_add(form_data):
     #~ Check if user has quota and rights to do it
@@ -373,7 +473,7 @@ def socketio_domains_add(form_data):
     if res is True:
         data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_users', 
@@ -456,11 +556,72 @@ def socketio_media_add(form_data):
         if res is True:
             data=json.dumps({'result':True,'title':'New media','text':'Media '+media['name']+' is being uploaded...','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':True,'title':'New media','text':'Media '+media['name']+' can\'t be uploaded. You have the same media filename uploaded already.','icon':'warning','type':'error'})
+            data=json.dumps({'result':False,'title':'New iso','text':'Iso '+iso['name']+' can\'t be uploaded. You have the same iso filename uploaded already.','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/sio_users', 
                         room='user_'+current_user.username)
+
+
+## Disposables
+@socketio.on('connect', namespace='/sio_disposables')
+def socketio_disposables_connect():
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if app.isardapi.show_disposable(remote_addr):
+        print('JOINED:'+remote_addr)
+        join_room('disposables_'+remote_addr)
+    # ~ None
+    #~ if current_user.role=='admin':
+        #~ join_room('disposable_'+ip)
+        #~ socketio.emit('user_quota', 
+                        #~ json.dumps(app.isardapi.get_user_quotas(current_user.username, current_user.quota)), 
+                        #~ namespace='/sio_admins', 
+                        #~ room='user_'+current_user.username)
+
+#~ @socketio.on('join_client', namespace='/sio_disposables')
+#~ def socketio_disposables_joinclient(clientip):
+    #~ print('CLIENT IP DISPOSABLE: '+clientip)
+    #~ ## If clientip in disposable pool....
+    #~ join_room(clientip)
+                                    
+@socketio.on('disposables_add', namespace='/sio_disposables')
+def socketio_disposables_add(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    template=data['pk'] ##request.get_json(force=True)['pk']
+    ## Checking permissions
+    disposables = app.isardapi.show_disposable(remote_addr)
+    # ~ print([d['id'] for d in disposables['disposables'] if d['id']==template])
+    if disposables and len([d['id'] for d in disposables['disposables'] if d['id']==template]):
+        id=app.isardapi.new_domain_disposable_from_tmpl(remote_addr,template)
+    else:
+        id=False
+    # ~ else:
+        # ~ res=False
+    # ~ if res is True:
+        # ~ flash('Disposable desktop created.','success')
+        # ~ print('Created desktop')
+        # ~ return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    # ~ else:
+        # ~ flash('Could not update.','danger')
+        # ~ print('Failed creating desktop')
+        # ~ return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
+            
+            
+            
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
+    # ~ create_dict=parseHardware(create_dict)
+    # ~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+    if id:
+        data=json.dumps({'result':True,'title':'New disposable','text':'Disposable '+id+' for your client is being created. Please wait...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'New disposable','text':'Disposable for your can\'t be created. Please try again.','icon':'warning','type':'error'})
+    socketio.emit('result',
+                    data,
+                    namespace='/sio_disposables', 
+                    room='disposables_'+remote_addr)
 
 ## Admin namespace
 @socketio.on('connect', namespace='/sio_admins')
@@ -513,7 +674,7 @@ def socketio_domains_virtualbuilder_add(form_data):
     if res is True:
         data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_admins', 
@@ -565,7 +726,7 @@ def socketio_scheduler_add(form_data):
     if res is True:
         data=json.dumps({'result':True,'title':'New scheduler','text':'Scheduler is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'New scheduler','text':'Scheduler can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New scheduler','text':'Scheduler can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_admins', 
@@ -575,7 +736,10 @@ def socketio_scheduler_add(form_data):
 @socketio.on('disconnect', namespace='/sio_admins')
 def socketio_admins_disconnect():
     leave_room('admins')
-    leave_room('user_'+current_user.username)
+    try:
+        leave_room('user_'+current_user.username)
+    except Exception as e:
+        log.debug('USER has leaved without disconnect')
     log.debug('USER: '+current_user.username+' DISCONNECTED')
     
 

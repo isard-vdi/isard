@@ -4,6 +4,7 @@ import sys
 import time
 
 import rethinkdb as r
+from rethinkdb import ReqlNonExistenceError
 
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import new_rethink_connection, \
@@ -41,7 +42,7 @@ def update_domain_force_hyp(id_domain, hyp_id=None):
     return results
 
 
-def update_domain_status(status, id_domain, hyp_id=None, detail=''):
+def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=False):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
     # INFO TO DEVELOPER TODO: verificar que el estado que te ponen es realmente un estado válido
@@ -49,6 +50,10 @@ def update_domain_status(status, id_domain, hyp_id=None, detail=''):
     # INFO TO DEVELOPER TODO: MOLARÍA GUARDAR UN HISTÓRICO DE LOS ESTADOS COMO EN HYPERVISORES
 
     # INFO TO DEVELOPER: OJO CON hyp_started a None... peligro si alguien lo chafa, por eso estos if/else
+
+    if keep_hyp_id == True:
+        hyp_id = rtable.get(id_domain).pluck('hyp_started').run(r_conn)['hyp_started']
+
 
     if hyp_id is None:
         # print('ojojojo')
@@ -130,6 +135,7 @@ def get_domain_kind(id_domain):
         return ''
 
     return results['kind']
+
 
 
 def get_domain_hyp_started(id_domain):
@@ -424,10 +430,30 @@ def get_domain_status(id):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
 
-    domain_status = rtable.get(id).pluck('status').run(r_conn)
+    try:
+        domain_status = rtable.get(id).pluck('status').run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return None
+
     close_rethink_connection(r_conn)
     return domain_status['status']
 
+def get_if_delete_after_stop(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    try:
+        domain_status = rtable.get(id).pluck('delete_after_stopped').run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False
+
+    close_rethink_connection(r_conn)
+    if domain_status['delete_after_stopped'] is True:
+        return True
+    else:
+        return False
 
 def get_disks_all_domains():
     r_conn = new_rethink_connection()
@@ -492,7 +518,6 @@ def get_domains_count(user, status=None, origin=None):
 #     else:
 #         return False
 
-
 def insert_domain(dict_domain):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
@@ -532,8 +557,8 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
     else:
         hyp_started = ''
 
-    now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
-
+    #now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
+    now = time.time()
     update_domain_history_status(domain_id=domain_id,
                                  new_status=new_status,
                                  when=now,
@@ -620,6 +645,22 @@ def get_domains_id(user, id_pool, kind='desktop', origin=None):
     close_rethink_connection(r_conn)
     ids = [d['id'] for d in l]
     return ids
+
+def update_domain_delete_after_stopped(id_domain,do_delete=True):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    rtable.get(id_domain).update(
+        {'delete_after_stopped': do_delete}).run(r_conn)
+    close_rethink_connection(r_conn)
+
+def update_domain_start_after_created(id_domain,do_create=True):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    rtable.get(id_domain).update(
+        {'start_after_created': do_create}).run(r_conn)
+    close_rethink_connection(r_conn)
 
 
 def update_domain_createing_template(id_domain, template_field, status='CreatingTemplate'):

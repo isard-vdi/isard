@@ -19,7 +19,59 @@
 -->
     <link href="/vendors/jQuery-Smart-Wizard/styles/demo_style.css" rel="stylesheet" type="text/css">
     <link href="/vendors/jQuery-Smart-Wizard/styles/smart_wizard.css" rel="stylesheet" type="text/css">
-
+  <style>
+    .modalDialog {
+        position: fixed;
+        font-family: Arial, Helvetica, sans-serif;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 99999;
+        opacity:0;
+        -webkit-transition: opacity 400ms ease-in;
+        -moz-transition: opacity 400ms ease-in;
+        transition: opacity 400ms ease-in;
+        pointer-events: none;
+    }
+    .modalDialog:target {
+        opacity:1;
+        pointer-events: auto;
+    }
+    .modalDialog > div {
+        width: 300px;
+        position: relative;
+        margin: 10% auto;
+        padding: 5px 20px 13px 20px;
+        border-radius: 10px;
+        background: #fff;
+        background: -moz-linear-gradient(#fff, #999);
+        background: -webkit-linear-gradient(#fff, #999);
+        background: -o-linear-gradient(#fff, #999);
+    }
+    .close {
+        background: #606061;
+        color: #FFFFFF;
+        line-height: 25px;
+        position: absolute;
+        right: -12px;
+        text-align: center;
+        top: -10px;
+        width: 24px;
+        text-decoration: none;
+        font-weight: bold;
+        -webkit-border-radius: 12px;
+        -moz-border-radius: 12px;
+        border-radius: 12px;
+        -moz-box-shadow: 1px 1px 3px #000;
+        -webkit-box-shadow: 1px 1px 3px #000;
+        box-shadow: 1px 1px 3px #000;
+    }
+    .close:hover {
+        background: #00d9ff;
+    }  
+  </style>
   </head>
 
   <body>
@@ -104,24 +156,23 @@
                    <!-- step content -->
               </div>                      
               <div id="step-3">
-                  <h2 class="StepTitle">Step 3. Set admin user password</h2>  
-                  {% include 'passwd_form.html' %}
+                  <h2 class="StepTitle">Step 3. Set admin user password</h2> 
                    <!-- step content -->
               </div>
               <div id="step-4">
-                  <h2 class="StepTitle">Step 4 Title</h2>   
+                  <h2 class="StepTitle">Step 4 Connection</h2>   
                    <!-- step content -->                         
               </div>
               <div id="step-5">
-                  <h2 class="StepTitle">Step 5 Title</h2>   
+                  <h2 class="StepTitle">Step 5 Engine</h2>   
                    <!-- step content -->                         
               </div>
               <div id="step-6">
-                  <h2 class="StepTitle">Step 6 Title</h2>   
+                  <h2 class="StepTitle">Step 6 Hypervisors</h2>   
                    <!-- step content -->                         
               </div>              
               <div id="step-7">
-                  <h2 class="StepTitle">Step 7 Title</h2>   
+                  <h2 class="StepTitle">Step 7 Updates</h2>   
                    <!-- step content -->                         
               </div> 
             </div>
@@ -132,18 +183,38 @@
   
     <div id="registerModal" class="modalDialog">
         <div><a href="#close" title="Close" class="close">X</a>
-            <h2>Do you want to access updates and demo domains on IsardVDI?</h2>
-            <p>No personal information will be registered.</p>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="registerCancel" type="button" class="btn btn-info" style="display: none;">No</button></li>
-                    <li><button id="registerOK" type="button" class="btn btn-success">Yes</button></li>
-                   </li>
-                </ul>            
-<!--
-            <pre><code>sudo dnf install npm && npm -g install yarn</code></pre>
-            <pre><code>yarn</code></pre>
-            <p><a href="https://yarnpkg.com/lang/en/docs/install/" target="_blank">https://yarnpkg.com/lang/en/docs/install/</a></p>
--->
+            <h2>Change default admin user password</h2>
+                <form name="Form" id="changepw" class="form-horizontal form-label-left"
+                  data-parsley-excluded="input[type=button], input[type=submit], input[type=reset], input[type=hidden], [disabled], :hidden"
+                  data-parsley-trigger="keyup" data-parsley-validate>
+                  <div>
+                          <input id="password1" name="password" type="password" class="form-control col-md-7 col-xs-12 password"
+                            placeholder="New password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspannewpassinput"
+                            data-parsley-required-message="Please enter your new password."
+                            data-parsley-uppercase="1"
+                            data-parsley-lowercase="1"
+                            data-parsley-number="1"
+                            data-parsley-special="1"
+                            data-parsley-required 
+                            autofocus />
+                          <span class="errorspannewpassinput"></span>
+                  </div>
+                  <div>
+                          <input name="Password_2" id="password2" type="password" class="form-control col-md-7 col-xs-12 password"
+                          placeholder="Repeat password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspanconfirmnewpassinput"
+                            data-parsley-required-message="Please re-enter your new password."
+                            data-parsley-equalto="#password1"
+                            data-parsley-required />
+                          <span class="errorspanconfirmnewpassinput"></span>
+                  </div>
+                  <div>
+                    <button type="submit" class="btn btn-default submit">Update</button>
+                  </div>
+                </form>           
         </div>
     </div>
     <!-- jQuery -->
@@ -153,20 +224,20 @@
     <script type="text/javascript" src="jquery-1.4.2.min.js"></script>
 -->
     <script type="text/javascript" src="/vendors/jQuery-Smart-Wizard/js/jquery.smartWizard.js"></script>
-    <!-- Parsley -->
 <!--
-    <script src="/vendors/parsleyjs/dist/parsley.min.js"></script>
+     Parsley 
 -->
+    <script src="/vendors/parsleyjs/dist/parsley.min.js"></script>
 
 <script type="text/javascript">
 $(document).ready(function(){
     // Smart Wizard  
     
-
-			$('#registerModal').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            //~ $('#registerModal').dialog('open');
+			//~ $('#registerModal').modal({
+				//~ backdrop: 'static',
+				//~ keyboard: false
+			//~ }).modal('show');
 
     $('#wizard').smartWizard({
         contentURL:'/content',
@@ -192,7 +263,11 @@ $(document).ready(function(){
     
     function leaveAStepCallback(obj, context){
         //~ alert("Leaving step " + context.fromStep + " to go to step " + context.toStep);
-        return validateSteps(context.fromStep); // return false to stay on step and true to continue navigation 
+        if(validateSteps(context.fromStep)=='true'){
+            return true;
+        }else{
+            return false};
+        //~ return validateSteps(context.fromStep); // return false to stay on step and true to continue navigation 
     }
 
     function onFinishCallback(objs, context){
@@ -205,23 +280,11 @@ $(document).ready(function(){
 
     // Your Step validation logic
     function validateSteps(stepnumber){
-        var isStepValid = true;
-        //~ if(stepnumber == 1){
-            $.post( "/validate/"+stepnumber, function( data ) {
-                var data = JSON.parse(data);
-                console.log(data)
-                if(data){
-                    $("#wizard").smartWizard('setError', {'stepnum':stepnumber,'iserror':false}); 
-                    $("#wizard").smartWizard("goToStep",stepnumber);
-                    return true;
-                }else{
-                    $("#wizard").smartWizard('setError', {'stepnum':stepnumber,'iserror':true}); 
-                    $("#wizard").smartWizard("goToStep",stepnumber);
-                    return false;}
-            });    
-            return true;        
-        //~ }
-
+            return $.ajax({
+        type: "POST",
+        url: "/validate/"+stepnumber,
+        async: false
+    }).responseText;
     }
     
     function validateAllSteps(){
@@ -230,5 +293,44 @@ $(document).ready(function(){
         return isStepValid;
     }          
 });
+</script>
+<script>
+    $("#changepw").parsley();
+    $("#changepw").on('submit', function(e) {
+        var f = $(this);
+        f.parsley().validate();
+
+        if (f.parsley().isValid()) {
+            response= $.ajax({
+                    type: "POST",
+                    url: "/passwd",
+                    async: false,
+                    data: JSON.stringify($('#password1').val()),
+                    contentType: "application/json; charset=utf-8",
+                    traditional: true,
+                    success: function (data) {
+                        console.log(data);
+                        $(this).hide();
+                    }                    
+                });
+        }
+         //~ else {
+          //~ alert('O formulário não é válido');
+        //~ }
+
+        e.preventDefault();
+      });
+  
+    //~ $("#registerModal #updatepw").on('click', function(e){
+        //~ var form = $('#changepw');
+        //~ form.parsley().validate();
+        //~ if (form.parsley().isValid()){
+            //~ console.log('data valid')
+            //~ // data=$('#changepw').serializeObject();
+            //~ // console.log(data)
+            //~ return true;
+        //~ }
+        //~ return false;
+    //~ }); 
 </script>
 </html>

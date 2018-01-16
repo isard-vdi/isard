@@ -902,3 +902,176 @@ class Populate(object):
                 log.info("Table virt_install not found, creating...")
                 r.table_create('virt_install', primary_key="id").run()
             return True
+
+
+
+    ''''
+
+    VIRT - BUILDER
+    VIRT - INSTALL
+
+    '''
+
+
+    def create_builders(self):
+        l=[]
+        d_fedora25 = {'id': 'fedora25_gnome_office',
+                      'name': 'Fedora 25 with gnome and libre office',
+                      'builder':{
+                          'id': 'fedora-25',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install "@workstation-product-environment"
+    --install "inkscape,tmux,@libreoffice,chromium"
+    --install "libreoffice-langpack-ca,langpacks-es"
+    --root-password password:isard
+    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+    --firstboot-command 'localectl set-locale LANG=es_ES.utf8'
+    --firstboot-command 'localectl set-keymap es'
+    --firstboot-command 'systemctl isolate graphical.target'
+    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    --hostname 'isard-fedora'"""
+                      },
+                      'install':{
+                          'id': 'fedora25',
+                          'options': ''
+                      }
+                      }
+        l.append(d_fedora25)
+        
+        d_debian8 = {'id': 'debian8_gnome_office',
+                      'name': 'Debian 8 with gnome and libre office',
+                      'builder':{
+                          'id': 'debian-8',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install 'xfce4,locales,ibus'
+    --install 'gdm3,libreoffice,libreoffice-l10n-es'
+    --install 'inkscape,tmux,chromium'
+    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    --run-command "locale-gen"
+    --root-password password:isard
+    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    --hostname 'isard-debian'"""
+                      },
+                      'install':{
+                          'id': 'debian8',
+                          'options': ''
+                      }
+                      }
+        l.append(d_debian8)
+        
+        d_ubuntu1604 = {'id': 'ubuntu1604_gnome_office',
+                      'name': 'Ubuntu 16.04 with gnome and libre office',
+                      'builder':{
+                          'id': 'ubuntu-16.04',
+                          'options':
+    """--update
+    --selinux-relabel
+    --install "ubuntu-desktop"
+    --install "inkscape,tmux,libreoffice,chromium-bsu"
+    --install 'language-pack-es-base,language-pack-es'
+    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    --run-command "locale-gen"
+    --root-password password:isard
+    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+    --firstboot-command 'systemctl isolate graphical.target'
+    --hostname 'isard-ubuntu'"""
+                      },
+                      'install':{
+                          'id': 'ubuntu16',
+                          'options': ''
+                      }
+                      }
+        l.append(d_ubuntu1604)
+
+        d_cirros_35 = {'id': 'cirros35',
+                      'name': 'CirrOS 3.5',
+                      'builder':{
+                          'id': 'cirros-0.3.5',
+                          'options':
+    """"""
+                      },
+                      'install':{
+                          'id': 'centos7.0',
+                          'options': ''
+                      }
+                      }
+        l.append(d_cirros_35)
+        
+        return l
+
+    def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
+
+        import urllib.request
+        with urllib.request.urlopen(url) as response:
+            f = response.read()
+
+        s = f.decode('utf-8')
+        #select only arch x86_64
+        l = [a.split(']') for a in s[1:].split('\n[') if a.find('\narch=x86_64') > 0]
+
+        list_virtbuilder = []
+        for b in l:
+            d = {a.split('=')[0]: a.split('=')[1] for a in b[1].split('notes')[0].split('\n')[1:] if
+                       len(a) > 0 and a.find('=') > 0}
+            d['id'] = b[0]
+            list_virtbuilder.append(d)
+
+        return list_virtbuilder
+
+
+    def update_virtinstall(self,from_osinfo_query=False):
+
+        if from_osinfo_query is True:
+            import subprocess
+            data = subprocess.getoutput("osinfo-query os")
+
+        else:
+            from os import path
+            from os import getcwd
+            __location__ = path.realpath(
+                    path.join(getcwd(), path.dirname(__file__)))
+            f=open(__location__+'/osinfo.txt')
+            data = f.read()
+            f.close()
+
+        installs=[]
+
+        for l in data.split('\n')[2:]:
+            if l.find('|') > 1:
+
+                v=[a.strip() for a in l.split('|')]
+
+                #DEFAULT FONT
+                font_type = 'font-awesome'
+                font_class = 'fa-linux'
+
+                for oslinux in ('fedora,centos,debian,freebsd,mageia,mandriva,opensuse,ubuntu,opensuse'.split(',')):
+                        font_type  = 'font-linux'
+                        font_class = 'fl-'+oslinux
+
+                if v[0].find('rhel') == 0 or v[0].find('rhl') == 0:
+                    font_type  = 'font-linux'
+                    font_class = 'fl-redhat'
+
+                elif v[0].find('win') == 0:
+                    font_type  = 'font-awesome'
+                    font_class = 'fa-windows'
+
+                installs.append({'id':v[0].strip(),
+                                 'name':v[1].strip(),
+                                 'vers':v[2].strip(),
+                                 'www':v[3].strip(),
+                                 'font_type':font_type,
+                                 'icon':font_class})
+
+        return installs
+
+
+
+### disk_operations table not used anymore (delete if exists and remove creation)

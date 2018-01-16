@@ -106,7 +106,8 @@ $(document).ready(function() {
         $('#modalDisposable').modal({
 				backdrop: 'static',
 				keyboard: false
-        }).modal('show'); 
+        }).modal('show');
+        setTemplates()
     });
         
     $('.btn-backup').on( 'click', function () {
@@ -135,9 +136,12 @@ $(document).ready(function() {
         
     backups_table=$('#table-backups').DataTable({
 			"ajax": {
-				"url": "/admin/table/backups/get",
-				"dataSrc": ""
+				"url": "/admin/tabletest/backups/post",
+                "contentType": "application/json",
+                "type": 'POST',
+                "data": function(d){return JSON.stringify({'order':'filename'})}
 			},
+            "sAjaxDataProp": "",
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
 			},
@@ -163,7 +167,10 @@ $(document).ready(function() {
 			 "columnDefs": [ {
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-							  return moment.unix(full.when).fromNow();
+                              if ( type === 'display' || type === 'filter' ) {
+                                    return moment.unix(full.when).fromNow();
+                              }                                 
+                              return data;  
 							}}]
     } );        
  
@@ -244,7 +251,7 @@ $(document).ready(function() {
 
 
                             //~ backup_table_detail=''
-                            $('#backup-tables').on('change', function (e) {
+    $('#backup-tables').on('change', function (e) {
                                 //~ var optionSelected = $("option:selected", this);
                                 //~ console.log(optionSelected)
                                 var valueSelected = this.value;
@@ -267,9 +274,12 @@ $(document).ready(function() {
                                         backup_table_detail=$('#backup-table-detail').DataTable( {
                                             data: data,
                                             rowId: 'id',
+                                            //~ language: {
+                                                //~ "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+                                            //~ },
                                             columns: [
-                                                { "data": "id"},
-                                                { "data": "new_backup_data"},
+                                                { "data": "id", "width": "88px"},
+                                                { "data": "description", "width": "88px"},
                                                 {
                                                 "className":      'actions-control',
                                                 "orderable":      false,
@@ -279,6 +289,15 @@ $(document).ready(function() {
                                                 },
                                                 ],
                                              "order": [[0, 'asc']],
+                                             "columnDefs": [ {
+                                                            "targets": 2,
+                                                            "render": function ( data, type, full, meta ) {
+                                                              if(full.new_backup_data){
+                                                                  return '<button class="btn btn-xs btn-individual-restore" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i>New</button>';
+                                                              }else{
+                                                                  return '<button class="btn btn-xs btn-individual-restore" type="button"  data-placement="top"><i class="fa fa-sign-in" style="color:darkgreen"></i>Exists</button>'
+                                                              }
+                                                            }}]
                                         } );
                                     }
                                                     $('.btn-individual-restore').on('click', function (e){
@@ -297,12 +316,56 @@ $(document).ready(function() {
                                                                 }).get().on('pnotify.confirm', function() {
                                                                     api.ajax('/admin/restore/'+table,'POST',{'data':data,}).done(function(data1) {
                                                                         api.ajax('/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':table}).done(function(data2) {
-                                                                            backup_table_detail.clear().rows.add(data2).draw()
+                                                                            data['new_backup_data']=false
+                                                                            dtUpdateInsert(backup_table_detail,data,false);
+                                                                            //~ setDomainDetailButtonsStatus(data.id, data.status);
+                                                                            //~ backup_table_detail.clear().rows.add(data2).draw()
                                                                         });
                                                                     });  
                                                                 }).on('pnotify.cancel', function() {
                                                         });	                                                        
-                                                    });                                    
+                                                    }); 
+                                                    
+                                                    $('.btn-bulk-restore').on('click', function(e) {
+                                                        names=''
+                                                        ids=[]
+                                                        if(backup_table_detail.rows('.active').data().length){
+                                                            $.each(backup_table_detail.rows('.active').data(),function(key, value){
+                                                                names+=value['name']+'\n';
+                                                                ids.push(value['id']);
+                                                            });
+                                                            var text = "You are about to restore these desktops:\n\n "+names
+                                                        }else{ 
+                                                            $.each(backup_table_detail.rows({filter: 'applied'}).data(),function(key, value){
+                                                                ids.push(value['id']);
+                                                            });
+                                                            var text = "You are about to restore "+backup_table_detail.rows({filter: 'applied'}).data().length+". All the desktops in list!"
+                                                        }
+                                                                new PNotify({
+                                                                        title: 'Warning!',
+                                                                            text: text,
+                                                                            hide: false,
+                                                                            opacity: 0.9,
+                                                                            confirm: {
+                                                                                confirm: true
+                                                                            },
+                                                                            buttons: {
+                                                                                closer: false,
+                                                                                sticker: false
+                                                                            },
+                                                                            history: {
+                                                                                history: false
+                                                                            },
+                                                                            stack: stack_center
+                                                                        }).get().on('pnotify.confirm', function() {
+                                                                            //~ api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                                                                                //~ $('#mactions option[value="none"]').prop("selected",true);
+                                                                            //~ }); 
+                                                                        }).on('pnotify.cancel', function() {
+                                                                            //~ $('#mactions option[value="none"]').prop("selected",true);
+                                                                });                                                        
+                                                        
+                                                    });                                
                                     
                                     
                                 });
@@ -694,3 +757,80 @@ function renderDisposables(data){
 function activateDisposables(){
        
 }
+
+function setTemplates(){
+
+			 $('#disposables').select2({
+				minimumInputLength: 2,
+				multiple: true,
+				ajax: {
+					type: "POST",
+					url: '/admin/getAllTemplates',
+					dataType: 'json',
+					contentType: "application/json",
+					delay: 250,
+					data: function (params) {
+						return  JSON.stringify({
+							term: params.term,
+							pluck: ['id','name']
+						});
+					},
+					processResults: function (data) {
+						return {
+							results: $.map(data, function (item, i) {
+								return {
+									text: item.name,
+									id: item.id
+								}
+							})
+						};
+					}
+				},
+			});	
+};
+
+	//~ modal_add_desktops = $('#modal_add_desktops').DataTable({
+			//~ "ajax": {
+				//~ "url": "/desktops/getAllTemplates",
+				//~ "dataSrc": ""
+			//~ },
+
+            //~ "scrollY":        "125px",
+            //~ "scrollCollapse": true,
+            //~ "paging":         false,
+            
+            //"searching":         false,
+			//~ "language": {
+				//~ "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                //~ "zeroRecords":    "No matching templates found",
+                //~ "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                //~ "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                //~ "infoFiltered":   "(filtered from _MAX_ total templates)"
+			//~ },
+			//~ "rowId": "id",
+			//~ "deferRender": true,
+			//~ "columns": [
+                //~ { "data": "kind", "width": "10px", "orderable": false},
+				//~ { "data": "name"},
+                //~ { "data": "group", "width": "10px"},
+                //~ { "data": "username"}
+				//~ ],
+			 //~ "order": [[0, 'asc']],	
+             //~ "pageLength": 5,	 
+		//~ "columnDefs": [     
+                            //~ {
+							//~ "targets": 0,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderTemplateKind(full);
+							//~ }},
+							//~ {
+							//~ "targets": 1,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderIcon1x(full)+" "+full.name;
+							//~ }},
+							//~ ]
+
+
+
+	//~ } );  
+    

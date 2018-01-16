@@ -18,7 +18,7 @@ from engine.services.db import update_domain_viewer_started_values, update_table
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
-    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind
+    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
@@ -102,15 +102,18 @@ class UiActions(object):
         hyp = self.start_domain_from_xml(xml, id, pool_id=pool_id)
         return hyp
 
-    def start_paused_domain_from_xml(self, xml, id_domain, pool_id):
+    def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
         failed = False
         if pool_id in self.manager.pools.keys():
             next_hyp = self.manager.pools[pool_id].get_next()
             log.debug('//////////////////////')
             if next_hyp is not False:
                 log.debug('next_hyp={}'.format(next_hyp))
+                dict_action = {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain}
+                if start_after_created is True:
+                    dict_action['start_after_created'] = True
                 self.manager.q.workers[next_hyp].put(
-                    {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain})
+                    dict_action)
                 update_domain_status(status='CreatingDomain',
                                      id_domain=id_domain,
                                      hyp_id=False,
@@ -209,25 +212,19 @@ class UiActions(object):
         else:
             self.stop_domain(id, hyp_id)
 
-    def stop_domain(self, id_domain, hyp_id):
+    def stop_domain(self, id_domain, hyp_id, delete_after_stopped=False):
         update_domain_status(status='Stopping',
                              id_domain=id_domain,
                              hyp_id=hyp_id,
                              detail='desktop stopping in hyp {}'.format(hyp_id))
-        self.manager.q.workers[hyp_id].put({'type': 'stop_domain', 'id_domain': id_domain})
-        return True
 
-    # def create_template_from_domain(self,id_new,
-    #                                 id_template,
-    #                                 name,
-    #                                 description,
-    #                                 cpu,
-    #                                 ram,
-    #                                 id_net=None,
-    #                                 force_server=None,
-    #                                 disk_filename=None):
-    #
-    #     pass
+        from pprint import pprint
+        action = {'type': 'stop_domain',
+                  'id_domain': id_domain,
+                  'delete_after_stopped': delete_after_stopped}
+
+        self.manager.q.workers[hyp_id].put(action)
+        return True
 
 
 
@@ -650,7 +647,17 @@ class UiActions(object):
         update_domain_status('CreatingDomain', id_domain,
                              detail='xml and hardware dict updated, waiting to test if domain start paused in hypervisor')
         pool_id = get_pool_from_domain(id_domain)
-        self.start_paused_domain_from_xml(xml=xml_raw, id_domain=id_domain, pool_id=pool_id)
+
+        start_after_created = False
+        if 'start_after_created' in domain.keys():
+            if domain['start_after_created'] is True:
+                start_after_created = True
+
+        self.start_paused_domain_from_xml(xml=xml_raw,
+                                          id_domain=id_domain,
+                                          pool_id=pool_id,
+                                          start_after_created=start_after_created)
+
 
     # INFO TO DEVELOPER: HAY QUE QUITAR CATEGORY Y GROUP DE LOS PARÁMETROS QUE RECIBE LA FUNCIÓN
     def domain_from_template(self,

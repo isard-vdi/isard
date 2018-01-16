@@ -51,21 +51,21 @@ class Wizard():
         self.doWizard=True if self.first_start() else False
         if self.doWizard: # WIZARD WAS FORCED BY DELETING install/.wizard file
             wlog.warning('Starting initial configuration wizard')
-            if not self.check_js(first=True):
+            if not self.valid_js(first=True):
                 print('Javascript and CSS not installed!')
                 print(' Please install yarn: https://yarnpkg.com/lang/en/docs/install')
                 print(' and run yarn from install folder before starting again.')
                 exit(1)
             try:
-                if self.check_rethinkdb():
-                    if not self.check_isard_database():
+                if self.valid_rethinkdb():
+                    if not self.valid_isard_database():
                         self.create_isard_database()
                     #~ else:
                         #~ self.done_start()
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                log.error(exc_type, fname, exc_tb.tb_lineno)
+                wlog.error(exc_type, fname, exc_tb.tb_lineno)
                 wlog.error(e)
                 None
             self.run_server()
@@ -105,20 +105,20 @@ class Wizard():
         os.mknod(path)
 
 
-    def check_js(self,first=False,path='bower_components/gentelella'):
+    def valid_js(self,first=False,path='bower_components/gentelella'):
         if first:
             return os.path.exists(os.path.join(os.path.dirname(__file__).rsplit('/',1)[0]+'/'+path))
         return os.path.exists(os.path.join(self.wapp.root_path+'/../',path))
         
-    def check_config_file(self):
+    def valid_config_file(self):
         path='./isard.conf'
         return False if not os.path.exists(path) else True
         
-    def check_config_syntax(self):
+    def valid_config_syntax(self):
         from ..lib.load_config import load_config
         return True if load_config() else False
         
-    def check_rethinkdb(self):
+    def valid_rethinkdb(self):
         try:
             from ..lib.load_config import load_config
             dict=load_config()
@@ -130,7 +130,7 @@ class Wizard():
             #~ wlog.error(e)
             return False
 
-    def check_isard_database(self):
+    def valid_isard_database(self):
         try:
             if 'isard' in r.db_list().run(): 
                 return True
@@ -139,10 +139,10 @@ class Wizard():
         except Exception as e:
             return False
 
-    def check_password(self):
+    def valid_password(self):
         try:
             pw=Password()
-            usr = r.table('users').get('admin').run()
+            usr = r.db('isard').table('users').get('admin').run()
             if usr is None:
                 usr = [{'id': 'admin',
                            'name': 'Administrator',
@@ -165,12 +165,16 @@ class Wizard():
                                      'hardware': {'vcpus': 8,
                                                   'memory': 20000000}},  # 10GB
                            }]
-                r.table('users').insert(usr, conflict='update').run()
+                r.db('isard').table('users').insert(usr, conflict='update').run()
+                print('password must be changed')
                 return False # Password must be changed so we return false
             if pw.valid('isard',usr['password']):
-                return False # Password must be changed
+                print('Password is isard')
+                return False
+            print('Passwd is not isard')
             return True
         except Exception as e:
+            print('Exception:' +str(e))
             return False
         
     def create_isard_database(self):
@@ -182,16 +186,22 @@ class Wizard():
         return False
 
     #~ def check_docker(self):
+        
         #~ # If hypervisor is isard-hypervisor
         
         #~ return False
         
-    def check_hypervisor(self):
+    def valid_hypervisor(self):
         # Database hypervisor status
         # options: localhost or isard-hypervisor
         return False
-        
-    def check_server(self,server):
+
+    def valid_engine(self):
+        from ..lib.load_config import load_config
+        dict=load_config()        
+        return self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')  
+              
+    def valid_server(self,server):
         import http.client as httplib
         conn = httplib.HTTPConnection(server, timeout=5)
         try:
@@ -206,27 +216,27 @@ class Wizard():
         from ..lib.load_config import load_config
         dict=load_config()
         if dict:
-            res  = {'yarn':self.check_js(),
+            res  = {'yarn':self.valid_js(),
                     'config':True,
                     'config_stx':True,
-                    'internet':self.check_server('isardvdi.com'),
-                    'rethinkdb':self.check_rethinkdb(),
-                    'isard_db':self.check_isard_database(),
-                    'passwd':self.check_password(),
+                    'internet':self.valid_server('isardvdi.com'),
+                    'rethinkdb':self.valid_rethinkdb(),
+                    'isard_db':self.valid_isard_database(),
+                    'passwd':self.valid_password(),
                     'docker':True if 'isard-hypervisor' in dict.keys() else False,
-                    'hyper':self.check_hypervisor() if self.check_isard_database() else False,
-                    'engine':self.check_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')}  
+                    'hyper':self.valid_hypervisor() if self.valid_isard_database() else False,
+                    'engine':self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')}  
         else:
-            res =  {'yarn':self.check_js(),
-                    'config':self.check_config_file(),
-                    'config_stx':self.check_config_syntax(),
-                    'internet':self.check_server('isardvdi.com'),
-                    'rethinkdb':self.check_rethinkdb(),
-                    'isard_db':self.check_isard_database(),
-                    'passwd':self.check_password(),
-                    'docker':self.check_docker(),
-                    'hyper':self.check_hypervisor(),
-                    'engine':self.check_engine()}
+            res =  {'yarn':self.valid_js(),
+                    'config':self.valid_config_file(),
+                    'config_stx':self.valid_config_syntax(),
+                    'internet':self.valid_server('isardvdi.com'),
+                    'rethinkdb':self.valid_rethinkdb(),
+                    'isard_db':self.valid_isard_database(),
+                    'passwd':self.valid_password(),
+                    'docker':self.valid_docker(),
+                    'hyper':self.valid_hypervisor(),
+                    'engine':self.valid_engine()}
         res['continue']=res['yarn'] and res['config_stx'] and res['isard_db'] and res['engine']
         return res
 
@@ -297,8 +307,10 @@ class Wizard():
                 
             @self.wapp.route('/', methods=['GET'])
             def base():
-                #~ chk=self.check_all()
-                chk=self.fake_check_all()
+                chk=self.check_all()
+                import pprint
+                pprint.pprint(chk)
+                # ~ chk=self.fake_check_all()
                 msg=''
                 if not chk['yarn']:
                     msg='Javascript and CSS libraries not found. Please install it running yarn on install folder.'
@@ -306,22 +318,22 @@ class Wizard():
                 return render_template('wizard_main.html',chk=chk, msg=msg.split('\n'))
                 
                 
-                if not chk['config']:
-                    msg+='\nIsard main configuration file isard.conf missing. Please copy (or rename) isard.conf.default to isard.conf.'
-                    return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
-                if not chk['config_stx']:
-                    msg+='\nMain configuration file isard.conf can not be read. Please check configuration from isard.conf.default.'
-                    return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
-                if not chk['rethinkdb']:
-                    msg+='\nUnable to connect to Rethinkdb server using isard.conf parameters. Is RethinkDB service running?'
-                    return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
-                if not chk['isard_db']:
-                    msg+='\nRethinkDb isard database not found on server. You should create it now.'
-                    return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
-                if not chk['internet']:
-                    msg+='\nCan not reach Internet. Please check your Internet connection.'
-                #~ msg='Everything seems ok. You can continue'
-                return render_template('missing_yarn.html',chk=chk, msg=msg.split('\n'))
+                # ~ if not chk['config']:
+                    # ~ msg+='\nIsard main configuration file isard.conf missing. Please copy (or rename) isard.conf.default to isard.conf.'
+                    # ~ return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
+                # ~ if not chk['config_stx']:
+                    # ~ msg+='\nMain configuration file isard.conf can not be read. Please check configuration from isard.conf.default.'
+                    # ~ return render_template('missing_config.html',chk=chk, msg=msg.split('\n'))
+                # ~ if not chk['rethinkdb']:
+                    # ~ msg+='\nUnable to connect to Rethinkdb server using isard.conf parameters. Is RethinkDB service running?'
+                    # ~ return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
+                # ~ if not chk['isard_db']:
+                    # ~ msg+='\nRethinkDb isard database not found on server. You should create it now.'
+                    # ~ return render_template('missing_db.html',chk=chk, msg=msg.split('\n'))
+                # ~ if not chk['internet']:
+                    # ~ msg+='\nCan not reach Internet. Please check your Internet connection.'
+                # ~ #~ msg='Everything seems ok. You can continue'
+                # ~ return render_template('missing_yarn.html',chk=chk, msg=msg.split('\n'))
     
             # Flask routes
             @self.wapp.route('/create_db', methods=['GET'])
@@ -331,7 +343,11 @@ class Wizard():
             @self.wapp.route('/passwd', methods=['GET','POST'])
             def wizard_passwd():
                 if request.method == 'POST':
-                    wlog.info(request.form['passwd'])
+                    pw=Password()
+                    r.db('isard').table('users').get('admin').update({'password':pw.encrypt(request.get_json(force=True))}).run()
+                    # ~ wlog.info(request.get_json(force=True))
+                    # ~ wlog.info(request.form['passwd'])
+                    return json.dumps(True)
                 return render_template('wizard_pwd.html')
 
             @self.wapp.route('/shutdown', methods=['GET'])
@@ -350,10 +366,20 @@ class Wizard():
                 print('im on step '+step)
                 if request.method == 'POST':
                     if step is '1':
-                        return self.check_config_file() and self.check_config_syntax()
+                        return json.dumps(self.valid_config_file() and self.valid_config_syntax())
                     if step is '2':
-                        return self.check_rethinkdb() and self.check_isard_database()
-                                            
+                        return json.dumps(self.valid_rethinkdb() and self.valid_isard_database())
+                    if step is '3':
+                        return json.dumps(self.valid_password())
+                    if step is '4':
+                        return json.dumps(self.valid_server('isardvdi.com'))
+                    if step is '5':
+                        return json.dumps(self.valid_engine())
+                    if step is '6':
+                        return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False)                        
+                    if step is '7':
+                        return json.dumps(self.valid_server('isardvdi.com:5050')) 
+                                                                                                                    
             @self.wapp.route('/content', methods=['POST'])
             def wizard_content():
                 global html
@@ -362,13 +388,39 @@ class Wizard():
                     print(step)
                     if step == '1':
                         print('step 1')
-                        if not self.check_config_file():
+                        if not self.valid_config_file():
                             return html[1]['noconfig']
-                        elif not self.check_config_syntax():
+                        elif not self.valid_config_syntax():
                             return html[1]['nosyntax']
                         return html[1]['ok']
                     if step == '2':
-                        return 'step2'
+                        db=self.valid_rethinkdb()
+                        isard=self.valid_isard_database()
+                        if not db:
+                            return 'Rethinkdb database not running'
+                        if not isard:
+                            return 'Database isard not populated'
+                        return 'Database service up and isard database populated'
+                    if step == '3':
+                        if not self.valid_password():
+                            return html[3]['ko']
+                        return html[3]['ok']
+                    if step == '4':
+                        if not self.valid_server('isardvdi.com'):
+                            return 'No internet connection'
+                        return 'Internet connection alive'                                                
+                    if step == '5':
+                        if not self.valid_engine():
+                            return 'No engine'
+                        return 'Engine ok' 
+                    if step == '6':
+                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
+                            return 'No hypervisor'
+                        return 'Hypervisor online' 
+                    if step == '7':
+                        if not self.valid_server('isardvdi.com:5050'):
+                            return 'Isard update website seems down...'
+                        return 'This updates are available'                         
                     #~ step=request.get_json(force=True)['step_number']
                     #~ import random
                     #~ rand=random.random() * 100
@@ -385,5 +437,6 @@ html[1]={'ok': '''<h2 class="StepTitle">Step 1. Configuration</h2>
                 <h3>Configuration file has incorrect syntax.<h3>
                 <p>Please review sample isard.conf.default file and update
                 your isard.conf file accordingly<p>'''}
-        
+html[3]={'ok':''' ''',
+        'ko':'''<a href="#registerModal">Open</a>'''}
         
