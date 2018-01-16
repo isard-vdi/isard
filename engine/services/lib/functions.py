@@ -24,7 +24,7 @@ from engine.services.db.disk_operations import insert_disk_operation, update_dis
 from engine.services.db import update_disk_backing_chain, get_domain, get_disks_all_domains, insert_domain, \
     get_domain_spice, update_domain_createing_template
 from engine.services.db.domains import update_domain_progress, update_domain_status
-from engine.services.log import *
+from engine.services.log import log,logs
 
 
 def check_tables_populated():
@@ -52,12 +52,12 @@ def get_threads_running():
     e = threading.enumerate()
     # l = [t.name for t in e]
     # l.sort()
-    threads_log.debug('parent PID: {}'.format(os.getppid()))
+    logs.threads.debug('parent PID: {}'.format(os.getppid()))
     for t in e:
         if hasattr(t, 'tid'):  # only available on Unix
-            threads_log.debug('Thread running (TID: {}): {}'.format(t.tid, t.name))
+            logs.threads.debug('Thread running (TID: {}): {}'.format(t.tid, t.name))
         else:
-            threads_log.debug('Thread running: {}'.format(t.name))
+            logs.threads.debug('Thread running: {}'.format(t.name))
     return e
 
 

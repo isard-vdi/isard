@@ -18,7 +18,8 @@ from pprint import pprint
 
 from lxml import etree
 
-from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware, get_domain
+from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware
+from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
 
@@ -712,3 +713,58 @@ def create_dict_graphics_from_id(id, pool_id):
         d['domain'] = pool['viewer']['defaultMode']
 
     return d
+
+def recreate_xml_to_start(id, ssl=True):
+    dict_domain = get_domain(id)
+
+    xml = dict_domain['xml']
+    x = DomainXML(xml)
+
+    ##### actions to customize xml
+
+    # spice password
+    if ssl is True:
+        x.reset_viewer_passwd()
+    else:
+        # only for test purposes, not use in production
+        x.spice_remove_passwd_nossl()
+
+    # redo network
+    try:
+        list_interfaces = dict_domain['create_dict']['hardware']['interfaces']
+    except KeyError:
+        list_interfaces = []
+        log.info('domain {} withouth key interfaces in crate_dict'.format(id))
+
+    mac_address = []
+    for interface_index in range(len(x.vm_dict['interfaces'])):
+        mac_address.append(x.vm_dict['interfaces'][interface_index]['mac'])
+        x.remove_interface(order=interface_index)
+
+    interface_index = 0
+
+    for id_interface in list_interfaces:
+        d_interface = get_interface(id_interface)
+
+        x.add_interface(type=d_interface['kind'],
+                        id=d_interface['ifname'],
+                        model_type=d_interface['model'],
+                        mac=mac_address[interface_index])
+
+        interface_index += 1
+
+    x.remove_selinux_options()
+
+    x.dict_from_xml()
+    # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
+    update_domain_dict_hardware(id, x.vm_dict, xml=xml)
+    if 'viewer_passwd' in x.__dict__.keys():
+        update_domain_viewer_started_values(id, passwd=x.viewer_passwd)
+        log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id))
+
+    xml = x.return_xml()
+    # log.debug('#####################################################')
+    # log.debug(xml)
+    # log.debug('#####################################################')
+
+    return xml

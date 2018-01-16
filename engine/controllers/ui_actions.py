@@ -14,6 +14,7 @@ from os.path import dirname as extract_dir_path
 from time import sleep
 
 from engine.models.domain_xml import DomainXML, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
+from engine.models.domain_xml import recreate_xml_to_start
 from engine.services.db import update_domain_viewer_started_values, update_table_field, \
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
@@ -39,70 +40,22 @@ class UiActions(object):
             if 'domain_id' in parameters.keys():
                 self.start_domain_from_id(parameters['domain_id'], ssl_spice)
 
+
+
+
     def start_domain_from_id(self, id, ssl=True):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
-        dict_domain = get_domain(id)
 
-        pool_id = dict_domain.get('pool_id', 'default')
+        xml = recreate_xml_to_start(id,ssl)
 
-        xml = dict_domain['xml']
-        x = DomainXML(xml)
-
-        ##### actions to customize xml
-
-        # spice password
-        if ssl is True:
-            x.reset_viewer_passwd()
-        else:
-            # only for test purposes, not use in production
-            x.spice_remove_passwd_nossl()
-
-        # redo network
-        try:
-            list_interfaces = dict_domain['create_dict']['hardware']['interfaces']
-        except KeyError:
-            list_interfaces = []
-            log.info('domain {} withouth key interfaces in crate_dict'.format(id))
-
-        mac_address = []
-        for interface_index in range(len(x.vm_dict['interfaces'])):
-            mac_address.append(x.vm_dict['interfaces'][interface_index]['mac'])
-            x.remove_interface(order=interface_index)
-
-        interface_index = 0
-
-        for id_interface in list_interfaces:
-            d_interface = get_interface(id_interface)
-
-            x.add_interface(type=d_interface['kind'],
-                            id=d_interface['ifname'],
-                            model_type=d_interface['model'],
-                            mac=mac_address[interface_index])
-
-            interface_index += 1
-
-        x.remove_selinux_options()
-        xml = x.return_xml()
-        # log.debug('#####################################################3')
-        # log.debug('#####################################################3')
-        # log.debug('#####################################################3')
-        # log.debug('#####################################################3')
-        # log.debug(xml)
-        # log.debug('#####################################################3')
-        # log.debug('#####################################################3')
-        # log.debug('#####################################################3')
-        # log.debug('#####################################################3')
-
-        x.dict_from_xml()
-        # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
-        update_domain_dict_hardware(id, x.vm_dict, xml=xml)
-        if 'viewer_passwd' in x.__dict__.keys():
-            update_domain_viewer_started_values(id, passwd=x.viewer_passwd)
+        pool_id = get_pool_from_domain(id)
 
         hyp = self.start_domain_from_xml(xml, id, pool_id=pool_id)
         return hyp
 
-    def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
+    def start_paused_domain_from_xml(self, xml, id_domain, pool_id):
+    #def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
+
         failed = False
         if pool_id in self.manager.pools.keys():
             next_hyp = self.manager.pools[pool_id].get_next()
@@ -110,8 +63,10 @@ class UiActions(object):
             if next_hyp is not False:
                 log.debug('next_hyp={}'.format(next_hyp))
                 dict_action = {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain}
-                if start_after_created is True:
-                    dict_action['start_after_created'] = True
+                # if start_after_created is True:
+                #     dict_action['start_after_created'] = True
+                #else:
+
                 self.manager.q.workers[next_hyp].put(
                     dict_action)
                 update_domain_status(status='CreatingDomain',
@@ -156,11 +111,12 @@ class UiActions(object):
                 next_hyp = self.manager.pools[pool_id].get_next()
 
             if next_hyp is not False:
-                update_domain_status(status='Starting',
-                                     id_domain=id_domain,
-                                     hyp_id=next_hyp,
-                                     detail='desktop starting paused in pool {} on hypervisor {}'.format(pool_id,
-                                                                                                         next_hyp))
+                # update_domain_status(status='Starting',
+                #                      id_domain=id_domain,
+                #                      hyp_id=next_hyp,
+                #                      detail='desktop starting paused in pool {} on hypervisor {}'.format(pool_id,
+                #                                                                                          next_hyp))
+
                 self.manager.q.workers[next_hyp].put({'type': 'start_domain', 'xml': xml, 'id_domain': id_domain})
             else:
                 log.error('get next hypervisor in pool {} failed'.format(pool_id))
@@ -648,15 +604,20 @@ class UiActions(object):
                              detail='xml and hardware dict updated, waiting to test if domain start paused in hypervisor')
         pool_id = get_pool_from_domain(id_domain)
 
-        start_after_created = False
+
         if 'start_after_created' in domain.keys():
             if domain['start_after_created'] is True:
-                start_after_created = True
+                update_domain_status('StartingDomainDisposable', id_domain,
+                                     detail='xml and hardware dict updated, starting domain disposable')
 
-        self.start_paused_domain_from_xml(xml=xml_raw,
-                                          id_domain=id_domain,
-                                          pool_id=pool_id,
-                                          start_after_created=start_after_created)
+                self.start_domain_from_id(id_domain)
+
+        else:
+            #change viewer password, remove selinux options and recreate network interfaces
+            xml = recreate_xml_to_start(id_domain)
+            self.start_paused_domain_from_xml(xml=xml,
+                                              id_domain=id_domain,
+                                              pool_id=pool_id)
 
 
     # INFO TO DEVELOPER: HAY QUE QUITAR CATEGORY Y GROUP DE LOS PARÁMETROS QUE RECIBE LA FUNCIÓN

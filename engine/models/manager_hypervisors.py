@@ -267,8 +267,8 @@ class ManagerHypervisors(object):
 
         def run(self):
             self.tid = get_tid()
-            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
-            log.debug('^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^')
+            logs.changes.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+            logs.changes.debug('^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
             r_conn = new_rethink_connection()
 
@@ -282,12 +282,12 @@ class ManagerHypervisors(object):
 
             for c in r.table('domains').pluck('id', 'kind', 'status', 'detail').changes().run(r_conn):
 
-                log.debug('domain changes detected in main thread')
+                logs.changes.debug('domain changes detected in main thread')
                 new_domain = False
                 new_status = False
                 old_status = False
                 import pprint
-                log.debug(pprint.pformat(c))
+                logs.changes.debug(pprint.pformat(c))
 
                 # action deleted
                 if c['new_val'] is None:
@@ -297,7 +297,7 @@ class ManagerHypervisors(object):
                     new_domain = True
                     new_status = c['new_val']['status']
                     domain_id = c['new_val']['id']
-                    log.debug('domain_id: {}'.format(new_domain))
+                    logs.changes.debug('domain_id: {}'.format(new_domain))
                     pass
 
                 if c['new_val'] is not None and c['old_val'] is not None:
@@ -305,7 +305,7 @@ class ManagerHypervisors(object):
                     new_status = c['new_val']['status']
                     new_detail = c['new_val']['detail']
                     domain_id = c['new_val']['id']
-                    log.debug('domain_id: {}'.format(domain_id))
+                    logs.changes.debug('domain_id: {}'.format(domain_id))
                     if old_status != new_status:
                         # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
                         # if new_status[-3:] == 'ing':
@@ -337,7 +337,7 @@ class ManagerHypervisors(object):
 
                 if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
                         (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
-                    log.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
+                    logs.changes.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
                     if new_status == "CreatingDomainFromBuilder":
                         ui.creating_and_test_xml_start(domain_id,
                                                        creating_from_create_dict=True,
@@ -356,10 +356,10 @@ class ManagerHypervisors(object):
                     ui.updating_from_create_dict(domain_id)
 
                 if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
-                    log.debug('disk deleted, mow remove domain form database')
+                    logs.changes.debug('disk deleted, mow remove domain form database')
                     remove_domain(domain_id)
                     if get_domain(domain_id) is None:
-                        log.info('domain {} deleted from database'.format(domain_id))
+                        logs.changes.info('domain {} deleted from database'.format(domain_id))
                     else:
                         update_domain_status('Failed', id_domain,
                                              detail='domain {} can not be deleted from database'.format(domain_id))
