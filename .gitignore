@@ -19,6 +19,7 @@ rethinkdb_data/
 
 # log
 *.log
+logs/*
 
 #pycharm
 .idea/
