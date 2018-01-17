@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!-- Meta, title, CSS, favicons, etc. -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Installation | Isard</title>
+
+    <!-- Bootstrap -->
+    <link href="/vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="/vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Animate.css -->
+    <link href="/vendors/animate.css/animate.min.css" rel="stylesheet">
+	<!-- PNotify -->
+	<link href="/vendors/pnotify/dist/pnotify.css" media="all" rel="stylesheet" type="text/css" />
+	<link href="/vendors/pnotify/dist/pnotify.buttons.css" media="all" rel="stylesheet" type="text/css" />
+    <!-- Custom Theme Style -->
+    <link href="/build/css/custom.min.css" rel="stylesheet">
+  </head>
+
+  <body class="login">
+    <div>
+      <a class="hiddenanchor" id="signup"></a>
+      <a class="hiddenanchor" id="signin"></a>
+      <div class="login_wrapper">
+        <div class="animate form login_form">
+          <section class="login_content">
+                  <h1>Isard installation</h1>
+                  <h3>Database server not found</h3> 
+                  Rethinkdb service not found.
+                  <table>
+                    <tr>
+                        <td>SERVER</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>PORT</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>DATABASE</td>
+                        <td></td>
+                    </tr>
+                  </table>
+                               
+                <form name="Form" id="changepw" action="{{ url_for('wizard_passwd') }}" method="POST" class="form-horizontal form-label-left"
+                  data-parsley-excluded="input[type=button], input[type=submit], input[type=reset], input[type=hidden], [disabled], :hidden"
+                  data-parsley-trigger="keyup" data-parsley-validate>
+
+                  <h1>Isard installation</h1>
+                  <h3>Update admin user password</h3>
+                  <div>
+                          <input id="password1" name="password" type="password" class="form-control col-md-7 col-xs-12 password"
+                            placeholder="New password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspannewpassinput"
+                            data-parsley-required-message="Please enter your new password."
+                            data-parsley-uppercase="1"
+                            data-parsley-lowercase="1"
+                            data-parsley-number="1"
+                            data-parsley-special="1"
+                            data-parsley-required 
+                            autofocus />
+                          <span class="errorspannewpassinput"></span>
+                  </div>
+                  <div>
+                          <input name="Password_2" id="password2" type="password" class="form-control col-md-7 col-xs-12 password"
+                          placeholder="Repeat password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspanconfirmnewpassinput"
+                            data-parsley-required-message="Please re-enter your new password."
+                            data-parsley-equalto="#password1"
+                            data-parsley-required />
+                          <span class="errorspanconfirmnewpassinput"></span>
+                  </div>
+                  <div>
+                    <button type="submit" class="btn btn-default submit">Continue</button>
+                  </div>
+                  <div class="clearfix"></div>
+                    <div class="clearfix"></div>
+                    <br />
+
+                    <div>
+                      <h1><i class="fa fa-desktop"></i> Isard VDI</h1>
+                      <p>©2016 All Rights Reserved. Privacy and Terms</p>
+                    </div>
+                </form>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </body>
+
+    <!-- jQuery -->
+    <script src="/vendors/jquery/dist/jquery.min.js"></script>
+    <!-- Parsley -->
+    <script src="/vendors/parsleyjs/dist/parsley.min.js"></script>
+    
+<script>
+//has uppercase
+window.Parsley.addValidator('uppercase', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var uppercases = value.match(/[A-Z]/g) || [];
+    return uppercases.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) uppercase letter.'
+  }
+});
+
+//has lowercase
+window.Parsley.addValidator('lowercase', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var lowecases = value.match(/[a-z]/g) || [];
+    return lowecases.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) lowercase letter.'
+  }
+});
+
+//has number
+window.Parsley.addValidator('number', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var numbers = value.match(/[0-9]/g) || [];
+    return numbers.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) number.'
+  }
+});
+
+//has special char
+window.Parsley.addValidator('special', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var specials = value.match(/[^a-zA-Z0-9]/g) || [];
+    return specials.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) special characters.'
+  }
+});
+
+    //~ $(document).ready(function() {
+        //~ $("#changepw").on('submit', function(e){
+            //~ e.preventDefault();
+            //~ var form = $(this);
+
+            //~ form.parsley().validate();
+
+            //~ if (form.parsley().isValid()){
+                //~ return
+            //~ }
+        //~ });
+    //~ });
+</script>
+
+</html>

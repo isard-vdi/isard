@@ -1,0 +1,53 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="right_col" role="main">
+   <div class="page-title">
+      <div class="title_left">
+         <h3><i class="fa fa-circle-o"></i> Media files <small>Upload and manage your isos</small></h3>
+      </div>
+   </div>
+   <div class="clearfix"></div>
+            <div class="row">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Media list <small>Your media in system</small></h2>
+                        <ul class="nav navbar-right panel_toolbox">
+                            <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                           </li>
+                        </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <br />
+
+					<table id="media" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Name</th>
+							 <th>Status</th>
+							 <th>Progress</th>
+                             <th></th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                  </div>
+                </div>
+<!--
+              </div>
+-->
+              {% include 'admin/pages/media_modals.html' %}
+          </div>
+        </div>
+{% endblock %}
+{% block pagescript %}
+<!--
+    <script src="/static/js/restful.js"></script>
+-->
+    <script src="/admin/js/media.js"></script>
+{% endblock %}

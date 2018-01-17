@@ -21,12 +21,21 @@ And paste it here.
 '''
 app.secret_key = "Change this key!//\xf7\x83\xbe\x17\xfa\xa3zT\n\\]m\xa6\x8bF\xdd\r\xf7\x9e\x1d\x1f\x14'"
 
+#~ app.config['LOG_LEVEL']='INFO'
+
+from webapp.wizard import WizardLib
+w=WizardLib.Wizard()
+# This will start a Wizard Flask app that will continue on wizard finish.
+w=None
+print('Starting isard webapp...')
+if not os.path.exists('./install/.wizard'): exit(1)
 
 from webapp.lib.load_config import loadConfig
 cfg=loadConfig(app)
 if not cfg.init_app(app): exit(0)
 
 from .lib.log import *
+
 '''
 Debug should be removed on production!
 '''
@@ -36,14 +45,16 @@ if app.debug:
 else:
     log.info('Debug mode: {}'.format(app.debug))
 
-'''
-Populate database if not exists
-'''
+#~ '''
+#~ Populate database if not exists
+#~ '''
 
-from .config.populate import Populate
-p=Populate()
-if not p.database(): exit(0)
-p.defaults()
+#~ from .config.populate import Populate
+#~ p=Populate()
+#~ if p.database():
+    #~ p.defaults()
+#~ else:
+    #~ exit(1)
 
 '''
 Scheduler
@@ -92,21 +103,26 @@ def send_static_js(path):
 '''
 Import all views
 '''
-from .views import LoginViews
-from .views import DesktopViews
-from .views import TemplateViews
-from .views import IsosViews
-from .views import ClassroomViews
-from .views import ProfileViews
-from .views import AboutViews
+#~ if app.config['wizard']==1:
+    #~ from .views import WizardViews
+#~ else:
+if True:
+    from .views import LoginViews
+    from .views import DesktopViews
+    from .views import TemplateViews
+    #~ from .views import IsosViews
+    from .views import ClassroomViews
+    from .views import ProfileViews
+    from .views import AboutViews
 
-from .admin.views import AdminViews
-from .admin.views import AdminUsersViews
-from .admin.views import AdminDomainsViews
-#~ from .admin.views import AdminIsosViews
-from .admin.views import AdminHypersViews
-from .admin.views import ClassroomViews
-from .admin.views import AdminGraphsViews
+    from .admin.views import AdminViews
+    from .admin.views import AdminUsersViews
+    from .admin.views import AdminDomainsViews
+    from .admin.views import AdminMediaViews
+    from .admin.views import AdminHypersViews
+    from .admin.views import ClassroomViews
+    from .admin.views import AdminGraphsViews
+    from .admin.views import UpdatesViews
 
 
 

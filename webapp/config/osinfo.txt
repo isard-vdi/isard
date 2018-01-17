@@ -18,6 +18,8 @@
  centos6.5            | CentOS 6.5                                         | 6.5      | http://centos.org/centos/6.5            
  centos6.6            | CentOS 6.6                                         | 6.6      | http://centos.org/centos/6.6            
  centos6.7            | CentOS 6.7                                         | 6.7      | http://centos.org/centos/6.7            
+ centos6.8            | CentOS 6.8                                         | 6.8      | http://centos.org/centos/6.8            
+ centos6.9            | CentOS 6.9                                         | 6.9      | http://centos.org/centos/6.9            
  centos7.0            | CentOS 7.0                                         | 7.0      | http://centos.org/centos/7.0            
  debian1.1            | Debian Buzz                                        | 1.1      | http://debian.org/debian/1.1            
  debian1.2            | Debian Rex                                         | 1.2      | http://debian.org/debian/1.2            
@@ -32,6 +34,7 @@
  debian6              | Debian Squeeze                                     | 6        | http://debian.org/debian/6              
  debian7              | Debian Wheezy                                      | 7        | http://debian.org/debian/7              
  debian8              | Debian Jessie                                      | 8        | http://debian.org/debian/8              
+ debian9              | Debian Stretch                                     | 9        | http://debian.org/debian/9              
  debiantesting        | Debian Testing                                     | testing  | http://debian.org/debian/testing        
  fedora-unknown       | Fedora                                             | unknown  | http://fedoraproject.org/fedora/unknown 
  fedora1              | Fedora Core 1                                      | 1        | http://fedoraproject.org/fedora/1       
@@ -52,6 +55,7 @@
  fedora23             | Fedora 23                                          | 23       | http://fedoraproject.org/fedora/23      
  fedora24             | Fedora 24                                          | 24       | http://fedoraproject.org/fedora/24      
  fedora25             | Fedora 25                                          | 25       | http://fedoraproject.org/fedora/25      
+ fedora26             | Fedora 26                                          | 26       | http://fedoraproject.org/fedora/26      
  fedora3              | Fedora Core 3                                      | 3        | http://fedoraproject.org/fedora/3       
  fedora4              | Fedora Core 4                                      | 4        | http://fedoraproject.org/fedora/4       
  fedora5              | Fedora Core 5                                      | 5        | http://fedoraproject.org/fedora/5       
@@ -65,6 +69,7 @@
  freebsd10.2          | FreeBSD 10.2                                       | 10.2     | http://freebsd.org/freebsd/10.2         
  freebsd10.3          | FreeBSD 10.3                                       | 10.3     | http://freebsd.org/freebsd/10.3         
  freebsd11.0          | FreeBSD 11.0                                       | 11.0     | http://freebsd.org/freebsd/11.0         
+ freebsd11.1          | FreeBSD 11.1                                       | 11.1     | http://freebsd.org/freebsd/11.1         
  freebsd2.0           | FreeBSD 2.0                                        | 2.0      | http://freebsd.org/freebsd/2.0          
  freebsd2.0.5         | FreeBSD 2.0.5                                      | 2.0.5    | http://freebsd.org/freebsd/2.0.5        
  freebsd2.2.8         | FreeBSD 2.2.8                                      | 2.2.8    | http://freebsd.org/freebsd/2.2.8        
@@ -127,6 +132,7 @@
  mageia3              | Mageia 3                                           | 3        | http://mageia.org/mageia/3              
  mageia4              | Mageia 4                                           | 4        | http://mageia.org/mageia/4              
  mageia5              | Mageia 5                                           | 5        | http://mageia.org/mageia/5              
+ mageia6              | Mageia 6                                           | 6        | http://mageia.org/mageia/6              
  mandrake10.0         | Mandrake Linux 10.0                                | 10.0     | http://mandriva.com/mandrake/10.0       
  mandrake10.1         | Mandrake Linux 10.1                                | 10.1     | http://mandriva.com/mandrake/10.1       
  mandrake10.2         | Mandrake Linux 10.2                                | 10.2     | http://mandriva.com/mandrake/10.2       
@@ -261,9 +267,12 @@
  rhel6.6              | Red Hat Enterprise Linux 6.6                       | 6.6      | http://redhat.com/rhel/6.6              
  rhel6.7              | Red Hat Enterprise Linux 6.7                       | 6.7      | http://redhat.com/rhel/6.7              
  rhel6.8              | Red Hat Enterprise Linux 6.8                       | 6.8      | http://redhat.com/rhel/6.8              
+ rhel6.9              | Red Hat Enterprise Linux 6.9                       | 6.9      | http://redhat.com/rhel/6.9              
  rhel7.0              | Red Hat Enterprise Linux 7.0                       | 7.0      | http://redhat.com/rhel/7.0              
  rhel7.1              | Red Hat Enterprise Linux 7.1                       | 7.1      | http://redhat.com/rhel/7.1              
  rhel7.2              | Red Hat Enterprise Linux 7.2                       | 7.2      | http://redhat.com/rhel/7.2              
+ rhel7.3              | Red Hat Enterprise Linux 7.3                       | 7.3      | http://redhat.com/rhel/7.3              
+ rhel7.4              | Red Hat Enterprise Linux 7.4                       | 7.4      | http://redhat.com/rhel/7.4              
  rhl1.0               | Red Hat Linux 1.0                                  | 1.0      | http://redhat.com/rhl/1.0               
  rhl1.1               | Red Hat Linux 1.1                                  | 1.1      | http://redhat.com/rhl/1.1               
  rhl2.0               | Red Hat Linux 2.0                                  | 2.0      | http://redhat.com/rhl/2.0               
@@ -329,6 +338,7 @@
  ubuntu15.10          | Ubuntu 15.10                                       | 15.10    | http://ubuntu.com/ubuntu/15.10          
  ubuntu16.04          | Ubuntu 16.04                                       | 16.04    | http://ubuntu.com/ubuntu/16.04          
  ubuntu16.10          | Ubuntu 16.10                                       | 16.10    | http://ubuntu.com/ubuntu/16.10          
+ ubuntu17.04          | Ubuntu 17.04                                       | 17.04    | http://ubuntu.com/ubuntu/17.04          
  ubuntu4.10           | Ubuntu 4.10                                        | 4.10     | http://ubuntu.com/ubuntu/4.10           
  ubuntu5.04           | Ubuntu 5.04                                        | 5.04     | http://ubuntu.com/ubuntu/5.04           
  ubuntu5.10           | Ubuntu 5.10                                        | 5.10     | http://ubuntu.com/ubuntu/5.10           
@@ -363,4 +373,4 @@
  winnt3.51            | Microsoft Windows NT Server 3.51                   | 3.51     | http://microsoft.com/winnt/3.51         
  winnt4.0             | Microsoft Windows NT Server 4.0                    | 4.0      | http://microsoft.com/winnt/4.0          
  winvista             | Microsoft Windows Vista                            | 6.0      | http://microsoft.com/win/vista          
- winxp                | Microsoft Windows XP                               | 5.1      | http://microsoft.com/win/xp             
+ winxp                | Microsoft Windows XP                               | 5.1      | http://microsoft.com/win/xp  
