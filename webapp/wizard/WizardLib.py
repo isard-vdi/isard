@@ -108,6 +108,7 @@ class Wizard():
     CHECK VALID ITEMS
     '''
     def valid_js(self,first=False,path='bower_components/gentelella'):
+        return True
         if first:
             return os.path.exists(os.path.join(os.path.dirname(__file__).rsplit('/',1)[0]+'/'+path))
         return os.path.exists(os.path.join(self.wapp.root_path+'/../',path))
