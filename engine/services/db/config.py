@@ -21,22 +21,27 @@ def get_config_branch(key):
 
 
 def table_config_created_and_populated():
-    r_conn_test = r.connect(RETHINK_HOST, RETHINK_PORT)
-    if not r.db_list().contains(RETHINK_DB).run(r_conn_test):
-        return False
-    else:
-        r_conn = new_rethink_connection()
+    try:
+        r_conn_test = r.connect(RETHINK_HOST, RETHINK_PORT)
+        if not r.db_list().contains(RETHINK_DB).run(r_conn_test):
+            return False
+        else:
+            r_conn = new_rethink_connection()
 
-        out = False
-        if r.table_list().contains('config').run(r_conn):
-            rtable = r.table('config')
-            out = rtable.get(1).run(r_conn)
+            out = False
+            if r.table_list().contains('config').run(r_conn):
+                rtable = r.table('config')
+                out = rtable.get(1).run(r_conn)
 
-        close_rethink_connection(r_conn)
-        if out is not False:
-            if out is not None:
-                return True
+            close_rethink_connection(r_conn)
+            if out is not False:
+                if out is not None:
+                    return True
+                else:
+                    return False
             else:
                 return False
-        else:
-            return False
+    except Exception as e:
+        log.info('rethink db connectin failed')
+        log.info(e)
+        return False
