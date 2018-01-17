@@ -109,103 +109,103 @@ def agentLifecycleReasonToString(reason):
 
 
 def myDomainEventCallback1(conn, dom, event, detail, opaque):
-    log.debug("myDomainEventCallback1 EVENT: Domain %s(%s) %s %s" % (dom.name(), dom.ID(),
+    logs.status.debug("myDomainEventCallback1 EVENT: Domain %s(%s) %s %s" % (dom.name(), dom.ID(),
                                                                      domEventToString(event),
                                                                      domDetailToString(event, detail)))
 
 
 def myDomainEventGraphicsCallback(conn, dom, phase, localAddr, remoteAddr, authScheme, subject, opaque):
-    log.debug("myDomainEventGraphicsCallback: Domain %s(%s) %d %s" % (dom.name(), dom.ID(), phase, authScheme))
-    # log.debug("localAddr: {},remoteAddr: {}, phase:{}, subject:{}" % (localAddr, remoteAddr, phase, str(type(subject))))
+    logs.status.debug("myDomainEventGraphicsCallback: Domain %s(%s) %d %s" % (dom.name(), dom.ID(), phase, authScheme))
+    # logs.status.debug("localAddr: {},remoteAddr: {}, phase:{}, subject:{}" % (localAddr, remoteAddr, phase, str(type(subject))))
 
 
 def myDomainEventRebootCallback(conn, dom, opaque):
-    log.debug("myDomainEventRebootCallback: Domain %s(%s)" % (dom.name(), dom.ID()))
+    logs.status.debug("myDomainEventRebootCallback: Domain %s(%s)" % (dom.name(), dom.ID()))
 
 
 def myDomainEventRTCChangeCallback(conn, dom, utcoffset, opaque):
-    log.debug("myDomainEventRTCChangeCallback: Domain %s(%s) %d" % (dom.name(), dom.ID(), utcoffset))
+    logs.status.debug("myDomainEventRTCChangeCallback: Domain %s(%s) %d" % (dom.name(), dom.ID(), utcoffset))
 
 
 def myDomainEventWatchdogCallback(conn, dom, action, opaque):
-    log.debug("myDomainEventWatchdogCallback: Domain %s(%s) %d" % (dom.name(), dom.ID(), action))
+    logs.status.debug("myDomainEventWatchdogCallback: Domain %s(%s) %d" % (dom.name(), dom.ID(), action))
 
 
 def myDomainEventIOErrorCallback(conn, dom, srcpath, devalias, action, opaque):
-    log.error(
+    logs.status.error(
         "myDomainEventIOErrorCallback: Domain %s(%s) %s %s %d" % (dom.name(), dom.ID(), srcpath, devalias, action))
 
 
 def myDomainEventIOErrorReasonCallback(conn, dom, srcpath, devalias, action, reason, opaque):
-    log.debug("myDomainEventIOErrorReasonCallback: Domain %s(%s) %s %s %d %s" % (
+    logs.status.debug("myDomainEventIOErrorReasonCallback: Domain %s(%s) %s %s %d %s" % (
         dom.name(), dom.ID(), srcpath, devalias, action, reason))
 
 
 def myDomainEventControlErrorCallback(conn, dom, opaque):
-    log.debug("myDomainEventControlErrorCallback: Domain %s(%s)" % (dom.name(), dom.ID()))
+    logs.status.debug("myDomainEventControlErrorCallback: Domain %s(%s)" % (dom.name(), dom.ID()))
 
 
 def myDomainEventBlockJobCallback(conn, dom, disk, type, status, opaque):
-    log.debug("myDomainEventBlockJobCallback: Domain %s(%s) %s on disk %s %s" % (
+    logs.status.debug("myDomainEventBlockJobCallback: Domain %s(%s) %s on disk %s %s" % (
         dom.name(), dom.ID(), blockJobTypeToString(type), disk, blockJobStatusToString(status)))
 
 
 def myDomainEventDiskChangeCallback(conn, dom, oldSrcPath, newSrcPath, devAlias, reason, opaque):
-    log.debug(
+    logs.status.debug(
         "myDomainEventDiskChangeCallback: Domain %s(%s) disk change oldSrcPath: %s newSrcPath: %s devAlias: %s reason: %s" % (
             dom.name(), dom.ID(), oldSrcPath, newSrcPath, devAlias, reason))
 
 
 def myDomainEventTrayChangeCallback(conn, dom, devAlias, reason, opaque):
-    log.debug("myDomainEventTrayChangeCallback: Domain %s(%s) tray change devAlias: %s reason: %s" % (
+    logs.status.debug("myDomainEventTrayChangeCallback: Domain %s(%s) tray change devAlias: %s reason: %s" % (
         dom.name(), dom.ID(), devAlias, reason))
 
 
 def myDomainEventPMWakeupCallback(conn, dom, reason, opaque):
-    log.debug("myDomainEventPMWakeupCallback: Domain %s(%s) system pmwakeup" % (
+    logs.status.debug("myDomainEventPMWakeupCallback: Domain %s(%s) system pmwakeup" % (
         dom.name(), dom.ID()))
 
 
 def myDomainEventPMSuspendCallback(conn, dom, reason, opaque):
-    log.debug("myDomainEventPMSuspendCallback: Domain %s(%s) system pmsuspend" % (
+    logs.status.debug("myDomainEventPMSuspendCallback: Domain %s(%s) system pmsuspend" % (
         dom.name(), dom.ID()))
 
 
 def myDomainEventBalloonChangeCallback(conn, dom, actual, opaque):
-    log.debug("myDomainEventBalloonChangeCallback: Domain %s(%s) %d" % (dom.name(), dom.ID(), actual))
+    logs.status.debug("myDomainEventBalloonChangeCallback: Domain %s(%s) %d" % (dom.name(), dom.ID(), actual))
 
 
 def myDomainEventPMSuspendDiskCallback(conn, dom, reason, opaque):
-    log.debug("myDomainEventPMSuspendDiskCallback: Domain %s(%s) system pmsuspend_disk" % (
+    logs.status.debug("myDomainEventPMSuspendDiskCallback: Domain %s(%s) system pmsuspend_disk" % (
         dom.name(), dom.ID()))
 
 
 def myDomainEventDeviceRemovedCallback(conn, dom, dev, opaque):
-    log.debug("myDomainEventDeviceRemovedCallback: Domain %s(%s) device removed: %s" % (
+    logs.status.debug("myDomainEventDeviceRemovedCallback: Domain %s(%s) device removed: %s" % (
         dom.name(), dom.ID(), dev))
 
 
 def myDomainEventBlockJob2Callback(conn, dom, disk, type, status, opaque):
-    log.debug("myDomainEventBlockJob2Callback: Domain %s(%s) %s on disk %s %s" % (
+    logs.status.debug("myDomainEventBlockJob2Callback: Domain %s(%s) %s on disk %s %s" % (
         dom.name(), dom.ID(), blockJobTypeToString(type), disk, blockJobStatusToString(status)))
 
 
 def myDomainEventTunableCallback(conn, dom, params, opaque):
-    log.debug("myDomainEventTunableCallback: Domain %s(%s) %s" % (dom.name(), dom.ID(), params))
+    logs.status.debug("myDomainEventTunableCallback: Domain %s(%s) %s" % (dom.name(), dom.ID(), params))
 
 
 def myDomainEventAgentLifecycleCallback(conn, dom, state, reason, opaque):
-    log.debug("myDomainEventAgentLifecycleCallback: Domain %s(%s) %s %s" % (
+    logs.status.debug("myDomainEventAgentLifecycleCallback: Domain %s(%s) %s %s" % (
         dom.name(), dom.ID(), agentLifecycleStateToString(state), agentLifecycleReasonToString(reason)))
 
 
 def myDomainEventDeviceAddedCallback(conn, dom, dev, opaque):
-    log.debug("myDomainEventDeviceAddedCallback: Domain %s(%s) device added: %s" % (
+    logs.status.debug("myDomainEventDeviceAddedCallback: Domain %s(%s) device added: %s" % (
         dom.name(), dom.ID(), dev))
 
 
 def myDomainEventMigrationIteration(conn, dom, iteration, opaque):
-    log.debug("myDomainEventMigrationIteration: Domain %s(%s) started migration iteration %d" % (
+    logs.status.debug("myDomainEventMigrationIteration: Domain %s(%s) started migration iteration %d" % (
         dom.name(), dom.ID(), iteration))
 
 
@@ -232,7 +232,7 @@ def netDetailToString(event, detail):
 
 
 def myNetworkEventLifecycleCallback(conn, net, event, detail, opaque):
-    log.debug("myNetworkEventLifecycleCallback: Network %s %s %s" % (net.name(),
+    logs.status.debug("myNetworkEventLifecycleCallback: Network %s %s %s" % (net.name(),
                                                                      netEventToString(event),
                                                                      netDetailToString(event, detail)))
 
@@ -245,7 +245,7 @@ def myConnectionCloseCallback(conn, reason, opaque):
     reasonStrings = (
         "Error", "End-of-file", "Keepalive", "Client",
     )
-    log.debug("myConnectionCloseCallback: %s: %s" % (conn.getURI(), reasonStrings[reason]))
+    logs.status.debug("myConnectionCloseCallback: %s: %s" % (conn.getURI(), reasonStrings[reason]))
     run = False
 
 
@@ -257,33 +257,69 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
     now = time.time()
     dom_id = dom.name()
     hyp_id = get_id_hyp_from_uri(conn.getURI())
-    if get_domain(dom_id) is not None:
+
+    dict_event = {'domain': dom_id,
+                  'hyp_id': hyp_id,
+                  'event' : domEventToString(event),
+                  'detail': domDetailToString(event, detail),
+                  'when'  : now}
+
+    logs.status.debug("EVENT: {domain} - {event} ({detail}) - {hyp}".format(domain=dom_id,
+                                                                            event=dict_event['event'],
+                                                                            detail=dict_event['detail'],
+                                                                            hyp=hyp_id
+                                                                            ))
+    domain_status = get_domain_status(dom_id)
+    if domain_status is not None:
         if hyp_id is None or hyp_id == '':
-            log.debug('event in Hypervisor not in database with uri.  hyp_id:{}, uri:{}'.dom_id, conn.getURI())
+            logs.status.debug('event in Hypervisor not in database with uri.  hyp_id:{}, uri:{}'.dom_id, conn.getURI())
         r_status = opaque
-        dict_event = {'domain': dom_id,
-                      'hyp_id': hyp_id,
-                      'event': domEventToString(event),
-                      'detail': domDetailToString(event, detail),
-                      'when': now}
 
         if dict_event['event'] in ('Started', 'Resumed'):
-            try:
-                xml_started = dom.XMLDesc()
-                vm = DomainXML(xml_started)
-                port, tlsport = vm.get_graphics_port()
-                update_domain_viewer_started_values(dom_id, hyp_id=hyp_id, port=port, tlsport=tlsport)
-                log.info('DOMAIN STARTED - {} in {} (port: {} / tlsport:{})'.format(dom_id, hyp_id, port, tlsport))
-            except Exception as e:
-                log.debug(
-                    'Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed'.format(
-                        dom_id))
-                log.debug('Exception: ' + str(e))
+            if domain_status == 'StartingDomainDisposable' and dict_event['event'] == 'Resumed':
+                logs.status.debug('Event Resumed Received but waiting for Started')
+
+            elif domain_status == 'CreatingDomain' and dict_event['event'] == 'Started':
+                logs.status.debug('Event Started Received but waiting for Paused')
+
+            elif domain_status == 'Stopped' and dict_event['event'] == 'Resumed':
+                logs.status.debug('Event Resumed Received but waiting for Paused to update status in database')
+
+            elif domain_status == 'Started' and dict_event['event'] == 'Resumed':
+                logs.status.debug('Event Resumed Received but is state is started in database')
+
+            else:
+                try:
+                    xml_started = dom.XMLDesc()
+                    vm = DomainXML(xml_started)
+                    port, tlsport = vm.get_graphics_port()
+                    update_domain_viewer_started_values(dom_id, hyp_id=hyp_id, port=port, tlsport=tlsport)
+                    logs.status.info('DOMAIN STARTED - {} in {} (port: {} / tlsport:{})'.format(dom_id, hyp_id, port, tlsport))
+                    update_domain_status(id_domain=dom_id,
+                                         status=domEventToString(event),
+                                         hyp_id=hyp_id,
+                                         detail="Event received: " + domDetailToString(event, detail)
+                                         )
+                except Exception as e:
+                    logs.status.debug(
+                        'Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed'.format(
+                            dom_id))
+                    logs.status.debug('Exception: ' + str(e))
+
+        if dict_event['event'] in ('Suspended'):
+            if domain_status == 'CreatingDomain' and dict_event['event'] == 'Suspended':
+                logs.status.debug('Event Paused Received but waiting for Stoped to update status')
+            else:
+                update_domain_status(id_domain=dom_id,
+                                     status='Paused',
+                                     hyp_id=hyp_id,
+                                     detail="Event received: " + domDetailToString(event, detail)
+                                     )
 
         if dict_event['event'] in ('Stopped', 'Shutdown'):
             remove_domain_viewer_values(dom_id)
             if get_domain_status(dict_event['domain']) != 'Stopped':
-                log.debug('event {} ({}) in hypervisor {} changes status to Stopped in domain {}'.format(
+                logs.status.debug('event {} ({}) in hypervisor {} changes status to Stopped in domain {}'.format(
                     dict_event['event'],
                     dict_event['detail'],
                     hyp_id,
@@ -305,51 +341,18 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                 "PMSuspended",
                 "Crashed"
         ):
-            # INFO TO DEVELOPER, ESTOY YA NO TIENE SENTIDO,
-            # PERO SI VALDRAÍ LA PENA HACER UN log.error para casos raros
 
-            log.error('event strange, why?? event: {}, domain: {}, hyp_id: {}, detail: {}'.format(
+
+            logs.status.error('event strange, why?? event: {}, domain: {}, hyp_id: {}, detail: {}'.format(
                 dict_event['event'],
                 dict_event['domain'],
                 hyp_id,
                 dict_event['detail']
             ))
-        ## Alberto: FALTA QUITAR EL HYP_ID Y LOS DATOS DE SPICE AL HACER STOP
 
-        log.debug("myDomainEventCallback3 EVENT: Domain %s(%s) %s %s in hypervisor %s" % (dom.name(), dom.ID(),
-                                                                                          domEventToString(event),
-                                                                                          domDetailToString(event,
-                                                                                                            detail),
-                                                                                          hyp_id))
-
-        d_status_hyp_started = get_domain_hyp_started_and_status_and_detail(dict_event['domain'])
-        if 'status' in d_status_hyp_started.keys():
-            if d_status_hyp_started['status'] != domEventToString(event) \
-                    and domEventToString(event) in ['Started', 'Stopped', 'Suspended']:
-                previous_status = get_domain_status(dom.name())
-                if previous_status in ['CreatingDomain',
-                                       'Deleting',
-                                       'DeletingDomainDisk',
-                                       'DiskDeleted']:
-                    # domain continues in the previous status
-
-                    # update_domain_status(id_domain=dom.name(),
-                    #                      status=previous_status,
-                    #                      hyp_id=hyp_id,
-                    #                      detail="Event received: " + domDetailToString(event, detail)
-                    #                      )
-                    pass
-                else:
-                    update_domain_status(id_domain=dom.name(),
-                                         status=domEventToString(event),
-                                         hyp_id=hyp_id,
-                                         detail="Event received: " + domDetailToString(event, detail)
-                                         )
-        else:
-            log.error('UNKNOWN STATUS in domain {}'.format(dict_event['domain']))
     else:
-        log.info('domain {} launch event in hyervisor {}, but id_domain is not in database'.format(dom_id, hyp_id))
-        log.info('event: {}; detail: {}'.format(domEventToString(event), domDetailToString(event, detail)))
+        logs.status.info('domain {} launch event in hyervisor {}, but id_domain is not in database'.format(dom_id, hyp_id))
+        logs.status.info('event: {}; detail: {}'.format(domEventToString(event), domDetailToString(event, detail)))
 
 
 last_timestamp_event_graphics = dict()
@@ -381,15 +384,15 @@ def myDomainEventGraphicsCallbackRethink(conn, dom, phase, localAddr, remoteAddr
 
         diff_time = now - last_timestamp_event_graphics[key_domain_hyp_phase]
 
-        log.debug('phase:{} - key:{} - diff:{} - now:{} - before:{}'.format(phase, key_domain_hyp_phase, diff_time, now,
+        logs.status.debug('phase:{} - key:{} - diff:{} - now:{} - before:{}'.format(phase, key_domain_hyp_phase, diff_time, now,
                                                                             last_timestamp_event_graphics[
                                                                                 key_domain_hyp_phase]))
-        log.debug('chainnew: {}'.format(chain_event_graphics))
-        log.debug('chainold: {}'.format(last_chain_event_graphics[key_domain_hyp_phase]))
+        logs.status.debug('chainnew: {}'.format(chain_event_graphics))
+        logs.status.debug('chainold: {}'.format(last_chain_event_graphics[key_domain_hyp_phase]))
 
         # if same event in less than 1 second, not log the event in table
         if (last_chain_event_graphics[key_domain_hyp_phase] == chain_event_graphics and diff_time < 1):
-            log.debug(
+            logs.status.debug(
                 'event repeated: diff_time {} - phase:{} - {}'.format(diff_time, str(phase), chain_event_graphics))
 
         else:
@@ -414,8 +417,8 @@ def myDomainEventGraphicsCallbackRethink(conn, dom, phase, localAddr, remoteAddr
             r_status.insert_event_in_db(dict_event)
             r_status.update_viewer_client(domain_name, phase, ip_client=remoteAddr['node'], when=now)
 
-            log.debug("myDomainEventGraphicsCallback: Domain %s(%s) %s" % (dom.name(), dom.ID(), authScheme))
-            log.debug("localAddr: {},remoteAddr: {}, phase:{}".format(localAddr['node'], remoteAddr['node'], phase))
+            logs.status.debug("myDomainEventGraphicsCallback: Domain %s(%s) %s" % (dom.name(), dom.ID(), authScheme))
+            logs.status.debug("localAddr: {},remoteAddr: {}, phase:{}".format(localAddr['node'], remoteAddr['node'], phase))
 
         last_chain_event_graphics[key_domain_hyp_phase] = chain_event_graphics
         last_timestamp_event_graphics[key_domain_hyp_phase] = now
@@ -441,11 +444,11 @@ class ThreadHypEvents(threading.Thread):
     def run(self):
         # Close connection on exit (to test cleanup paths)
         self.tid = get_tid()
-        log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+        logs.status.info('starting thread: {} (TID {})'.format(self.name, self.tid))
         old_exitfunc = getattr(sys, 'exitfunc', None)
 
         def exit():
-            log.info('Closing hypervisors connexions')
+            logs.status.info('Closing hypervisors connexions')
             for hyp_id, hostname in self.hyps.items():
                 self.hyps_conn[hyp_id].close()
             if (old_exitfunc): old_exitfunc()
@@ -476,12 +479,12 @@ class ThreadHypEvents(threading.Thread):
         conn_ok = False
         try:
             self.hyps_conn[hyp_id] = libvirt.openReadOnly(uri)
-            log.debug('####################connection to {} ready in events thread'.format(hyp_id))
+            logs.status.debug('####################connection to {} ready in events thread'.format(hyp_id))
             update_uri_hyp(hyp_id, uri)
             conn_ok = True
         except Exception as e:
-            log.error('libvirt connection read only in events thread in hypervisor: {}'.format(hyp_id))
-            log.error(e)
+            logs.status.error('libvirt connection read only in events thread in hypervisor: {}'.format(hyp_id))
+            logs.status.error(e)
 
         if conn_ok is True:
             self.events_ids[hyp_id] = self.register_events(self.hyps_conn[hyp_id])
@@ -492,8 +495,8 @@ class ThreadHypEvents(threading.Thread):
         try:
             self.hyps_conn[hyp_id].close()
         except Exception as e:
-            log.error('libvirt connection read only can not be closed: {}'.format(hyp_id))
-            log.error(e)
+            logs.status.error('libvirt connection read only can not be closed: {}'.format(hyp_id))
+            logs.status.error(e)
 
         self.hyps_conn.pop(hyp_id)
         self.events_ids.pop(hyp_id)

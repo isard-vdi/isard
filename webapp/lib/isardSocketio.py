@@ -408,14 +408,14 @@ def socketio_domains_viewer(data):
             msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
             socketio.emit('result',
                             msg,
-                            namespace='/sio_disposables', 
-                            room='disposable_'+remote_addr)     
+                            namespace='/sio_users', 
+                            room='user_'+current_user.username)     
     
 @socketio.on('disposable_viewer', namespace='/sio_disposables')
 def socketio_domains_viewer(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
-        sendViewer(data)
+        sendViewer(data,kind='disposable',remote_addr=remote_addr)
     else:
         msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
         socketio.emit('result',
@@ -424,15 +424,22 @@ def socketio_domains_viewer(data):
                         room='disposable_'+remote_addr)        
 
                         
-def sendViewer(data):                        
+def sendViewer(data,kind='domain',remote_addr=False): 
+    import pprint
+    pprint.pprint(data)                       
     if data['kind'] == 'file':
         consola=app.isardapi.get_viewer_ticket(data['pk'])
-        # ~ viewer=
-        socketio.emit('domain_viewer',
-                        json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
-                        namespace='/sio_users', 
-                        room='user_'+current_user.username)  
-        
+        print(consola)
+        if kind=='domain':
+            socketio.emit('domain_viewer',
+                            json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
+                            namespace='/sio_users', 
+                            room='user_'+current_user.username)  
+        else:
+            socketio.emit('disposable_viewer',
+                            json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
+                            namespace='/sio_disposables', 
+                            room='disposable_'+remote_addr)              
         # ~ return Response(consola, 
                         # ~ mimetype="application/x-virt-viewer",
                         # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
@@ -448,16 +455,28 @@ def sendViewer(data):
                 viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
                 viewer['port'] = "5"+ viewer['port']
                 #~ viewer['port']=viewer['port']-1
-            socketio.emit('domain_viewer',
-                            json.dumps({'kind':data['kind'],'viewer':viewer}),
-                            namespace='/sio_users', 
-                            room='user_'+current_user.username)
+            if kind=='domain':
+                socketio.emit('domain_viewer',
+                                json.dumps({'kind':data['kind'],'viewer':viewer}),
+                                namespace='/sio_users', 
+                                room='user_'+current_user.username)
+            else:
+                socketio.emit('disposable_viewer',
+                                json.dumps({'kind':data['kind'],'viewer':viewer}),
+                                namespace='/sio_disposables', 
+                                room='disposable_'+remote_addr)                 
         else:
             msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-            socketio.emit('result',
-                            msg,
-                            namespace='/sio_users', 
-                            room='user_'+current_user.username)
+            if kind=='domain':
+                socketio.emit('result',
+                                msg,
+                                namespace='/sio_users', 
+                                room='user_'+current_user.username)
+            else:
+                socketio.emit('result',
+                                msg,
+                                namespace='/sio_disposables', 
+                                room='disposable_'+remote_addr)                             
                         
 @socketio.on('domain_add', namespace='/sio_users')
 def socketio_domains_add(form_data):
