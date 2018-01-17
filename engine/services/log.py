@@ -58,7 +58,8 @@ class Logs (object):
         self.names_for_loggers = ['threads',
                              'workers',
                              'status',
-                             'changes']
+                             'changes',
+                             'downloads']
         for n in self.names_for_loggers:
             self.create_logger(n)
 

@@ -1,3 +1,9 @@
+# Copyright 2017 the Isard-vdi project authors:
+#      Alberto Larraz Dalmases
+#      Josep Maria Viñolas Auquer
+# License: AGPLv3
+# coding=utf-8
+
 import queue
 import threading
 import time

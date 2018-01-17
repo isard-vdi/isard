@@ -27,6 +27,7 @@ from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_
 from engine.services.db.domains import update_domain_status, update_domain_start_after_created, update_domain_delete_after_stopped
 from engine.services.lib.functions import get_threads_running, get_tid
 from engine.services.log import *
+from engine.services.threads.download_thread import launch_thread_download_changes
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
     launch_disk_operations_thread, \
     launch_long_operations_thread
@@ -56,6 +57,7 @@ class ManagerHypervisors(object):
         self.t_changes_domains = None
         self.t_broom = None
         self.t_background = None
+        self.t_downloads_changes = None
         self.quit = False
 
         self.STATUS_POLLING_INTERVAL = status_polling_interval
@@ -153,6 +155,11 @@ class ManagerHypervisors(object):
                 # ONLY FOR DEBUG
                 log.debug('##### THREADS ##################')
                 get_threads_running()
+
+                # DOWNLOAD CHANGES THREADS
+                log.debug('Launching Download Changes Thread')
+                self.t_downloads_changes = launch_thread_download_changes()
+
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
                     self.launch_threads_disk_and_long_operations()

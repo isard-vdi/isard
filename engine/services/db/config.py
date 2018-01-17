@@ -14,8 +14,11 @@ def get_config():
 def get_config_branch(key):
     r_conn = new_rethink_connection()
     rtable = r.table('config')
+    try:
+        d_config = rtable.get(1)[key].run(r_conn)
+    except r.ReqlNonExistenceError:
+        d_config = False
 
-    d_config = rtable.get(1)[key].run(r_conn)
     close_rethink_connection(r_conn)
     return d_config
 
