@@ -57,8 +57,9 @@ def admin_updates_update(kind):
                 d['percentage']=0
                 d['status']='DownloadStarting'
                 d['detail']=''
+                d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
                 d.update(get_user_data())
-                for disk in d['hardware']['disks']:
+                for disk in d['create_dict']['hardware']['disks']:
                     disk['file']=current_user.path+disk['file']
         elif kind == 'media':
             for d in data:
