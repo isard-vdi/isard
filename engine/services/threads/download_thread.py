@@ -40,7 +40,7 @@ class DownloadThread(threading.Thread, object):
                 else:
                     dl = 0
                     total_length = int(total_length)
-                    print('Start: ' + self.path)
+                    # ~ print('Start: ' + self.path)
                     predl = 0
                     for data in response.iter_content(chunk_size=4096):
                         dl += len(data)
@@ -55,6 +55,7 @@ class DownloadThread(threading.Thread, object):
                     if self.table == 'domains':
                         r.table(self.table).get(self.id).update({'status':'Updating'}).run(r_conn)
         except Exception as e:
+            r.table(self.table).get(self.id).update({'status':'Failed','detail':str(e)}).run(r_conn)
             logs.downloads.info('Download exception: ' + str(e))
 
         r_conn.close()
