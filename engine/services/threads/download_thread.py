@@ -104,7 +104,7 @@ class DownloadChangesThread(threading.Thread):
                                             c['new_val']['create_dict']['hardware']['disks'][0]['file']
                         
                         if c['new_val']['table'] == 'media':
-                            path = '/isard/'+path
+                            path = '/isard/media/'+path
                         if c['new_val']['table'] == 'domains':
                             path = '/isard/groups/'+path
                         self.downloadThreads[c['new_val']['id']] = DownloadThread(c['new_val']['table'], path,
