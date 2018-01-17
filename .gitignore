@@ -40,3 +40,6 @@ install/viewer-certs/host_name
 
 #Conf files
 isard.conf
+
+#Wizard disable
+install/.wizard
