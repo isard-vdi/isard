@@ -56,18 +56,18 @@ class Wizard():
                 print(' Please install yarn: https://yarnpkg.com/lang/en/docs/install')
                 print(' and run yarn from install folder before starting again.')
                 exit(1)
-            try:
-                if self.valid_rethinkdb():
-                    if not self.valid_isard_database():
-                        self.create_isard_database()
-                    #~ else:
-                        #~ self.done_start()
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                wlog.error(exc_type, fname, exc_tb.tb_lineno)
-                wlog.error(e)
-                None
+            # ~ try:
+                # ~ if self.valid_rethinkdb():
+                    # ~ if not self.valid_isard_database():
+                        # ~ self.create_isard_database()
+                    # ~ # else:
+                        # ~ # self.done_start()
+            # ~ except Exception as e:
+                # ~ exc_type, exc_obj, exc_tb = sys.exc_info()
+                # ~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                # ~ wlog.error(exc_type, fname, exc_tb.tb_lineno)
+                # ~ wlog.error(e)
+                # ~ None
             self.run_server()
             
         else: # WIZARD NOT FORCED. SOMETHING IS NOT GOING AS EXPECTED WITH DATABASE?
@@ -108,7 +108,15 @@ class Wizard():
     CHECK VALID ITEMS
     '''
     def valid_js(self,first=False,path='bower_components/gentelella'):
-        return True
+        ## It is a docker, so we assume containers have created bower
+        ##  (following code will fail in docker as yarn created a 
+        ##   symbolic link that returns false in os.path check...)
+        from ..lib.load_config import load_config
+        dict=load_config()['DEFAULT_HYPERVISORS']   
+        if dict: 
+            if 'isard-hypervisor' in dict.keys(): 
+                return True 
+        
         if first:
             return os.path.exists(os.path.join(os.path.dirname(__file__).rsplit('/',1)[0]+'/'+path))
         return os.path.exists(os.path.join(self.wapp.root_path+'/../',path))
@@ -133,9 +141,14 @@ class Wizard():
             #~ wlog.error(e)
             return False
 
-    def valid_isard_database(self):
+    def valid_isard_database(self):        
         try:
             if 'isard' in r.db_list().run(): 
+                from ..config.populate import Populate
+                p=Populate() 
+                ## Ideally we should inform user that some tables will be deleted and others created.
+                ## No invasive
+                p.check_integrity(commit=True)               
                 return True
             else:
                 return False
@@ -542,7 +555,7 @@ html[2]={'ok':'''   <h2 class="StepTitle">Step 2. Rethinkdb database service and
                                 <a href="javascript:void(0);" onclick="createDB();"><button id="populate" type="button" class="btn btn-warning">Populate isard database!</button></a>
                             </div>
                             <div id="populating-div" class="col-md-12" style="display:none">
-                                <p><i class='fa fa-cog fa-spin fa-3x fa-fw'></i>Creating isard tables...<p>
+                                <p><i class='fa fa-cog fa-spin fa-3x fa-fw'></i>Creating isard tables... (It can take up to 1 minute)<p>
                             </div>  
                           </div>
                        </div><!--end container-->

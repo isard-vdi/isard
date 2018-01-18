@@ -363,6 +363,7 @@ $(document).ready(function(){
                result=$.ajax({
                     type: "POST",
                     url: "/create_db",
+                    timeout: 60000,
                     async: false
                 }).responseText;
                 //~ if(result=='true'){$('#populate').hide();}
