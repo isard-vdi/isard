@@ -7,7 +7,6 @@ from engine.services.log import hypman_log as hmlog
 
 BALANCER_TYPES = {'round_robin': RoundRobin, 'central_manager': CentralManager}
 
-
 class BalancerFactory(object):
     @staticmethod
     def create(balancer_type, **kwargs):

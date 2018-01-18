@@ -23,50 +23,31 @@ class CentralManager(BalancerInterface):
             self._stop_refresh_stats()
 
     def get_next(self, args):
-        to_create_disk = args.get("to_create_disk")
-        path_selected = args.get("path_selected")
         domain_id = args.get("domain_id")
-        hmlog.info("---------------------------------------------")
         for hyp_id, hyp in self.hyps.items():
-            hmlog.info("Calculing PS for hyp: {}".format(hyp_id))
             cpu_free, cpu_power, cpu_ratio, ram_free = self._get_stats(hyp)
-            ps = self.calcule_ps(cpu_free, cpu_power, cpu_ratio, ram_free)
+            ps = self._calcule_ps(cpu_free, cpu_power, cpu_ratio, ram_free)
             hyp.ps = ps
         hyp_id_best_ps, hyp = max(self.hyps.items(), key=lambda v: v[1].ps)
-        hmlog.info("Max PS of hyp: {}".format(hyp_id_best_ps))
-        hmlog.info("---------------------------------------------")
         if domain_id:
             d = get_domain(domain_id)
             self._recalcule_stats(hyp, d)
         return hyp_id_best_ps
 
-    def calcule_ps(self, cpu_free, cpu_power, cpu_ratio, ram_free):
+    def _calcule_ps(self, cpu_free, cpu_power, cpu_ratio, ram_free):
         """
         Calcule priority service value from params
         :return:
         """
         cpu_free = 0 if cpu_free < 25 else cpu_free
-
-        # rv = 1 if ram_free > 15 else ram_free / 100
         ram_free = ram_free / 100
-        rv = ram_free
-        # cv = 1 if cpu_ratio < 1 else 1 / cpu_ratio  # 1/cpu_ratio = inverse
-        cv = 1 if cpu_ratio == 0 else cpu_ratio  # 1/cpu_ratio = inverse
         cpu_free /= 100
         cpu_free *= cpu_free
-        # cp = max(math.log(cpu_power), 1)
-        cp = 1
         weight_cpu_power = 0.1 if cpu_ratio > 1 else 0.2
         ps = (0.4 * cpu_free) + (0.4 * ram_free) + (weight_cpu_power * cpu_power)
         if cpu_ratio > 1:
             i_cpu_ratio = 1/cpu_ratio
             ps += 0.1 * i_cpu_ratio
-        hmlog.debug(
-            "cpu_free: {}, cpu_power: {}, cpu_ratio: {}, ram_free: {}, rv: {}, cp: {}, ps: {}".format(cpu_free,
-                                                                                                      cpu_power,
-                                                                                                      cpu_ratio,
-                                                                                                      ram_free, rv, cp,
-                                                                                                      ps))
         return round(ps, 5)
 
     def _init_hyps(self):

@@ -28,7 +28,7 @@ from engine.services.log import hypman_log as hmlog
 class UXEval(EvaluatorInterface):
     def __init__(self, user_id, id_pool, dd, templates, hyps, params):
         self.name = "ux"
-        self.code = "RR_stress_ux_2"
+        self.code = "RR_stress_launch_apps"
         self.sender = graphyte.Sender(CARBON['server'], prefix='isard-eval.{}'.format(self.name), port=CARBON['port'])
         self.user_id = user_id
         self.id_pool = id_pool
@@ -37,14 +37,14 @@ class UXEval(EvaluatorInterface):
         self.hyps = hyps
         self.params = params
         self.steps = 3  # How many steps will start domains
-        self.initial_ux_iterations = 20
+        self.initial_ux_iterations = 1
         self.real_stop = True  # Wait for auto stop domain
         self.time_to_stop = 15  # Force to stop after X seconds
         self.initial_ux = {}  # one key for each template
         self.names = ["ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"]
         self.statistics = ["max", "min", "mean", "stdev"]
         self.inc_statistics = ["mean", "stdev"]
-        self.calcule_ux = False
+        self.calcule_ux = True
         self.save_ux = True
         self.data_ux_names = ["execution_time", "inc_execution_time", "performance"]
         self._init_data_ux_names()
@@ -63,6 +63,13 @@ class UXEval(EvaluatorInterface):
                            }
         self.total_weights_ux_scorers = sum(v['weight'] for v in self.ux_scorers.values())
 
+    def run(self):
+        data = {}
+        self._calcule_ux()
+        data["initial_ux"] = self.initial_ux
+        data.update(self._start_domains())
+        return data
+
     def _init_data_ux_names(self):
         for name in self.names:
             for s in self.statistics:
@@ -72,15 +79,6 @@ class UXEval(EvaluatorInterface):
                 self.data_ux_names.append("inc" + "_" + name + "_" + s)
                 self.data_ux_names.append("inc" + "_" + name + "_" + s + "_percent")
                 # eval_log.info("Data UX Names: {}".format(self.data_ux_names))
-
-    def run(self):
-        data = {}
-        self._calcule_ux()
-        data["initial_ux"] = self.initial_ux
-        data.update(self._start_domains())
-        # eval_log.debug("FINAL: {}".format(pformat(data)))
-        return data
-
     def _calcule_ux(self):
         """
         Calcule initial ux for each template on each hyp.
@@ -246,7 +244,7 @@ class UXEval(EvaluatorInterface):
             timeout = et_initial * (1 + et_inc_max / 100)
             eval_log.info("TIMEOUT: {}, ET: {}".format(timeout, et_initial))
             stats, et, stop_by_timeout = self._wait_stop(domain_id, hyp, timeout=timeout)
-            et = self._calcule_random_et(et_initial, et_inc_max, step)
+            # et = self._calcule_random_et(et_initial, et_inc_max, step)
             # Calcule domain ux
             ux = self._calcule_ux_domain(stats, et, hyp.cpu_power)
             self.sender.send(template_id + '.execution_time', ux["execution_time"])
@@ -323,6 +321,7 @@ class UXEval(EvaluatorInterface):
         stats = []
         i = 0
         start_time = time.time()
+        execution_time = time.time() - start_time
         while (get_domain_status(domain_id) == "Started"
                and (self.real_stop or i < self.time_to_stop)
                and execution_time < timeout):
@@ -426,9 +425,9 @@ class UXEval(EvaluatorInterface):
     def _ux_score(self, increment):
         total_score = 0
         for value in self.ux_scorers.keys():
-            xv, vmax, vmin, wv = getattr(self, "_ux_score_" + value)(increment)  # Call scorer function
-            score = (1 - min(xv / (vmax - vmin), 1)) * wv / self.total_weights_ux_scorers
-            eval_log.debug("Partial_ Score ({}): {}".format(value, score))
+            xv, vmax, vmin, wv = getattr(self, "_ux_score_" + value)(increment)
+            weight = wv / self.total_weights_ux_scorers
+            score = (1 - min(xv / (vmax - vmin), 1)) * weight
             total_score += score
         return total_score * 10
 

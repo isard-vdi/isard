@@ -81,8 +81,8 @@ class EvalController(object):
                  # templates=[{'id': "_windows_7_x64_v3", 'weight': 100}],
                  # templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
                  evaluators=["ux"],
-                 # max_domains=None,
-                 max_domains=14,
+                 max_domains=None,
+                 # max_domains=14,
                  # evaluators=["load","ux"]
                  ):
         self.user = get_user('eval')
@@ -207,7 +207,7 @@ class EvalController(object):
                 "data": None}
 
     @classmethod
-    def get_domains_id_randomized(self, user_id, id_pool, dd, templates):
+    def get_domains_id_randomized(cls, user_id, id_pool, dd, templates):
         domains_id_list = []
         for t in templates:
             n_dd = dd[t['id']]  # defined domains number

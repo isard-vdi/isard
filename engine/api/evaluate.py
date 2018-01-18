@@ -87,12 +87,8 @@ def new_eval():
         }
         insert_eval_result(obj)
         eval_to_csv(code, data)
-        d_load = None
-        d_ux = None
-        if data.get("load"):
-            d_load = data["load"]["total_started_domains"]
-        if data.get("ux"):
-            d_ux = data["ux"]["total"]["score"]
+        d_load = data["load"]["total_started_domains"] if data.get("load") else None
+        d_ux = data["ux"]["total"]["score"] if data.get("ux") else None
         objs.append((d_load, d_ux))
         time.sleep(40)
     return jsonify(objs), 200
