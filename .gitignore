@@ -19,6 +19,7 @@ rethinkdb_data/
 
 # log
 *.log
+logs/*
 
 #pycharm
 .idea/
@@ -40,3 +41,6 @@ install/viewer-certs/host_name
 
 #Conf files
 isard.conf
+
+#Wizard disable
+install/.wizard

@@ -7,20 +7,20 @@
 
 
 $(document).ready(function() {
-
+    
 	$('.btn-new').on('click', function () {
-            $("#modalAddIsoForm")[0].reset();
-			$('#modalAddIso').modal({
+            $("#modalAddMediaForm")[0].reset();
+			$('#modalAddMedia').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            $('#modalAddIsoForm').parsley();
+            $('#modalAddMediaForm').parsley();
             setAlloweds_add('#alloweds-add');
 	});
 
-    var table=$('#isos').DataTable( {
+    var table=$('#media').DataTable( {
         "ajax": {
-            "url": "/admin/table/isos/get",
+            "url": "/admin/table/media/get",
             "dataSrc": ""
         },
 			"language": {
@@ -36,6 +36,7 @@ $(document).ready(function() {
                 //~ "width": "10px",
                 //~ "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				//~ },
+            { "data": "icon"},
             { "data": "name"},
             { "data": "status"},
             { "data": "progress"},
@@ -51,25 +52,31 @@ $(document).ready(function() {
 							{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
+							  return renderIcon(full);
+							}},
+							{
+							"targets": 1,
+							"render": function ( data, type, full, meta ) {
 							  return renderName(full);
 							}},
                             {
-							"targets": 2,
+							"targets": 3,
 							"render": function ( data, type, full, meta ) {
 							  return renderProgress(full);
 							}}],
         "initComplete": function() {
-                                $('.progress .progress-bar').progressbar();
+                                //~ $('.progress .progress-bar').progressbar();
+                                //~ $('.progress-bar').progressbar();
                               }
     } );
 
-    $('#isos').find(' tbody').on( 'click', 'button', function () {
+    $('#media').find(' tbody').on( 'click', 'button', function () {
         var data = table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
             case 'btn-delete':
 				new PNotify({
 						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete iso: "+data.name+"?",
+							text: "Are you sure you want to delete media: "+data.name+"?",
 							hide: false,
 							opacity: 0.9,
 							confirm: {
@@ -84,7 +91,7 @@ $(document).ready(function() {
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-                            socket.emit('iso_update',{'pk':data.id,'name':'status','value':'Deleting'})
+                            socket.emit('media_update',{'pk':data.id,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {
 				});	                        
                 break;
@@ -116,34 +123,27 @@ $(document).ready(function() {
 				});	
 	});
     
-    $("#modalAddIso #send").on('click', function(e){
-            var form = $('#modalAddIsoForm');
+    $("#modalAddMedia #send").on('click', function(e){
+            var form = $('#modalAddMediaForm');
 
             form.parsley().validate();
 
             if (form.parsley().isValid()){
-                data=$('#modalAddIsoForm').serializeObject();
+                data=$('#modalAddMediaForm').serializeObject();
                 data=replaceAlloweds_arrays(data)
-                socket.emit('iso_add',data)
+                socket.emit('media_add',data)
             }
             
 
         });
-        
+
     // SocketIO
-    reconnect=-1;
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
-    console.log(socket)
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
      
     socket.on('connect', function() {
         connection_done();
-        reconnect+=1;
-        if(reconnect){
-            console.log(reconnect+' reconnects to websocket. Refreshing datatables');
-            table.ajax.reload();
-            // Should have a route to update quota via ajax...
-        }
-        console.log('Listening users namespace');
+        socket.emit('join_rooms',['media'])
+        console.log('Listening media namespace');
     });
 
     socket.on('connect_error', function(data) {
@@ -156,20 +156,24 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
-    socket.on('iso_data', function(data){
+    socket.on('media_data', function(data){
         console.log('add or update')
         var data = JSON.parse(data);
-        $('.progress .progress-bar').progressbar();
+            //~ $('#pbid_'+data.id).data('transitiongoal',data.percentage);
+            //~ $('#pbid_').css('width', data.percentage+'%').attr('aria-valuenow', data.percentage).text(data.percentage); 
+            //~ $('#psmid_'+data.id).text(data.percentage);
         dtUpdateInsert(table,data,false);
+        //~ $('.progress .progress-bar').progressbar();
     });
+
     
-    socket.on('iso_delete', function(data){
+    socket.on('media_delete', function(data){
         console.log('delete')
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
-                title: "Iso deleted",
-                text: "Iso "+data.name+" has been deleted",
+                title: "Media deleted",
+                text: "Media "+data.name+" has been deleted",
                 hide: true,
                 delay: 4000,
                 icon: 'fa fa-success',
@@ -194,8 +198,8 @@ $(document).ready(function() {
     socket.on('add_form_result', function (data) {
         var data = JSON.parse(data);
         if(data.result){
-            $("#modalAddIsoForm")[0].reset();
-            $("#modalAddIso").modal('hide');
+            $("#modalAddMediaForm")[0].reset();
+            $("#modalAddMedia").modal('hide');
         }
         new PNotify({
                 title: data.title,
@@ -229,10 +233,12 @@ $(document).ready(function() {
  } );
 
 function renderProgress(data){
-    return '<div class="progress progress_sm"> \
-                <div class="progress-bar bg-green" role="progressbar" data-transitiongoal="'+data.percentage+'"></div> \
-            </div> \
-            <small>'+data.percentage+'% Complete</small>' 
+            return '<div class="progress"> \
+  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data.percentage+'" \
+  aria-valuemin="0" aria-valuemax="100" style="width:'+data.percentage+'%"> \
+    '+data.percentage+'% \
+  </div> \
+</<div> '
 }
 
 function renderName(data){
@@ -242,4 +248,18 @@ function renderName(data){
                 </h2> \
       			<p class="excerpt" >'+data.description+'</p> \
            		</div>'
+}
+
+function renderIcon(data){
+		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+}
+
+function icon(name){
+    if(name.startsWith("fa-")){return "<i class='fa "+name+" fa-2x '></i>";}
+    if(name.startsWith("fl-")){return "<span class='"+name+" fa-2x'></span>";}
+       if(name=='windows' || name=='linux'){
+           return "<i class='fa fa-"+name+" fa-2x '></i>";
+        }else{
+            return "<span class='fl-"+name+" fa-2x'></span>";
+		}       
 }
