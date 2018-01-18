@@ -37,9 +37,16 @@ while not config_exists:
     except:
         print('No isard.conf file found...')
         time.sleep(3)
-    
-with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
-    rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
+        
+table_exists=False
+while not table_exists:
+    try:
+        with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
+            rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
+        table_exists=True
+    except:
+        print('No config table in isard database')
+        time.sleep(3)
 #print(rconfig)
 
 
