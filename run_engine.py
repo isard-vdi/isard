@@ -5,9 +5,14 @@ import logging
 from flask import Flask
 from logging.handlers import RotatingFileHandler
 
-from engine.models.manager_hypervisors import ManagerHypervisors
-from engine.services import db
+
 from engine.services.lib.functions import check_tables_populated
+check_tables_populated()
+
+from engine.services import db
+from engine.models.manager_hypervisors import ManagerHypervisors
+
+
 
 
 def run(app):
@@ -24,7 +29,7 @@ if __name__ == "__main__":
 
 
     app = Flask(__name__)
-    check_tables_populated()
+
     app.m = ManagerHypervisors()
     app.db = db
 

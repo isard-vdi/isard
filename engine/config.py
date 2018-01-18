@@ -19,7 +19,7 @@
 
 import rethinkdb as r
 import configparser
-import os
+import os, time
 try:
     rcfg = configparser.ConfigParser()
     rcfg.read(os.path.join(os.path.dirname(__file__),'../isard.conf'))
@@ -27,9 +27,17 @@ except Exception as e:
     log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
     sys.exit(0)
 
-RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
-RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
-RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
+config_exists=False
+while not config_exists:
+    try:
+        RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
+        RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
+        RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
+        config_exists=True
+    except:
+        print('No isard.conf file found...')
+        time.sleep(3)
+    
 with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
     rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
 #print(rconfig)
