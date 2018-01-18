@@ -13,7 +13,7 @@ import rethinkdb as r
 from engine.services.db.db import new_rethink_connection
 from engine.services.log import logs
 from engine.services.db import get_config_branch
-
+from engine.services.db.downloads import get_downloads_in_progress, update_download_percent
 
 class DownloadThread(threading.Thread, object):
     def __init__(self, table, path, id_down, url, code):
@@ -27,6 +27,10 @@ class DownloadThread(threading.Thread, object):
         self.stop = False
 
     def run(self):
+        pass
+
+    # only for testing purposes
+    def run_if_paths_mounted_in_engine(self):
         r_conn = new_rethink_connection()
         try:
             os.makedirs(self.path.rsplit('/', 1)[0], exist_ok=True)
@@ -56,6 +60,17 @@ class DownloadThread(threading.Thread, object):
 
         r_conn.close()
 
+class DownloadsProgressThread(threading.Thread):
+    def __init__(self,name='download_progress'):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.stop = False
+        self.paths_to_check = {}
+
+    def run(self)::
+        list_downloading = get_downloads_in_progress()
+        if len(list_downloading) > 0:
+            pass
 
 class DownloadChangesThread(threading.Thread):
     def __init__(self, name='download_changes'):
