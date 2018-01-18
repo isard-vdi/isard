@@ -52,56 +52,86 @@ class Populate(object):
 
 
     def defaults(self):
-        log.info('Checking table roles')
-        self.roles()
-        log.info('Checking table categories')
-        self.categories()
-        log.info('Checking table groups')
-        self.groups()
-        log.info('Checking table users')
-        self.users()
-        log.info('Checking table vouchers')
-        self.vouchers()
-        log.info('Checking table hypervisors and pools')
-        self.hypervisors()
-        log.info('Checking table interfaces')
-        self.interfaces()
-        log.info('Checking table graphics')
-        self.graphics()
-        log.info('Checking table videos')
-        self.videos()
-        log.info('Checking table disks')
-        self.disks()
-        log.info('Checking table domains')
-        self.domains()
-        log.info('Checking table domains_status')
-        self.domains_status()
-        log.info('Checking table virt_builder')
-        self.virt_builder()
-        log.info('Checking table virt_install')
-        self.virt_install()
-        log.info('Checking table builders')
-        self.builders()
-        log.info('Checking table media')
-        self.media()
-        log.info('Checking table boots')
-        self.boots()
-        log.info('Checking table hypervisors_events')
-        self.hypervisors_events()
-        log.info('Checking table hypervisors_status')
-        self.hypervisors_status()
-        log.info('Checking table disk_operations')
-        self.disk_operations()
-        log.info('Checking table hosts_viewers')
-        self.hosts_viewers()
-        log.info('Checking table places')
-        self.places()
-        log.info('Checking table disposables')
-        self.disposables()
-        log.info('Checking table backups')
-        self.backups()
-        log.info('Checking table config')
-        self.config()
+        print(self.check_integrity())
+        # ~ log.info('Checking table roles')
+        # ~ self.roles()
+        # ~ log.info('Checking table categories')
+        # ~ self.categories()
+        # ~ log.info('Checking table groups')
+        # ~ self.groups()
+        # ~ log.info('Checking table users')
+        # ~ self.users()
+        # ~ log.info('Checking table vouchers')
+        # ~ self.vouchers()
+        # ~ log.info('Checking table hypervisors and pools')
+        # ~ self.hypervisors()
+        # ~ log.info('Checking table interfaces')
+        # ~ self.interfaces()
+        # ~ log.info('Checking table graphics')
+        # ~ self.graphics()
+        # ~ log.info('Checking table videos')
+        # ~ self.videos()
+        # ~ log.info('Checking table disks')
+        # ~ self.disks()
+        # ~ log.info('Checking table domains')
+        # ~ self.domains()
+        # ~ log.info('Checking table domains_status')
+        # ~ self.domains_status()
+        # ~ log.info('Checking table virt_builder')
+        # ~ self.virt_builder()
+        # ~ log.info('Checking table virt_install')
+        # ~ self.virt_install()
+        # ~ log.info('Checking table builders')
+        # ~ self.builders()
+        # ~ log.info('Checking table media')
+        # ~ self.media()
+        # ~ log.info('Checking table scheduler_jobs')
+        # ~ self.scheduler_jobs()
+
+        # ~ log.info('Checking table boots')
+        # ~ self.boots()
+        # ~ log.info('Checking table hypervisors_events')
+        # ~ self.hypervisors_events()
+        # ~ log.info('Checking table hypervisors_status')
+        # ~ self.hypervisors_status()
+        # ~ log.info('Checking table disk_operations')
+        # ~ self.disk_operations()
+        # ~ log.info('Checking table hosts_viewers')
+        # ~ self.hosts_viewers()
+        # ~ log.info('Checking table places')
+        # ~ self.places()
+        # ~ log.info('Checking table disposables')
+        # ~ self.disposables()
+        # ~ log.info('Checking table backups')
+        # ~ self.backups()
+        # ~ log.info('Checking table config')
+        # ~ self.config()
+
+
+    def check_integrity(self,commit=False):
+        dbtables=r.table_list().run()
+        newtables=['roles','categories','groups','users','vouchers',
+                'hypervisors','hypervisors_pools','interfaces',
+                'graphics','videos','disks','domains','domains_status','domains_status_history',
+                'virt_builder','virt_install','builders','media',
+                'boots','hypervisors_events','hypervisors_status','hypervisors_status_history',
+                'disk_operations','hosts_viewers','places','disposables',
+                'scheduler_jobs','backups','config']
+        tables_to_create=list(set(newtables) - set(dbtables))
+        tables_to_delete=list(set(dbtables) - set(newtables))
+        if not commit:
+            return {'tables_to_create':tables_to_create,'tables_to_delete':tables_to_delete}
+        else:
+            for t in tables_to_create:
+                table=t
+                if table.startswith('hypervisors_status'): table='hypervisors_status'
+                if table.startswith('domains_status'): table='domains_status'
+                log.info('Creating new table: '+t)
+                log.info('  Result: '+str(eval('self.'+table+'()')))
+            for t in tables_to_delete:
+                log.info('Deleting old table: '+t)
+                log.info('  Result: '+str(r.table_drop(t).run()))
+        return True
 
     '''
     CONFIG
@@ -600,6 +630,17 @@ class Populate(object):
                 r.table('media').index_wait("status").run()
                 r.table('media').index_create("user").run()
                 r.table('media').index_wait("user").run()
+        return True
+
+    '''
+    APPSCHEDULER JOBS:
+    '''
+
+    def scheduler_jobs(self):
+        with app.app_context():
+            if not r.table_list().contains('scheduler_jobs').run():
+                log.info("Table scheduler_jobs not found, creating...")
+                r.table_create('scheduler_jobs', primary_key="id").run()
         return True
 
     '''
