@@ -5,13 +5,14 @@ import logging
 from flask import Flask
 from logging.handlers import RotatingFileHandler
 
-from engine.services import db
-check_tables_populated()
-
-
-from engine.models.manager_hypervisors import ManagerHypervisors
 
 from engine.services.lib.functions import check_tables_populated
+check_tables_populated()
+
+from engine.services import db
+from engine.models.manager_hypervisors import ManagerHypervisors
+
+
 
 
 def run(app):
