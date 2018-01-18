@@ -1,6 +1,7 @@
 # Copyright 2017 the Isard-vdi project authors:
 #      Alberto Larraz Dalmases
 #      Josep Maria Viñolas Auquer
+#      Daniel Criado Casas
 # License: AGPLv3
 
 # coding=utf-8

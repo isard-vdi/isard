@@ -1,3 +1,9 @@
+# Copyright 2018 the Isard-vdi project authors:
+#      Alberto Larraz Dalmases
+#      Josep Maria Viñolas Auquer
+#      Daniel Criado Casas
+# License: AGPLv3
+
 # from engine import app
 from math import ceil, floor
 from random import shuffle

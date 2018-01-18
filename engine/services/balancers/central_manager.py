@@ -1,8 +1,12 @@
-from random import random
-from threading import Thread
-from time import sleep
+# Copyright 2018 the Isard-vdi project authors:
+#      Alberto Larraz Dalmases
+#      Josep Maria Viñolas Auquer
+#      Daniel Criado Casas
+# License: AGPLv3
 
 import math
+from threading import Thread
+from time import sleep
 
 from engine.services.balancers.balancer_interface import BalancerInterface
 from engine.services.db import get_domain

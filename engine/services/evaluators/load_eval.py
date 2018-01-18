@@ -1,3 +1,9 @@
+# Copyright 2018 the Isard-vdi project authors:
+#      Alberto Larraz Dalmases
+#      Josep Maria Viñolas Auquer
+#      Daniel Criado Casas
+# License: AGPLv3
+
 """
 Load Evaluator.
 Must be called from EvalController
