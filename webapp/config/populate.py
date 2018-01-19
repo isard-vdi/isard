@@ -119,6 +119,7 @@ class Populate(object):
                 'scheduler_jobs','backups','config']
         tables_to_create=list(set(newtables) - set(dbtables))
         tables_to_delete=list(set(dbtables) - set(newtables))
+        print(tables_to_create)
         if not commit:
             return {'tables_to_create':tables_to_create,'tables_to_delete':tables_to_delete}
         else:

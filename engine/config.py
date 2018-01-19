@@ -20,16 +20,17 @@
 import rethinkdb as r
 import configparser
 import os, time
-try:
-    rcfg = configparser.ConfigParser()
-    rcfg.read(os.path.join(os.path.dirname(__file__),'../isard.conf'))
-except Exception as e:
-    log.info('The isard.conf file can not be opened. Please start webapp UI interface before engine.')
-    sys.exit(0)
+# ~ try:
+
+# ~ except Exception as e:
+    # ~ log.info('The isard.conf file can not be opened. Please start webapp UI interface before engine.')
+    # ~ sys.exit(0)
 
 config_exists=False
 while not config_exists:
     try:
+        rcfg = configparser.ConfigParser()
+        rcfg.read(os.path.join(os.path.dirname(__file__),'../isard.conf'))        
         RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
         RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
         RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
