@@ -38,7 +38,7 @@ while not config_exists:
     except:
         print('isard.conf file can not be opened. Please start webapp UI interface before engine.')
         time.sleep(5)
-        
+
 table_exists=False
 while not table_exists:
     try:

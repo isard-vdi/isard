@@ -118,6 +118,8 @@ class Populate(object):
                 'disk_operations','hosts_viewers','places','disposables',
                 'scheduler_jobs','backups','config']
         tables_to_create=list(set(newtables) - set(dbtables))
+        d = {k:v for v,k in enumerate(newtables)}
+        tables_to_create.sort(key=d.get)
         tables_to_delete=list(set(dbtables) - set(newtables))
         print(tables_to_create)
         if not commit:
