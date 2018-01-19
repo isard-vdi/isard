@@ -22,7 +22,7 @@ sudo pip3 install -r requirements.pip3
 
 ```
 sudo npm -g install yarn
-yarn
+#yarn
 ```
 
 ```

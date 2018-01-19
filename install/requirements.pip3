@@ -38,3 +38,4 @@ xmltodict==0.10.2
 pyOpenSSL==17.0.0
 graphyte==1.4
 numpy==1.12.0
+pynpm==0.1.1

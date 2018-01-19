@@ -24,7 +24,7 @@ try:
     rcfg = configparser.ConfigParser()
     rcfg.read(os.path.join(os.path.dirname(__file__),'../isard.conf'))
 except Exception as e:
-    log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
+    log.info('The isard.conf file can not be opened. Please start webapp UI interface before engine.')
     sys.exit(0)
 
 config_exists=False
@@ -35,8 +35,8 @@ while not config_exists:
         RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
         config_exists=True
     except:
-        print('No isard.conf file found...')
-        time.sleep(3)
+        print('isard.conf file can not be opened. Please start webapp UI interface before engine.')
+        time.sleep(5)
         
 table_exists=False
 while not table_exists:
@@ -45,8 +45,8 @@ while not table_exists:
             rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
         table_exists=True
     except:
-        print('No config table in isard database')
-        time.sleep(3)
+        print('No config table in isard database. Please start webapp UI interface before engine.')
+        time.sleep(5)
 #print(rconfig)
 
 
