@@ -194,6 +194,13 @@ class Wizard():
     def is_registered(self):
         if not self.code is False: return True
         return False
+        
+    def render_updates(self,dict):
+        html='<table><tr>'
+        for k in dict.keys():
+            html+='<td>'+k+' ('+str(len(dict[k]))+' available to donwload)</td>'
+        html+='</tr></table>'
+        return html
     '''
     CHECK VALID ITEMS
     '''
@@ -539,7 +546,7 @@ class Wizard():
                             return 'Isard update website seems down...'
                         if self.is_registered is False:
                             return 'Isard is not registered'
-                        return str(self.get_updates_list())
+                        return str(self.render_updates(self.get_updates_list()))
 
 
 '''
