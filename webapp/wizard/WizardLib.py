@@ -101,7 +101,7 @@ class Wizard():
         from flask import Flask
         self.wapp = Flask(__name__)
         self.wizard_routes()
-        wlog.info('ISARD WEBCONFIG AVAILABLE AT http://localhost:5000')
+        wlog.info('ISARD WEBCONFIG STARTED: Access on http://localhost:5000 or https://localhost on dockers.')
         self.wapp.run(host='0.0.0.0', port=5000, debug=False)        
                 
     def shutdown_server(self):
@@ -190,6 +190,10 @@ class Wizard():
         except Exception as e:
             print("Error contacting.\n"+str(e))
         return False
+
+    def is_registered(self):
+        if not self.code is False: return True
+        return False
     '''
     CHECK VALID ITEMS
     '''
@@ -239,8 +243,11 @@ class Wizard():
                 ## No invasive
                 p.check_integrity(commit=True)
                 if self.register_isard:
+                    wlog.info('                                      USER WANTS TO REGISTER ISARD')
                     cfg=r.table('config').get(1).pluck('resources').run()
                     if 'resources' in cfg.keys():
+                        wlog.info('                                      AND DATA IS:'+str(cfg['resources']['url']))
+                        wlog.info('                                      AND DATA IS:'+str(cfg['resources']['code']))
                         self.url=cfg['resources']['url']
                         self.code=cfg['resources']['code']
                     if self.code is False:
@@ -312,9 +319,19 @@ class Wizard():
         try:
             if r.table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
                 return True
-        return False
+            return False
+        except:
+            return False
                       
-    def valid_server(self,server):
+    def valid_server(self,server=False):
+        wlog.info('XXXXXXXXXXXX server is:'+str(server)+'    XXXXXXXXXX self.url='+str(self.url))
+        if server is False: 
+            if self.url is not False:
+                wlog.warning('self.url='+str(self.url))
+                server=self.url.split('//')[1]
+            else:
+                server='isardvdi.com'
+        wlog.warning('CONNECTION TO XXXXXXXXXXXXXXX:'+str(server))
         import http.client as httplib
         conn = httplib.HTTPConnection(server, timeout=5)
         try:
@@ -479,7 +496,7 @@ class Wizard():
                     if step is '6':
                         return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False)                        
                     if step is '7':
-                        return json.dumps(self.valid_server('isardvdi.com:5050')) 
+                        return json.dumps(self.valid_server()) 
                                                                                                                     
             @self.wapp.route('/content', methods=['POST'])
             def wizard_content():
@@ -518,9 +535,9 @@ class Wizard():
                         return html[6]['ok']  
                         return 'Hypervisor online' 
                     if step == '7':
-                        if not self.valid_server(self.url):
+                        if not self.valid_server():
                             return 'Isard update website seems down...'
-                        if self.code is False:
+                        if self.is_registered is False:
                             return 'Isard is not registered'
                         return str(self.get_updates_list())
 
