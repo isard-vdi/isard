@@ -36,7 +36,7 @@ while not config_exists:
         RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
         config_exists=True
     except:
-        print('isard.conf file can not be opened. Please start webapp UI interface before engine.')
+        print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.', end="")
         time.sleep(5)
 
 table_exists=False
@@ -46,7 +46,7 @@ while not table_exists:
             rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
         table_exists=True
     except:
-        print('No config table in isard database. Please start webapp UI interface before engine.')
+        print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.', end="")
         time.sleep(5)
 #print(rconfig)
 
@@ -65,9 +65,9 @@ TRANSITIONAL_STATUS = ('Starting', 'Stopping')
 
 CONFIG_DICT = {
 'RETHINKDB':{
-'host':			RETHINK_HOST,
-'port':			RETHINK_PORT,
-'dbname':		RETHINK_DB
+'host':         RETHINK_HOST,
+'port':         RETHINK_PORT,
+'dbname':       RETHINK_DB
 },
 
     # This is important if you want to protect to man in the midle attack
