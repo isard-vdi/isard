@@ -101,7 +101,7 @@ class Wizard():
         from flask import Flask
         self.wapp = Flask(__name__)
         self.wizard_routes()
-        wlog.info('ISARD WEBCONFIG AVAILABLE AT http://localhost:5000')
+        wlog.info('ISARD WEBCONFIG STARTED: Access on http://localhost:5000 or https://localhost on dockers.')
         self.wapp.run(host='0.0.0.0', port=5000, debug=False)        
                 
     def shutdown_server(self):
@@ -120,6 +120,80 @@ class Wizard():
         path='./install/.wizard'
         os.mknod(path)
 
+
+    '''
+    GET UPDATES
+    '''
+    def get_updates_list(self):
+        kinds=['media','domains','builders']
+        dict={}
+        for k in kinds:
+            dict[k]=self.get_updates_new_kind(k,'admin')
+        import pprint
+        pprint.pprint(dict)
+        return dict
+
+    def insert_update(self,kind,data):
+        username='admin'
+        userpath='admin/admin/admin/'
+        if kind == 'domains': 
+            for d in data:
+                d['id']='_'+username+'_'+d['id']
+                d['percentage']=0
+                d['status']='DownloadStarting'
+                d['detail']=''
+                d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
+                d.update({  'category': 'admin',
+                            'group': 'admin',
+                            'user': 'admin'})
+                for disk in d['create_dict']['hardware']['disks']:
+                    disk['file']=userpath+disk['file']
+        elif kind == 'media':
+            for d in data:
+                if 'path' in d.keys():
+                    d.update({  'category': 'admin',
+                            'group': 'admin',
+                            'user': 'admin'})
+                    d['percentage']=0
+                    d['status']='DownloadStarting'                    
+                    d['path']=userpath+d['path']
+        r.table(kind).insert(data).run()
+            
+    def get_updates_new_kind(self,kind,username):
+        web=self.get_updates_kind(kind=kind)
+        dbb=list(r.table(kind).run())
+        result=[]
+        for w in web:
+            found=False
+            for d in dbb:
+                if kind == 'domains':
+                    if d['id']=='_'+username+'_'+w['id']:
+                        found=True
+                        continue
+                else:
+                    if d['id']==w['id']:
+                        found=True
+                        continue
+            if not found: result.append(w)
+        return result
+        #~ return [i for i in web for j in dbb if i['id']==j['id']]
+
+        
+    def get_updates_kind(self,kind):
+        try:
+            req= requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False)
+            if req.status_code==200:
+                return req.json()
+                #~ return True
+            else:
+                print('Error response code: '+str(req.status_code)+'\nDetail: '+req.json())
+        except Exception as e:
+            print("Error contacting.\n"+str(e))
+        return False
+
+    def is_registered(self):
+        if not self.code is False: return True
+        return False
     '''
     CHECK VALID ITEMS
     '''
@@ -169,8 +243,11 @@ class Wizard():
                 ## No invasive
                 p.check_integrity(commit=True)
                 if self.register_isard:
+                    wlog.info('                                      USER WANTS TO REGISTER ISARD')
                     cfg=r.table('config').get(1).pluck('resources').run()
                     if 'resources' in cfg.keys():
+                        wlog.info('                                      AND DATA IS:'+str(cfg['resources']['url']))
+                        wlog.info('                                      AND DATA IS:'+str(cfg['resources']['code']))
                         self.url=cfg['resources']['url']
                         self.code=cfg['resources']['code']
                     if self.code is False:
@@ -239,9 +316,22 @@ class Wizard():
         return self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')  
 
     def valid_hypervisor(self):
-        return True
+        try:
+            if r.table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
+                return True
+            return False
+        except:
+            return False
                       
-    def valid_server(self,server):
+    def valid_server(self,server=False):
+        wlog.info('XXXXXXXXXXXX server is:'+str(server)+'    XXXXXXXXXX self.url='+str(self.url))
+        if server is False: 
+            if self.url is not False:
+                wlog.warning('self.url='+str(self.url))
+                server=self.url.split('//')[1]
+            else:
+                server='isardvdi.com'
+        wlog.warning('CONNECTION TO XXXXXXXXXXXXXXX:'+str(server))
         import http.client as httplib
         conn = httplib.HTTPConnection(server, timeout=5)
         try:
@@ -406,7 +496,7 @@ class Wizard():
                     if step is '6':
                         return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False)                        
                     if step is '7':
-                        return json.dumps(self.valid_server('isardvdi.com:5050')) 
+                        return json.dumps(self.valid_server()) 
                                                                                                                     
             @self.wapp.route('/content', methods=['POST'])
             def wizard_content():
@@ -445,9 +535,11 @@ class Wizard():
                         return html[6]['ok']  
                         return 'Hypervisor online' 
                     if step == '7':
-                        if not self.valid_server('isardvdi.com:5050'):
+                        if not self.valid_server():
                             return 'Isard update website seems down...'
-                        return 'This updates are available'                         
+                        if self.is_registered is False:
+                            return 'Isard is not registered'
+                        return str(self.get_updates_list())
 
 
 '''
@@ -773,4 +865,44 @@ html[6]={'ok':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2>
                           </div>                          
                        </div><!--end container-->
                     </section> '''} 
-                            
+
+html[7]={'ok':'''   <h2 class="StepTitle">Step 6. Updates</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkgreen">Found a running hypervisor. You can continue</h3>
+                             </div>                             
+                          </div><!--end row-->
+                       </div><!--end container-->
+                    </section> ''',
+        'ko':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2> 
+                    <section>
+                       <div class="container">
+                          <div class="row">
+                             <div class="col-md-2">
+                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             </div>
+                             <div class="col-md-10">
+                                <h3 style="color:darkred">Can't contact any hypervisor.</h3>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                             <div class="col-md-12">
+                                <a href="javascript:void(0);" onclick="skipHypervisor();$('#wizard').smartWizard('goToStep', 7);"><button type="button" class="btn btn-warning">Skip Hypervisor check</button></a>
+                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 6);"><button  type="button" class="btn btn-success">Check again</button></a>
+                             </div>                             
+                          </div><!--end row-->
+                          <hr><br><br>
+                          <div class="row">
+                            <div class="col-md-12">
+                                <p>Please check that engine is running.</p>
+                                <p> It can be started with: <b>python3 run_engine.py</b>
+                            </div>
+                          </div>                          
+                       </div><!--end container-->
+                    </section> '''}                             
