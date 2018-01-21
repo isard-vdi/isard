@@ -544,7 +544,7 @@ class Wizard():
                     if step == '7':
                         if not self.valid_server():
                             return 'Isard update website seems down...'
-                        if self.is_registered is False:
+                        if self.is_registered() is False:
                             return 'Isard is not registered'
                         return str(self.render_updates(self.get_updates_list()))
 
