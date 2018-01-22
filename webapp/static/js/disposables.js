@@ -41,6 +41,7 @@ $(document).ready(function() {
 
     socket.on('disposable_viewer', function (data) {
         var data = JSON.parse(data);
+        console.log('SOCKET DISPOSABLE VIEWER')
         console.log(data)
         if(data['kind']=='xpi'){
             viewer=data['viewer']
