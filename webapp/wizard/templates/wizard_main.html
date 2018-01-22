@@ -17,6 +17,92 @@
     <link href="/vendors/jQuery-Smart-Wizard/styles/demo_style.css" rel="stylesheet" type="text/css">
     <link href="/vendors/jQuery-Smart-Wizard/styles/smart_wizard.css" rel="stylesheet" type="text/css">
 
+<style type="text/css">
+    body {
+		font-family: 'Varela Round', sans-serif;
+	}
+	.modal-login {		
+		color: #636363;
+		width: 610px;
+	}
+	.modal-login .modal-content {
+		padding: 20px;
+		border-radius: 5px;
+		border: none;
+	}
+	.modal-login .modal-header {
+		border-bottom: none;   
+        position: relative;
+        justify-content: center;
+	}
+	.modal-login h4 {
+		text-align: center;
+		font-size: 26px;
+		margin: 30px 0 -15px;
+	}
+	.modal-login .form-control:focus {
+		border-color: #70c5c0;
+	}
+	.modal-login .form-control, .modal-login .btn {
+		min-height: 40px;
+		border-radius: 3px; 
+	}
+	.modal-login .close {
+        position: absolute;
+		top: -5px;
+		right: -5px;
+	}	
+	.modal-login .modal-footer {
+		background: #ecf0f1;
+		border-color: #dee4e7;
+		text-align: center;
+        justify-content: center;
+		margin: 0 -20px -20px;
+		border-radius: 5px;
+		font-size: 13px;
+	}
+	.modal-login .modal-footer a {
+		color: #999;
+	}		
+	.modal-login .avatar {
+		position: absolute;
+		margin: 0 auto;
+		left: 0;
+		right: 0;
+		top: -70px;
+		width: 95px;
+		height: 95px;
+		border-radius: 50%;
+		z-index: 9;
+		background: #60c7c1;
+		padding: 15px;
+		box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.1);
+	}
+	.modal-login .avatar img {
+		width: 100%;
+	}
+	.modal-login.modal-dialog {
+		margin-top: 80px;
+	}
+    .modal-login .btn {
+        color: #fff;
+        border-radius: 4px;
+		background: #60c7c1;
+		text-decoration: none;
+		transition: all 0.4s;
+        line-height: normal;
+        border: none;
+    }
+	.modal-login .btn:hover, .modal-login .btn:focus {
+		background: #45aba6;
+		outline: none;
+	}
+	.trigger-btn {
+		display: inline-block;
+		margin: 100px auto;
+	}
+</style>
+
   </head>
 
   <body>
@@ -90,31 +176,31 @@
                       </span>                   
                   </a></li>
               </ul>
-              <div id="step-1">   
+              <div id="step-1" style="height:450px">   
                   <h2 class="StepTitle">Step 1. Configuration file</h2>
                    <!-- step content -->
               </div>
-              <div id="step-2">
+              <div id="step-2" style="height:450px">
                   <h2 class="StepTitle">Step 2 Content</h2> 
                    <!-- step content -->
               </div>                      
-              <div id="step-3">
+              <div id="step-3" style="height:450px">
                   <h2 class="StepTitle">Step 3. Set admin user password</h2> 
                    <!-- step content -->
               </div>
-              <div id="step-4">
+              <div id="step-4" style="height:450px">
                   <h2 class="StepTitle">Step 4 Connection</h2>   
                    <!-- step content -->                         
               </div>
-              <div id="step-5">
+              <div id="step-5" style="height:450px">
                   <h2 class="StepTitle">Step 5 Engine</h2>   
                    <!-- step content -->                         
               </div>
-              <div id="step-6">
+              <div id="step-6" style="height:450px">
                   <h2 class="StepTitle">Step 6 Hypervisors</h2>   
                    <!-- step content -->                         
               </div>              
-              <div id="step-7">
+              <div id="step-7" style="height:450px">
                   <h2 class="StepTitle">Step 7 Updates</h2>   
                    <!-- step content -->                         
               </div> 
@@ -123,44 +209,51 @@
     </table>
 </body>
 
-<div class="modal fade" id="registerModal" tabindex="-1" role="dialog" 
-     aria-labelledby="myModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Register app
-                </h4>
-            </div>
+<div id="registerModal" class="modal fade"  >
+	<div class="modal-dialog modal-login">
+		<div class="modal-content">
+			<div class="modal-header">
+				<div class="avatar">
+					<img src="/img/isard_logo.png" alt="Avatar">
+				</div>				
+				<h4 class="modal-title">Wellcome to IsardVDI install wizard</h4>	
+<!--
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+-->
+			</div>
+			<div class="modal-body">
+                    <textarea rows="15" cols="65" id="aboutDescription"  style="resize: none; round" disabled>
+                    GNU AFFERO GENERAL PUBLIC LICENSE
+                       Version 3, 19 November 2007
 
-            <!-- Modal Body -->
-            <div class="modal-body">
-
-                <div class="row">
-                  <div class="col-md-12 col-sm-12 col-xs-12">
-                    <div class="x_panel">
-                      <div class="x_title">
-                        <h2>Backup drag&drop upload</h2>
-                        <div class="clearfix"></div>
-                      </div>
-                      <div class="x_content">
-                        <p>Drag multiple files to the box below for multi upload or click to select files.</p>
-                        <br />
-                      </div>
+ Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.  
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                  
+                    
+                    </textarea>
+				<form>
+					<div class="form-group">
+						<input type="checkbox" checked >Accept terms & conditions</button>
                     </div>
-                  </div>
-                </div>
+                    <div class="form-group">
+                        <input id="reg" name="reg" type="checkbox" checked >Update demo data</button>
+					</div>                    
+					<div class="form-group">
+						<button id="send-reg" type="button" class="btn btn-primary btn-lg btn-block login-btn">Start!</button>
+					</div>
+				</form>
+			</div>
+<!--
+			<div class="modal-footer">
+				<a href="#">Forgot Password?</a>
+			</div>
+-->
+		</div>
+	</div>
+</div>  
 
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="modal fade" id="passwdModal" tabindex="-1" role="dialog" 
      aria-labelledby="myModalLabel" aria-hidden="true">
@@ -258,10 +351,7 @@ $(document).ready(function(){
     // Smart Wizard  
     
             //~ $('#registerModal').dialog('open');
-			$('#registerModal').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+
 
     $('#wizard').smartWizard({
         contentURL:'/content',
@@ -368,11 +458,53 @@ $(document).ready(function(){
                 }).responseText;
                 //~ if(result=='true'){$('#populate').hide();}
                 $('#wizard').smartWizard('goToStep', 2);
-        }     
+        }  
+
+        function createCONFIG(cfg){
+               //~ $('#populate-div').hide();
+               //~ $('#populating-div').show();
+
+               result=$.ajax({
+                    type: "POST",
+                    url: "/create_config",
+                    data: JSON.stringify(cfg),
+                    async: false
+                }).responseText;
+                //~ if(result=='true'){$('#populate').hide();}
+                $('#wizard').smartWizard('goToStep', 1);
+        }             
 </script>
 <script>
 $(document).ready(function(){
     
+			$('#registerModal').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            
+    $("#send-reg").on('click', function(e) {
+        console.log($('#reg').val())
+        if ($('#reg').is(":checked"))
+        {
+          reg=true;
+        }else{
+          reg=false;
+        }
+            response= $.ajax({
+                    type: "POST",
+                    url: "/register",
+                    async: false,
+                    data: JSON.stringify(reg),
+                    contentType: "application/json; charset=utf-8",
+                    traditional: true,
+                    success: function (data) {
+                        //~ $("#changepw").reset();
+                        $("#registerModal").modal('hide');
+                    }                    
+                });
+        e.preventDefault();
+
+      });    
     
     $("#changepw").parsley();
     $("#changepw").on('submit', function(e) {

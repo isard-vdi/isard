@@ -15,14 +15,11 @@ from ...lib import admin_api
 
 app.adminapi = admin_api.isardAdmin()
 
-import rethinkdb as r
-from ...lib.flask_rethink import RethinkDB
-db = RethinkDB(app)
-db.init_app(app)
-
 from .decorators import isAdmin
 
 @app.route('/admin/media', methods=['POST','GET'])
+@login_required
+@isAdmin
 def admin_media():
     if request.method == 'POST':
         hp=request.form['hypervisors_pools']

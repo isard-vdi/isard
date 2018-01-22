@@ -65,18 +65,21 @@ def admin_graphs(kind):
         
 @app.route('/admin/graphs_data_tree')
 @login_required
+@isAdmin
 def admin_graphs_tree():
     #~ return json.dumps(app.adminapi.get_domains_tree_list()), 200, {'ContentType': 'application/json'}
     return json.dumps(app.adminapi.get_domains_tree('_windows_7_x64_v3')), 200, {'ContentType': 'application/json'}
 
 @app.route('/admin/graphs_data_tree_list')
 @login_required
+@isAdmin
 def admin_graphs_tree_list():
     return json.dumps(app.adminapi.get_domains_tree_list()), 200, {'ContentType': 'application/json'}
     #~ return json.dumps(app.adminapi.get_domains_tree('_windows_7_x64_v3')), 200, {'ContentType': 'application/json'}
 
 @app.route('/admin/engine_graphs')
 @login_required
+@isAdmin
 def admin_gengine_graphs():
     import requests
     try:

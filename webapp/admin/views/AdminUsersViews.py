@@ -15,15 +15,13 @@ from ...lib import admin_api
 
 app.adminapi = admin_api.isardAdmin()
 
-from ...lib.flask_rethink import RethinkDB
-db = RethinkDB(app)
-db.init_app(app)
-
+from .decorators import isAdmin
 '''
 USERS
 '''
 @app.route('/admin/users', methods=['POST','GET'])
 @login_required
+@isAdmin
 def admin_users():
     # ~ res=True
     # ~ if request.method == 'POST':
@@ -44,18 +42,21 @@ def admin_users():
 
 @app.route('/admin/users/get')
 @login_required
+@isAdmin
 def admin_users_get():
     return json.dumps(app.adminapi.get_admin_users_domains()), 200, {'ContentType': 'application/json'}
     #~ return json.dumps(app.adminapi.get_admin_user()), 200, {'ContentType': 'application/json'}
 
 @app.route('/admin/users/detail/<id>')
 @login_required
+@isAdmin
 def adminUsersGetDetail(id):
     data = 'user desktops'
     return json.dumps(data), 200, {'ContentType':'application/json'} 
 
 @app.route('/admin/userschema', methods=['POST'])
 @login_required
+@isAdmin
 def admin_userschema():
     dict={}
     dict['role']=app.adminapi.get_admin_table('roles', ['id', 'name', 'description'])
@@ -67,6 +68,7 @@ def admin_userschema():
 import csv
 @app.route('/admin/users/csv/import', methods=['POST','GET'])
 @login_required
+@isAdmin
 def admin_users_csv_import():
     res=True
     if request.method == 'POST':

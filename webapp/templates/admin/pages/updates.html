@@ -10,6 +10,29 @@
       </div>
    </div>
    <div class="clearfix"></div>
+   {% if registered == false %}
+        <div class="row">
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Not registered <small>Your IsardVDI is not registered for updates. </small></h2>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+					Registering your IsardVDI only sets a unique id for this installation.<br>
+                    No personal data is collected.<br>
+                    <form action="{{ url_for('admin_updates_register') }}" method="post">
+                     <button id="register" type="submit" class="btn btn-success">Register to get updates!</button>
+                    </form>
+                    <div class="clearfix"></div>                        
+                 </div>
+                </div>
+              </div>
+            </div>
+    
+        </div>
+   {% else %}
             <div class="row">
               <div class="col-md-12 col-sm-12 col-xs-12">
                 <div class="x_panel">
@@ -98,7 +121,6 @@
               </div>
           </div>
 
-
           <div class="row">
               <div class="col-md-6 col-sm-6 col-xs-12">
                 <div class="x_panel">
@@ -157,7 +179,7 @@
               </div>
               
           </div>
-
+    {% endif %}
 </div>
 {% endblock %}
 {% block pagescript %}

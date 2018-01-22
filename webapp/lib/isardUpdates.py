@@ -11,9 +11,9 @@ class Updates(object):
     def __init__(self):
         self.updateFromConfig()
         # This should be an option to the user
-        if not self.isRegistered(): 
-            self.register()
-            self.updateFromConfig()
+        #~ if not self.is_registered(): 
+            #~ self.register()
+            #~ self.updateFromConfig()
     
     def updateFromConfig(self):
         with app.app_context():
@@ -21,7 +21,7 @@ class Updates(object):
         self.url=cfg['url']
         self.code=cfg['code']
 
-    def isRegistered(self):
+    def is_registered(self):
         return self.code
 
     def register(self):

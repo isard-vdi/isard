@@ -919,16 +919,16 @@ class isard():
         if viewer is not False:
             dict=viewer
             if dict['kind']=='vnc':
-                return self.get_vnc_ticket(dict,os)
+                return self.get_vnc_ticket(dict,id,os)
             if dict['kind']=='spice':
-                return self.get_spice_ticket(dict)
+                return self.get_spice_ticket(dict,id)
         return False
         
-    def get_vnc_ticket(self, dict,os):
+    def get_vnc_ticket(self, dict,id,os):
         ## Should check if ssl in use: dict['tlsport']:
         if dict['tlsport']:
             return False
-        if os in ['iOS','Windows','Android','Linux', None]:
+        if os in ['iOS','Windows','Android','Linux', 'generic', None]:
             consola="""[Connection]
             Host=%s
             Port=%s
@@ -1036,7 +1036,7 @@ class isard():
             return 'vncloc','text/plain',consola
         
         
-    def get_spice_ticket(self, dict):
+    def get_spice_ticket(self, dict,id):
         #~ dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])

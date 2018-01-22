@@ -44,6 +44,7 @@ def admin_table_get(table):
 
 @app.route('/admin/tabletest/<table>/post', methods=["POST"])
 @login_required
+@isAdmin
 def admin_tabletest_post(table):
     if request.method == 'POST':
         data=request.get_json(force=True)
@@ -63,6 +64,7 @@ def admin_tabletest_post(table):
     
 @app.route('/admin/table/<table>/post', methods=["POST"])
 @login_required
+@isAdmin
 def admin_table_post(table):
     if request.method == 'POST':
         data=request.get_json(force=True)
@@ -76,6 +78,7 @@ def admin_table_post(table):
 
 @app.route('/admin/getAllTemplates', methods=["POST"])
 @login_required
+@isAdmin
 def admin_get_all_templates():
     if request.method == 'POST':
         data=request.get_json(force=True)
@@ -260,23 +263,23 @@ def admin_backup_upload():
     return json.dumps('Updated'), 200, {'ContentType':'application/json'}
 
 
-@app.route('/admin/stream/<table>')
-@login_required
-@isAdmin
-def admin_stream_table(table):
-    return Response(admin_table_stream(table), mimetype='text/event-stream')
+#~ @app.route('/admin/stream/<table>')
+#~ @login_required
+#~ @isAdmin
+#~ def admin_stream_table(table):
+    #~ return Response(admin_table_stream(table), mimetype='text/event-stream')
 
-def admin_table_stream(table):
-    with app.app_context():
-        for c in r.table(table).changes(include_initial=False).run(db.conn):
-            if c['new_val'] is None:
-                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                continue
-            c['new_val'].pop('job_state', None)                
-            if c['old_val'] is None:
-                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                continue             
-            yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+#~ def admin_table_stream(table):
+    #~ with app.app_context():
+        #~ for c in r.table(table).changes(include_initial=False).run(db.conn):
+            #~ if c['new_val'] is None:
+                #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                #~ continue
+            #~ c['new_val'].pop('job_state', None)                
+            #~ if c['old_val'] is None:
+                #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                #~ continue             
+            #~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
                
 
 #~ @app.route('/admin/stream/backups')

@@ -15,31 +15,33 @@ from ...lib import admin_api
 
 app.adminapi = admin_api.isardAdmin()
 
-import rethinkdb as r
-from ...lib.flask_rethink import RethinkDB
-db = RethinkDB(app)
-db.init_app(app)
-
 from ...lib.isardUpdates import Updates
 u=Updates()
+
 from .decorators import isAdmin
 
 @app.route('/admin/updates', methods=['GET'])
+@login_required
+@isAdmin
 def admin_updates():
-    return render_template('admin/pages/updates.html', nav="Updates", )
+    return render_template('admin/pages/updates.html', nav="Updates", registered=u.is_registered())
 
 @app.route('/admin/updates_register', methods=['POST'])
+@login_required
+@isAdmin
 def admin_updates_register():
     if request.method == 'POST':
         try:
-            if not u.isRegistered():
+            if not u.is_registered():
                 u.register()
         except Exception as e:
             log.error('Error registering client: '+str(e))
-            return False
-    return True
+            #~ return False
+    return redirect(url_for('admin_updates'))
             
 @app.route('/admin/updates/<kind>', methods=['GET'])
+@login_required
+@isAdmin
 def admin_updates_json(kind):
         try:
             return json.dumps(u.getNewKind(kind,current_user.id))
@@ -48,6 +50,8 @@ def admin_updates_json(kind):
             return json.dumps([])
 
 @app.route('/admin/updates/update/<kind>', methods=['POST'])
+@login_required
+@isAdmin
 def admin_updates_update(kind):
     if request.method == 'POST':
         data=u.getNewKind(kind,current_user.id)
