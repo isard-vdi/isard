@@ -63,8 +63,10 @@ class DomainsThread(threading.Thread):
                             # ~ if ip:
                                 # ~ print('EMITTED DISPOSABLE DATA')
                             # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
+                            if 'viewer' in c['new_val']:
+                                print(c['new_val'])
                             if data['status']=='Started' and c['old_val']['status']!='Started': # and data['detail']=='':
-                                print('SEND EVENT: disposables_'+ip)
+                                print('SEND EVENT: disposable_'+ip)
                                 # ~ if starteddict=={}:
                                     # ~ starteddict=data
                                     # ~ starteddict['detail']='hander'
@@ -73,9 +75,9 @@ class DomainsThread(threading.Thread):
                                     # ~ pprint.pprint( dict(set(starteddict) ^ set(data)))
                                 # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
                                 socketio.emit('disposable_data', 
-                                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                                    json.dumps(app.isardapi.f.flatten_dict({'id':data['id'],'status':data['status']})), 
                                                     namespace='/sio_disposables', 
-                                                    room='disposables_'+ip)                                        
+                                                    room='disposable_'+ip)                                        
                             continue
                         ## End disposables
                         
@@ -286,8 +288,8 @@ class HypervisorsThread(threading.Thread):
                         if c['new_val']['table']=='hyper_status': 
                             event='hyper_status'
                             c['new_val']['domains']=len(c['new_val']['domains'])
-                            c['new_val']['cpu_percent']['used']=round(c['new_val']['cpu_percent']['used'])
-                            c['new_val']['load']['percent_free']=round(c['new_val']['load']['percent_free'])
+                            c['new_val']['cpu_percent']['used']=0    #round(c['new_val']['cpu_percent']['used'])
+                            c['new_val']['load']['percent_free']=100   #round(c['new_val']['load']['percent_free'])
                         #~ if c['new_val']['table']=='domains' and c['new_val']['id'].startswith('_') : 
                             #~ if c['new_val']['status'] == 'Stopping': continue
                             #~ event='domain_event'
@@ -414,11 +416,15 @@ def socketio_domains_viewer(data):
                             room='user_'+current_user.username)     
     
 @socketio.on('disposable_viewer', namespace='/sio_disposables')
-def socketio_domains_viewer(data):
+def socketio_disposables_viewer(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    print('IN disposable_viewer EVENT')
+    print(data['pk'])
     if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        print('DISPOSABLE STARTSWIDH')
         sendViewer(data,kind='disposable',remote_addr=remote_addr)
     else:
+        print('viewer can not be opened')
         msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
         socketio.emit('result',
                         msg,
@@ -428,20 +434,29 @@ def socketio_domains_viewer(data):
                         
 def sendViewer(data,kind='domain',remote_addr=False): 
     import pprint
+    print('SENDING VIEWER FOR DATA:')
     pprint.pprint(data)                       
     if data['kind'] == 'file':
         consola=app.isardapi.get_viewer_ticket(data['pk'])
         print(consola)
+        print('kind is:'+kind)
         if kind=='domain':
+            print('DOMAIN VIEWER EMIT:')
+            print({'kind':data['kind'],'ext':consola[0],'mime':consola[1]})
             socketio.emit('domain_viewer',
                             json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
                             namespace='/sio_users', 
                             room='user_'+current_user.username)  
         else:
+            print(remote_addr)
+            print('DISPOSABLE VIEWER EMIT:')
+            print({'kind':data['kind'],'ext':consola[0],'mime':consola[1]})
+            
             socketio.emit('disposable_viewer',
                             json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
                             namespace='/sio_disposables', 
                             room='disposable_'+remote_addr)              
+            print('SEND EVENT: _disposable_viewer to rootm disposable_'+remote_addr)
         # ~ return Response(consola, 
                         # ~ mimetype="application/x-virt-viewer",
                         # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
@@ -587,8 +602,8 @@ def socketio_media_add(form_data):
 def socketio_disposables_connect():
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if app.isardapi.show_disposable(remote_addr):
-        print('JOINED:'+remote_addr)
-        join_room('disposables_'+remote_addr)
+        print('JOINED: disposable_'+remote_addr)
+        join_room('disposable_'+remote_addr)
     # ~ None
     #~ if current_user.role=='admin':
         #~ join_room('disposable_'+ip)
@@ -640,7 +655,7 @@ def socketio_disposables_add(data):
     socketio.emit('result',
                     data,
                     namespace='/sio_disposables', 
-                    room='disposables_'+remote_addr)
+                    room='disposable_'+remote_addr)
 
 ## Admin namespace
 @socketio.on('connect', namespace='/sio_admins')
@@ -656,7 +671,7 @@ def socketio_admins_connect():
         None
 
 @socketio.on('join_rooms', namespace='/sio_admins')
-def socketio_admins_connect(join_rooms):
+def socketio_admins_joinrooms(join_rooms):
     if current_user.role=='admin':
         for rm in join_rooms:
             join_room(rm)
@@ -715,7 +730,7 @@ def socketio_classroom_update(data):
                     room='user_'+current_user.username)
 
 @socketio.on('classroom_get', namespace='/sio_admins')
-def socketio_classroom_update(data):
+def socketio_classroom_get(data):
     #~ if app.adminapi.get_hosts_viewers(data['place_id']):
         #~ result=json.dumps({'title':'Desktop starting success','text':'Aula will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
     #~ else:
