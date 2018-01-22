@@ -61,13 +61,13 @@ $(document).ready(function() {
 
     $('#btn-checkport').on( 'click', function (event) {
         event.preventDefault()
-					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-grafana-server').value,'port':$('#engine-grafana-web_port').value}).done(function(data) {
                         console.log(data);
                     });  
     });
     
     function checkPort(){
-					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
+					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-grafana-server').value,'port':$('#engine-grafana-web_port').value}).done(function(data) {
                         console.log(data);
                     });          
     }

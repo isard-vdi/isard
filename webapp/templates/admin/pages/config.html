@@ -362,7 +362,7 @@ ENGINE
                                 <div class="x_title">
                                     <h2><i class="fa fa-area-chart"></i> Grafana <small></small></h2>
                                     <ul class="nav navbar-right panel_toolbox">
-                                        <li><a class="btn-edit" data-panel="engine-carbon"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
+                                        <li><a class="btn-edit" data-panel="engine-grafana"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
                                     </ul>
                                     <div class="clearfix"></div>
                                 </div>
@@ -371,12 +371,12 @@ ENGINE
                                     <form id="formGrafana" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
                                         <div class="x_panel">
                                             <div class="x_title">
-                                                <h2>Carbon<small></small></h2>
-                                                <label class="control-label navbar-right" for="engine-carbon-active"> Active
+                                                <h2>Grafana<small></small></h2>
+                                                <label class="control-label navbar-right" for="engine-grafana-active"> Active
                                                 </label>
                                                 <div class="checkbox pull-right">
                                                     <label>
-                                                        <input id="engine-carbon-active" name="engine-carbon-active" type="checkbox" class="flat">
+                                                        <input id="engine-grafana-active" name="engine-grafana-active" type="checkbox" class="flat">
                                                     </label>
                                                 </div>
                                                 <div class="clearfix"></div>
@@ -384,27 +384,41 @@ ENGINE
 
                                             <div class="x_content">
                                                 <div class="item form-group">
-                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-carbon-server">Server <span class="required">*</span>
+                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-server">Server <span class="required">*</span>
                                                     </label>
                                                     <div class="col-md-6 col-sm-6 col-xs-12">
-                                                        <input id="engine-carbon-server" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="engine-carbon-server" placeholder="grafana.domain.com" required="required" type="text">
+                                                        <input id="engine-grafana-server" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="engine-grafana-server" placeholder="grafana.domain.com" required="required" type="text">
                                                     </div>
                                                 </div>
 
                                                 <div class="item form-group">
-                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-carbon-port">Port <span class="required">*</span>
+                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-web_port">Web port <span class="required">*</span>
                                                     </label>
                                                     <div class="col-md-6 col-sm-6 col-xs-12">
-                                                        <input id="engine-carbon-port" class="form-control col-md-7 col-xs-12" name="engine-carbon-port" placeholder="Port number" required="required" type="text">
+                                                        <input id="engine-grafana-web_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-web_port" placeholder="Web port number" required="required" type="text">
+                                                    </div>
+                                                </div>
+                                                <div class="item form-group">
+                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-carbon_port">Carbon port <span class="required">*</span>
+                                                    </label>
+                                                    <div class="col-md-6 col-sm-6 col-xs-12">
+                                                        <input id="engine-grafana-carbon_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-carbon_port" placeholder="Carbon port number" required="required" type="text">
+                                                    </div>
+                                                </div>
+                                                <div class="item form-group">
+                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-graphite_port">Graphite port <span class="required">*</span>
+                                                    </label>
+                                                    <div class="col-md-6 col-sm-6 col-xs-12">
+                                                        <input id="engine-grafana-graphite_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-graphite_port" placeholder="Graphite port number" required="required" type="text">
                                                     </div>
                                                 </div>
                                                 <button id="btn-checkport" type="button" class="btn btn-checkport" onclick="checkPort(event);">Check Port</button>
                                             </div>
                                         </div>
 
-                                        <div class="form-group footer-engine-carbon" style="display:none">
+                                        <div class="form-group footer-engine-grafana" style="display:none">
                                             <div class="col-md-6 col-md-offset-3">
-                                                <button type="button" class="btn btn-secondary btn-cancel" data-panel="engine-carbon">Cancel</button>
+                                                <button type="button" class="btn btn-secondary btn-cancel" data-panel="engine-grafana">Cancel</button>
                                                 <button id="send" type="submit" class="btn btn-success">Update</button>
                                             </div>
                                         </div>

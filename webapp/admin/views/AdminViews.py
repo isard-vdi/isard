@@ -123,8 +123,8 @@ def admin_config_update():
             dict['auth']['local']={'active':False} if 'local' not in dict['auth']  else {'active':True}
             dict['auth']['ldap']['active']=False if 'active' not in dict['auth']['ldap'] else True
         if 'engine' in dict:
-            if 'carbon' in dict['engine']:
-                dict['engine']['carbon']['active']=False if 'active' not in dict['engine']['carbon'] else True
+            if 'grafana' in dict['engine']:
+                dict['engine']['grafana']['active']=False if 'active' not in dict['engine']['grafana'] else True
             if 'ssh' in dict['engine']:
                 if 'hidden' in dict['engine']['ssh']:
                     dict['engine']['ssh']['paramiko_host_key_policy_check']=True if 'paramiko_host_key_policy_check' in dict['engine']['ssh'] else False
