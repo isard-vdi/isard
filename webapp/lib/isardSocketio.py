@@ -335,7 +335,6 @@ class ConfigThread(threading.Thread):
                     else:
                         event= '_data'
                         socketio.emit(c['new_val']['table']+event, 
-                        socketio.emit(event, 
                                         json.dumps(c['new_val']),
                                         namespace='/sio_admins', 
                                         room='config') 

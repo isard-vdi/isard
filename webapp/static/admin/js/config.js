@@ -731,7 +731,7 @@ function show_disposables(){
     } );        
 
      $('#table-disposables').find(' tbody').on( 'click', 'button', function () {
-        var data = int_table.row( $(this).parents('tr') ).data();
+        var data = disposables_table.row( $(this).parents('tr') ).data();
         if($(this).attr('id')=='btn-disposable_desktops-delete'){
 				new PNotify({
 						title: 'Delete disposable',
