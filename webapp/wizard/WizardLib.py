@@ -56,7 +56,6 @@ class Wizard():
         if self.doWizard: # WIZARD WAS FORCED BY DELETING install/.wizard file
             wlog.warning('Starting initial configuration wizard')
             if not self.valid_js(first=True):
-                print(os.path.join(os.path.dirname(__file__).rsplit('/',2)[0]))
                 try:
                     from pynpm import YarnPackage
                     pkg = YarnPackage(os.path.join(os.path.dirname(__file__).rsplit('/',2)[0]+'/install/package.json'))
@@ -65,9 +64,9 @@ class Wizard():
                 except:
                     res=False
                 if res is False:
-                    print('Javascript and CSS not installed!')
-                    print(' Please install yarn: https://yarnpkg.com/lang/en/docs/install')
-                    print(' and run yarn from install folder before starting again.')                
+                    wlog.error('Javascript and CSS not installed!')
+                    wlog.error(' Please install yarn: https://yarnpkg.com/lang/en/docs/install')
+                    wlog.error(' and run yarn from install folder before starting again.')                
                 # ~ dnf install npm -y
                 # ~ npm install -g yarn
                 # ~ bash -c "cd /isard/src/isard/install; yarn"                
@@ -129,17 +128,17 @@ class Wizard():
         dict={}
         for k in kinds:
             dict[k]=self.get_updates_new_kind(k,'admin')
-        import pprint
-        pprint.pprint(dict)
         return dict
 
-    # ~ def insert_updates_demo(self):
-        # ~ []
-        # ~ self.get_updates_new_kind('domains','admin')
-        
-        # ~ import pprint
-        # ~ pprint.pprint(dict)
-        # ~ return dict
+    def insert_updates_demo(self):
+        updates=['zxspectrum','menuetos','tetros']
+        domains=self.get_updates_new_kind('domains','admin')
+        for dom in domains:
+            for u in updates:
+                if str('downloaded_'+u) == dom['id']:
+                    self.insert_update('domains',[dom])
+                    wlog.info('New download: '+u)
+        return True
         
     def insert_update(self,kind,data):
         username='admin'
@@ -194,9 +193,9 @@ class Wizard():
                 return req.json()
                 #~ return True
             else:
-                print('Error response code: '+str(req.status_code)+'\nDetail: '+req.json())
+                wlog.error('Error response code: '+str(req.status_code)+'\nDetail: '+req.json())
         except Exception as e:
-            print("Error contacting.\n"+str(e))
+            wlog.error("Error contacting.\n"+str(e))
         return False
 
     def is_registered(self):
@@ -257,33 +256,44 @@ class Wizard():
                 ## Maybe ask for a backup?
                 ## No invasive
                 p.check_integrity(commit=True)
-                if self.register_isard:
-                    wlog.info('                                      USER WANTS TO REGISTER ISARD')
-                    cfg=r.table('config').get(1).pluck('resources').run()
-                    if 'resources' in cfg.keys():
-                        wlog.info('                                      AND DATA IS:'+str(cfg['resources']['url']))
-                        wlog.info('                                      AND DATA IS:'+str(cfg['resources']['code']))
-                        self.url=cfg['resources']['url']
-                        self.code=cfg['resources']['code']
-                    if self.code is False:
-                            if self.url is False: self.url='http://www.isardvdi.com:5050'
-                            try:
-                                req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False)
-                                if req.status_code==200:
-                                    self.code=req.json()
-                                    r.table('config').get(1).update({'resources':{'url':self.url,'code':req.json()}}).run()
-                                    print('Isard app registered')
-                                else:
-                                    print('Isard app registering error response code: '+str(req.status_code)+'\nDetail: '+r.json())
-                            except Exception as e:
-                                print("Error contacting.\n"+str(e))
+                if self.register_isard_updates(): 
+                    self.insert_updates_demo()
                 return True
             else:
                 return False
         except Exception as e:
-            print(str(e))
+            wlog.error(str(e))
             return False
 
+    def register_isard_updates(self):
+        if not self.register_isard:
+            return False
+        else:
+            # USER WANTS TO REGISTER ISARD
+            try:
+                cfg=r.table('config').get(1).pluck('resources').run()
+            except Exception as e:
+                return False
+            if 'resources' in cfg.keys():
+                self.url=cfg['resources']['url']
+                self.code=cfg['resources']['code']
+            if self.code is False:
+                if self.url is False: self.url='http://www.isardvdi.com:5050'
+                try:
+                    req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False)
+                    if req.status_code==200:
+                        self.code=req.json()
+                        r.table('config').get(1).update({'resources':{'url':self.url,'code':req.json()}}).run()
+                        wlog.warning('Isard app registered')
+                        return True
+                    else:
+                        wlog.info('Isard app registering error response code: '+str(req.status_code)+'\nDetail: '+r.json())
+                        return False
+                except Exception as e:
+                    wlog.warning("Error contacting.\n"+str(e))
+                    return False
+        return True
+                        
     def valid_password(self):
         try:
             pw=Password()
@@ -311,12 +321,12 @@ class Wizard():
                                                   'memory': 20000000}},  # 10GB
                            }]
                 r.db('isard').table('users').insert(usr, conflict='update').run()
-                print('password must be changed')
+                wlog.info('password must be changed')
                 return False # Password must be changed so we return false
             if pw.valid('isard',usr['password']):
-                print('Password is isard')
+                # Password is isard
                 return False
-            print('Passwd is not isard')
+            # Passwd is not isard
             return True
         except Exception as e:
             # ~ exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -339,14 +349,12 @@ class Wizard():
             return False
                       
     def valid_server(self,server=False):
-        wlog.info('XXXXXXXXXXXX server is:'+str(server)+'    XXXXXXXXXX self.url='+str(self.url))
         if server is False: 
             if self.url is not False:
                 wlog.warning('self.url='+str(self.url))
                 server=self.url.split('//')[1]
             else:
                 server='isardvdi.com'
-        wlog.warning('CONNECTION TO XXXXXXXXXXXXXXX:'+str(server))
         import http.client as httplib
         conn = httplib.HTTPConnection(server, timeout=5)
         try:
@@ -496,7 +504,6 @@ class Wizard():
 
             @self.wapp.route('/validate/<step>', methods=['POST'])
             def wizard_validate_step(step):
-                print('im on step '+step)
                 if request.method == 'POST':
                     if step is '1':
                         return json.dumps(self.valid_config_file() and self.valid_config_syntax())
