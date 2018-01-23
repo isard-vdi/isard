@@ -7,7 +7,6 @@
 import threading
 import pprint
 import os
-import requests
 import subprocess
 import rethinkdb as r
 
