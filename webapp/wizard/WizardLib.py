@@ -133,6 +133,14 @@ class Wizard():
         pprint.pprint(dict)
         return dict
 
+    # ~ def insert_updates_demo(self):
+        # ~ []
+        # ~ self.get_updates_new_kind('domains','admin')
+        
+        # ~ import pprint
+        # ~ pprint.pprint(dict)
+        # ~ return dict
+        
     def insert_update(self,kind,data):
         username='admin'
         userpath='admin/admin/admin/'
@@ -150,13 +158,13 @@ class Wizard():
                     disk['file']=userpath+disk['file']
         elif kind == 'media':
             for d in data:
-                if 'path' in d.keys():
+                # ~ if 'path' in d.keys():
                     d.update({  'category': 'admin',
                             'group': 'admin',
                             'user': 'admin'})
                     d['percentage']=0
                     d['status']='DownloadStarting'                    
-                    d['path']=userpath+d['path']
+                    d['path']=userpath+d['url-isard']
         r.table(kind).insert(data).run()
             
     def get_updates_new_kind(self,kind,username):

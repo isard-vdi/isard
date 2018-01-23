@@ -67,11 +67,11 @@ def admin_updates_update(kind):
                     disk['file']=current_user.path+disk['file']
         elif kind == 'media':
             for d in data:
-                if 'path' in d.keys():
+                # ~ if 'path' in d.keys():
                     d.update(get_user_data())
                     d['percentage']=0
                     d['status']='DownloadStarting'                    
-                    d['path']=current_user.path+d['path']
+                    d['path']=current_user.path+d['url-isard']
         app.adminapi.insert_or_update_table_dict(kind,data)
     return json.dumps([])
 
