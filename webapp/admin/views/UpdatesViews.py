@@ -58,7 +58,7 @@ def admin_updates_update(kind):
         if kind == 'domains': 
             for d in data:
                 d['id']='_'+current_user.id+'_'+d['id']
-                d['percentage']=0
+                # ~ d['percentage']=0
                 d['status']='DownloadStarting'
                 d['detail']=''
                 d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
@@ -69,7 +69,7 @@ def admin_updates_update(kind):
             for d in data:
                 # ~ if 'path' in d.keys():
                     d.update(get_user_data())
-                    d['percentage']=0
+                    # ~ d['percentage']=0
                     d['status']='DownloadStarting'                    
                     d['path']=current_user.path+d['url-isard']
         app.adminapi.insert_or_update_table_dict(kind,data)

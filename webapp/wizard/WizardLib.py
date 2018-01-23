@@ -147,7 +147,7 @@ class Wizard():
         if kind == 'domains': 
             for d in data:
                 d['id']='_'+username+'_'+d['id']
-                d['percentage']=0
+                # ~ d['percentage']=0
                 d['status']='DownloadStarting'
                 d['detail']=''
                 d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
@@ -162,7 +162,7 @@ class Wizard():
                     d.update({  'category': 'admin',
                             'group': 'admin',
                             'user': 'admin'})
-                    d['percentage']=0
+                    # ~ d['percentage']=0
                     d['status']='DownloadStarting'                    
                     d['path']=userpath+d['url-isard']
         r.table(kind).insert(data).run()
