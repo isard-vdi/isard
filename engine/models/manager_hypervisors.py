@@ -26,7 +26,7 @@ from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_
     set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain
 from engine.services.db.domains import update_domain_status, update_domain_start_after_created, update_domain_delete_after_stopped
 from engine.services.lib.functions import get_threads_running, get_tid
-from engine.services.log import *
+from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
     launch_disk_operations_thread, \
@@ -38,7 +38,7 @@ class ManagerHypervisors(object):
                  status_polling_interval=STATUS_POLLING_INTERVAL,
                  test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL):
 
-        log.info('MAIN PID: {}'.format(get_tid()))
+        logs.main.info('MAIN PID: {}'.format(get_tid()))
 
         self.time_between_polling = TIME_BETWEEN_POLLING
         self.polling_interval_background = POLLING_INTERVAL_BACKGROUND
@@ -121,7 +121,7 @@ class ManagerHypervisors(object):
             launch_try_hyps(dict_hyps_to_test)
             dict_hyps_ready = self.manager.dict_hyps_ready = get_hyps_ready_to_start()
             if len(dict_hyps_ready) > 0:
-                log.debug('hyps_ready_to_start: ' + pprint.pformat(dict_hyps_ready))
+                logs.main.debug('hyps_ready_to_start: ' + pprint.pformat(dict_hyps_ready))
 
                 set_unknown_domains_not_in_hyps(dict_hyps_ready.keys())
                 set_domains_coherence(dict_hyps_ready)
@@ -147,18 +147,14 @@ class ManagerHypervisors(object):
 
         def run(self):
             self.tid = get_tid()
-            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+            logs.main.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             q = self.manager.q.background
             first_loop = True
 
             while self.manager.quit is False:
                 # ONLY FOR DEBUG
-                log.debug('##### THREADS ##################')
+                logs.main.debug('##### THREADS ##################')
                 get_threads_running()
-
-                # DOWNLOAD CHANGES THREADS
-                log.debug('Launching Download Changes Thread')
-                self.t_downloads_changes = launch_thread_download_changes()
 
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
@@ -177,6 +173,9 @@ class ManagerHypervisors(object):
                     self.manager.t_changes_domains.daemon = True
                     self.manager.t_changes_domains.start()
 
+                    logs.main.debug('Launching Download Changes Thread')
+                    self.t_downloads_changes = launch_thread_download_changes()
+
                     self.manager.t_broom = launch_thread_broom()
 
                     first_loop = False
@@ -190,7 +189,7 @@ class ManagerHypervisors(object):
                 except queue.Empty:
                     pass
                 except Exception as e:
-                    log.error(e)
+                    logs.main.error(e)
                     return False
 
                     ## TODO INFO TO DEVELOPER
@@ -214,7 +213,7 @@ class ManagerHypervisors(object):
 
         def run(self):
             self.tid = get_tid()
-            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+            logs.main.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             r_conn = new_rethink_connection()
             # rtable=r.table('disk_operations')
             # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
@@ -222,14 +221,14 @@ class ManagerHypervisors(object):
 
                 # hypervisor deleted
                 if c['new_val'] is None:
-                    log.info('hypervisor deleted in rethink')
-                    log.info(pprint.pformat(c))
+                    logs.main.info('hypervisor deleted in rethink')
+                    logs.main.info(pprint.pformat(c))
                     # pprint.pprint(c)
                     pass
                 # hypervisor created
                 if c['old_val'] is None:
-                    log.info('hypervisor created in rethink')
-                    log.info(pprint.pformat(c))
+                    logs.main.info('hypervisor created in rethink')
+                    logs.main.info(pprint.pformat(c))
                     self.manager.q.background.put({'type': 'add_hyp'})
 
             r_conn.close()
@@ -242,8 +241,8 @@ class ManagerHypervisors(object):
 
         def run(self):
             self.tid = get_tid()
-            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
-            log.debug('^^^^^^^^^^^^^^^^^^^ ACTIONS THREAD ^^^^^^^^^^^^^^^^^')
+            logs.main.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+            logs.main.debug('^^^^^^^^^^^^^^^^^^^ ACTIONS THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
             r_conn = new_rethink_connection()
 
@@ -256,9 +255,9 @@ class ManagerHypervisors(object):
                     pass
                 # action created
                 if c['old_val'] is None:
-                    log.debug(pprint.pformat(c))
+                    logs.main.debug(pprint.pformat(c))
                     new_action = c['new_val']
-                    log.debug('action: {} - {}'.format(new_action['id'], new_action['action']))
+                    logs.main.debug('action: {} - {}'.format(new_action['id'], new_action['action']))
                     action = new_action['action']
                     parameters = new_action['parameters']
                     ui.action_from_api(action=action, parameters=parameters)
@@ -359,7 +358,8 @@ class ManagerHypervisors(object):
                 if old_status == 'Stopped' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
 
-                if old_status == 'Stopped' and new_status == "Updating":
+                if (old_status == 'Stopped' and new_status == "Updating") or \
+                        (old_status == 'Downloaded' and new_status == "Updating"):
                     ui.updating_from_create_dict(domain_id)
 
                 if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":

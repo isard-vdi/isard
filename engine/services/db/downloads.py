@@ -17,8 +17,15 @@ def get_downloads_in_progress():
     close_rethink_connection(r_conn)
     return d
 
-def update_download_percent(done):
+def update_status_table(table,status,id_media,detail=""):
     r_conn = new_rethink_connection()
-    r.table(self.table).get(self.id).update({'percentage': done}).run(r_conn)
+    d={'status':status,
+       'detail':detail}
+    r.table(table).get(id_media).update(d).run(r_conn)
+    close_rethink_connection(r_conn)
+
+def update_download_percent(done,table,id):
+    r_conn = new_rethink_connection()
+    r.table(table).get(id).update({'progress': done}).run(r_conn)
     close_rethink_connection(r_conn)
 

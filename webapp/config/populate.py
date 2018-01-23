@@ -723,8 +723,8 @@ class Populate(object):
                                                       'disposables':
                                                           [{'path':'/isard/disposables',
                                                                'disk_operations': disk_operations, 'weight': 100}],
-                                                      'isos':
-                                                          [{'path':'/isard/isos',
+                                                      'media':
+                                                          [{'path':'/isard/media',
                                                                'disk_operations': disk_operations, 'weight': 100}],
                                                       },
                                             'viewer':self._secure_viewer(),

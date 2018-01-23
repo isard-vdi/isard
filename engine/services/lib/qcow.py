@@ -406,11 +406,18 @@ def get_host_disk_operations_from_path(path_selected, pool='default', type_path=
     l_threads = get_threads_names_running()
     pool_paths = get_pool(pool)['paths']
     paths_for_type = pool_paths[type_path]
-    hyps = [v['disk_operations'] for v in paths_for_type if v['path'] == path_selected][0]
+    try:
+        hyps = [v['disk_operations'] for v in paths_for_type if v['path'] == path_selected][0]
+    except IndexError:
+        log.error('no disk operations hypervisors for path {} in pool {} with type_path {}'.format(path_selected,pool,type_path))
+        return False
     # TODO must be revised to return random or less cpuload hypervisor
     for h in hyps:
+        print('------------------- hyp selected')
+        print(h)
         if 'disk_op_' + h in l_threads:
             return h
+    
 
     log.error('There are not hypervisors with disk_operations thread for path {}'.format(path_selected))
     return False
