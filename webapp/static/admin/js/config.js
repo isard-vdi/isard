@@ -59,18 +59,18 @@ $(document).ready(function() {
         $('[id^="btn-'+basekey+'-"]').hide(); 
     });
 
-    $('#btn-checkport').on( 'click', function (event) {
-        event.preventDefault()
-					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
-                        console.log(data);
-                    });  
-    });
+    //~ $('#btn-checkport').on( 'click', function (event) {
+        //~ event.preventDefault()
+					//~ api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-grafana-server').value,'port':$('#engine-grafana-web_port').value}).done(function(data) {
+                        //~ console.log(data);
+                    //~ });  
+    //~ });
     
-    function checkPort(){
-					api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-carbon-server').value,'port':$('#engine-carbon-port').value}).done(function(data) {
-                        console.log(data);
-                    });          
-    }
+    //~ function checkPort(){
+					//~ api.ajax('/admin/config/checkport','POST',{'pk':data['id'],'server':$('#engine-grafana-server').value,'port':$('#engine-grafana-web_port').value}).done(function(data) {
+                        //~ console.log(data);
+                    //~ });          
+    //~ }
     
     $('.btn-scheduler').on( 'click', function () {
         $('#modalScheduler').modal({
@@ -486,8 +486,8 @@ $(document).ready(function() {
 						}).get().on('pnotify.confirm', function() {
                             api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
                             });  
-                            api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
-                            });  
+                            //~ api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
+                            //~ });  
 						}).on('pnotify.cancel', function() {
 				});	  
         }
@@ -513,7 +513,7 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
-    socket.on('backup_data', function(data){
+    socket.on('backups_data', function(data){
         console.log('backup data received')
         var data = JSON.parse(data);
         dtUpdateInsert(backups_table,data,false);
@@ -528,7 +528,7 @@ $(document).ready(function() {
         //~ backups_table.draw(false);
     });
     
-    socket.on('backup_deleted', function(data){
+    socket.on('backups_deleted', function(data){
         console.log('backup deleted')
         var data = JSON.parse(data);
         console.log(data.id)
@@ -544,22 +544,13 @@ $(document).ready(function() {
         });
     });
 
-    socket.on('sch_data', function(data){
+    socket.on('scheduler_jobs_data', function(data){
         console.log('sch data received')
         var data = JSON.parse(data);
         dtUpdateInsert(scheduler_table,data,false);
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ scheduler_table.row.add(data).draw();
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = scheduler_table.row('#'+data.id); 
-          //~ scheduler_table.row(row).data(data).invalidate();			
-		//~ }
-        //~ scheduler_table.draw(false);
     });
     
-    socket.on('sch_deleted', function(data){
+    socket.on('scheduler_jobs_deleted', function(data){
         console.log('sch deleted')
         var data = JSON.parse(data);
         var row = scheduler_table.row('#'+data.id).remove().draw();
@@ -573,7 +564,29 @@ $(document).ready(function() {
                 type: 'success'
         });
     });
-        
+
+    socket.on('disposables_deleted', function(data){
+        console.log('disposable deleted')
+        var data = JSON.parse(data);
+        console.log(data.id)
+        var row = disposables_table.row('#'+data.id).remove().draw();
+        new PNotify({
+                title: "Disposable deleted",
+                text: "Disposable "+data.name+" has been deleted",
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+        });
+    });
+
+    socket.on('disposables_data', function(data){
+        console.log('disposables data received')
+        var data = JSON.parse(data);
+        dtUpdateInsert(disposables_table,data,false);
+    });
+            
     socket.on ('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -684,7 +697,7 @@ function show_disposables(){
             //~ });
         //~ });
 
-    int_table=$('#table-disposables').DataTable({
+    disposables_table=$('#table-disposables').DataTable({
 			"ajax": {
 				"url": "/admin/table/disposables/get",
 				"dataSrc": ""
@@ -718,7 +731,7 @@ function show_disposables(){
     } );        
 
      $('#table-disposables').find(' tbody').on( 'click', 'button', function () {
-        var data = int_table.row( $(this).parents('tr') ).data();
+        var data = disposables_table.row( $(this).parents('tr') ).data();
         if($(this).attr('id')=='btn-disposable_desktops-delete'){
 				new PNotify({
 						title: 'Delete disposable',

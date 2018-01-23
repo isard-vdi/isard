@@ -178,7 +178,7 @@ class Populate(object):
                                                                             'timeout_between_retries_hyp_is_alive': 1,
                                                                             'retries_hyp_is_alive': 3
                                                                             },
-                                                                    'carbon':{'active':False,'server':'','port':''}},
+                                                                    'grafana':{'active':False,'url':'http://isard-grafana','web_port':80,'carbon_port':2003,'graphite_port':3000}},
                                                         'version':0,
                                                         'resources': {'code':False,
                                                                     'url':'http://www.isardvdi.com:5050'}

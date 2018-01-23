@@ -39,9 +39,9 @@ class isardScheduler():
                          #~ db=app.config['RETHINKDB_DB'])
         self.rStore=RethinkDBJobStore()
 #=======
-#        self.rStore=RethinkDBJobStore(host=app.config['RETHINKDB_HOST'],
-#                                         port=app.config['RETHINKDB_PORT'],
-#                                         auth_key=app.config['RETHINKDB_AUTH'])
+        # ~ self.rStore=RethinkDBJobStore(host=app.config['RETHINKDB_HOST'],
+                                         # ~ port=app.config['RETHINKDB_PORT'],
+                                         # ~ auth_key=app.config['RETHINKDB_AUTH'])
 #>>>>>>> fe171dc30ddd8a2dabafa7b2085cbb60e6432c35
         self.scheduler = BackgroundScheduler()
         self.scheduler.add_jobstore('rethinkdb',self.rStore, database='isard', table='scheduler_jobs',host=app.config['RETHINKDB_HOST'],
