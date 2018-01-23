@@ -123,8 +123,8 @@ def admin_config_update():
             dict['auth']['local']={'active':False} if 'local' not in dict['auth']  else {'active':True}
             dict['auth']['ldap']['active']=False if 'active' not in dict['auth']['ldap'] else True
         if 'engine' in dict:
-            if 'carbon' in dict['engine']:
-                dict['engine']['carbon']['active']=False if 'active' not in dict['engine']['carbon'] else True
+            if 'grafana' in dict['engine']:
+                dict['engine']['grafana']['active']=False if 'active' not in dict['engine']['grafana'] else True
             if 'ssh' in dict['engine']:
                 if 'hidden' in dict['engine']['ssh']:
                     dict['engine']['ssh']['paramiko_host_key_policy_check']=True if 'paramiko_host_key_policy_check' in dict['engine']['ssh'] else False
@@ -159,15 +159,15 @@ def admin_disposable_add():
             return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
     
-@app.route('/admin/config/checkport', methods=['POST'])
-@login_required
-@isAdmin
-def admin_config_checkport():
-    if request.method == 'POST':
+#~ @app.route('/admin/config/checkport', methods=['POST'])
+#~ @login_required
+#~ @isAdmin
+#~ def admin_config_checkport():
+    #~ if request.method == 'POST':
         
-        if app.adminapi.check_port(request.form['server'],request.form['port']):
-            return json.dumps('Port is open'), 200, {'ContentType':'application/json'}
-    return json.dumps('Port is closed'), 500, {'ContentType':'application/json'}
+        #~ if app.adminapi.check_port(request.form['server'],request.form['port']):
+            #~ return json.dumps('Port is open'), 200, {'ContentType':'application/json'}
+    #~ return json.dumps('Port is closed'), 500, {'ContentType':'application/json'}
 
 '''
 BACKUP & RESTORE

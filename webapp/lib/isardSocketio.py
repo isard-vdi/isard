@@ -321,23 +321,36 @@ class ConfigThread(threading.Thread):
     def run(self):
         with app.app_context():
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
-                r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).run(db.conn):
+                r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).union(
+                r.table('disposables').merge({'table':'disposables'})).run(db.conn):
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
-                        event= 'backup_deleted' if c['old_val']['table']=='backups' else 'sch_deleted'
-                        socketio.emit(event, 
+                        event= '_deleted'
+                        socketio.emit(c['old_val']['table']+event, 
                                         json.dumps(c['old_val']), 
                                         namespace='/sio_admins', 
                                         room='config')
                     else:
-                        event='backup_data' if c['new_val']['table']=='backups' else 'sch_data'
-                        if event=='sch_data' and 'name' not in c['new_val'].keys():
-                            continue
-                        socketio.emit(event, 
+                        event= '_data'
+                        socketio.emit(c['new_val']['table']+event, 
                                         json.dumps(c['new_val']),
                                         namespace='/sio_admins', 
                                         room='config') 
+                                                                
+                        #~ event= 'backup_deleted' if c['old_val']['table']=='backups' else 'sch_deleted'
+                        #~ socketio.emit(event, 
+                                        #~ json.dumps(c['old_val']), 
+                                        #~ namespace='/sio_admins', 
+                                        #~ room='config')
+                    #~ else:
+                        #~ event='backup_data' if c['new_val']['table']=='backups' else 'sch_data'
+                        #~ if event=='sch_data' and 'name' not in c['new_val'].keys():
+                            #~ continue
+                        #~ socketio.emit(event, 
+                                        #~ json.dumps(c['new_val']),
+                                        #~ namespace='/sio_admins', 
+                                        #~ room='config') 
                 except Exception as e:
                     log.error('ConfigThread error:'+str(e))
                     
