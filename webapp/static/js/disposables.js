@@ -28,7 +28,6 @@ $(document).ready(function() {
 
 
     socket.on('disposable_data', function(data){
-        console.log('disposable_data')
         var data = JSON.parse(data);
         if(data['status']=='Started'){
 			$('#disposable option[value="default"]').text('Choose a desktop...');
@@ -41,8 +40,6 @@ $(document).ready(function() {
 
     socket.on('disposable_viewer', function (data) {
         var data = JSON.parse(data);
-        console.log('SOCKET DISPOSABLE VIEWER')
-        console.log(data)
         if(data['kind']=='xpi'){
             viewer=data['viewer']
                         if(viewer==false){

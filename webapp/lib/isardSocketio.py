@@ -63,10 +63,9 @@ class DomainsThread(threading.Thread):
                             # ~ if ip:
                                 # ~ print('EMITTED DISPOSABLE DATA')
                             # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
-                            if 'viewer' in c['new_val']:
-                                print(c['new_val'])
+                            # ~ if 'viewer' in c['new_val']:
+                                # ~ print(c['new_val'])
                             if data['status']=='Started' and c['old_val']['status']!='Started': # and data['detail']=='':
-                                print('SEND EVENT: disposable_'+ip)
                                 # ~ if starteddict=={}:
                                     # ~ starteddict=data
                                     # ~ starteddict['detail']='hander'
@@ -418,13 +417,9 @@ def socketio_domains_viewer(data):
 @socketio.on('disposable_viewer', namespace='/sio_disposables')
 def socketio_disposables_viewer(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    print('IN disposable_viewer EVENT')
-    print(data['pk'])
     if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
-        print('DISPOSABLE STARTSWIDH')
         sendViewer(data,kind='disposable',remote_addr=remote_addr)
     else:
-        print('viewer can not be opened')
         msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
         socketio.emit('result',
                         msg,
@@ -433,30 +428,18 @@ def socketio_disposables_viewer(data):
 
                         
 def sendViewer(data,kind='domain',remote_addr=False): 
-    import pprint
-    print('SENDING VIEWER FOR DATA:')
-    pprint.pprint(data)                       
     if data['kind'] == 'file':
         consola=app.isardapi.get_viewer_ticket(data['pk'])
-        print(consola)
-        print('kind is:'+kind)
         if kind=='domain':
-            print('DOMAIN VIEWER EMIT:')
-            print({'kind':data['kind'],'ext':consola[0],'mime':consola[1]})
             socketio.emit('domain_viewer',
                             json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
                             namespace='/sio_users', 
                             room='user_'+current_user.username)  
         else:
-            print(remote_addr)
-            print('DISPOSABLE VIEWER EMIT:')
-            print({'kind':data['kind'],'ext':consola[0],'mime':consola[1]})
-            
             socketio.emit('disposable_viewer',
                             json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
                             namespace='/sio_disposables', 
                             room='disposable_'+remote_addr)              
-            print('SEND EVENT: _disposable_viewer to rootm disposable_'+remote_addr)
         # ~ return Response(consola, 
                         # ~ mimetype="application/x-virt-viewer",
                         # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
@@ -602,7 +585,6 @@ def socketio_media_add(form_data):
 def socketio_disposables_connect():
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if app.isardapi.show_disposable(remote_addr):
-        print('JOINED: disposable_'+remote_addr)
         join_room('disposable_'+remote_addr)
     # ~ None
     #~ if current_user.role=='admin':
