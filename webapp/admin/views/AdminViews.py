@@ -159,15 +159,15 @@ def admin_disposable_add():
             return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
     
-@app.route('/admin/config/checkport', methods=['POST'])
-@login_required
-@isAdmin
-def admin_config_checkport():
-    if request.method == 'POST':
+#~ @app.route('/admin/config/checkport', methods=['POST'])
+#~ @login_required
+#~ @isAdmin
+#~ def admin_config_checkport():
+    #~ if request.method == 'POST':
         
-        if app.adminapi.check_port(request.form['server'],request.form['port']):
-            return json.dumps('Port is open'), 200, {'ContentType':'application/json'}
-    return json.dumps('Port is closed'), 500, {'ContentType':'application/json'}
+        #~ if app.adminapi.check_port(request.form['server'],request.form['port']):
+            #~ return json.dumps('Port is open'), 200, {'ContentType':'application/json'}
+    #~ return json.dumps('Port is closed'), 500, {'ContentType':'application/json'}
 
 '''
 BACKUP & RESTORE
