@@ -8,7 +8,7 @@
 import logging as log
 
 from engine.config import CONFIG_DICT
-LOG_DIR = '/isard/logs'
+LOG_DIR = 'logs'
 LOG_LEVEL = CONFIG_DICT["LOG"]["log_level"]
 LOG_FILE = CONFIG_DICT["LOG"]["log_file"]
 # LOG FORMATS
