@@ -105,6 +105,8 @@ class DownloadThread(threading.Thread, object):
                     if len(line) > 60:
                         logs.downloads.debug(line)
                         values = line.split()
+                        print(self.url)
+                        print(line)
                         d_progress = dict(zip(keys,values))
                         update_download_percent(d_progress, self.table, self.id)
                         line = p.stderr.read(60).decode('utf8')
