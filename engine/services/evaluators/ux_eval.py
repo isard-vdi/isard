@@ -12,7 +12,7 @@ from time import sleep
 import graphyte
 import numpy as np
 
-from engine.config import CARBON
+from engine.config import GRAFANA
 from engine.controllers.eval_controller import EvalController
 from engine.services.db import update_domain_status, get_domains, get_domain_status, \
     update_domain_force_hyp, get_domain
@@ -96,7 +96,7 @@ INITIAL_UX = {'hdani1': {'cpu_hyp_iowait': {'max': 0.0,
 class UXEval(EvaluatorInterface):
     def __init__(self, user_id, id_pool, dd, templates, hyps, params):
         self.name = "ux"
-        self.sender = graphyte.Sender(CARBON['server'], prefix='isard-eval.{}'.format(self.name), port=CARBON['port'])
+        self.sender = graphyte.Sender(GRAFANA['url'], prefix='isard-eval.{}'.format(self.name), port=GRAFANA['carbon_port'])
         self.user_id = user_id
         self.id_pool = id_pool
         self.defined_domains = dd
