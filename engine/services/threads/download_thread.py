@@ -258,7 +258,7 @@ class DownloadChangesThread(threading.Thread):
                     break
 
 
-                if 'old_val' not in c:
+                if 'old_val' not in c or c['old_val'] is None:
                     self.start_download(c['new_val'])
                 elif 'new_val' not in c:
                     self.abort_download(c['old_val'])
