@@ -232,11 +232,21 @@ $(document).ready(function() {
     
  } );
 
+//~ function renderProgress(data){
+            //~ return '<div class="progress"> \
+  //~ <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data.percentage+'" \
+  //~ aria-valuemin="0" aria-valuemax="100" style="width:'+data.percentage+'%"> \
+    //~ '+data.percentage+'% \
+  //~ </div> \
+//~ </<div> '
+//~ }
+
+
 function renderProgress(data){
             return '<div class="progress"> \
-  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data.percentage+'" \
-  aria-valuemin="0" aria-valuemax="100" style="width:'+data.percentage+'%"> \
-    '+data.percentage+'% \
+  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data['progress']['% Total']+'" \
+  aria-valuemin="0" aria-valuemax="100" style="width:'+data['progress']['% Total']+'%"> \
+    '+data['progress']['% Total']+'% \
   </div> \
 </<div> '
 }
