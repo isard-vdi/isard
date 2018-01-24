@@ -46,13 +46,15 @@ $(document).ready(function() {
 				{"data": "name"},
                 {"data": null,
                  'defaultContent': ''},
+                {"data": null,
+                 'defaultContent': ''},                 
 				//~ { "data": "description"},
-				{
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-				},                
+				//~ {
+                //~ "className":      'actions-control',
+                //~ "orderable":      false,
+                //~ "data":           null,
+                //~ "defaultContent": '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+				//~ },                
                 ],
 			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
 			 "columnDefs": [{
@@ -78,13 +80,33 @@ $(document).ready(function() {
                                 if("progress" in full){
                                     return renderProgress(full);
                                 }
-							}}]
+							}},
+                            {
+							"targets": 4,
+							"render": function ( data, type, full, meta ) {
+                                //~ console.log(full.status+' '+full.id)
+                                if(!('status' in full)){
+                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+                                }
+                                return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    //~ return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                //~ }                                
+							}}],
+                "initComplete": function(settings, json){
+                     socket.on('domains_data', function(data){
+                        console.log('domains data')
+                        var data = JSON.parse(data);
+                            //~ console.log(data)
+                        dtUpdateInsert(table['domains'],data,false);
+                    });                   
+                }                            
                             
                             
     } );
 
     $('#domains_tbl').find(' tbody').on( 'click', 'button', function () {
-        var data = int_table.row( $(this).parents('tr') ).data();
+        var data = table['domains'].row( $(this).parents('tr') ).data();
         console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
@@ -148,12 +170,8 @@ $(document).ready(function() {
                      socket.on('media_data', function(data){
                         console.log('add or update')
                         var data = JSON.parse(data);
-                            //~ $('#pbid_'+data.id).data('transitiongoal',data.percentage);
-                            //~ $('#pbid_').css('width', data.percentage+'%').attr('aria-valuenow', data.percentage).text(data.percentage); 
-                            //~ $('#psmid_'+data.id).text(data.percentage);
-                            console.log(data)
+                            console.log('media update')
                         dtUpdateInsert(table['media'],data,false);
-                        //~ $('.progress .progress-bar').progressbar();
                     });                   
                 }
                             
@@ -164,7 +182,7 @@ $(document).ready(function() {
 
 
     $('#media_tbl').find(' tbody').on( 'click', 'button', function () {
-        var data = int_table.row( $(this).parents('tr') ).data();
+        var data = table['media'].row( $(this).parents('tr') ).data();
         console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
@@ -285,7 +303,7 @@ $(document).ready(function() {
                 //~ break;
     });
     
-    $('.update').on( 'click', function () {
+    $('.update-all').on( 'click', function () {
       id=$(this).attr('id')
       api.ajax('/admin/updates/update/'+id,'POST',{}).done(function(data) {
           console.log(id)
@@ -295,7 +313,12 @@ $(document).ready(function() {
       // invalidate table
      
     })
- 
+
+    //~ $('.update-one').on( 'click', function () {
+      //~ id=$(this).attr('id')
+          //~ console.log(id)
+     
+    //~ })
  
 });
 

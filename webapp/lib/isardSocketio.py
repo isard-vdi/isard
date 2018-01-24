@@ -179,27 +179,19 @@ class MediaThread(threading.Thread):
 
     def run(self):
         with app.app_context():
-            for c in r.table('media').changes(include_initial=False).run(db.conn):
+            for c in r.table('domains').get_all(r.args(['Downloading','Downloaded']),index='status').pluck('id','name','description','icon','progress').merge({'table':'domains'}).changes(include_initial=False).union(
+                    r.table('media').get_all(r.args(['Downloading','Downloaded']),index='status').merge({'table':'media'}).changes(include_initial=False)).run(db.conn):
+            
+            # ~ for c in r.table('media').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','percentage')
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
-                        #~ if not c['old_val']['id'].startswith('_'): continue
                         data=c['old_val']
-                        event='media_delete'
+                        event=c['old_val']['table']+'_delete'
                     else:
-                        #~ if not c['new_val']['id'].startswith('_'): continue
-                        
                         data=c['new_val']
-                        event='media_data'
-                    #~ socketio.emit(event, 
-                                    #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
-                                    #~ namespace='/sio_users', 
-                                    #~ room='user_'+data['user'])
-                    #~ socketio.emit('user_quota', 
-                                    #~ json.dumps(app.isardapi.get_user_quotas(data['user'])), 
-                                    #~ namespace='/sio_users', 
-                                    #~ room='user_'+data['user'])
+                        event=c['new_val']['table']+'_data'
                     ## Admins should receive all updates on /admin namespace
                     socketio.emit(event, 
                                     json.dumps(app.isardapi.f.flatten_dict(data)), 

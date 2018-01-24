@@ -48,14 +48,19 @@ class Updates(object):
                 if kind == 'domains':
                     if d['id']=='_'+username+'_'+w['id']:
                         found=True
+                        w['new']=True
+                        w['status']=d['status']                        
                         break
                 else:
                     if d['id']==w['id']:
                         found=True
+                        w['new']=True
+                        w['status']=d['status']      
                         break
                         
-            # ~ if found: 
-            w['new']=found
+            if not found: 
+                w['new']=False
+                # ~ w['status']='web'
             result.append(w)
             # ~ else:
                 # ~ result.append(
