@@ -6,7 +6,7 @@
 
 import threading
 import pprint
-import os
+from os.path import dirname
 import subprocess
 import rethinkdb as r
 
@@ -58,15 +58,17 @@ class DownloadThread(threading.Thread, object):
             headers += header_template.format(header_key=k, header_value=v)
 
         ssh_template = """ssh -oBatchMode=yes -p {port} {user}@{hostname} """ \
-                       """ "curl -o '{path}' {headers} '{url}' " """
+                       """ "mkdir -p '{path_dir}'; curl -o '{path}' {headers} '{url}' " """
 
-
+        print(ssh_template)
         ssh_command = ssh_template.format(port=self.port,
                                           user=self.user,
                                           hostname=self.hostname,
                                           path= self.path,
+                                          path_dir= dirname(self.path),
                                           headers=headers,
                                           url= self.url)
+        print(ssh_command)
 
         logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
 
@@ -200,10 +202,10 @@ class DownloadChangesThread(threading.Thread):
                                                                 pool=pool_id,
                                                                 type_path=type_path_selected)
 
-        if 'url-web' in dict_changes.keys():
+        if dict_changes.get('url-web',False) is not False:
             url = dict_changes['url-web']
 
-        elif 'url-isard' in dict_changes.keys():
+        elif dict_changes.get('url-isard',False) is not False:
             url_isard = dict_changes['url-isard']
             url = url_base + '/' + table + '/' + url_isard
             if len(self.url_code) > 0:
