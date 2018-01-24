@@ -53,34 +53,30 @@ def admin_updates_json(kind):
             return json.dumps([])
 
 @app.route('/admin/updates/update/<kind>', methods=['POST'])
+@app.route('/admin/updates/update/<kind>/<id>', methods=['POST'])
 @login_required
 @isAdmin
-def admin_updates_update(kind):
+def admin_updates_update(kind,id=False):
     if request.method == 'POST':
-        data=u.getNewKind(kind,current_user.id)
-        data=[d for d in data if d['new'] is True]
-        if kind == 'domains': 
-            for d in data:
-                d['id']='_'+current_user.id+'_'+d['id']
-                d['progress']={}
-                d['status']='DownloadStarting'
-                d['detail']=''
-                d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
-                d.update(get_user_data())
-                for disk in d['create_dict']['hardware']['disks']:
-                    disk['file']=current_user.path+disk['file']
-        elif kind == 'media':
-            for d in data:
-                # ~ if 'path' in d.keys():
-                    d.update(get_user_data())
-                    d['progress']={}
-                    d['status']='DownloadStarting'                    
-                    d['path']=current_user.path+d['url-isard']
+        if id is not False:
+            # Only one id
+            d=u.getNewKindId(kind,current_user.id,id)
+            if d is not False:
+                if kind == 'domains':
+                    d=u.formatDomains([d],current_user)[0]
+                elif kind == 'media':
+                    d=u.formatMedias([d],current_user)[0]
+                app.adminapi.insert_or_update_table_dict(kind,d)
+        else:
+            # No id, do it will all
+            data=u.getNewKind(kind,current_user.id)
+            data=[d for d in data if d['new'] is True]
+            if kind == 'domains': 
+                data=u.formatDomains(data,current_user)
+            elif kind == 'media':
+                data=u.formatMedias(data,current_user)
         app.adminapi.insert_or_update_table_dict(kind,data)
     return json.dumps([])
 
-def get_user_data():
-    return {'category': current_user.category,
-            'group': current_user.group,
-            'user': current_user.id}
+
     

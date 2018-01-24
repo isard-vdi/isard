@@ -10,11 +10,19 @@ db.init_app(app)
 class Updates(object):
     def __init__(self):
         self.updateFromConfig()
+        self.updateFromWeb()
         # This should be an option to the user
         #~ if not self.is_registered(): 
             #~ self.register()
             #~ self.updateFromConfig()
-    
+
+    def updateFromWeb(self):
+        self.web={}
+        self.kinds=['media','domains','builders','virt_install','virt_builder']
+        for k in self.kinds:
+            self.web[k]=self.getKind(kind=k)
+                
+        
     def updateFromConfig(self):
         with app.app_context():
             cfg=r.table('config').get(1).pluck('resources').run(db.conn)['resources']
@@ -39,7 +47,7 @@ class Updates(object):
         return False
 
     def getNewKind(self,kind,username):
-        web=self.getKind(kind=kind)
+        web=self.web[kind]
         dbb=list(r.table(kind).run(db.conn))
         result=[]
         for w in web:
@@ -68,6 +76,22 @@ class Updates(object):
         return result
         #~ return [i for i in web for j in dbb if i['id']==j['id']]
 
+    def getNewKindId(self,kind,username,id):
+        web=[d for d in self.web[kind] if d['id'] == id]
+        # If id is not in this kind, something went wrong. Don't continue!
+        if len(web)==0: return False
+        web=web[0]
+        if kind == 'domains':
+            dbb=r.table(kind).get('_'+username+'_'+web['id']).run(db.conn)
+        else:
+            dbb=r.table(kind).get(web['id']).run(db.conn)
+        # If this id is not in database already, download it!
+        if dbb is None:
+            return web
+        else:
+            # The user has this domain already?
+            return False
+
         
     def getKind(self,kind='builders'):
         try:
@@ -80,4 +104,33 @@ class Updates(object):
         except Exception as e:
             print("Error contacting.\n"+str(e))
         return False
-                
+   
+   
+    '''
+    RETURN FORMATTED DOMAINS TO INSERT ON TABLES
+    '''             
+    def formatDomains(self,data,current_user):
+        for d in data:
+            d['id']='_'+current_user.id+'_'+d['id']
+            d['progress']={}
+            d['status']='DownloadStarting'
+            d['detail']=''
+            d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
+            d.update(self.get_user_data(current_user))
+            for disk in d['create_dict']['hardware']['disks']:
+                disk['file']=current_user.path+disk['file']
+        return data
+        
+    def formatMedias(self,data,current_user):
+        for d in data:
+            # ~ if 'path' in d.keys():
+                d.update(self.get_user_data(current_user))
+                d['progress']={}
+                d['status']='DownloadStarting'                    
+                d['path']=current_user.path+d['url-isard']
+        return data
+
+    def get_user_data(self,current_user):
+        return {'category': current_user.category,
+                'group': current_user.group,
+                'user': current_user.id}        

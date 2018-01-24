@@ -106,11 +106,17 @@ $(document).ready(function() {
     } );
 
     $('#domains_tbl').find(' tbody').on( 'click', 'button', function () {
-        var data = table['domains'].row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
-        //~ switch($(this).attr('id')){
-            //~ case 'btn-play':        
-                //~ break;
+        var datarow = table['domains'].row( $(this).parents('tr') ).data();
+        console.log($(this).attr('id'),datarow);
+        switch($(this).attr('id')){
+            case 'btn-download':
+                api.ajax('/admin/updates/update/domains/'+datarow['id'],'POST',{}).done(function(data) {
+                      console.log(datarow['id'])
+                      table[datarow['id']].ajax.reload();
+                      //~ if(id == 'virt_install'){virt_install_table.ajax.reload();}
+                  }); 
+                break;
+            };
     });
 
 
