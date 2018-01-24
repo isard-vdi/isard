@@ -79,18 +79,18 @@ class DownloadThread(threading.Thread, object):
         while rc != 0:
             header = p.stderr.readline().decode('utf8')
             header2 = p.stderr.readline().decode('utf8')
-            keys = ['% Total',
-                    'Total',
-                    '% Received',
-                    'Received',
-                    '% Xferd',
-                    'Xferd',
-                    'Average Dload',
-                    'Speed Upload',
-                    'Time Total',
-                    'Time Spent',
-                    'Time Left',
-                    'Current Speed']
+            keys = ['total_percent',
+                    'total',
+                    'received_percent',
+                    'received',
+                    'xferd_percent',
+                    'xferd',
+                    'speed_download_average',
+                    'speed_upload_average',
+                    'time_total',
+                    'time_spent',
+                    'time_left',
+                    'speed_current']
 
             line = ""
 
@@ -109,6 +109,8 @@ class DownloadThread(threading.Thread, object):
                         print(self.url)
                         print(line)
                         d_progress = dict(zip(keys,values))
+                        d_progress['total_percent'] = int(float(d_progress['total_percent']))
+                        d_progress['received_percent'] = int(float(d_progress['received_percent']))
                         update_download_percent(d_progress, self.table, self.id)
                         line = p.stderr.read(60).decode('utf8')
 

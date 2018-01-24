@@ -322,7 +322,7 @@ class ConfigThread(threading.Thread):
         with app.app_context():
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
                 r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).union(
-                r.table('disposables').merge({'table':'disposables'})).run(db.conn):
+                r.table('disposables').merge({'table':'disposables'}).changes(include_initial=False)).run(db.conn):
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -352,6 +352,9 @@ class ConfigThread(threading.Thread):
                                         #~ namespace='/sio_admins', 
                                         #~ room='config') 
                 except Exception as e:
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    log.error(exc_type, fname, exc_tb.tb_lineno)
                     log.error('ConfigThread error:'+str(e))
                     
 def start_config_thread():
