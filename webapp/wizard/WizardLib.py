@@ -188,7 +188,7 @@ class Wizard():
         
     def get_updates_kind(self,kind):
         try:
-            req= requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False)
+            req= requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False, timeout=3)
             if req.status_code==200:
                 return req.json()
                 #~ return True
@@ -280,7 +280,7 @@ class Wizard():
             if self.code is False:
                 if self.url is False: self.url='http://www.isardvdi.com:5050'
                 try:
-                    req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False)
+                    req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False, timeout=3)
                     if req.status_code==200:
                         self.code=req.json()
                         r.table('config').get(1).update({'resources':{'url':self.url,'code':req.json()}}).run()
