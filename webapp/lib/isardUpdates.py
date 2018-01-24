@@ -26,7 +26,7 @@ class Updates(object):
 
     def register(self):
         try:
-            req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False)
+            req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False, timeout=3)
             if req.status_code==200:
                 with app.app_context():
                     r.table('config').get(1).update({'resources':{'code':req.json()}}).run(db.conn)
@@ -60,7 +60,7 @@ class Updates(object):
         
     def getKind(self,kind='builders'):
         try:
-            req= requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False)
+            req= requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False, timeout=3)
             if req.status_code==200:
                 return req.json()
                 #~ return True
