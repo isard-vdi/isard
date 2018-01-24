@@ -48,12 +48,18 @@ class Updates(object):
                 if kind == 'domains':
                     if d['id']=='_'+username+'_'+w['id']:
                         found=True
-                        continue
+                        break
                 else:
                     if d['id']==w['id']:
                         found=True
-                        continue
-            if not found: result.append(w)
+                        break
+                        
+            # ~ if found: 
+            w['new']=found
+            result.append(w)
+            # ~ else:
+                # ~ result.append(
+            
         return result
         #~ return [i for i in web for j in dbb if i['id']==j['id']]
 

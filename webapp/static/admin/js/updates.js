@@ -33,8 +33,11 @@ $(document).ready(function() {
 			 "columnDefs": [ {
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-							  return renderIcon(full);
+                                return '<span class="label label-success pull-right">New</span>'
+							  //~ return renderIcon(full);
 							}}]
+                            
+                            
     } );
 
     $('#domains_tbl').find(' tbody').on( 'click', 'button', function () {
