@@ -60,7 +60,7 @@ $(document).ready(function() {
 			 "columnDefs": [{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-                                if(!(full['new'])){
+                                if(full['new']){
                                     return '<span class="label label-success pull-right">New</span>';
                                 }
 							}},
@@ -85,7 +85,7 @@ $(document).ready(function() {
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
                                 //~ console.log(full.status+' '+full.id)
-                                if(!('status' in full)){
+                                if(full.status == 'Available'){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
                                 return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'

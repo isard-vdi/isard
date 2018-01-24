@@ -58,6 +58,7 @@ def admin_updates_json(kind):
 def admin_updates_update(kind):
     if request.method == 'POST':
         data=u.getNewKind(kind,current_user.id)
+        data=[d for d in data if d['new'] is True]
         if kind == 'domains': 
             for d in data:
                 d['id']='_'+current_user.id+'_'+d['id']
