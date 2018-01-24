@@ -33,8 +33,14 @@ $(document).ready(function() {
 			 "columnDefs": [ {
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-							  return renderIcon(full);
+                                if(datata['new']){
+                                    return '<span class="label label-success pull-right">New</span>';
+                                }else{
+                                    return renderIcon(full);
+                                }
 							}}]
+                            
+                            
     } );
 
     $('#domains_tbl').find(' tbody').on( 'click', 'button', function () {
