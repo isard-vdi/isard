@@ -7,7 +7,7 @@
 # coding=utf-8
 import json
 
-from flask import render_template, Response, request, redirect, url_for
+from flask import render_template, Response, request, redirect, url_for, flash
 from flask_login import login_required, login_user, logout_user, current_user
 
 from webapp import app
@@ -24,7 +24,10 @@ from .decorators import isAdmin
 @login_required
 @isAdmin
 def admin_updates():
-    return render_template('admin/pages/updates.html', nav="Updates", registered=u.is_registered())
+    registered=u.is_registered()
+    if not registered:
+        flash("Unable to contact updates website.","error")
+    return render_template('admin/pages/updates.html', nav="Updates", registered=registered)
 
 @app.route('/admin/updates_register', methods=['POST'])
 @login_required
