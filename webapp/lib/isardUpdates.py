@@ -11,13 +11,6 @@ class Updates(object):
     def __init__(self):
         self.updateFromConfig()
         self.updateFromWeb()
-        print('XXXXXXXXXX UPDATED FROM WEB')
-        # ~ import pprint
-        # ~ pprint.pprint([[(k,y['id']) for y in v] for k,v in self.web.items()])
-        # This should be an option to the user
-        #~ if not self.is_registered(): 
-            #~ self.register()
-            #~ self.updateFromConfig()
 
     def updateFromWeb(self):
         self.web={}
@@ -130,6 +123,7 @@ class Updates(object):
             d['progress']={}
             d['status']='DownloadStarting'
             d['detail']=''
+            d['accessed']==time.time()
             d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
             d.update(self.get_user_data(current_user))
             for disk in d['create_dict']['hardware']['disks']:
@@ -142,7 +136,8 @@ class Updates(object):
                 # ~ d['id']='_'+current_user.id+'_'+d['id']
                 d.update(self.get_user_data(current_user))
                 d['progress']={}
-                d['status']='DownloadStarting'                    
+                d['status']='DownloadStarting'
+                d['accessed']==time.time()                    
                 d['path']=current_user.path+d['url-isard']
         return data
 

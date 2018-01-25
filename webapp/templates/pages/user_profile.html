@@ -4,21 +4,12 @@
 {% endblock %}
 {% block content %}
         <div class="right_col" role="main">
+<!--
           <div class="">
+-->
             <div class="page-title">
               <div class="title_left">
                 <h3>User Profile</h3>
-              </div>
-
-              <div class="title_right">
-                <div class="col-md-5 col-sm-5 col-xs-12 form-group pull-right top_search">
-                  <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search for...">
-                    <span class="input-group-btn">
-                      <button class="btn btn-default" type="button">Go!</button>
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
             
@@ -45,8 +36,9 @@
                       </li>
                     </ul>
                     <div class="clearfix"></div>
-                  </div>
+                  </div> <!-- end x_tittle -->
                   <div class="x_content">
+                      
                     <div class="col-md-3 col-sm-3 col-xs-12 profile_left">
                       <div class="profile_img">
                         <div id="crop-avatar">
@@ -60,27 +52,21 @@
                         <li><i class="fa fa-lock user-profile-icon"><b> Authentication: </b></i> {{user.kind}}
                         </li>
 
-                        <li>
-                          <li><i class="fa fa-key user-profile-icon"><b> Role: </b></i> {{user.kind}}
+                        <li><i class="fa fa-key user-profile-icon"><b> Role: </b></i> {{user.kind}}
                         </li>
 
-                        <li>
-                          <li><i class="fa fa-leaf user-profile-icon"><b> Category: </b></i> {{user.category}}
+                        <li><i class="fa fa-leaf user-profile-icon"><b> Category: </b></i> {{user.category}}
                         </li>
 
-                        <li>
-                          <li><i class="fa fa-group user-profile-icon"><b> Group: </b></i> {{user.group}}
+                        <li><i class="fa fa-group user-profile-icon"><b> Group: </b></i> {{user.group}}
                         </li>
 
-                        <li>
-                          <li><i class="fa fa-mail user-profile-icon"><b> email: </b></i> {{user.mail}}
+                        <li><i class="fa fa-mail user-profile-icon"><b> email: </b></i> {{user.mail}}
                         </li>
                         
                       </ul>
+                      
                         {% if(user.kind=='local') %}
-<!--
-                          <a id="btn-edit" class="btn btn-success"><i class="fa fa-gear m-right-xs"></i>Edit profile</a>
--->
                             <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalChangePw">
                               <i class="fa fa-key m-right-xs"></i> Change password
                             </button>
@@ -109,13 +95,13 @@
                       <!-- end of user-activity-graph -->
 
                     </div>
-                  </div>
-                </div>
+                    
+                  </div> <!-- end x_content -->
+                </div> <!-- end of x_panel -->
               </div>
-            </div>
-          </div>
-        </div>
-
+            </div> <!-- end row -->
+        </div> <!-- end right col -->
+            
 <div class="modal fade" id="modalChangePw" tabindex="-1" role="dialog" 
      aria-labelledby="modalChangePw" aria-hidden="true">
     <div class="modal-dialog">
@@ -181,9 +167,14 @@
                       
                 </form>
         </div>
+<!--
     </div>
+-->
 </div>
 
+
+</div>
+</div>
 {% endblock %}
 {% block pagescript %}
     <!-- bootstrap-progressbar -->

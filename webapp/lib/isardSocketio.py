@@ -363,10 +363,9 @@ def start_config_thread():
 @socketio.on('user_add', namespace='/sio_admins')
 def socketio_user_add(form_data):
     if current_user.role == 'admin': 
-        create_dict=app.isardapi.f.unflatten_dict(form_data)
-        # ~ create_dict=parseHardware(create_dict)
-        print(create_dict)
-        res=app.adminapi.add_user(create_dict)
+        # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
+        # ~ print(create_dict)
+        res=app.adminapi.add_user(form_data)
         if res is True:
             data=json.dumps({'result':True,'title':'New user','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
         else:
@@ -379,19 +378,18 @@ def socketio_user_add(form_data):
 @socketio.on('bulkusers_add', namespace='/sio_admins')
 def socketio_bulkuser_add(form_data):
     if current_user.role == 'admin': 
-        print(form_data)
-        create_dict=app.isardapi.f.unflatten_dict(form_data)
-        # ~ create_dict=parseHardware(create_dict)
-        print(create_dict)
-        # ~ res=app.adminapi.add_user(create_dict)
-        # ~ if res is True:
-            # ~ data=json.dumps({'result':True,'title':'New user','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
-        # ~ else:
-            # ~ data=json.dumps({'result':False,'title':'New user','text':'User '+create_dict['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
-        # ~ socketio.emit('add_form_result',
-                        # ~ data,
-                        # ~ namespace='/sio_admins', 
-                        # ~ room='users')                    
+        data=form_data['data']
+        users=form_data['users']
+        final_users=[{**u, **data} for u in users]
+        res=app.adminapi.add_users(final_users)
+        if res is True:
+            data=json.dumps({'result':True,'title':'New user','text':'A total of '+len(final_users)+'users has been created...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':False,'title':'New user','text':'Something went wrong when creating '+len(final_users)+' can\'t be created. Maybe they already exists!','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='users')                    
                     
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')

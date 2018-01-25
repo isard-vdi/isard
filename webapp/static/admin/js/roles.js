@@ -5,7 +5,7 @@
 * License: AGPLv3
 */
 
-
+//~ tables=['roles','categories','groups']
 $(document).ready(function() {
     var table=$('#roles').DataTable( {
         "ajax": {

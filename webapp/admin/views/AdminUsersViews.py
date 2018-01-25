@@ -50,7 +50,7 @@ def admin_users_get():
 @app.route('/admin/users/detail/<id>')
 @login_required
 @isAdmin
-def adminUsersGetDetail(id):
+def admin_users_get_detail(id):
     data = 'user desktops'
     return json.dumps(data), 200, {'ContentType':'application/json'} 
 
@@ -64,30 +64,21 @@ def admin_userschema():
     dict['group']=app.adminapi.get_admin_table('groups', ['id', 'name', 'description'])
     return json.dumps(dict)
     
-
-import csv
-@app.route('/admin/users/csv/import', methods=['POST','GET'])
+@app.route('/admin/users/update', methods=['POST'])
 @login_required
 @isAdmin
-def admin_users_csv_import():
-    res=True
+def admin_users_update_update():
     if request.method == 'POST':
-        fieldnames = ('role','category','password',
-                      'quota-domains-templates','active','quota-domains-running',
-                      'quota-hardware-memory', 'id', 'quota-hardware-vcpus',
-                      'group', 'quota-domains-desktops_disk_max', 'quota-domains-isos',
-                      'mail', 'quota-domains-isos_disk_max', 'kind',
-                      'quota-domains-desktops', 'name', 'quota-domains-templates_disk_max')
-        imported_users=[]
-        reader = csv.DictReader( request.form, fieldnames)
-        for row in reader:
-            imported_users.append(json.dumps(app.isardapi.f.unflatten_dict(row)))
-        
-        if res is True:
-            flash('Imported')
-            return redirect(url_for('admin_users_csv_import'))
-        else:
-            flash('Something wrong in import.','danger')
-            return redirect(url_for('admin_users_csv_import'))
-
-    return render_template('admin/pages/users_import_csv.html', nav="Users")
+        try:
+            args = request.get_json(force=True)
+        except:
+            args = request.form.to_dict()
+        try:
+            if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                 return json.dumps('Quota for starting domains full.'), 500, {'ContentType':'application/json'}
+            if app.isardapi.update_table_value('domains', args['pk'], args['name'], args['value']):
+                return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+            else:
+                return json.dumps('This is not a valid value.'), 500, {'ContentType':'application/json'}
+        except Exception as e:
+            return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
