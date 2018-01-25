@@ -115,7 +115,7 @@ class Updates(object):
     '''             
     def formatDomains(self,data,current_user):
         for d in data:
-            # ~ d['id']='_'+current_user.id+'_'+d['id']
+            d['id']='_'+current_user.id+'_'+d['id']
             d['progress']={}
             d['status']='DownloadStarting'
             d['detail']=''
@@ -128,6 +128,7 @@ class Updates(object):
     def formatMedias(self,data,current_user):
         for d in data:
             # ~ if 'path' in d.keys():
+                d['id']='_'+current_user.id+'_'+d['id']
                 d.update(self.get_user_data(current_user))
                 d['progress']={}
                 d['status']='DownloadStarting'                    
