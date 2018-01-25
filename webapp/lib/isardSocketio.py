@@ -375,7 +375,23 @@ def socketio_user_add(form_data):
                         data,
                         namespace='/sio_admins', 
                         room='users')
-                    
+
+@socketio.on('bulkusers_add', namespace='/sio_admins')
+def socketio_bulkuser_add(form_data):
+    if current_user.role == 'admin': 
+        print(form_data)
+        create_dict=app.isardapi.f.unflatten_dict(form_data)
+        # ~ create_dict=parseHardware(create_dict)
+        print(create_dict)
+        # ~ res=app.adminapi.add_user(create_dict)
+        # ~ if res is True:
+            # ~ data=json.dumps({'result':True,'title':'New user','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
+        # ~ else:
+            # ~ data=json.dumps({'result':False,'title':'New user','text':'User '+create_dict['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+        # ~ socketio.emit('add_form_result',
+                        # ~ data,
+                        # ~ namespace='/sio_admins', 
+                        # ~ room='users')                    
                     
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')

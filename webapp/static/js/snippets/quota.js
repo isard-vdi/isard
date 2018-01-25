@@ -50,17 +50,16 @@
 
     function quota2dict(data){
          data['quota']={'hardware':{},'domains':{}}
-         hwids=['vcpus','memory']
-		 $.each(hwids,function(idx,id){
-            delete data['quota-hardware-'+id];
-            data['quota']['hardware'][id]=parseInt($('#quota-hardware-'+id).val())  || 0
-         });
-         
-         dmids=['desktops','running','templates','isos']
-		 $.each(dmids,function(idx,id){
-            delete data['quota-domains-'+id];
-            data['quota']['domains'][id]=parseInt($('#quota-domains-'+id).val())  || 0
-         });         
+         $.each(data,function(key,value){
+             if(key.startsWith('quota-domains')){
+                 data['quota']['domains'][key.split('-')[2]] = parseInt(value)  || 0
+                 delete data[key];
+             }
+             if(key.startsWith('quota-hardware')){
+                 data['quota']['hardware'][key.split('-')[2]] = parseInt(value)  || 0
+                 delete data[key];
+             }                 
+         })
         return data
     }
 

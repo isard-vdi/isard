@@ -27,21 +27,21 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="name" name="name" class="form-control col-md-7 col-xs-12 roundbox" data-parsley-length="[4, 40]"  placeholder="Full name" required="required" type="text">
+                           <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]"  placeholder="Full name" required="required" type="text">
                         </div>
                      </div>
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Username <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-							<input id="id" class="form-control col-md-7 col-xs-12 roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="id" placeholder="Login username" data-parsley-trigger="change" required type="text">
+							<input id="id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="id" placeholder="Login username" data-parsley-trigger="change" required type="text">
                         </div>
                      </div>
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Mail
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="mail" class="roundbox" data-validate-length-range="4,40" name="mail" placeholder="Login username" type="email" data-parsley-trigger="change">
+                           <input id="mail" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="mail" placeholder="Email" type="email" data-parsley-trigger="change">
                         </div>
                      </div>
                       <div class="item form-group">
@@ -59,21 +59,21 @@
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <select id="role" name="role" class="form-control" required>
+                           <select id="role" name="role" class="form-control role" data-quota="users-quota" required>
                            </select>
                         </div>
                      </div>
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <select id="category" name="category" class="form-control" required>
+                           <select id="category" name="category" class="form-control category" required>
                            </select>
                         </div>
                      </div>   
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <select id="group" name="group" class="form-control" required>
+                           <select id="group" name="group" class="form-control group" required>
                            </select>
                         </div>
                      </div>                                       
@@ -102,6 +102,7 @@
                      </div>
             </div>
             </form>
+        </div>
         </div>
     </div>
 </div>
@@ -167,3 +168,97 @@
         </div>
     </div>
 </div>
+
+
+
+
+
+
+<div class="modal fade" id="modalAddBulkUsers" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-users"> </i>   Bulk users creation
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+              <form id="modalAddBulkUsersForm" class="form-horizontal form-label-left">
+			  <div class="x_panel">
+					<div class="x_content">
+<!--
+                        <input id="id" hidden/>
+-->
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Import CSV <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <input type="file" id="csv" name="csv" enctype="multipart/form-data" />
+                            <p>CSV file should have this columns:</p>
+                            <p>username,name,mail,password</p>
+<!--
+                           <input id="csv" name="csv" class="form-control col-md-7 col-xs-12"  type="file">
+-->
+                        </div>
+                     </div>                   
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <select id="role" name="role" class="form-control role"  data-quota="bulkusers-quota"  required>
+                           </select>
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <select id="category" name="category" class="form-control category" required>
+                           </select>
+                        </div>
+                     </div>   
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <select id="group" name="group" class="form-control group" required>
+                           </select>
+                        </div>
+                     </div>                                       
+<!--
+                     </div>
+-->
+                     
+				</div>
+
+                        <div class="x_panela" id="bulkusers-quota" style="padding: 5px;">
+                         <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
+                        {% include '/snippets/quota_edit.html' %}
+                        </div>
+                
+                
+			  </div>
+
+                       
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="button" class="btn btn-success">Create users</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+        </div>
+        </div>
+    </div>
+</div>
+

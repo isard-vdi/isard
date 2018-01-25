@@ -15,8 +15,17 @@ $(document).ready(function() {
         setModalAddUser();
 	});
 
+	$('.btn-new-bulkusers').on('click', function () {
+        setQuotaOptions('#bulkusers-quota');
+        $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
+        $('#modalAddBulkUsersForm')[0].reset();
+        setModalAddUser();
+	});
+    
     $("#modalAddUser #send").on('click', function(e){
         var form = $('#modalAddUserForm');
+        data=quota2dict($('#modalAddUserForm').serializeObject());
+        console.log(data)
         form.parsley().validate();
         if (form.parsley().isValid()){
             
@@ -28,16 +37,95 @@ $(document).ready(function() {
     }); 
 
 
-    $("#modalAddUser #role").on('change', function(e){
-        setQuotaTableDefaults('#users-quota','roles',$(this).val())
-    });
-    $("#modalAddUser #category").on('change', function(e){
-        setQuotaTableDefaults('#users-quota','categories',$(this).val())
-    });
-    $("#modalAddUser #group").on('change', function(e){
-        setQuotaTableDefaults('#users-quota','groups',$(this).val())
-    });
+
+
+       document.getElementById('csv').addEventListener('change', readFile, false);
+       var filecontents=''
+       function readFile (evt) {
+           var files = evt.target.files;
+           var file = files[0];           
+           var reader = new FileReader();
+           reader.onload = function(event) {
+             filecontents=event.target.result;            
+           }
+           reader.readAsText(file)
+        }
+
+function toObject(names, values) {
+    var result = {};
+    for (var i = 0; i < names.length; i++)
+         result[names[i]] = values[i];
+    return result;
+}
+
+    function parseCSV(){
+        lines=filecontents.split('\n')
+        header=lines[0].split(',')
+        users=[]
+        $.each(lines, function(n, l){
+            console.log(l.length)
+            if(n!=0 && l.length > 10){
+                users.push(toObject(header,l.split(',')))
+            }
+        })
+        return users;
+    }
         
+    $("#modalAddBulkUsers #send").on('click', function(e){
+        var form = $('#modalAddBulkUsersForm');
+        form.parsley().validate();
+        console.log(parseCSV())
+        
+        if (form.parsley().isValid()){
+            console.log($('#modalAddBulkUsersForm').serializeObject())
+            data=quota2dict($('#modalAddBulkUsersForm').serializeObject());
+            //~ delete data['password2']
+            //~ console.log(data)
+            //~ console.log($('#csv').prop('files'));
+            //~ var file = $('#csv').prop('files')[0];
+//~ var reader = new FileReader();
+
+//~ content = reader.readAsText(file);
+//~ console.log(content);
+            //~ var preview = document.getElementById('prv')
+            //~ var file = document.getElementById('csv').files[0];
+            //~ var div = document.body.appendChild(document.createElement("div"));
+            //~ div.innerHTML = file.getAsText("utf-8");
+            users=parseCSV()
+            //~ $.each(lines, function(n, l){
+
+                    
+            //~ data['file']=filecontents;                
+            console.log(data)
+            socket.emit('bulkusers_add',data)
+        }
+    }); 
+
+    $(".role").on('change', function(e){
+        //~ console.log('role changed')
+        //~ console.log('parent id:'+$(this).data('quota'))
+        setQuotaTableDefaults('#'+$(this).data('quota'),'roles',$(this).val())
+    });
+    $(".category").on('change', function(e){
+        setQuotaTableDefaults('#'+$(this).data('quota'),'categories',$(this).val())
+    });
+    $(".group").on('change', function(e){
+        setQuotaTableDefaults('#'+$(this).data('quota'),'groups',$(this).val())
+    });
+
+
+
+    //~ $("#modalAddBulkUsers #role").on('change', function(e){
+        //~ setQuotaTableDefaults('#users-quota','roles',$(this).val())
+    //~ });
+    //~ $("#modalAddBulkUsers #category").on('change', function(e){
+        //~ setQuotaTableDefaults('#users-quota','categories',$(this).val())
+    //~ });
+    //~ $("#modalAddBulkUsers #group").on('change', function(e){
+        //~ setQuotaTableDefaults('#users-quota','groups',$(this).val())
+    //~ });
+        
+            
     var table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",
@@ -164,9 +252,11 @@ function format ( d ) {
     function setModalAddUser(){
         api.ajax_async('/admin/userschema','POST','').done(function(d) {
             $.each(d, function(key, value) {
-                $("#" + key).find('option').remove().end();
+                $("." + key).find('option').remove().end();
                 for(var i in d[key]){
-                    $("#"+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                    console.log(key)
+                    console.log('   '+value[i].name)
+                    $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
                 }
             });
                 
