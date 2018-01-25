@@ -838,18 +838,18 @@ class Populate(object):
 
     def eval_results(self):
         with app.app_context():
-            if not r.table_list().contains('eval_results').run(db.conn):
+            if not r.table_list().contains('eval_results').run():
                 log.info("Table eval_results not found, creating...")
-                r.table_create('eval_results', primary_key="id").run(db.conn)
+                r.table_create('eval_results', primary_key="id").run()
                 # code --> Identify group of eval results.
                 # This group of results was taken over the same pool and hypervisors characteristics.
                 # Example: code: A
-                r.table('eval_results').index_create("code").run(db.conn)
-                r.table('eval_results').index_wait("code").run(db.conn)
+                r.table('eval_results').index_create("code").run()
+                r.table('eval_results').index_wait("code").run()
 
-            if not r.table_list().contains('eval_initial_ux').run(db.conn):
+            if not r.table_list().contains('eval_initial_ux').run():
                 log.info("Table eval_initial_ux not found, creating...")
-                r.table_create('eval_initial_ux', primary_key="id").run(db.conn)
+                r.table_create('eval_initial_ux', primary_key="id").run()
             return True
 
     '''
