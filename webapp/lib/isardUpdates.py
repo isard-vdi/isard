@@ -11,8 +11,9 @@ class Updates(object):
     def __init__(self):
         self.updateFromConfig()
         self.updateFromWeb()
-        import pprint
-        pprint.pprint([[(k,y['id']) for y in v] for k,v in self.web.items()])
+        print('XXXXXXXXXX UPDATED FROM WEB')
+        # ~ import pprint
+        # ~ pprint.pprint([[(k,y['id']) for y in v] for k,v in self.web.items()])
         # This should be an option to the user
         #~ if not self.is_registered(): 
             #~ self.register()
@@ -53,27 +54,32 @@ class Updates(object):
         dbb=list(r.table(kind).run(db.conn))
         result=[]
         for w in web:
+            dict={}
             found=False
             for d in dbb:
-                # ~ if kind == 'domains' or kind == 'media':
-                    # ~ if d['id']=='_'+username+'_'+w['id']:
-                        # ~ found=True
-                        # ~ w['id']='_'+username+'_'+w['id']
-                        # ~ w['new']=False
-                        # ~ w['status']=d['status']                        
-                        # ~ break
-                # ~ else:
-                    if d['id']==w['id']:
+                if kind == 'domains' or kind == 'media':
+                    if d['id']=='_'+username+'_'+w['id']:
+                        dict=w.copy()
                         found=True
-                        w['new']=False
-                        w['status']=d['status']      
+                        dict['id']='_'+username+'_'+dict['id']
+                        dict['new']=False
+                        dict['status']=d['status']                        
+                        break
+                else:
+                    if d['id']==w['id']:
+                        dict=w.copy()
+                        found=True
+                        dict['new']=False
+                        dict['status']=d['status']      
                         break
                         
             if not found: 
-                w['id']=='_'+username+'_'+w['id']
-                w['new']=True
-                w['status']='Available'
-            result.append(w)
+                dict=w.copy()
+                if kind == 'domains' or kind == 'media':
+                    dict['id']='_'+username+'_'+dict['id']
+                dict['new']=True
+                dict['status']='Available'
+            result.append(dict)
             # ~ else:
                 # ~ result.append(
             
@@ -81,20 +87,24 @@ class Updates(object):
         #~ return [i for i in web for j in dbb if i['id']==j['id']]
 
     def getNewKindId(self,kind,username,id):
-        web=[d for d in self.web[kind] if d['id'] == id]
-        # If id is not in this kind, something went wrong. Don't continue!
-        if len(web)==0: return False
-        web=web[0]
-        # ~ if kind == 'domains' or kind == 'media':
-            # ~ dbb=r.table(kind).get('_'+username+'_'+web['id']).run(db.conn)
-        # ~ else:
-        dbb=r.table(kind).get(web['id']).run(db.conn)
-        # If this id is not in database already, download it!
-        if dbb is None:
-            return web
+        if kind == 'domains' or kind == 'media':
+            web=[d for d in self.web[kind] if '_'+username+'_'+d['id'] == id]
         else:
-            # The user has this domain already?
-            return False
+            web=[d for d in self.web[kind] if d['id'] == id]
+            
+        if len(web)==0: return False
+        w=web[0].copy()
+        
+        if kind == 'domains' or kind == 'media':
+            dbb=r.table(kind).get('_'+username+'_'+w['id']).run(db.conn)
+            if dbb is None:
+                w['id']='_'+username+'_'+w['id']
+                return w
+        else:
+            dbb=r.table(kind).get(w['id']).run(db.conn)
+            if dbb is None:
+                return w
+        return False
 
         
     def getKind(self,kind='builders'):
@@ -114,8 +124,9 @@ class Updates(object):
     RETURN FORMATTED DOMAINS TO INSERT ON TABLES
     '''             
     def formatDomains(self,data,current_user):
+		
         for d in data:
-            d['id']='_'+current_user.id+'_'+d['id']
+            # ~ d['id']='_'+current_user.id+'_'+d['id']
             d['progress']={}
             d['status']='DownloadStarting'
             d['detail']=''
@@ -128,7 +139,7 @@ class Updates(object):
     def formatMedias(self,data,current_user):
         for d in data:
             # ~ if 'path' in d.keys():
-                d['id']='_'+current_user.id+'_'+d['id']
+                # ~ d['id']='_'+current_user.id+'_'+d['id']
                 d.update(self.get_user_data(current_user))
                 d['progress']={}
                 d['status']='DownloadStarting'                    

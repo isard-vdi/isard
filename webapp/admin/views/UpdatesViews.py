@@ -52,30 +52,36 @@ def admin_updates_json(kind):
             print('exception on read updates: '+str(e))
             return json.dumps([])
 
-@app.route('/admin/updates/update/<kind>', methods=['POST'])
-@app.route('/admin/updates/update/<kind>/<id>', methods=['POST'])
+@app.route('/admin/updates/<action>/<kind>', methods=['POST'])
+@app.route('/admin/updates/<action>/<kind>/<id>', methods=['POST'])
 @login_required
 @isAdmin
-def admin_updates_update(kind,id=False):
+def admin_updates_actions(action,kind,id=False):
     if request.method == 'POST':
-        if id is not False:
-            # Only one id
-            d=u.getNewKindId(kind,current_user.id,id)
-            if d is not False:
-                if kind == 'domains':
-                    d=u.formatDomains([d],current_user)[0]
+        if action == 'download':
+            if id is not False:
+                # Only one id
+                d=u.getNewKindId(kind,current_user.id,id)
+                if d is not False:
+                    if kind == 'domains':
+                        d=u.formatDomains([d],current_user)[0]
+                    elif kind == 'media':
+                        d=u.formatMedias([d],current_user)[0]
+                    app.adminapi.insert_or_update_table_dict(kind,d)
+            else:
+                # No id, do it will all
+                data=u.getNewKind(kind,current_user.id)
+                data=[d for d in data if d['new'] is True]
+                if kind == 'domains': 
+                    data=u.formatDomains(data,current_user)
                 elif kind == 'media':
-                    d=u.formatMedias([d],current_user)[0]
-                app.adminapi.insert_or_update_table_dict(kind,d)
-        else:
-            # No id, do it will all
-            data=u.getNewKind(kind,current_user.id)
-            data=[d for d in data if d['new'] is True]
-            if kind == 'domains': 
-                data=u.formatDomains(data,current_user)
-            elif kind == 'media':
-                data=u.formatMedias(data,current_user)
-            app.adminapi.insert_or_update_table_dict(kind,data)
+                    data=u.formatMedias(data,current_user)
+                app.adminapi.insert_or_update_table_dict(kind,data)
+        if action == 'abort':
+            app.adminapi.update_table_dict(kind,id,{'status':'DownloadAborting'})
+        if action == 'delete':
+            app.adminapi.update_table_dict(kind,id,{'status':'Deleting'})
+            
     return json.dumps([])
 
 

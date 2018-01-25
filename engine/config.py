@@ -36,7 +36,7 @@ while not config_exists:
         RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
         config_exists=True
     except:
-        print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.', end="")
+        print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
         time.sleep(5)
 
 table_exists=False
@@ -46,7 +46,7 @@ while not table_exists:
             rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
         table_exists=True
     except:
-        print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.', end="")
+        print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
         time.sleep(5)
 #print(rconfig)
 

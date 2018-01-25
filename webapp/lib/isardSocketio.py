@@ -179,7 +179,7 @@ class MediaThread(threading.Thread):
 
     def run(self):
         with app.app_context():
-            for c in r.table('domains').get_all(r.args(['Downloading','Downloaded']),index='status').pluck('id','name','description','icon','progress').merge({'table':'domains'}).changes(include_initial=False).union(
+            for c in r.table('domains').get_all(r.args(['Downloading','Downloaded']),index='status').pluck('id','name','description','icon','progress','status').merge({'table':'domains'}).changes(include_initial=False).union(
                     r.table('media').get_all(r.args(['Downloading','Downloaded']),index='status').merge({'table':'media'}).changes(include_initial=False)).run(db.conn):
             
             # ~ for c in r.table('media').changes(include_initial=False).run(db.conn):
