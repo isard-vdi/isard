@@ -75,7 +75,7 @@ def admin_updates_update(kind,id=False):
                 data=u.formatDomains(data,current_user)
             elif kind == 'media':
                 data=u.formatMedias(data,current_user)
-        app.adminapi.insert_or_update_table_dict(kind,data)
+            app.adminapi.insert_or_update_table_dict(kind,data)
     return json.dumps([])
 
 

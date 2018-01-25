@@ -112,7 +112,7 @@ $(document).ready(function() {
             case 'btn-download':
                 api.ajax('/admin/updates/update/domains/'+datarow['id'],'POST',{}).done(function(data) {
                       console.log(datarow['id'])
-                      table[datarow['id']].ajax.reload();
+                      table['domains'].ajax.reload();
                       //~ if(id == 'virt_install'){virt_install_table.ajax.reload();}
                   }); 
                 break;

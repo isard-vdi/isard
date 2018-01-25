@@ -11,6 +11,8 @@ class Updates(object):
     def __init__(self):
         self.updateFromConfig()
         self.updateFromWeb()
+        import pprint
+        pprint.pprint([[(k,y['id']) for y in v] for k,v in self.web.items()])
         # This should be an option to the user
         #~ if not self.is_registered(): 
             #~ self.register()
@@ -53,13 +55,14 @@ class Updates(object):
         for w in web:
             found=False
             for d in dbb:
-                if kind == 'domains':
-                    if d['id']=='_'+username+'_'+w['id']:
-                        found=True
-                        w['new']=False
-                        w['status']=d['status']                        
-                        break
-                else:
+                # ~ if kind == 'domains' or kind == 'media':
+                    # ~ if d['id']=='_'+username+'_'+w['id']:
+                        # ~ found=True
+                        # ~ w['id']='_'+username+'_'+w['id']
+                        # ~ w['new']=False
+                        # ~ w['status']=d['status']                        
+                        # ~ break
+                # ~ else:
                     if d['id']==w['id']:
                         found=True
                         w['new']=False
@@ -67,6 +70,7 @@ class Updates(object):
                         break
                         
             if not found: 
+                w['id']=='_'+username+'_'+w['id']
                 w['new']=True
                 w['status']='Available'
             result.append(w)
@@ -81,10 +85,10 @@ class Updates(object):
         # If id is not in this kind, something went wrong. Don't continue!
         if len(web)==0: return False
         web=web[0]
-        if kind == 'domains':
-            dbb=r.table(kind).get('_'+username+'_'+web['id']).run(db.conn)
-        else:
-            dbb=r.table(kind).get(web['id']).run(db.conn)
+        # ~ if kind == 'domains' or kind == 'media':
+            # ~ dbb=r.table(kind).get('_'+username+'_'+web['id']).run(db.conn)
+        # ~ else:
+        dbb=r.table(kind).get(web['id']).run(db.conn)
         # If this id is not in database already, download it!
         if dbb is None:
             return web
@@ -111,7 +115,7 @@ class Updates(object):
     '''             
     def formatDomains(self,data,current_user):
         for d in data:
-            d['id']='_'+current_user.id+'_'+d['id']
+            # ~ d['id']='_'+current_user.id+'_'+d['id']
             d['progress']={}
             d['status']='DownloadStarting'
             d['detail']=''
