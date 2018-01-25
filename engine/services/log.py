@@ -1,6 +1,7 @@
 # Copyright 2017 the Isard-vdi project authors:
 #      Alberto Larraz Dalmases
 #      Josep Maria Viñolas Auquer
+#      Daniel Criado Casas
 # License: AGPLv3
 # coding=utf-8
 
@@ -60,6 +61,8 @@ class Logs (object):
                              'status',
                              'changes',
                              'downloads',
+                             'eval',
+                             'hmlog',
                              'main']
         for n in self.names_for_loggers:
             self.create_logger(n)
@@ -67,38 +70,10 @@ class Logs (object):
     def create_logger(self, name):
         logger_obj = log.getLogger(name)
         logger_handler = log.FileHandler(LOG_DIR + '/' + name + '.log')
-        logger_handler.setLevel(log.DEBUG)
+        logger_handler.setLevel(LOG_LEVEL_NUM)
         logger_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
         logger_handler.setFormatter(logger_formatter)
         logger_obj.addHandler(logger_handler)
         setattr(self, name, logger_obj)
 
-eval_log = log.getLogger('eval')
-eval_handler = log.FileHandler(LOG_DIR + '/' + 'eval.log')
-eval_handler.setLevel(log.DEBUG)
-eval_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
-eval_handler.setFormatter(eval_formatter)
-eval_log.addHandler(eval_handler)
-
 logs = Logs()
-
-# threads_log = log.getLogger('threads')
-# threads_handler = log.FileHandler(LOG_DIR + '/' + 'threads.log')
-# threads_handler.setLevel(log.DEBUG)
-# threads_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
-# threads_handler.setFormatter(threads_formatter)
-# threads_log.addHandler(threads_handler)
-#
-# workers_log = log.getLogger('workers')
-# workers_handler = log.FileHandler(LOG_DIR + '/' + 'workers.log')
-# workers_handler.setLevel(log.DEBUG)
-# workers_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
-# workers_handler.setFormatter(workers_formatter)
-# workers_log.addHandler(workers_handler)
-#
-# status_log = log.getLogger('status')
-# status_handler = log.FileHandler(LOG_DIR + '/' + 'status.log')
-# status_handler.setLevel(log.DEBUG)
-# status_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
-# status_handler.setFormatter(status_formatter)
-# status_log.addHandler(status_handler)

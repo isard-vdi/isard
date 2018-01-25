@@ -63,5 +63,6 @@ def get_all_domain_status(name, start=None, stop=None, history=False):
         results = rtable.filter(obj).filter(lambda s: s['when'] <= stop).order_by(r.desc('when')).run(r_conn)
     else:
         results = rtable.filter(obj).order_by(r.desc('when')).run(r_conn)
+    results = list(results)
     close_rethink_connection(r_conn)
-    return list(results)
+    return results
