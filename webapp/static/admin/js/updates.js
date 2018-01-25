@@ -47,14 +47,7 @@ $(document).ready(function() {
                 {"data": null,
                  'defaultContent': ''},
                 {"data": null,
-                 'defaultContent': ''},                 
-				//~ { "data": "description"},
-				//~ {
-                //~ "className":      'actions-control',
-                //~ "orderable":      false,
-                //~ "data":           null,
-                //~ "defaultContent": '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-				//~ },                
+                 'defaultContent': ''},                               
                 ],
 			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
 			 "columnDefs": [{
@@ -113,7 +106,6 @@ $(document).ready(function() {
                 api.ajax('/admin/updates/update/domains/'+datarow['id'],'POST',{}).done(function(data) {
                       console.log(datarow['id'])
                       table['domains'].ajax.reload();
-                      //~ if(id == 'virt_install'){virt_install_table.ajax.reload();}
                   }); 
                 break;
             };
@@ -139,19 +131,14 @@ $(document).ready(function() {
 				{"data": "name"},
                 {"data": null,
                  'defaultContent': ''},
-				//~ { "data": "description"},
-				{
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-				},                
+                {"data": null,
+                 'defaultContent': ''},                               
                 ],
 			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
 			 "columnDefs": [{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-                                if(!(full['new'])){
+                                if(full['new']){
                                     return '<span class="label label-success pull-right">New</span>';
                                 }
 							}},
@@ -171,6 +158,18 @@ $(document).ready(function() {
                                 if("progress" in full){
                                     return renderProgress(full);
                                 }
+							}},
+                            {
+							"targets": 4,
+							"render": function ( data, type, full, meta ) {
+                                //~ console.log(full.status+' '+full.id)
+                                if(full.status == 'Available'){
+                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+                                }
+                                return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    //~ return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                //~ }                                
 							}}],
                 "initComplete": function(settings, json){
                      socket.on('media_data', function(data){
@@ -188,11 +187,16 @@ $(document).ready(function() {
 
 
     $('#media_tbl').find(' tbody').on( 'click', 'button', function () {
-        var data = table['media'].row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
-        //~ switch($(this).attr('id')){
-            //~ case 'btn-play':        
-                //~ break;
+        var datarow = table['media'].row( $(this).parents('tr') ).data();
+        console.log($(this).attr('id'),datarow);
+        switch($(this).attr('id')){
+            case 'btn-download':
+                api.ajax('/admin/updates/update/media/'+datarow['id'],'POST',{}).done(function(data) {
+                      console.log(datarow['id'])
+                      table['media'].ajax.reload();
+                  }); 
+                break;
+            };
     });
     
     table['builders']=$('#builders_tbl').DataTable({
