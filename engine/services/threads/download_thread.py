@@ -29,7 +29,7 @@ class DownloadThread(threading.Thread, object):
         self.url = url
         self.dict_header = dict_header
         self.stop = False
-        d = get_hyp_hostname_user_port_from_id('isard-hypervisor')
+        d = get_hyp_hostname_user_port_from_id(hyp_hostname)
         self.hostname = d['hostname']
         self.user = d['user']
         self.port = d['port']
@@ -58,7 +58,7 @@ class DownloadThread(threading.Thread, object):
             headers += header_template.format(header_key=k, header_value=v)
 
         ssh_template = """ssh -oBatchMode=yes -p {port} {user}@{hostname} """ \
-                       """ "mkdir -p '{path_dir}'; curl -o '{path}' {headers} '{url}' " """
+                       """ "mkdir -p '{path_dir}'; curl -L -o '{path}' {headers} '{url}' " """
 
         print(ssh_template)
         ssh_command = ssh_template.format(port=self.port,
@@ -74,7 +74,6 @@ class DownloadThread(threading.Thread, object):
 
         p = subprocess.Popen(ssh_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         rc = p.poll()
-        l = []
         update_status_table(self.table,'Downloading',self.id,"downloading in hypervisor: {}".format(self.hostname))
         while rc != 0:
             header = p.stderr.readline().decode('utf8')
@@ -150,7 +149,7 @@ class DownloadChangesThread(threading.Thread):
         self.finalished_threads = []
 
 
-    def get_file_path(self,dict_changes):
+    def get_file_path(self, dict_changes):
         table = dict_changes['table']
         if table == 'domains':
             type_path_selected = 'groups'
@@ -174,12 +173,12 @@ class DownloadChangesThread(threading.Thread):
                                                         type_path=type_path_selected)
         return new_file_path, path_selected, type_path_selected, pool_id
 
-    def abort_download(self,dict_changes):
+    def abort_download(self, dict_changes):
         new_file_path, path_selected = self.get_file_path(dict_changes)
         if new_file_path not in self.download_threads:
             self.download_threads[new_file_path].stop = True
         else:
-            update_status_table(dict_changes['table'],FailedDownload)
+            update_status_table(dict_changes['table'],'FailedDownload')
 
     def start_download(self, dict_changes):
 
@@ -219,7 +218,7 @@ class DownloadChangesThread(threading.Thread):
 
         if new_file_path in self.finalished_threads:
             if new_file_path in self.download_threads.keys():
-                c.pop(new_file_path)
+                self.download_threads.pop(new_file_path)
             self.finalished_threads.remove(new_file_path)
 
         # launching download threads
@@ -234,21 +233,21 @@ class DownloadChangesThread(threading.Thread):
             self.download_threads[new_file_path].start()
 
         else:
-            logs.downloads.error('download thread launched to this path: {}'.format(new_file_path))
+            logs.downloads.info('download thread launched to this path: {}'.format(new_file_path))
 
 
     def run(self):
         logs.downloads.debug('RUN-DOWNLOAD-THREAD-------------------------------------')
         if self.stop is False:
             r_conn = new_rethink_connection()
-            for c in r.table('media').get_all(r.args(['DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
+            for c in r.table('media').get_all(r.args(['Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
                     pluck('id',
                           'path',
                           'url-isard',
                           'url-web',
                           'status').merge(
                 {'table': 'media'}).changes(include_initial=True).union(
-                r.table('domains').get_all(r.args(['DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
+                r.table('domains').get_all(r.args(['Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
                         pluck('id',
                               'create_dict',
                               'url-isard',
@@ -256,24 +255,32 @@ class DownloadChangesThread(threading.Thread):
                               'status').merge(
                     {"table": "domains"}).changes(include_initial=True)).run(r_conn):
 
-                logs.downloads.debug('INITIAL STATUS')
+                logs.downloads.debug('DOWNLOAD CHANGES DETECTED:')
                 logs.downloads.debug(pprint.pformat(c))
                 if self.stop:
                     break
 
 
-                if 'old_val' not in c or c['old_val'] is None:
-                    self.start_download(c['new_val'])
-                elif 'new_val' not in c:
-                    self.abort_download(c['old_val'])
+                if c.get('old_val',None) is None:
+                    if c['new_val']['status'] == 'DownloadStarting':
+                        self.start_download(c['new_val'])
+                elif c.get('new_val',None) is None:
+                    if c['old_val']['status'] in ['AbortingDownload']:
+                        self.abort_download(c['old_val'])
                 elif 'old_val' in c and 'new_val' in c:
-                    if c['old_val'] == 'FailedDownload' and c['new_val'] == 'DownloadStarting':
+                    if c['old_val']['status'] == 'FailedDownload' and c['new_val']['status'] == 'DownloadStarting':
                         self.start_download(c['new_val'])
 
-                    if c['old_val'] == 'Downloading' and c['new_val'] == 'FailedDownload':
+                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'FailedDownload':
                         pass
 
-                    if c['old_val'] == 'Downloading' and c['new_val'] == 'AbortingDownload':
+                    elif c['old_val']['status'] == 'DownloadStarting' and c['new_val']['status'] == 'Downloading':
+                        pass
+
+                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'Downloaded':
+                        pass
+
+                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'AbortingDownload':
                         self.abort_download(c['new_val'])
 
                     # # Initial status

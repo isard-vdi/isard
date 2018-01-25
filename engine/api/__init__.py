@@ -77,8 +77,10 @@ def engine_info():
                 d_engine['is_alive'] = True
                 d_engine['event_thread_is_alive'] = app.m.t_events.is_alive() if app.m.t_events is not None else False
                 d_engine['broom_thread_is_alive'] = app.m.t_broom.is_alive() if app.m.t_broom is not None else False
-                d_engine[
-                    'changes_hyps_thread_is_alive'] = app.m.t_changes_hyps.is_alive() if app.m.t_changes_hyps is not None else False
+                d_engine['download_changes_thread_is_alive'] = app.m.t_downloads_changes.is_alive() \
+                                                                    if app.m.t_downloads_changes is not None else False
+                d_engine['changes_hyps_thread_is_alive'] = app.m.t_changes_hyps.is_alive() \
+                                                                    if app.m.t_changes_hyps is not None else False
                 d_engine[
                     'changes_domains_thread_is_alive'] = app.m.t_changes_domains.is_alive() if app.m.t_changes_domains is not None else False
                 d_engine['working_threads'] = list(app.m.t_workers.keys())
