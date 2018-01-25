@@ -70,10 +70,13 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                //~ if("progress" in full){
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return 'Downloaded';
+                                }
+                                if(full.status == 'Available'){
+                                    return '';
+                                }
                                     return renderProgress(full);
-                                //~ }
-                                //~ return '';
 							}},
                             {
 							"targets": 4,
@@ -90,6 +93,7 @@ $(document).ready(function() {
                                 } 
                                 return full.status;                               
 							}}],
+
                 "initComplete": function(settings, json){
                      socket.on('domains_data', function(data){
                         var data = JSON.parse(data);
@@ -176,9 +180,10 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                if("progress" in full){
-                                    return renderProgress(full);
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return 'Downloaded';
                                 }
+                                    return renderProgress(full);
 							}},
                             {
 							"targets": 4,
