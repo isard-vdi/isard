@@ -11,11 +11,11 @@ a module to control hypervisor functions and state. Overrides libvirt events and
 
 import socket
 import time
+import threading
 from datetime import datetime
 from io import StringIO
 from collections import deque
 from statistics import mean
-from threading import Thread
 
 import libvirt
 import paramiko
@@ -24,7 +24,7 @@ import pandas as pd
 
 from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
-from engine.services.lib.functions import calcule_cpu_hyp_stats
+from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
 from engine.services.log import *
 from engine.config import *
 
@@ -132,10 +132,7 @@ class hyp(object):
         else:
             self.ssh_autologin_fail = True
             self.fail_connected_reason = 'socket error in ssh port, sshd disabled or firewall'
-            log.error(
-                'socket error, try if ssh is listen in hostname {} with ip address {} and port {}'.format(self.hostname,
-                                                                                                          self.ip,
-                                                                                                          self.port))
+            log.error('socket error, try if ssh is listen in hostname {} with ip address {} and port {}'.format(self.hostname,self.ip,self.port))
 
     def connect_to_hyp(self):
 
@@ -373,7 +370,7 @@ class hyp(object):
             try:
                 raw_stats['memory'] = self.conn.getMemoryStats(-1, 0)
             except:
-                log.error('getAllDomainStats fail in hypervisor {}'.format(self.hostname))
+                log.error('getMemoryStats fail in hypervisor {}'.format(self.hostname))
                 return False
 
             # get All Domain Stats
@@ -421,6 +418,9 @@ class hyp(object):
         if len(self.stats_raw_hyp) > 1:
             hyp_stats = {}
 
+            if self.stats_hyp['started'] == False:
+                self.stats_hyp['started'] = timestamp
+
             hyp_stats['num_domains'] = sum_domains
 
             cpu_percents = calcule_cpu_hyp_stats(self.stats_raw_hyp[-2]['cpu_stats'],self.stats_raw_hyp[-1]['cpu_stats'])[0]
@@ -428,7 +428,7 @@ class hyp(object):
             hyp_stats['cpu_load'] = round(cpu_percents['used'],2)
             hyp_stats['cpu_iowait'] = round(cpu_percents['iowait'],2)
             hyp_stats['vcpus'] = sum_vcpus
-            hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']), 2)
+            hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']) * 100, 2)
 
             hyp_stats['mem_load_rate']    = round(((raw_stats['memory']['total'] -
                                               raw_stats['memory']['free'] -
@@ -458,7 +458,8 @@ class hyp(object):
                       'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
                       'net_tx', 'net_rx', ]
 
-            self.stats_hyp = self.stats_hyp.append(pd.DataFrame(hyp_stats,
+            #time_delta = timestamp - self.stats_hyp['started']
+            self.stats_hyp['near_df'] = self.stats_hyp['near_df'].append(pd.DataFrame(hyp_stats,
                                                                 columns=fields,
                                                                 index=[timestamp]))
 
@@ -483,7 +484,21 @@ class hyp(object):
             # esto nos permite hacer análisis posterior
 
         for d in add_domains:
-            self.stats_domains[d] = pd.DataFrame()
+            self.stats_domains[d] = {
+                'started'              : datetime.utcfromtimestamp(raw_stats['time_utc']),
+                'near_df'              : pd.DataFrame(),
+                'medium_df'            : pd.DataFrame(),
+                'long_df'              : pd.DataFrame(),
+                'boot_df'              : pd.DataFrame(),
+                'last_timestamp_near'  : False,
+                'last_timestamp_medium': False,
+                'last_timestamp_long'  : False,
+                'means_near'           : False,
+                'means_medium'         : False,
+                'means_long'           : False,
+                'means_all'            : False,
+                'means_boot'           : False
+            }
             self.stats_raw_domains[d] = deque(maxlen=self.stats_queue_lenght_domains_raw_stats)
             self.stats_domains_now[d] = dict()
 
@@ -499,6 +514,7 @@ class hyp(object):
         sum_disk_rd_reqs = 0
 
         for d, raw in d_all_domain_stats.items():
+
             raw['stats']['now_utc_time'] = raw_stats['time_utc']
             raw['stats']['now_datetime'] = datetime.utcfromtimestamp(raw_stats['time_utc'])
 
@@ -523,6 +539,7 @@ class hyp(object):
 
                 sum_vcpus += current['vcpu.current']
 
+                d_stats['cpu_load'] = round(((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'])*100,3)
                 if current.get('cpu.time') and previous.get('cpu.time'):
                     d_stats['cpu_load'] = round((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'],3)
 
@@ -558,21 +575,17 @@ class hyp(object):
                 total_block_rd_reqs = 0
 
                 if 'block.count' in current.keys():
-                    values = [(".wr.bytes",total_block_wr) ,
-                              (".rd.bytes", total_block_rd),
-                              (".wr.reqs", total_block_wr_reqs),
-                              (".rd.reqs", total_block_rd_reqs)]
                     for n in range(current['block.count']):
-                        for value, var in values:
-                            current_value = current.get('block.'+str(n)+value)
-                            previous_value = previous.get('block.'+str(n)+value)
-                            if current_value and previous_value:
-                                var += current_value - previous_value
-                        # total_block_wr += current['block.'+str(n)+'.wr.bytes'] - previous['block.'+str(n)+'.wr.bytes']
-                        # total_block_rd += current['block.'+str(n)+'.rd.bytes'] - previous['block.'+str(n)+'.rd.bytes']
-                        # total_block_wr_reqs += current['block.'+str(n)+'.wr.reqs'] - previous['block.'+str(n)+'.wr.reqs']
-                        # total_block_rd_reqs += current['block.'+str(n)+'.rd.reqs'] - previous['block.'+str(n)+'.rd.reqs']
-
+                        try:
+                            total_block_wr += current['block.'+str(n)+'.wr.bytes'] - previous['block.'+str(n)+'.wr.bytes']
+                            total_block_rd += current['block.'+str(n)+'.rd.bytes'] - previous['block.'+str(n)+'.rd.bytes']
+                            total_block_wr_reqs += current['block.'+str(n)+'.wr.reqs'] - previous['block.'+str(n)+'.wr.reqs']
+                            total_block_rd_reqs += current['block.'+str(n)+'.rd.reqs'] - previous['block.'+str(n)+'.rd.reqs']
+                        except KeyError:
+                            total_block_wr = 0
+                            total_block_wr_reqs = 0
+                            total_block_rd = 0
+                            total_block_rd_reqs = 0
 
                 #KB/s
                 d_stats['disk_wr'] = round(total_block_wr / delta / 1024,3)
@@ -588,37 +601,106 @@ class hyp(object):
                 total_net_rx = 0
 
                 if 'net.count' in current.keys():
-                    values = [(".tx.bytes", total_net_tx),
-                              (".rx.bytes", total_net_rx)]
                     for n in range(current['net.count']):
-                        for value, var in values:
-                            current_value = current.get('net.' + str(n) + value)
-                            previous_value = previous.get('net.' + str(n) + value)
-                            if current_value and previous_value:
-                                var += current_value - previous_value
-                        # total_net_tx += current['net.' +str(n)+ '.tx.bytes'] - previous['net.' +str(n)+ '.tx.bytes']
-                        # total_net_rx += current['net.' +str(n)+ '.rx.bytes'] - previous['net.' +str(n)+ '.rx.bytes']
+                        try:
+                            total_net_tx += current['net.' +str(n)+ '.tx.bytes'] - previous['net.' +str(n)+ '.tx.bytes']
+                            total_net_rx += current['net.' +str(n)+ '.rx.bytes'] - previous['net.' +str(n)+ '.rx.bytes']
+                        except KeyError:
+                            total_net_tx = 0
+                            total_net_rx = 0
 
                 d_stats['net_tx'] = round(total_net_tx / delta / 1000, 3)
                 d_stats['net_rx'] = round(total_net_rx / delta / 1000, 3)
                 sum_net_tx += d_stats['net_tx']
                 sum_net_rx += d_stats['net_rx']
 
-
-                fields = "cpu_load / mem_load / mem_used / mem_balloon / mem_max / " + \
-                         "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
-                fields = [s.strip() for s in fields.split('/')]
-
                 self.stats_domains_now[d] = d_stats.copy()
-                self.stats_domains[d] = self.stats_domains[d].append(pd.DataFrame(d_stats,
-                                                                                  columns=fields,
-                                                                                  index=[timestamp]))
+                self.update_domain_means_and_data_frames(d, d_stats, timestamp)
+
 
         return sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, sum_disk_rd, \
                sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx
 
+    def update_domain_means_and_data_frames(self, d, d_stats, timestamp):
 
-    def create_stats_vars(self):
+        started = self.stats_domains[d]['started']
+        time_delta_now = timestamp - started
+
+        fields = "cpu_load / mem_load / mem_used / mem_balloon / mem_max / " + \
+                 "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
+        fields = [s.strip() for s in fields.split('/')]
+
+        self.stats_domains[d]['near_df'] = self.stats_domains[d]['near_df'].append(pd.DataFrame(d_stats,
+                                                                          columns=fields,
+                                                                          index=[time_delta_now]))
+        if self.stats_domains[d]['means_boot'] is False:
+            if time_delta_now.seconds > self.stats_booting_time:
+                self.stats_domains[d]['boot_df'] = self.stats_domains[d]['near_df'].copy()
+                self.stats_domains[d]['means_boot'] = self.stats_domains[d]['boot_df'].mean().to_dict()
+
+        # delete samples from near > stats_near_size_window
+        last_time_delta = self.stats_domains[d]['near_df'].tail(1).index[0]
+        index_near_to_delete = self.stats_domains[d]['near_df'][:last_time_delta - pd.offsets.Second(self.stats_near_size_window)].index
+        self.stats_domains[d]['near_df'].drop(index=index_near_to_delete, inplace=True)
+        self.stats_domains[d]['means_near'] = d_stats.copy()
+        self.stats_domains[d]['means_medium'] = self.stats_domains[d]['near_df'].mean().to_dict()
+
+        # insert new values in medium_df
+        if len(self.stats_domains[d]['medium_df']) == 0:
+            self.stats_domains[d]['means_long'] = self.stats_domains[d]['means_medium'].copy()
+            self.stats_domains[d]['means_total'] = self.stats_domains[d]['means_medium'].copy()
+            if int(time_delta_now.seconds / self.stats_medium_sample_period) >= 1:
+                self.stats_domains[d]['medium_df'] = self.stats_domains[d]['medium_df'].append(
+                    pd.DataFrame(self.stats_domains[d]['means_medium'],
+                                 columns=fields,
+                                 index=[
+                                     time_delta_now]))
+        else:
+            last_time_delta_medium = self.stats_domains[d]['medium_df'].tail(1).index[0]
+
+            if int(time_delta_now.seconds / self.stats_medium_sample_period) > int(
+                            last_time_delta_medium.seconds / self.stats_medium_sample_period):
+
+                self.stats_domains[d]['medium_df'] = self.stats_domains[d]['medium_df'].append(
+                    pd.DataFrame(self.stats_domains[d]['means_medium'],
+                                 columns=fields,
+                                 index=[
+                                     time_delta_now]))
+
+                index_medium_to_delete = self.stats_domains[d]['medium_df'][:last_time_delta_medium - pd.offsets.Second(self.stats_medium_size_window)].index
+                self.stats_domains[d]['medium_df'].drop(index=index_medium_to_delete, inplace=True)
+
+                self.stats_domains[d]['means_long'] = self.stats_domains[d]['medium_df'].mean().to_dict()
+
+                if len(self.stats_domains[d]['long_df']) == 0:
+                    self.stats_domains[d]['means_total'] = self.stats_domains[d]['means_long'].copy()
+
+                    if int(time_delta_now.seconds / self.stats_long_sample_period) >= 1:
+                        self.stats_domains[d]['long_df'] = self.stats_domains[d]['long_df'].append(
+                                pd.DataFrame(self.stats_domains[d]['means_long'],
+                                             columns=fields,
+                                             index=[
+                                                 time_delta_now]))
+                else:
+                    last_time_delta_long = self.stats_domains[d]['long_df'].tail(1).index[0]
+
+                    if int(time_delta_now.seconds / self.stats_long_sample_period) > int(
+                                    last_time_delta_long.seconds / self.stats_long_sample_period):
+                        self.stats_domains[d]['long_df'] = self.stats_domains[d]['long_df'].append(
+                                pd.DataFrame(self.stats_domains[d]['means_long'],
+                                             columns=fields,
+                                             index=[
+                                                 time_delta_now]))
+
+                        index_long_to_delete = self.stats_domains[d][
+                            'long_df'][: last_time_delta_long - pd.offsets.Second(
+                            self.stats_long_size_window)].index
+                        self.stats_domains[d]['long_df'].drop(index=index_long_to_delete, inplace=True)
+
+                        self.stats_domains[d]['means_total'] = self.stats_domains[d]['long_df'].mean().to_dict()
+
+
+    def create_stats_vars(self,testing=True):
 
         self.stats_queue_lenght_hyp_raw_stats = 3
         self.stats_queue_lenght_domains_raw_stats = 3
@@ -632,7 +714,20 @@ class hyp(object):
 
         self.stats_near_sample_period = self.stats_polling_interval
         self.stats_medium_sample_period = 60
-        self.stats_max_history = 600
+        self.stats_long_sample_period = 1800
+
+        if testing is True:
+            self.stats_polling_interval = 1
+
+            self.stats_booting_time = 20
+            self.stats_near_size_window = 30
+            self.stats_medium_size_window = 120
+            self.stats_long_size_window = 240
+
+            self.stats_near_sample_period = self.stats_polling_interval
+            self.stats_medium_sample_period = 10
+            self.stats_long_sample_period = 60
+
 
         self.stats_hyp_now = dict()
         self.stats_domains_now = dict()
@@ -640,11 +735,51 @@ class hyp(object):
         self.stats_raw_domains = dict()
 
         #Pandas dataframe
-        self.stats_hyp = pd.DataFrame()
+        self.stats_hyp = {
+            'started'     : False,
+            'near_df'     : pd.DataFrame(),
+            'medium_df'   : pd.DataFrame(),
+            'long_df'     : pd.DataFrame(),
+            'means_near'  : False,
+            'means_medium': False,
+            'means_long'  : False,
+        }
 
         #Dictionary of pandas dataframes
         self.stats_domains = dict()
 
+        #Thread to polling stats
+        self.polling_thread = False
+
+
+    def launch_thread_status_polling(self,polling_interval=0):
+        self.polling_thread = self.PollingStats(self, polling_interval)
+        self.polling_thread.daemon = True
+        self.polling_thread.start()
+
+    class PollingStats(threading.Thread):
+        def __init__(self, hyp_obj, polling_interval=0, stop=False):
+            threading.Thread.__init__(self)
+            self.name = 'PollingStats_{}'.format(hyp_obj.hostname)
+            self.hyp_obj = hyp_obj
+            if polling_interval == 0:
+                self.polling_interval = self.stats_polling_interval
+            else:
+                self.polling_interval = polling_interval
+            self.stop = stop
+            self.tid = False
+
+        def run(self):
+            self.tid = get_tid()
+            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+            while self.stop is not True:
+                self.hyp_obj.get_load()
+                interval = 0.0
+                while interval < self.polling_interval:
+                    time.sleep(0.1)
+                    interval += 0.1
+                    if self.stop is True:
+                        break
 
     def get_load(self):
 
@@ -659,107 +794,7 @@ class hyp(object):
         self.process_hypervisor_stats(raw_stats)
 
         return True
-            #
-            #
-            #
-            #h.get_domains()
-            # d=h.domains['_admin_win7-admin']
-            # d.setMemoryFlags(2684*1024,VIR_DOMAIN_AFFECT_LIVE)
-            # 1334/110:
-            # h=hyp('vdesktop4')
-            # h.get_domains()
-            # while True:
-            #     sleep(1)
-            #     d_balloon=[{k:v/1024 for k,v in d[1].items() if k[:5] == 'ballo' } for d in h.conn.getAllDomainStats() if d[0].name() == '_admin_win7-admin' ][0]
-            #     pprint(d_balloon)
-            #     print("in GB: {0:.2f}".format((d_balloon['balloon.available']-d_balloon['balloon.unused'])/1024))
-            #     print("in GB: {0:.2f}".format((d_balloon['balloon.current']-d_balloon['balloon.unused'])/1024))
-            #     print("in MB: {0:.2f}".format(d_balloon['balloon.available']-d_balloon['balloon.unused']-(d_balloon['balloon.available']-d_balloon['balloon.current'])))
 
-            #
-            #
-            #
-            #
-            # #todo VER QUE HACEMOS CON ESTO...
-            # self.load['cpu_load'] = cpu_load
-            # self.load['ram_cached'] = memory_stats['cached']
-            # self.load['ram_free'] = memory_stats['free']
-            #
-            # self.load['free_ram_total'] = memory_stats['cached'] + memory_stats['free']
-            # self.load['percent_free'] = round(float(self.load['free_ram_total'])*100/memory_stats['total'],2)
-            #
-            #
-            #
-            #
-            #
-            #
-            #
-            # now = time.time()
-            #
-            #
-            # #
-            # #     5:
-            # #     15:
-            # #
-            # #
-            # # HYPERVISORS
-            #
-            # if d_all_domain_stats:
-            #     self.load['total_vm'] = len(d_all_domain_stats)
-            #
-            #     vm_mem_max_total = 0
-            #     vm_mem_with_ballon_total = 0
-            #     vm_vcpus_total = 0
-            #
-            #     for domain_sysname,d_info in d_all_domain_stats.items():
-            #         try:
-            #             #todo VER QUE HACEMOS SI ESTÁ EN PAUSA, YA QUE TIENE RAM RESERVADA??
-            #             # libvirt.VIR_DOMAIN_PAUSED
-            #             raw_stats = d_info['stats']
-            #             domain_state = d_info['state']
-            #
-            #
-            #             self.domains_stats[domain_sysname]=dict()
-            #             self.domains_stats[domain_sysname]['raw_stats'] = raw_stats
-            #             self.domains_stats[domain_sysname]['hyp'] = self.hostname
-            #
-            #             state,reason = state_and_cause_to_str(domain_state[0],domain_state[1])
-            #             self.domains_stats[domain_sysname]['state'] = state
-            #             self.domains_stats[domain_sysname]['state_reason'] = reason
-            #             try:
-            #                 self.domains_stats[domain_sysname]['procesed_stats'] = new_dict_from_raw_dict_stats(raw_stats)
-            #             except Exception as e:
-            #                 log.warning('Procesing stats for domain {} with state {}({}) failed'.format(domain_sysname,state,reason))
-            #
-            #             #stats_json = json.dumps(r[1])
-            #             if 'cpu.time' in raw_stats.keys():
-            #                 time_cpu = r[1]['cpu.time']
-            #             else:
-            #                 time_cpu = 0
-            #
-            #             #self.domain_stats[domain_sysname]['cputime'] = time_cpu
-            #
-            #             if state == 'running':
-            #                 # vm_mem_max_total += r[1]['balloon.maximum']
-            #                 # if 'balloon.current' in r[1].keys():
-            #                 #     vm_mem_with_ballon_total += r[1]['balloon.current']
-            #                 vm_vcpus_total += r[1]['vcpu.current']
-            #
-            #         except libvirt.libvirtError as e:
-            #
-            #             log.error('libvirt Error getting domains in hyp class. Other thread stop domain?? {}'.format(e))
-            #         except Exception as e:
-            #             log.error(e)
-            #
-            #     self.load['vm_mem_max_total'] = int(vm_mem_max_total / 1024)
-            #     self.load['vm_mem_with_ballon_total'] = int(vm_mem_with_ballon_total / 1024)
-            #     self.load['vm_vcpus_total'] = vm_vcpus_total
-            #
-            #
-            #
-            # else:
-            #     #log.debug('hyp {} have no vms or stats has failed'.format(self.hostname))
-            #     pass
 
     def get_eval_statistics(self):
         cpu_percent_free = 100 - self.stats_hyp_now.get('cpu_load', 0)
