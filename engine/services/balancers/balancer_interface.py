@@ -4,5 +4,5 @@
 #      Daniel Criado Casas
 # License: AGPLv3
 
-class EvaluatorInterface(object):
-    def run(self): raise NotImplementedError
+class BalancerInterface(object):
+    def get_next(self, args): raise NotImplementedError

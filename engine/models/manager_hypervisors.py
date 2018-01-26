@@ -127,7 +127,7 @@ class ManagerHypervisors(object):
                 set_domains_coherence(dict_hyps_ready)
 
                 self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
-
+                pools = set()
                 for hyp_id, hostname in dict_hyps_ready.items():
                     update_hyp_status(hyp_id, 'StartingThreads')
                     # start worker thread
@@ -140,10 +140,11 @@ class ManagerHypervisors(object):
                     # INFO TO DEVELOPER FALTA VERIFICAR QUE REALMENTE ESTÁN ARRANCADOS LOS THREADS??
                     # comprobar alguna variable a true en alguno de los threads
                     update_hyp_status(hyp_id, 'Online')
-                    pools = get_pools_from_hyp(hyp_id)
-                    for id_pool in pools:
-                        if id_pool not in self.manager.pools.keys():
-                            self.manager.pools[id_pool] = PoolHypervisors(id_pool)
+                    pools.update(get_pools_from_hyp(hyp_id))
+
+                for id_pool in pools:
+                    if id_pool not in self.manager.pools.keys():
+                        self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager, len(dict_hyps_ready))
 
         def run(self):
             self.tid = get_tid()

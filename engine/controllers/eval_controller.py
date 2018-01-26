@@ -1,9 +1,17 @@
+# Copyright 2018 the Isard-vdi project authors:
+#      Alberto Larraz Dalmases
+#      Josep Maria Viñolas Auquer
+#      Daniel Criado Casas
+# License: AGPLv3
+
 # from engine import app
 from math import ceil, floor
 from random import shuffle
 from time import sleep
+from traceback import format_exc, print_exc
 
-from engine.models.hyp import hyp
+from flask import current_app
+
 from engine.services.db import get_user, update_domain_status, get_domains, get_domain, insert_domain, \
     get_domains_id, get_domains_count, get_hypers_info
 from engine.services.log import *
@@ -73,24 +81,30 @@ DICT_CREATE = {'allowed': {'categories': False,
 # evaluators=["load","ux"]
 class EvalController(object):
     def __init__(self, id_pool="default",
-                 templates=[{'id': "_admin_ubuntu_17_eval", 'weight': 100}],
+                 templates=[{'id': "_admin_ubuntu_17_eval_wget", 'weight': 100}],
+                 # templates=[{'id': "_admin_ubuntu_17_eval", 'weight': 100}],
                  # templates=[{'id': "centos_7", 'weight': 100}],
                  # templates=[{'id': "_windows_7_x64_v3", 'weight': 100}],
                  # templates=[{'id': "centos_7", 'weight': 50}, {'id': "_windows_7_x64_v3", 'weight': 50}],
-                 evaluators=["ux"]
+                 evaluators=["ux"],
+                 max_domains=None,
+                 # max_domains=14,
                  # evaluators=["load","ux"]
                  ):
         self.user = get_user('eval')
         self.templates = templates  # Define on database for each pool?
         self.id_pool = id_pool
+        self.max_domains = max_domains
         self.params = {'MAX_DOMAINS': 50,
+                       'POOLING_INTERVAL': 1,
                        'CREATE_SLEEP_TIME': 1,
-                       'STOP_SLEEP_TIME': 1,
+                       'STOP_SLEEP_TIME': 2,
                        'START_SLEEP_TIME': 3,
                        'TEMPLATE_MEMORY': 1000}  # in MB, info duplicated on DICT_CREATE but in bytes
         self._init_domains()
         self._init_hyps()
         self._init_evaluators(evaluators)
+        self.hyp_polling_interval = {}
 
     def _init_evaluators(self, evaluators):
         self.evaluators = []
@@ -106,27 +120,31 @@ class EvalController(object):
     def _init_hyps(self):
         self.hyps = []
         hyps = get_hypers_info(self.id_pool, pluck=['id', 'hostname', 'info'])
+        manager = current_app.m
         for h in hyps:
             # TODO: calcule percent as hyp method
             percent = round(self.params.get('TEMPLATE_MEMORY', 2000) * 100 / h['info']['memory_in_MB'], 2)
-            hyp_obj = hyp(h['hostname'])
+            hyp_obj = manager.t_status[h['id']].status_obj.hyp_obj
             hyp_obj.id = h['id']
             hyp_obj.percent_ram_template = percent
             hyp_obj.cpu_power = round(h['info']['cpu_cores'] * h['info']['cpu_mhz'] / 1e3, 1)
             self.hyps.append(hyp_obj)
 
     def _init_domains(self):
-        self.num_domains = self._calcule_num_domains()
+        self.num_domains = self.max_domains if self.max_domains else self._calcule_num_domains()
+        eval_log.debug("Num of max domains for eval: {}".format(self.num_domains))
         self.defined_domains = self._define_domains()
 
     def _calcule_num_domains(self):
         hyps = get_hypers_info(self.id_pool, pluck=['id', 'info'])
-        m = min(hyps, key=lambda x: x['info']['memory_in_MB'])
-        min_mem = m['info']['memory_in_MB']
-        # TODO: adjust num_domains value.
-        num_domains = floor(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps)+1)
-        n = min(self.params.get('MAX_DOMAINS'), num_domains)
-        eval_log.debug("Num of max domains for eval: {}".format(n))
+        n = sum(floor(x['info']['memory_in_MB'] / self.params.get('TEMPLATE_MEMORY', 2000)) for x in hyps)
+        # m = min(hyps, key=lambda x: x['info']['memory_in_MB'])
+        # min_mem = m['info']['memory_in_MB']
+        # # TODO: adjust num_domains value.
+        # num_domains = ceil(min_mem / self.params.get('TEMPLATE_MEMORY', 2000)) * (len(hyps)+2)
+        # n = min(self.params.get('MAX_DOMAINS'), num_domains)
+        # n = 20
+        # eval_log.debug("Num of max domains for eval: {}".format(n))
         return n
 
     def _define_domains(self):
@@ -185,15 +203,17 @@ class EvalController(object):
         :return:
         """
         domains = get_domains(user_id, status="Started")
-        eval_log.info("Stoping {} domains".format(len(domains)))
-        for d in domains:
-            update_domain_status('Stopping', d['id'], hyp_id=d['hyp_started'])
-            sleep(stop_sleep_time)
+        while(len(domains) > 0):
+            eval_log.info("Stoping {} domains".format(len(domains)))
+            for d in domains:
+                update_domain_status('Stopping', d['id'], hyp_id=d['hyp_started'])
+                sleep(stop_sleep_time)
+            domains = get_domains(user_id, status="Started")
         return {"total_stopped_domains": len(domains),
                 "data": None}
 
     @classmethod
-    def get_domains_id_randomized(self, user_id, id_pool, dd, templates):
+    def get_domains_id_randomized(cls, user_id, id_pool, dd, templates):
         domains_id_list = []
         for t in templates:
             n_dd = dd[t['id']]  # defined domains number
@@ -233,12 +253,31 @@ class EvalController(object):
                                                 self.params["STOP_SLEEP_TIME"])  # Stop domains if necessari
         sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
         # Run evaluators
-        for e in self.evaluators:
-            d = e.run()
-            data[e.name] = d
-            data_stop = EvalController.stop_domains(self.user['id'], self.params["STOP_SLEEP_TIME"])
-            sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
+        try:
+            self._set_polling_interval()
+            for e in self.evaluators:
+                d = e.run()
+                data[e.name] = d
+                sleep(10)
+                data_stop = EvalController.stop_domains(self.user['id'], self.params["STOP_SLEEP_TIME"])
+                sleep(data_stop.get("total_stopped_domains"))  # Wait 1 sec more for each stopped domain.
+        except:
+            eval_log.debug("Exception on RUN evaluator: {}".format(format_exc()))
+            self._restablish_pooling_interval()
+
         return data
+
+    def _set_polling_interval(self):
+        ts = current_app.m.t_status
+        for hyp_id, thread in ts.items():
+            self.hyp_polling_interval[hyp_id] = thread.status_obj.polling_interval
+            thread.status_obj.polling_interval = self.params['POOLING_INTERVAL']
+        sleep(10)  # Relaxing time
+
+    def _restablish_pooling_interval(self):
+        ts = current_app.m.t_status
+        for hyp_id, pi in self.hyp_polling_interval.items():
+            ts[hyp_id].status_obj.polling_interval = pi
 
     def _create_eval_domain(self, id_t, i):
         d = DICT_CREATE.copy()
@@ -248,8 +287,7 @@ class EvalController(object):
         d['create_dict']['hardware']['disks'][0]['file'] = disk_path
         d['create_dict']['hardware']['disks'][0]['parent'] = t['disks_info'][0]['filename']
         d['create_dict']['hardware']['memory'] = t['create_dict']['hardware']['memory']
-        # d['create_dict']['hardware']['memory'] = 2000000
-        # d['create_dict']['hardware']['currentMemory'] = 2000000
+        d['create_dict']['hardware']['currentMemory'] = t['create_dict']['hardware']['memory']  # / 0,7?  =>  +30 %
         d['create_dict']['origin'] = t['id']
         d['id'] = id_domain
         d['name'] = id_domain[1:]  # remove first char

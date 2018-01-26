@@ -153,15 +153,20 @@ def test_hypervisor_conn(uri):
         return False
 
 
-def calcule_cpu_stats(start, end, round_digits=3):
+def calcule_cpu_hyp_stats(start, end, round_digits=3):
     diff_time = {}
     percent = {}
     total_diff_time = sum(end.values()) - sum(start.values())
+
+    #sum of all times in all cpus, for example for 12 cpus and 5 seconds between samples
+    #total_diff_time_in_seconds must be 60
+    total_diff_time_in_seconds = total_diff_time / 1000000000
     for k in start.keys():
         diff_time[k] = end[k] - start[k]
         percent[k] = round((diff_time[k] / float(total_diff_time)) * 100.0, round_digits)
     percent['used'] = percent['iowait'] + percent['kernel'] + percent['user']
     return percent, diff_time, total_diff_time
+
 
 
 DEFAULT_SIZE_TO_DISK = '10G'
@@ -442,18 +447,18 @@ def new_dict_from_raw_dict_stats(raw_values, round_digits=6):
     r_reqs = 0
     w_reqs = 0
 
-    for i in range(raw_values['block.count']):
-        r_bytes += raw_values['block.' + str(i) + '.rd.bytes']
+    for i in range(raw_values.get('block.count', 0)):
+        r_bytes += raw_values.get('block.' + str(i) + '.rd.bytes', 0)
 
         if 'block.' + str(i) + '.wr.bytes' in raw_values.keys():
-            w_bytes += raw_values['block.' + str(i) + '.wr.bytes']
+            w_bytes += raw_values.get('block.' + str(i) + '.wr.bytes', 0)
         else:
             w_bytes += 0
 
-        r_reqs += raw_values['block.' + str(i) + '.rd.reqs']
+        r_reqs += raw_values.get('block.' + str(i) + '.rd.reqs', 0)
 
         if 'block.' + str(i) + '.wr.reqs' in raw_values.keys():
-            w_reqs += raw_values['block.' + str(i) + '.wr.reqs']
+            w_reqs += raw_values.get('block.' + str(i) + '.wr.reqs', 0)
         else:
             w_reqs += 0
 
@@ -472,15 +477,15 @@ def new_dict_from_raw_dict_stats(raw_values, round_digits=6):
     r_errs = 0
     w_errs = 0
 
-    for i in range(raw_values['net.count']):
-        r_bytes += raw_values['net.' + str(i) + '.rx.bytes']
-        w_bytes += raw_values['net.' + str(i) + '.tx.bytes']
-        r_drop += raw_values['net.' + str(i) + '.rx.drop']
-        w_drop += raw_values['net.' + str(i) + '.tx.drop']
-        r_pkts += raw_values['net.' + str(i) + '.rx.pkts']
-        w_pkts += raw_values['net.' + str(i) + '.tx.pkts']
-        r_errs += raw_values['net.' + str(i) + '.rx.errs']
-        w_errs += raw_values['net.' + str(i) + '.tx.errs']
+    for i in range(raw_values.get('net.count', 0)):
+        r_bytes += raw_values.get('net.' + str(i) + '.rx.bytes', 0)
+        w_bytes += raw_values.get('net.' + str(i) + '.tx.bytes', 0)
+        r_drop += raw_values.get('net.' + str(i) + '.rx.drop', 0)
+        w_drop += raw_values.get('net.' + str(i) + '.tx.drop', 0)
+        r_pkts += raw_values.get('net.' + str(i) + '.rx.pkts', 0)
+        w_pkts += raw_values.get('net.' + str(i) + '.tx.pkts', 0)
+        r_errs += raw_values.get('net.' + str(i) + '.rx.errs', 0)
+        w_errs += raw_values.get('net.' + str(i) + '.tx.errs', 0)
 
     d['net_r_bytes'] = round(r_bytes, 2)
     d['net_w_bytes'] = round(w_bytes, 2)
@@ -966,7 +971,6 @@ def check_all_backing_chains(hostname, path_to_write_json=None):
     for domain_id, path_domain_disk in tuples_domain_disk:
         cmds1.append({'title': domain_id, 'cmd': backing_chain_cmd(path_domain_disk)})
         cmds1.append({'title': domain_id, 'cmd': 'stat -c %Y "{}"'.format(path_domain_disk)})
-
 
     pprint(cmds1)
     array_out_err = execute_commands(hostname, cmds1, dict_mode=True)

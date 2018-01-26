@@ -9,6 +9,7 @@
 import threading
 import traceback
 from time import time, sleep
+from collections import deque
 
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
 from engine.models.hyp import hyp
@@ -16,138 +17,170 @@ from engine.services.db import update_domain_hyp_started, get_domains_with_trans
     update_domain_status, get_hyp_hostname_from_id
 from engine.services.db.domains_status import get_last_domain_status, insert_db_domain_status
 from engine.services.db.hypervisors_status import get_last_hyp_status, insert_db_hyp_status
-from engine.services.lib.functions import calcule_cpu_stats, calcule_disk_net_domain_load, get_tid
+from engine.services.lib.functions import calcule_cpu_hyp_stats, calcule_disk_net_domain_load, get_tid
 from engine.services.lib.functions import state_and_cause_to_str, dict_domain_libvirt_state_to_isard_state
 from engine.services.log import *
 
 max_len_fifo_domains = int(CONFIG_DICT['STATS']['max_queue_domains_status'])
 max_len_fifo_hyps = int(CONFIG_DICT['STATS']['max_queue_hyps_status'])
 
+max_len_queue_previous_hyp_stats = 10
+max_len_queue_previous_domain_stats = 10
 
-class UpdateStatus():
-    def __init__(self, id, hostname, port=22, user='root'):
-        self.id = id
+
+class UpdateStatus:
+    def __init__(self, id_hyp, hostname, polling_interval, rate_allowed_diff_between_samples=2.5, port=22, user='root'):
+        self.hyp_id = id_hyp
+        self.polling_interval = polling_interval
+        self.rate_allowed_diff_between_samples = rate_allowed_diff_between_samples
         self.hostname = hostname
         self.user = user
         self.port = port
         self.hyp_obj = hyp(hostname, user=self.user, port=self.port)
+        self.fifo_recent_hyp_stats = deque([], maxlen=max_len_queue_previous_hyp_stats)
+        self.recent_domains_stats = {}
 
-    def update_status_hyps_rethink(self):
-        dict_hyp_status = dict()
-        before_connect = time()
+        hyp_stats = {
 
+        }
+
+    def try_connect_hyp(self):
         if type(self.hyp_obj) is hyp:
             try:
                 self.hyp_obj.conn.getLibVersion()
                 self.hyp_obj.connected = True
 
             except:
-                log.info(
-                    'getLibVersion failed in connection testing, reconnecting to hypervisor {} from status thread'.format(
-                        self.hostname))
-                self.hyp_obj = hyp(self.hostname, user=self.user, port=self.port)
-                dict_hyp_status['try_open_connection_to_hyp'] = True
+                log.info('getLibVersion failed in connection testing, reconnecting to hypervisor {} from status thread'
+                         .format(self.hostname))
                 try:
+                    self.hyp_obj = hyp(self.hostname, user=self.user, port=self.port)
+
                     self.hyp_obj.conn.getLibVersion()
                     self.hyp_obj.connected = True
+                    return True
                 except:
                     log.info('reconnection to hypervisor {} in status thread fail'.format(self.hostname))
                     self.hyp_obj.connected = False
+                    return False
         else:
-            log.info('unknown type, not hyp, reconnecting to hypervisor {] from status thread'.format(self.hostname))
-            self.hyp_obj = h = self.hyp_obj = hyp(self.hostname, user=self.user, port=self.port)
-            dict_hyp_status['try_open_connection_to_hyp'] = True
+            log.info('unknown type, not hyp, reconnecting to hypervisor {} from status thread'.format(self.hostname))
+            try:
+                self.hyp_obj = hyp(self.hostname, user=self.user, port=self.port)
+                self.hyp_obj.conn.getLibVersion()
+                self.hyp_obj.connected = True
+                return True
+            except:
+                log.info('reconnection to hypervisor {} in status thread fail'.format(self.hostname))
+                self.hyp_obj.connected = False
+                return False
 
-        dict_hyp_status['hyp_id'] = self.id
-        dict_hyp_status['hostname'] = self.hostname
+    def update_status_hyps_rethink(self):
+        dict_hyp_status = dict()
+        selected_hyp_values = dict()
+        before_connect = time()
+
+        if self.try_connect_hyp() is False:
+            log.error('#########################################################')
+            log.error('hypervisor {} connect fail in status thread'.format(self.hostname))
+            dict_hyp_status['connected'] = False
+            dict_hyp_status['when'] = before_connect
+            return False
+        else:
+            dict_hyp_status['connected'] = True
+
+            h = self.hyp_obj
+
+            dict_hyp_status['hyp_id'] = self.hyp_id
+            dict_hyp_status['hostname'] = self.hostname
 
         if self.hyp_obj.connected:
             before = time()
             self.hyp_obj.get_load()
-            self.hyp_obj.get_domains()
-            now = time()
-            dict_hyp_status['connected'] = True
-            dict_hyp_status['when'] = now
-            dict_hyp_status['delay_query_load'] = now - before
-            dict_hyp_status['delay_from_connect'] = now - before_connect
-            dict_hyp_status['load'] = self.hyp_obj.load
-            dict_hyp_status['domains'] = [d for d in self.hyp_obj.domains.keys() if d.startswith('_')]
-
-            # hyps status
-
-            dict_last_hyp_status = get_last_hyp_status(self.id)
-
-            if dict_last_hyp_status is not None:
-                try:
-                    dict_hyp_status['cpu_percent'] = calcule_cpu_stats(dict_last_hyp_status['load']['cpu_load'],
-                                                                       dict_hyp_status['load']['cpu_load'])[0]
-                except:
-                    log.error('error calculating cpu_percent in hyp_id {} '.format(self.id))
-            else:
-                dict_hyp_status['cpu_percent'] = False
-
-            # domain_status
-            for name, status in self.hyp_obj.domain_stats.items():
-                dict_domain = dict()
-                dict_domain['when'] = now
-                dict_domain['name'] = name
-                dict_domain['status'] = status
-
-                dict_domain_last = get_last_domain_status(name)
-
-                if dict_domain_last is not None:
-                    time_elapsed = dict_domain['when'] - dict_domain_last['when']
-
-                    if 'procesed_stats' in dict_domain['status'].keys():
-                        dict_domain['status']['cpu_usage'] = \
-                            (dict_domain['status']['procesed_stats']['cpu_time'] - \
-                             dict_domain_last['status']['procesed_stats']['cpu_time']) \
-                            / time_elapsed
-
-                        dict_domain['status']['disk_rw'], dict_domain['status']['net_rw'] = \
-                            calcule_disk_net_domain_load(time_elapsed,
-                                                         dict_domain['status']['procesed_stats'],
-                                                         dict_domain_last['status']['procesed_stats'])
-
-                # def threading_enumerate():
-                #     # time.sleep(0.5)
-                #     e = threading.enumerate()
-                #     l = [t._Thread__name for t in e]
-                #     l.sort()
-                #     for i in l:
-                #         log.debug('Thread running: {}'.format(i))
-                #     return e
-                # #OJO INFO TO DEVELOPER
-                # log.debug('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-                # threading_enumerate()
-                insert_db_domain_status(dict_domain)
-
-                # INFO TO DEVELOPER, REVISAR SI EL ESTADO NO ES STARTED
-                # y tampoco tengo clalro que es lo que pasa
-                # falta mirar que pasa si ese dominio no está en la base de datos,
-                # también falta terminar de pensar que pasa si aparece como stoppped...
-                # if exist_domain(name):
-                #     in_db_domain = get_domain_hyp_started_and_status_and_detail(name)
-                #     if 'hyp_started' not in in_db_domain.keys():
-                #         if dict_domain['status']['state'] ==  'running':
-                #             update_domain_hyp_started(domain_id=name,
-                #                                       hyp_id=dict_domain['status']['hyp'],
-                #                                       detail=dict_domain['status']['state_reason'])
-                #
-                #     elif dict_domain['status']['hyp'] != in_db_domain['hyp_started']:
-                #         ## OJO INFO TO DEVELOPER, NO MODIFICAMOS ESTADO
-                #         if dict_domain['status']['state'] ==  'running':
-                #             update_domain_hyp_started(domain_id=name,
-                #                                       hyp_id=dict_domain['status']['hyp'],
-                #                                       detail=dict_domain['status']['state_reason'])
-                # self.hyp_obj.disconnect()
-        else:
-            log.error('#########################################################')
-            log.error('hypervisor {} connect fail in status thread'.format(self.hostname))
-            dict_hyp_status['connected'] = False
-            dict_hyp_status['when'] = now
-
-        insert_db_hyp_status(dict_hyp_status)
+            # self.hyp_obj.get_domains()
+        #     now = time()
+        #     dict_hyp_status['connected'] = True
+        #     dict_hyp_status['when'] = now
+        #     dict_hyp_status['delay_query_load'] = now - before
+        #     dict_hyp_status['delay_from_connect'] = now - before_connect
+        #     dict_hyp_status['load'] = self.hyp_obj.load
+        #     dict_hyp_status['domains'] = [d for d in self.hyp_obj.domains.keys() if d.startswith('_')]
+        #
+        #     # hyps status
+        #
+        #     dict_last_hyp_status = get_last_hyp_status(self.id)
+        #
+        #     if dict_last_hyp_status is not None:
+        #         try:
+        #             dict_hyp_status['cpu_percent'] = calcule_cpu_stats(dict_last_hyp_status['load']['cpu_load'],
+        #                                                                dict_hyp_status['load']['cpu_load'])[0]
+        #         except:
+        #             log.error('error calculating cpu_percent in hyp_id {} '.format(self.id))
+        #     else:
+        #         dict_hyp_status['cpu_percent'] = False
+        #
+        #     # domain_status
+        #     for name, status in self.hyp_obj.domain_stats.items():
+        #         dict_domain = dict()
+        #         dict_domain['when'] = now
+        #         dict_domain['name'] = name
+        #         dict_domain['status'] = status
+        #
+        #         dict_domain_last = get_last_domain_status(name)
+        #
+        #         if dict_domain_last is not None:
+        #             time_elapsed = dict_domain['when'] - dict_domain_last['when']
+        #
+        #             if 'procesed_stats' in dict_domain['status'].keys():
+        #                 dict_domain['status']['cpu_usage'] = \
+        #                     (dict_domain['status']['procesed_stats']['cpu_time'] - \
+        #                      dict_domain_last['status']['procesed_stats']['cpu_time']) \
+        #                     / time_elapsed
+        #
+        #                 dict_domain['status']['disk_rw'], dict_domain['status']['net_rw'] = \
+        #                     calcule_disk_net_domain_load(time_elapsed,
+        #                                                  dict_domain['status']['procesed_stats'],
+        #                                                  dict_domain_last['status']['procesed_stats'])
+        #
+        #         # def threading_enumerate():
+        #         #     # time.sleep(0.5)
+        #         #     e = threading.enumerate()
+        #         #     l = [t._Thread__name for t in e]
+        #         #     l.sort()
+        #         #     for i in l:
+        #         #         log.debug('Thread running: {}'.format(i))
+        #         #     return e
+        #         # #OJO INFO TO DEVELOPER
+        #         # log.debug('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+        #         # threading_enumerate()
+        #         insert_db_domain_status(dict_domain)
+        #
+        #         # INFO TO DEVELOPER, REVISAR SI EL ESTADO NO ES STARTED
+        #         # y tampoco tengo clalro que es lo que pasa
+        #         # falta mirar que pasa si ese dominio no está en la base de datos,
+        #         # también falta terminar de pensar que pasa si aparece como stoppped...
+        #         # if exist_domain(name):
+        #         #     in_db_domain = get_domain_hyp_started_and_status_and_detail(name)
+        #         #     if 'hyp_started' not in in_db_domain.keys():
+        #         #         if dict_domain['status']['state'] ==  'running':
+        #         #             update_domain_hyp_started(domain_id=name,
+        #         #                                       hyp_id=dict_domain['status']['hyp'],
+        #         #                                       detail=dict_domain['status']['state_reason'])
+        #         #
+        #         #     elif dict_domain['status']['hyp'] != in_db_domain['hyp_started']:
+        #         #         ## OJO INFO TO DEVELOPER, NO MODIFICAMOS ESTADO
+        #         #         if dict_domain['status']['state'] ==  'running':
+        #         #             update_domain_hyp_started(domain_id=name,
+        #         #                                       hyp_id=dict_domain['status']['hyp'],
+        #         #                                       detail=dict_domain['status']['state_reason'])
+        #         # self.hyp_obj.disconnect()
+        # else:
+        #     log.error('#########################################################')
+        #     log.error('hypervisor {} connect fail in status thread'.format(self.hostname))
+        #     dict_hyp_status['connected'] = False
+        #     dict_hyp_status['when'] = now
+        #
+        # insert_db_hyp_status(dict_hyp_status)
 
 
 
@@ -236,7 +269,8 @@ class ThreadBroom(threading.Thread):
                     if hyps_domain_started[hyp_started] is not False:
                         if status == 'Starting':
                             log.debug(
-                                'DOMAIN: {} STATUS STARTING TO RUN IN HYPERVISOR: {}'.format(domain_id, hyp_started))
+                                    'DOMAIN: {} STATUS STARTING TO RUN IN HYPERVISOR: {}'.format(domain_id,
+                                                                                                 hyp_started))
                             # try:
                             #     if domain_id in hyps_domain_started[hyp_started]['active_domains']:
                             #         print(domain_id)
@@ -248,8 +282,9 @@ class ThreadBroom(threading.Thread):
                                 state_str, cuase = state_and_cause_to_str(state_libvirt[0], state_libvirt[1])
                                 status = dict_domain_libvirt_state_to_isard_state(state_str)
                                 log.debug(
-                                    'DOMAIN: {} ACTIVE IN HYPERVISOR: {} WITH STATUS: {}'.format(domain_id, hyp_started,
-                                                                                                 status))
+                                        'DOMAIN: {} ACTIVE IN HYPERVISOR: {} WITH STATUS: {}'.format(domain_id,
+                                                                                                     hyp_started,
+                                                                                                     status))
                                 update_domain_hyp_started(domain_id, hyp_started)
                             else:
                                 log.debug('DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} '.format(domain_id, hyp_started))
@@ -265,7 +300,7 @@ class ThreadBroom(threading.Thread):
             interval = 0.0
             while interval < self.polling_interval:
                 sleep(0.1)
-                interval = interval + 0.1
+                interval += 0.1
                 if self.stop is True:
                     break
 
@@ -287,17 +322,19 @@ class ThreadStatus(threading.Thread):
         self.hyp_id = hyp_id
         self.hostname, self.port, self.user = get_hyp_hostname_from_id(hyp_id)
         self.polling_interval = polling_interval
+        self.status_obj = None
 
     def polling_status(self):
 
-        self.status_obj = UpdateStatus(self.hyp_id, self.hostname, port=self.port, user=self.user)
+        self.status_obj = UpdateStatus(self.hyp_id, self.hostname, polling_interval=self.polling_interval,
+                                       port=self.port, user=self.user)
 
         while self.stop is not True:
             self.status_obj.update_status_hyps_rethink()
             interval = 0.0
             while interval < self.polling_interval:
                 sleep(0.1)
-                interval = interval + 0.1
+                interval += 0.1
                 if self.stop is True:
                     break
 

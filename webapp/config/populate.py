@@ -115,7 +115,7 @@ class Populate(object):
                 'graphics','videos','disks','domains','domains_status','domains_status_history',
                 'virt_builder','virt_install','builders','media',
                 'boots','hypervisors_events','hypervisors_status','hypervisors_status_history',
-                'disk_operations','hosts_viewers','places','disposables',
+                'disk_operations','hosts_viewers','places','disposables','eval_results',
                 'scheduler_jobs','backups','config']
         tables_to_create=list(set(newtables) - set(dbtables))
         d = {k:v for v,k in enumerate(newtables)}
@@ -833,6 +833,26 @@ class Populate(object):
             return True
 
     '''
+        EVAL
+    '''
+
+    def eval_results(self):
+        with app.app_context():
+            if not r.table_list().contains('eval_results').run():
+                log.info("Table eval_results not found, creating...")
+                r.table_create('eval_results', primary_key="id").run()
+                # code --> Identify group of eval results.
+                # This group of results was taken over the same pool and hypervisors characteristics.
+                # Example: code: A
+                r.table('eval_results').index_create("code").run()
+                r.table('eval_results').index_wait("code").run()
+
+            if not r.table_list().contains('eval_initial_ux').run():
+                log.info("Table eval_initial_ux not found, creating...")
+                r.table_create('eval_initial_ux', primary_key="id").run()
+            return True
+
+    '''
     HELPERS
     '''
     
@@ -912,6 +932,7 @@ class Populate(object):
                 r.table('places').index_create("status").run()
                 r.table('places').index_wait("status").run()
             return True
+
 
 
     '''
