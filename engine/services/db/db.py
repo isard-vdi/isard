@@ -335,6 +335,20 @@ def get_user(id):
     dict_user = rtable.get(id).run(r_conn)
     close_rethink_connection(r_conn)
     return dict_user
+
+def update_quota_user(id_user,running_desktops, quota_desktops,quota_templates,mem_max,num_cpus):
+    r_conn = new_rethink_connection()
+    rtable = r.table('users')
+
+    d = { 'quota': {'domains': {'desktops': quota_desktops,
+                               'running': running_desktops,
+                               'templates': quota_templates},
+                              'hardware': {'memory': mem_max, 'vcpus': num_cpus}}}
+
+    result = rtable.get(id_user).update(d).run(r_conn)
+─
+    close_rethink_connection(r_conn)
+    return result
 # ~ {
 # ~ "id":  "014d0ca3-10b1-44c1-921f-4d20873c27b1" ,
 # ~ "name":  "wifislax-clone" ,
