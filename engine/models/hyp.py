@@ -9,6 +9,7 @@ a module to control hypervisor functions and state. Overrides libvirt events and
 
 """
 
+import traceback
 import socket
 import time
 import threading
@@ -27,6 +28,7 @@ from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_d
 from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
 from engine.services.log import *
 from engine.config import *
+
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = 4 #int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
@@ -243,19 +245,24 @@ class hyp(object):
         parser = etree.XMLParser(remove_blank_text=True)
         tree = etree.parse(StringIO(xml), parser)
 
-        if tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]'):
-            self.info['cpu_model'] = tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]')[0].text
+        try:
+            if tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]'):
+                self.info['cpu_model'] = tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]')[0].text
 
-        if tree.xpath('/sysinfo/system/entry[@name="manufacturer"]'):
-            self.info['motherboard_manufacturer'] = tree.xpath('/sysinfo/system/entry[@name="manufacturer"]')[0].text
+            if tree.xpath('/sysinfo/system/entry[@name="manufacturer"]'):
+                self.info['motherboard_manufacturer'] = tree.xpath('/sysinfo/system/entry[@name="manufacturer"]')[0].text
 
-        if tree.xpath('/sysinfo/system/entry[@name="product"]'):
-            self.info['motherboard_model'] = tree.xpath('/sysinfo/system/entry[@name="product"]')[0].text
+            if tree.xpath('/sysinfo/system/entry[@name="product"]'):
+                self.info['motherboard_model'] = tree.xpath('/sysinfo/system/entry[@name="product"]')[0].text
 
-        if tree.xpath('/sysinfo/memory_device'):
-            self.info['memory_banks'] = len(tree.xpath('/sysinfo/memory_device'))
-            self.info['memory_type'] = tree.xpath('/sysinfo/memory_device/entry[@name="type"]')[0].text
-            self.info['memory_speed'] = tree.xpath('/sysinfo/memory_device/entry[@name="speed"]')[0].text
+            if tree.xpath('/sysinfo/memory_device'):
+                self.info['memory_banks'] = len(tree.xpath('/sysinfo/memory_device'))
+                self.info['memory_type'] = tree.xpath('/sysinfo/memory_device/entry[@name="type"]')[0].text
+                self.info['memory_speed'] = tree.xpath('/sysinfo/memory_device/entry[@name="speed"]')[0].text
+
+        except Exception as e:
+            log.error('Exception when extract information with libvirt from hypervisor {}: {}'.format(self.hostname, e))
+            log.error('Traceback: {}'.format(traceback.format_exc()))
 
         xml = self.conn.getCapabilities()
         parser = etree.XMLParser(remove_blank_text=True)
