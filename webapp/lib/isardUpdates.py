@@ -123,7 +123,7 @@ class Updates(object):
             d['progress']={}
             d['status']='DownloadStarting'
             d['detail']=''
-            d['accessed']==time.time()
+            d['accessed']=time.time()
             d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
             d.update(self.get_user_data(current_user))
             for disk in d['create_dict']['hardware']['disks']:
@@ -137,7 +137,7 @@ class Updates(object):
                 d.update(self.get_user_data(current_user))
                 d['progress']={}
                 d['status']='DownloadStarting'
-                d['accessed']==time.time()                    
+                d['accessed']=time.time()                    
                 d['path']=current_user.path+d['url-isard']
         return data
 
