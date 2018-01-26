@@ -8,15 +8,28 @@
 
 $(document).ready(function() {
 
+    $template = $(".template-detail-users");
+    
 	$('.btn-new-user').on('click', function () {
         setQuotaOptions('#users-quota');
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddUserForm')[0].reset();
-        setModalAddUser();
+        setModalUser();
 	});
 
+
+    
+	$('.btn-new-bulkusers').on('click', function () {
+        setQuotaOptions('#bulkusers-quota');
+        $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
+        $('#modalAddBulkUsersForm')[0].reset();
+        setModalUser();
+	});
+    
     $("#modalAddUser #send").on('click', function(e){
         var form = $('#modalAddUserForm');
+        data=quota2dict($('#modalAddUserForm').serializeObject());
+        console.log(data)
         form.parsley().validate();
         if (form.parsley().isValid()){
             
@@ -28,16 +41,77 @@ $(document).ready(function() {
     }); 
 
 
-    $("#modalAddUser #role").on('change', function(e){
-        setQuotaTableDefaults('#users-quota','roles',$(this).val())
-    });
-    $("#modalAddUser #category").on('change', function(e){
-        setQuotaTableDefaults('#users-quota','categories',$(this).val())
-    });
-    $("#modalAddUser #group").on('change', function(e){
-        setQuotaTableDefaults('#users-quota','groups',$(this).val())
-    });
+
+
+       document.getElementById('csv').addEventListener('change', readFile, false);
+       var filecontents=''
+       function readFile (evt) {
+           var files = evt.target.files;
+           var file = files[0];           
+           var reader = new FileReader();
+           reader.onload = function(event) {
+             filecontents=event.target.result;            
+           }
+           reader.readAsText(file, 'UTF-8')
+        }
+
+        function toObject(names, values) {
+            var result = {};
+            for (var i = 0; i < names.length; i++)
+                 result[names[i]] = values[i];
+            return result;
+        }
+
+    function parseCSV(){
+        lines=filecontents.split('\n')
+        header=lines[0].split(',')
+        users=[]
+        $.each(lines, function(n, l){
+            console.log(l.length)
+            if(n!=0 && l.length > 10){
+                users.push(toObject(header,l.split(',')))
+            }
+        })
+        return users;
+    }
         
+    $("#modalAddBulkUsers #send").on('click', function(e){
+        var form = $('#modalAddBulkUsersForm');
+        form.parsley().validate();
+        console.log(parseCSV())
+        
+        if (form.parsley().isValid()){
+            data=quota2dict($('#modalAddBulkUsersForm').serializeObject());
+            users=parseCSV()
+            socket.emit('bulkusers_add',{'data':data,'users':users})
+        }
+    }); 
+
+    $(".role").on('change', function(e){
+        //~ console.log('role changed')
+        //~ console.log('parent id:'+$(this).data('quota'))
+        setQuotaTableDefaults('#'+$(this).data('quota'),'roles',$(this).val())
+    });
+    $(".category").on('change', function(e){
+        setQuotaTableDefaults('#'+$(this).data('quota'),'categories',$(this).val())
+    });
+    $(".group").on('change', function(e){
+        setQuotaTableDefaults('#'+$(this).data('quota'),'groups',$(this).val())
+    });
+
+
+
+    //~ $("#modalAddBulkUsers #role").on('change', function(e){
+        //~ setQuotaTableDefaults('#users-quota','roles',$(this).val())
+    //~ });
+    //~ $("#modalAddBulkUsers #category").on('change', function(e){
+        //~ setQuotaTableDefaults('#users-quota','categories',$(this).val())
+    //~ });
+    //~ $("#modalAddBulkUsers #group").on('change', function(e){
+        //~ setQuotaTableDefaults('#users-quota','groups',$(this).val())
+    //~ });
+        
+            
     var table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",
@@ -90,19 +164,26 @@ $(document).ready(function() {
     //~ });
 
     $('#users').find('tbody').on('click', 'td.details-control', function () {
+        console.log('click')
         var tr = $(this).closest('tr');
         var row = table.row( tr );
  
         if ( row.child.isShown() ) {
             // This row is already open - close it
             row.child.hide();
+            //~ row.child(false).remove()
             tr.removeClass('shown');
         }
         else {
             // Open this row
-            row.child( format(row.data()) ).show();
+            row.child( renderUsersDetailPannel(row.data()) ).show();
+            
+            actionsUserDetail()
+            //~ setQuotaOptions('#show-users-quota',true);
             //~ editData();
             tr.addClass('shown');
+            console.log(row.data().id)
+            setQuotaDataDefaults('#show-users-quota',row.data())
         }
     });
 
@@ -120,6 +201,12 @@ $(document).ready(function() {
       connection_lost();
     });
 
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
+    
     socket.on('add_form_result', function (data) {
         var data = JSON.parse(data);
         if(data.result){
@@ -145,28 +232,84 @@ $(document).ready(function() {
     
 });
 
-function format ( d ) {
-    // `d` is the original data object for the row
-    var cells='<div class="btn-group"> \
-                                <button class="btn btn-sm btn-default btn-edit" id="btn-edit" type="button"  data-placement="top" data-toggle="tooltip" data-original-title="Edit"><i class="fa fa-pencil"></i></button> \
-                              </div>';
-    for(var k in d){
-		cells+='<tr>'+
-					'<td>'+k+':</td>'+
-					'<td>'+d[k]+'</td>'+
-				'</tr>'
-	}
-    return '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">'+
-        cells+
-    '</table>';
+//~ function format ( d ) {
+    //~ // `d` is the original data object for the row
+    //~ var cells='<div class="btn-group"> \
+                                //~ <button class="btn btn-sm btn-default btn-edit" id="btn-edit" type="button"  data-placement="top" data-toggle="tooltip" data-original-title="Edit"><i class="fa fa-pencil"></i></button> \
+                              //~ </div>';
+    //~ for(var k in d){
+		//~ cells+='<tr>'+
+					//~ '<td>'+k+':</td>'+
+					//~ '<td>'+d[k]+'</td>'+
+				//~ '</tr>'
+	//~ }
+    //~ return '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">'+
+        //~ cells+
+    //~ '</table>';
+//~ }
+
+function actionsUserDetail(){
+	$('.btn-edit').on('click', function () {
+            setQuotaOptions('#edit-users-quota');
+            var pk=$(this).closest("div").attr("data-pk");
+            $("#modalEditForm")[0].reset();
+			$('#modalEditUser').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            setModalUser()
+            setQuotaTableDefaults('#edit-users-quota','users',pk)
+            api.ajax('/admin/tabletest/users/post','POST',{'id':pk}).done(function(user) {
+                $('#modalEditForm #name').val(user.name);
+                $('#modalEditForm #id').val(user.id);
+                $('#modalEditForm #mail').val(user.mail);
+                $('#modalEditForm #role option:selected').prop("selected", false);
+                $('#modalEditForm #role option[value="'+user.role+'"]').prop("selected",true);
+                $('#modalEditForm #category option:selected').prop("selected", false);
+                $('#modalEditForm #category option[value="'+user.category+'"]').prop("selected",true);
+                $('#modalEditForm #group option:selected').prop("selected", false);
+                $('#modalEditForm #group option[value="'+user.group+'"]').prop("selected",true);                
+            });
+             //~ $('#hardware-block').hide();
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+	});
+    
 }
 
-    function setModalAddUser(){
+function modal_edit_user(id){
+    
+	$.ajax({
+		type: "GET",
+		url:"/desktops/templateUpdate/" + id,
+		success: function(data)
+		{
+            $('#modalEditDesktop #forced_hyp').closest("div").remove();
+			$('#modalEditDesktop #name_hidden').val(data.name);
+            $('#modalEditDesktop #name').val(data.name);
+			$('#modalEditDesktop #description').val(data.description);
+            $('#modalEditDesktop #id').val(data.id);
+            setHardwareDomainDefaults('#modalEditDesktop', id);
+		}				
+	});
+  
+    
+}
+
+function renderUsersDetailPannel ( d ) {
+		$newPanel = $template.clone();
+		$newPanel.html(function(i, oldHtml){
+			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
+		});
+		return $newPanel
+}
+
+    function setModalUser(){
         api.ajax_async('/admin/userschema','POST','').done(function(d) {
             $.each(d, function(key, value) {
-                $("#" + key).find('option').remove().end();
+                $("." + key).find('option').remove().end();
                 for(var i in d[key]){
-                    $("#"+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                    $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
                 }
             });
                 

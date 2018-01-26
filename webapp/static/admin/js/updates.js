@@ -70,27 +70,35 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                if("progress" in full){
-                                    return renderProgress(full);
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return 'Downloaded';
                                 }
+                                if(full.status == 'Available'){
+                                    return '';
+                                }
+                                    return renderProgress(full);
 							}},
                             {
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
                                 //~ console.log(full.status+' '+full.id)
-                                if(full.status == 'Available'){
+                                if(full.status == 'Available' || full.status == "FailedDownload"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
-                                return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    //~ return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                //~ }                                
+                                if(full.status == 'Downloading'){
+                                    return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                                }
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                } 
+                                return full.status;                               
 							}}],
+
                 "initComplete": function(settings, json){
                      socket.on('domains_data', function(data){
-                        console.log('domains data')
                         var data = JSON.parse(data);
-                            //~ console.log(data)
+                            console.log('domains_data for: '+data['id'])
+                            //~ console.log(data['progress-received_percent'])
                         dtUpdateInsert(table['domains'],data,false);
                     });                   
                 }                            
@@ -100,15 +108,32 @@ $(document).ready(function() {
 
     $('#domains_tbl').find(' tbody').on( 'click', 'button', function () {
         var datarow = table['domains'].row( $(this).parents('tr') ).data();
+        var id = datarow['id'];
         console.log($(this).attr('id'),datarow);
         switch($(this).attr('id')){
             case 'btn-download':
-                api.ajax('/admin/updates/update/domains/'+datarow['id'],'POST',{}).done(function(data) {
-                      console.log(datarow['id'])
-                      table['domains'].ajax.reload();
+                api.ajax('/admin/updates/download/domains/'+id,'POST',{}).done(function(data) {
+                    //~ dtUpdateInsert(table['domains'],id,false);
+                    table['domains'].ajax.reload();
+                      console.log('inside:'+id)
+                      //~ table['domains'].ajax.reload();
                   }); 
                 break;
-            };
+            case 'btn-abort':
+                api.ajax('/admin/updates/abort/domains/'+id,'POST',{}).done(function(data) {
+                    //~ dtUpdateInsert(table['domains'],id,false);
+                    table['domains'].ajax.reload();
+                      console.log('inside:'+id)
+                      //~ table['domains'].ajax.reload();
+                  }); 
+                break;
+            case 'btn-delete':
+                api.ajax('/admin/updates/delete/domains/'+id,'POST',{}).done(function(data) {
+                    console.log('inside:'+id)
+                   table['domains'].row('#'+id).remove().draw();
+                  }); 
+                break;
+            };  
     });
 
 
@@ -155,27 +180,31 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                if("progress" in full){
-                                    return renderProgress(full);
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return 'Downloaded';
                                 }
+                                    return renderProgress(full);
 							}},
                             {
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
                                 //~ console.log(full.status+' '+full.id)
-                                if(full.status == 'Available'){
+                                if(full.status == 'Available' || full.status == "FailedDownload"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
-                                return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    //~ return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                //~ }                                
+                                if(full.status == 'Downloading'){
+                                    return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                                }
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                } 
+                                return full.status;                                
 							}}],
                 "initComplete": function(settings, json){
                      socket.on('media_data', function(data){
-                        console.log('add or update')
+                        //~ console.log('add or update')
                         var data = JSON.parse(data);
-                            console.log('media update')
+                            //~ console.log('media update')
                         dtUpdateInsert(table['media'],data,false);
                     });                   
                 }
@@ -188,15 +217,28 @@ $(document).ready(function() {
 
     $('#media_tbl').find(' tbody').on( 'click', 'button', function () {
         var datarow = table['media'].row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),datarow);
+        //~ console.log($(this).attr('id'),datarow);
         switch($(this).attr('id')){
             case 'btn-download':
-                api.ajax('/admin/updates/update/media/'+datarow['id'],'POST',{}).done(function(data) {
-                      console.log(datarow['id'])
+                api.ajax('/admin/updates/download/media/'+datarow['id'],'POST',{}).done(function(data) {
+                    //~ dtUpdateInsert(table['media'],datarow['id'],false);
+                      //~ console.log(datarow['id'])
                       table['media'].ajax.reload();
                   }); 
                 break;
-            };
+            case 'btn-abort':
+                api.ajax('/admin/updates/abort/media/'+datarow['id'],'POST',{}).done(function(data) {
+                    //~ dtUpdateInsert(table['media'],datarow['id'],false);
+                      //~ console.log(datarow['id'])
+                      table['media'].ajax.reload();
+                  }); 
+                break;
+            case 'btn-delete':
+                api.ajax('/admin/updates/delete/media/'+datarow['id'],'POST',{}).done(function(data) {
+                   table['media'].row('#'+datarow['id']).remove().draw();
+                  }); 
+                break;
+            };  
     });
     
     table['builders']=$('#builders_tbl').DataTable({
@@ -231,7 +273,7 @@ $(document).ready(function() {
 
     $('#builders_tbl').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
+        //~ console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
                 //~ break;
@@ -269,7 +311,7 @@ $(document).ready(function() {
 
     $('#virt_builder_tbl').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
+        //~ console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
                 //~ break;
@@ -307,7 +349,7 @@ $(document).ready(function() {
 
     $('#virt_install_tbl').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
+        //~ console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
                 //~ break;
@@ -315,8 +357,8 @@ $(document).ready(function() {
     
     $('.update-all').on( 'click', function () {
       id=$(this).attr('id')
-      api.ajax('/admin/updates/update/'+id,'POST',{}).done(function(data) {
-          console.log(id)
+      api.ajax('/admin/updates/download/'+id,'POST',{}).done(function(data) {
+          //~ console.log(id)
           table[id].ajax.reload();
           //~ if(id == 'virt_install'){virt_install_table.ajax.reload();}
       }); 
@@ -343,17 +385,24 @@ function renderName(data){
 }
 
 function renderProgress(data){
+            //~ if(data.progress-received_percent == null){
+                //~ return '';
+            //~ }
+            perc = data['progress-received_percent']
             return '<div class="progress"> \
-  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data['progress']['% Total']+'" \
-  aria-valuemin="0" aria-valuemax="100" style="width:'+data['progress']['% Total']+'%"> \
-    '+data['progress']['% Total']+'% \
+  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+  aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
+    '+perc+'% \
   </div> \
 </<div> '
 }
 
 
 function renderIcon(data){
-		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+    if(data.icon == null){
+        return '';
+    }
+	return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
 }
 
 function icon(name){
