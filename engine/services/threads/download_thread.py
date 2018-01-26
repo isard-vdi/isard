@@ -174,6 +174,7 @@ class DownloadChangesThread(threading.Thread):
         return new_file_path, path_selected, type_path_selected, pool_id
 
     def abort_download(self, dict_changes):
+        logs.downloads.debug('aborting download function')
         new_file_path, path_selected = self.get_file_path(dict_changes)
         if new_file_path not in self.download_threads:
             self.download_threads[new_file_path].stop = True
