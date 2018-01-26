@@ -359,6 +359,42 @@ def start_config_thread():
         log.info('ConfigThread Started')
 
 
+## Hypervisors namespace
+
+@socketio.on('hyper_add', namespace='/sio_admins')
+def socketio_hyper_add(form_data):
+    if current_user.role == 'admin': 
+        create_dict=app.isardapi.f.unflatten_dict(request.form)
+        if 'capabilities' not in create_dict: create_dict['capabilities']={}
+        if 'disk_operations' not in create_dict['capabilities']:
+            create_dict['capabilities']['disk_operations']=False
+        else:
+            create_dict['capabilities']['disk_operations']=True
+        if 'hypervisor' not in create_dict['capabilities']:
+            create_dict['capabilities']['hypervisor']=False
+        else:
+            create_dict['capabilities']['hypervisor']=True
+        # NOTE: Should be changed if multiple select instead of select
+        create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+        create_dict['detail']=''
+        create_dict['info']=[]
+        create_dict['prev_status']=''
+        create_dict['status']='New'
+        create_dict['status_time']=''
+        create_dict['uri']=''
+        create_dict['enabled']=True
+        res=app.adminapi.add_hypervisor(create_dict)
+
+        if res is True:
+            data=json.dumps({'result':True,'title':'New hypervisor','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':False,'title':'New hypervisor','text':'User '+create_dict['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='hyper')
+
+
 ## Users namespace
 @socketio.on('user_add', namespace='/sio_admins')
 def socketio_user_add(form_data):

@@ -25,6 +25,7 @@ DOMAINS (NOT USED)
 @login_required
 @isAdmin
 def admin_domains(nav='Domains'):
+    icon=''
     if nav=='Desktops': icon='desktop'
     if nav=='Templates': icon='cube'
     if nav=='Bases': icon='cubes'

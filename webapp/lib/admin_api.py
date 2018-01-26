@@ -215,8 +215,7 @@ class isardAdmin():
                                     "started_domains": r.table('domains').get_all('Started', index='status').filter({'hyp_started':hyp['id']}).count()
                                 }
                             ).run(db.conn))
-            
-            
+                        
         #~ with app.app_context():
             #~ if id:
                 #~ listdict = self.f.flatten_dict(r.table('hypervisors').get(id).run(db.conn))
@@ -263,7 +262,46 @@ class isardAdmin():
 
     def add_hypervisor(self,dict):
         with app.app_context():
+            
+ # ~ {
+
+    # ~ "bases": [
+        # ~ {
+            # ~ "disk_operations": [
+                # ~ "localhost"
+            # ~ ] ,
+            # ~ "path": "/isard/bases" ,
+            # ~ "weight": 100
+        # ~ }
+    # ~ ] , 
+    
+            if dict['capabilities']['disk_operations']:
+                id=dict['id']
+                cap_disk=dict['capabilities']['disk_operations']
+                cap_hyp=dict['capabilities']['hypervisor']
+                for hp in dict['hypervisors_pools']:
+                    paths=r.table('hypervisors_pools').get(hp).run(db.conn)['paths']
+                    for p in paths:
+                        path_list=[]
+                        for i,path_data in enumerate(paths[p]):
+                            if id not in path_data['disk_operations']:
+                                path_list.append(path_data['disk_operations'].append(id))
+                                print(path_list)
+                                # ~ pool['paths'][k][i]['disk_operations'].append(id)
+                        # ~ r.table('hypervisors_pools').update({'paths':{p:path_list}}).run(db.conn)
+
+         # ~ r.table('hypervisors_pools').get(hp).update({'paths':}})
+         
+     # ~ .get('ID')
+      # ~ .update({
+            # ~ EVENT_CODE: r.row('EVENT_CODE').changeAt(1,
+           # ~ r.row('EVENT_CODE').nth(1).merge({"CODE_NAME": "MESSAGE_DELIVERED_TO_APP2"}))
+          # ~ })
+
             return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
+
+
+
 
     def add_hypervisor_pool(self,dict):
         with app.app_context():
