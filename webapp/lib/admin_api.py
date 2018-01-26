@@ -285,10 +285,11 @@ class isardAdmin():
                         path_list=[]
                         for i,path_data in enumerate(paths[p]):
                             if id not in path_data['disk_operations']:
-                                path_list.append(path_data['disk_operations'].append(id))
+                                path_data['disk_operations'].append(id)
+                                path_list.append(path_data['disk_operations'])
                                 print(path_list)
                                 # ~ pool['paths'][k][i]['disk_operations'].append(id)
-                        # ~ r.table('hypervisors_pools').update({'paths':{p:path_list}}).run(db.conn)
+                        r.table('hypervisors_pools').update({'paths':{p:path_list}}).run(db.conn)
 
          # ~ r.table('hypervisors_pools').get(hp).update({'paths':}})
          
@@ -298,7 +299,7 @@ class isardAdmin():
            # ~ r.row('EVENT_CODE').nth(1).merge({"CODE_NAME": "MESSAGE_DELIVERED_TO_APP2"}))
           # ~ })
 
-            return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
+            # ~ return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
 
 
 
