@@ -468,9 +468,9 @@ def socketio_bulkuser_add(form_data):
         final_users=[{**u, **data} for u in users]
         res=app.adminapi.add_users(final_users)
         if res is True:
-            data=json.dumps({'result':True,'title':'New user','text':'A total of '+len(final_users)+'users has been created...','icon':'success','type':'success'})
+            data=json.dumps({'result':True,'title':'New user','text':'A total of '+str(len(final_users))+' users has been created...','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':False,'title':'New user','text':'Something went wrong when creating '+len(final_users)+' can\'t be created. Maybe they already exists!','icon':'warning','type':'error'})
+            data=json.dumps({'result':False,'title':'New user','text':'Something went wrong when creating '+str(len(final_users))+' can\'t be created. Maybe they already exists!','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/sio_admins', 

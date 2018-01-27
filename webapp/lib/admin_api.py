@@ -12,6 +12,7 @@ from werkzeug import secure_filename
 from datetime import datetime, timedelta
 import requests, socket
 # ~ import itertools
+import pprint
 import tarfile,pickle,os
 # ~ import subprocess
 from contextlib import closing
@@ -157,11 +158,12 @@ class isardAdmin():
         p = Password()
         final_users=[]
         for user in users:
-            usr['id']=usr['username']
+            
             usr = {'kind': 'local',
                    'active': True,
                     'accessed': time.time(),
                     'password': p.encrypt(user['password'])}
+            usr['id']=user['username']
             del user['password']
             user={**usr, **user}
             qdomains ={'desktops_disk_max': 99999999,  # 100GB
@@ -188,7 +190,31 @@ class isardAdmin():
                         "base": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'base'}).count()
                     }
                 ).run(db.conn))
-                
+
+    def user_delete_checks(self,user_id):
+        with app.app_context():
+            # User desktops can be deleted, ok?
+            user_desktops = list(r.table("domains").get_all(user_id, index='user').filter({'kind': 'desktop'}).pluck('id','name','user',{'create_dict':{'origin'}}).run(db.conn))
+            
+            # User templates... depending. Are they owned by himself only? Or they have other user derivates??
+            user_templates = list(r.table("domains").get_all(r.args(['base','public_template','user_template']),index='kind').filter({'user':user_id}).pluck('id','name','user',{'create_dict':{'origin'}}).run(db.conn))
+            risky_templates=[]
+            others_domains=0
+            for t in user_templates:
+                all_template_derivates = self.domain_derivates_count(t['id'])
+                usr_template_derivates = self.domain_derivates_count(t['id'],user_id)
+                if all_template_derivates != usr_template_derivates:
+                    # We've got a problem. There are templates owned by other users. We can't delete this user!
+                    t['other_users_derivates']=all_template_derivates - usr_template_derivates
+                    risky_templates.append(t)
+                    others_domains+=all_template_derivates - usr_template_derivates
+        return {'desktops':user_desktops,
+                'templates':user_templates,
+                'risky_templates':risky_templates,
+                'others_domains':others_domains}
+                    
+
+
     '''
     DOMAINS
     '''
@@ -237,6 +263,36 @@ class isardAdmin():
                             #~ domain['history_domain'][0]['when'].default(0)
                     }
                 ).run(db.conn))
+
+
+
+    def domain_derivates_count(self,id=False,username=False):
+        with app.app_context():
+            if username is False:
+                domains= [ {'id':d['id'],'origin':(d['create_dict']['origin'] if 'create_dict' in d and 'origin' in d['create_dict'] else None)}
+                            for d in list(r.table('domains').pluck('id',{'create_dict':{'origin'}}).run(db.conn)) ] 
+            else:
+                domains= [ {'id':d['id'],'origin':(d['create_dict']['origin'] if 'create_dict' in d and 'origin' in d['create_dict'] else None)}
+                            for d in list(r.table('domains').get_all(username, index='user').pluck('id','user',{'create_dict':{'origin'}}).run(db.conn)) ] 
+            return self.domain_recursive_count(id,domains)-1
+
+
+    def domain_recursive_count(self,id,domains):
+        # ~ if count == 0:
+            # ~ return 0
+        count = 1
+        # ~ level = 1
+        # ~ hierarchy = {}
+        doms= [d for d in domains if d['origin']==id]
+        for dom in doms:
+            # ~ level+=1
+            # ~ hierarchy[level]=doms
+            count+= self.domain_recursive_count(dom['id'],domains)
+        # ~ pprint.pprint(hierarchy)
+        return count
+
+
+
     
     def domains_stop(self,hyp_id=False,without_viewer=True):
         with app.app_context():
@@ -269,7 +325,6 @@ class isardAdmin():
     def get_admin_networks(self):
         with app.app_context():
             return list(r.table('interfaces').order_by('name').run(db.conn))
-
 
     '''
     HYPERVISORS

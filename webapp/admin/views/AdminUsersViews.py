@@ -63,7 +63,17 @@ def admin_userschema():
     dict['category']=app.adminapi.get_admin_table('categories', ['id', 'name', 'description'])
     dict['group']=app.adminapi.get_admin_table('groups', ['id', 'name', 'description'])
     return json.dumps(dict)
-    
+
+@app.route('/admin/user/delete', methods=['POST'])
+@login_required
+@isAdmin
+def admin_user_delete(doit=False):
+    try:
+        args = request.get_json(force=True)
+    except:
+        args = request.form.to_dict()
+    return json.dumps(app.adminapi.user_delete_checks(args['pk']))
+        
 @app.route('/admin/users/update', methods=['POST'])
 @login_required
 @isAdmin
