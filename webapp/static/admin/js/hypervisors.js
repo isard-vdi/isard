@@ -26,22 +26,11 @@ $(document).ready(function() {
 
     $("#modalAddHyper #send").on('click', function(e){
             var form = $('#modalAddHyper #modalAdd');
-            //~ form.parsley().validate();
-            //~ var queryString = $('#modalAdd').serialize();
-            data=$('#modalAddHyper #modalAdd').serializeObject();
-            socket.emit('hyper_add',data)
-            //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
-            //~ }
+            form.parsley().validate();
+            if (form.parsley().isValid()){
+                    data=$('#modalAddHyper #modalAdd').serializeObject();
+                    socket.emit('hyper_add',data)
+            }
         });
 
       function timestamp() { return (new Date).getTime() / 1000; }
@@ -68,7 +57,7 @@ $(document).ready(function() {
             { "data": "id" , "width": "10px" },
             { "data": "enabled", "width": "10px" },
             { "data": "status", "width": "10px" },
-            { "data": "started_domains", "width": "10px" },
+            { "data": "started_domains", "width": "10px", "defaultContent": 0},
             { "data": "hostname", "width": "10px" },
             { "data": "hypervisors_pools", "width": "10px" },
             { "data": "status_time" , "width": "10px" },

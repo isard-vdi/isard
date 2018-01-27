@@ -27,7 +27,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Id <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="id" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="id" placeholder="New hypervisor id" required="required" type="text">
+                           <input id="id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="id" placeholder="New hypervisor id" required="required" type="text">
                         </div>
                      </div>
                      <div class="item form-group">
@@ -55,7 +55,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hostname">Hostname <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="hostname" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
+                           <input id="hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
                         </div>
                      </div>
 
@@ -63,7 +63,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="user">User <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="user" class="form-control col-md-7 col-xs-12" name="user" placeholder="User used to connect" required="required" type="text">
+                           <input id="user" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="user" placeholder="User used to connect" required="required" type="text">
                         </div>
                      </div>
                      
@@ -71,7 +71,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">SSH Port <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="port" class="form-control col-md-7 col-xs-12" name="port" placeholder="SSH port" required="required" type="text">
+                           <input id="port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="port" placeholder="SSH port" required="required" type="text">
                         </div>
                      </div>
                 </div>	
@@ -122,9 +122,6 @@
 					<div class="item form-group">
 						<label>Pools:</label>
                             <select class="form-control" id="hypervisors_pools_dropdown" name="hypervisors_pools">
-<!--
-                            <option value="default" selected="selected">Default</option>
--->
                             </select>
                     </div>                     
                 </div>

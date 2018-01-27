@@ -374,25 +374,32 @@ def socketio_hyper_add(form_data):
             create_dict['capabilities']['hypervisor']=False
         else:
             create_dict['capabilities']['hypervisor']=True
-        # NOTE: Should be changed if multiple select instead of select
-        create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
-        create_dict['detail']=''
-        create_dict['info']=[]
-        create_dict['prev_status']=''
-        create_dict['status']='New'
-        create_dict['status_time']=''
-        create_dict['uri']=''
-        create_dict['enabled']=True
-        res=app.adminapi.hypervisor_add(create_dict)
+        if create_dict['capabilities']['disk_operations'] or create_dict['capabilities']['hypervisor']:
+            # NOTE: Should be changed if multiple select instead of select
+            create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+            create_dict['detail']=''
+            create_dict['info']=[]
+            create_dict['prev_status']=''
+            create_dict['status']='New'
+            create_dict['status_time']=''
+            create_dict['uri']=''
+            create_dict['enabled']=True
+            res=app.adminapi.hypervisor_add(create_dict)
 
-        if res is True:
-            info=json.dumps({'result':True,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' has been created.','icon':'success','type':'success'})
+            if res is True:
+                info=json.dumps({'result':True,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' has been created.','icon':'success','type':'success'})
+            else:
+                info=json.dumps({'result':False,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+            socketio.emit('add_form_result',
+                            info,
+                            namespace='/sio_admins', 
+                            room='hyper')
         else:
-            info=json.dumps({'result':False,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
-        socketio.emit('add_form_result',
-                        info,
-                        namespace='/sio_admins', 
-                        room='hyper')
+            info=json.dumps({'result':False,'title':'Hypervisor add error','text':'Hypervisor should have at least one capability!','icon':'warning','type':'error'})        
+            socketio.emit('result',
+                            info,
+                            namespace='/sio_admins', 
+                            room='hyper')            
 
 @socketio.on('hyper_delete', namespace='/sio_admins')
 def socketio_hyper_delete(data):
