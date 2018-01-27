@@ -24,6 +24,25 @@ $(document).ready(function() {
             });
 	});
 
+    $("#modalAddHyper #send").on('click', function(e){
+            var form = $('#modalAddHyper #modalAdd');
+            //~ form.parsley().validate();
+            //~ var queryString = $('#modalAdd').serialize();
+            data=$('#modalAddHyper #modalAdd').serializeObject();
+            socket.emit('hyper_add',data)
+            //~ if (form.parsley().isValid()){
+                //~ template=$('#modalAddDesktop #template').val();
+                //~ console.log('TEMPLATE:'+template)
+                //~ if (template !=''){
+                    //~ var queryString = $('#modalAdd').serialize();
+                    //~ data=$('#modalAdd').serializeObject();
+                    //~ socket.emit('domain_add',data)
+                //~ }else{
+                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                //~ }
+            //~ }
+        });
 
       function timestamp() { return (new Date).getTime() / 1000; }
       chart={}
@@ -122,30 +141,13 @@ $(document).ready(function() {
             tr.addClass('shown');
             $('#status-detail-'+row.data().id).html(row.data().detail);
             tableHypervisorDomains(row.data().id);
+            setHypervisorDetailButtonsStatus(row.data().id,row.data().status)
             actionsHyperDetail();
 
         }
     } );
 
-    $("#modalAddHyper #send").on('click', function(e){
-            var form = $('#modalAddHyper #modalAdd');
-            //~ form.parsley().validate();
-            //~ var queryString = $('#modalAdd').serialize();
-            data=$('#modalAddHyper #modalAdd').serializeObject();
-            socket.emit('hypervisor_add',data)
-            //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
-            //~ }
-        });
+
         
     // SocketIO
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
@@ -167,6 +169,7 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
+        console.log(data)
         var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
@@ -174,12 +177,14 @@ $(document).ready(function() {
 		}else{
           //if already exists do an update (ie. connection lost and reconnect)
           var row = table.row('#'+data.id); 
+          data.started_domains = row.data().started_domains
           table.row(row).data(data).invalidate();			
 		}
         table.draw(false);
     });
 
     socket.on('hyper_status', function(data){
+        console.log('status')
         var data = JSON.parse(data);
         table.row('#'+data.hyp_id).data().started_domains=data.domains
         table.row('#'+data.hyp_id).invalidate().draw();
@@ -204,13 +209,26 @@ $(document).ready(function() {
         });
     });
 
-    //~ socket.on('domain_event', function(data){
-        //~ var data = JSON.parse(data);
-        //~ if(data.status=='Started'){inc=1;}else{inc=-1}
-        //~ table.row('#'+data.hyp_started).data().started_domains+=inc
-        //~ table.row('#'+data.hyp_started).invalidate().draw();
-    //~ });
-        
+    socket.on('add_form_result', function (data) {
+        console.log('received result')
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAddHyper #modalAdd")[0].reset();
+            $("#modalAddHyper").modal('hide');
+            //~ $('body').removeClass('modal-open');
+            //~ $('.modal-backdrop').remove();
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+            
     socket.on('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -248,12 +266,20 @@ function formatHypervisorPanel( d ) {
 		return $newPanel
 }
 
+function setHypervisorDetailButtonsStatus(id,status){
+          if(status=='Deleting'){
+                $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+          }else{
+                $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+          } 
+}
+
 function actionsHyperDetail(){
 		$('.btn-edit').on('click', function () {
             //Not implemented
 			});
 
-		$('.btn-kind').on('click', function () {
+		$('.btn-enable').on('click', function () {
                 var closest=$(this).closest("div");
 				var pk=closest.attr("data-pk");
 				var name=closest.attr("data-name");
@@ -274,8 +300,7 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/admin/hypervisors/toggle','POST',{'pk':pk,'name':'enabled'}).done(function(data) {
-							});  
+                            socket.emit('hyper_toggle',{'pk':pk,'name':name})
 						}).on('pnotify.cancel', function() {
                     });	
                 });
@@ -285,7 +310,7 @@ function actionsHyperDetail(){
 				var name=$(this).closest("div").attr("data-name");
 				new PNotify({
 						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete hypervisor: "+name+"?\n",
+							text: "Are you sure you want to delete hypervisor: "+name+"?",
 							hide: false,
 							opacity: 0.9,
 							confirm: {
@@ -300,11 +325,60 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/admin/hypervisors_update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-							});  
+                            socket.emit('hyper_delete',{'pk':pk,'name':name})
 						}).on('pnotify.cancel', function() {
 				});	
-			});
+            });  
+
+		$('.btn-domstop').on('click', function () {
+				var pk=$(this).closest("div").attr("data-pk");
+				var name=$(this).closest("div").attr("data-name");
+				new PNotify({
+						title: 'Confirmation Needed',
+							text: "Are you sure you want to FORCE stop all domains in hypervisor: "+name+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':false})
+						}).on('pnotify.cancel', function() {
+				});	
+            }); 
+
+		$('.btn-domstop-woviewer').on('click', function () {
+				var pk=$(this).closest("div").attr("data-pk");
+				var name=$(this).closest("div").attr("data-name");
+				new PNotify({
+						title: 'Confirmation Needed',
+							text: "Are you sure you want to FORCE stop all domains in hypervisor "+name+" that doesn't have a client viewer now?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':true})
+						}).on('pnotify.cancel', function() {
+				});	
+            });                                    
 }
 
 

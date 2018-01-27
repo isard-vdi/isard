@@ -5,17 +5,15 @@
 
 #!/usr/bin/env python
 # coding=utf-8
-from decimal import Decimal
-import random, queue
-from threading import Thread
 import time
 from webapp import app
 from werkzeug import secure_filename
 
 from datetime import datetime, timedelta
-import requests, itertools, socket
+import requests, socket
+# ~ import itertools
 import tarfile,pickle,os
-import subprocess
+# ~ import subprocess
 from contextlib import closing
     
 import rethinkdb as r
@@ -36,14 +34,15 @@ class isardAdmin():
     def check(self,dict,action):
         #~ These are the actions:
         #~ {u'skipped': 0, u'deleted': 1, u'unchanged': 0, u'errors': 0, u'replaced': 0, u'inserted': 0}
-        if dict[action]: 
+        if dict[action] or dict['unchanged']: 
             return True
         if not dict['errors']: return True
         return False
 
-
-
-
+    def getUnflatten(self,dict):
+        f=flatten()
+        return f.unflatten_dict(dict)
+        
     def check_socket(host, port):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
             if sock.connect_ex((host, port)) == 0:
@@ -57,12 +56,6 @@ class isardAdmin():
     def delete_table_key(self,table,key):
         with app.app_context():
             return self.check(r.table(table).get(key).delete().run(db.conn),'deleted')
-            
-    def toggle_hypervisor_field(self,id,key):
-        with app.app_context():
-            field=r.table('hypervisors').get(id).run(db.conn)[key]
-            new_field=False if field else True
-            return self.check(r.table('hypervisors').get(id).update({key:new_field}).run(db.conn),'replaced')
 
     def multiple_action(self, table, action, ids):
         with app.app_context():
@@ -101,24 +94,7 @@ class isardAdmin():
     def multiple_check_field(self, table, field, value, ids):
         with app.app_context():
             return [d['id'] for d in list(r.table(table).get_all(r.args(ids)).filter({field:value}).pluck('id').run(db.conn))]
-                                    
-    def get_admin_user(self):
-        with app.app_context():
-            ## ALERT: Should remove password (password='')
-            return self.f.table_values_bstrap(r.table('users').run(db.conn))
 
-    def get_admin_users_domains(self):
-        with app.app_context():
-            return self.f.table_values_bstrap(
-                r.table("users").merge(lambda user:
-                    {
-                        "desktops": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'desktop'}).count(),
-                        "public_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'public_template'}).count(),
-                        "user_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'user_template'}).count(),
-                        "base": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'base'}).count()
-                    }
-                ).run(db.conn))
-                
     def get_admin_table(self, table, pluck=False, id=False, order=False):
         with app.app_context():
             if id and not pluck:
@@ -141,6 +117,81 @@ class isardAdmin():
                 return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
             else:
                 return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
+
+    def insert_table_dict(self, table, dict):
+        with app.app_context():
+            return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
+
+    def insert_or_update_table_dict(self, table, dict):
+        with app.app_context():
+            return r.table(table).insert(dict, conflict='update').run(db.conn)
+                                        
+    def update_table_dict(self, table, id, dict):
+        with app.app_context():
+            return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
+            
+    '''
+    USERS
+    '''
+    def add_user(self,user):
+        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
+        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
+        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
+        p = Password()
+        usr = {'kind': 'local',
+               'active': True,
+                'accessed': time.time(),
+                'password': p.encrypt(user['password'])}
+        del user['password']
+        user={**usr, **user}
+        qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                    'templates_disk_max': 99999999,
+                    'isos_disk_max': 99999999}
+        user['quota']['domains']={**qdomains, **user['quota']['domains']}
+        return self.check(r.table('users').insert(user).run(db.conn),'inserted')
+
+    def add_users(self,users):
+        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
+        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
+        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
+        p = Password()
+        final_users=[]
+        for user in users:
+            usr['id']=usr['username']
+            usr = {'kind': 'local',
+                   'active': True,
+                    'accessed': time.time(),
+                    'password': p.encrypt(user['password'])}
+            del user['password']
+            user={**usr, **user}
+            qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                        'templates_disk_max': 99999999,
+                        'isos_disk_max': 99999999}
+            user['quota']['domains']={**qdomains, **user['quota']['domains']}
+            
+            final_users.append(user)
+        return self.check(r.table('users').insert(final_users).run(db.conn),'inserted')
+            
+    def get_admin_user(self):
+        with app.app_context():
+            ## ALERT: Should remove password (password='')
+            return self.f.table_values_bstrap(r.table('users').run(db.conn))
+
+    def get_admin_users_domains(self):
+        with app.app_context():
+            return self.f.table_values_bstrap(
+                r.table("users").merge(lambda user:
+                    {
+                        "desktops": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'desktop'}).count(),
+                        "public_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'public_template'}).count(),
+                        "user_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'user_template'}).count(),
+                        "base": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'base'}).count()
+                    }
+                ).run(db.conn))
+                
+    '''
+    DOMAINS
+    '''
                                 
     #~ def get_admin_domains(self,kind=False):
         #~ with app.app_context():
@@ -186,22 +237,44 @@ class isardAdmin():
                             #~ domain['history_domain'][0]['when'].default(0)
                     }
                 ).run(db.conn))
-
-    def safe_history(self,domain):
-        try:
-            #~ print('when:'+domain['history_domain'][0]['when'])
-            return domain['history_domain'][0]['when']
-        except:
-            #~ print('except:0')
-            return 0
-
+    
+    def domains_stop(self,hyp_id=False,without_viewer=True):
+        with app.app_context():
+            try:
+                if without_viewer:
+                    if hyp_id is False:
+                        return r.table('domains').get_all('Started',index='status').filter({'viewer':{'client_since':False}}).update({'status':'Stopping'}).run(db.conn)['replaced']
+                    else:
+                        return r.table('domains').get_all('Started',index='status').filter({'hyp_started':hyp_id,'viewer':{'client_since':False}}).update({'status':'Stopping'}).run(db.conn)['replaced']
+                else:
+                    if hyp_id is False:
+                        return r.table('domains').get_all('Started',index='status').update({'status':'Stopping'}).run(db.conn)['replaced']
+                    else:
+                        return r.table('domains').get_all('Started',index='status').filter({'hyp_started':hyp_id}).update({'status':'Stopping'}).run(db.conn)['replaced']
+                    
+            except:
+                return False
+                
     def get_admin_templates(self,term):
         with app.app_context():
             data1 = r.table('domains').get_all('base', index='kind').filter(r.row['name'].match(term)).order_by('name').pluck({'id','name','kind','group','icon','user','description'}).run(db.conn)
             data2 = r.table('domains').filter(r.row['kind'].match("template")).filter(r.row['name'].match(term))    .order_by('name').pluck({'id','name','kind','group','icon','user','description'}).run(db.conn)
         return data1+data2
             
-    def get_admin_hypervisors(self, id=False):
+    def get_admin_domain_datatables(self):
+        with app.app_context():
+            return {'columns':self.f.table_header_bstrap('domains'), 'data': self.f.table_values_bstrap('domains', fields)}
+
+
+    def get_admin_networks(self):
+        with app.app_context():
+            return list(r.table('interfaces').order_by('name').run(db.conn))
+
+
+    '''
+    HYPERVISORS
+    '''
+    def hypervisors_get(self, id=False):
         with app.app_context():
             if id:
                 flat_dict_list = self.f.flatten_dict(r.table("hypervisors").get(id).merge(lambda hyp:
@@ -215,66 +288,24 @@ class isardAdmin():
                                     "started_domains": r.table('domains').get_all('Started', index='status').filter({'hyp_started':hyp['id']}).count()
                                 }
                             ).run(db.conn))
-                        
-        #~ with app.app_context():
-            #~ if id:
-                #~ listdict = self.f.flatten_dict(r.table('hypervisors').get(id).run(db.conn))
-                #~ print(listdict)
-            #~ else:
-                #~ listdict = self.f.table_values_bstrap(r.table('hypervisors').run(db.conn))
-            
-                #~ i=0
-                #~ while i<len(listdict):
-                    #~ if 'fail_connected_reason' not in listdict[i]: listdict[i]['fail_connected_reason']=''
-                    #~ if 'disk_operations' not in listdict[i]: listdict[i]['disk_operations']='False'
-                    #~ i=i+1
-        #~ return listdict   
-        
         return flat_dict_list
 
-    def get_admin_pools(self, flat=True):
+    def hypervisors_pools_get(self, flat=True):
         with app.app_context():
             if flat:
                 return self.f.table_values_bstrap(r.table('hypervisors_pools').run(db.conn))
             else:
                 return list(r.table('hypervisors_pools').run(db.conn))
-
-    def insert_table_dict(self, table, dict):
+                            
+    def hypervisor_toggle_enabled(self,id):
         with app.app_context():
-            return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
-
-    def insert_or_update_table_dict(self, table, dict):
+            status=not r.table('hypervisors').get(id).run(db.conn)['enabled']
+            # ~ status=False if status else True
+            # ~ print(status)
+            return self.check(r.table('hypervisors').get(id).update({'enabled':status}).run(db.conn),'replaced')
+                
+    def hypervisor_add(self,dict):
         with app.app_context():
-            return r.table(table).insert(dict, conflict='update').run(db.conn)
-                                        
-    def update_table_dict(self, table, id, dict):
-        with app.app_context():
-            return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
-
-    def get_admin_domain_datatables(self):
-        with app.app_context():
-            return {'columns':self.f.table_header_bstrap('domains'), 'data': self.f.table_values_bstrap('domains', fields)}
-
-
-    def get_admin_networks(self):
-        with app.app_context():
-            return list(r.table('interfaces').order_by('name').run(db.conn))
-
-    def add_hypervisor(self,dict):
-        with app.app_context():
-            
- # ~ {
-
-    # ~ "bases": [
-        # ~ {
-            # ~ "disk_operations": [
-                # ~ "localhost"
-            # ~ ] ,
-            # ~ "path": "/isard/bases" ,
-            # ~ "weight": 100
-        # ~ }
-    # ~ ] , 
-    
             if dict['capabilities']['disk_operations']:
                 id=dict['id']
                 cap_disk=dict['capabilities']['disk_operations']
@@ -286,34 +317,38 @@ class isardAdmin():
                         for i,path_data in enumerate(paths[p]):
                             if id not in path_data['disk_operations']:
                                 path_data['disk_operations'].append(id)
-                                path_list.append(path_data['disk_operations'])
-                                print(path_list)
-                                # ~ pool['paths'][k][i]['disk_operations'].append(id)
-                        r.table('hypervisors_pools').update({'paths':{p:path_list}}).run(db.conn)
+                                paths[p][i]['disk_operations']=path_data['disk_operations']
+                r.table('hypervisors_pools').get(hp).update({'paths':paths,'enabled':False}).run(db.conn)
+            return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
 
-         # ~ r.table('hypervisors_pools').get(hp).update({'paths':}})
-         
-     # ~ .get('ID')
-      # ~ .update({
-            # ~ EVENT_CODE: r.row('EVENT_CODE').changeAt(1,
-           # ~ r.row('EVENT_CODE').nth(1).merge({"CODE_NAME": "MESSAGE_DELIVERED_TO_APP2"}))
-          # ~ })
-
-            # ~ return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
-
-
-
-
-    def add_hypervisor_pool(self,dict):
+    def hypervisor_pool_add(self,dict):
         with app.app_context():
             return self.check(r.table('hypervisors_pools').insert(dict).run(db.conn),'inserted')
 
-    def removeHypervisor(self,id):
-        with app.app_context():
-            r.table('hypervisors_events').filter({'hyp_id':id}).delete().run(db.conn)
-            r.table('hypervisors_status').filter({'hyp_id':id}).delete().run(db.conn)
-            r.table('hypervisors').get(id).delete().run(db.conn)
-            return True
+
+    # ~ def remove_hypervisor(self,id):
+        # ~ with app.app_context():
+            # ~ r.table('hypervisors_events').filter({'hyp_id':id}).delete().run(db.conn)
+            # ~ r.table('hypervisors_status').filter({'hyp_id':id}).delete().run(db.conn)
+            # ~ r.table('hypervisors_status_history').filter({'hyp_id':id}).delete().run(db.conn)
+            # ~ dict=r.table('hypervisors').get(id).run(db.conn)
+            # ~ if dict['capabilities']['disk_operations']:
+                # ~ id=dict['id']
+                # ~ cap_disk=dict['capabilities']['disk_operations']
+                # ~ cap_hyp=dict['capabilities']['hypervisor']
+                # ~ for hp in dict['hypervisors_pools']:
+                    # ~ paths=r.table('hypervisors_pools').get(hp).run(db.conn)['paths']
+                    # ~ for p in paths:
+                        # ~ path_list=[]
+                        # ~ for i,path_data in enumerate(paths[p]):
+                            # ~ if id in path_data['disk_operations']:
+                                # ~ path_data['disk_operations'].remove(id)
+                                # ~ paths[p][i]['disk_operations']=path_data['disk_operations']
+                # ~ r.table('hypervisors_pools').get(hp).update({'paths':paths}).run(db.conn)
+            # ~ return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
+            
+            # ~ r.table('hypervisors').get(id).delete().run(db.conn)
+            # ~ return True
 
     def get_admin_config(self, id=None):
         with app.app_context():
@@ -322,51 +357,9 @@ class isardAdmin():
             else:
                 return self.f.flatten_dict(r.table('config').get(1).run(db.conn))
                 
-    def getUnflatten(self,dict):
-        f=flatten()
-        return f.unflatten_dict(dict)
 
-    '''
-    USERS
-    '''
-    def add_user(self,user):
-        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
-        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
-        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
-        p = Password()
-        usr = {'kind': 'local',
-               'active': True,
-                'accessed': time.time(),
-                'password': p.encrypt(user['password'])}
-        del user['password']
-        user={**usr, **user}
-        qdomains ={'desktops_disk_max': 99999999,  # 100GB
-                    'templates_disk_max': 99999999,
-                    'isos_disk_max': 99999999}
-        user['quota']['domains']={**qdomains, **user['quota']['domains']}
-        return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
-    def add_users(self,users):
-        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
-        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
-        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
-        p = Password()
-        final_users=[]
-        for user in users:
-            usr['id']=usr['username']
-            usr = {'kind': 'local',
-                   'active': True,
-                    'accessed': time.time(),
-                    'password': p.encrypt(user['password'])}
-            del user['password']
-            user={**usr, **user}
-            qdomains ={'desktops_disk_max': 99999999,  # 100GB
-                        'templates_disk_max': 99999999,
-                        'isos_disk_max': 99999999}
-            user['quota']['domains']={**qdomains, **user['quota']['domains']}
-            
-            final_users.append(user)
-        return self.check(r.table('users').insert(final_users).run(db.conn),'inserted')
+
         
     '''
     BACKUP & RESTORE
@@ -499,24 +492,6 @@ class isardAdmin():
             pass
         return tbl_data,isard_db
 
-    #~ def check_new_values(self,table,new_data):
-        #~ data=[]
-        #~ actual_data=list(r.table(table).run(db.conn))
-        #~ for n in new_data:
-            #~ found=False
-            #~ for a in actual_data:
-                #~ if n['id']==a['id']:
-                    #~ cp=n.copy()
-                    #~ cp['new_backup_data']=False
-                    #~ data.append(cp)
-                    #~ found=True
-                    #~ break
-            #~ if not found:
-                #~ cp=n.copy()
-                #~ cp['new_backup_data']=True
-                #~ data.append(cp)
-        #~ return data
-
     def check_new_values(self,table,new_data):
         backup=new_data
         dbb=list(r.table(table).run(db.conn))
@@ -533,17 +508,6 @@ class isardAdmin():
                 b['new_backup_data']=True
                 result.append(b)
         return result
-        
-        #~ from operator import itemgetter
-        #~ new_data, actual_data = [sorted(l, key=itemgetter('id')) 
-                              #~ for l in (new_data, actual_data)]        
-        #~ print(new_data)
-        #~ print(actual_data)
-        #~ pairs = zip(new_data,actual_data)
-        #~ print([(x, y) for x, y in pairs if x != y])
-        #~ return [(x, y) for x, y in pairs if x != y]
-            
-    
     
     def upload_backup(self,handler):
         path='./backups/'
@@ -583,36 +547,6 @@ class isardAdmin():
             pass
         with app.app_context():
             r.table('backups').get(id).delete().run(db.conn)
-
-
-        
-
-    '''
-    CLASSROOMS
-    '''
-    def replace_hosts_viewers_items(self,place,hosts):
-        with app.app_context():
-            try:
-                place['id']=app.isardapi.parse_string(place['name'])
-                r.table('places').insert(place, conflict='update').run(db.conn)
-            except Exception as e:
-                log.error('error on update place:',e)
-                return False
-                
-            try:
-                hosts = [dict(item, place_id=place['id']) for item in hosts]
-                hosts = [dict(item, enabled=True) for item in hosts]
-                r.table('hosts_viewers').get_all(place['id'], index='place_id').delete().run(db.conn)
-                
-                return self.check(r.table('hosts_viewers').insert(hosts).run(db.conn),'inserted')
-            except Exception as e:
-                log.error('error o update hosts_viewers:',e)
-                return False
-
-
-    def get_hosts_viewers(self, place_id):
-        with app.app_context():
-            return list(r.table('hosts_viewers').get_all(place_id, index='place_id').run(db.conn))
                     
     '''
     GRAPHS
@@ -680,8 +614,6 @@ class isardAdmin():
         dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'size':disk_size}]   # 15G as a format
-        #~ create_dict['install']['id']=install_id
-        #~ create_dict['install']['options']=install_options
         new_domain={'id': '_'+user+'_'+parsed_name,
                   'name': name,
                   'description': description,
@@ -706,90 +638,118 @@ class isardAdmin():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
 
-    def isa_group_separator(self,line):
-        return True if line.startswith('[') else False
+    # ~ def isa_group_separator(self,line):
+        # ~ return True if line.startswith('[') else False
 
-    def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
-        path=app.root_path+'/config/virt/virt-builder-files.ini'
-        response = requests.get(url)
-        file = open(path, "w")
-        file.write(response.text)
-        file.close()
-        images=[]
-        with open(path) as f:
-            for key,group in itertools.groupby(f,self.isa_group_separator):
-                if not key:
-                    data={}
-                    for item in group:
-                        try:
-                            if item.startswith(' '): continue
-                            field,value=item.split('=')
-                            value=value.strip()
-                            data[field]=value
-                        except Exception as e:
-                            continue
-                    data['id']=data['file'].split('.xz')[0]
-                    if 'revision' not in data: data['revision']='0'
-                    images.append(data)
-        r.table('domains_virt_builder').insert(images, conflict='update').run(db.conn)
-        return True
+    # ~ def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
+        # ~ path=app.root_path+'/config/virt/virt-builder-files.ini'
+        # ~ response = requests.get(url)
+        # ~ file = open(path, "w")
+        # ~ file.write(response.text)
+        # ~ file.close()
+        # ~ images=[]
+        # ~ with open(path) as f:
+            # ~ for key,group in itertools.groupby(f,self.isa_group_separator):
+                # ~ if not key:
+                    # ~ data={}
+                    # ~ for item in group:
+                        # ~ try:
+                            # ~ if item.startswith(' '): continue
+                            # ~ field,value=item.split('=')
+                            # ~ value=value.strip()
+                            # ~ data[field]=value
+                        # ~ except Exception as e:
+                            # ~ continue
+                    # ~ data['id']=data['file'].split('.xz')[0]
+                    # ~ if 'revision' not in data: data['revision']='0'
+                    # ~ images.append(data)
+        # ~ r.table('domains_virt_builder').insert(images, conflict='update').run(db.conn)
+        # ~ return True
 
-    def cmd_virtbuilder(self,id,path,size):
-        #~ log.info('virt-builder '+id+' \
-             #~ --output '+path+' \
-             #~ --size '+size+'G \
-             #~ --format qcow2')
-        command_output=subprocess.getoutput(['virt-builder '+id+' \
-             --output '+path+' \
-             --size '+size+'G \
-             --format qcow2'])
-        return True
+    # ~ def cmd_virtbuilder(self,id,path,size):
+        # ~ command_output=subprocess.getoutput(['virt-builder '+id+' \
+             # ~ --output '+path+' \
+             # ~ --size '+size+'G \
+             # ~ --format qcow2'])
+        # ~ return True
 
-    def update_virtinstall(self):
-        data = subprocess.getoutput("osinfo-query os")
-        installs=[]
-        found=False
-        for l in data.split('\n'):
-            if not found:
-                if '+' in l:
-                    found=True
-                continue
-            else:
-                v=l.split('|')
-                installs.append({'id':v[0].strip(),'name':v[1].strip(),'vers':v[2].strip(),'www':v[3].strip()})
-        r.table('domains_virt_install').insert(installs, conflict='update').run(db.conn)
+    # ~ def update_virtinstall(self):
+        # ~ data = subprocess.getoutput("osinfo-query os")
+        # ~ installs=[]
+        # ~ found=False
+        # ~ for l in data.split('\n'):
+            # ~ if not found:
+                # ~ if '+' in l:
+                    # ~ found=True
+                # ~ continue
+            # ~ else:
+                # ~ v=l.split('|')
+                # ~ installs.append({'id':v[0].strip(),'name':v[1].strip(),'vers':v[2].strip(),'www':v[3].strip()})
+        # ~ r.table('domains_virt_install').insert(installs, conflict='update').run(db.conn)
 
-    '''
-    RESOURCES
-    '''
+    # ~ '''
+    # ~ RESOURCES
+    # ~ '''
 
-    def get_remote_resources(self):
-        with app.app_context():
-            url=r.table('config').get('1').pluck('resources_url').run(db.conn)['url']
-        path=app.root_path+'/config/virt/virt-builder-files.ini'
-        response = requests.get(url)
-        file = open(path, "w")
-        file.write(response.text)
-        file.close()
-        images=[]
-        with open(path) as f:
-            for key,group in itertools.groupby(f,self.isa_group_separator):
-                if not key:
-                    data={}
-                    for item in group:
-                        try:
-                            if item.startswith(' '): continue
-                            field,value=item.split('=')
-                            value=value.strip()
-                            data[field]=value
-                        except Exception as e:
-                            continue
-                    data['id']=data['file'].split('.xz')[0]
-                    if 'revision' not in data: data['revision']='0'
-                    images.append(data)
-        r.table('domains_virt_builder').insert(images, conflict='update').run(db.conn)
-        return True
-        
+    # ~ def get_remote_resources(self):
+        # ~ with app.app_context():
+            # ~ url=r.table('config').get('1').pluck('resources_url').run(db.conn)['url']
+        # ~ path=app.root_path+'/config/virt/virt-builder-files.ini'
+        # ~ response = requests.get(url)
+        # ~ file = open(path, "w")
+        # ~ file.write(response.text)
+        # ~ file.close()
+        # ~ images=[]
+        # ~ with open(path) as f:
+            # ~ for key,group in itertools.groupby(f,self.isa_group_separator):
+                # ~ if not key:
+                    # ~ data={}
+                    # ~ for item in group:
+                        # ~ try:
+                            # ~ if item.startswith(' '): continue
+                            # ~ field,value=item.split('=')
+                            # ~ value=value.strip()
+                            # ~ data[field]=value
+                        # ~ except Exception as e:
+                            # ~ continue
+                    # ~ data['id']=data['file'].split('.xz')[0]
+                    # ~ if 'revision' not in data: data['revision']='0'
+                    # ~ images.append(data)
+        # ~ r.table('domains_virt_builder').insert(images, conflict='update').run(db.conn)
+        # ~ return True
+
+
+    # ~ '''
+    # ~ CLASSROOMS
+    # ~ '''
+    # ~ def replace_hosts_viewers_items(self,place,hosts):
+        # ~ with app.app_context():
+            # ~ try:
+                # ~ place['id']=app.isardapi.parse_string(place['name'])
+                # ~ r.table('places').insert(place, conflict='update').run(db.conn)
+            # ~ except Exception as e:
+                # ~ log.error('error on update place:',e)
+                # ~ return False
+                
+            # ~ try:
+                # ~ hosts = [dict(item, place_id=place['id']) for item in hosts]
+                # ~ hosts = [dict(item, enabled=True) for item in hosts]
+                # ~ r.table('hosts_viewers').get_all(place['id'], index='place_id').delete().run(db.conn)
+                
+                # ~ return self.check(r.table('hosts_viewers').insert(hosts).run(db.conn),'inserted')
+            # ~ except Exception as e:
+                # ~ log.error('error o update hosts_viewers:',e)
+                # ~ return False
+
+
+    # ~ def get_hosts_viewers(self, place_id):
+        # ~ with app.app_context():
+            # ~ return list(r.table('hosts_viewers').get_all(place_id, index='place_id').run(db.conn))
+            
+
+'''
+FLATTEN AND UNFLATTEN DICTS
+'''        
 class flatten(object):
     def __init__(self):
         None

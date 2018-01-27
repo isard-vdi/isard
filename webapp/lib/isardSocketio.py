@@ -364,7 +364,7 @@ def start_config_thread():
 @socketio.on('hyper_add', namespace='/sio_admins')
 def socketio_hyper_add(form_data):
     if current_user.role == 'admin': 
-        create_dict=app.isardapi.f.unflatten_dict(request.form)
+        create_dict=app.isardapi.f.unflatten_dict(form_data)
         if 'capabilities' not in create_dict: create_dict['capabilities']={}
         if 'disk_operations' not in create_dict['capabilities']:
             create_dict['capabilities']['disk_operations']=False
@@ -383,18 +383,60 @@ def socketio_hyper_add(form_data):
         create_dict['status_time']=''
         create_dict['uri']=''
         create_dict['enabled']=True
-        res=app.adminapi.add_hypervisor(create_dict)
+        res=app.adminapi.hypervisor_add(create_dict)
 
         if res is True:
-            data=json.dumps({'result':True,'title':'New hypervisor','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
+            info=json.dumps({'result':True,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' has been created.','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':False,'title':'New hypervisor','text':'User '+create_dict['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+            info=json.dumps({'result':False,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
-                        data,
+                        info,
                         namespace='/sio_admins', 
                         room='hyper')
 
+@socketio.on('hyper_delete', namespace='/sio_admins')
+def socketio_hyper_delete(data):
+    if current_user.role == 'admin': 
+        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        res=app.adminapi.update_table_dict('hypervisors',data['pk'],{'enabled':False,'status':'Deleting'}),
+        if res is True:
+            info=json.dumps({'result':True,'title':'Hypervisor deletiing','text':'Hypervisor '+data['name']+' deletion on progress. Engine will delete it when no operations pending.','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'Hypervisor deleting','text':'Hypervisor '+data['name']+' could not set it to start deleting process.','icon':'warning','type':'error'})          
+        socketio.emit('result',
+                        info,
+                        namespace='/sio_admins', 
+                        room='hyper')
 
+@socketio.on('hyper_toggle', namespace='/sio_admins')
+def socketio_hyper_toggle(data):
+    if current_user.role == 'admin': 
+        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        res=app.adminapi.hypervisor_toggle_enabled(data['pk'])
+        if res is True:
+            info=json.dumps({'result':True,'title':'Hypervisor enable/disable','text':'Hypervisor '+data['name']+' enable/disable success.','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'Hypervisor enable/disable','text':'Hypervisor '+data['name']+' could not toggle enable status!','icon':'warning','type':'error'})        
+        socketio.emit('result',
+                        info,
+                        namespace='/sio_admins', 
+                        room='hyper')
+
+@socketio.on('hyper_domains_stop', namespace='/sio_admins')
+def socketio_hyper_domains_stop(data):
+    if current_user.role == 'admin': 
+        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        res=app.adminapi.domains_stop(hyp_id=data['pk'],without_viewer=data['without_viewer'])
+        if res is False:
+            info=json.dumps({'result':False,'title':'Hypervisor domains stoping','text':'Domains in '+data['name']+' hypervisor could not be stopped now.!','icon':'warning','type':'error'}) 
+            
+        else:
+            info=json.dumps({'result':True,'title':'Hypervisor domains stopping','text':str(res)+' domains in hypervisor '+data['name']+' have been stopped.','icon':'success','type':'success'})
+        socketio.emit('result',
+                        info,
+                        namespace='/sio_admins', 
+                        room='hyper')
+                        
 ## Users namespace
 @socketio.on('user_add', namespace='/sio_admins')
 def socketio_user_add(form_data):
@@ -403,9 +445,9 @@ def socketio_user_add(form_data):
         # ~ print(create_dict)
         res=app.adminapi.add_user(form_data)
         if res is True:
-            data=json.dumps({'result':True,'title':'New user','text':'User '+create_dict['name']+' has been created...','icon':'success','type':'success'})
+            data=json.dumps({'result':True,'title':'New user','text':'User '+form_data['name']+' has been created...','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':False,'title':'New user','text':'User '+create_dict['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+            data=json.dumps({'result':False,'title':'New user','text':'User '+form_data['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/sio_admins', 

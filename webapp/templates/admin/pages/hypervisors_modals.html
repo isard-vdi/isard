@@ -17,7 +17,10 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 
-              <form id="modalAdd" class="form-horizontal form-label-left" action="{{ url_for('admin_hypervisors') }}" method="POST" novalidate>
+              <form id="modalAdd" class="form-horizontal form-label-left">
+<!--
+              action="{{ url_for('admin_hypervisors') }}" method="POST" novalidate>
+-->
 			  <div class="x_panel">
 					<div class="x_content">
                      <div class="item form-group">
@@ -133,7 +136,7 @@
                      <div class="form-group">
                         <div class="col-md-6 col-md-offset-3">
                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="submit" class="btn btn-success">Create hypervisor</button>
+                           <button id="send" type="button" class="btn btn-success">Create hypervisor</button>
                         </div>
                      </div>
             </div>
@@ -162,7 +165,7 @@
             
             <!-- Modal Body -->
             <div class="modal-body">
-              <form id="modalAdd" class="form-horizontal form-label-left" action="{{ url_for('admin_hypervisors_pools') }}" method="POST" novalidate>
+              <form id="modalAdd" class="form-horizontal form-label-left" action="{{ url_for('hypervisors_pools_get') }}" method="POST" novalidate>
 			  <div class="x_panel">
 					<div class="x_content">
                      <div class="item form-group">
