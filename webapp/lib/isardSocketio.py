@@ -180,7 +180,7 @@ class MediaThread(threading.Thread):
     def run(self):
         with app.app_context():
             for c in r.table('domains').get_all(r.args(['Downloading','Downloaded']),index='status').pluck('id','name','description','icon','progress','status').merge({'table':'domains'}).changes(include_initial=False).union(
-                    r.table('media').get_all(r.args(['Downloading','Downloaded']),index='status').merge({'table':'media'}).changes(include_initial=False)).run(db.conn):
+                    r.table('media').get_all(r.args(['DownloadStarting','Downloading','Downloaded']),index='status').merge({'table':'media'}).changes(include_initial=False)).run(db.conn):
             
             # ~ for c in r.table('media').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','percentage')
@@ -690,30 +690,18 @@ def socketio_media_update(data):
     
        
 
-@socketio.on('media_add', namespace='/sio_users')
-def socketio_media_add(form_data):
-    filename = form_data['url'].split('/')[-1]
-    media=app.isardapi.user_relative_media_path(current_user.username, filename)
-    if not media:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created. It doesn\'t seem a valid url filename.','icon':'warning','type':'error'})
-        socketio.emit('add_form_result',
-                        data,
-                        namespace='/sio_users', 
-                        room='user_'+current_user.username)
+@socketio.on('media_add', namespace='/sio_admins')
+def socketio_admin_media_add(form_data):
+    form_data['hypervisors_pools']=[form_data['hypervisors_pools']]
+    res=app.adminapi.media_add(current_user.username, form_data)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New media','text':'Media is being downloaded...','icon':'success','type':'success'})
     else:
-        #dict = {**form_data, **iso}
-        dict = {}
-        dict['status']='Starting'
-        dict['percentage']=0
-        res = app.isardapi.add_dict2table(dict,'media')
-        if res is True:
-            data=json.dumps({'result':True,'title':'New media','text':'Media '+media['name']+' is being uploaded...','icon':'success','type':'success'})
-        else:
-            data=json.dumps({'result':False,'title':'New iso','text':'Iso '+iso['name']+' can\'t be uploaded. You have the same iso filename uploaded already.','icon':'warning','type':'error'})
-        socketio.emit('add_form_result',
-                        data,
-                        namespace='/sio_users', 
-                        room='user_'+current_user.username)
+        info=json.dumps({'result':False,'title':'New media','text':'Media can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_admins', 
+                    room='media')
 
 
 ## Disposables
@@ -804,11 +792,11 @@ def socketio_domains_virtualbuilder_add(form_data):
     create_dict['builder']['options']=create_dict['builder']['options'].replace('\r\n','')
     res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
-                    data,
+                    info,
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
 

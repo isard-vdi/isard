@@ -28,6 +28,18 @@
                            <input id="url" class="form-control col-md-7 col-xs-12" parsley-trigger="change" parsley-type="url"  name="url" placeholder="http://" required="required" type="text">
                         </div>
                      </div>
+                     <div class="item form-group">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Type <span class="required">*</span>
+                            </label>
+                            <div class="col-md-6 col-xs-12">
+                                   <select id="kind" name="kind" class="form-control" required>
+                                      <option value="">Choose..</option>
+                                      <option value="iso">ISO CD/DVD</option>
+                                      <option value="floppy">Floppy</option>
+                                   </select>
+                            </div>
+                     </div>
+
 <!--
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
@@ -37,6 +49,7 @@
                         </div>
                      </div>
 -->
+                     
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
                         </label>

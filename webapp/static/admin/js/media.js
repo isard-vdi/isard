@@ -39,7 +39,7 @@ $(document).ready(function() {
             { "data": "icon"},
             { "data": "name"},
             { "data": "status"},
-            { "data": "progress"},
+            { "data": null},
             {
                 "className":      'actions-control',
                 "orderable":      false,
@@ -244,9 +244,9 @@ $(document).ready(function() {
 
 function renderProgress(data){
             return '<div class="progress"> \
-  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data['progress']['% Total']+'" \
-  aria-valuemin="0" aria-valuemax="100" style="width:'+data['progress']['% Total']+'%"> \
-    '+data['progress']['% Total']+'% \
+  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data['progress-total_percent']+'" \
+  aria-valuemin="0" aria-valuemax="100" style="width:'+data['progress-total_percent']+'%"> \
+    '+data['progress-total_percent']+'% \
   </div> \
 </<div> '
 }

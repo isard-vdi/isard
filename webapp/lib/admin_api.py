@@ -431,8 +431,30 @@ class isardAdmin():
                 
 
 
-
-        
+    '''
+    MEDIA
+    '''
+    def media_add(self,username,partial_dict):
+        try:
+            partial_dict['url-web']=partial_dict['url']
+            del partial_dict['url']
+            filename = partial_dict['url-web'].split('/')[-1]
+            user_data=app.isardapi.user_relative_media_path( username, filename)
+            partial_dict={**partial_dict, **user_data}
+            missing_keys={  'accessed': time.time(),
+                            'detail': 'User added',
+                            'icon': 'fa-circle-o' if partial_dict['kind']=='iso' else 'fa-floppy-o',
+                            'progress': {},
+                            'status': 'DownloadStarting',
+                            'url-isard': False,
+                            }
+            dict={**partial_dict, **missing_keys}
+            return self.insert_table_dict('media',dict)
+        except Exception as e:
+            log.error('Exception error on media add')
+            return False
+        return False
+                 
     '''
     BACKUP & RESTORE
     '''
