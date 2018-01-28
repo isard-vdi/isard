@@ -134,7 +134,47 @@ class isardAdmin():
     '''
     USERS
     '''
-    def add_user(self,user):
+    def user_add(self,user):
+        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
+        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
+        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
+        p = Password()
+        usr = {'kind': 'local',
+               'active': True,
+                'accessed': time.time(),
+                'password': p.encrypt(user['password'])}
+        del user['password']
+        user={**usr, **user}
+        qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                    'templates_disk_max': 99999999,
+                    'isos_disk_max': 99999999}
+        user['quota']['domains']={**qdomains, **user['quota']['domains']}       
+        return self.check(r.table('users').insert(user).run(db.conn),'inserted')
+
+    def users_add(self,users):
+        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
+        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
+        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
+        p = Password()
+        final_users=[]
+        for user in users:
+            
+            usr = {'kind': 'local',
+                   'active': True,
+                    'accessed': time.time(),
+                    'password': p.encrypt(user['password'])}
+            # ~ usr['id']=user['username']
+            del user['password']
+            user={**usr, **user}
+            qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                        'templates_disk_max': 99999999,
+                        'isos_disk_max': 99999999}
+            user['quota']['domains']={**qdomains, **user['quota']['domains']}
+            
+            final_users.append(user)          
+        return self.check(r.table('users').insert(final_users).run(db.conn),'inserted')
+
+    def user_edit(self,user):
         # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
         # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
         # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
@@ -149,31 +189,8 @@ class isardAdmin():
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}
         user['quota']['domains']={**qdomains, **user['quota']['domains']}
-        return self.check(r.table('users').insert(user).run(db.conn),'inserted')
-
-    def add_users(self,users):
-        # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
-        # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
-        # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
-        p = Password()
-        final_users=[]
-        for user in users:
-            
-            usr = {'kind': 'local',
-                   'active': True,
-                    'accessed': time.time(),
-                    'password': p.encrypt(user['password'])}
-            usr['id']=user['username']
-            del user['password']
-            user={**usr, **user}
-            qdomains ={'desktops_disk_max': 99999999,  # 100GB
-                        'templates_disk_max': 99999999,
-                        'isos_disk_max': 99999999}
-            user['quota']['domains']={**qdomains, **user['quota']['domains']}
-            
-            final_users.append(user)
-        return self.check(r.table('users').insert(final_users).run(db.conn),'inserted')
-            
+        return self.check(r.table('users').update(user).run(db.conn),'replaced')
+                    
     def get_admin_user(self):
         with app.app_context():
             ## ALERT: Should remove password (password='')
@@ -414,8 +431,30 @@ class isardAdmin():
                 
 
 
-
-        
+    '''
+    MEDIA
+    '''
+    def media_add(self,username,partial_dict):
+        try:
+            partial_dict['url-web']=partial_dict['url']
+            del partial_dict['url']
+            filename = partial_dict['url-web'].split('/')[-1]
+            user_data=app.isardapi.user_relative_media_path( username, filename)
+            partial_dict={**partial_dict, **user_data}
+            missing_keys={  'accessed': time.time(),
+                            'detail': 'User added',
+                            'icon': 'fa-circle-o' if partial_dict['kind']=='iso' else 'fa-floppy-o',
+                            'progress': {},
+                            'status': 'DownloadStarting',
+                            'url-isard': False,
+                            }
+            dict={**partial_dict, **missing_keys}
+            return self.insert_table_dict('media',dict)
+        except Exception as e:
+            log.error('Exception error on media add')
+            return False
+        return False
+                 
     '''
     BACKUP & RESTORE
     '''

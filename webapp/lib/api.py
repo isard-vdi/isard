@@ -719,9 +719,10 @@ class isard():
         dir_disk, disk_filename = self.get_disk_path(userObj, filename)
         return {'id':id,
                 'name':filename,
-                'path':dir_disk+'/',
-                'filename':filename,
-                'user':user}
+                'path':dir_disk+'/'+filename,
+                'user':user,
+                'category':userObj['category'],
+                'group':userObj['group'],}
         
     def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
         with app.app_context():
