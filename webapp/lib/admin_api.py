@@ -454,7 +454,15 @@ class isardAdmin():
             log.error('Exception error on media add')
             return False
         return False
-                 
+
+
+    def media_domains_used():
+        return list(r.table('domains').filter(
+                lambda dom: 
+                    (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                ).run(conn))
+        # ~ return list(r.table("domains").filter({'create_dict':{'hardware':{'isos':id}}).pluck('id').run(db.conn))                    
+    
     '''
     BACKUP & RESTORE
     '''

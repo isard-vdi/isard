@@ -1,9 +1,53 @@
-        <div class="top_nav">
-          <div class="nav_menu">
-            <nav class="" role="navigation">
+        <div class="top_nav" >
+          <div class="nav_menu" {% if current_user.role == 'admin' %} style="background-color:#ffe6e6;" {% endif %}>
+            <nav class="" role="navigation" >
               <div class="nav toggle">
                 <a id="menu_toggle"><i class="fa fa-bars"></i></a>
               </div>
+
+            {% if current_user.role == 'admin' %}
+<!--
+              <ul class="nav navbar-nav navbar-left" >
+
+                
+				<li role="presentation"  class="quota-templates">
+                  <a href="javascript:" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false">
+                    <i id="engine-main-icon" class="fa fa-cog"></i>
+                    <span class="badge"></span>
+                  </a>
+                  
+				  <ul id="menu-engine" class="dropdown-menu list-unstyled msg_list" role="menu">
+                    <li>
+                      <a>
+                        <span class="image"><i class="fa fa-cogs"></i></span>
+                        <span>
+                          <span>Theads alive</span>
+                          <span class="time"><span class="perc"></span>%</span>
+                        </span>
+                        <span class="message">
+                          You have <span class="have"></span> ISO files of <span class="of"></span> in your quota.
+                        </span>
+                      </a>
+                    </li>                        
+                    <li>
+                      <a>
+                        <span id="engine-main-icon" class="image"><i class="fa fa-cogs"></i></span>
+                        <span>
+                          <span>Isos</span>
+                          <span class="time"><span class="perc"></span>%</span>
+                        </span>
+                        <span class="message">
+                          You have <span class="have"></span> ISO files of <span class="of"></span> in your quota.
+                        </span>  
+                                              
+                      </a>
+                    </li>
+                   </ul>
+				</li>					
+              </ul>
+-->
+            {% endif %}
+
               <ul class="nav navbar-nav navbar-right">
                 <li class="">
                   <a href="javascript:" class="user-profile dropdown-toggle" data-toggle="dropdown" aria-expanded="false">

@@ -59,3 +59,4 @@ $lost=0;
         if(data.iqp > 50 && data.iqp <= 80){$('.quota-isos .badge').addClass('bg-orange');}
         if(data.iqp > 80){$('.quota-isos .badge').addClass('bg-red');}	
     }
+    
