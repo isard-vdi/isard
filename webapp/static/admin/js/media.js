@@ -239,24 +239,8 @@ $(document).ready(function() {
     
  } );
 
-//~ function renderProgress(data){
-            //~ return '<div class="progress"> \
-  //~ <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data.percentage+'" \
-  //~ aria-valuemin="0" aria-valuemax="100" style="width:'+data.percentage+'%"> \
-    //~ '+data.percentage+'% \
-  //~ </div> \
-//~ </<div> '
-//~ }
 
-
-function renderProgress(data){
-            //~ perc = data['progress-received_percent']
-            //~ return data['progress-total']+' - '+data['progress-speed_download_average']+'/s - '+data['progress-time_left']+'<div class="progress"> \
-  //~ <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
-  //~ aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
-    //~ '+perc+'%  \
-  //~ </div> \
-//~ </<div> '    
+function renderProgress(data){ 
             perc = data.progress.received_percent
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
