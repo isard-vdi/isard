@@ -15,11 +15,12 @@ import rethinkdb as r
 from engine.config import TEST_HYP_FAIL_INTERVAL, STATUS_POLLING_INTERVAL, TIME_BETWEEN_POLLING, \
     POLLING_INTERVAL_BACKGROUND
 from engine.controllers.events_recolector import launch_thread_hyps_event
-from engine.controllers.status import launch_thread_status, launch_thread_broom
+from engine.controllers.status import launch_thread_status
+from engine.controllers.broom import launch_thread_broom
 from engine.controllers.ui_actions import UiActions
 from engine.models.pool_hypervisors import PoolHypervisors
 from engine.services.db.db import new_rethink_connection, \
-    get_pools_from_hyp
+    get_pools_from_hyp, update_table_field
 from engine.services.db.hypervisors import get_hyps_ready_to_start, get_hypers_disk_operations, update_hyp_status, \
     get_hyp_hostname_user_port_from_id, update_all_hyps_status, get_hyps_with_status
 from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_created, \
@@ -71,6 +72,64 @@ class ManagerHypervisors(object):
         self.t_background = self.ThreadBackground(name='manager_pooling', parent=self)
         self.t_background.daemon = True
         self.t_background.start()
+
+    def update_info_threads_engine(self):
+        d = {}
+        alive=[]
+        dead=[]
+        #events,broom
+        for name in ['events','broom','downloads_changes','changes_hyps','changes_domains']:
+            try:
+                alive.append(name) if self.__getattribute__('t_'+name).is_alive() else dead.append(name)
+            except:
+                #thread not defined
+                pass
+
+        for name in ['workers','status','disk_operations','long_operations']:
+            for hyp,t in self.__getattribute__('t_'+name).items():
+                try:
+                    alive.append(name + '_' + hyp) if t.is_alive() else dead.append(name + '_' + hyp)
+                except:
+                    pass
+
+        d['alive']=alive
+        d['dead']=dead
+        update_table_field('engine', 'engine', 'threadas', d)
+        return alive,dead
+
+    def stop_threads(self):
+        # operations / status
+        for k,v in self.t_long_operations.items():
+            v.stop = True
+        for k, v in self.t_disk_operations.items():
+            v.stop = True
+        for k, v in self.t_workers.items():
+            v.stop = True
+        for k, v in self.t_status.items():
+            v.stop = True
+
+        self.q_disk_operations
+
+        # events and broom
+        self.t_events.stop = True
+        self.t_broom.stop = True
+
+        # changes
+        update_table_field('engine', 'engine', 'status_all_threads', 'Stopping')
+
+        # self.t_changes_domains.stop = True
+        # self.t_changes_hyps.stop = True
+        # self.t_downloads_changes.stop = True
+        #
+        # if self.t_changes_domains.cursor_changes is not False:
+        #     self.t_changes_domains.cursor_changes()
+        #     self.t_changes_domains.r_conn.close()
+        # if self.t_changes_hyps.r_conn is not False:
+        #     self.t_changes_hyps.r_conn.close()
+        # if self.t_downloads_changes.r_conn is not False:
+        #     self.t_downloads_changes.r_conn.close()
+
+
 
     class ThreadBackground(threading.Thread):
         def __init__(self, name, parent):
@@ -156,6 +215,7 @@ class ManagerHypervisors(object):
                 # ONLY FOR DEBUG
                 logs.main.debug('##### THREADS ##################')
                 get_threads_running()
+                self.manager.update_info_threads_engine()
 
                 # DISK_OPERATIONS:
                 if len(self.manager.t_disk_operations) == 0:
@@ -166,6 +226,7 @@ class ManagerHypervisors(object):
 
                 # LAUNCH CHANGES THREADS
                 if first_loop is True:
+                    update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
                     self.manager.t_changes_hyps = self.manager.HypervisorChangesThread('changes_hyp', self.manager)
                     self.manager.t_changes_hyps.daemon = True
                     self.manager.t_changes_hyps.start()
@@ -175,18 +236,20 @@ class ManagerHypervisors(object):
                     self.manager.t_changes_domains.start()
 
                     logs.main.debug('Launching Download Changes Thread')
-                    self.t_downloads_changes = launch_thread_download_changes()
+                    self.manager.t_downloads_changes = launch_thread_download_changes()
 
                     self.manager.t_broom = launch_thread_broom()
 
                     first_loop = False
 
-                # TODO INFO TO DEVELOPER, ESTO DEBERAÍ FUNCIONAR CON UN PAR DE EVENTOS QUIZÁS
+                    logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
+                    update_table_field('engine', 'engine', 'status_all_threads', 'Started')
 
                 try:
                     action = q.get(timeout=self.manager.TEST_HYP_FAIL_INTERVAL)
                     if action['type'] == 'stop':
                         self.manager.quit = True
+                        logs.main.info('engine end')
                 except queue.Empty:
                     pass
                 except Exception as e:
@@ -211,14 +274,25 @@ class ManagerHypervisors(object):
             threading.Thread.__init__(self)
             self.manager = parent
             self.name = name
+            self.stop = False
+            self.r_conn = False
 
         def run(self):
             self.tid = get_tid()
             logs.main.info('starting thread: {} (TID {})'.format(self.name, self.tid))
-            r_conn = new_rethink_connection()
+            self.r_conn = new_rethink_connection()
             # rtable=r.table('disk_operations')
             # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
-            for c in r.table('hypervisors').changes().run(r_conn):
+            for c in r.table('hypervisors').merge({'table': 'hypervisors'}).changes().\
+                    union(r.table('engine').pluck('threads', 'status_all_threads').merge({'table': 'engine'}).changes())\
+                    .run(self.r_conn):
+
+                #stop thread
+                if self.stop is True:
+                    break
+                if c['new_val']['table'] == 'engine':
+                    if c['new_val']['status_all_threads'] == 'Stopping':
+                        break
 
                 # hypervisor deleted
                 if c['new_val'] is None:
@@ -232,176 +306,153 @@ class ManagerHypervisors(object):
                     logs.main.info(pprint.pformat(c))
                     self.manager.q.background.put({'type': 'add_hyp'})
 
-            r_conn.close()
-
-    class ActionsChangesThread(threading.Thread):
-        def __init__(self, name, parent):
-            threading.Thread.__init__(self)
-            self.manager = parent
-            self.name = name
-
-        def run(self):
-            self.tid = get_tid()
-            logs.main.info('starting thread: {} (TID {})'.format(self.name, self.tid))
-            logs.main.debug('^^^^^^^^^^^^^^^^^^^ ACTIONS THREAD ^^^^^^^^^^^^^^^^^')
-            ui = UiActions(self.manager)
-            r_conn = new_rethink_connection()
-
-            # rtable=r.table('disk_operations')
-            # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
-            for c in r.table('actions').changes().run(r_conn):
-
-                # action deleted
-                if c['new_val'] is None:
-                    pass
-                # action created
-                if c['old_val'] is None:
-                    logs.main.debug(pprint.pformat(c))
-                    new_action = c['new_val']
-                    logs.main.debug('action: {} - {}'.format(new_action['id'], new_action['action']))
-                    action = new_action['action']
-                    parameters = new_action['parameters']
-                    ui.action_from_api(action=action, parameters=parameters)
-                    # pprint.pprint(get_threads_running())
-                    # pprint.pprint(self.manager.dict_hyps_ready)
-            r_conn.close()
+            self.r_conn.close()
 
     class DomainsChangesThread(threading.Thread):
         def __init__(self, name, parent):
             threading.Thread.__init__(self)
             self.manager = parent
             self.name = name
+            self.stop = False
+            self.r_conn = False
 
         def run(self):
             self.tid = get_tid()
             logs.changes.info('starting thread: {} (TID {})'.format(self.name, self.tid))
             logs.changes.debug('^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
-            r_conn = new_rethink_connection()
+            self.r_conn = new_rethink_connection()
 
-            # rtable=r.table('disk_operations')
-            # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
-            # for c in r.table('actions').changes().run(r_conn):
-            # for c in r.table('domains').get_all(username, index='user').\
-            #                            filter((r.row["kind"] == 'user_template') | (r.row["kind"] == 'public_template')).\
-            #                            pluck({'id', 'name','icon','kind','description'}).\
-            #                            changes(include_initial=True).run(db.conn):
+            cursor = r.table('domains').pluck('id', 'kind', 'status', 'detail').merge({'table': 'domains'}).changes().\
+                union(r.table('engine').pluck('threads', 'status_all_threads').merge({'table': 'engine'}).changes()).\
+                run(self.r_conn)
 
-            for c in r.table('domains').pluck('id', 'kind', 'status', 'detail').changes().run(r_conn):
+            for c in cursor:
 
-                logs.changes.debug('domain changes detected in main thread')
-                new_domain = False
-                new_status = False
-                old_status = False
-                import pprint
-                logs.changes.debug(pprint.pformat(c))
+                if self.stop is True:
+                    break
 
-                # action deleted
-                if c['new_val'] is None:
-                    pass
-                # action created
-                if c['old_val'] is None:
-                    new_domain = True
-                    new_status = c['new_val']['status']
-                    domain_id = c['new_val']['id']
-                    logs.changes.debug('domain_id: {}'.format(new_domain))
-                    pass
+                if c['new_val']['table'] == 'engine':
+                    if c['new_val']['status_all_threads'] == 'Stopping':
+                        break
+                elif c['new_val']['table'] == 'domains':
+                    logs.changes.debug('domain changes detected in main thread')
+                    new_domain = False
+                    new_status = False
+                    old_status = False
+                    import pprint
+                    logs.changes.debug(pprint.pformat(c))
 
-                if c['new_val'] is not None and c['old_val'] is not None:
-                    old_status = c['old_val']['status']
-                    new_status = c['new_val']['status']
-                    new_detail = c['new_val']['detail']
-                    domain_id = c['new_val']['id']
-                    logs.changes.debug('domain_id: {}'.format(domain_id))
-                    if old_status != new_status:
-                        # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
-                        # if new_status[-3:] == 'ing':
-                        if 1 > 0:
-                            date_now = datetime.now()
-                            update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now)
-                    else:
-                        # print('&&&&&&&ESTADOS IGUALES OJO &&&&&&&\n&&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.
-                        #       format(domain_id,old_status,new_status,new_detail))
+                    # action deleted
+                    if c['new_val'] is None:
+                        pass
+                    # action created
+                    if c['old_val'] is None:
+                        new_domain = True
+                        new_status = c['new_val']['status']
+                        domain_id = c['new_val']['id']
+                        logs.changes.debug('domain_id: {}'.format(new_domain))
                         pass
 
-                if (new_domain is True and new_status == "Creating") or \
-                        (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
-                    ui.creating_disks_from_template(domain_id)
+                    if c['new_val'] is not None and c['old_val'] is not None:
+                        old_status = c['old_val']['status']
+                        new_status = c['new_val']['status']
+                        new_detail = c['new_val']['detail']
+                        domain_id = c['new_val']['id']
+                        logs.changes.debug('domain_id: {}'.format(domain_id))
+                        if old_status != new_status:
+                            # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
+                            # if new_status[-3:] == 'ing':
+                            if 1 > 0:
+                                date_now = datetime.now()
+                                update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now)
+                        else:
+                            # print('&&&&&&&ESTADOS IGUALES OJO &&&&&&&\n&&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.
+                            #       format(domain_id,old_status,new_status,new_detail))
+                            pass
 
-                if (new_domain is True and new_status == "CreatingAndStarting"):
-                    update_domain_start_after_created(domain_id)
-                    ui.creating_disks_from_template(domain_id)
+                    if (new_domain is True and new_status == "CreatingFromScratch") or \
+                            (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromScratch"):
+                        ui.creating_from_scratch(domain_id)
+
+                    if (new_domain is True and new_status == "Creating") or \
+                            (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
+                        ui.creating_disks_from_template(domain_id)
+
+                    if (new_domain is True and new_status == "CreatingAndStarting"):
+                        update_domain_start_after_created(domain_id)
+                        ui.creating_disks_from_template(domain_id)
 
 
-                    # INFO TO DEVELOPER
-                    # recoger template de la que hay que derivar
-                    # verificar que realmente es una template
-                    # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
+                        # INFO TO DEVELOPER
+                        # recoger template de la que hay que derivar
+                        # verificar que realmente es una template
+                        # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                if (new_domain is True and new_status == "CreatingFromBuilder") or \
-                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
-                    ui.creating_disk_from_virtbuilder(domain_id)
+                    if (new_domain is True and new_status == "CreatingFromBuilder") or \
+                            (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
+                        ui.creating_disk_from_virtbuilder(domain_id)
 
-                if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
-                        (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
-                    logs.changes.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
-                    if new_status == "CreatingDomainFromBuilder":
-                        ui.creating_and_test_xml_start(domain_id,
-                                                       creating_from_create_dict=True,
-                                                       xml_from_virt_install=True)
-                    if new_status == "CreatingDomain":
-                        ui.creating_and_test_xml_start(domain_id,
-                                                       creating_from_create_dict=True)
+                    if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
+                            (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
+                        logs.changes.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
+                        if new_status == "CreatingDomainFromBuilder":
+                            ui.creating_and_test_xml_start(domain_id,
+                                                           creating_from_create_dict=True,
+                                                           xml_from_virt_install=True)
+                        if new_status == "CreatingDomain":
+                            ui.creating_and_test_xml_start(domain_id,
+                                                           creating_from_create_dict=True)
 
-                if old_status == 'Stopped' and new_status == "CreatingTemplate":
-                    ui.create_template_disks_from_domain(domain_id)
+                    if old_status == 'Stopped' and new_status == "CreatingTemplate":
+                        ui.create_template_disks_from_domain(domain_id)
 
-                if old_status == 'Stopped' and new_status == "Deleting":
-                    ui.deleting_disks_from_domain(domain_id)
+                    if old_status == 'Stopped' and new_status == "Deleting":
+                        ui.deleting_disks_from_domain(domain_id)
 
-                if (old_status == 'Stopped' and new_status == "Updating") or \
-                        (old_status == 'Downloaded' and new_status == "Updating"):
-                    ui.updating_from_create_dict(domain_id)
+                    if (old_status == 'Stopped' and new_status == "Updating") or \
+                            (old_status == 'Downloaded' and new_status == "Updating"):
+                        ui.updating_from_create_dict(domain_id)
 
-                if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
-                    logs.changes.debug('disk deleted, mow remove domain form database')
-                    remove_domain(domain_id)
-                    if get_domain(domain_id) is None:
-                        logs.changes.info('domain {} deleted from database'.format(domain_id))
-                    else:
-                        update_domain_status('Failed', id_domain,
-                                             detail='domain {} can not be deleted from database'.format(domain_id))
+                    if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
+                        logs.changes.debug('disk deleted, mow remove domain form database')
+                        remove_domain(domain_id)
+                        if get_domain(domain_id) is None:
+                            logs.changes.info('domain {} deleted from database'.format(domain_id))
+                        else:
+                            update_domain_status('Failed', id_domain,
+                                                 detail='domain {} can not be deleted from database'.format(domain_id))
 
-                if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
-                    # create_template_from_dict(dict_new_template)
-                    if get_if_all_disk_template_created(domain_id):
-                        ui.create_template_in_db(domain_id)
-                    else:
-                        # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
-                        # creación de una template con dos discos y ver si pasa por aquí
-                        # waiting to create other disks
-                        update_domain_status(status='CreatingTemplateDisk',
-                                             id_domain=domain_id,
-                                             hyp_id=False,
-                                             detail='Waiting to create more disks for template')
+                    if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
+                        # create_template_from_dict(dict_new_template)
+                        if get_if_all_disk_template_created(domain_id):
+                            ui.create_template_in_db(domain_id)
+                        else:
+                            # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
+                            # creación de una template con dos discos y ver si pasa por aquí
+                            # waiting to create other disks
+                            update_domain_status(status='CreatingTemplateDisk',
+                                                 id_domain=domain_id,
+                                                 hyp_id=False,
+                                                 detail='Waiting to create more disks for template')
 
-                if (old_status == 'Stopped' and new_status == "Starting") or \
-                        (old_status == 'Failed' and new_status == "Starting"):
-                    ui.start_domain_from_id(id=domain_id, ssl=True)
+                    if (old_status == 'Stopped' and new_status == "Starting") or \
+                            (old_status == 'Failed' and new_status == "Starting"):
+                        ui.start_domain_from_id(id=domain_id, ssl=True)
 
-                if (old_status == 'Started' and new_status == "Stopping" ) or \
-                        (old_status == 'Suspended' and new_status == "Stopping" ):
-                    # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
-                    # ui.stop_domain_from_id(id=domain_id)
-                    hyp_started = get_domain_hyp_started(domain_id)
-                    ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+                    if (old_status == 'Started' and new_status == "Stopping" ) or \
+                            (old_status == 'Suspended' and new_status == "Stopping" ):
+                        # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
+                        # ui.stop_domain_from_id(id=domain_id)
+                        hyp_started = get_domain_hyp_started(domain_id)
+                        ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
 
-                if (old_status == 'Started' and new_status == "StoppingAndDeleting" ) or \
-                        (old_status == 'Suspended' and new_status == "StoppingAndDeleting" ):
-                    # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
-                    # ui.stop_domain_from_id(id=domain_id)
-                    hyp_started = get_domain_hyp_started(domain_id)
-                    print(hyp_started)
-                    ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started, delete_after_stopped=True)
+                    if (old_status == 'Started' and new_status == "StoppingAndDeleting" ) or \
+                            (old_status == 'Suspended' and new_status == "StoppingAndDeleting" ):
+                        # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
+                        # ui.stop_domain_from_id(id=domain_id)
+                        hyp_started = get_domain_hyp_started(domain_id)
+                        print(hyp_started)
+                        ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started, delete_after_stopped=True)
 
-            r_conn.close()
+            logs.main.info('finalished thread domain changes')

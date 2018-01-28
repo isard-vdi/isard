@@ -118,9 +118,10 @@ class hyp(object):
                                                                                                        self.ip))
                 ssh.close()
             except paramiko.SSHException as e:
-                log.error("host {} with ip {} can't connect with ssh without password. Reason: {}".format(self.hostname,
+                log.error("host {} with ip {} can't connect with ssh without password. Paramiko except Reason: {}".format(self.hostname,
                                                                                                           self.ip, e))
                 log.error("")
+                # message when host not found or key format not supported: not found in known_hosts
                 self.fail_connected_reason = 'ssh authentication fail when connect: {}'.format(e)
                 self.ssh_autologin_fail = True
             except Exception as e:
@@ -274,6 +275,16 @@ class hyp(object):
         if tree.xpath('/capabilities/guest/arch/domain[@type="kvm"]/machine[@canonical]'):
             self.info['kvm_type_machine_canonical'] = \
                 tree.xpath('/capabilities/guest/arch/domain[@type="kvm"]/machine[@canonical]')[0].get('canonical')
+
+        # intel virtualization => cpu feature vmx
+        #   amd virtualization => cpu feature svm
+        if tree.xpath('/capabilities/host/cpu/feature[@name="vmx"]'):
+            self.info['virtualization_bios_enabled'] = True
+        elif tree.xpath('/capabilities/host/cpu/feature[@name="svm"]'):
+            self.info['virtualization_bios_enabled'] = True
+        else:
+            self.info['virtualization_bios_enabled'] = False
+            log.error('HYPERVISOR {} have bios vmx or svm virtualization capabilities activated??'-format(self.hostname))
 
     def define_and_start_paused_xml(self, xml_text):
         # todo alberto: faltan todas las excepciones, y mensajes de log,

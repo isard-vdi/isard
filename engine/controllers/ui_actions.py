@@ -409,6 +409,61 @@ class UiActions(object):
             log.error('template {} can not be inserted in rethink, domain_id duplicated??'.format(template_id))
             return False
 
+    def creating_disk_from_scratch(self,id_new):
+        dict_domain = get_domain(id_new)
+
+        pool_var = dict_domain['hypervisors_pools']
+        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+
+        dict_to_create = dict_domain['create_dict']
+
+        relative_path = dict_to_create['hardware']['disks'][0]['file']
+        path_new_disk, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+
+        cmds = create_cmd_disk_from_virtbuilder(path_new_qcow=path_new_disk,
+                                                os_version=id_domains_virt_builder,
+                                                id_os_virt_install=id_os_virt_install,
+                                                name_domain_in_xml=id_new,
+                                                size_str=size_str,
+                                                memory_in_mb=memory_in_mb,
+                                                options_cmd=options_virt_builder)
+
+        # cmds = [{'cmd':'ls -lah > /tmp/prova.txt','title':'es un ls'}]
+
+        action = {}
+        action['type'] = 'create_disk_virt_builder'
+        action['disk_path'] = path_new_disk
+        action['index_disk'] = 0
+        action['domain'] = id_new
+        action['ssh_comands'] = cmds
+
+    def creating_from_scratch(self,id_new):
+        dict_domain = get_domain(id_new)
+
+        pool_var = dict_domain['hypervisors_pools']
+        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+
+        dict_to_create = dict_domain['create_dict']
+
+        relative_path = dict_to_create['hardware']['disks'][0]['file']
+        path_new_disk, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+
+        size_str = dict_to_create['hardware']['disks'][0]['size']
+
+        hyp_to_disk_create = get_host_disk_operations_from_path(path_selected, pool=pool_id, type_path='groups')
+
+        #Load XML
+
+        #Link Disks
+
+        #Link Isos
+
+        #Link Networks
+
+        #Boot order
+
+        #Persanlized XML
+
     def creating_disk_from_virtbuilder(self,
                                        id_new):
         dict_domain = get_domain(id_new)

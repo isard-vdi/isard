@@ -26,6 +26,8 @@ from engine.services.lib.functions import hostname_to_uri, get_tid
 from engine.services.log import *
 
 
+# Reference: https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
+
 def virEventLoopNativeRun():
     while True:
         libvirt.virEventRunDefaultImpl()
@@ -466,7 +468,7 @@ class ThreadHypEvents(threading.Thread):
             time.sleep(0.1)
 
         if self.stop is True:
-            for hyp_id in self.hyps:
+            for hyp_id in list(self.hyps):
                 self.del_hyp_to_receive_events(hyp_id)
 
     def add_hyp_to_receive_events(self, hyp_id):
@@ -551,11 +553,8 @@ class ThreadHypEvents(threading.Thread):
     def unregister_events(self, hyp_libvirt_conn, cb_ids):
 
         # deregister
-        hyp_libvirt_conn.domainEventDeregisterAny(self, cb_ids['VIR_DOMAIN_EVENT_ID_LIFECYCLE'])
-        hyp_libvirt_conn.domainEventDeregisterAny(self, cb_ids['VIR_DOMAIN_EVENT_ID_IO_ERROR'])
-        hyp_libvirt_conn.domainEventDeregisterAny(self, cb_ids['VIR_DOMAIN_EVENT_ID_GRAPHICS'])
-        hyp_libvirt_conn.domainEventDeregisterAny(self, cb_ids['VIR_DOMAIN_EVENT_ID_IO_ERROR_REASON'])
-        hyp_libvirt_conn.domainEventDeregisterAny(self, cb_ids['VIR_DOMAIN_EVENT_ID_CONTROL_ERROR'])
+        for k in list(cb_ids.keys()):
+            hyp_libvirt_conn.domainEventDeregisterAny(cb_ids[k])
 
         hyp_libvirt_conn.unregisterCloseCallback()
 

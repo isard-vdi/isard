@@ -1,14 +1,24 @@
+
 import json
+from time import sleep
 
 from flask import Blueprint, jsonify
-
 from flask import current_app
+from flask import request
 
+from engine.models.manager_hypervisors import ManagerHypervisors
+from engine.services.db.db import update_table_field
 
 api = Blueprint('api', __name__)
 
 app = current_app
 from . import evaluate
+
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
 
 @api.route('/threads', methods=['GET'])
 def get_threads():
@@ -61,6 +71,35 @@ def start_domain_with_prefix_from_template():
     pass
 
 
+@api.route('/stop_threads', methods=['GET'])
+def stop_threads():
+    app.m.stop_threads()
+    return jsonify({'stop_threads':True}), 200
+
+@api.route('/restart_engine', methods=['GET'])
+def restart_engine():
+    app.m.stop_threads()
+
+    while True:
+        alive, dead = app.m.update_info_threads_engine()
+        if len(alive) == 0:
+            action = {}
+            action['type'] = 'stop'
+            app.m.q.background.put(action)
+            break
+        sleep(0.5)
+
+    while True:
+        if app.m.t_background.is_alive():
+            sleep(0.2)
+        else:
+            update_table_field('engine', 'engine', 'status_all_threads', 'Stopped')
+            delattr(app,'m')
+            app.m = ManagerHypervisors()
+            break
+
+    return jsonify({'restart_engine':True}), 200
+
 @api.route('/engine_info', methods=['GET'])
 def engine_info():
     d_engine = {}
@@ -70,15 +109,17 @@ def engine_info():
             try:
                 app.m.t_background.is_alive()
             except AttributeError:
-                d_engine['is_alive'] = False
+                d_engine['background_is_alive'] = False
                 return jsonify(d_engine), 200
 
             if app.m.t_background.is_alive():
-                d_engine['is_alive'] = True
+                manager = app.m
+                d_engine['background_is_alive'] = True
                 d_engine['event_thread_is_alive'] = app.m.t_events.is_alive() if app.m.t_events is not None else False
                 d_engine['broom_thread_is_alive'] = app.m.t_broom.is_alive() if app.m.t_broom is not None else False
                 d_engine['download_changes_thread_is_alive'] = app.m.t_downloads_changes.is_alive() \
                                                                     if app.m.t_downloads_changes is not None else False
+
                 d_engine['changes_hyps_thread_is_alive'] = app.m.t_changes_hyps.is_alive() \
                                                                     if app.m.t_changes_hyps is not None else False
                 d_engine[
@@ -86,6 +127,14 @@ def engine_info():
                 d_engine['working_threads'] = list(app.m.t_workers.keys())
                 d_engine['status_threads'] = list(app.m.t_status.keys())
                 d_engine['disk_operations_threads'] = list(app.m.t_disk_operations.keys())
+                d_engine['long_operations_threads'] = list(app.m.t_long_operations.keys())
+
+                d_engine['alive_threads'] = dict()
+                d_engine['alive_threads']['working_threads'] = {name:t.is_alive() for name,t in app.m.t_workers.items()}
+                d_engine['alive_threads']['status_threads'] = {name:t.is_alive() for name,t in app.m.t_status.items()}
+                d_engine['alive_threads']['disk_operations_threads'] = {name:t.is_alive() for name,t in app.m.t_disk_operations.items()}
+                d_engine['alive_threads']['long_operations_threads'] = {name:t.is_alive() for name,t in app.m.t_long_operations.items()}
+
                 d_engine['queue_size_working_threads'] = {k: q.qsize() for k, q in app.m.q.workers.items()}
                 d_engine['queue_disk_operations_threads'] = {k: q.qsize() for k, q in app.m.q_disk_operations.items()}
             else:

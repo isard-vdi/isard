@@ -116,7 +116,7 @@ class Populate(object):
                 'virt_builder','virt_install','builders','media',
                 'boots','hypervisors_events','hypervisors_status','hypervisors_status_history',
                 'disk_operations','hosts_viewers','places','disposables','eval_results',
-                'scheduler_jobs','backups','config']
+                'scheduler_jobs','backups','config','engine']
         tables_to_create=list(set(newtables) - set(dbtables))
         d = {k:v for v,k in enumerate(newtables)}
         tables_to_create.sort(key=d.get)
@@ -1137,6 +1137,22 @@ class Populate(object):
                                  'icon':font_class})
 
         return installs
+    
+    '''
+    ENGINE
+    '''
+
+    def engine(self):
+        with app.app_context():
+            if not r.table_list().contains('engine').run():
+                log.info("Table engine not found, creating...")
+                r.table_create('engine', primary_key="id").run()
+
+                if r.table('engine').get('admin').run() is None:
+                    self.result(r.table('engine').insert([{'id': 'engine',
+                                                           'threads': {'changes':'on'},
+                                                           'status_all_threads': 'on'
+                                                           }]).run())
 
 
 

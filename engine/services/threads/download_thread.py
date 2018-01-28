@@ -17,6 +17,7 @@ from engine.services.log import logs
 from engine.services.db import get_config_branch, get_hyp_hostname_user_port_from_id
 from engine.services.db.downloads import get_downloads_in_progress, update_download_percent, update_status_table
 from engine.services.lib.qcow import get_host_disk_operations_from_path, get_path_to_disk
+from engine.services.lib.functions import get_tid
 
 
 class DownloadThread(threading.Thread, object):
@@ -133,6 +134,7 @@ class DownloadChangesThread(threading.Thread):
         threading.Thread.__init__(self)
         self.name = name
         self.stop = False
+        self.r_conn = False
 
         cfg = get_config_branch('resources')
         if cfg is not False:
@@ -236,11 +238,11 @@ class DownloadChangesThread(threading.Thread):
         else:
             logs.downloads.info('download thread launched to this path: {}'.format(new_file_path))
 
-
     def run(self):
+        self.tid = get_tid()
         logs.downloads.debug('RUN-DOWNLOAD-THREAD-------------------------------------')
         if self.stop is False:
-            r_conn = new_rethink_connection()
+            self.r_conn = new_rethink_connection()
             for c in r.table('media').get_all(r.args(['Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
                     pluck('id',
                           'path',
@@ -254,63 +256,39 @@ class DownloadChangesThread(threading.Thread):
                               'url-isard',
                               'url-web',
                               'status').merge(
-                    {"table": "domains"}).changes(include_initial=True)).run(r_conn):
+                    {"table": "domains"}).changes(include_initial=True)).union(
+                r.table('engine').pluck('threads', 'status_all_threads').merge({'table': 'engine'}).changes()).run(self.r_conn):
 
-                logs.downloads.debug('DOWNLOAD CHANGES DETECTED:')
-                logs.downloads.debug(pprint.pformat(c))
                 if self.stop:
                     break
+                if c['new_val']['table'] == 'engine':
+                    if c['new_val']['status_all_threads'] == 'Stopping':
+                        break
+                else:
+                    logs.downloads.debug('DOWNLOAD CHANGES DETECTED:')
+                    logs.downloads.debug(pprint.pformat(c))
 
+                    if c.get('old_val',None) is None:
+                        if c['new_val']['status'] == 'DownloadStarting':
+                            self.start_download(c['new_val'])
+                    elif c.get('new_val',None) is None:
+                        if c['old_val']['status'] in ['AbortingDownload']:
+                            self.abort_download(c['old_val'])
+                    elif 'old_val' in c and 'new_val' in c:
+                        if c['old_val']['status'] == 'FailedDownload' and c['new_val']['status'] == 'DownloadStarting':
+                            self.start_download(c['new_val'])
 
-                if c.get('old_val',None) is None:
-                    if c['new_val']['status'] == 'DownloadStarting':
-                        self.start_download(c['new_val'])
-                elif c.get('new_val',None) is None:
-                    if c['old_val']['status'] in ['AbortingDownload']:
-                        self.abort_download(c['old_val'])
-                elif 'old_val' in c and 'new_val' in c:
-                    if c['old_val']['status'] == 'FailedDownload' and c['new_val']['status'] == 'DownloadStarting':
-                        self.start_download(c['new_val'])
+                        elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'FailedDownload':
+                            pass
 
-                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'FailedDownload':
-                        pass
+                        elif c['old_val']['status'] == 'DownloadStarting' and c['new_val']['status'] == 'Downloading':
+                            pass
 
-                    elif c['old_val']['status'] == 'DownloadStarting' and c['new_val']['status'] == 'Downloading':
-                        pass
+                        elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'Downloaded':
+                            pass
 
-                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'Downloaded':
-                        pass
-
-                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'AbortingDownload':
-                        self.abort_download(c['new_val'])
-
-                    # # Initial status
-
-                    #
-                    # path = c['new_val']['table'] + '/' + c['new_val']['path'] if c['new_val'][
-                    #                                                                  'table'] == 'media' else \
-                    #     c['new_val']['create_dict']['hardware']['disks'][0]['file']
-                    #
-                    # if c['new_val']['table'] == 'media':
-                    #     path = '/isard/media/' + path
-                    # if c['new_val']['table'] == 'domains':
-                    #     path = '/isard/groups/' + path
-                    # self.downloadThreads[c['new_val']['id']] = DownloadThread(c['new_val']['table'], path,
-                    #                                                           c['new_val']['id'], self.url,
-                    #                                                           self.code)
-                    # self.downloadThreads[c['new_val']['id']].daemon = True
-                    # self.downloadThreads[c['new_val']['id']].start()
-                    #
-                    # logs.downloads.debug('DOWNLOAD THREADS: ')
-                    # logs.downloads.debug(pprint.pformat(self.downloadThreads))
-
-                    # continue
-
-                # except Exception as e:
-                #     # ~ exc_type, exc_obj, exc_tb = sys.exc_info()
-                #     # ~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                #     # ~ log.error(exc_type, fname, exc_tb.tb_lineno)
-                #     logs.downloads.error('DomainsStatusThread error:' + str(e))
+                        elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'AbortingDownload':
+                            self.abort_download(c['new_val'])
 
 
 def launch_thread_download_changes():
