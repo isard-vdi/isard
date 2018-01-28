@@ -253,30 +253,65 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
 			"columns": [
+                {"data": null,
+                 'defaultContent': ''},
 				{"data": "icon"},
-				{ "data": "name"},
-				//~ { "data": "description"},
-				{
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-				},                
+				{"data": "name"},
+                {"data": null,
+                 'defaultContent': ''},                               
                 ],
-			 "order": [[1, 'asc']],
-			 "columnDefs": [ {
+			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
+			 "columnDefs": [{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-							  return renderIcon(full);
+                                if(full['new']){
+                                    return '<span class="label label-success pull-right">New</span>';
+                                }else{
+                                    return '<span class="label label-info pull-right">Downloaded</span>';
+                                }
+							}},
+                            {
+							"targets": 1,
+							"render": function ( data, type, full, meta ) {
+                                return renderIcon(full)
+							}},
+                            {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+                                return renderName(full)
+							}},
+                            {
+							"targets": 3,
+							"render": function ( data, type, full, meta ) {
+                                //~ console.log(full.status+' '+full.id)
+                                if(full.status == 'Available' || full.status == "FailedDownload"){
+                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+                                }
+                                if(full.status == 'Downloading'){
+                                    return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                                }
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                } 
+                                return full.status;                                
 							}}]
     } );
 
     $('#builders_tbl').find(' tbody').on( 'click', 'button', function () {
-        var data = int_table.row( $(this).parents('tr') ).data();
-        //~ console.log($(this).attr('id'),data);
-        //~ switch($(this).attr('id')){
-            //~ case 'btn-play':        
-                //~ break;
+        var datarow = table['builders'].row( $(this).parents('tr') ).data();
+        switch($(this).attr('id')){
+            case 'btn-download':
+                api.ajax('/admin/updates/download/builders/'+datarow['id'],'POST',{}).done(function(data) {
+                      table['builders'].ajax.reload();
+                  }); 
+                break;
+            case 'btn-delete':
+                api.ajax('/admin/updates/delete/builders/'+datarow['id'],'POST',{}).done(function(data) {
+                   table['builders'].ajax.reload();
+                   //~ table['virt_install'].row('#'+datarow['id']).remove().draw();
+                  }); 
+                break;
+            }; 
     });
     
     table['virt_builder']=$('#virt_builder_tbl').DataTable({
@@ -291,30 +326,65 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
 			"columns": [
+                {"data": null,
+                 'defaultContent': ''},
 				{"data": "icon"},
-				{ "data": "name"},
-				//~ { "data": "description"},
-				{
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-				},                
+				{"data": "name"},
+                {"data": null,
+                 'defaultContent': ''},                               
                 ],
-			 "order": [[1, 'asc']],
-			 "columnDefs": [ {
+			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
+			 "columnDefs": [{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-							  return renderIcon(full);
+                                if(full['new']){
+                                    return '<span class="label label-success pull-right">New</span>';
+                                }else{
+                                    return '<span class="label label-info pull-right">Downloaded</span>';
+                                }
+							}},
+                            {
+							"targets": 1,
+							"render": function ( data, type, full, meta ) {
+                                return renderIcon(full)
+							}},
+                            {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+                                return renderName(full)
+							}},
+                            {
+							"targets": 3,
+							"render": function ( data, type, full, meta ) {
+                                //~ console.log(full.status+' '+full.id)
+                                if(full.status == 'Available' || full.status == "FailedDownload"){
+                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+                                }
+                                if(full.status == 'Downloading'){
+                                    return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                                }
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                } 
+                                return full.status;                                
 							}}]
     } );
 
     $('#virt_builder_tbl').find(' tbody').on( 'click', 'button', function () {
-        var data = int_table.row( $(this).parents('tr') ).data();
-        //~ console.log($(this).attr('id'),data);
-        //~ switch($(this).attr('id')){
-            //~ case 'btn-play':        
-                //~ break;
+        var datarow = table['virt_builder'].row( $(this).parents('tr') ).data();
+        switch($(this).attr('id')){
+            case 'btn-download':
+                api.ajax('/admin/updates/download/virt_builder/'+datarow['id'],'POST',{}).done(function(data) {
+                      table['virt_builder'].ajax.reload();
+                  }); 
+                break;
+            case 'btn-delete':
+                api.ajax('/admin/updates/delete/virt_builder/'+datarow['id'],'POST',{}).done(function(data) {
+                   table['virt_builder'].ajax.reload();
+                   //~ table['virt_install'].row('#'+datarow['id']).remove().draw();
+                  }); 
+                break;
+            }; 
     });
     
     table['virt_install']=$('#virt_install_tbl').DataTable({
@@ -329,30 +399,60 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
 			"columns": [
+                {"data": null,
+                 'defaultContent': ''},
 				{"data": "icon"},
-				{ "data": "name"},
-				//~ { "data": "description"},
-				{
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-				},                
+				{"data": "name"},
+                {"data": null,
+                 'defaultContent': ''},                               
                 ],
-			 "order": [[1, 'asc']],
-			 "columnDefs": [ {
+			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
+			 "columnDefs": [{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
-							  return renderIcon(full);
+                                if(full['new']){
+                                    return '<span class="label label-success pull-right">New</span>';
+                                }else{
+                                    return '<span class="label label-info pull-right">Downloaded</span>';
+                                }
+							}},
+                            {
+							"targets": 1,
+							"render": function ( data, type, full, meta ) {
+                                return renderIcon(full)
+							}},
+                            {
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+                                return renderName(full)
+							}},
+                            {
+							"targets": 3,
+							"render": function ( data, type, full, meta ) {
+                                //~ console.log(full.status+' '+full.id)
+                                if(full['new']){
+                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+                                }else{
+                                    return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                } 
 							}}]
     } );
 
     $('#virt_install_tbl').find(' tbody').on( 'click', 'button', function () {
-        var data = int_table.row( $(this).parents('tr') ).data();
-        //~ console.log($(this).attr('id'),data);
-        //~ switch($(this).attr('id')){
-            //~ case 'btn-play':        
-                //~ break;
+        var datarow = table['virt_install'].row( $(this).parents('tr') ).data();
+        switch($(this).attr('id')){
+            case 'btn-download':
+                api.ajax('/admin/updates/download/virt_install/'+datarow['id'],'POST',{}).done(function(data) {
+                      table['virt_install'].ajax.reload();
+                  }); 
+                break;
+            case 'btn-delete':
+                api.ajax('/admin/updates/delete/virt_install/'+datarow['id'],'POST',{}).done(function(data) {
+                   table['virt_install'].ajax.reload();
+                   //~ table['virt_install'].row('#'+datarow['id']).remove().draw();
+                  }); 
+                break;
+            };         
     });
     
     $('.update-all').on( 'click', function () {
