@@ -48,17 +48,16 @@ def admin_table_get(table):
 def admin_tabletest_post(table):
     if request.method == 'POST':
         data=request.get_json(force=True)
+        print(data)
         if 'id' not in data.keys():
             data['id']=False        
         if 'pluck' not in data.keys():
             data['pluck']=False
         if 'order' not in data.keys():
             data['order']=False
-            #~ result=app.adminapi.get_admin_table(table)
-        #~ import pprint
-        
-        #~ pprint.pprint(app.adminapi.get_admin_table(table,pluck=data['pluck'],order=data['order']))
-        result=app.adminapi.get_admin_table(table,id=data['id'],pluck=data['pluck'],order=data['order'])
+        if 'flatten' not in data.keys():
+            data['flatten']=True
+        result=app.adminapi.get_admin_table(table,id=data['id'],pluck=data['pluck'],order=data['order'],flatten=data['flatten'])
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
     

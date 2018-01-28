@@ -20,8 +20,12 @@ $(document).ready(function() {
 
     var table=$('#media').DataTable( {
         "ajax": {
-            "url": "/admin/table/media/get",
-            "dataSrc": ""
+                "url": "/admin/table/media/get",
+                "dataSrc": ""
+				//~ "url": "/admin/tabletest/media/post",
+                //~ "contentType": "application/json",
+                //~ "type": 'POST',
+                //~ "data": function(d){return JSON.stringify({'flatten':false})}            
         },
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
@@ -62,7 +66,10 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-							  return renderProgress(full);
+                                if(full.status == 'Downloading'){
+                                    return renderProgress(full);
+                                }
+                                if('progress-total' in full){return full['progress-total'];}
 							}}],
         "initComplete": function() {
                                 //~ $('.progress .progress-bar').progressbar();
@@ -243,12 +250,20 @@ $(document).ready(function() {
 
 
 function renderProgress(data){
-            return '<div class="progress"> \
-  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+data['progress-total_percent']+'" \
-  aria-valuemin="0" aria-valuemax="100" style="width:'+data['progress-total_percent']+'%"> \
-    '+data['progress-total_percent']+'% \
+            perc = data['progress-received_percent']
+            return data['progress-total']+' - '+data['progress-speed_download_average']+'/s - '+data['progress-time_left']+'<div class="progress"> \
+  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+  aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
+    '+perc+'%  \
   </div> \
-</<div> '
+</<div> '    
+            //~ perc = data.progress.received_percent
+            //~ return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
+                  //~ <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+                  //~ aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
+                    //~ '+perc+'%  \
+                  //~ </div> \
+                //~ </<div> '
 }
 
 function renderName(data){

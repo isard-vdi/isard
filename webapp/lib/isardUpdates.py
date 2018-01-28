@@ -56,14 +56,15 @@ class Updates(object):
                         found=True
                         dict['id']='_'+username+'_'+dict['id']
                         dict['new']=False
-                        dict['status']=d['status']                        
+                        dict['status']=d['status']    
+                        dict['progress']=d['progress']                    
                         break
                 else:
                     if d['id']==w['id']:
                         dict=w.copy()
                         found=True
                         dict['new']=False
-                        dict['status']='Downloaded'     
+                        dict['status']='Downloaded'
                         break
                         
             if not found: 

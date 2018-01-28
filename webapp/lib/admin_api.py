@@ -96,21 +96,27 @@ class isardAdmin():
         with app.app_context():
             return [d['id'] for d in list(r.table(table).get_all(r.args(ids)).filter({field:value}).pluck('id').run(db.conn))]
 
-    def get_admin_table(self, table, pluck=False, id=False, order=False):
+    def get_admin_table(self, table, pluck=False, id=False, order=False, flatten=True):
         with app.app_context():
             if id and not pluck:
-                    return self.f.flatten_dict(r.table(table).get(id).run(db.conn))
+                data=r.table(table).get(id).run(db.conn)
+                return self.f.flatten_dict(data) if flatten else data
             if pluck and not id:
                 if order:
-                    return self.f.table_values_bstrap(r.table(table).order_by(order).pluck(pluck).run(db.conn))
+                    data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
+                    return self.f.table_values_bstrap(data) if flatten else list(data)
                 else:
-                    return self.f.table_values_bstrap(r.table(table).pluck(pluck).run(db.conn))
+                    data=r.table(table).pluck(pluck).run(db.conn)
+                    return self.f.table_values_bstrap(data) if flatten else list(data)
             if pluck and id:
-                return self.f.flatten_dict(r.table(table).get(id).pluck(pluck).run(db.conn))
+                data=r.table(table).get(id).pluck(pluck).run(db.conn)
+                return self.f.flatten_dict(data) if flatten else data
             if order:
-                return self.f.table_values_bstrap(r.table(table).order_by(order).run(db.conn))
+                data=r.table(table).order_by(order).run(db.conn)
+                return self.f.table_values_bstrap(data) if flatten else list(data)
             else:
-                return self.f.table_values_bstrap(r.table(table).run(db.conn))
+                data=r.table(table).run(db.conn)
+                return self.f.table_values_bstrap(data) if flatten else list(data)
 
     def get_admin_table_term(self, table, field, value, pluck=False):
         with app.app_context():

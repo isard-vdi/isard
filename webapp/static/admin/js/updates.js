@@ -44,7 +44,7 @@ $(document).ready(function() {
                  'defaultContent': ''},
 				{"data": "icon"},
 				{"data": "name"},
-                {"data": null,
+                {"data": null, "width": "130px",
                  'defaultContent': ''},
                 {"data": null,
                  'defaultContent': ''},                               
@@ -83,11 +83,11 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
                                 //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
                                     //~ return 'Downloaded';
-                                //~ }
+                                //~ }media
                                 if(full.status == 'Downloading'){
                                     return renderProgress(full);
                                 }
-                                return '';
+                                if('progress' in full){return full.progress.total;}
 							}},
                             {
 							"targets": 4,
@@ -166,7 +166,7 @@ $(document).ready(function() {
                  'defaultContent': ''},
 				{"data": "icon"},
 				{"data": "name"},
-                {"data": null,
+                {"data": null, "width": "130px",
                  'defaultContent': ''},
                 {"data": null,
                  'defaultContent': ''},                               
@@ -206,8 +206,7 @@ $(document).ready(function() {
                                 if(full.status == 'Downloading'){
                                     return renderProgress(full);
                                 }
-                                return '';
-                                    
+                                if('progress' in full){return full.progress.total;}
 							}},
                             {
 							"targets": 4,
@@ -226,6 +225,7 @@ $(document).ready(function() {
 							}}],
                 "initComplete": function(settings, json){
                      socket.on('media_data', function(data){
+                         console.log('media data received')
                         //~ console.log('add or update')
                         var data = JSON.parse(data);
                             //~ console.log('media update')
@@ -510,16 +510,13 @@ function renderName(data){
 }
 
 function renderProgress(data){
-            //~ if(data.progress-received_percent == null){
-                //~ return '';
-            //~ }
-            perc = data['progress-received_percent']
-            return '<div class="progress"> \
-  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
-  aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
-    '+perc+'% \
-  </div> \
-</<div> '
+            perc = data.progress.received_percent
+            return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
+                  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+                  aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
+                    '+perc+'%  \
+                  </div> \
+                </<div> '
 }
 
 

@@ -194,7 +194,7 @@ class MediaThread(threading.Thread):
                         event=c['new_val']['table']+'_data'
                     ## Admins should receive all updates on /admin namespace
                     socketio.emit(event, 
-                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                    json.dumps(data), #app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_admins', 
                                     room='media')
                 except Exception as e:
