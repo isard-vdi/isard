@@ -444,13 +444,15 @@ def socketio_hyper_domains_stop(data):
                         namespace='/sio_admins', 
                         room='hyper')
                         
-## Users namespace
+'''
+USERS
+'''
 @socketio.on('user_add', namespace='/sio_admins')
 def socketio_user_add(form_data):
     if current_user.role == 'admin': 
         # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
         # ~ print(create_dict)
-        res=app.adminapi.add_user(form_data)
+        res=app.adminapi.user_add(form_data)
         if res is True:
             data=json.dumps({'result':True,'title':'New user','text':'User '+form_data['name']+' has been created...','icon':'success','type':'success'})
         else:
@@ -460,13 +462,43 @@ def socketio_user_add(form_data):
                         namespace='/sio_admins', 
                         room='users')
 
+@socketio.on('user_edit', namespace='/sio_admins')
+def socketio_user_edit(form_data):
+    if current_user.role == 'admin': 
+        # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
+        # ~ print(create_dict)
+        res=app.adminapi.user_edit(form_data)
+        if res is True:
+            data=json.dumps({'result':True,'title':'New user','text':'User '+form_data['name']+' has been created...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':False,'title':'New user','text':'User '+form_data['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='users')
+
+@socketio.on('user_delete', namespace='/sio_admins')
+def socketio_user_delete(form_data):
+    if current_user.role == 'admin': 
+        # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
+        # ~ print(create_dict)
+        res=app.adminapi.user_delete(form_data)
+        if res is True:
+            data=json.dumps({'result':True,'title':'Delete user','text':'User '+form_data['name']+' has been created...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':False,'title':'New user','text':'User '+form_data['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='users')    
+                                            
 @socketio.on('bulkusers_add', namespace='/sio_admins')
 def socketio_bulkuser_add(form_data):
     if current_user.role == 'admin': 
         data=form_data['data']
         users=form_data['users']
         final_users=[{**u, **data} for u in users]
-        res=app.adminapi.add_users(final_users)
+        res=app.adminapi.users_add(final_users)
         if res is True:
             data=json.dumps({'result':True,'title':'New user','text':'A total of '+str(len(final_users))+' users has been created...','icon':'success','type':'success'})
         else:
@@ -489,6 +521,46 @@ def socketio_users_connect():
 def socketio_domains_disconnect():
     log.debug('USER: '+current_user.username+' DISCONNECTED')
 
+'''
+DOMAINS
+'''
+@socketio.on('domain_add', namespace='/sio_users')
+def socketio_domains_add(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+@socketio.on('domain_edit', namespace='/sio_users')
+def socketio_domain_edit(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict.pop('hardware',None)
+    res=app.isardapi.update_domain(create_dict.copy())
+    if res is True:
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('edit_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+                    
 @socketio.on('domain_update', namespace='/sio_users')
 def socketio_domains_update(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
@@ -497,14 +569,45 @@ def socketio_domains_update(data):
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
-@socketio.on('media_update', namespace='/sio_users')
-def socketio_media_update(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    socketio.emit('result',
-                    app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
-                    namespace='/sio_users', 
-                    room='user_'+current_user.username)
+@socketio.on('domain_edit', namespace='/sio_admins')
+def socketio_admins_domain_edit(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict.pop('hardware',None)
+    res=app.isardapi.update_domain(create_dict.copy())
+    if res is True:
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('edit_form_result',
+                    data,
+                    namespace='/sio_admins', 
+                    room='domains')
                     
+def parseHardware(create_dict):
+    if 'hardware' not in create_dict.keys():
+        #~ Hardware is not in create_dict
+        data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
+        create_dict['hardware']=data['create_dict']['hardware']
+        create_dict['hardware'].pop('disks',None)
+        create_dict['hypervisors_pools']=data['hypervisors_pools']
+    else:
+        if create_dict['hardware']['vcpus']=='':
+            data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
+            create_dict['hardware']['vcpus']=data['hardware']['vcpus']
+            create_dict['hardware']['memory']=data['hardware']['memory']/1024
+        create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+        create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+        create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+        create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+        create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+        create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    return create_dict
+    
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
     if current_user.role == 'admin': 
@@ -519,21 +622,8 @@ def socketio_domains_viewer(data):
             socketio.emit('result',
                             msg,
                             namespace='/sio_users', 
-                            room='user_'+current_user.username)     
-    
-@socketio.on('disposable_viewer', namespace='/sio_disposables')
-def socketio_disposables_viewer(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
-        sendViewer(data,kind='disposable',remote_addr=remote_addr)
-    else:
-        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-        socketio.emit('result',
-                        msg,
-                        namespace='/sio_disposables', 
-                        room='disposable_'+remote_addr)        
-
-                        
+                            room='user_'+current_user.username) 
+                            
 def sendViewer(data,kind='domain',remote_addr=False): 
     if data['kind'] == 'file':
         consola=app.isardapi.get_viewer_ticket(data['pk'])
@@ -583,83 +673,22 @@ def sendViewer(data,kind='domain',remote_addr=False):
                 socketio.emit('result',
                                 msg,
                                 namespace='/sio_disposables', 
-                                room='disposable_'+remote_addr)                             
-                        
-@socketio.on('domain_add', namespace='/sio_users')
-def socketio_domains_add(form_data):
-    #~ Check if user has quota and rights to do it
-    #~ if current_user.role=='admin':
-        #~ None
-    create_dict=app.isardapi.f.unflatten_dict(form_data)
-    create_dict=parseHardware(create_dict)
-    res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
-
-    if res is True:
-        data=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+create_dict['name']+' is being created...','icon':'success','type':'success'})
-    else:
-        data=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
-    socketio.emit('add_form_result',
-                    data,
+                                room='disposable_'+remote_addr) 
+                                                            
+'''
+MEDIA
+'''
+@socketio.on('media_update', namespace='/sio_users')
+def socketio_media_update(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    socketio.emit('result',
+                    app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
-
-@socketio.on('domain_edit', namespace='/sio_users')
-def socketio_domain_edit(form_data):
-    #~ Check if user has quota and rights to do it
-    #~ if current_user.role=='admin':
-        #~ None
-    create_dict=app.isardapi.f.unflatten_dict(form_data)
-    create_dict=parseHardware(create_dict)
-    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
-    create_dict.pop('hardware',None)
-    res=app.isardapi.update_domain(create_dict.copy())
-    if res is True:
-        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
-    else:
-        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
-    socketio.emit('edit_form_result',
-                    data,
-                    namespace='/sio_users', 
-                    room='user_'+current_user.username)
-
-@socketio.on('domain_edit', namespace='/sio_admins')
-def socketio_admins_domain_edit(form_data):
-    #~ Check if user has quota and rights to do it
-    #~ if current_user.role=='admin':
-        #~ None
-    create_dict=app.isardapi.f.unflatten_dict(form_data)
-    create_dict=parseHardware(create_dict)
-    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
-    create_dict.pop('hardware',None)
-    res=app.isardapi.update_domain(create_dict.copy())
-    if res is True:
-        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
-    else:
-        data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
-    socketio.emit('edit_form_result',
-                    data,
-                    namespace='/sio_admins', 
-                    room='domains')
                     
-def parseHardware(create_dict):
-    if 'hardware' not in create_dict.keys():
-        #~ Hardware is not in create_dict
-        data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
-        create_dict['hardware']=data['create_dict']['hardware']
-        create_dict['hardware'].pop('disks',None)
-        create_dict['hypervisors_pools']=data['hypervisors_pools']
-    else:
-        if create_dict['hardware']['vcpus']=='':
-            data=app.isardapi.get_domain(create_dict['template'], human_size=False, flatten=False)
-            create_dict['hardware']['vcpus']=data['hardware']['vcpus']
-            create_dict['hardware']['memory']=data['hardware']['memory']/1024
-        create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
-        create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
-        create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
-        create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
-        create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
-        create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
-    return create_dict
+    
+    
+       
 
 @socketio.on('media_add', namespace='/sio_users')
 def socketio_media_add(form_data):
@@ -693,19 +722,18 @@ def socketio_disposables_connect():
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if app.isardapi.show_disposable(remote_addr):
         join_room('disposable_'+remote_addr)
-    # ~ None
-    #~ if current_user.role=='admin':
-        #~ join_room('disposable_'+ip)
-        #~ socketio.emit('user_quota', 
-                        #~ json.dumps(app.isardapi.get_user_quotas(current_user.username, current_user.quota)), 
-                        #~ namespace='/sio_admins', 
-                        #~ room='user_'+current_user.username)
 
-#~ @socketio.on('join_client', namespace='/sio_disposables')
-#~ def socketio_disposables_joinclient(clientip):
-    #~ print('CLIENT IP DISPOSABLE: '+clientip)
-    #~ ## If clientip in disposable pool....
-    #~ join_room(clientip)
+@socketio.on('disposable_viewer', namespace='/sio_disposables')
+def socketio_disposables_viewer(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        sendViewer(data,kind='disposable',remote_addr=remote_addr)
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr) 
                                     
 @socketio.on('disposables_add', namespace='/sio_disposables')
 def socketio_disposables_add(data):
@@ -718,25 +746,6 @@ def socketio_disposables_add(data):
         id=app.isardapi.new_domain_disposable_from_tmpl(remote_addr,template)
     else:
         id=False
-    # ~ else:
-        # ~ res=False
-    # ~ if res is True:
-        # ~ flash('Disposable desktop created.','success')
-        # ~ print('Created desktop')
-        # ~ return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-    # ~ else:
-        # ~ flash('Could not update.','danger')
-        # ~ print('Failed creating desktop')
-        # ~ return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
-            
-            
-            
-    #~ Check if user has quota and rights to do it
-    #~ if current_user.role=='admin':
-        #~ None
-    # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
-    # ~ create_dict=parseHardware(create_dict)
-    # ~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
     if id:
         data=json.dumps({'result':True,'title':'New disposable','text':'Disposable '+id+' for your client is being created. Please wait...','icon':'success','type':'success'})
     else:

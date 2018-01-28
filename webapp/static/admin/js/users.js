@@ -35,13 +35,39 @@ $(document).ready(function() {
             
             data=quota2dict($('#modalAddUserForm').serializeObject());
             delete data['password2']
+            data['id']=data['username']=$('#modalAddUserForm #id').val();
             console.log(data)
             socket.emit('user_add',data)
         }
     }); 
 
+    $("#modalEditUser #send").on('click', function(e){
+        var form = $('#modalEditUserForm');
+        data=quota2dict($('#modalEditUserForm').serializeObject());
+        console.log(data)
+        form.parsley().validate();
+        if (form.parsley().isValid()){
+            
+            data=quota2dict($('#modalEditUserForm').serializeObject());
+            delete data['password2']
+            data['id']=data['username']=$('#modalEditUserForm #id').val();
+            console.log(data)
+            socket.emit('user_edit',data)
+        }
+    }); 
 
-
+    $("#modalDeleteUser #send").on('click', function(e){
+        var form = $('#modalDeleteUserForm');
+        data=$('#modalDeleteUserForm').serializeObject();
+        console.log(data)
+        form.parsley().validate();
+        if (form.parsley().isValid()){
+            
+            data=quota2dict($('#modalDeleteUserForm').serializeObject());
+            console.log(data)
+            socket.emit('user_delete',data)
+        }
+    }); 
 
        document.getElementById('csv').addEventListener('change', readFile, false);
        var filecontents=''
@@ -69,7 +95,9 @@ $(document).ready(function() {
         $.each(lines, function(n, l){
             console.log(l.length)
             if(n!=0 && l.length > 10){
-                users.push(toObject(header,l.split(',')))
+                usr=toObject(header,l.split(','))
+                usr['id']=usr['username']
+                users.push(usr)
             }
         })
         return users;
@@ -210,8 +238,9 @@ $(document).ready(function() {
     socket.on('add_form_result', function (data) {
         var data = JSON.parse(data);
         if(data.result){
-            $("#modalAddUserForm")[0].reset();
-            $("#modalAddUser").modal('hide');
+            $('form').each(function() { this.reset() });
+            $('.modal').modal('hide');
+            
         }
         new PNotify({
                 title: data.title,
@@ -223,6 +252,19 @@ $(document).ready(function() {
                 type: data.type
         });
     });
+
+    socket.on ('result', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });    
        
     //~ socket.on('user_quota', function(data) {
         //~ console.log('Quota update')
@@ -252,7 +294,7 @@ function actionsUserDetail(){
 	$('.btn-edit').on('click', function () {
             setQuotaOptions('#edit-users-quota');
             var pk=$(this).closest("div").attr("data-pk");
-            $("#modalEditForm")[0].reset();
+            $("#modalEditUserForm")[0].reset();
 			$('#modalEditUser').modal({
 				backdrop: 'static',
 				keyboard: false
@@ -260,14 +302,14 @@ function actionsUserDetail(){
             setModalUser()
             setQuotaTableDefaults('#edit-users-quota','users',pk)
             api.ajax('/admin/tabletest/users/post','POST',{'id':pk}).done(function(user) {
-                $('#modalEditForm #name').val(user.name);
-                $('#modalEditForm #id').val(user.id);
-                $('#modalEditForm #mail').val(user.mail);
-                $('#modalEditForm #role option:selected').prop("selected", false);
-                $('#modalEditForm #role option[value="'+user.role+'"]').prop("selected",true);
-                $('#modalEditForm #category option:selected').prop("selected", false);
-                $('#modalEditForm #category option[value="'+user.category+'"]').prop("selected",true);
-                $('#modalEditForm #group option:selected').prop("selected", false);
+                $('#modalEditUserForm #name').val(user.name);
+                $('#modalEditUserForm #id').val(user.id);
+                $('#modalEditUserForm #mail').val(user.mail);
+                $('#modalEditUserForm #role option:selected').prop("selected", false);
+                $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
+                $('#modalEditUserForm #category option:selected').prop("selected", false);
+                $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
+                $('#modalEditUserForm #group option:selected').prop("selected", false);
                 $('#modalEditForm #group option[value="'+user.group+'"]').prop("selected",true);                
             });
              //~ $('#hardware-block').hide();
