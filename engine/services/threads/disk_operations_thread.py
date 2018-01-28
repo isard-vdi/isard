@@ -41,6 +41,12 @@ class DiskOperationsThread(threading.Thread):
                                        self.hostname,
                                        self.user,
                                        self.port)
+                elif action['type'] in ['create_disk_from_scratch']:
+                    launch_action_disk(action,
+                                       self.hostname,
+                                       self.user,
+                                       self.port,
+                                       from_scratch=True)
                 elif action['type'] in ['delete_disk']:
                     launch_delete_disk_action(action,
                                               self.hostname,
@@ -75,6 +81,6 @@ class DiskOperationsThread(threading.Thread):
                         'operations creating disk {} for new domain {} failed. Commands, outs and errors: {}'.format(
                             disk_path, id_domain))
                     log.error('\n'.join(
-                        ['cmd: {}'.format(action['ssh_comands'][i]) for i in range(len(action['ssh_comands']))]))
+                        ['cmd: {}'.format(action['ssh_commands'][i]) for i in range(len(action['ssh_commands']))]))
                     update_domain_status('Failed', id_domain,
                                          detail='new disk create operation failed, thread disk operations is stopping, detail of operations cancelled in logs')

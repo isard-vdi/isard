@@ -88,7 +88,7 @@ def launch_delete_disk_action(action, hostname, user, port):
     disk_path = action['disk_path']
     id_domain = action['domain']
     array_out_err = execute_commands(hostname,
-                                     ssh_commands=action['ssh_comands'],
+                                     ssh_commands=action['ssh_commands'],
                                      user=user,
                                      port=port)
     # ALBERTO FALTA ACABAR
@@ -100,7 +100,7 @@ def launch_action_delete_disk(action, hostname, user, port):
     disk_path = action['disk_path']
     id_domain = action['domain']
     array_out_err = execute_commands(hostname,
-                                     ssh_commands=action['ssh_comands'],
+                                     ssh_commands=action['ssh_commands'],
                                      user=user,
                                      port=port)
     # last ls must fail
@@ -108,34 +108,35 @@ def launch_action_delete_disk(action, hostname, user, port):
         log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
 
 
-def launch_action_disk(action, hostname, user, port):
+def launch_action_disk(action, hostname, user, port, from_scratch=False):
     disk_path = action['disk_path']
     id_domain = action['domain']
     index_disk = action['index_disk']
     array_out_err = execute_commands(hostname,
-                                     ssh_commands=action['ssh_comands'],
+                                     ssh_commands=action['ssh_commands'],
                                      user=user,
                                      port=port)
 
-    if action['type'] == 'create_disk':
+    if action['type'] in ['create_disk', 'create_disk_from_scratch']:
         if len([k['err'] for k in array_out_err if len(k['err']) == 0]):
             ##TODO: TEST WITH MORE THAN ONE DISK, 2 list_backing_chain must be created
             log.debug('all operations creating disk {} for new domain {} runned ok'.format(disk_path, id_domain))
-            out_cmd_backing_chain = array_out_err[-1]['out']
+            if from_scratch is False:
+                out_cmd_backing_chain = array_out_err[-1]['out']
 
-            list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
-            update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
-            ##INFO TO DEVELOPER
+                list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
+                update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
+                ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
             update_domain_status('CreatingDomain', id_domain, None,
                                  detail='new disk created, now go to creating desktop and testing if desktop start')
         else:
 
             log.error('operations creating disk {} for new domain {} failed.'.format(disk_path, id_domain))
-            log.error('\n'.join(['cmd: {} / out: {} / err: {}'.format(action['ssh_comands'][i],
+            log.error('\n'.join(['cmd: {} / out: {} / err: {}'.format(action['ssh_commands'][i],
                                                                       array_out_err[i]['out'],
                                                                       array_out_err[i]['err']) for i in
-                                 range(len(action['ssh_comands']))]))
+                                 range(len(action['ssh_commands']))]))
             update_domain_status('Failed', id_domain, detail='new disk create operation failed, details in logs')
 
     elif action['type'] == 'delete_disk':

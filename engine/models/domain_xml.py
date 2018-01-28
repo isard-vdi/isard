@@ -627,8 +627,13 @@ def populate_dict_hardware_from_create_dict(id_domain):
         pass
 
     if 'hardware' in domain.keys():
-        if 'disks' in domain['hardware']:
+        if 'disks' in domain['hardware'].keys():
             new_hardware_dict['disks'] = domain['hardware']['disks'].copy()
+        if 'isos' in domain['hardware'].keys():
+            new_hardware_dict['isos'] = domain['hardware']['isos'].copy()
+        if 'fd' in domain['hardware'].keys():
+            new_hardware_dict['fd'] = domain['hardware']['fd'].copy()
+
 
     new_hardware_dict['name'] = id_domain
     new_hardware_dict['uuid'] = None

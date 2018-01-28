@@ -45,7 +45,7 @@ def create_cmd_disk_from_scratch(path_new_disk,
     cmds1 = list()
     path_dir = extract_dir_path(path_new_disk)
     touch_test_path = path_dir + '/.touch_test'
-    cmd_qemu_img = "qemu-img create -f {disk_type} -o cluster_size={clustersize} {file_path} {size_str}".\
+    cmd_qemu_img = "qemu-img create -f {disk_type} -o cluster_size={cluster_size} {file_path} {size_str}".\
                                format(disk_type = disk_type,
                                        size_str = size_str,
                                    cluster_size = cluster_size,
@@ -63,7 +63,9 @@ def create_cmd_disk_from_scratch(path_new_disk,
     cmds1.append({'title': 'rm_touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
 
     cmds1.append({'title': 'launch qemu-img', 'cmd': cmd_qemu_img})
-    cmds1.append({'title': 'test_if_qcow_exists', 'cmd': 'stat -c \'%d\' {}'.format(path_new_qcow)})
+    cmds1.append({'title': 'test_if_qcow_exists', 'cmd': 'stat -c \'%d\' {}'.format(path_new_disk)})
+
+    return cmds1
 
 def create_cmd_disk_from_virtbuilder(path_new_qcow,
                                      os_version,
