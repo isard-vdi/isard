@@ -56,6 +56,17 @@ $(document).ready(function() {
                                 if(full['new']){
                                     return '<span class="label label-success pull-right">New</span>';
                                 }
+                                if(full.status.startsWith('Fail')){
+                                    return '<span class="label label-danger pull-right">'+full.status+'</span>';
+                                }
+                                if(full.status.endsWith('ing')){
+                                    return '<span class="label label-warning pull-right">'+full.status+'</span>';
+                                } 
+                                //~ if(full.status=='Downloaded'){
+                                    //~ return '<span class="label label-info pull-right">'+full.status+'</span>';
+                                //~ } 
+                                if(full.status == 'Stopped'){full.status='Downloaded'}                                                                     
+                                return '<span class="label label-info pull-right">'+full.status+'</span>';
 							}},
                             {
 							"targets": 1,
@@ -70,13 +81,13 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    return 'Downloaded';
-                                }
-                                if(full.status == 'Available'){
-                                    return '';
-                                }
+                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    //~ return 'Downloaded';
+                                //~ }
+                                if(full.status == 'Downloading'){
                                     return renderProgress(full);
+                                }
+                                return '';
 							}},
                             {
 							"targets": 4,
@@ -130,7 +141,8 @@ $(document).ready(function() {
             case 'btn-delete':
                 api.ajax('/admin/updates/delete/domains/'+id,'POST',{}).done(function(data) {
                     console.log('inside:'+id)
-                   table['domains'].row('#'+id).remove().draw();
+                    table['domains'].ajax.reload();
+                   //~ table['domains'].row('#'+id).remove().draw();
                   }); 
                 break;
             };  
@@ -166,6 +178,17 @@ $(document).ready(function() {
                                 if(full['new']){
                                     return '<span class="label label-success pull-right">New</span>';
                                 }
+                                if(full.status.startsWith('Fail')){
+                                    return '<span class="label label-danger pull-right">'+full.status+'</span>';
+                                }
+                                if(full.status.endsWith('ing')){
+                                    return '<span class="label label-warning pull-right">'+full.status+'</span>';
+                                } 
+                                //~ if(full.status=='Downloaded'){
+                                    //~ return '<span class="label label-info pull-right">'+full.status+'</span>';
+                                //~ }   
+                                if(full.status == 'Stopped'){full.status='Downloaded'}                                                                 
+                                return '<span class="label label-info pull-right">'+full.status+'</span>';
 							}},
                             {
 							"targets": 1,
@@ -180,10 +203,11 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    return 'Downloaded';
-                                }
+                                if(full.status == 'Downloading'){
                                     return renderProgress(full);
+                                }
+                                return '';
+                                    
 							}},
                             {
 							"targets": 4,
@@ -235,7 +259,8 @@ $(document).ready(function() {
                 break;
             case 'btn-delete':
                 api.ajax('/admin/updates/delete/media/'+datarow['id'],'POST',{}).done(function(data) {
-                   table['media'].row('#'+datarow['id']).remove().draw();
+                    table['media'].ajax.reload();
+                   //~ table['media'].row('#'+datarow['id']).remove().draw();
                   }); 
                 break;
             };  
