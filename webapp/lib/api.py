@@ -732,7 +732,7 @@ class isard():
             # Checking if domain exists:
             exists=r.table('domains').get(id).run(db.conn)
             if exists is not None: return False
-        if kind=='public_template':
+        if kind=='public_template' or kind=='base':
             ar=[]
             ac=[]
             ag=[]

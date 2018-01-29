@@ -276,6 +276,10 @@
 								  </option>
 								  <option value="public_template">Public
 								  </option>
+                                  {% if(current_user.role == 'admin') %}
+								  <option value="base">Base
+								  </option>
+                                  {% endif %}
 							   </select>
 							</div>
 					 </div>
