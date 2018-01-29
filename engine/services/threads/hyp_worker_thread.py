@@ -17,7 +17,7 @@ from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, upd
 from engine.services.lib.functions import get_tid
 from engine.services.log import logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_action_disk, RETRIES_HYP_IS_ALIVE, \
-    TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE
+    TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE, launch_delete_media
 
 
 class HypWorkerThread(threading.Thread):
@@ -158,6 +158,12 @@ class HypWorkerThread(threading.Thread):
 
                 elif action['type'] in ['create_disk', 'delete_disk']:
                     launch_action_disk(action,
+                                       self.hostname,
+                                       user,
+                                       port)
+
+                elif action['type'] in ['delete_media']:
+                    launch_delete_media (action,
                                        self.hostname,
                                        user,
                                        port)

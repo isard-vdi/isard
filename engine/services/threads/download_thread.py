@@ -18,8 +18,9 @@ from engine.services.db import get_config_branch, get_hyp_hostname_user_port_fro
                                update_domain_dict_create_dict, get_domain
 from engine.services.db.downloads import get_downloads_in_progress, update_download_percent, update_status_table,\
                                          get_media
-from engine.services.lib.qcow import get_host_disk_operations_from_path, get_path_to_disk
+from engine.services.lib.qcow import get_host_disk_operations_from_path, get_path_to_disk, create_cmds_delete_disk
 from engine.services.lib.functions import get_tid
+
 
 
 class DownloadThread(threading.Thread, object):
@@ -139,11 +140,12 @@ class DownloadThread(threading.Thread, object):
 
 
 class DownloadChangesThread(threading.Thread):
-    def __init__(self, name='download_changes'):
+    def __init__(self, manager, name='download_changes'):
         threading.Thread.__init__(self)
         self.name = name
         self.stop = False
         self.r_conn = False
+        self.manager = manager
 
         cfg = get_config_branch('resources')
         if cfg is not False:
@@ -196,6 +198,21 @@ class DownloadChangesThread(threading.Thread):
         table = dict_changes['table']
         id_down = dict_changes['id']
         d_media = get_media(id_down)
+        cmds = create_cmds_delete_disk(d_media['path_downloaded'])
+
+        #change for other pools when pools are implemented in all media
+        pool_id = 'default'
+        next_hyp = self.manager.pools[pool_id].get_next()
+        logs.downloads.debug('hypervisor where delete media {}: {}'.format(d_media['path_downloaded'], next_hyp))
+
+
+        action = dict()
+        action['id_media'] = id_down
+        action['type'] = 'delete_media'
+        action['ssh_commands'] = cmds
+
+        self.manager.q.workers[next_hyp].put(action)
+
         ## call disk_operations thread_to_delete
 
     def start_download(self, dict_changes):
@@ -239,10 +256,10 @@ class DownloadChangesThread(threading.Thread):
                 self.download_threads.pop(new_file_path)
             self.finalished_threads.remove(new_file_path)
 
-
-        d_update_domain = dict_changes['create_dict']
-        d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
-        update_domain_dict_create_dict(id_down, d_update_domain)
+        if table == 'domains':
+            d_update_domain = dict_changes['create_dict']
+            d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
+            update_domain_dict_create_dict(id_down, d_update_domain)
 
         # launching download threads
         if new_file_path not in self.download_threads:
@@ -263,12 +280,13 @@ class DownloadChangesThread(threading.Thread):
         logs.downloads.debug('RUN-DOWNLOAD-THREAD-------------------------------------')
         if self.stop is False:
             self.r_conn = new_rethink_connection()
-            for c in r.table('media').get_all(r.args(['Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
+            for c in r.table('media').get_all(r.args(['Deleting','Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
                     pluck('id',
                           'path',
                           'url-isard',
                           'url-web',
-                          'status').merge(
+                          'status'
+                          ).merge(
                 {'table': 'media'}).changes(include_initial=True).union(
                 r.table('domains').get_all(r.args(['Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
                         pluck('id',
@@ -317,8 +335,8 @@ class DownloadChangesThread(threading.Thread):
                         self.abort_download(c['new_val'])
 
 
-def launch_thread_download_changes():
-    t = DownloadChangesThread()
+def launch_thread_download_changes(manager):
+    t = DownloadChangesThread(manager)
     t.daemon = True
     t.start()
     return t

@@ -236,7 +236,7 @@ class ManagerHypervisors(object):
                     self.manager.t_changes_domains.start()
 
                     logs.main.debug('Launching Download Changes Thread')
-                    self.manager.t_downloads_changes = launch_thread_download_changes()
+                    self.manager.t_downloads_changes = launch_thread_download_changes(self.manager)
 
                     self.manager.t_broom = launch_thread_broom()
 

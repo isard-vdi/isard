@@ -349,3 +349,11 @@ def update_quota_user(id_user,running_desktops, quota_desktops,quota_templates,m
 
     close_rethink_connection(r_conn)
     return result
+
+def remove_media(id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('media')
+
+    result = rtable.get(id).delete().run(r_conn)
+    close_rethink_connection(r_conn)
+    return result
