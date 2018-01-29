@@ -35,7 +35,7 @@ $(document).ready(function() {
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            $('#modalAddFromIso #modalAdd').parsley();
+            $('#modalAddFromMedia #modalAdd').parsley();
             //~ modal_add_builder_datatables();
             modal_add_install_datatables();
             modal_add_media_datatables();
@@ -200,7 +200,7 @@ function modal_add_install_datatables(){
     
 	modal_add_install = $('#modal_add_install').DataTable({
 			"ajax": {
-				"url": "/admin/table/virt_builder/get",
+				"url": "/admin/table/virt_install/get",
 				"dataSrc": ""
 			},
             "scrollY":        "125px",

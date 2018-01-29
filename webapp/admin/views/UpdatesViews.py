@@ -46,18 +46,7 @@ def admin_updates_register():
 @login_required
 @isAdmin
 def admin_updates_json(kind):
-        # ~ try:
-            # ~ import pprint
-            # ~ if kind=='virt_install':
-                # ~ pprint.pprint(u.getNewKind(kind,current_user.id))
-            # ~ import pprint
-            # ~ pprint.pprint([d['create_dict']['hardware']['disks'] for d in u.getNewKind(kind,current_user.id) if 'create_dict' in d])
-            # ~ pprint.pprint([d['path'] for d in u.getNewKind(kind,current_user.id) if 'path' in d])
-            return json.dumps(u.getNewKind(kind,current_user.id))
-        # ~ except Exception as e:
-            # ~ print(kind)
-            # ~ print('exception on read updates: '+str(e))
-            # ~ return json.dumps([])
+    return json.dumps(u.getNewKind(kind,current_user.id))
 
 @app.route('/admin/updates/<action>/<kind>', methods=['POST'])
 @app.route('/admin/updates/<action>/<kind>/<id>', methods=['POST'])
@@ -71,9 +60,9 @@ def admin_updates_actions(action,kind,id=False):
                 d=u.getNewKindId(kind,current_user.id,id)
                 if d is not False:
                     if kind == 'domains':
-                        data=u.formatDomain(d,current_user)
+                        data=u.formatDomain([d],current_user)[0]
                     elif kind == 'media':
-                        data=u.formatMedia(d,current_user)
+                        data=u.formatMedias([d],current_user)[0]
                     app.adminapi.insert_or_update_table_dict(kind,data)
             else:
                 # No id, do it will all

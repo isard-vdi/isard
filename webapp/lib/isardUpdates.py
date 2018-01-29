@@ -53,19 +53,7 @@ class Updates(object):
             for d in dbb:
                 if kind == 'domains' or kind == 'media':
                     if d['id']=='_'+username+'_'+w['id']:
-                        # ~ import pprint
-                        try:
-                            print('before w:'+str(w['create_dict']['hardware']['disks'][0])+'\n d:'+str(d['create_dict']['hardware']['disks'][0]))
-                        except:
-                            None
-                        # ~ pprint.pprint([d['create_dict']['hardware']['disks'][0] for d in w if 'create_dict' in d])
-                        dict=w.copy()
-                        # ~ import pprint
-                        try:
-                            print('after w:'+str(w['create_dict']['hardware']['disks'][0])+'\n d:'+str(d['create_dict']['hardware']['disks'][0]))
-                        except:
-                            None
-                        # ~ pprint.pprint([d['create_dict']['hardware']['disks'][0] for d in dict if 'create_dict' in d])                        
+                        dict=w.copy()                       
                         found=True
                         dict['id']='_'+username+'_'+dict['id']
                         dict['new']=False
@@ -127,24 +115,22 @@ class Updates(object):
     '''
     RETURN FORMATTED DOMAINS TO INSERT ON TABLES
     '''    
-    def formatDomain(self,dom,current_user):
-        d=dom.copy()
-        # ~ for d in new_dom:
-            # ~ d['id']='_'+current_user.id+'_'+d['id']
-        d['progress']={}
-        d['status']='DownloadStarting'
-        d['detail']=''
-        d['accessed']=time.time()
-        d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
-        d.update(self.get_user_data(current_user))
-        for disk in d['create_dict']['hardware']['disks']:
-            disk['file']=current_user.path+disk['file']
-        return d
+    # ~ def formatDomain(self,dom,current_user):
+        # ~ d=dom.copy()
+        # ~ d['progress']={}
+        # ~ d['status']='DownloadStarting'
+        # ~ d['detail']=''
+        # ~ d['accessed']=time.time()
+        # ~ d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
+        # ~ d.update(self.get_user_data(current_user))
+        # ~ for disk in d['create_dict']['hardware']['disks']:
+            # ~ if not disk['file'].startswith(current_user.path):
+                # ~ disk['file']=current_user.path+disk['file']
+        # ~ return d
                      
     def formatDomains(self,data,current_user):
         new_data=data.copy()
         for d in new_data:
-            # ~ d['id']='_'+current_user.id+'_'+d['id']
             d['progress']={}
             d['status']='DownloadStarting'
             d['detail']=''
@@ -152,19 +138,23 @@ class Updates(object):
             d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
             d.update(self.get_user_data(current_user))
             for disk in d['create_dict']['hardware']['disks']:
-                disk['file']=current_user.path+disk['file']
+                if not disk['file'].startswith(current_user.path):
+                    disk['file']=current_user.path+disk['file']
         return new_data
         
     def formatMedias(self,data,current_user):
         new_data=data.copy()
         for d in new_data:
-            # ~ if 'path' in d.keys():
-                # ~ d['id']='_'+current_user.id+'_'+d['id']
             d.update(self.get_user_data(current_user))
             d['progress']={}
             d['status']='DownloadStarting'
-            d['accessed']=time.time()                    
-            d['path']=current_user.path+d['url-isard']                
+            d['accessed']=time.time()
+            if d['url-isard'] is False:
+                d['path']=current_user.path+d['url-web'].split('/')[-1] 
+            else:
+                d['path']=d['url-isard']
+            # ~ if not d['path'].startswith(current_user.path):                  
+                # ~ d['path']=current_user.path+d['url-isard']                
         return new_data
 
     def get_user_data(self,current_user):
