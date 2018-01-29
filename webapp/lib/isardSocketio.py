@@ -779,6 +779,8 @@ def socketio_domains_virtualbuilder_add(form_data):
     create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
     create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
     create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
+    create_dict['create_from_virt_install_xml']= create_dict['install']
+    create_dict.pop('install',None)
     disk_size=create_dict['disk_size']+'G'
     create_dict.pop('disk_size',None)
     name=create_dict['name']
@@ -789,6 +791,7 @@ def socketio_domains_virtualbuilder_add(form_data):
     create_dict.pop('hypervisors_pools',None)
     icon=create_dict['icon']
     create_dict.pop('icon',None)
+    
     create_dict['builder']['options']=create_dict['builder']['options'].replace('\r\n','')
     res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
@@ -800,9 +803,37 @@ def socketio_domains_virtualbuilder_add(form_data):
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
 
-@socketio.on('domain_virtiso_add', namespace='/sio_admins')
-def socketio_domains_virtualiso_add(form_data):
-    log.debug(form_data)
+@socketio.on('domain_media_add', namespace='/sio_admins')
+def socketio_domains_media_add(form_data):
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
+    
+    disk_size=create_dict['disk_size']+'G'
+    create_dict.pop('disk_size',None)
+    name=create_dict['name']
+    create_dict.pop('name',None)
+    description=create_dict['description']
+    create_dict.pop('description',None)
+    hyper_pools=[create_dict['hypervisors_pools']]
+    create_dict.pop('hypervisors_pools',None)
+    # ~ icon=create_dict['icon']
+    icon='circle-o'
+    create_dict.pop('icon',None)
+    create_dict['builder']['options']=create_dict['builder']['options'].replace('\r\n','')
+    res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+    else:
+        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
     
 @socketio.on('classroom_update', namespace='/sio_admins')
 def socketio_classroom_update(data):

@@ -745,6 +745,40 @@ class isardAdmin():
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
+    def domain_from_media(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
+        with app.app_context():
+            userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
+            create_dict['install']['options']='' #r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
+        
+        parsed_name = app.isardapi.parse_string(name)
+        dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
+        create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
+                                            'size':disk_size}]   # 15G as a format
+        r.table('media').get(create_dict['media']).run(db.conn)
+        create_dict['hardware']['isos']=[{'id': ''}]   
+        create_dict['hardware']['floppies']=[{'id': ''}]                                                                                           
+        new_domain={'id': '_'+user+'_'+parsed_name,
+                  'name': name,
+                  'description': description,
+                  'kind': 'desktop',
+                  'user': userObj['id'],
+                  'status': 'CreatingDiskFromScratch',
+                  'detail': None,
+                  'category': userObj['category'],
+                  'group': userObj['group'],
+                  'xml': None,
+                  'icon': icon,
+                  'server': False,
+                  'os': create_dict['builder']['id'],   #### Or name
+
+                  'create_dict': create_dict, 
+                  'hypervisors_pools': hyper_pools,
+                  'allowed': {'roles': False,
+                              'categories': False,
+                              'groups': False,
+                              'users': False}}
+        with app.app_context():
+            return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
     # ~ def isa_group_separator(self,line):
         # ~ return True if line.startswith('[') else False
