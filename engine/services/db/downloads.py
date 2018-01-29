@@ -2,6 +2,14 @@ import rethinkdb as r
 
 from engine.services.db import new_rethink_connection, close_rethink_connection
 
+def get_media(id_media):
+
+    r_conn = new_rethink_connection()
+    d = r.table('media').get(id_media).run(r_conn)
+
+    close_rethink_connection(r_conn)
+    return d
+
 
 def get_downloads_in_progress():
     r_conn = new_rethink_connection()

@@ -19,11 +19,12 @@ from engine.services.db import update_domain_viewer_started_values, update_table
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
-    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop
+    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop, \
+    get_dict_from_item_in_table, update_domain_dict_create_dict
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
-    get_host_disk_operations_from_path
+    get_host_disk_operations_from_path, create_cmd_disk_from_scratch
 from engine.services.log import *
 
 
@@ -263,7 +264,7 @@ class UiActions(object):
                 action['type'] = 'delete_disk'
                 action['disk_path'] = disk_path
                 action['domain'] = id_domain
-                action['ssh_comands'] = cmds
+                action['ssh_commands'] = cmds
                 action['index_disk'] = index_disk
 
                 try:
@@ -417,52 +418,57 @@ class UiActions(object):
 
         dict_to_create = dict_domain['create_dict']
 
-        relative_path = dict_to_create['hardware']['disks'][0]['file']
-        path_new_disk, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+        if 'disks' in dict_to_create['hardware'].keys():
+            if len(dict_to_create['hardware']['disks']) > 0:
 
-        cmds = create_cmd_disk_from_virtbuilder(path_new_qcow=path_new_disk,
-                                                os_version=id_domains_virt_builder,
-                                                id_os_virt_install=id_os_virt_install,
-                                                name_domain_in_xml=id_new,
-                                                size_str=size_str,
-                                                memory_in_mb=memory_in_mb,
-                                                options_cmd=options_virt_builder)
+                # for index_disk in range(len(dict_to_create['hardware']['disks'])):
+                #     relative_path = dict_to_create['hardware']['disks'][index_disk]['file']
+                #     path_new_file, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+                #     # UPDATE PATH IN DOMAIN
+                #     dict_to_create['hardware']['disks'][index_disk]['file'] = new_file
+                #     dict_to_create['hardware']['disks'][index_disk]['path_selected'] = path_selected
 
-        # cmds = [{'cmd':'ls -lah > /tmp/prova.txt','title':'es un ls'}]
+                relative_path = dict_to_create['hardware']['disks'][0]['file']
+                path_new_disk, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+                # UPDATE PATH IN DOMAIN
 
-        action = {}
-        action['type'] = 'create_disk_virt_builder'
-        action['disk_path'] = path_new_disk
-        action['index_disk'] = 0
-        action['domain'] = id_new
-        action['ssh_comands'] = cmds
+                d_update_domain = {'hardware':{'disks':[{}]}}
+                d_update_domain['hardware']['disks'][0]['file'] = path_new_disk
+                d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
+                update_domain_dict_hardware(id_new, d_update_domain)
+                update_domain_dict_create_dict(id_new, d_update_domain)
 
-    def creating_from_scratch(self,id_new):
-        dict_domain = get_domain(id_new)
+                size_str = dict_to_create['hardware']['disks'][0]['size']
 
-        pool_var = dict_domain['hypervisors_pools']
-        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+                hyp_to_disk_create = get_host_disk_operations_from_path(path_selected, pool=pool_id, type_path='groups')
 
-        dict_to_create = dict_domain['create_dict']
+                cmds = create_cmd_disk_from_scratch(path_new_disk=path_new_disk,
+                                                         size_str=size_str)
 
-        relative_path = dict_to_create['hardware']['disks'][0]['file']
-        path_new_disk, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+                action = {}
+                action['type'] = 'create_disk_from_scratch'
+                action['disk_path'] = path_new_disk
+                action['index_disk'] = 0
+                action['domain'] = id_new
+                action['ssh_commands'] = cmds
+                try:
+                    update_domain_status(status='CreatingDiskFromScratch',
+                                         id_domain=id_new,
+                                         hyp_id=False,
+                                         detail='Creating disk commands are launched in hypervisor {} ({} operations in queue)'.format(
+                                             hyp_to_disk_create,
+                                             self.manager.q_disk_operations[hyp_to_disk_create].qsize()))
+                    self.manager.q_disk_operations[hyp_to_disk_create].put(action)
 
-        size_str = dict_to_create['hardware']['disks'][0]['size']
+                except Exception as e:
+                    update_domain_status(status='FailedCreatingDomain',
+                                         id_domain=id_new,
+                                         hyp_id=False,
+                                         detail='Creating disk operation failed when insert action in queue for disk operations')
+                    log.error(
+                        'Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(
+                            e))
 
-        hyp_to_disk_create = get_host_disk_operations_from_path(path_selected, pool=pool_id, type_path='groups')
-
-        #Load XML
-
-        #Link Disks
-
-        #Link Isos
-
-        #Link Networks
-
-        #Boot order
-
-        #Persanlized XML
 
     def creating_disk_from_virtbuilder(self,
                                        id_new):
@@ -508,7 +514,7 @@ class UiActions(object):
         action['disk_path'] = path_new_disk
         action['index_disk'] = 0
         action['domain'] = id_new
-        action['ssh_comands'] = cmds
+        action['ssh_commands'] = cmds
 
         try:
             update_domain_status(status='RunningVirtBuilder',
@@ -569,7 +575,7 @@ class UiActions(object):
             action['disk_path'] = new_file
             action['index_disk'] = index_disk
             action['domain'] = id_new
-            action['ssh_comands'] = cmds
+            action['ssh_commands'] = cmds
 
             try:
                 update_domain_status(status='CreatingDisk',
@@ -626,7 +632,8 @@ class UiActions(object):
 
             return True
 
-    def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False, xml_from_virt_install=False,
+    def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False,
+                                    xml_from_virt_install=False,
                                     xml_string=None):
         if creating_from_create_dict is True:
             try:
@@ -637,9 +644,17 @@ class UiActions(object):
                 log.error('Exception message: {}'.format(e))
 
         domain = get_domain(id_domain)
+        #create_dict_hw = domain['create_dict']['hardware']
+        # for media in ['isos','floppies']
+        #     if 'isos' in create_dict_hw.keys():
+        #         for index_disk in range(len(create_dict_hw['isos'])):
+        #             update_hw['hardware']['isos'][index_disk]['file'] = new_file
 
         if type(xml_string) is str:
             xml_from = xml_string
+
+        elif 'create_from_virt_install_xml' in domain['create_dict']:
+            xml_from = get_dict_from_item_in_table('virt_install',domain['create_dict']['create_from_virt_install_xml'])['xml']
 
         elif xml_from_virt_install is False:
             id_template = domain['create_dict']['origin']
@@ -762,7 +777,7 @@ class UiActions(object):
             action['type'] = 'create_disk'
             action['disk_path'] = new_path_disk
             action['domain'] = id_new
-            action['ssh_comands'] = cmds
+            action['ssh_commands'] = cmds
             if hasattr(self.pool, 'queue_disk_operation'):
                 self.pool.queue_disk_operation.put(action)
                 # err,out = create_disk_from_base(old_path_disk,new_path_disk)

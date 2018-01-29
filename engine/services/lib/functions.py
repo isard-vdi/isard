@@ -921,6 +921,7 @@ def try_ssh(hostname, port, user, timeout):
 def execute_commands(host, ssh_commands, dict_mode=False, user='root', port=22):
     id = insert_disk_operation({'commands': ssh_commands})
     before = time.time()
+    dict_mode = True if type(ssh_commands[0]) is dict else False
     if dict_mode == True:
         array_out_err = exec_remote_list_of_cmds_dict(host, ssh_commands, username=user, port=port)
     else:

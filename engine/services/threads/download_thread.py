@@ -14,8 +14,9 @@ from engine.config import CONFIG_DICT
 from engine.services.db.db import new_rethink_connection
 from engine.services.db.domains import update_domain_status
 from engine.services.log import logs
-from engine.services.db import get_config_branch, get_hyp_hostname_user_port_from_id
-from engine.services.db.downloads import get_downloads_in_progress, update_download_percent, update_status_table
+from engine.services.db import get_config_branch, get_hyp_hostname_user_port_from_id, update_table_field
+from engine.services.db.downloads import get_downloads_in_progress, update_download_percent, update_status_table,\
+                                         get_media
 from engine.services.lib.qcow import get_host_disk_operations_from_path, get_path_to_disk
 from engine.services.lib.functions import get_tid
 
@@ -120,11 +121,14 @@ class DownloadThread(threading.Thread, object):
             rc = p.poll()
 
         logs.downloads.info('File downloaded: {}'.format(self.path))
+
         assert rc == 0
         if self.table == 'domains':
+            update_table_field(self.table, self.id, 'path_downloaded', self.path)
             update_domain_status('Downloaded', self.id, detail="downloaded disk")
             update_domain_status('Updating', self.id, detail="downloaded disk")
         else:
+            update_table_field(self.table,self.id,'path_downloaded',self.path)
             update_status_table(self.table, 'Downloaded', self.id)
 
 
@@ -182,6 +186,12 @@ class DownloadChangesThread(threading.Thread):
             self.download_threads[new_file_path].stop = True
         else:
             update_status_table(dict_changes['table'],'FailedDownload')
+
+    def delete_media(self,dict_changes):
+        table = dict_changes['table']
+        id_down = dict_changes['id']
+        d_media = get_media(id_down)
+        ## call disk_operations thread_to_delete
 
     def start_download(self, dict_changes):
 
@@ -261,34 +271,40 @@ class DownloadChangesThread(threading.Thread):
 
                 if self.stop:
                     break
-                if c['new_val']['table'] == 'engine':
-                    if c['new_val']['status_all_threads'] == 'Stopping':
-                        break
-                else:
-                    logs.downloads.debug('DOWNLOAD CHANGES DETECTED:')
-                    logs.downloads.debug(pprint.pformat(c))
+                if c.get('new_val', None) is not None:
+                    if c['new_val'].get('table', False) == 'engine':
+                        if c['new_val']['status_all_threads'] == 'Stopping':
+                            break
+                        else:
+                            continue
 
-                    if c.get('old_val',None) is None:
-                        if c['new_val']['status'] == 'DownloadStarting':
-                            self.start_download(c['new_val'])
-                    elif c.get('new_val',None) is None:
-                        if c['old_val']['status'] in ['AbortingDownload']:
-                            self.abort_download(c['old_val'])
-                    elif 'old_val' in c and 'new_val' in c:
-                        if c['old_val']['status'] == 'FailedDownload' and c['new_val']['status'] == 'DownloadStarting':
-                            self.start_download(c['new_val'])
+                logs.downloads.debug('DOWNLOAD CHANGES DETECTED:')
+                logs.downloads.debug(pprint.pformat(c))
 
-                        elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'FailedDownload':
-                            pass
+                if c.get('old_val',None) is None:
+                    if c['new_val']['status'] == 'DownloadStarting':
+                        self.start_download(c['new_val'])
+                elif c.get('new_val',None) is None:
+                    if c['old_val']['status'] in ['DownloadAborting']:
+                        self.abort_download(c['old_val'])
+                elif 'old_val' in c and 'new_val' in c:
+                    if c['old_val']['status'] == 'FailedDownload' and c['new_val']['status'] == 'DownloadStarting':
+                        self.start_download(c['new_val'])
 
-                        elif c['old_val']['status'] == 'DownloadStarting' and c['new_val']['status'] == 'Downloading':
-                            pass
+                    elif c['old_val']['status'] == 'Downloaded' and c['new_val']['status'] == 'Deleting':
+                        self.delete_media(c['new_val'])
 
-                        elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'Downloaded':
-                            pass
+                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'FailedDownload':
+                        pass
 
-                        elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'AbortingDownload':
-                            self.abort_download(c['new_val'])
+                    elif c['old_val']['status'] == 'DownloadStarting' and c['new_val']['status'] == 'Downloading':
+                        pass
+
+                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'Downloaded':
+                        pass
+
+                    elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'DownloadAborting':
+                        self.abort_download(c['new_val'])
 
 
 def launch_thread_download_changes():

@@ -228,6 +228,12 @@ def get_domains_with_transitional_status(list_status=TRANSITIONAL_STATUS):
 #         return []
 #     return [d['id'] for d in results]
 
+def update_domain_dict_create_dict(id, create_dict):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    results = rtable.get(id).update({'create_dict': create_dict}).run(r_conn)
+    close_rethink_connection(r_conn)
+    return results
 
 def update_domain_dict_hardware(id, domain_dict, xml=False):
     r_conn = new_rethink_connection()

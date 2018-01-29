@@ -39,7 +39,7 @@ class LongOperationsThread(threading.Thread):
                 if action['type'] in ['create_disk_virt_builder']:
 
                     cmds_done = execute_commands(host=self.hostname,
-                                                 ssh_commands=action['ssh_comands'],
+                                                 ssh_commands=action['ssh_commands'],
                                                  dict_mode=True,
                                                  user=self.user,
                                                  port=self.port
@@ -51,8 +51,8 @@ class LongOperationsThread(threading.Thread):
                             action['disk_path'], action['domain'], self.hyp_id))
                         log.debug('print cmds_done:')
                         log.debug(pprint.pprint(cmds_done))
-                        log.debug('print ssh_comands:')
-                        log.debug(pprint.pprint(action['ssh_comands']))
+                        log.debug('print ssh_commands:')
+                        log.debug(pprint.pprint(action['ssh_commands']))
                         update_domain_status('Failed', id_domain,
                                              detail='Virt Builder Failed creating disk file')
                     else:
@@ -87,6 +87,6 @@ class LongOperationsThread(threading.Thread):
                         'operations creating disk {} for new domain {} failed. Commands, outs and errors: {}'.format(
                             disk_path, id_domain))
                     log.error('\n'.join(
-                        ['cmd: {}'.format(action['ssh_comands'][i]) for i in range(len(action['ssh_comands']))]))
+                        ['cmd: {}'.format(action['ssh_commands'][i]) for i in range(len(action['ssh_commands']))]))
                     update_domain_status('Failed', id_domain,
                                          detail='new disk create operation failed, thread disk operations is stopping, detail of operations cancelled in logs')

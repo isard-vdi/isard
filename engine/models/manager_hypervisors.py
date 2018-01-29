@@ -332,127 +332,130 @@ class ManagerHypervisors(object):
                 if self.stop is True:
                     break
 
-                if c['new_val']['table'] == 'engine':
-                    if c['new_val']['status_all_threads'] == 'Stopping':
-                        break
-                elif c['new_val']['table'] == 'domains':
-                    logs.changes.debug('domain changes detected in main thread')
-                    new_domain = False
-                    new_status = False
-                    old_status = False
-                    import pprint
-                    logs.changes.debug(pprint.pformat(c))
+                if c.get('new_val', None) is not None:
+                    if c['new_val']['table'] == 'engine':
+                        if c['new_val']['status_all_threads'] == 'Stopping':
+                            break
+                        else:
+                            continue
 
-                    # action deleted
-                    if c['new_val'] is None:
+                logs.changes.debug('domain changes detected in main thread')
+                new_domain = False
+                new_status = False
+                old_status = False
+                import pprint
+                logs.changes.debug(pprint.pformat(c))
+
+                # action deleted
+                if c.get('new_val', None) is None:
+                    pass
+                # action created
+                if c.get('old_val', None) is None:
+                    new_domain = True
+                    new_status = c['new_val']['status']
+                    domain_id = c['new_val']['id']
+                    logs.changes.debug('domain_id: {}'.format(new_domain))
+                    pass
+
+                if c.get('new_val', None) is not None and c.get('old_val', None) is not None:
+                    old_status = c['old_val']['status']
+                    new_status = c['new_val']['status']
+                    new_detail = c['new_val']['detail']
+                    domain_id = c['new_val']['id']
+                    logs.changes.debug('domain_id: {}'.format(domain_id))
+                    if old_status != new_status:
+                        # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
+                        # if new_status[-3:] == 'ing':
+                        if 1 > 0:
+                            date_now = datetime.now()
+                            update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now)
+                    else:
+                        # print('&&&&&&&ESTADOS IGUALES OJO &&&&&&&\n&&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.
+                        #       format(domain_id,old_status,new_status,new_detail))
                         pass
-                    # action created
-                    if c['old_val'] is None:
-                        new_domain = True
-                        new_status = c['new_val']['status']
-                        domain_id = c['new_val']['id']
-                        logs.changes.debug('domain_id: {}'.format(new_domain))
-                        pass
 
-                    if c['new_val'] is not None and c['old_val'] is not None:
-                        old_status = c['old_val']['status']
-                        new_status = c['new_val']['status']
-                        new_detail = c['new_val']['detail']
-                        domain_id = c['new_val']['id']
-                        logs.changes.debug('domain_id: {}'.format(domain_id))
-                        if old_status != new_status:
-                            # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
-                            # if new_status[-3:] == 'ing':
-                            if 1 > 0:
-                                date_now = datetime.now()
-                                update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now)
-                        else:
-                            # print('&&&&&&&ESTADOS IGUALES OJO &&&&&&&\n&&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.
-                            #       format(domain_id,old_status,new_status,new_detail))
-                            pass
+                if (new_domain is True and new_status == "CreatingDiskFromScratch") or \
+                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingDiskFromScratch"):
+                    ui.creating_disk_from_scratch(domain_id)
 
-                    if (new_domain is True and new_status == "CreatingFromScratch") or \
-                            (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromScratch"):
-                        ui.creating_from_scratch(domain_id)
+                if (new_domain is True and new_status == "Creating") or \
+                        (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
+                    ui.creating_disks_from_template(domain_id)
 
-                    if (new_domain is True and new_status == "Creating") or \
-                            (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
-                        ui.creating_disks_from_template(domain_id)
-
-                    if (new_domain is True and new_status == "CreatingAndStarting"):
-                        update_domain_start_after_created(domain_id)
-                        ui.creating_disks_from_template(domain_id)
+                if (new_domain is True and new_status == "CreatingAndStarting"):
+                    update_domain_start_after_created(domain_id)
+                    ui.creating_disks_from_template(domain_id)
 
 
-                        # INFO TO DEVELOPER
-                        # recoger template de la que hay que derivar
-                        # verificar que realmente es una template
-                        # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
+                    # INFO TO DEVELOPER
+                    # recoger template de la que hay que derivar
+                    # verificar que realmente es una template
+                    # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                    if (new_domain is True and new_status == "CreatingFromBuilder") or \
-                            (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
-                        ui.creating_disk_from_virtbuilder(domain_id)
+                if (new_domain is True and new_status == "CreatingFromBuilder") or \
+                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
+                    ui.creating_disk_from_virtbuilder(domain_id)
 
-                    if (old_status == 'CreatingDisk' and new_status == "CreatingDomain") or \
-                            (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
-                        logs.changes.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
-                        if new_status == "CreatingDomainFromBuilder":
-                            ui.creating_and_test_xml_start(domain_id,
-                                                           creating_from_create_dict=True,
-                                                           xml_from_virt_install=True)
-                        if new_status == "CreatingDomain":
-                            ui.creating_and_test_xml_start(domain_id,
-                                                           creating_from_create_dict=True)
+                if (old_status in ['CreatingDisk','CreatingDiskFromScratch'] and new_status == "CreatingDomain") or \
+                        (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
+                    logs.changes.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
+                    if new_status == "CreatingDomainFromBuilder":
+                        ui.creating_and_test_xml_start(domain_id,
+                                                       creating_from_create_dict=True,
+                                                       xml_from_virt_install=True)
+                    if new_status == "CreatingDomain":
+                        ui.creating_and_test_xml_start(domain_id,
+                                                       creating_from_create_dict=True)
 
-                    if old_status == 'Stopped' and new_status == "CreatingTemplate":
-                        ui.create_template_disks_from_domain(domain_id)
+                if old_status == 'Stopped' and new_status == "CreatingTemplate":
+                    ui.create_template_disks_from_domain(domain_id)
 
-                    if old_status == 'Stopped' and new_status == "Deleting":
-                        ui.deleting_disks_from_domain(domain_id)
+                if old_status == 'Stopped' and new_status == "Deleting":
+                    ui.deleting_disks_from_domain(domain_id)
 
-                    if (old_status == 'Stopped' and new_status == "Updating") or \
-                            (old_status == 'Downloaded' and new_status == "Updating"):
-                        ui.updating_from_create_dict(domain_id)
+                if (old_status == 'Stopped' and new_status == "Updating") or \
+                        (old_status == 'Downloaded' and new_status == "Updating"):
+                    ui.updating_from_create_dict(domain_id)
 
-                    if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
-                        logs.changes.debug('disk deleted, mow remove domain form database')
-                        remove_domain(domain_id)
-                        if get_domain(domain_id) is None:
-                            logs.changes.info('domain {} deleted from database'.format(domain_id))
-                        else:
-                            update_domain_status('Failed', id_domain,
-                                                 detail='domain {} can not be deleted from database'.format(domain_id))
+                if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
+                    logs.changes.debug('disk deleted, mow remove domain form database')
+                    remove_domain(domain_id)
+                    if get_domain(domain_id) is None:
+                        logs.changes.info('domain {} deleted from database'.format(domain_id))
+                    else:
+                        update_domain_status('Failed', id_domain,
+                                             detail='domain {} can not be deleted from database'.format(domain_id))
 
-                    if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
-                        # create_template_from_dict(dict_new_template)
-                        if get_if_all_disk_template_created(domain_id):
-                            ui.create_template_in_db(domain_id)
-                        else:
-                            # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
-                            # creación de una template con dos discos y ver si pasa por aquí
-                            # waiting to create other disks
-                            update_domain_status(status='CreatingTemplateDisk',
-                                                 id_domain=domain_id,
-                                                 hyp_id=False,
-                                                 detail='Waiting to create more disks for template')
+                if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
+                    # create_template_from_dict(dict_new_template)
+                    if get_if_all_disk_template_created(domain_id):
+                        ui.create_template_in_db(domain_id)
+                    else:
+                        # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
+                        # creación de una template con dos discos y ver si pasa por aquí
+                        # waiting to create other disks
+                        update_domain_status(status='CreatingTemplateDisk',
+                                             id_domain=domain_id,
+                                             hyp_id=False,
+                                             detail='Waiting to create more disks for template')
 
-                    if (old_status == 'Stopped' and new_status == "Starting") or \
-                            (old_status == 'Failed' and new_status == "Starting"):
-                        ui.start_domain_from_id(id=domain_id, ssl=True)
+                if (old_status == 'Stopped' and new_status == "Starting") or \
+                        (old_status == 'Failed' and new_status == "Starting"):
+                    ui.start_domain_from_id(id=domain_id, ssl=True)
 
-                    if (old_status == 'Started' and new_status == "Stopping" ) or \
-                            (old_status == 'Suspended' and new_status == "Stopping" ):
-                        # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
-                        # ui.stop_domain_from_id(id=domain_id)
-                        hyp_started = get_domain_hyp_started(domain_id)
-                        ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+                if (old_status == 'Started' and new_status == "Stopping" ) or \
+                        (old_status == 'Suspended' and new_status == "Stopping" ):
+                    # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
+                    # ui.stop_domain_from_id(id=domain_id)
+                    hyp_started = get_domain_hyp_started(domain_id)
+                    ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
 
-                    if (old_status == 'Started' and new_status == "StoppingAndDeleting" ) or \
-                            (old_status == 'Suspended' and new_status == "StoppingAndDeleting" ):
-                        # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
-                        # ui.stop_domain_from_id(id=domain_id)
-                        hyp_started = get_domain_hyp_started(domain_id)
-                        print(hyp_started)
-                        ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started, delete_after_stopped=True)
+                if (old_status == 'Started' and new_status == "StoppingAndDeleting" ) or \
+                        (old_status == 'Suspended' and new_status == "StoppingAndDeleting" ):
+                    # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
+                    # ui.stop_domain_from_id(id=domain_id)
+                    hyp_started = get_domain_hyp_started(domain_id)
+                    print(hyp_started)
+                    ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started, delete_after_stopped=True)
 
             logs.main.info('finalished thread domain changes')
