@@ -9,7 +9,13 @@
 
      [id^=modal_add_] tr.odd:hover {
         background-color: #ebebe0;
-    }         
+    }  
+
+    .my-error{
+      color: #B94A48 !important;
+      background-color: #F2DEDE !important;
+      border: 1px solid #EED3D7 !important;        
+    }           
 </style>
 
 <div class="modal fade" id="modalAddFromBuilder" tabindex="-1" role="dialog" 
@@ -115,25 +121,18 @@
         </div>
         <!-- Modal Body -->
         <div class="modal-body">
-               <form id="modalAdd" class="form-inline form-label-left">
+               <form id="modalAdd" class="" data-parsley-validate>
                    
                     <div class="row">
                         <div class="col-md-6 col-xs-12">
                           <div id="modalData" class="x_panel" >
                              <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
                              <div class="x_content">
-                                <div class="row">
-                                   <div class="col-md-4 col-xs-12">
-                                      <label class="control-label" for="name">Name <span class="required">*</span>
-                                      </label>
-                                      <input id="name" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                                   </div>
-                                   <div class="col-md-8 col-xs-12">
-                                      <label class="control-label" for="description">Description 
-                                      </label>
-                                      <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
-                                   </div>
-                                </div>
+                                <label for="name">Name<span class="required"> *</span></label>
+                                <input type="text" id="name" class="form-control" name="name" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required />
+                      
+                                  <label for="message">Description</label>
+                                  <textarea id="description" class="form-control" name="description"></textarea>                              
                              </div>
                           </div>
                         </div>
@@ -160,7 +159,7 @@
                         <div class="col-md-6 col-xs-12">                   
                             <div class="row">
                                   <div id="modalInstall" class="x_panel" style="background-color:#efeff5;">
-                                     <p style="font-size: 18px;margin-bottom:0px;"><i class="fa fa-wrench"></i> Select OS template</p>
+                                     <p style="font-size: 18px;margin-bottom:0px;"> Select OS template</p>
                                      <div id="datatables-install-error-status"></div>
                                      <input  id="install" name="install" type="hidden" required>
                                      <table id="modal_add_install" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
@@ -178,7 +177,7 @@
                         </div>
                         <div class="col-md-6 col-xs-12">    
                           <div class="x_panel" id="hardware-block"  style="background-color:#efeff5;">
-                             <p style="font-size: 18px;margin-bottom:0px;">Adjust OS template Hardware</p>
+                             <p style="font-size: 18px;margin-bottom:0px;"><i class="fa fa-wrench"></i> Adjust OS template Hardware</p>
                              {% include '/snippets/domain_hardware_disksize_edit.html' %}
                           </div>
                         </div>
