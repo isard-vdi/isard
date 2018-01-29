@@ -593,7 +593,15 @@ class Populate(object):
                                                           'roles': ['admin'],
                                                           'categories': False,
                                                           'groups': False,
-                                                          'users': False}}
+                                                          'users': False}},
+                                                     {'id': 'floppy',
+                                                      'name': 'Floppy',
+                                                      'description': 'Boot from floppy disk',
+                                                      'allowed': {
+                                                          'roles': ['admin'],
+                                                          'categories': False,
+                                                          'groups': False,
+                                                          'users': False}}                                                          
                                                      ]).run())
             return True
 
