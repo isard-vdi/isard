@@ -713,7 +713,7 @@ class isardAdmin():
     VIRT-BUILDER VIRT-INSTALL
     '''
 
-    def new_domain_from_virtbuilder(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
+    def domain_from_virtbuilder(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
             create_dict['install']['options']='' #r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
@@ -748,7 +748,6 @@ class isardAdmin():
     def domain_from_media(self, user, name, description, icon, create_dict, hyper_pools, disk_size):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-            create_dict['install']['options']='' #r.table('domains_virt_install').get(create_dict['install']['id']).pluck('options').run(db.conn)['options']
         
         parsed_name = app.isardapi.parse_string(name)
         dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
@@ -769,7 +768,7 @@ class isardAdmin():
                   'xml': None,
                   'icon': icon,
                   'server': False,
-                  'os': create_dict['builder']['id'],   #### Or name
+                  'os': create_dict['create_from_virt_install_xml'],   #### Or name
 
                   'create_dict': create_dict, 
                   'hypervisors_pools': hyper_pools,

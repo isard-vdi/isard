@@ -779,8 +779,6 @@ def socketio_domains_virtualbuilder_add(form_data):
     create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
     create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
     create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
-    create_dict['create_from_virt_install_xml']= create_dict['install']
-    create_dict.pop('install',None)
     disk_size=create_dict['disk_size']+'G'
     create_dict.pop('disk_size',None)
     name=create_dict['name']
@@ -791,9 +789,8 @@ def socketio_domains_virtualbuilder_add(form_data):
     create_dict.pop('hypervisors_pools',None)
     icon=create_dict['icon']
     create_dict.pop('icon',None)
-    
     create_dict['builder']['options']=create_dict['builder']['options'].replace('\r\n','')
-    res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    res=app.adminapi.domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
         info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
@@ -812,7 +809,8 @@ def socketio_domains_media_add(form_data):
     create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
     create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
     create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
-    
+    create_dict['create_from_virt_install_xml']= create_dict['install']
+    create_dict.pop('install',None)
     disk_size=create_dict['disk_size']+'G'
     create_dict.pop('disk_size',None)
     name=create_dict['name']
@@ -824,8 +822,7 @@ def socketio_domains_media_add(form_data):
     # ~ icon=create_dict['icon']
     icon='circle-o'
     create_dict.pop('icon',None)
-    create_dict['builder']['options']=create_dict['builder']['options'].replace('\r\n','')
-    res=app.adminapi.new_domain_from_virtbuilder(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
         info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:

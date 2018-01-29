@@ -275,7 +275,7 @@ function initialize_modal_all_media_events(){
             //~ var queryString = $('#modalAdd').serialize();
             data=$('#modalAddFromMedia #modalAdd').serializeObject();
             console.log(data)
-            //~ socket.emit('domain_virtbuilder_add',data)
+            socket.emit('domain_media_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
                 //~ console.log('TEMPLATE:'+template)
