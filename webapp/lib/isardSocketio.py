@@ -824,7 +824,7 @@ def socketio_domains_media_add(form_data):
     create_dict.pop('icon',None)
     res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
-        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+        info=json.dumps({'add_form_result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
         info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',

@@ -753,9 +753,13 @@ class isardAdmin():
         dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'size':disk_size}]   # 15G as a format
-        r.table('media').get(create_dict['media']).run(db.conn)
-        create_dict['hardware']['isos']=[{'id': ''}]   
-        create_dict['hardware']['floppies']=[{'id': ''}]                                                                                           
+        media=r.table('media').get(create_dict['media']).run(db.conn)
+        if media['kind']=='iso':
+            create_dict['hardware']['isos']=[{'id': create_dict['media']}]
+            create_dict['hardware']['floppies']=[]     
+        if media['kind']=='floppy':
+            create_dict['hardware']['isos']=[]
+            create_dict['hardware']['floppies']=[{'id': create_dict['media']}]                                                                                           
         new_domain={'id': '_'+user+'_'+parsed_name,
                   'name': name,
                   'description': description,
