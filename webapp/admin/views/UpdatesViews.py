@@ -46,11 +46,15 @@ def admin_updates_register():
 @login_required
 @isAdmin
 def admin_updates_json(kind):
-        try:
+        # ~ try:
+            # ~ import pprint
+            # ~ if kind=='virt_install':
+                # ~ pprint.pprint(u.getNewKind(kind,current_user.id))
             return json.dumps(u.getNewKind(kind,current_user.id))
-        except Exception as e:
-            print('exception on read updates: '+str(e))
-            return json.dumps([])
+        # ~ except Exception as e:
+            # ~ print(kind)
+            # ~ print('exception on read updates: '+str(e))
+            # ~ return json.dumps([])
 
 @app.route('/admin/updates/<action>/<kind>', methods=['POST'])
 @app.route('/admin/updates/<action>/<kind>/<id>', methods=['POST'])
@@ -80,7 +84,10 @@ def admin_updates_actions(action,kind,id=False):
         if action == 'abort':
             app.adminapi.update_table_dict(kind,id,{'status':'DownloadAborting'})
         if action == 'delete':
-            app.adminapi.update_table_dict(kind,id,{'status':'Deleting'})
+            if kind == 'domains' or kind == 'media':
+                app.adminapi.update_table_dict(kind,id,{'status':'Deleting'})
+            else:
+                app.adminapi.delete_table_key(kind,id)
             
     return json.dumps([])
 

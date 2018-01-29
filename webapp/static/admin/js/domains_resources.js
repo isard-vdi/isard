@@ -269,6 +269,7 @@ $(document).ready(function() {
             form.parsley().validate();
             data=$('#modalAddVideos').serializeObject();
             data=replaceAlloweds_arrays(data)
+            console.log(data)
             //~ socket.emit('domain_virtbuilder_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
