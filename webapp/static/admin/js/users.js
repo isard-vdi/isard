@@ -49,13 +49,28 @@ $(document).ready(function() {
         if (form.parsley().isValid()){
             
             data=quota2dict($('#modalEditUserForm').serializeObject());
-            delete data['password2']
+            //~ delete data['password2']
             data['id']=data['username']=$('#modalEditUserForm #id').val();
             console.log(data)
             socket.emit('user_edit',data)
         }
     }); 
 
+    $("#modalEditUser #send").on('click', function(e){
+        var form = $('#modalEditUserForm');
+        data=quota2dict($('#modalEditUserForm').serializeObject());
+        console.log(data)
+        form.parsley().validate();
+        if (form.parsley().isValid()){
+            
+            data=quota2dict($('#modalEditUserForm').serializeObject());
+            delete data['password2']
+            data['id']=data['username']=$('#modalEditUserForm #id').val();
+            console.log(data)
+            socket.emit('user_edit',data)
+        }
+    }); 
+    
     $("#modalDeleteUser #send").on('click', function(e){
         var form = $('#modalDeleteUserForm');
         data=$('#modalDeleteUserForm').serializeObject();

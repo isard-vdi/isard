@@ -50,6 +50,9 @@ def admin_updates_json(kind):
             # ~ import pprint
             # ~ if kind=='virt_install':
                 # ~ pprint.pprint(u.getNewKind(kind,current_user.id))
+            # ~ import pprint
+            # ~ pprint.pprint([d['create_dict']['hardware']['disks'] for d in u.getNewKind(kind,current_user.id) if 'create_dict' in d])
+            # ~ pprint.pprint([d['path'] for d in u.getNewKind(kind,current_user.id) if 'path' in d])
             return json.dumps(u.getNewKind(kind,current_user.id))
         # ~ except Exception as e:
             # ~ print(kind)
@@ -68,10 +71,10 @@ def admin_updates_actions(action,kind,id=False):
                 d=u.getNewKindId(kind,current_user.id,id)
                 if d is not False:
                     if kind == 'domains':
-                        d=u.formatDomains([d],current_user)[0]
+                        data=u.formatDomain(d,current_user)
                     elif kind == 'media':
-                        d=u.formatMedias([d],current_user)[0]
-                    app.adminapi.insert_or_update_table_dict(kind,d)
+                        data=u.formatMedia(d,current_user)
+                    app.adminapi.insert_or_update_table_dict(kind,data)
             else:
                 # No id, do it will all
                 data=u.getNewKind(kind,current_user.id)
