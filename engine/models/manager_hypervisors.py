@@ -332,7 +332,7 @@ class ManagerHypervisors(object):
                 if self.stop is True:
                     break
 
-                if c['new_val'] is not None:
+                if c.get('new_val', None) is not None:
                     if c['new_val']['table'] == 'engine':
                         if c['new_val']['status_all_threads'] == 'Stopping':
                             break
@@ -347,17 +347,17 @@ class ManagerHypervisors(object):
                 logs.changes.debug(pprint.pformat(c))
 
                 # action deleted
-                if c['new_val'] is None:
+                if c.get('new_val', None) is None:
                     pass
                 # action created
-                if c['old_val'] is None:
+                if c.get('old_val', None) is None:
                     new_domain = True
                     new_status = c['new_val']['status']
                     domain_id = c['new_val']['id']
                     logs.changes.debug('domain_id: {}'.format(new_domain))
                     pass
 
-                if c['new_val'] is not None and c['old_val'] is not None:
+                if c.get('new_val', None) is not None and c.get('old_val', None) is not None:
                     old_status = c['old_val']['status']
                     new_status = c['new_val']['status']
                     new_detail = c['new_val']['detail']

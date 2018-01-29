@@ -20,6 +20,7 @@ from lxml import etree
 
 from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware
 from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values
+from engine.services.db.downloads import get_media
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
 
@@ -44,17 +45,25 @@ XML_SNIPPET_BRIDGE = '''
 XML_SNIPPET_CDROM = '''
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
-      <source file="/path/to/cdrom.iso"/>
-      <target dev="hda" bus="ide"/>
+      <source file="{path_cdrom}"/>
+      <target dev="hd{suffix_descriptor}" bus="ide"/>
       <readonly/>
     </disk>
 '''
 
-XML_SNIPPET_DISK = '''
+XML_SNIPPET_DISK_VIRTIO = '''
     <disk type="file" device="disk">
       <driver name="qemu" type="qcow2"/>
       <source file="/path/to/disk.qcow"/>
-      <target dev="vda" bus="virtio"/>
+      <target dev="vd{}" bus="virtio"/>
+    </disk>
+'''
+
+XML_SNIPPET_DISK_CUSTOM = '''
+    <disk type="file" device="disk">
+      <driver name="qemu" type="{type_disk}"/>
+      <source file="{path_disk}"/>
+      <target dev="{preffix_descriptor}d{suffix_descriptor}" bus="{bus}"/>
     </disk>
 '''
 
@@ -173,6 +182,19 @@ class DomainXML(object):
                 list_dict['bus'] = tree.xpath('target')[0].get('bus')
                 vm_dict['disks'].append(list_dict)
 
+
+        if xml_tree.xpath('/domain/devices/disk[@device="floppy"]'):
+            vm_dict['floppies'] = list()
+            for tree in xml_tree.xpath('/domain/devices/disk[@device="floppy"]'):
+                list_dict = {}
+                # list_dict['type'] = tree.xpath('driver')[0].get('type')
+                if len(tree.xpath('source')) != 0:
+                    list_dict['file'] = tree.xpath('source')[0].get('file')
+                list_dict['dev'] = tree.xpath('target')[0].get('dev')
+                # list_dict['bus'] = tree.xpath('target')[0].get('bus')
+                vm_dict['floppies'].append(list_dict)
+
+
         if xml_tree.xpath('/domain/devices/disk[@device="cdrom"]'):
             vm_dict['cdroms'] = list()
             for tree in xml_tree.xpath('/domain/devices/disk[@device="cdrom"]'):
@@ -204,6 +226,10 @@ class DomainXML(object):
                     list_dict['model'] = tree.xpath('model')[0].get('type')
 
                 vm_dict['interfaces'].append(list_dict)
+
+        vm_dict['boot_menu'] = [x.get('dev') for x in tree.xpath('/domain/os/bootr[@dev]')]
+
+
 
         ## OJO!!!!!!!!!!!!!!
 
@@ -302,16 +328,26 @@ class DomainXML(object):
             log.debug('element /domain/devices not found in xml_etree when adding disk')
             return False
 
-    def add_disk(self):
-        disk_etree = etree.parse(StringIO(XML_SNIPPET_DISK))
+    index_to_char_suffix_disks='a,b,c,d,e,f,g,h,i,j,k,l,m'.split(',')
+    def add_disk(self,index=0,path_disk='/path/to/disk.qcow',type_disk='qcow2',prefix='v',bus='virtio'):
+        global index_to_char_suffix_disks
+        xml_snippet = XML_SNIPPET_DISK_CUSTOM.format(type_disk=type_disk,
+                                                     path_disk=path_disk,
+                                                     preffix_descriptor=prefix,
+                                                     suffix_descriptor=index_to_char_suffix_disks[index],
+                                                     bus=bus)
+        disk_etree = etree.parse(StringIO(xml_snippet))
         new_disk = disk_etree.xpath('/disk')[0]
         xpath_same = '/domain/devices/disk[@device="disk"]'
         xpath_next = '/domain/devices/disk[@device="cdrom"]'
         xpath_previous = '/domain/devices/emulator'
         self.add_device(xpath_same, new_disk, xpath_next=xpath_next, xpath_previous=xpath_previous)
 
-    def add_cdrom(self):
-        disk_etree = etree.parse(StringIO(XML_SNIPPET_CDROM))
+    def add_cdrom(self,index=0,path_cdrom='/path/to/cdrom'):
+        global index_to_char_suffix_disks
+        xml_snippet = XML_SNIPPET_CDROM.format(suffix_descriptor=index_to_char_suffix_disks[index],
+                                               path_cdrom=path_cdrom)
+        disk_etree = etree.parse(StringIO(xml_snippet))
         new_disk = disk_etree.xpath('/disk')[0]
         xpath_same = '/domain/devices/disk[@device="cdrom"]'
         xpath_previous = '/domain/devices/disk[@device="disk"]'
@@ -398,6 +434,10 @@ class DomainXML(object):
 
     def remove_cdrom(self, order=-1):
         xpath = '/domain/devices/disk[@device="cdrom"]'
+        self.remove_device(xpath, order_num=order)
+
+    def remove_floppy(self, order=-1):
+        xpath = '/domain/devices/disk[@device="floppy"]'
         self.remove_device(xpath, order_num=order)
 
     def remove_interface(self, order=-1):
@@ -492,11 +532,26 @@ class DomainXML(object):
         # self.name = new_name
         # self.vm_dict['name'] = new_name
 
-    def set_vdisk(self, new_path_vdisk, index=0):
+    def set_vdisk(self, new_path_vdisk, index=0, type_disk='qcow2'):
         if self.tree.xpath('/domain/devices/disk[@device="disk"]'):
             self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('source')[0].set('file',
                                                                                                   new_path_vdisk)
+            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('driver')[0].set('type', type_disk)
             path = self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('source')[0].get('file')
+            return path
+
+    def set_cdrom(self, new_path_cdrom, index=0):
+        if self.tree.xpath('/domain/devices/disk[@device="cdrom"]'):
+            self.tree.xpath('/domain/devices/disk[@device="cdrom"]')[index].xpath('source')[0].set('file',
+                                                                                                  new_path_cdrom)
+            path = self.tree.xpath('/domain/devices/disk[@device="cdrom"]')[index].xpath('source')[0].get('file')
+            return path
+
+    def set_floppy(self, new_path_floppy, index=0):
+        if self.tree.xpath('/domain/devices/disk[@device="floppy"]'):
+            self.tree.xpath('/domain/devices/disk[@device="floppy"]')[index].xpath('source')[0].set('file',
+                                                                                                  new_path_floppy)
+            path = self.tree.xpath('/domain/devices/disk[@device="floppy"]')[index].xpath('source')[0].get('file')
             return path
 
     def randomize_vm(self):
@@ -513,6 +568,18 @@ class DomainXML(object):
 
     def print_xml(self):
         log.debug(self.return_xml())
+
+    def print_tag(self,tag,to_log=False):
+        x = self.return_xml()
+        tag = 'disk'
+        str_out = x[x.find('<{}'.format(tag)):x.rfind('</{}>'.format(tag)) + len(tag) + 4]
+        if to_log is False:
+            print(str_out)
+        elif to_log is None:
+            pass
+        else:
+            log.debug(str_out)
+        return str_out
 
     # def __repr__(self):
     #    return self.return_xml()
@@ -574,8 +641,59 @@ def update_xml_from_dict_domain(id_domain, xml=None):
         v = DomainXML(xml)
     # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
     v.set_memory(memory=hw['memory'], unit=hw['memory_unit'],current=int(hw.get('currentMemory',hw['memory'])*DEFAULT_BALLOON))
-    for i in range(len(hw['disks'])):
-        v.set_vdisk(hw['disks'][i]['file'], index=i)
+    total_disks_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="disk"]'))
+    total_cdroms_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
+    total_floppies_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="flopy"]'))
+
+    if 'disks' in hw.keys():
+        num_remove_disks = total_disks_in_xml - len(hw['disks'])
+        if num_remove_disks > 0:
+            for i in range(num_remove_disks):
+                v.remove_disk()
+        for i in range(len(hw['disks'])):
+            s=hw['disks'][i]['file']
+            if s[s.rfind('.'):].lower().find('qcow') == 1:
+                type_disk = 'qcow2'
+            else:
+                type_disk = 'raw'
+
+            if i > total_disks_in_xml:
+                v.add_disk(index=i,path_disk=hw['disks'][i]['file'],type_disk=type_disk)
+            else:
+                v.set_vdisk(hw['disks'][i]['file'], index=i,type_disk=type_disk)
+    elif total_disks_in_xml > 0:
+        for i in range(total_disks_in_xml):
+            v.remove_disk()
+
+    if 'isos' in hw.keys():
+        num_remove_cdroms = total_cdroms_in_xml - len(hw['isos'])
+        if num_remove_cdroms > 0:
+            for i in range(num_remove_cdroms):
+                v.remove_cdrom()
+        for i in range(len(hw['isos'])):
+            if i > total_cdroms_in_xml:
+                v.add_cdrom(index=i, path_cdrom=hw['isos'][i]['path'])
+            else:
+                v.set_cdrom(hw['isos'][i]['path'], index=i)
+    elif total_cdroms_in_xml > 0:
+        for i in range(total_cdroms_in_xml):
+            v.remove_cdrom()
+
+    if 'floppies' in hw.keys():
+        num_remove_floppies = total_floppies_in_xml - len(hw['floppies'])
+        if num_remove_floppies > 0:
+            for i in range(num_remove_floppies):
+                v.remove_floppy()
+        for i in range(len(hw['floppies'])):
+            if i > total_floppies_in_xml:
+                v.add_floppy(index=i, path_floppy=hw['floppies'][i]['path'])
+            else:
+                v.set_floppy(hw['floppies'][i]['path'], index=i)
+    elif total_floppies_in_xml > 0:
+        for i in range(total_floppies_in_xml):
+            v.remove_floppy()
+
+
 
     v.set_name(id_domain)
     # INFO TO DEVELOPER, deberíamos poder usar la funcion v.set_description(para poner algo)
@@ -626,13 +744,18 @@ def populate_dict_hardware_from_create_dict(id_domain):
         # TODO domain from iso or new
         pass
 
-    if 'hardware' in domain.keys():
-        if 'disks' in domain['hardware'].keys():
-            new_hardware_dict['disks'] = domain['hardware']['disks'].copy()
-        if 'isos' in domain['hardware'].keys():
-            new_hardware_dict['isos'] = domain['hardware']['isos'].copy()
-        if 'fd' in domain['hardware'].keys():
-            new_hardware_dict['fd'] = domain['hardware']['fd'].copy()
+    if 'hardware' in create_dict.keys():
+        if 'disks' in create_dict['hardware'].keys():
+            new_hardware_dict['disks'] = create_dict['hardware']['disks'].copy()
+
+        for media_type in ['isos','floppies']:
+            if media_type in create_dict['hardware'].keys():
+                new_hardware_dict[media_type] = []
+                for d in create_dict['hardware'][media_type]:
+                    new_media_dict = {}
+                    media = get_media(d['id'])
+                    new_media_dict['path'] = media['path_downloaded']
+                    new_hardware_dict[media_type].append(new_media_dict)
 
 
     new_hardware_dict['name'] = id_domain
@@ -659,6 +782,11 @@ def populate_dict_hardware_from_create_dict(id_domain):
     # INTERFACES
     list_ids_interfaces = create_dict['hardware']['interfaces']
     new_hardware_dict['interfaces'] = create_list_interfaces_from_list_ids(list_ids_interfaces)
+
+    # BOOT MENU
+    if 'hardware' in create_dict.keys():
+        if 'boot_order' in create_dict['hardware'].keys():
+            new_hardware_dict['boot_order'] = create_dict['hardware']['boot_order']
     #import pprint
     #pprint.pprint(new_hardware_dict)
     #print('############### domain {}'.format(id_domain))

@@ -19,7 +19,8 @@ from engine.services.db import update_domain_viewer_started_values, update_table
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
-    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop
+    update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop, \
+    get_dict_from_item_in_table, update_domain_dict_create_dict
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
@@ -419,8 +420,23 @@ class UiActions(object):
 
         if 'disks' in dict_to_create['hardware'].keys():
             if len(dict_to_create['hardware']['disks']) > 0:
+
+                # for index_disk in range(len(dict_to_create['hardware']['disks'])):
+                #     relative_path = dict_to_create['hardware']['disks'][index_disk]['file']
+                #     path_new_file, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+                #     # UPDATE PATH IN DOMAIN
+                #     dict_to_create['hardware']['disks'][index_disk]['file'] = new_file
+                #     dict_to_create['hardware']['disks'][index_disk]['path_selected'] = path_selected
+
                 relative_path = dict_to_create['hardware']['disks'][0]['file']
                 path_new_disk, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+                # UPDATE PATH IN DOMAIN
+
+                d_update_domain = {'hardware':{'disks':[{}]}}
+                d_update_domain['hardware']['disks'][0]['file'] = path_new_disk
+                d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
+                update_domain_dict_hardware(id_new, d_update_domain)
+                update_domain_dict_create_dict(id_new, d_update_domain)
 
                 size_str = dict_to_create['hardware']['disks'][0]['size']
 
@@ -628,12 +644,17 @@ class UiActions(object):
                 log.error('Exception message: {}'.format(e))
 
         domain = get_domain(id_domain)
-
-        if 'create_from_virt_install_xml' in domain['create_dict']:
-            xml = ''
+        #create_dict_hw = domain['create_dict']['hardware']
+        # for media in ['isos','floppies']
+        #     if 'isos' in create_dict_hw.keys():
+        #         for index_disk in range(len(create_dict_hw['isos'])):
+        #             update_hw['hardware']['isos'][index_disk]['file'] = new_file
 
         if type(xml_string) is str:
             xml_from = xml_string
+
+        elif 'create_from_virt_install_xml' in domain['create_dict']:
+            xml_from = get_dict_from_item_in_table('virt_install',domain['create_dict']['create_from_virt_install_xml'])['xml']
 
         elif xml_from_virt_install is False:
             id_template = domain['create_dict']['origin']
