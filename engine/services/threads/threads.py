@@ -14,6 +14,7 @@ import traceback
 from engine.models.hyp import hyp
 from engine.services.db import update_all_domains_status, update_disk_backing_chain, update_disk_template_created, \
     get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown, remove_media
+from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.db import update_table_field
 from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
@@ -112,13 +113,20 @@ def launch_delete_media(action,hostname,user,port):
                                      ssh_commands=action['ssh_commands'],
                                      user=user,
                                      port=port)
+    path = action['path']
     id_media = action['id_media']
-    if len([k['err'] for k in array_out_err if len(k['err']) == 0]):
+    if len([k['err'] for k in array_out_err if len(k['err']) == 0]) != 2:
         log.error('failed deleting media {}'.format(id_media))
+        update_status_media_from_path(path, 'FailedDeleted')
         return False
-    else:
-        remove_media(id_media)
+    # ls of the file after deleted failed, has deleted ok
+    elif len(array_out_err[2]['err']) > 0:
+        update_status_media_from_path(path, 'Deleted')
         return True
+    else:
+        log.error('failed deleting media {}'.format(id_media))
+        update_status_media_from_path(path, 'FailedDeleted')
+        return False
 
 
 def launch_action_disk(action, hostname, user, port, from_scratch=False):

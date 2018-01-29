@@ -11,7 +11,7 @@ import subprocess
 import rethinkdb as r
 
 from engine.config import CONFIG_DICT
-from engine.services.db.db import new_rethink_connection
+from engine.services.db.db import new_rethink_connection, remove_media
 from engine.services.db.domains import update_domain_status
 from engine.services.log import logs
 from engine.services.db import get_config_branch, get_hyp_hostname_user_port_from_id, update_table_field, \
@@ -24,7 +24,7 @@ from engine.services.lib.functions import get_tid
 
 
 class DownloadThread(threading.Thread, object):
-    def __init__(self, hyp_hostname, url, path, table, id_down, dict_header):
+    def __init__(self, hyp_hostname, url, path, table, id_down, dict_header, finalished_threads):
         threading.Thread.__init__(self)
         self.name = '_'.join([table, id_down])
         self.table = table
@@ -37,6 +37,7 @@ class DownloadThread(threading.Thread, object):
         self.hostname = d['hostname']
         self.user = d['user']
         self.port = d['port']
+        self.finalished_threads = finalished_threads
 
     def run(self):
 
@@ -130,10 +131,13 @@ class DownloadThread(threading.Thread, object):
             d_update_domain = get_domain(self.id)['create_dict']
             #d_update_domain = {'hardware': {'disks': [{}]}}
             d_update_domain['hardware']['disks'][0]['file'] = self.path
+
             update_domain_dict_create_dict(self.id, d_update_domain)
+            self.finalished_threads.append(self.path)
             update_domain_status('Downloaded', self.id, detail="downloaded disk")
             update_domain_status('Updating', self.id, detail="downloaded disk")
         else:
+            self.finalished_threads.append(self.path)
             update_table_field(self.table,self.id,'path_downloaded',self.path)
             update_status_table(self.table, 'Downloaded', self.id)
 
@@ -208,6 +212,7 @@ class DownloadChangesThread(threading.Thread):
 
         action = dict()
         action['id_media'] = id_down
+        action['path'] = d_media['path_downloaded']
         action['type'] = 'delete_media'
         action['ssh_commands'] = cmds
 
@@ -268,7 +273,8 @@ class DownloadChangesThread(threading.Thread):
                                                                   new_file_path,
                                                                   table,
                                                                   id_down,
-                                                                  header_dict)
+                                                                  header_dict,
+                                                                  self.finalished_threads)
             self.download_threads[new_file_path].daemon = True
             self.download_threads[new_file_path].start()
 
@@ -280,7 +286,7 @@ class DownloadChangesThread(threading.Thread):
         logs.downloads.debug('RUN-DOWNLOAD-THREAD-------------------------------------')
         if self.stop is False:
             self.r_conn = new_rethink_connection()
-            for c in r.table('media').get_all(r.args(['Deleting','Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
+            for c in r.table('media').get_all(r.args(['Deleting','Deleted','Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
                     pluck('id',
                           'path',
                           'url-isard',
@@ -320,7 +326,12 @@ class DownloadChangesThread(threading.Thread):
                         self.start_download(c['new_val'])
 
                     elif c['old_val']['status'] == 'Downloaded' and c['new_val']['status'] == 'Deleting':
-                        self.delete_media(c['new_val'])
+                        if c['new_val']['table'] == 'media':
+                            self.delete_media(c['new_val'])
+
+                    elif c['old_val']['status'] == 'Deleting' and c['new_val']['status'] == 'Deleted':
+                        if c['new_val']['table'] == 'media':
+                            remove_media(c['new_val']['id'])
 
                     elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'FailedDownload':
                         pass
