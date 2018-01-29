@@ -24,8 +24,6 @@ $(document).ready(function() {
 			}).modal('show');
             $('#modalAddFromBuilder #modalAdd').parsley();
             modal_add_builder_datatables();
-            //~ modal_add_install_datatables();
-            //~ modal_add_isos_datatables();
 	});
 
 	$('.add-new-media').on( 'click', function () {
@@ -36,7 +34,6 @@ $(document).ready(function() {
 				keyboard: false
 			}).modal('show');
             $('#modalAddFromMedia #modalAdd').parsley();
-            //~ modal_add_builder_datatables();
             modal_add_install_datatables();
             modal_add_media_datatables();
 	});
@@ -56,8 +53,6 @@ function initialize_modal_all_builder_events(){
             $('#modalBuilder #builder-id').val('');
             $('#modalBuilder #icon').val('');
             $('#modalBuilder #install-id').val('');
-            //~ $('#modalBuilder #btn-hardware').hide();
-            //~ $('#modalBuilder #hardware-block').hide();
         }
         else {
             modal_add_builder.$('tr.selected').removeClass('selected');
@@ -68,14 +63,9 @@ function initialize_modal_all_builder_events(){
             $('#modalBuilder #builder-options').val(rdata['builder-options']);
             $('#modalBuilder #icon').val(rdata['icon']);
             $('#modalBuilder #install-id').val(rdata['install-id']);
-                //~ $('#modalAddFromBuilder #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
         }
     } );	
         
-        //~ $("#modalBuilder #btn-hardware").on('click', function(e){
-                //~ $('#modalBuilder #hardware-block').show();
-        //~ });
 
     $("#modalAddFromBuilder #send").on('click', function(e){
             var form = $('#modalAddFromBuilder #modalAdd');
@@ -170,17 +160,13 @@ function initialize_modal_all_install_events(){
             $('#modalInstall #datatables-install-error-status').html('No OS template selected').addClass('my-error');
             
             $('#modalInstall #install').val('');
-            //~ $('#modalInstall #btn-hardware').hide();
-            //~ $('#modalInstall #hardware-block').hide();
         }
         else {
             modal_add_install.$('tr.selected').removeClass('selected');
             $(this).addClass('selected');
             $('#modal_add_install').closest('.x_panel').removeClass('datatables-error');
-            //~ $('#modalInstall #datatables-install-error-status').empty().html('Selected: '+rdata['name']+'').removeClass('my-error');
+            $('#modalInstall #datatables-install-error-status').empty().removeClass('my-error');   //.html('Selected: '+rdata['name']+'')
             $('#modalInstall #install').val(rdata['id']);
-                //~ $('#modalAddInstall #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddInstall',rdata['id'])
         }
     } );	
         	
@@ -250,51 +236,46 @@ function initialize_modal_all_media_events(){
             $('#modalMedia #datatables-media-error-status').html('No installation media selected').addClass('my-error');
             
             $('#modalMedia #media').val('');
-            //~ $('#modalIsos #btn-hardware').hide();
-            //~ $('#modalIsos #hardware-block').hide();
         }
         else {
             modal_add_media.$('tr.selected').removeClass('selected');
             $(this).addClass('selected');
             $('#modal_add_media').closest('.x_panel').removeClass('datatables-error');
-            //~ $('#modalMedia #datatables-media-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+            $('#modalMedia #datatables-media-error-status').empty().removeClass('my-error'); //.html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
             $('#modalMedia #media').val(rdata['id']);
-                //~ $('#modalAddFromBuilder #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
         }
     } );	
         
-        //~ $("#modalIsos #btn-hardware").on('click', function(e){
-                //~ $('#modalIsos #hardware-block').show();
-        //~ });
 
     $("#modalAddFromMedia #send").on('click', function(e){
             var form = $('#modalAddFromMedia #modalAdd');
-            console.log('inside')
-            //~ form.parsley().validate();
-            //~ var queryString = $('#modalAdd').serialize();
-            data=$('#modalAddFromMedia #modalAdd').serializeObject();
-            console.log(data)
-            socket.emit('domain_media_add',data)
-            //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
-            //~ }
+            form.parsley().validate();
+            
+            if (form.parsley().isValid()){
+                media=$('#modalAddFromMedia #media').val();
+                install=$('#modalAddFromMedia #install').val();
+                if (media !='' && install !=''){
+                    var queryString = $('#modalAdd').serialize();
+                    data=$('#modalAddFromMedia  #modalAdd').serializeObject();
+                    socket.emit('domain_media_add',data)
+                }else{                
+                    if (media ==''){
+                        $('#modal_add_media').closest('.x_panel').addClass('datatables-error');
+                        $('#modalAddFromMedia #datatables-media-error-status').html('No media source selected').addClass('my-error');                    
+                    }
+                    if (install ==''){
+                        $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
+                        $('#modalAddFromMedia #datatables-install-error-status').html('No OS template selected').addClass('my-error');                    
+                    }
+                }
+            }
         });
 }
 
 function modal_add_media_datatables(){
     modal_add_media.destroy()
     $('#modalMedia #media').val('');
-    $('#modalMedia #datatables-error-status').empty()
+    $('#modalMedia #datatables-media-error-status').empty()
     
     $('#modal_add_media thead th').each( function () {
         var title = $(this).text();
@@ -313,10 +294,10 @@ function modal_add_media_datatables(){
             "paging":         false,
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-                "zeroRecords":    "No matching templates found",
-                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
-                "infoEmpty":      "Showing 0 to 0 of 0 templates",
-                "infoFiltered":   "(filtered from _MAX_ total templates)"
+                "zeroRecords":    "No matching media found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ media",
+                "infoEmpty":      "Showing 0 to 0 of 0 media",
+                "infoFiltered":   "(filtered from _MAX_ total media)"
 			},
 			"rowId": "id",
 			"deferRender": true,
