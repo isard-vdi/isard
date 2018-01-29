@@ -13,7 +13,7 @@ import traceback
 
 from engine.models.hyp import hyp
 from engine.services.db import update_all_domains_status, update_disk_backing_chain, update_disk_template_created, \
-    get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown
+    get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown, remove_media
 from engine.services.db.db import update_table_field
 from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
@@ -107,6 +107,19 @@ def launch_action_delete_disk(action, hostname, user, port):
     if len([k['err'] for k in array_out_err if len(k['err']) == 1]):
         log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
 
+def launch_delete_media(action,hostname,user,port):
+    array_out_err = execute_commands(hostname,
+                                     ssh_commands=action['ssh_commands'],
+                                     user=user,
+                                     port=port)
+    id_media = action['id_media']
+    if len([k['err'] for k in array_out_err if len(k['err']) == 0]):
+        log.error('failed deleting media {}'.format(id_media))
+        return False
+    else:
+        remove_media(id_media)
+        return True
+
 
 def launch_action_disk(action, hostname, user, port, from_scratch=False):
     disk_path = action['disk_path']
@@ -146,7 +159,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             log.error('ERROR: {}'.format(array_out_err[0]['err']))
             update_domain_status('Failed', id_domain, detail='delete disk operation failed, disk not found: {}'.format(
                 array_out_err[0]['err']))
-        elif len(array_out_err[0]['err']) > 0:
+        elif len(array_out_err[1]['err']) > 0:
             log.error('disk from domain {} found, but erase command fail'.format(id_domain))
             log.error('ERROR: {}'.format(array_out_err[0]['err']))
             update_domain_status('Failed', id_domain, detail='delete disk command failed')

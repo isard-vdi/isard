@@ -337,8 +337,12 @@ class UiActions(object):
                     return False
 
                 if 'path_selected' not in dict_new_template['create_dict']['hardware']['disks'][i]:
+                    if dict_new_template['kind'] == 'base':
+                        type_path_selected = 'bases'
+                    else:
+                        type_path_selected = 'templates'
                     new_file, path_selected = get_path_to_disk(path_template_disk_relative, pool=pool_id,
-                                                               type_path='templates')
+                                                               type_path=type_path_selected)
                     path_absolute_template_disk = new_file = new_file.replace('//', '/')
                     dict_new_template['create_dict']['hardware']['disks'][i]['file'] = new_file
                     dict_new_template['create_dict']['hardware']['disks'][i]['path_selected'] = path_selected

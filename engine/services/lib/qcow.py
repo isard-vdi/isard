@@ -22,7 +22,7 @@ def create_cmds_delete_disk(path_disk):
     cmds.append(cmd)
 
     cmd = 'if [ -f "{}" ] ; then rm -f "{}"; fi'.format(path_disk, path_disk)
-    log.debug('delete disk cmd: {}'.format(cmd))
+    log.debug('delete disk or media cmd: {}'.format(cmd))
     cmds.append(cmd)
 
     cmd = 'ls -l "{}"'.format(path_disk)
