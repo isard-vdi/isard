@@ -60,7 +60,7 @@ def admin_updates_actions(action,kind,id=False):
                 d=u.getNewKindId(kind,current_user.id,id)
                 if d is not False:
                     if kind == 'domains':
-                        data=u.formatDomain([d],current_user)[0]
+                        data=u.formatDomains([d],current_user)[0]
                     elif kind == 'media':
                         data=u.formatMedias([d],current_user)[0]
                     app.adminapi.insert_or_update_table_dict(kind,data)
