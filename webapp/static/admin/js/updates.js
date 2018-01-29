@@ -359,7 +359,7 @@ $(document).ready(function() {
                 {"data": null,
                  'defaultContent': ''},                               
                 ],
-			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
+			 "order": [[0, 'asc'],[1,'desc'],[2,'asc']],
 			 "columnDefs": [{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
@@ -432,7 +432,7 @@ $(document).ready(function() {
                 {"data": null,
                  'defaultContent': ''},                               
                 ],
-			 "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
+			 "order": [[0, 'asc'],[1,'desc'],[2,'asc']],
 			 "columnDefs": [{
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
