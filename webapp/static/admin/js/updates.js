@@ -76,8 +76,8 @@ $(document).ready(function() {
                             {
 							"targets": 2,
 							"render": function ( data, type, full, meta ) {
-                                return full.create_dict.hardware.disks['0'].file;
-                                //~ return renderName(full)
+                                //~ return full.create_dict.hardware.disks['0'].file;
+                                return renderName(full)
 							}},
                             {
 							"targets": 3,

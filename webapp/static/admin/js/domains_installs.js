@@ -167,7 +167,7 @@ function initialize_modal_all_install_events(){
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
-            $('#modalInstall #datatables-error-status').html('No template selected').addClass('my-error');
+            $('#modalInstall #datatables-install-error-status').html('No OS template selected').addClass('my-error');
             
             $('#modalInstall #install').val('');
             //~ $('#modalInstall #btn-hardware').hide();
@@ -177,7 +177,7 @@ function initialize_modal_all_install_events(){
             modal_add_install.$('tr.selected').removeClass('selected');
             $(this).addClass('selected');
             $('#modal_add_install').closest('.x_panel').removeClass('datatables-error');
-            $('#modalInstall #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+            //~ $('#modalInstall #datatables-install-error-status').empty().html('Selected: '+rdata['name']+'').removeClass('my-error');
             $('#modalInstall #install').val(rdata['id']);
                 //~ $('#modalAddInstall #btn-hardware').show();
                 //~ setHardwareDomainDefaults('#modalAddInstall',rdata['id'])
@@ -247,7 +247,7 @@ function initialize_modal_all_media_events(){
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_media').closest('.x_panel').addClass('datatables-error');
-            $('#modalMedia #datatables-error-status').html('No template selected').addClass('my-error');
+            $('#modalMedia #datatables-media-error-status').html('No installation media selected').addClass('my-error');
             
             $('#modalMedia #media').val('');
             //~ $('#modalIsos #btn-hardware').hide();
@@ -257,7 +257,7 @@ function initialize_modal_all_media_events(){
             modal_add_media.$('tr.selected').removeClass('selected');
             $(this).addClass('selected');
             $('#modal_add_media').closest('.x_panel').removeClass('datatables-error');
-            $('#modalMedia #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+            //~ $('#modalMedia #datatables-media-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
             $('#modalMedia #media').val(rdata['id']);
                 //~ $('#modalAddFromBuilder #btn-hardware').show();
                 //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
