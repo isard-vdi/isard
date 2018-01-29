@@ -6,13 +6,14 @@ from .flask_rethink import RethinkDB
 from .log import *
 db = RethinkDB(app)
 db.init_app(app)
-
+        
 class Updates(object):
     def __init__(self):
         self.updateFromConfig()
         self.updateFromWeb()
 
     def updateFromWeb(self):
+        
         self.web={}
         self.kinds=['media','domains','builders','virt_install','virt_builder']
         for k in self.kinds:
@@ -52,12 +53,12 @@ class Updates(object):
             for d in dbb:
                 if kind == 'domains' or kind == 'media':
                     if d['id']=='_'+username+'_'+w['id']:
-                        dict=w.copy()
+                        dict=w.copy()                       
                         found=True
                         dict['id']='_'+username+'_'+dict['id']
                         dict['new']=False
                         dict['status']=d['status']    
-                        dict['progress']=d['progress']                    
+                        dict['progress']=d['progress']  
                         break
                 else:
                     if d['id']==w['id']:
@@ -79,9 +80,9 @@ class Updates(object):
 
     def getNewKindId(self,kind,username,id):
         if kind == 'domains' or kind == 'media':
-            web=[d for d in self.web[kind] if '_'+username+'_'+d['id'] == id]
+            web=[d.copy() for d in self.web[kind] if '_'+username+'_'+d['id'] == id]
         else:
-            web=[d for d in self.web[kind] if d['id'] == id]
+            web=[d.copy() for d in self.web[kind] if d['id'] == id]
             
         if len(web)==0: return False
         w=web[0].copy()
@@ -113,11 +114,23 @@ class Updates(object):
    
     '''
     RETURN FORMATTED DOMAINS TO INSERT ON TABLES
-    '''             
+    '''    
+    # ~ def formatDomain(self,dom,current_user):
+        # ~ d=dom.copy()
+        # ~ d['progress']={}
+        # ~ d['status']='DownloadStarting'
+        # ~ d['detail']=''
+        # ~ d['accessed']=time.time()
+        # ~ d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
+        # ~ d.update(self.get_user_data(current_user))
+        # ~ for disk in d['create_dict']['hardware']['disks']:
+            # ~ if not disk['file'].startswith(current_user.path):
+                # ~ disk['file']=current_user.path+disk['file']
+        # ~ return d
+                     
     def formatDomains(self,data,current_user):
-		
-        for d in data:
-            # ~ d['id']='_'+current_user.id+'_'+d['id']
+        new_data=data.copy()
+        for d in new_data:
             d['progress']={}
             d['status']='DownloadStarting'
             d['detail']=''
@@ -125,19 +138,24 @@ class Updates(object):
             d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
             d.update(self.get_user_data(current_user))
             for disk in d['create_dict']['hardware']['disks']:
-                disk['file']=current_user.path+disk['file']
-        return data
+                if not disk['file'].startswith(current_user.path):
+                    disk['file']=current_user.path+disk['file']
+        return new_data
         
     def formatMedias(self,data,current_user):
-        for d in data:
-            # ~ if 'path' in d.keys():
-                # ~ d['id']='_'+current_user.id+'_'+d['id']
-                d.update(self.get_user_data(current_user))
-                d['progress']={}
-                d['status']='DownloadStarting'
-                d['accessed']=time.time()                    
-                d['path']=current_user.path+d['url-isard']
-        return data
+        new_data=data.copy()
+        for d in new_data:
+            d.update(self.get_user_data(current_user))
+            d['progress']={}
+            d['status']='DownloadStarting'
+            d['accessed']=time.time()
+            if d['url-isard'] is False:
+                d['path']=current_user.path+d['url-web'].split('/')[-1] 
+            else:
+                d['path']=d['url-isard']
+            # ~ if not d['path'].startswith(current_user.path):                  
+                # ~ d['path']=current_user.path+d['url-isard']                
+        return new_data
 
     def get_user_data(self,current_user):
         return {'category': current_user.category,

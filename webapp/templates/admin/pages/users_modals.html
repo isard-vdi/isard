@@ -149,19 +149,7 @@
                         <div class="col-md-6 col-sm-6 col-xs-12">
                            <input id="mail" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="mail" placeholder="Email" type="email" data-parsley-trigger="change">
                         </div>
-                     </div>
-                      <div class="item form-group">
-                        <label for="password" class="control-label col-md-3">Password</label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                          <input id="password" type="password" name="password" data-validate-length="6,8" class="form-control col-md-7 col-xs-12" required="required">
-                        </div>
-                      </div>
-                      <div class="item form-group">
-                        <label for="password2" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat Password</label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                          <input id="password2" type="password" name="password2" data-validate-linked="password" class="form-control col-md-7 col-xs-12" required="required">
-                        </div>
-                      </div>                     
+                     </div>                    
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
@@ -204,6 +192,75 @@
                         <div class="col-md-6 col-md-offset-3">
                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                            <button id="send" type="button" class="btn btn-success">Create user</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+        </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalPasswdUser" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-user"> </i>   Change user password
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+              <form id="modalPasswdUserForm" class="form-horizontal form-label-left">
+			  <div class="x_panel">
+					<div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]"  placeholder="Full name" required="required" type="text">
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Username <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+							<input id="id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="id" placeholder="Login username" data-parsley-trigger="change" required type="text" disabled>
+                        </div>
+                     </div>
+                      <div class="item form-group">
+                        <label for="password" class="control-label col-md-3">Password</label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input id="password" type="password" name="password" data-validate-length="6,8" class="form-control col-md-7 col-xs-12" required="required">
+                        </div>
+                      </div>
+                      <div class="item form-group">
+                        <label for="password2" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat Password</label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input id="password2" type="password" name="password2" data-validate-linked="password" class="form-control col-md-7 col-xs-12" required="required">
+                        </div>
+                      </div>                     
+                     
+				</div>
+			  </div>
+
+                       
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="button" class="btn btn-success">Update user password</button>
                         </div>
                      </div>
             </div>

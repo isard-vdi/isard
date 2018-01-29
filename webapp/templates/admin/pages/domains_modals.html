@@ -1,8 +1,8 @@
 <style>
-    #modal_add_desktops tbody td {
+    [id^=modal_add_] tbody td {
         padding: 0px; /* or whatever height you need to make them all consistent */
     }
-    #modal_add_desktops thead th {
+    #[id^=modal_add_] thead th {
         padding: 0px; /* or whatever height you need to make them all consistent */
     }
     
@@ -19,47 +19,47 @@
         
 
 
-    #modal_add_desktops tbody tr.even:hover, #modal_add_desktops tbody tr.even td.highlighted {
+    [id^=modal_add_] tbody tr.even:hover, #modal_add_desktops tbody tr.even td.highlighted {
         background-color: #ECFFB3;
     }
 
-    #modal_add_desktops tbody tr.odd:hover, #modal_add_desktops tbody tr.odd td.highlighted {
+    [id^=modal_add_] tbody tr.odd:hover, #modal_add_desktops tbody tr.odd td.highlighted {
         background-color: #E6FF99;
     }
 
-     #modal_add_desktops .selected {
+     [id^=modal_add_] .selected {
         background-color: LightGreen !important;
     }
     
-     #modal_add_desktops tr.even:hover {
+     [id^=modal_add_] tr.even:hover {
         background-color: #ECFFB3;
     }
 
-     #modal_add_desktops tr.even:hover td.sorting_1 {
+     [id^=modal_add_] tr.even:hover td.sorting_1 {
         background-color: #DDFF75;
     }
 
-     #modal_add_desktops tr.even:hover td.sorting_2 {
+     [id^=modal_add_] tr.even:hover td.sorting_2 {
         background-color: #E7FF9E;
     }
 
-     #modal_add_desktops tr.even:hover td.sorting_3 {
+     [id^=modal_add_] tr.even:hover td.sorting_3 {
         background-color: #E2FF89;
     }
 
-     #modal_add_desktops tr.odd:hover {
+     [id^=modal_add_] tr.odd:hover {
         background-color: #E6FF99;
     }
 
-     #modal_add_desktops tr.odd:hover td.sorting_1 {
+     [id^=modal_add_] tr.odd:hover td.sorting_1 {
         background-color: #D6FF5C;
     }
 
-     #modal_add_desktops tr.odd:hover td.sorting_2 {
+     [id^=modal_add_] tr.odd:hover td.sorting_2 {
         background-color: #E0FF84;
     }
 
-     #modal_add_desktops tr.odd:hover td.sorting_3 {
+     [id^=modal_add_] tr.odd:hover td.sorting_3 {
         background-color: #DBFF70;
     }
 </style>
@@ -217,10 +217,11 @@
                      </table>
                      <div id="datatables-error-status"></div>
                   </div>
-                  <div class="x_panel" id="hardware-block" style="padding: 5px;">
-                     <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
-                     {% include '/snippets/domain_hardware_edit.html' %}
-                  </div>
+                                
+              <div class="x_panel" id="hardware-block" style="padding: 5px;">
+                 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
+                 {% include '/snippets/domain_hardware_disksize_edit.html' %}
+              </div>
                   <!--
                      </div>
                      -->

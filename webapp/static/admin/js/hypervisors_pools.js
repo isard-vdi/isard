@@ -6,6 +6,7 @@
 */
 
 $hypervisor_pool_template = $(".hyper-pool-detail");
+var tablepools;
 $(document).ready(function() {
 
 	$('#modalAddPool').on('hidden.bs.modal', function(){
@@ -167,7 +168,7 @@ $(document).ready(function() {
             //~ }
         });
 
-    var tablepools = $('#hypervisors_pools').DataTable( {
+    tablepools = $('#hypervisors_pools').DataTable( {
         "ajax": {
             "url": "/admin/hypervisors_pools",
             "dataSrc": ""
@@ -201,7 +202,7 @@ $(document).ready(function() {
             data = row.data();
 			$.each( data['paths'], function( k, v) {
 				$.each( data['paths'][k], function( key, val ) {
-					console.log(data['paths'][k])
+					//~ console.log(data['paths'][k])
 					$('#hyper-pools-paths-'+data.id+' tbody').append('<tr><td>'+k+'</td><td>'+val['path']+'</td><td>'+val['disk_operations']+'</td><td>'+val['weight']+'</td></tr>');
 				});
 			});
@@ -243,7 +244,7 @@ function table2json(){
 								//~ obj['row'] = i;
 								newFormData.push(obj);
 							  });
-							  console.log(newFormData);
+							  //~ console.log(newFormData);
 	
 	
 }

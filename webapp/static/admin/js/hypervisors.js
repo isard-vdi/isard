@@ -8,7 +8,7 @@
 $hypervisor_template = $(".hyper-detail");
 
 //~ var table =''
-
+//~ tablepools=''
 $(document).ready(function() {
 	$('.btn-new-hyper').on('click', function () {
 			$('#modalAddHyper').modal({
@@ -158,18 +158,21 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
-        console.log(data)
+        //~ console.log(data)
         var data = JSON.parse(data);
-		if($("#" + data.id).length == 0) {
-		  //it doesn't exist
-		  table.row.add(data).draw();
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = table.row('#'+data.id); 
-          data.started_domains = row.data().started_domains
-          table.row(row).data(data).invalidate();			
-		}
-        table.draw(false);
+        new_hyper=dtUpdateInsert(table,data,false);
+        if(new_hyper){tablepools.draw(false);}
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ table.row.add(data); //.draw();
+          //~ tablepools.draw(false(
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ data.started_domains = row.data().started_domains
+          //~ table.row(row).data(data).invalidate();			
+		//~ }
+        //~ table.draw(false);
     });
 
     socket.on('hyper_status', function(data){
@@ -184,9 +187,11 @@ $(document).ready(function() {
         ]);
     });
         
-    socket.on('hyper_delete', function(data){
+    socket.on('hyper_deleted', function(data){
         var data = JSON.parse(data);
-        var row = table.row('#'+data.id).remove().draw();
+        //~ console.log('hyper deleted:'+data.id)
+        //~ var row = table.row('#'+data.id).remove().draw();
+         
         new PNotify({
                 title: "Hypervisor deleted",
                 text: "Hypervisor "+data.name+" has been deleted",
@@ -196,6 +201,8 @@ $(document).ready(function() {
                 opacity: 1,
                 type: 'success'
         });
+        table.ajax.reload()
+        tablepools.ajax.reload()
     });
 
     socket.on('add_form_result', function (data) {
