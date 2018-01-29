@@ -14,7 +14,8 @@ from engine.config import CONFIG_DICT
 from engine.services.db.db import new_rethink_connection
 from engine.services.db.domains import update_domain_status
 from engine.services.log import logs
-from engine.services.db import get_config_branch, get_hyp_hostname_user_port_from_id, update_table_field
+from engine.services.db import get_config_branch, get_hyp_hostname_user_port_from_id, update_table_field, \
+                               update_domain_dict_create_dict, get_domain
 from engine.services.db.downloads import get_downloads_in_progress, update_download_percent, update_status_table,\
                                          get_media
 from engine.services.lib.qcow import get_host_disk_operations_from_path, get_path_to_disk
@@ -124,7 +125,11 @@ class DownloadThread(threading.Thread, object):
 
         assert rc == 0
         if self.table == 'domains':
-            update_table_field(self.table, self.id, 'path_downloaded', self.path)
+            #update_table_field(self.table, self.id, 'path_downloaded', self.path)
+            d_update_domain = get_domain(self.id)['create_dict']
+            #d_update_domain = {'hardware': {'disks': [{}]}}
+            d_update_domain['hardware']['disks'][0]['file'] = self.path
+            update_domain_dict_create_dict(self.id, d_update_domain)
             update_domain_status('Downloaded', self.id, detail="downloaded disk")
             update_domain_status('Updating', self.id, detail="downloaded disk")
         else:
@@ -233,6 +238,11 @@ class DownloadChangesThread(threading.Thread):
             if new_file_path in self.download_threads.keys():
                 self.download_threads.pop(new_file_path)
             self.finalished_threads.remove(new_file_path)
+
+
+        d_update_domain = dict_changes['create_dict']
+        d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
+        update_domain_dict_create_dict(id_down, d_update_domain)
 
         # launching download threads
         if new_file_path not in self.download_threads:
