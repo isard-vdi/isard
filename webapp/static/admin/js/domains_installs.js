@@ -16,8 +16,9 @@ $(document).ready(function() {
 	initialize_modal_all_media_events()
            
 	$('.add-new-virtbuilder').on( 'click', function () {
-			setHardwareOptions('#modalAddFromBuilder');
             $("#modalAddFromBuilder #modalAdd")[0].reset();
+			setHardwareOptions('#modalAddFromBuilder');
+
 			$('#modalAddFromBuilder').modal({
 				backdrop: 'static',
 				keyboard: false
@@ -27,8 +28,8 @@ $(document).ready(function() {
 	});
 
 	$('.add-new-media').on( 'click', function () {
-			setHardwareOptions('#modalAddFromMedia');
             $("#modalAddFromMedia #modalAdd")[0].reset();
+			setHardwareOptions('#modalAddFromMedia');
 			$('#modalAddFromMedia').modal({
 				backdrop: 'static',
 				keyboard: false
