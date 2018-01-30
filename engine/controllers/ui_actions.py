@@ -325,7 +325,8 @@ class UiActions(object):
                 path_domain_disk = dict_domain['hardware']['disks'][i]['file']
 
                 try:
-                    path_template_disk_relative = dict_new_template['create_dict']['hardware']['disks'][i]['file']
+                    # path_template_disk_relative = dict_new_template['create_dict']['hardware']['disks'][i]['file']
+                    path_template_disk_relative = list_disk_template_path_relative[i]
                 except KeyError as e:
                     update_domain_status(status='Stopped',
                                          id_domain=id_domain,
@@ -336,11 +337,11 @@ class UiActions(object):
                             id_domain, str(e)))
                     return False
 
-                #if 'path_selected' not in dict_new_template['create_dict']['hardware']['disks'][i]:
                 if dict_new_template['kind'] == 'base':
                     type_path_selected = 'bases'
                 else:
                     type_path_selected = 'templates'
+
                 new_file, path_selected = get_path_to_disk(path_template_disk_relative, pool=pool_id,
                                                            type_path=type_path_selected)
                 path_absolute_template_disk = new_file = new_file.replace('//', '/')
@@ -561,10 +562,13 @@ class UiActions(object):
             dict_to_create['hardware']['disks'][index_disk]['file'] = new_file
             dict_to_create['hardware']['disks'][index_disk]['path_selected'] = path_selected
 
+        update_table_field('domains',id_new,'create_dict',dict_to_create)
+
+        #TODO: REVISAR SI RELAMENTE ES NECESARIO o esta acción responde a versiones antiguas de nuestras funciones de creación
         hardware_update = {}
         hardware_update['disks'] = dict_to_create['hardware']['disks']
-
         update_domain_dict_hardware(id_new, hardware_update)
+        ##################
 
         for index_disk in range(len(dict_to_create['hardware']['disks'])):
             backing_file = dict_to_create['hardware']['disks'][index_disk]['parent']
