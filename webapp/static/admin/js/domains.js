@@ -310,6 +310,9 @@ $(document).ready(function() {
         if(data.result){
             $("#modalAddFromBuilder #modalAdd")[0].reset();
             $("#modalAddFromBuilder").modal('hide');
+            $("#modalAddFromMedia #modalAdd")[0].reset();
+            $("#modalAddFromMedia").modal('hide');   
+            console.log('closed')         
             //~ $('body').removeClass('modal-open');
             //~ $('.modal-backdrop').remove();
         }

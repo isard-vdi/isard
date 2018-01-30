@@ -74,6 +74,9 @@ class isard():
             item = table[:-1].capitalize()
             try:
                 if data['name']=='status':
+                    if data['value']=='DownloadAborting':
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' aborting success','text':item+' '+data['pk']+' will be aborted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}                        
                     if data['value']=='Stopping':
                         if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                             return json.dumps({'title':item+' stopping success','text':item+' '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
@@ -94,7 +97,7 @@ class isard():
                             return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                 return json.dumps({'title':'Method not allowd','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
-                log.error('Error updating desktop status for domain '+data['pk']+': '+str(e))
+                log.error('Error updating status for '+data['pk']+': '+str(e))
                 return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
 

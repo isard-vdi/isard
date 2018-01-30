@@ -450,7 +450,20 @@ class isardAdmin():
             missing_keys={  'accessed': time.time(),
                             'detail': 'User added',
                             'icon': 'fa-circle-o' if partial_dict['kind']=='iso' else 'fa-floppy-o',
-                            'progress': {},
+                            'progress': {
+                                "received":  "0" ,
+                                "received_percent": 0 ,
+                                "speed_current":  "" ,
+                                "speed_download_average":  "" ,
+                                "speed_upload_average":  "" ,
+                                "time_left":  "" ,
+                                "time_spent":  "" ,
+                                "time_total":  "" ,
+                                "total":  "" ,
+                                "total_percent": 0 ,
+                                "xferd":  "0" ,
+                                "xferd_percent":  "0"
+                                },
                             'status': 'DownloadStarting',
                             'url-isard': False,
                             }

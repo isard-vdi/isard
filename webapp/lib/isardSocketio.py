@@ -678,13 +678,13 @@ def sendViewer(data,kind='domain',remote_addr=False):
 '''
 MEDIA
 '''
-@socketio.on('media_update', namespace='/sio_users')
+@socketio.on('media_update', namespace='/sio_admins')
 def socketio_media_update(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     socketio.emit('result',
                     app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
-                    namespace='/sio_users', 
-                    room='user_'+current_user.username)
+                    namespace='/sio_admins', 
+                    room='media')
                     
     
     
@@ -824,7 +824,7 @@ def socketio_domains_media_add(form_data):
     create_dict.pop('icon',None)
     res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
     if res is True:
-        info=json.dumps({'add_form_result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
     else:
         info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',

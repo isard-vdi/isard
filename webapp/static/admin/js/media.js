@@ -44,13 +44,8 @@ $(document).ready(function() {
             { "data": "name"},
             { "data": "status"},
             { "data": null},
-            {
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "width": "10px",
-                "defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-			}, 
+                {"data": null,
+                 'defaultContent': ''},  
         ],
         "columnDefs": [ 
 							{
@@ -70,7 +65,22 @@ $(document).ready(function() {
                                     return renderProgress(full);
                                 }
                                 if('progress-total' in full){return full['progress-total'];}
-							}}],
+                                return ''
+							}},
+                            {
+							"targets": 4,
+							"render": function ( data, type, full, meta ) {                                
+                                if(full.status == 'Available' || full.status == "FailedDownload"){
+                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+                                }
+                                if(full.status == 'Downloading'){
+                                    return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                                }
+                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                } 
+                                return full.status;                                 
+                                }}],
         "initComplete": function() {
                                 //~ $('.progress .progress-bar').progressbar();
                                 //~ $('.progress-bar').progressbar();
@@ -83,7 +93,7 @@ $(document).ready(function() {
             case 'btn-delete':
 				new PNotify({
 						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete media: "+data.name+"?",
+							text: "Are you sure you want to delete this media: "+data.name+"?",
 							hide: false,
 							opacity: 0.9,
 							confirm: {
@@ -100,35 +110,46 @@ $(document).ready(function() {
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('media_update',{'pk':data.id,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {
-				});	                        
+				});
                 break;
-        };
-    });
+             case 'btn-abort':
+                    //~ var pk=$(this).closest("div").attr("data-pk");
+                    //~ console.log('abort:'+pk)
+                    //~ var name=$(this).closest("div").attr("data-name");
+                    new PNotify({
+                            title: 'Confirmation Needed',
+                                text: "Are you sure you want to abort this download: "+data.name+"?",
+                                hide: false,
+                                opacity: 0.9,
+                                confirm: {
+                                    confirm: true
+                                },
+                                buttons: {
+                                    closer: false,
+                                    sticker: false
+                                },
+                                history: {
+                                    history: false
+                                },
+                                stack: stack_center
+                            }).get().on('pnotify.confirm', function() {
+                                socket.emit('media_update',{'pk':data.id,'name':'status','value':'DownloadAborting'})
+                            }).on('pnotify.cancel', function() {
+                    });	             
+                break;
 
-	$('.btn-delete').on('click', function () {
-				var pk=$(this).closest("div").attr("data-pk");
-				var name=$(this).closest("div").attr("data-name");
-				new PNotify({
-						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete virtual machine: "+name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							stack: stack_center
-						}).get().on('pnotify.confirm', function() {
-                            socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
-						}).on('pnotify.cancel', function() {
-				});	
-	});
+        };
+
+
+        //~ $('btn-abort').on('click', function () {
+
+        //~ });
+        
+        //~ $('btn-delete').on('click', function () {
+
+        //~ });
+    
+    });    
     
     $("#modalAddMedia #send").on('click', function(e){
             var form = $('#modalAddMediaForm');
@@ -164,7 +185,7 @@ $(document).ready(function() {
     });
 
     socket.on('media_data', function(data){
-        console.log('add or update')
+        //~ console.log('add or update')
         var data = JSON.parse(data);
             //~ $('#pbid_'+data.id).data('transitiongoal',data.percentage);
             //~ $('#pbid_').css('width', data.percentage+'%').attr('aria-valuenow', data.percentage).text(data.percentage); 
@@ -175,7 +196,7 @@ $(document).ready(function() {
 
     
     socket.on('media_delete', function(data){
-        console.log('delete')
+        //~ console.log('delete')
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
