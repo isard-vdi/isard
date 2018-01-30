@@ -63,7 +63,8 @@ class Logs (object):
                              'downloads',
                              'eval',
                              'hmlog',
-                             'main']
+                             'main',
+                             'broom']
         for n in self.names_for_loggers:
             self.create_logger(n)
 

@@ -448,7 +448,10 @@ class ManagerHypervisors(object):
                     # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
                     # ui.stop_domain_from_id(id=domain_id)
                     hyp_started = get_domain_hyp_started(domain_id)
-                    ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+                    if hyp_started:
+                        ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+                    else:
+                        logs.main.error('domain without hyp_started can not be stopped: {}. '.format(domain_id))
 
                 if (old_status == 'Started' and new_status == "StoppingAndDeleting" ) or \
                         (old_status == 'Suspended' and new_status == "StoppingAndDeleting" ):
