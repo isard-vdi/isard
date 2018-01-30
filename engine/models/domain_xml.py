@@ -227,7 +227,8 @@ class DomainXML(object):
 
                 vm_dict['interfaces'].append(list_dict)
 
-        vm_dict['boot_menu'] = [x.get('dev') for x in tree.xpath('/domain/os/bootr[@dev]')]
+        vm_dict['boot_order'] = [x.get('dev') for x in tree.xpath('/domain/os/boot[@dev]')]
+        vm_dict['boot_menu_enable'] = [x.get('dev') for x in tree.xpath('/domain/os/bootmenu[@enable]')]
 
 
 
@@ -523,6 +524,46 @@ class DomainXML(object):
         # <on_reboot>restart</on_reboot>
         # <on_crash>restart</on_crash>
 
+    def update_boot_order(self,list_ordered_devs,boot_menu_enable=False):
+
+        # number of boot devices
+        boot_elements = self.tree.xpath('/domain/os/boot')
+        diff_elements = len(boot_elements) - len(list_ordered_devs)
+        if diff_elements < 0:
+            #add boot elements
+            for i in range(abs(diff_elements)):
+                element_boot = etree.Element('boot', dev='disk')
+                self.tree.xpath('/domain/os')[0].insert(-1, element_boot)
+            pass
+        elif diff_elements > 0:
+            #remove boot elements:
+            for i in range(diff_elements):
+                self.tree.xpath('/domain/os/boot')[-1].getparent().remove(self.tree.xpath('/domain/os/boot')[-1])
+
+        # set devs in boot order:
+        for i,device in zip(range(len(list_ordered_devs)),list_ordered_devs):
+            if device in ['iso','cd']:
+                device = 'cdrom'
+            elif device in ['pxe','net']:
+                device = 'network'
+            elif device in ['floppy']:
+                device = 'fd'
+            elif device in ['disk']:
+                device = 'hd'
+
+            self.tree.xpath('/domain/os/boot')[i].set('dev',device)
+
+        # boot menu
+        if len(self.tree.xpath('/domain/os/bootmenu')) > 0:
+            if boot_menu_enable is True:
+                self.tree.xpath('/domain/os/bootmenu')[0].set('enable', 'yes')
+            else:
+                self.tree.xpath('/domain/os/bootmenu')[0].set('enable', 'no')
+        elif boot_menu_enable is True:
+            element_bootmenu = etree.Element('bootmenu', enable='yes')
+            self.tree.xpath('/domain/os')[0].insert(-1, element_bootmenu)
+
+
     def set_name(self, new_name):
         self.tree.xpath('/domain/name')[0].text = new_name
 
@@ -571,7 +612,6 @@ class DomainXML(object):
 
     def print_tag(self,tag,to_log=False):
         x = self.return_xml()
-        tag = 'disk'
         str_out = x[x.find('<{}'.format(tag)):x.rfind('</{}>'.format(tag)) + len(tag) + 4]
         if to_log is False:
             print(str_out)
@@ -643,7 +683,13 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     v.set_memory(memory=hw['memory'], unit=hw['memory_unit'],current=int(hw.get('currentMemory',hw['memory'])*DEFAULT_BALLOON))
     total_disks_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="disk"]'))
     total_cdroms_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
-    total_floppies_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="flopy"]'))
+    total_floppies_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="floppy"]'))
+
+    if 'boot_order' in hw.keys():
+        if 'boot_menu_enable' in hw.keys():
+            v.update_boot_order(hw['boot_order'], hw['boot_menu_enable'])
+        else:
+            v.update_boot_order(hw['boot_order'])
 
     if 'disks' in hw.keys():
         num_remove_disks = total_disks_in_xml - len(hw['disks'])
@@ -787,6 +833,8 @@ def populate_dict_hardware_from_create_dict(id_domain):
     if 'hardware' in create_dict.keys():
         if 'boot_order' in create_dict['hardware'].keys():
             new_hardware_dict['boot_order'] = create_dict['hardware']['boot_order']
+        if 'boot_menu_enable' in create_dict['hardware'].keys():
+            new_hardware_dict['boot_menu_enable'] = create_dict['hardware']['boot_menu_enable']
     #import pprint
     #pprint.pprint(new_hardware_dict)
     #print('############### domain {}'.format(id_domain))

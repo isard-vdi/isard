@@ -317,8 +317,6 @@ def get_domains_from_template_origin():
 def update_table_field(table, id_doc, field, value, merge_dict=True):
     r_conn = new_rethink_connection()
     rtable = r.table(table)
-    print(id_doc)
-    print(field)
     if merge_dict is True:
         result = rtable.get(id_doc).update(
             {field: value}).run(r_conn)

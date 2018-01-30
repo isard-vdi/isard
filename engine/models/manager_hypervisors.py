@@ -94,7 +94,7 @@ class ManagerHypervisors(object):
 
         d['alive']=alive
         d['dead']=dead
-        update_table_field('engine', 'engine', 'threadas', d)
+        update_table_field('engine', 'engine', 'threads', d)
         return alive,dead
 
     def stop_threads(self):
