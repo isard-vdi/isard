@@ -338,7 +338,16 @@ class Wizard():
     def valid_engine(self):
         from ..lib.load_config import load_config
         dict=load_config()['DEFAULT_HYPERVISORS']    
-        return self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')  
+        valid_engine=self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')
+        if valid_engine:
+            if 'isard-hypervisor' in dict.keys():
+                url='http://isard-engine'
+                web_port=5555
+            else:
+                url='http://localhost'
+                web_port=5555                
+            r.db('isard').table('config').get(1).update({'engine':{'api':{'url':url,'web_port':web_port,'token':'fosdem'}}}).run()
+        return valid_engine
 
     def valid_hypervisor(self):
         try:
