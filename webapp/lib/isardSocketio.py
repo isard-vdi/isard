@@ -613,13 +613,14 @@ def parseHardware(create_dict):
     
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if current_user.role == 'admin': 
-        sendViewer(data)
+        send_viewer(data,remote_addr=remote_addr)
     else:
         id=data['pk']
                 
         if id.startswith('_'+current_user.id+'_'):
-            sendViewer(data)
+            send_viewer(data,remote_addr=remote_addr)
         else:
             msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
             socketio.emit('result',
@@ -627,9 +628,9 @@ def socketio_domains_viewer(data):
                             namespace='/sio_users', 
                             room='user_'+current_user.username) 
                             
-def sendViewer(data,kind='domain',remote_addr=False): 
+def send_viewer(data,kind='domain',remote_addr=False): 
     if data['kind'] == 'file':
-        consola=app.isardapi.get_viewer_ticket(data['pk'])
+        consola=app.isardapi.get_viewer_ticket(data['pk'],remote_addr=remote_addr)
         if kind=='domain':
             socketio.emit('domain_viewer',
                             json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
@@ -645,10 +646,10 @@ def sendViewer(data,kind='domain',remote_addr=False):
                         # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
     else:
         if data['kind'] == 'xpi':
-            viewer=app.isardapi.get_spice_xpi(data['pk'])
+            viewer=app.isardapi.get_spice_xpi(data['pk'],remote_addr=remote_addr)
 
         if data['kind'] == 'html5':
-            viewer=app.isardapi.get_domain_spice(data['pk'])
+            viewer=app.isardapi.get_domain_spice(data['pk'],remote_addr=remote_addr)
             ##### Change this when engine opens ports accordingly (without tls)
         if viewer is not False:
             if viewer['port']:
@@ -718,7 +719,7 @@ def socketio_disposables_connect():
 def socketio_disposables_viewer(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
-        sendViewer(data,kind='disposable',remote_addr=remote_addr)
+        send_viewer(data,kind='disposable',remote_addr=remote_addr)
     else:
         msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
         socketio.emit('result',

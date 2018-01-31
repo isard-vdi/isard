@@ -879,13 +879,15 @@ class isard():
 
     ##### SPICE VIEWER
     
-    def get_domain_spice(self, id):
+    def get_domain_spice(self, id, remote_addr=False):
         ### HTML5 spice dict (isardsocketio)
         try:
             domain =  r.table('domains').get(id).run(db.conn)
+            
+            hostname=self.get_viewer_hostname(domain['viewer'],remote_addr)
             if viewer['defaultMode'] == "Secure":
                 viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-                return {'host':domain['viewer']['hostname'],
+                return {'host':hostname,
                         'kind':domain['hardware']['graphics']['type'],
                         'port':domain['viewer']['port'],
                         'tlsport':domain['viewer']['tlsport'],
@@ -893,7 +895,7 @@ class isard():
                         'domain':viewer['domain'],
                         'passwd':domain['viewer']['passwd']}
             else:
-                return {'host':domain['viewer']['hostname'],
+                return {'host':hostname,
                         'kind':domain['hardware']['graphics']['type'],
                         'port':domain['viewer']['port'],
                         'tlsport':False,
@@ -918,18 +920,19 @@ class isard():
 
 
     ######### VIEWER DOWNLOAD FUNCTIONS
-    def get_viewer_ticket(self,id,os='generic'):
-        viewer = self.get_domain_spice(id)
+    def get_viewer_ticket(self,id,remote_addr=False,os='generic'):
+        viewer = self.get_domain_spice(id,remote_addr=remote_addr)
         if viewer is not False:
             dict=viewer
             if dict['kind']=='vnc':
-                return self.get_vnc_ticket(dict,id,os)
+                return self.get_vnc_ticket(dict,id,os,remote_addr=remote_addr)
             if dict['kind']=='spice':
-                return self.get_spice_ticket(dict,id)
+                return self.get_spice_ticket(dict,id,remote_addr=remote_addr)
         return False
         
-    def get_vnc_ticket(self, dict,id,os):
+    def get_vnc_ticket(self, dict,id,os,remote_addr=False):
         ## Should check if ssl in use: dict['tlsport']:
+        hostname=self.get_viewer_hostname(dict,remote_addr)
         if dict['tlsport']:
             return False
         if os in ['iOS','Windows','Android','Linux', 'generic', None]:
@@ -955,12 +958,12 @@ class isard():
             PointerEventInterval=0
             Monitor=
             MenuKey=F8
-            """ % (dict['host'], dict['port'], dict['passwd'])
+            """ % (hostname, dict['port'], dict['passwd'])
             consola = consola.replace("'", "")
             return 'vnc','text/plain',consola
             
         if os in ['MacOS']:
-            vnc="vnc://"+dict['host']+":"+dict['passwd']+"@"+dict['host']+":"+dict['port']
+            vnc="vnc://"+hostname+":"+dict['passwd']+"@"+hostname+":"+dict['port']
             consola="""<?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
             <plist version="1.0">
@@ -1040,12 +1043,14 @@ class isard():
             return 'vncloc','text/plain',consola
         
         
-    def get_spice_ticket(self, dict,id):
+    def get_spice_ticket(self, dict,id,remote_addr=False):
         #~ dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])
         #~ if not dict['host'].endswith(str(self.config['spice']['domain'])):
             #~ dict['host']=dict['host']+'.'+self.config['spice']['domain']
+        
+        hostname=self.get_viewer_hostname(dict,remote_addr)
         if not dict['tlsport']:
             ######################
             # Client without TLS #
@@ -1063,7 +1068,7 @@ class isard():
         delete-this-file=1
         usb-filter=-1,-1,-1,-1,0
         ;tls-ciphers=DEFAULT
-        """ % (dict['kind'],dict['host'], dict['port'], dict['passwd'], id, c)
+        """ % (dict['kind'],hostname, dict['port'], dict['passwd'], id, c)
 
             consola = consola + """;host-subject=O=%s,CN=%s
         ;ca=%r
@@ -1090,7 +1095,7 @@ class isard():
         delete-this-file=1
         usb-filter=-1,-1,-1,-1,0
         tls-ciphers=DEFAULT
-        """ % (dict['kind'],dict['host'], dict['passwd'], dict['tlsport'], id, c)
+        """ % (dict['kind'],hostname, dict['passwd'], dict['tlsport'], id, c)
 
             consola = consola + """;host-subject=O=%s,CN=%s
         ca=%r
@@ -1107,10 +1112,20 @@ class isard():
         pw=Password()
         self.update_table_value('users',current_user.id,'password',pw.encrypt(passwd))
         return True
+        
+        
     '''
     HELPERS
     '''
 
+    def get_viewer_hostname(viewer,remote_addr):
+        if remote_addr is False: return viewer['hostname'] 
+        if IPAddress(remote_addr).is_private() or not 'hostname_external' in viewer.keys():
+            return viewer['hostname']
+        else:
+            return viewer['hostname_external']
+            
+            
     def parse_string(self, txt):
         import re, unicodedata, locale
         if type(txt) is not str:
