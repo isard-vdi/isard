@@ -251,7 +251,6 @@ def exec_remote_list_of_cmds(hostname, commands, username='root', port=22, sudo=
 
     return returned_array
 
-
 def exec_remote_list_of_cmds_dict(hostname, list_dict_commands, username='root', port=22, ssh_key_str='', sudo=False):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -1059,3 +1058,8 @@ def analize_backing_chains_outputs(array_out_err=[], path_to_write_json=None, pa
             update_disk_backing_chain(id, 0, l[0]['filename'], l)
 
     return ({'ok': domains_ok, 'err': domains_err})
+
+def restart_engine():
+
+    subprocess.call('curl http://localhost:5555/restart_engine &', shell=True)
+    return True

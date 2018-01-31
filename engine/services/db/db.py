@@ -104,7 +104,7 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
 
     if hyp_id is not False:
         rtable = r.table('hypervisors')
-        d = rtable.get(hyp_id).pluck('viewer_hostname', 'hostname', 'id').run(r_conn)
+        d = rtable.get(hyp_id).pluck('viewer_hostname', 'viewer_nat_hostname','hostname', 'id').run(r_conn)
         if 'viewer_hostname' in d.keys():
             if len(d['viewer_hostname']) > 0:
                 hostname = d['viewer_hostname']
@@ -113,13 +113,21 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
         else:
             hostname = d['hostname']
     else:
-        hostname = None
+        hostname = False
 
     dict_viewer = {}
     if hostname is not None:
         dict_viewer['hostname'] = hostname
     else:
         dict_viewer['hostname'] = False
+
+    if 'viewer_nat_hostname' in d.keys():
+        if len(d['viewer_nat_hostname']) > 0:
+            dict_viewer['hostname_external'] = d['viewer_nat_hostname']
+        else:
+            dict_viewer['hostname_external'] = False
+    else:
+        dict_viewer['hostname_external'] = False
 
     dict_viewer['tlsport'] = tlsport
     dict_viewer['port'] = port
@@ -149,6 +157,13 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
 #     close_rethink_connection(r_conn)
 #     return results
 
+
+def get_engine():
+    r_conn = new_rethink_connection()
+    rtable = r.table('engine')
+    engine = list(rtable.run(r_conn))[0]
+    close_rethink_connection(r_conn)
+    return engine
 
 def get_pool(id_pool):
     r_conn = new_rethink_connection()

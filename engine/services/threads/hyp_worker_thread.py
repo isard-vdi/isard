@@ -15,12 +15,11 @@ from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
 
 from engine.models.hyp import hyp
 from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, \
-    update_domains_started_in_hyp_to_unknown, update_table_field
-from engine.services.lib.functions import get_tid
+    update_domains_started_in_hyp_to_unknown, update_table_field, get_engine
+from engine.services.lib.functions import get_tid, restart_engine
 from engine.services.log import logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_action_disk, RETRIES_HYP_IS_ALIVE, \
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE, launch_delete_media
-
 
 class HypWorkerThread(threading.Thread):
     def __init__(self, name, hyp_id, queue_actions, queue_master=None):
@@ -239,4 +238,16 @@ class HypWorkerThread(threading.Thread):
         else:
             update_hyp_status(self.hyp_id, 'Error','bios vmx or svm virtualization capabilities not activated')
             update_table_field('hypervisors',self.hyp_id,'enabled',False)
-            requests.get('http://localhost:5555/restart_engine',timeout=3)
+            logs.workers.error('hypervisor {} disabled: bios vmx or svm virtualization capabilities not activated')
+            #restart when engine is started (not starting)
+            timeout = 10
+            i = 0.0
+            while i < timeout:
+                if get_engine()['status_all_threads'] == 'Started':
+                    restart_engine()
+                    break
+                else:
+                    i + 0.2
+                    sleep(0.2)
+
+

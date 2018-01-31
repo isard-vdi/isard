@@ -76,12 +76,16 @@ def stop_threads():
     app.m.stop_threads()
     return jsonify({'stop_threads':True}), 200
 
+
+
+
 @api.route('/restart_engine', methods=['GET'])
 def restart_engine():
+
     app.m.stop_threads()
 
     while True:
-        alive, dead = app.m.update_info_threads_engine()
+        alive, dead, not_defined = app.m.update_info_threads_engine()
         if len(alive) == 0:
             action = {}
             action['type'] = 'stop'
@@ -94,10 +98,9 @@ def restart_engine():
             sleep(0.2)
         else:
             update_table_field('engine', 'engine', 'status_all_threads', 'Stopped')
-            delattr(app,'m')
+            delattr(app, 'm')
             app.m = ManagerHypervisors()
             break
-
     return jsonify({'restart_engine':True}), 200
 
 @api.route('/engine_info', methods=['GET'])

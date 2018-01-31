@@ -459,17 +459,24 @@ class ThreadHypEvents(threading.Thread):
 
         # self.r_status = RethinkHypEvent()
 
-        self.thread_event_loop = virEventLoopNativeStart()
+        while True:
+            if len(self.hyps) == 0:
+                if self.stop:
+                    break
+                time.sleep(0.1)
+            else:
+                self.thread_event_loop = virEventLoopNativeStart()
 
-        for hyp_id, hostname in self.hyps.items():
-            self.add_hyp_to_receive_events(hyp_id)
+                for hyp_id, hostname in self.hyps.items():
+                    self.add_hyp_to_receive_events(hyp_id)
 
-        while self.stop is not True:
-            time.sleep(0.1)
+                while self.stop is not True:
+                    time.sleep(0.1)
 
-        if self.stop is True:
-            for hyp_id in list(self.hyps):
-                self.del_hyp_to_receive_events(hyp_id)
+                if self.stop is True:
+                    for hyp_id in list(self.hyps):
+                        self.del_hyp_to_receive_events(hyp_id)
+                break
 
     def add_hyp_to_receive_events(self, hyp_id):
         d_hyp_parameters = get_hyp_hostname_user_port_from_id(hyp_id)

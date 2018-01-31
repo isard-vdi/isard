@@ -9,6 +9,7 @@ import pprint
 import queue
 import threading
 from datetime import datetime
+from time import sleep
 
 import rethinkdb as r
 
@@ -77,25 +78,28 @@ class ManagerHypervisors(object):
         d = {}
         alive=[]
         dead=[]
+        not_defined=[]
         #events,broom
         for name in ['events','broom','downloads_changes','changes_hyps','changes_domains']:
             try:
                 alive.append(name) if self.__getattribute__('t_'+name).is_alive() else dead.append(name)
             except:
                 #thread not defined
-                pass
+                not_defined.append(name)
 
         for name in ['workers','status','disk_operations','long_operations']:
             for hyp,t in self.__getattribute__('t_'+name).items():
                 try:
                     alive.append(name + '_' + hyp) if t.is_alive() else dead.append(name + '_' + hyp)
                 except:
+                    not_defined.append(name)
                     pass
 
         d['alive']=alive
         d['dead']=dead
+        d['not_defined']=not_defined
         update_table_field('engine', 'engine', 'threads', d)
-        return alive,dead
+        return alive,dead,not_defined
 
     def stop_threads(self):
         # operations / status
@@ -179,13 +183,14 @@ class ManagerHypervisors(object):
 
             launch_try_hyps(dict_hyps_to_test)
             dict_hyps_ready = self.manager.dict_hyps_ready = get_hyps_ready_to_start()
+
+            self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
             if len(dict_hyps_ready) > 0:
                 logs.main.debug('hyps_ready_to_start: ' + pprint.pformat(dict_hyps_ready))
 
                 set_unknown_domains_not_in_hyps(dict_hyps_ready.keys())
                 set_domains_coherence(dict_hyps_ready)
 
-                self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
                 pools = set()
                 for hyp_id, hostname in dict_hyps_ready.items():
                     update_hyp_status(hyp_id, 'StartingThreads')
@@ -243,7 +248,16 @@ class ManagerHypervisors(object):
                     first_loop = False
 
                     logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
-                    update_table_field('engine', 'engine', 'status_all_threads', 'Started')
+                    update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
+                    while True:
+                        sleep(0.1)
+                        alive, dead, not_defined = self.manager.update_info_threads_engine()
+                        pprint.pprint({'alive':alive,
+                                       'dead':dead,
+                                       'not_defined':not_defined})
+                        if len(not_defined) == 0 and len(dead) == 0:
+                            update_table_field('engine', 'engine', 'status_all_threads', 'Started')
+                            break
 
                 try:
                     action = q.get(timeout=self.manager.TEST_HYP_FAIL_INTERVAL)
