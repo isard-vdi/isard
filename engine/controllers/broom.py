@@ -21,14 +21,25 @@ from engine.services.log import logs
 
 
 class ThreadBroom(threading.Thread):
-    def __init__(self, name, polling_interval):
+    def __init__(self, name, polling_interval, manager):
         threading.Thread.__init__(self)
+        self.manager = manager
         self.name = name
         self.polling_interval = polling_interval
         self.stop = False
 
     def polling(self):
         while self.stop is not True:
+
+            interval = 0.0
+            while interval < self.polling_interval:
+                sleep(0.1)
+                interval += 0.1
+                if self.stop is True:
+                    break
+            if self.manager.check_actions_domains_enabled():
+                continue
+
             l = get_domains_with_transitional_status()
 
             list_domains_without_hyp = [d for d in l if 'hyp_started' not in d.keys()]
@@ -72,6 +83,8 @@ class ThreadBroom(threading.Thread):
                 domain_id = d['id']
                 status = d['status']
                 hyp_started = d['hyp_started']
+                if len(hyp_started) == 0:
+                    continue
                 # TODO bug sometimes hyp_started not in hyps_domain_started keys... why?
                 if hyp_started in hyps_domain_started.keys() and len(hyp_started) > 0:
                     if hyps_domain_started[hyp_started] is not False:
@@ -103,22 +116,18 @@ class ThreadBroom(threading.Thread):
                         else:
                             logs.broom.debug('DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} '.format(domain_id, hyp_started))
                 else:
-                    logs.broom.error('hyp_started: {} NOT IN hyps_domain_started keys:'.format(hyp_started))
+                    if len(hyps_domain_started) > 0:
+                        logs.broom.error('hyp_started: {} NOT IN hyps_domain_started keys:'.format(hyp_started))
 
-            interval = 0.0
-            while interval < self.polling_interval:
-                sleep(0.1)
-                interval += 0.1
-                if self.stop is True:
-                    break
+
 
     def run(self):
         self.tid = get_tid()
         logs.broom.info('starting thread: {} (TID {})'.format(self.name, self.tid))
         self.polling()
 
-def launch_thread_broom():
-    t = ThreadBroom(name='broom', polling_interval=POLLING_INTERVAL_TRANSITIONAL_STATES)
+def launch_thread_broom(manager):
+    t = ThreadBroom(name='broom', polling_interval=POLLING_INTERVAL_TRANSITIONAL_STATES,manager=manager)
     t.daemon = True
     t.start()
     return t

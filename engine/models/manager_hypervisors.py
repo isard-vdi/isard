@@ -61,6 +61,9 @@ class ManagerHypervisors(object):
         self.t_downloads_changes = None
         self.quit = False
 
+        self.num_workers = 0
+        self.threads_started = False
+
         self.STATUS_POLLING_INTERVAL = status_polling_interval
         self.TEST_HYP_FAIL_INTERVAL = test_hyp_fail_interval
 
@@ -72,6 +75,12 @@ class ManagerHypervisors(object):
         self.t_background = self.ThreadBackground(name='manager_pooling', parent=self)
         self.t_background.daemon = True
         self.t_background.start()
+
+    def check_actions_domains_enabled(self):
+        if self.num_workers > 0 and self.threads_started is True:
+            return True
+        else:
+            return False
 
     def update_info_threads_engine(self):
         d = {}
@@ -242,7 +251,7 @@ class ManagerHypervisors(object):
                     logs.main.debug('Launching Download Changes Thread')
                     self.manager.t_downloads_changes = launch_thread_download_changes(self.manager)
 
-                    self.manager.t_broom = launch_thread_broom()
+                    self.manager.t_broom = launch_thread_broom(self.manager)
 
                     first_loop = False
 
@@ -256,6 +265,8 @@ class ManagerHypervisors(object):
                                        'not_defined':not_defined})
                         if len(not_defined) == 0 and len(dead) == 0:
                             update_table_field('engine', 'engine', 'status_all_threads', 'Started')
+                            self.manager.num_workers = len(self.manager.t_workers)
+                            self.manager.threads_started = True
                             break
 
                 try:
@@ -311,9 +322,10 @@ class ManagerHypervisors(object):
                 if self.stop is True:
                     break
 
-                if c['new_val']['table'] == 'engine':
-                    if c['new_val']['status_all_threads'] == 'Stopping':
-                        break
+                if c['new_val'] is not None:
+                    if c['new_val']['table'] == 'engine':
+                        if c['new_val']['status_all_threads'] == 'Stopping':
+                            break
 
                 # hypervisor deleted
                 if c['new_val'] is None:
@@ -374,11 +386,24 @@ class ManagerHypervisors(object):
                             continue
 
                 logs.changes.debug('domain changes detected in main thread')
+
+                detail_msg_if_no_hyps_online = 'No hypervisors Online in pool'
+                if self.manager.check_actions_domains_enabled() is False:
+                    if c.get('new_val', None) is not None:
+                        if c.get('old_val', None) is not None:
+                            if c['new_val']['status'][-3:] == 'ing':
+                                update_domain_status(c['old_val']['status'], c['old_val']['id'], detail=detail_msg_if_no_hyps_online)
+
+                    #if no hypervisor availables no check status changes
+                    continue
+
                 new_domain = False
                 new_status = False
                 old_status = False
                 import pprint
                 logs.changes.debug(pprint.pformat(c))
+
+
 
                 # action deleted
                 if c.get('new_val', None) is None:
@@ -389,6 +414,9 @@ class ManagerHypervisors(object):
                     new_status = c['new_val']['status']
                     domain_id = c['new_val']['id']
                     logs.changes.debug('domain_id: {}'.format(new_domain))
+                    # if engine is stopped/restarting or not hypervisors online
+                    if self.manager.check_actions_domains_enabled() is False:
+                        continue
                     pass
 
                 if c.get('new_val', None) is not None and c.get('old_val', None) is not None:
@@ -397,12 +425,15 @@ class ManagerHypervisors(object):
                     new_detail = c['new_val']['detail']
                     domain_id = c['new_val']['id']
                     logs.changes.debug('domain_id: {}'.format(domain_id))
+                    # if engine is stopped/restarting or not hypervisors online
 
-                    if len(self.manager.dict_hyps_ready):
-                        update_domain_status(old_status, domain_id, detail='No hypervisors Online in pool.')
-                        continue
+
+
 
                     if old_status != new_status:
+
+
+
                         # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
                         # if new_status[-3:] == 'ing':
                         if 1 > 0:
@@ -480,10 +511,7 @@ class ManagerHypervisors(object):
 
                 if (old_status == 'Stopped' and new_status == "Starting") or \
                         (old_status == 'Failed' and new_status == "Starting"):
-                    if len(self.manager.dict_hyps_ready):
-                        ui.start_domain_from_id(id=domain_id, ssl=True)
-                    else:
-                        update_domain_status(old_status, domain_id)
+                    ui.start_domain_from_id(id=domain_id, ssl=True)
 
                 if (old_status == 'Started' and new_status == "Stopping" ) or \
                         (old_status == 'Suspended' and new_status == "Stopping" ):

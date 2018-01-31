@@ -120,7 +120,7 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
             else:
                 hostname_external = False
         else:
-            dict_viewer['hostname_external'] = False
+            hostname_external = False
     else:
         hostname = False
         hostname_external = False
