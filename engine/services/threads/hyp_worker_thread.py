@@ -238,5 +238,5 @@ class HypWorkerThread(threading.Thread):
                                 break
         else:
             update_hyp_status(self.hyp_id, 'Error','bios vmx or svm virtualization capabilities not activated')
-            update_table_field('hypervisor',self.hyp_id,'enabled',False)
+            update_table_field('hypervisors',self.hyp_id,'enabled',False)
             requests.get('http://localhost:5555/restart_engine',timeout=3)
