@@ -1118,7 +1118,7 @@ class isard():
     HELPERS
     '''
 
-    def get_viewer_hostname(viewer,remote_addr):
+    def get_viewer_hostname(self,viewer,remote_addr):
         if remote_addr is False: return viewer['hostname'] 
         if IPAddress(remote_addr).is_private() or not 'hostname_external' in viewer.keys():
             return viewer['hostname']

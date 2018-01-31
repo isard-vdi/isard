@@ -408,7 +408,8 @@ def socketio_hyper_add(form_data):
 def socketio_hyper_delete(data):
     if current_user.role == 'admin': 
         # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-        res=app.adminapi.update_table_dict('hypervisors',data['pk'],{'enabled':False,'status':'Deleting'}),
+        res=app.adminapi.hypervisor_delete(data['pk'])
+        # ~ res=app.adminapi.update_table_dict('hypervisors',data['pk'],{'enabled':False,'status':'Deleting'}),
         if res is True:
             info=json.dumps({'result':True,'title':'Hypervisor deletiing','text':'Hypervisor '+data['name']+' deletion on progress. Engine will delete it when no operations pending.','icon':'success','type':'success'})
         else:
