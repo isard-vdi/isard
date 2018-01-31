@@ -293,13 +293,44 @@ function formatHypervisorPanel( d ) {
 }
 
 function setHypervisorDetailButtonsStatus(id,status){
-          if(status=='Deleting'){
-              //~ console.log('status=deleting')
-              $('#delete_btn_text').html('Force delete')
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+          if(status=='Online'){
+              $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', false);
+              //~ $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', false);
+              
           }else{
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+              $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', true);
           } 
+
+
+          if(status=='Offline'){
+              $('#actions-delete-'+id+' *[class^="btn"]').prop('disabled', false);
+              
+          }else{
+              $('#actions-delete-'+id+' *[class^="btn"]').prop('disabled', true);
+          } 
+          
+          //~ if(status=='Online'){
+              //~ $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', false);
+              //~ $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', false);
+              
+          //~ }else{
+              //~ $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', true);
+          //~ } 
+          
+          
+          
+    
+          if(status=='Deleting'){
+                $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', true);
+                $('#delete_btn_text').html('Force delete')
+                $('#actions-delete-'+id+' *[class^="btn"]').prop('disabled', false);
+          }else{
+              $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', false);
+                //~ $('#delete_btn_text').html('Delete')
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+          }
+          
+
 }
 
 function actionsHyperDetail(){
