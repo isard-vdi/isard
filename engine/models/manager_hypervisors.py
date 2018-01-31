@@ -27,13 +27,12 @@ from engine.services.db.hypervisors import get_hyps_ready_to_start, get_hypers_d
 from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_created, \
     set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain
 from engine.services.db.domains import update_domain_status, update_domain_start_after_created, update_domain_delete_after_stopped
-from engine.services.lib.functions import get_threads_running, get_tid
+from engine.services.lib.functions import get_threads_running, get_tid, engine_restart
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
     launch_disk_operations_thread, \
     launch_long_operations_thread
-
 
 class ManagerHypervisors(object):
     def __init__(self, launch_threads=True, with_status_threads=True,
@@ -297,28 +296,47 @@ class ManagerHypervisors(object):
             self.r_conn = new_rethink_connection()
             # rtable=r.table('disk_operations')
             # for c in r.table('hypervisors').changes(include_initial=True, include_states=True).run(r_conn):
-            for c in r.table('hypervisors').merge({'table': 'hypervisors'}).changes().\
+            for c in r.table('hypervisors').pluck('capabilities',
+                                                  'enabled',
+                                                  'hostname',
+                                                  'hypervisors_pools',
+                                                  'port',
+                                                  'user',
+                                                  'viewer_hostname',
+                                                  'viewer_nat_hostname').merge({'table': 'hypervisors'}).changes().\
                     union(r.table('engine').pluck('threads', 'status_all_threads').merge({'table': 'engine'}).changes())\
                     .run(self.r_conn):
 
                 #stop thread
                 if self.stop is True:
                     break
+
                 if c['new_val']['table'] == 'engine':
                     if c['new_val']['status_all_threads'] == 'Stopping':
                         break
 
                 # hypervisor deleted
-                if c['new_val'] is None:
-                    logs.main.info('hypervisor deleted in rethink')
-                    logs.main.info(pprint.pformat(c))
-                    # pprint.pprint(c)
-                    pass
-                # hypervisor created
-                if c['old_val'] is None:
-                    logs.main.info('hypervisor created in rethink')
-                    logs.main.info(pprint.pformat(c))
-                    self.manager.q.background.put({'type': 'add_hyp'})
+                if c['old_val'].get('table',False) == 'hypervisors' or c['new_val'].get('table',False) == 'hypervisors':
+                    if c['new_val'] is None:
+                        logs.main.info('hypervisor deleted in rethink')
+                        logs.main.info(pprint.pformat(c))
+                        #TODO: verify no domains in hypervisor running (front end and backend) and fence or unknown if
+                        # domains are running and hypevisor communication have lost
+                        engine_restart()
+                    # hypervisor created
+                    elif c['old_val'] is None:
+                        logs.main.info('hypervisor created in rethink')
+                        logs.main.info(pprint.pformat(c))
+                        engine_restart()
+                    else:
+
+                        #TODO: verify no domains in hypervisor running (front end and backend) and fence or unknown if
+                        # domains are running and hypevisor communication have lost
+                        logs.main.info('hypervisor fields modified in rethink')
+                        logs.main.info(pprint.pformat(c))
+                        engine_restart()
+
+                        #self.manager.q.background.put({'type': 'add_hyp'})
 
             self.r_conn.close()
 
