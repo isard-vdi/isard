@@ -1059,7 +1059,7 @@ def analize_backing_chains_outputs(array_out_err=[], path_to_write_json=None, pa
 
     return ({'ok': domains_ok, 'err': domains_err})
 
-def restart_engine():
+def engine_restart():
 
-    subprocess.call('curl http://localhost:5555/restart_engine &', shell=True)
+    subprocess.call('curl http://localhost:5555/engine_restart &', shell=True)
     return True

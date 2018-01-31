@@ -79,8 +79,8 @@ def stop_threads():
 
 
 
-@api.route('/restart_engine', methods=['GET'])
-def restart_engine():
+@api.route('/engine_restart', methods=['GET'])
+def engine_restart():
 
     app.m.stop_threads()
 
@@ -101,7 +101,7 @@ def restart_engine():
             delattr(app, 'm')
             app.m = ManagerHypervisors()
             break
-    return jsonify({'restart_engine':True}), 200
+    return jsonify({'engine_restart':True}), 200
 
 @api.route('/engine_info', methods=['GET'])
 def engine_info():

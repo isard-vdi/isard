@@ -16,7 +16,7 @@ from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
 from engine.models.hyp import hyp
 from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, \
     update_domains_started_in_hyp_to_unknown, update_table_field, get_engine
-from engine.services.lib.functions import get_tid, restart_engine
+from engine.services.lib.functions import get_tid, engine_restart
 from engine.services.log import logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_action_disk, RETRIES_HYP_IS_ALIVE, \
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE, launch_delete_media
@@ -244,7 +244,7 @@ class HypWorkerThread(threading.Thread):
             i = 0.0
             while i < timeout:
                 if get_engine()['status_all_threads'] == 'Started':
-                    restart_engine()
+                    engine_restart()
                     break
                 else:
                     i + 0.2
