@@ -325,7 +325,7 @@ class ManagerHypervisors(object):
                         # domains are running and hypevisor communication have lost
                         engine_restart()
                 # hypervisor created
-                elif  c['old_val'] is None:
+                elif c['old_val'] is None:
                     if c['new_val'].get('table',False) == 'hypervisors':
                         logs.main.info('hypervisor created in rethink')
                         logs.main.info(pprint.pformat(c))
@@ -397,6 +397,11 @@ class ManagerHypervisors(object):
                     new_detail = c['new_val']['detail']
                     domain_id = c['new_val']['id']
                     logs.changes.debug('domain_id: {}'.format(domain_id))
+
+                    if len(self.manager.dict_hyps_ready):
+                        update_domain_status(old_status, domain_id, detail='No hypervisors Online in pool.')
+                        continue
+
                     if old_status != new_status:
                         # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
                         # if new_status[-3:] == 'ing':
@@ -475,7 +480,10 @@ class ManagerHypervisors(object):
 
                 if (old_status == 'Stopped' and new_status == "Starting") or \
                         (old_status == 'Failed' and new_status == "Starting"):
-                    ui.start_domain_from_id(id=domain_id, ssl=True)
+                    if len(self.manager.dict_hyps_ready):
+                        ui.start_domain_from_id(id=domain_id, ssl=True)
+                    else:
+                        update_domain_status(old_status, domain_id)
 
                 if (old_status == 'Started' and new_status == "Stopping" ) or \
                         (old_status == 'Suspended' and new_status == "Stopping" ):
