@@ -284,7 +284,7 @@ class hyp(object):
             self.info['virtualization_bios_enabled'] = True
         else:
             self.info['virtualization_bios_enabled'] = False
-            log.error('HYPERVISOR {} have bios vmx or svm virtualization capabilities activated??'-format(self.hostname))
+            log.error('HYPERVISOR {} have bios vmx or svm virtualization capabilities activated??'.format(self.hostname))
 
     def define_and_start_paused_xml(self, xml_text):
         # todo alberto: faltan todas las excepciones, y mensajes de log,
