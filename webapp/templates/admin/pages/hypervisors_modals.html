@@ -42,6 +42,21 @@
 
 			  <div class="x_panel">
 					 <div class="x_title">
+						<h2>External address for client viewers<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content">
+
+ 
+                </div>	
+			  </div>
+              
+			  <div class="x_panel">
+					 <div class="x_title">
 						<h2>Network ssh info<small></small></h2>
 						<ul class="nav navbar-right panel_toolbox">
 						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
@@ -74,6 +89,7 @@
                            <input id="port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="port" placeholder="SSH port" required="required" type="text">
                         </div>
                      </div>
+                                          
                 </div>	
 			  </div>
 
@@ -115,8 +131,19 @@
                                   </ins>
                               </div> Select if can launch desktops
                             </label>
-                          </div>                
+                          </div> 
+                        
+             
+                        
                         </div>
+                         <div class="item form-group">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hostname_external">Client viewers
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="hostname_external" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="hostname_external" placeholder="External reacheable ip/dns name" type="text">
+                            </div>
+                         </div>  
+                                                 
                      </div>
 
 					<div class="item form-group">
