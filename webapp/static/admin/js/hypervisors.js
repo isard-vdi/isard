@@ -184,10 +184,12 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
+        //~ console.log('hyper_data')
         //~ console.log(data)
         var data = JSON.parse(data);
         new_hyper=dtUpdateInsert(table,data,false);
         if(new_hyper){tablepools.draw(false);}
+        setHypervisorDetailButtonsStatus(data.id,data.status)
 		//~ if($("#" + data.id).length == 0) {
 		  //~ //it doesn't exist
 		  //~ table.row.add(data); //.draw();
@@ -202,7 +204,7 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_status', function(data){
-        console.log('status')
+        //~ console.log('status')
         var data = JSON.parse(data);
         table.row('#'+data.hyp_id).data().started_domains=data.domains
         table.row('#'+data.hyp_id).invalidate().draw();
@@ -249,6 +251,8 @@ $(document).ready(function() {
                 opacity: 1,
                 type: data.type
         });
+        table.ajax.reload()
+        tablepools.ajax.reload()        
     });
             
     socket.on('result', function (data) {
@@ -290,6 +294,8 @@ function formatHypervisorPanel( d ) {
 
 function setHypervisorDetailButtonsStatus(id,status){
           if(status=='Deleting'){
+              //~ console.log('status=deleting')
+              $('#delete_btn_text').html('Force delete')
                 $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
           }else{
                 $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
