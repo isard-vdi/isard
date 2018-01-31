@@ -227,7 +227,7 @@ class HypWorkerThread(threading.Thread):
                                 logs.workers.debug('hypervisor {} failed'.format(host))
                                 logs.workers.error('fail reconnecting to hypervisor {} in working thread'.format(host))
                                 reason = self.h.fail_connected_reason
-                                update_hyp_status(self.hyp_id, 'Failed', reason)
+                                update_hyp_status(self.hyp_id, 'Error', reason)
                                 update_domains_started_in_hyp_to_unknown(self.hyp_id)
 
                                 list_works_in_queue = list(self.queue_actions.queue)
@@ -237,6 +237,6 @@ class HypWorkerThread(threading.Thread):
                                 self.active = False
                                 break
         else:
-            update_hyp_status(self.hyp_id, 'Failed','bios vmx or svm virtualization capabilities not activated')
+            update_hyp_status(self.hyp_id, 'Error','bios vmx or svm virtualization capabilities not activated')
             update_table_field('hypervisor',hyp_id,'enabled',False)
             requests.get('http://localhost:5555/restart_engine',timeout=3)

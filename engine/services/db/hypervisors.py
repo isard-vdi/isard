@@ -4,6 +4,7 @@ import time
 import rethinkdb as r
 
 from engine.services.db import new_rethink_connection, close_rethink_connection, MAX_LEN_PREV_STATUS_HYP
+from engine.logs import log
 
 
 # def get_hyp_hostnames():
