@@ -63,7 +63,6 @@ def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=
             'detail': json.dumps(detail)}).run(r_conn)
     else:
         results = rtable.get_all(id_domain, index='id').update({'hyp_started': hyp_id,
-                                                                'hyp_started2': hyp_id,
                                                                 'status': status,
                                                                 'detail': json.dumps(detail)}).run(r_conn)
     if status == 'Stopped':

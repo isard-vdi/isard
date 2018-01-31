@@ -316,27 +316,29 @@ class ManagerHypervisors(object):
                         break
 
                 # hypervisor deleted
-                if c['old_val'].get('table',False) == 'hypervisors' or c['new_val'].get('table',False) == 'hypervisors':
-                    if c['new_val'] is None:
+                if c['new_val'] is None:
+                    if c['old_val'].get('table',False) == 'hypervisors':
+
                         logs.main.info('hypervisor deleted in rethink')
                         logs.main.info(pprint.pformat(c))
                         #TODO: verify no domains in hypervisor running (front end and backend) and fence or unknown if
                         # domains are running and hypevisor communication have lost
                         engine_restart()
-                    # hypervisor created
-                    elif c['old_val'] is None:
+                # hypervisor created
+                elif c['old_val'] is None:
+                    if c['new_val'].get('table',False) == 'hypervisors':
                         logs.main.info('hypervisor created in rethink')
                         logs.main.info(pprint.pformat(c))
                         engine_restart()
-                    else:
-
+                else:
+                    if c['new_val'].get('table', False) == 'hypervisors':
                         #TODO: verify no domains in hypervisor running (front end and backend) and fence or unknown if
                         # domains are running and hypevisor communication have lost
                         logs.main.info('hypervisor fields modified in rethink')
                         logs.main.info(pprint.pformat(c))
                         engine_restart()
 
-                        #self.manager.q.background.put({'type': 'add_hyp'})
+                    #self.manager.q.background.put({'type': 'add_hyp'})
 
             self.r_conn.close()
 
@@ -395,6 +397,11 @@ class ManagerHypervisors(object):
                     new_detail = c['new_val']['detail']
                     domain_id = c['new_val']['id']
                     logs.changes.debug('domain_id: {}'.format(domain_id))
+
+                    if len(self.manager.dict_hyps_ready):
+                        update_domain_status(old_status, domain_id, detail='No hypervisors Online in pool.')
+                        continue
+
                     if old_status != new_status:
                         # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
                         # if new_status[-3:] == 'ing':
@@ -473,7 +480,10 @@ class ManagerHypervisors(object):
 
                 if (old_status == 'Stopped' and new_status == "Starting") or \
                         (old_status == 'Failed' and new_status == "Starting"):
-                    ui.start_domain_from_id(id=domain_id, ssl=True)
+                    if len(self.manager.dict_hyps_ready):
+                        ui.start_domain_from_id(id=domain_id, ssl=True)
+                    else:
+                        update_domain_status(old_status, domain_id)
 
                 if (old_status == 'Started' and new_status == "Stopping" ) or \
                         (old_status == 'Suspended' and new_status == "Stopping" ):

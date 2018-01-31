@@ -101,6 +101,7 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
     #                 'when':now}
 
     r_conn = new_rethink_connection()
+    hostname_external = False
 
     if hyp_id is not False:
         rtable = r.table('hypervisors')
@@ -112,8 +113,17 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
                 hostname = d['hostname']
         else:
             hostname = d['hostname']
+
+        if 'viewer_nat_hostname' in d.keys():
+            if len(d['viewer_nat_hostname']) > 0:
+                hostname_external = d['viewer_nat_hostname']
+            else:
+                hostname_external = False
+        else:
+            dict_viewer['hostname_external'] = False
     else:
         hostname = False
+        hostname_external = False
 
     dict_viewer = {}
     if hostname is not None:
@@ -121,14 +131,7 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
     else:
         dict_viewer['hostname'] = False
 
-    if 'viewer_nat_hostname' in d.keys():
-        if len(d['viewer_nat_hostname']) > 0:
-            dict_viewer['hostname_external'] = d['viewer_nat_hostname']
-        else:
-            dict_viewer['hostname_external'] = False
-    else:
-        dict_viewer['hostname_external'] = False
-
+    dict_viewer['hostname_external'] = hostname_external
     dict_viewer['tlsport'] = tlsport
     dict_viewer['port'] = port
     if passwd is not False:
