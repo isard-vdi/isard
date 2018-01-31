@@ -377,10 +377,15 @@ class isardAdmin():
                             
     def hypervisor_toggle_enabled(self,id):
         with app.app_context():
-            status=not r.table('hypervisors').get(id).run(db.conn)['enabled']
-            # ~ status=False if status else True
-            # ~ print(status)
-            return self.check(r.table('hypervisors').get(id).update({'enabled':status}).run(db.conn),'replaced')
+            is_enabled = r.table('hypervisors').get(id).pluck('enabled').run(db.conn)['enabled']
+            started_domains = r.table('domains').get_all('Started', index='status').filter({'hyp_started':id}).count()
+
+            if started_domains==0 :            
+                status=not is_enabled
+                return self.check(r.table('hypervisors').get(id).update({'enabled':status}).run(db.conn),'replaced')
+            
+            else:
+                return False
                 
     def hypervisor_add(self,dict):
         with app.app_context():
@@ -408,36 +413,33 @@ class isardAdmin():
 
     def hypervisor_delete(self,id):
         with app.app_context():
-            #Check domains on hyper!!!
-            ##### Not done
-            
-            dict=r.table('hypervisors').get(id).run(db.conn)
-            if dict['status']=='Deleting':
-                r.table('hypervisors_events').filter({'hyp_id':id}).delete().run(db.conn)
-                r.table('hypervisors_status').filter({'hyp_id':id}).delete().run(db.conn)
-                r.table('hypervisors_status_history').filter({'hyp_id':id}).delete().run(db.conn)
-                
-                if dict['capabilities']['disk_operations']:
-                    # ~ id=dict['id']
-                    cap_disk=dict['capabilities']['disk_operations']
-                    cap_hyp=dict['capabilities']['hypervisor']
-                    for hp in dict['hypervisors_pools']:
-                        paths=r.table('hypervisors_pools').get(hp).run(db.conn)['paths']
-                        for p in paths:
-                            path_list=[]
-                            for i,path_data in enumerate(paths[p]):
-                                if id in path_data['disk_operations']:
-                                    path_data['disk_operations'].remove(id)
-                                    paths[p][i]['disk_operations']=path_data['disk_operations']
-                        r.table('hypervisors_pools').get(hp).update({'paths':paths}).run(db.conn)
-                return self.check(r.table('hypervisors').get(id).delete().run(db.conn),'deleted')
-                
-                # ~ r.table('hypervisors').get(id).delete().run(db.conn)
-                ### Warning: Restart engine here!
-                # ~ return True
+            started_domains = r.table('domains').get_all('Started', index='status').filter({'hyp_started':id}).count()
+            if started_domains==0:
+                dict=r.table('hypervisors').get(id).run(db.conn)
+                if dict['status']=='Deleting':
+                    r.table('hypervisors_events').filter({'hyp_id':id}).delete().run(db.conn)
+                    r.table('hypervisors_status').filter({'hyp_id':id}).delete().run(db.conn)
+                    r.table('hypervisors_status_history').filter({'hyp_id':id}).delete().run(db.conn)
+                    
+                    if dict['capabilities']['disk_operations']:
+                        # ~ id=dict['id']
+                        cap_disk=dict['capabilities']['disk_operations']
+                        cap_hyp=dict['capabilities']['hypervisor']
+                        for hp in dict['hypervisors_pools']:
+                            paths=r.table('hypervisors_pools').get(hp).run(db.conn)['paths']
+                            for p in paths:
+                                path_list=[]
+                                for i,path_data in enumerate(paths[p]):
+                                    if id in path_data['disk_operations']:
+                                        path_data['disk_operations'].remove(id)
+                                        paths[p][i]['disk_operations']=path_data['disk_operations']
+                            r.table('hypervisors_pools').get(hp).update({'paths':paths}).run(db.conn)
+                    return self.check(r.table('hypervisors').get(id).delete().run(db.conn),'deleted')
+                else:
+                    app.adminapi.update_table_dict('hypervisors',id,{'enabled':False,'status':'Deleting'})
+                    return True
             else:
-                app.adminapi.update_table_dict('hypervisors',id,{'enabled':False,'status':'Deleting'})
-                return True
+                return False
                 
 
     def get_admin_config(self, id=None):
