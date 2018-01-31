@@ -266,6 +266,8 @@ $(document).ready(function() {
                 opacity: 1,
                 type: data.type
         });
+        table.ajax.reload()
+        tablepools.ajax.reload()        
     });
 
     socket.on ('result', function (data) {
