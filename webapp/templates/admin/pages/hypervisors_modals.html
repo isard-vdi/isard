@@ -110,7 +110,7 @@
                           <div class="checkbox">
                             <label class="">
                               <div class="icheckbox_flat-green" style="position: relative;">
-                                  <input type="checkbox" id="capabilities-disk_operations" name="capabilities-disk_operations" class="flat" checked="checked" style="position: absolute; opacity: 0;">
+                                  <input type="checkbox" id="capabilities-disk_operations" name="capabilities-disk_operations" class="flat"  style="position: absolute; opacity: 0;">
                                   <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                   </ins>
                               </div> Select if it can operate disks
@@ -126,28 +126,33 @@
                           <div class="checkbox">
                             <label class="">
                               <div class="icheckbox_flat-green" style="position: relative;">
-                                  <input type="checkbox" id="capabilities-hypervisor" name="capabilities-hypervisor" class="flat" checked="checked" style="position: absolute; opacity: 0;">
+                                  <input type="checkbox" id="capabilities_hypervisor" name="capabilities-hypervisor" class="flat capabilities_hypervisor"  style="position: absolute; opacity: 0;">
                                   <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                   </ins>
                               </div> Select if can launch desktops
                             </label>
                           </div> 
-                        
-             
-                        
-                        </div>
-
-                                                 
+                        </div>                                              
                      </div>
-                     
-                         <div class="item form-group">
-                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hostname_external">Client viewers
+
+                      <div id="viewer_fields" style="display:none;">
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_hostname">Client viewers address
                             </label>
                             <div class="col-md-6 col-sm-6 col-xs-12">
-                               <input id="hostname_external" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="hostname_external" placeholder="External reacheable ip/dns name" type="text">
+                               <input id="viewer_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_hostname" placeholder="External reacheable ip/dns name" type="text">
                             </div>
                          </div>  
-                         
+
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_nat_hostname">Client viewers nat address
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_nat_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_nat_hostname" placeholder="External reacheable ip/dns name" type="text">
+                            </div>
+                         </div>  
+                        </div>
+                                                  
 					<div class="item form-group">
 						<label>Pools:</label>
                             <select class="form-control" id="hypervisors_pools_dropdown" name="hypervisors_pools">

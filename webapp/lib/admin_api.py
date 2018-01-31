@@ -396,8 +396,10 @@ class isardAdmin():
                             if id not in path_data['disk_operations']:
                                 path_data['disk_operations'].append(id)
                                 paths[p][i]['disk_operations']=path_data['disk_operations']
-                r.table('hypervisors_pools').get(hp).update({'paths':paths,'enabled':False}).run(db.conn)
-            return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
+                import pprint
+                pprint.pprint(dict)
+                # ~ r.table('hypervisors_pools').get(hp).update({'paths':paths,'enabled':False}).run(db.conn)
+            # ~ return self.check(r.table('hypervisors').insert(dict).run(db.conn),'inserted')
 
     def hypervisor_pool_add(self,dict):
         with app.app_context():
