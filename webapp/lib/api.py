@@ -883,8 +883,8 @@ class isard():
         ### HTML5 spice dict (isardsocketio)
         try:
             domain =  r.table('domains').get(id).run(db.conn)
-            viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
             if viewer['defaultMode'] == "Secure":
+                viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
                 return {'host':domain['viewer']['hostname'],
                         'kind':domain['hardware']['graphics']['type'],
                         'port':domain['viewer']['port'],

@@ -10,6 +10,10 @@ $hypervisor_template = $(".hyper-detail");
 //~ var table =''
 //~ tablepools=''
 $(document).ready(function() {
+
+
+
+    
 	$('.btn-new-hyper').on('click', function () {
 			$('#modalAddHyper').modal({
 				backdrop: 'static',
@@ -22,6 +26,28 @@ $(document).ready(function() {
 					$("#hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
                 });
             });
+
+            $('.capabilities_hypervisor').on('ifChecked', function(event){
+                $('#viewer_fields').show()
+                if( $('#modalAddHyper #hostname').val()!='' && $('#modalAddHyper #viewer_hostname').val()=='' && $('#modalAddHyper #viewer_nat_hostname').val()==''){
+                    $('#modalAddHyper #viewer_hostname').val($('#modalAddHyper #hostname').val());
+                    $('#modalAddHyper #viewer_nat_hostname').val($('#modalAddHyper #hostname').val());                    
+                }
+                
+
+            });
+
+
+            $('.capabilities_hypervisor').on('ifUnchecked', function(event){
+                $('#viewer_fields').hide()
+                    $('#modalAddHyper #viewer_hostname').val('');
+                    $('#modalAddHyper #viewer_nat_hostname').val('');                 
+                //~ console.log('clicked')
+              //~ alert(event.type + ' callback');
+            });
+                        
+
+            
 	});
 
     $("#modalAddHyper #send").on('click', function(e){
