@@ -316,27 +316,29 @@ class ManagerHypervisors(object):
                         break
 
                 # hypervisor deleted
-                if c['old_val'].get('table',False) == 'hypervisors' or c['new_val'].get('table',False) == 'hypervisors':
-                    if c['new_val'] is None:
+                if c['new_val'] is None:
+                    if c['old_val'].get('table',False) == 'hypervisors':
+
                         logs.main.info('hypervisor deleted in rethink')
                         logs.main.info(pprint.pformat(c))
                         #TODO: verify no domains in hypervisor running (front end and backend) and fence or unknown if
                         # domains are running and hypevisor communication have lost
                         engine_restart()
-                    # hypervisor created
-                    elif c['old_val'] is None:
+                # hypervisor created
+                elif  c['old_val'] is None:
+                    if c['new_val'].get('table',False) == 'hypervisors':
                         logs.main.info('hypervisor created in rethink')
                         logs.main.info(pprint.pformat(c))
                         engine_restart()
-                    else:
-
+                else:
+                    if c['new_val'].get('table', False) == 'hypervisors':
                         #TODO: verify no domains in hypervisor running (front end and backend) and fence or unknown if
                         # domains are running and hypevisor communication have lost
                         logs.main.info('hypervisor fields modified in rethink')
                         logs.main.info(pprint.pformat(c))
                         engine_restart()
 
-                        #self.manager.q.background.put({'type': 'add_hyp'})
+                    #self.manager.q.background.put({'type': 'add_hyp'})
 
             self.r_conn.close()
 
