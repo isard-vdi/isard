@@ -444,8 +444,8 @@ class isardAdmin():
         try:
             partial_dict['url-web']=partial_dict['url']
             del partial_dict['url']
-            filename = partial_dict['url-web'].split('/')[-1]
-            user_data=app.isardapi.user_relative_media_path( username, filename)
+            # ~ filename = partial_dict['url-web'].split('/')[-1]
+            user_data=app.isardapi.user_relative_media_path( username, partial_dict['name'])
             partial_dict={**partial_dict, **user_data}
             missing_keys={  'accessed': time.time(),
                             'detail': 'User added',

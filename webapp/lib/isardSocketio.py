@@ -388,6 +388,9 @@ def socketio_hyper_add(form_data):
 
             if res is True:
                 info=json.dumps({'result':True,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' has been created.','icon':'success','type':'success'})
+                ### Engine restart needed
+                
+                ### Warning
             else:
                 info=json.dumps({'result':False,'title':'New hypervisor','text':'Hypervisor '+create_dict['hostname']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
             socketio.emit('add_form_result',

@@ -15,6 +15,13 @@ $(document).ready(function() {
 				keyboard: false
 			}).modal('show');
             $('#modalAddMediaForm').parsley();
+            $('#modalAddMediaForm #name').focus(function(){
+                console.log(($(this).val()))
+                if($(this).val()=='' && $('#modalAddMediaForm #url').val() !=''){
+                    console.log($('#modalAddMediaForm #url').val())
+                    $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
+                }
+            });
             setAlloweds_add('#alloweds-add');
 	});
 
@@ -42,7 +49,7 @@ $(document).ready(function() {
 				//~ },
             { "data": "icon"},
             { "data": "name"},
-            { "data": "status"},
+            //~ { "data": "status"},
             { "data": null},
                 {"data": null,
                  'defaultContent': ''},  
@@ -59,7 +66,7 @@ $(document).ready(function() {
 							  return renderName(full);
 							}},
                             {
-							"targets": 3,
+							"targets": 2,
 							"render": function ( data, type, full, meta ) {
                                 if(full.status == 'Downloading'){
                                     return renderProgress(full);
@@ -68,7 +75,7 @@ $(document).ready(function() {
                                 return ''
 							}},
                             {
-							"targets": 4,
+							"targets": 3,
 							"render": function ( data, type, full, meta ) {                                
                                 if(full.status == 'Available' || full.status == "FailedDownload"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'

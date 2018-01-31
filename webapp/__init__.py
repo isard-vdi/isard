@@ -88,6 +88,10 @@ def send_templates(path):
 def send_bower(path):
     return send_from_directory(os.path.join(app.root_path, 'bower_components'), path)
 
+@app.route('/font-linux/<path:path>')
+def send_font_linux(path):
+    return send_from_directory(os.path.join(app.root_path, 'bower_components/font-linux/assets'), path)
+    
 #~ @app.route('/socket.io')
 #~ def send_socketio(path):
     #~ return send_from_directory(os.path.join(app.root_path, 'bower_components/socket.io-client/lib/socket.js'), path)
