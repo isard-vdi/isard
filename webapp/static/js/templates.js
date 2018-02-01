@@ -6,10 +6,10 @@
 */
 
 var $template='';
-
+var table='';
 $(document).ready(function() {
 	$template = $(".template-detail");
-	var table = $('#templates').DataTable({
+	table = $('#templates').DataTable({
 			"ajax": {
 				"url": "/templates/get",
 				"dataSrc": ""
@@ -258,10 +258,12 @@ function actionsTmplDetail(){
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
 							api.ajax('/template/togglekind','POST',{'pk':pk}).done(function(data) {
-								console.log('data received:'+data);
+								//~ console.log('data received:'+data);
+                                table.ajax.reload()	;
 							});  
 						}).on('pnotify.cancel', function() {
-				});	
+				});
+                
         });
 
 		$('.btn-delete').on('click', function () {

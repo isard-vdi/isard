@@ -414,13 +414,13 @@ class Populate(object):
 
                 if r.table('groups').get('admin').run() is None:
                     self.result(r.table('groups').insert([{'id': 'admin',
-                                                           'name': 'admin',
+                                                           'name': 'Admin',
                                                            'description': 'Administrator',
                                                            'quota': r.table('roles').get('admin').run()['quota']
                                                            }]).run())
                 if r.table('groups').get('users').run() is None:
                     self.result(r.table('groups').insert([{'id': 'local',
-                                                           'name': 'local',
+                                                           'name': 'Local',
                                                            'description': 'Local users',
                                                            'quota': r.table('roles').get('user').run()['quota']
                                                            }]).run())
@@ -434,14 +434,14 @@ class Populate(object):
                                                            }]).run())
                 if r.table('groups').get('disposables').run() is None:
                     self.result(r.table('groups').insert([{'id': 'disposables',
-                                                           'name': 'disposables',
+                                                           'name': 'Disposables',
                                                            'description': 'Disposable desktops',
                                                            'quota': r.table('roles').get('user').run()[
                                                                'quota']
                                                            }]).run())
             if r.table('groups').get('eval').run() is None:
                 self.result(r.table('groups').insert([{'id': 'eval',
-                                                       'name': 'eval',
+                                                       'name': 'Eval',
                                                        'description': 'Evaluator',
                                                        'quota': r.table('roles').get('admin').run()['quota']
                                                        }]).run())

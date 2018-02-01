@@ -58,12 +58,13 @@ def event_stream_templates(username):
 @ownsid
 def templates_kind():
     if request.method == 'POST':
+        
         try:
             args = request.get_json(force=True)
         except:
             args = request.form.to_dict()
         try:
-            if app.isardapi.toggle_template_kind(current_user.username,args['pk']):
+            if app.isardapi.template_kind_toogle(current_user.username,args['pk']):
                 return json.dumps('Updated'), 200, {'ContentType':'application/json'}
             else:
                 return json.dumps('Something went wrong.'), 500, {'ContentType':'application/json'}
