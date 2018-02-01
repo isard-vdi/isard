@@ -18,6 +18,29 @@ def get_last_hyp_status(id):
     else:
         return l[0]
 
+def  update_actual_stats_hyp(id_hyp, hyp_stats, means = {}):
+    d={'id':id_hyp,
+       'now': hyp_stats,
+       'means': means
+       }
+
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors_status')
+
+    rtable.insert(d,conflict='update').run(r_conn, durability="soft", noreply=True)
+    close_rethink_connection(r_conn)
+
+def  update_actual_stats_domain(id_domain, domain_stats, means):
+    d={'id':id_hyp,
+       'now': domain_stats,
+       'means': means
+       }
+
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains_status')
+
+    rtable.insert(d,conflict='update').run(r_conn, durability="soft", noreply=True)
+    close_rethink_connection(r_conn)
 
 def insert_db_hyp_status(dict_hyp_status):
     r_conn = new_rethink_connection()
