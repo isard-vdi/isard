@@ -39,10 +39,50 @@ $(document).ready(function() {
         }
         else {
             // Open this row
-            row.child( formatCategories(row.data()) ).show();
-            editGroup();
+            row.child( formatGroups(row.data()) ).show();
+            //~ editGroup();
             tr.addClass('shown');
         }
     });
+
+	$('.btn-new-group').on('click', function () {
+        setQuotaOptions('#roles-quota');
+			$('#modalAddGroup').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalAddGroupForm')[0].reset();
+            //~ setModalAddUser();
+	});    
+
+    $("#modalAddGroup #send").on('click', function(e){
+            var form = $('#modalAddGroupForm');
+            console.log('inside')
+
+            form.parsley().validate();
+            if (form.parsley().isValid()){
+                data=$('#modalAddGroupForm').serializeObject();
+                console.log(data)
+                data['table']='groups';
+                socket.emit('role_category_group_add',data)  
+            }
+        });     
+    
 });
 
+function formatGroups ( d ) {
+    // `d` is the original data object for the row
+    var cells=''
+            //~ '<div class="btn-group"> \
+                    //~ <button class="btn btn-sm btn-default btn-edit" id="btn-edit" type="button"  data-placement="top" data-toggle="tooltip" data-original-title="Edit"><i class="fa fa-pencil"></i></button> \
+                //~ </div>';
+    for(var k in d){
+		cells+='<tr>'+
+					'<td>'+k+':</td>'+
+					'<td>'+d[k]+'</td>'+
+				'</tr>'
+	}
+    return '<table cellpadding="5" cellspacing="0" border="0" style="padding-left:50px;">'+
+        cells+
+    '</table>';
+}

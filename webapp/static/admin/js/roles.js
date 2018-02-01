@@ -40,7 +40,7 @@ $(document).ready(function() {
         else {
             // Open this row
             row.child( formatRoles(row.data()) ).show();
-            editRole();
+            //~ editRole();
             tr.addClass('shown');
         }
     });
@@ -60,31 +60,22 @@ $(document).ready(function() {
             console.log('inside')
 
             form.parsley().validate();
-            data=$('#modalAddRoleForm').serializeObject();
-            //~ data=replaceAlloweds_arrays(data)
-            console.log(data)
-            //~ socket.emit('domain_virtbuilder_add',data)
-            //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
-            //~ }
+            if (form.parsley().isValid()){
+                data=$('#modalAddRoleForm').serializeObject();
+                console.log(data)
+                data['table']='roles';
+                socket.emit('role_category_group_add',data)  
+            }
         }); 
             
 });
 
 function formatRoles ( d ) {
     // `d` is the original data object for the row
-    var cells='<div class="btn-group"> \
-                    <button class="btn btn-sm btn-default btn-edit" id="btn-edit" type="button"  data-placement="top" data-toggle="tooltip" data-original-title="Edit"><i class="fa fa-pencil"></i></button> \
-               </div>';
+    var cells=''
+            //~ '<div class="btn-group"> \
+                    //~ <button class="btn btn-sm btn-default btn-edit" id="btn-edit" type="button"  data-placement="top" data-toggle="tooltip" data-original-title="Edit"><i class="fa fa-pencil"></i></button> \
+               //~ </div>';
     for(var k in d){
 		cells+='<tr>'+
 					'<td>'+k+':</td>'+

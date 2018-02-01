@@ -526,7 +526,22 @@ def socketio_user_toggle(data):
                         info,
                         namespace='/sio_admins', 
                         room='users')
-                                            
+
+@socketio.on('role_category_group_add', namespace='/sio_admins')
+def socketio_role_category_group_add(form_data):
+    if current_user.role == 'admin': 
+        dict=app.isardapi.f.unflatten_dict(form_data)
+        # ~ print(create_dict)
+        res=app.adminapi.rcg_add(dict)
+        if res is True:
+            data=json.dumps({'result':True,'title':'New user','text':'User '+form_data['name']+' has been created...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':False,'title':'New user','text':'User '+form_data['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='users')
+                        
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')
 def socketio_users_connect():

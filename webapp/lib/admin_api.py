@@ -151,6 +151,12 @@ class isardAdmin():
                 'password': p.encrypt(user['password'])}
         del user['password']
         user={**usr, **user}
+        
+        for k,v in user['quota']['domains'].items():
+            user['quota']['domains'][k]=int(v)
+        for k,v in user['quota']['hardware'].items():
+            user['quota']['hardware'][k]=int(v)     
+                    
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}
@@ -172,6 +178,12 @@ class isardAdmin():
             # ~ usr['id']=user['username']
             del user['password']
             user={**usr, **user}
+            
+            for k,v in user['quota']['domains'].items():
+                user['quota']['domains'][k]=int(v)
+            for k,v in user['quota']['hardware'].items():
+                user['quota']['hardware'][k]=int(v)  
+                        
             qdomains ={'desktops_disk_max': 99999999,  # 100GB
                         'templates_disk_max': 99999999,
                         'isos_disk_max': 99999999}
@@ -189,6 +201,12 @@ class isardAdmin():
                'active': True,
                 'accessed': time.time()}
         user={**usr, **user}
+        
+        for k,v in user['quota']['domains'].items():
+            user['quota']['domains'][k]=int(v)
+        for k,v in user['quota']['hardware'].items():
+            user['quota']['hardware'][k]=int(v)  
+                    
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}
@@ -251,7 +269,19 @@ class isardAdmin():
                 'risky_templates':risky_templates,
                 'others_domains':others_domains}
                     
-
+    def rcg_add(self,dict):
+        table=dict['table']
+        dict.pop('table',None)
+        dict['id']=app.isardapi.parse_string(dict['name'])
+        for k,v in dict['quota']['domains'].items():
+            dict['quota']['domains'][k]=int(v)
+        for k,v in dict['quota']['hardware'].items():
+            dict['quota']['hardware'][k]=int(v)            
+        qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                    'templates_disk_max': 99999999,
+                    'isos_disk_max': 99999999}
+        dict['quota']['domains']={**dict['quota']['domains'], **qdomains}       
+        return self.check(r.table(table).insert(dict).run(db.conn),'inserted')
 
     '''
     DOMAINS
