@@ -358,7 +358,7 @@ class UiActions(object):
                 action['disk_index'] = disk_index_in_bus
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(path_selected, pool=pool_id,
-                                                                        type_path='templates')
+                                                                        type_path=type_path_selected)
 
                 # INFO TO DEVELOPER: falta terminar de ver que hacemos con el pool para crear
                 # discos, debería haber un disk operations por pool
