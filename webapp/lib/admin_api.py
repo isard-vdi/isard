@@ -187,9 +187,7 @@ class isardAdmin():
         p = Password()
         usr = {'kind': 'local',
                'active': True,
-                'accessed': time.time(),
-                'password': p.encrypt(user['password'])}
-        del user['password']
+                'accessed': time.time()}
         user={**usr, **user}
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
