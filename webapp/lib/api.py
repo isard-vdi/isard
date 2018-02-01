@@ -7,7 +7,7 @@
 # coding=utf-8
 import random, queue
 from threading import Thread
-import time, json
+import time, json, sys
 from webapp import app
 from flask_login import current_user
 import rethinkdb as r
@@ -880,11 +880,13 @@ class isard():
     ##### SPICE VIEWER
     
     def get_domain_spice(self, id, remote_addr=False):
-        ### HTML5 spice dict (isardsocketio)
         try:
             domain =  r.table('domains').get(id).run(db.conn)
             
             hostname=self.get_viewer_hostname(domain['viewer'],remote_addr)
+            
+            viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
+            
             if viewer['defaultMode'] == "Secure":
                 viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
                 return {'host':hostname,
@@ -903,6 +905,9 @@ class isard():
                         'domain':'',
                         'passwd':domain['viewer']['passwd']}
         except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            log.error(exc_type, fname, exc_tb.tb_lineno)            
             log.error('Viewer for domain '+id+' exception:'+str(e))
             return False
     
@@ -932,7 +937,7 @@ class isard():
         
     def get_vnc_ticket(self, dict,id,os,remote_addr=False):
         ## Should check if ssl in use: dict['tlsport']:
-        hostname=self.get_viewer_hostname(dict,remote_addr)
+        hostname=dict['host']
         if dict['tlsport']:
             return False
         if os in ['iOS','Windows','Android','Linux', 'generic', None]:
@@ -1049,8 +1054,7 @@ class isard():
         #~ ca = str(self.config['spice']['certificate'])
         #~ if not dict['host'].endswith(str(self.config['spice']['domain'])):
             #~ dict['host']=dict['host']+'.'+self.config['spice']['domain']
-        
-        hostname=self.get_viewer_hostname(dict,remote_addr)
+        hostname=dict['host']
         if not dict['tlsport']:
             ######################
             # Client without TLS #
