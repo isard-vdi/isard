@@ -349,14 +349,24 @@ class Wizard():
             r.db('isard').table('config').get(1).update({'engine':{'api':{'url':url,'web_port':web_port,'token':'fosdem'}}}).run()
         return valid_engine
 
-    def valid_hypervisor(self):
+    def valid_hypervisor(self,remote_addr=False):
         try:
             if r.table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
+                if remote_addr is not False:
+                    self.update_hypervisor_viewer(remote_addr)
                 return True
             return False
         except:
             return False
-                      
+
+    def update_hypervisor_viewer(self,remote_addr):
+        try:
+            if r.table('hypervisors').update({'viewer_hostname':remote_addr}).run() is not None:
+                return True
+            return False
+        except:
+            return False
+            
     def valid_server(self,server=False):
         if server is False: 
             if self.url is not False:
@@ -532,6 +542,7 @@ class Wizard():
             @self.wapp.route('/content', methods=['POST'])
             def wizard_content():
                 global html
+                remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
                 if request.method == 'POST':
                     step=request.form['step_number']
                     if step == '1':
@@ -561,7 +572,7 @@ class Wizard():
                             return html[5]['ko']
                         return html[5]['ok']  
                     if step == '6':
-                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
+                        if not (self.valid_hypervisor(remote_addr) if self.valid_isard_database() else False):
                             return html[6]['ko']
                         return html[6]['ok']  
                         return 'Hypervisor online' 

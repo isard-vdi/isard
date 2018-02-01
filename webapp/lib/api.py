@@ -223,7 +223,7 @@ class isard():
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
         with app.app_context():
-            domain = r.table('domains').get(id).without('xml').run(db.conn)
+            domain = r.table('domains').get(id).without('viewer','xml','history_domain','progress').run(db.conn)
         try:
             if flatten:
                 domain=self.f.flatten_dict(domain)
@@ -243,6 +243,8 @@ class isard():
                                 domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
             log.error('get_domain: '+str(e))
+        import pprint
+        pprint.pprint(domain)
         return domain   
 
     def get_backing_ids(self,id):

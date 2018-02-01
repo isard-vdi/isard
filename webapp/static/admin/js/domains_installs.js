@@ -17,7 +17,7 @@ $(document).ready(function() {
            
 	$('.add-new-virtbuilder').on( 'click', function () {
             $("#modalAddFromBuilder #modalAdd")[0].reset();
-			setHardwareOptions('#modalAddFromBuilder');
+			setHardwareOptions('#modalAddFromBuilder','disk');
 
 			$('#modalAddFromBuilder').modal({
 				backdrop: 'static',
@@ -29,7 +29,7 @@ $(document).ready(function() {
 
 	$('.add-new-media').on( 'click', function () {
             $("#modalAddFromMedia #modalAdd")[0].reset();
-			setHardwareOptions('#modalAddFromMedia');
+			setHardwareOptions('#modalAddFromMedia','iso');
 			$('#modalAddFromMedia').modal({
 				backdrop: 'static',
 				keyboard: false

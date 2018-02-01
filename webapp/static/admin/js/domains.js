@@ -25,7 +25,8 @@ columns= [
 				{ "data": "user"},
 				{ "data": "category"},
 				{ "data": "group"},
-                { "data": "accessed"},
+                { "data": "accessed",
+                 'defaultContent': ''},
                 ]
 if(url!="Desktops"){
     columns.push({"data": "derivates"});
