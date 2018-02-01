@@ -194,6 +194,12 @@ class isardAdmin():
                     'isos_disk_max': 99999999}
         user['quota']['domains']={**qdomains, **user['quota']['domains']}
         return self.check(r.table('users').update(user).run(db.conn),'replaced')
+
+    def user_toggle_active(self,id):
+        with app.app_context():
+            is_active = not r.table('users').get(id).pluck('active').run(db.conn)['active']           
+            return self.check(r.table('users').get(id).update({'active':is_active}).run(db.conn),'replaced')
+           
                     
     def get_admin_user(self):
         with app.app_context():
@@ -202,9 +208,20 @@ class isardAdmin():
 
     def get_admin_users_domains(self):
         with app.app_context():
+            # ~ desk=list(r.table('domains').get_all('desktop', index='kind').run(db.conn))
+            # ~ print(len([d['id'] for d in desk if d['user']=='jvinolas' ]))
+            # ~ pub=r.table('domains').get_all('public_template', index='kind').run(db.conn)
+            # ~ priv=r.table('domains').get_all('user_template', index='kind').run(db.conn)
+            # ~ base=r.table('domains').get_all('base', index='kind').run(db.conn)
             return self.f.table_values_bstrap(
                 r.table("users").merge(lambda user:
                     {
+                        # This order query never ends
+                        # ~ "desktops": r.table("domains").get_all('desktop', index='kind').filter({'user': user['id']}).count(),
+                        # ~ "public_template": r.table("domains").get_all('public_template', index='kind').filter({'user': user['id']}).count(),
+                        # ~ "user_template": r.table("domains").get_all('user_template', index='kind').filter({'user': user['id']}).count(),
+                        # ~ "base": r.table("domains").get_all('base', index='kind').filter({'user': user['id']}).count()
+        
                         "desktops": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'desktop'}).count(),
                         "public_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'public_template'}).count(),
                         "user_template": r.table("domains").get_all(user['id'], index='user').filter({'kind': 'user_template'}).count(),

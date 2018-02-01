@@ -42,8 +42,6 @@ $(document).ready(function() {
                 $('#viewer_fields').hide()
                     $('#modalAddHyper #viewer_hostname').val('');
                     $('#modalAddHyper #viewer_nat_hostname').val('');                 
-                //~ console.log('clicked')
-              //~ alert(event.type + ' callback');
             });
                         
 

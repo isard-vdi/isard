@@ -267,7 +267,6 @@ $(document).ready(function() {
                 type: data.type
         });
         table.ajax.reload()
-        tablepools.ajax.reload()        
     });
 
     socket.on ('result', function (data) {
@@ -281,6 +280,7 @@ $(document).ready(function() {
                 opacity: 1,
                 type: data.type
         });
+        table.ajax.reload()
     });    
        
     //~ socket.on('user_quota', function(data) {
@@ -365,7 +365,35 @@ function actionsUserDetail(){
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
 	});
-    
+
+
+		$('.btn-active').on('click', function () {
+                var closest=$(this).closest("div");
+				var pk=closest.attr("data-pk");
+				var name=closest.attr("data-name");
+                new PNotify({
+						title: 'Confirmation Needed',
+							text: "Are you sure you want to enable/disable: "+name+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            console.log({'pk':pk,'name':name})
+                            socket.emit('user_toggle',{'pk':pk,'name':name})
+						}).on('pnotify.cancel', function() {
+                    });	
+                });
+        
 }
 
 function modal_edit_user(id){

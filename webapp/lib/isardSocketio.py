@@ -511,7 +511,22 @@ def socketio_bulkuser_add(form_data):
                         data,
                         namespace='/sio_admins', 
                         room='users')                    
-                    
+
+
+@socketio.on('user_toggle', namespace='/sio_admins')
+def socketio_user_toggle(data):
+    if current_user.role == 'admin': 
+        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        res=app.adminapi.user_toggle_active(data['pk'])
+        if res is True:
+            info=json.dumps({'result':True,'title':'User enable/disable','text':'User '+data['name']+' enable/disable success.','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'User enable/disable','text':'User '+data['name']+' could not toggle enable status!','icon':'warning','type':'error'})        
+        socketio.emit('result',
+                        info,
+                        namespace='/sio_admins', 
+                        room='users')
+                                            
 ## Domains namespace
 @socketio.on('connect', namespace='/sio_users')
 def socketio_users_connect():
