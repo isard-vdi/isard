@@ -476,6 +476,8 @@ class hyp(object):
                       'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
                       'net_tx', 'net_rx', ]
 
+            #update_actual_stats_hyp()
+
             #time_delta = timestamp - self.stats_hyp['started']
             self.stats_hyp['near_df'] = self.stats_hyp['near_df'].append(pd.DataFrame(hyp_stats,
                                                                 columns=fields,

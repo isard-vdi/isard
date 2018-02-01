@@ -361,8 +361,8 @@ def get_vv(id_domain):
     if not dict: return False
     config = get_config()
     ca = str(config['spice']['certificate'])
-    if not dict['host'].endswith(str(config['spice']['domain'])):
-        dict['host'] = dict['host'] + '.' + config['spice']['domain']
+    if not dict['hostname'].endswith(str(config['spice']['domain'])):
+        dict['hostname'] = dict['hostname'] + '.' + config['spice']['domain']
     if not dict['tlsport']:
         ######################
         # Consola sense TLS    #
@@ -380,7 +380,7 @@ def get_vv(id_domain):
     delete-this-file=1
     usb-filter=-1,-1,-1,-1,0
     ;tls-ciphers=DEFAULT
-    """ % (dict['kind'], dict['host'], dict['port'], dict['passwd'], id, c)
+    """ % (dict['kind'], dict['hostname'], dict['port'], dict['passwd'], id, c)
 
         consola = consola + """;host-subject=O=%s,CN=%s
     ;ca=%r
@@ -407,7 +407,7 @@ def get_vv(id_domain):
     delete-this-file=1
     usb-filter=-1,-1,-1,-1,0
     tls-ciphers=DEFAULT
-    """ % (dict['kind'], dict['host'], dict['passwd'], dict['tlsport'], id, c)
+    """ % (dict['kind'], dict['hostname'], dict['passwd'], dict['tlsport'], id, c)
 
         consola = consola + """;host-subject=O=%s,CN=%s
     ca=%r
@@ -917,17 +917,17 @@ def try_ssh(hostname, port, user, timeout):
         return False
 
 
-def execute_commands(host, ssh_commands, dict_mode=False, user='root', port=22):
+def execute_commands(hostname, ssh_commands, dict_mode=False, user='root', port=22):
     id = insert_disk_operation({'commands': ssh_commands})
     before = time.time()
     dict_mode = True if type(ssh_commands[0]) is dict else False
     if dict_mode == True:
-        array_out_err = exec_remote_list_of_cmds_dict(host, ssh_commands, username=user, port=port)
+        array_out_err = exec_remote_list_of_cmds_dict(hostname, ssh_commands, username=user, port=port)
     else:
-        array_out_err = exec_remote_list_of_cmds(host, ssh_commands, username=user, port=port)
+        array_out_err = exec_remote_list_of_cmds(hostname, ssh_commands, username=user, port=port)
     after = time.time()
     time_elapsed = after - before
-    update_disk_operation(id, {'time_elapsed': time_elapsed, 'host': host, 'commands': ssh_commands,
+    update_disk_operation(id, {'time_elapsed': time_elapsed, 'host': hostname, 'commands': ssh_commands,
                                'results': array_out_err})
     return array_out_err
 

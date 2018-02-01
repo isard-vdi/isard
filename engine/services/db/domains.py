@@ -600,7 +600,7 @@ def get_domain_spice(id_domain):
         return False
     if 'tlsport' not in domain['viewer'].keys(): domain['viewer']['tlsport'] = False
     if 'port' not in domain['viewer'].keys(): domain['viewer']['port'] = False
-    return {'host': domain['viewer']['hostname'],
+    return {'hostname': domain['viewer']['hostname'],
             'kind': domain['hardware']['graphics']['type'],
             'port': domain['viewer']['port'],
             'tlsport': domain['viewer']['tlsport'],
