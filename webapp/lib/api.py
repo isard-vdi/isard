@@ -333,8 +333,8 @@ class isard():
         with app.app_context():
             return r.table('domains').filter(dict).order_by('name').group('category').pluck({'id','name'}).run(db.conn)
 
-    def toggle_template_kind(self,user,id):
-        if is_user_template(user,id):
+    def template_kind_toogle(self,user,id):
+        if self.is_user_template(user,id):
             allowed={'roles':[],'categories':[],'groups':[],'users':[]}
             kind='public_template'
         else:
