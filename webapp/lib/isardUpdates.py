@@ -58,7 +58,7 @@ class Updates(object):
                         dict['id']='_'+username+'_'+dict['id']
                         dict['new']=False
                         dict['status']=d['status']    
-                        dict['progress']=d['progress']  
+                        dict['progress']=d.get('progress',False)
                         break
                 else:
                     if d['id']==w['id']:

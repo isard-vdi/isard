@@ -31,7 +31,7 @@ def  update_actual_stats_hyp(id_hyp, hyp_stats, means = {}):
     close_rethink_connection(r_conn)
 
 def  update_actual_stats_domain(id_domain, domain_stats, means):
-    d={'id':id_hyp,
+    d={'id':id_domain,
        'now': domain_stats,
        'means': means
        }

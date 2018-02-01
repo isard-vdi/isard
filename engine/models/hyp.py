@@ -866,7 +866,7 @@ class hyp(object):
                          'long':   self.stats_domains[id_domain]['means_long'],
                          'total':  self.stats_domains[id_domain]['means_total'],
                          'boot':   self.stats_domains[id_domain]['means_boot'] }
-                update_actual_stats_domains(id_domain, s, means)
+                update_actual_stats_domain(id_domain, s, means)
             #for (h in )
 
     def get_eval_statistics(self):
