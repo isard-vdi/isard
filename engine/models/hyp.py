@@ -26,6 +26,7 @@ import pandas as pd
 from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
 from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
+from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain
 from engine.services.log import *
 from engine.config import *
 
@@ -72,6 +73,7 @@ class hyp(object):
         self.info = {}
         self.info_stats = {}
         self.capture_events = capture_events
+        self.id_hyp_rethink = None
 
         self.create_stats_vars()
 
@@ -431,7 +433,8 @@ class hyp(object):
         self.stats_raw_hyp.append(now_raw_stats_hyp)
 
         sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, \
-        sum_disk_rd, sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx = self.process_domains_stats(raw_stats)
+            sum_disk_rd, sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx, \
+            mean_vcpu_load, mean_vcpu_iowait= self.process_domains_stats(raw_stats)
 
         if len(self.stats_raw_hyp) > 1:
             hyp_stats = {}
@@ -467,6 +470,9 @@ class hyp(object):
             hyp_stats['disk_rd_reqs'] = sum_disk_rd_reqs
             hyp_stats['net_tx'] = sum_net_tx
             hyp_stats['net_rx'] = sum_net_rx
+            hyp_stats['vcpus_load'] = mean_vcpu_load
+            hyp_stats['vcpus_iowait'] = mean_vcpu_iowait
+            hyp_stats['timestamp_utc'] = now_raw_stats_hyp['time_utc']
 
             self.stats_hyp_now = hyp_stats.copy()
 
@@ -474,9 +480,9 @@ class hyp(object):
                       'mem_load_rate', 'mem_free_gb', 'mem_cached_rate',
                       'mem_balloon_rate', 'mem_domains_gb', 'mem_domains_max_gb',
                       'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
-                      'net_tx', 'net_rx', ]
+                      'net_tx', 'net_rx', 'vcpus_load', 'vcpus_iowait']
 
-            #update_actual_stats_hyp()
+            # (id_hyp,hyp_stats,timestamp)
 
             #time_delta = timestamp - self.stats_hyp['started']
             self.stats_hyp['near_df'] = self.stats_hyp['near_df'].append(pd.DataFrame(hyp_stats,
@@ -532,6 +538,8 @@ class hyp(object):
         sum_net_rx = 0
         sum_disk_wr_reqs = 0
         sum_disk_rd_reqs = 0
+        mean_vcpu_load = 0
+        mean_vcpu_iowait = 0
 
         for d, raw in d_all_domain_stats.items():
 
@@ -556,6 +564,7 @@ class hyp(object):
                     break
 
                 timestamp = datetime.utcfromtimestamp(current['now_utc_time'])
+                d_stats['time_utc'] = current['now_utc_time']
 
                 sum_vcpus += current['vcpu.current']
 
@@ -588,6 +597,20 @@ class hyp(object):
 
                 sum_memory += mem_used
                 sum_memory_max += mem_max
+
+                vcpu_total_time = 0
+                vcpu_total_wait = 0
+
+                for n in range(current['vcpu.current']):
+                    try:
+                        vcpu_total_time += current['vcpu.' +str(n)+ '.time'] - previous['vcpu.' +str(n)+ '.time']
+                        vcpu_total_wait += current['vcpu.' +str(n)+ '.wait'] - previous['vcpu.' +str(n)+ '.wait']
+                    except KeyError:
+                        vcpu_total_time = 0
+                        vcpu_total_wait = 0
+
+                d_stats['vcpu_load'] = round((vcpu_total_time / (delta * 1e9) / current['vcpu.current'])*100,2)
+                d_stats['vcpu_iowait'] = round((vcpu_total_wait / (delta * 1e9) / current['vcpu.current'])*100,2)
 
                 total_block_wr = 0
                 total_block_wr_reqs = 0
@@ -638,8 +661,16 @@ class hyp(object):
                 self.update_domain_means_and_data_frames(d, d_stats, timestamp)
 
 
+        if len(self.stats_domains_now) > 0:
+            try:
+                mean_vcpu_load = sum([j['vcpu_load'] for j in self.stats_domains_now.values()]) / len(self.stats_domains_now)
+                mean_vcpu_iowait   = sum([j['vcpu_iowait'] for j in self.stats_domains_now.values()]) / len(self.stats_domains_now)
+            except KeyError:
+                mean_vcpu_iowait = 0.0
+                mean_vcpu_load = 0.0
+
         return sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, sum_disk_rd, \
-               sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx
+               sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx, mean_vcpu_load, mean_vcpu_iowait
 
     def update_domain_means_and_data_frames(self, d, d_stats, timestamp):
 
@@ -813,8 +844,30 @@ class hyp(object):
 
         self.process_hypervisor_stats(raw_stats)
 
+        if len(self.stats_hyp_now) > 0:
+            self.send_stats()
+
         return True
 
+    def send_stats(self):
+        #hypervisors
+        send_stats_to_rethink = True
+        if self.id_hyp_rethink is None:
+            self.id_hyp_rethink = get_id_hyp_from_uri('qemu+ssh://root@isard-hypervisor:22/system')
+
+        if send_stats_to_rethink:
+            update_actual_stats_hyp(self.id_hyp_rethink,
+                                    self.stats_hyp_now)
+
+            for id_domain, s in self.stats_domains_now.items():
+
+                means = {'near':   self.stats_domains[id_domain]['means_near'],
+                         'medium': self.stats_domains[id_domain]['means_medium'],
+                         'long':   self.stats_domains[id_domain]['means_long'],
+                         'total':  self.stats_domains[id_domain]['means_total'],
+                         'boot':   self.stats_domains[id_domain]['means_boot'] }
+                update_actual_stats_domains(id_domain, s, means)
+            #for (h in )
 
     def get_eval_statistics(self):
         cpu_percent_free = 100 - self.stats_hyp_now.get('cpu_load', 0)
