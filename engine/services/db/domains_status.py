@@ -46,3 +46,23 @@ def insert_db_domain_status(dict_domain_status):
     rtable.insert(dict_domain_status). \
         run(r_conn, durability="soft", noreply=True)
     close_rethink_connection(r_conn)
+
+
+def get_all_domain_status(name, start=None, stop=None, history=False):
+    r_conn = new_rethink_connection()
+    table = "domains_status" if not history else "domains_status_history"
+    rtable = r.table(table)
+    obj = {'name': name}
+    if start and stop:
+        results = rtable.filter(obj).filter(lambda s: start <= s['when'] and s['when'] <= stop).order_by(
+            r.desc('when')).run(r_conn)
+    elif start:
+        results = rtable.filter(obj).filter(lambda s: start <= s['when']).order_by(r.desc('when')).run(
+            r_conn)
+    elif stop:
+        results = rtable.filter(obj).filter(lambda s: s['when'] <= stop).order_by(r.desc('when')).run(r_conn)
+    else:
+        results = rtable.filter(obj).order_by(r.desc('when')).run(r_conn)
+    results = list(results)
+    close_rethink_connection(r_conn)
+    return results

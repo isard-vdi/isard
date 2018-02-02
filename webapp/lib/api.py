@@ -7,7 +7,7 @@
 # coding=utf-8
 import random, queue
 from threading import Thread
-import time, json
+import time, json, sys
 from webapp import app
 from flask_login import current_user
 import rethinkdb as r
@@ -25,8 +25,14 @@ from netaddr import IPNetwork, IPAddress
 class isard():
     def __init__(self):
         with app.app_context():
-            self.config=r.table('config').get(1).run(db.conn)
-            self.f=flatten()
+            try:
+                self.config=r.table('config').get(1).run(db.conn)
+                self.f=flatten()
+            except Exception as e:
+                log.error('Unable to read config table from RethinkDB isard database')
+                log.error('If you need to recreate isard database you should activate wizard again:')
+                log.error('   REMOVE install/.wizard file  (rm install/.wizard) and start isard again')
+                exit(1)
         pass
 
     #~ GENERIC
@@ -68,6 +74,9 @@ class isard():
             item = table[:-1].capitalize()
             try:
                 if data['name']=='status':
+                    if data['value']=='DownloadAborting':
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' aborting success','text':item+' '+data['pk']+' will be aborted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}                        
                     if data['value']=='Stopping':
                         if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                             return json.dumps({'title':item+' stopping success','text':item+' '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
@@ -88,7 +97,7 @@ class isard():
                             return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                 return json.dumps({'title':'Method not allowd','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
-                print('Error updating desktop status for domain '+data['pk']+': '+str(e))
+                log.error('Error updating status for '+data['pk']+': '+str(e))
                 return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
 
@@ -118,7 +127,7 @@ class isard():
                         return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
             return True
         except Exception as e:
-            print('Error updating domain '+id+' network interface.\n'+str(e))
+            log.error('Error updating domain '+id+' network interface.\n'+str(e))
         return False
 
 
@@ -149,7 +158,7 @@ class isard():
             try:
                 return self.check(r.table(table).insert(dict).run(db.conn),'inserted')
             except Exception as e:
-                print('error:',e)
+                log.error('error add_dict2table:',e)
                 return False
 
     def add_listOfDicts2table(self,list,table):
@@ -157,7 +166,7 @@ class isard():
             try:
                 return self.check(r.table(table).insert(list).run(db.conn),'inserted')
             except Exception as e:
-                print('error:',e)
+                log.error('error listOfDicts2table:',e)
                 return False
                 
     def show_disposable(self,client_ip):
@@ -214,7 +223,7 @@ class isard():
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
         with app.app_context():
-            domain = r.table('domains').get(id).without('xml').run(db.conn)
+            domain = r.table('domains').get(id).without('viewer','xml','history_domain','progress').run(db.conn)
         try:
             if flatten:
                 domain=self.f.flatten_dict(domain)
@@ -233,7 +242,9 @@ class isard():
                             if 'size' in key:
                                 domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
-            print(str(e))
+            log.error('get_domain: '+str(e))
+        import pprint
+        pprint.pprint(domain)
         return domain   
 
     def get_backing_ids(self,id):
@@ -246,6 +257,7 @@ class isard():
                 try:
                     idchain.append(list(r.table("domains").filter(lambda disks: disks['hardware']['disks'][0]['file']==f).pluck('id','name').run(db.conn))[0])
                 except Exception as e:
+                    log.error('get_backing_ids:'+str(e))
                     #~ print(e)
                     break
         return idchain
@@ -261,7 +273,7 @@ class isard():
             desktops=r.table('domains').get_all(user, index='user').filter({'kind': 'desktop'}).count().run(db.conn)
             desktopsup=r.table('domains').get_all(user, index='user').filter({'kind': 'desktop','status':'Started'}).count().run(db.conn)
             templates=r.table('domains').get_all(user, index='user').filter({'kind': 'user_template'}).count().run(db.conn)
-            isos=r.table('isos').get_all(user, index='user').count().run(db.conn)
+            isos=r.table('media').get_all(user, index='user').count().run(db.conn)
             try:
                 qpdesktops=desktops*100/user_obj['quota']['domains']['desktops']
             except Exception as e:
@@ -323,8 +335,8 @@ class isard():
         with app.app_context():
             return r.table('domains').filter(dict).order_by('name').group('category').pluck({'id','name'}).run(db.conn)
 
-    def toggle_template_kind(self,user,id):
-        if is_user_template(user,id):
+    def template_kind_toogle(self,user,id):
+        if self.is_user_template(user,id):
             allowed={'roles':[],'categories':[],'groups':[],'users':[]}
             kind='public_template'
         else:
@@ -702,10 +714,9 @@ class isard():
                 return False
             return True
         
-    def user_relative_iso_path(self, user, filename):
+    def user_relative_media_path(self, user, filename):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-        #~ name=filename.split('.iso')[0]
         parsed_name = self.parse_string(filename)
         if not parsed_name: return False
         id = '_'+user+'_'+parsed_name
@@ -713,9 +724,10 @@ class isard():
         dir_disk, disk_filename = self.get_disk_path(userObj, filename)
         return {'id':id,
                 'name':filename,
-                'path':dir_disk+'/',
-                'filename':filename,
-                'user':user}
+                'path':dir_disk+'/'+filename,
+                'user':user,
+                'category':userObj['category'],
+                'group':userObj['group'],}
         
     def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
         with app.app_context():
@@ -725,7 +737,7 @@ class isard():
             # Checking if domain exists:
             exists=r.table('domains').get(id).run(db.conn)
             if exists is not None: return False
-        if kind=='public_template':
+        if kind=='public_template' or kind=='base':
             ar=[]
             ac=[]
             ag=[]
@@ -807,21 +819,40 @@ class isard():
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
     def new_domain_disposable_from_tmpl(self, client_ip, template):
+        parsed_name = self.parse_string(client_ip)
+        parsed_name = client_ip.replace(".", "_") 
+        old_rnd=False       
         with app.app_context():
+            # Check if exists disposable for that ip (parsed name)
+            exists_domain = list(r.table('domains').filter(lambda domain:
+                                                    domain['id'].match('^_disposable_'+parsed_name+'_')
+                                                ).run(db.conn))
+            if len(exists_domain) > 1:
+                log.error('More than one disposable domain match beginning with _disposable_'+parsed_name)
+                return False
+            if len(exists_domain) == 1:
+                # If only one exists, stop, deleteit!
+                old_rnd=exists_domain[0]['id'].split('_')[-1]
+                r.table('domains').get(exists_domain[0]['id']).update({'status':'StoppingAndDeleting'}).run(db.conn)
+            # Create new disposable
             userObj=r.table('users').get('disposable').pluck('id','category','group').run(db.conn)
             dom=app.isardapi.get_domain(template, flatten=False)
-        #~ log.info('template:'+template)
-        #~ log.info(dom)
+
         parent_disk=dom['hardware']['disks'][0]['file']
         create_dict=dom['create_dict']
 
-        parsed_name = self.parse_string(client_ip)
-        parsed_name = client_ip.replace(".", "_")
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        from string import digits, ascii_lowercase
+        chars = digits + ascii_lowercase
+        new_rnd=old_rnd
+        while new_rnd==old_rnd: new_rnd="".join([random.choice(chars) for i in range(4)])
+        
+        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name+'_'+new_rnd)
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'parent':parent_disk}]
 
-        new_domain={'id': '_disposable_'+parsed_name,
+
+        
+        new_domain={'id': '_disposable_'+parsed_name+'_'+new_rnd,
                   'name': parsed_name,
                   'description': 'Disposable desktop',
                   'kind': 'desktop',
@@ -843,31 +874,44 @@ class isard():
                               'groups': False,
                               'users': False}}
         with app.app_context():
-            return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
+            if self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted'):
+                return new_domain['id']
+            else:
+                return False
 
     ##### SPICE VIEWER
     
-    def get_domain_spice(self, id):
-        ### HTML5 spice dict (isardsocketio)
-        
-        domain =  r.table('domains').get(id).run(db.conn)
-        viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        if viewer['defaultMode'] == "Secure":
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':domain['viewer']['tlsport'],
-                    'ca':viewer['certificate'],
-                    'domain':viewer['domain'],
-                    'passwd':domain['viewer']['passwd']}
-        else:
-            return {'host':domain['viewer']['hostname'],
-                    'kind':domain['hardware']['graphics']['type'],
-                    'port':domain['viewer']['port'],
-                    'tlsport':False,
-                    'ca':'',
-                    'domain':'',
-                    'passwd':domain['viewer']['passwd']}
+    def get_domain_spice(self, id, remote_addr=False):
+        try:
+            domain =  r.table('domains').get(id).run(db.conn)
+            
+            hostname=self.get_viewer_hostname(domain['viewer'],remote_addr)
+            
+            viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
+            
+            if viewer['defaultMode'] == "Secure":
+                viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
+                return {'host':hostname,
+                        'kind':domain['hardware']['graphics']['type'],
+                        'port':domain['viewer']['port'],
+                        'tlsport':domain['viewer']['tlsport'],
+                        'ca':viewer['certificate'],
+                        'domain':viewer['domain'],
+                        'passwd':domain['viewer']['passwd']}
+            else:
+                return {'host':hostname,
+                        'kind':domain['hardware']['graphics']['type'],
+                        'port':domain['viewer']['port'],
+                        'tlsport':False,
+                        'ca':'',
+                        'domain':'',
+                        'passwd':domain['viewer']['passwd']}
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            log.error(exc_type, fname, exc_tb.tb_lineno)            
+            log.error('Viewer for domain '+id+' exception:'+str(e))
+            return False
     
     def get_spice_xpi(self, id):
         ### Dict for XPI viewer (isardSocketio)
@@ -883,21 +927,22 @@ class isard():
 
 
     ######### VIEWER DOWNLOAD FUNCTIONS
-    def get_viewer_ticket(self,id,os='generic'):
-        print(id)
-        print(os)
-        dict = self.get_domain_spice(id)
-        if dict['kind']=='vnc':
-            return self.get_vnc_ticket(dict,os)
-        if dict['kind']=='spice':
-            return self.get_spice_ticket(dict)
+    def get_viewer_ticket(self,id,remote_addr=False,os='generic'):
+        viewer = self.get_domain_spice(id,remote_addr=remote_addr)
+        if viewer is not False:
+            dict=viewer
+            if dict['kind']=='vnc':
+                return self.get_vnc_ticket(dict,id,os,remote_addr=remote_addr)
+            if dict['kind']=='spice':
+                return self.get_spice_ticket(dict,id,remote_addr=remote_addr)
         return False
         
-    def get_vnc_ticket(self, dict,os):
+    def get_vnc_ticket(self, dict,id,os,remote_addr=False):
         ## Should check if ssl in use: dict['tlsport']:
+        hostname=dict['host']
         if dict['tlsport']:
             return False
-        if os in ['iOS','Windows','Android','Linux', None]:
+        if os in ['iOS','Windows','Android','Linux', 'generic', None]:
             consola="""[Connection]
             Host=%s
             Port=%s
@@ -920,12 +965,12 @@ class isard():
             PointerEventInterval=0
             Monitor=
             MenuKey=F8
-            """ % (dict['host'], dict['port'], dict['passwd'])
+            """ % (hostname, dict['port'], dict['passwd'])
             consola = consola.replace("'", "")
             return 'vnc','text/plain',consola
             
         if os in ['MacOS']:
-            vnc="vnc://"+dict['host']+":"+dict['passwd']+"@"+dict['host']+":"+dict['port']
+            vnc="vnc://"+hostname+":"+dict['passwd']+"@"+hostname+":"+dict['port']
             consola="""<?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
             <plist version="1.0">
@@ -1005,12 +1050,13 @@ class isard():
             return 'vncloc','text/plain',consola
         
         
-    def get_spice_ticket(self, dict):
+    def get_spice_ticket(self, dict,id,remote_addr=False):
         #~ dict = self.get_domain_spice(id)
         if not dict: return False
         #~ ca = str(self.config['spice']['certificate'])
         #~ if not dict['host'].endswith(str(self.config['spice']['domain'])):
             #~ dict['host']=dict['host']+'.'+self.config['spice']['domain']
+        hostname=dict['host']
         if not dict['tlsport']:
             ######################
             # Client without TLS #
@@ -1028,7 +1074,7 @@ class isard():
         delete-this-file=1
         usb-filter=-1,-1,-1,-1,0
         ;tls-ciphers=DEFAULT
-        """ % (dict['kind'],dict['host'], dict['port'], dict['passwd'], id, c)
+        """ % (dict['kind'],hostname, dict['port'], dict['passwd'], id, c)
 
             consola = consola + """;host-subject=O=%s,CN=%s
         ;ca=%r
@@ -1055,7 +1101,7 @@ class isard():
         delete-this-file=1
         usb-filter=-1,-1,-1,-1,0
         tls-ciphers=DEFAULT
-        """ % (dict['kind'],dict['host'], dict['passwd'], dict['tlsport'], id, c)
+        """ % (dict['kind'],hostname, dict['passwd'], dict['tlsport'], id, c)
 
             consola = consola + """;host-subject=O=%s,CN=%s
         ca=%r
@@ -1072,16 +1118,26 @@ class isard():
         pw=Password()
         self.update_table_value('users',current_user.id,'password',pw.encrypt(passwd))
         return True
+        
+        
     '''
     HELPERS
     '''
 
+    def get_viewer_hostname(self,viewer,remote_addr):
+        if remote_addr is False: return viewer['hostname'] 
+        if IPAddress(remote_addr).is_private() or not 'hostname_external' in viewer.keys():
+            return viewer['hostname']
+        else:
+            return viewer['hostname_external']
+            
+            
     def parse_string(self, txt):
         import re, unicodedata, locale
         if type(txt) is not str:
             txt = txt.decode('utf-8')
         #locale.setlocale(locale.LC_ALL, 'ca_ES')
-        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$", re.L)
+        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$")
         if not prog.match(txt):
             return False
         else:

@@ -7,26 +7,69 @@
 
 $hypervisor_template = $(".hyper-detail");
 
+//~ var table =''
+//~ tablepools=''
 $(document).ready(function() {
+
+
+
+    
 	$('.btn-new-hyper').on('click', function () {
 			$('#modalAddHyper').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            $("#hypervisors_pools_dropdown").find('option').remove();
+            $("#modalAddHyper #hypervisors_pools_dropdown").find('option').remove();
             api.ajax('/admin/hypervisors_pools','GET','').done(function(pools) {
 				$.each(pools,function(key, value) 
 				{
-					$("#hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
+					$("#modalAddHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
                 });
             });
+
+            $('#modalAddHyper .capabilities_hypervisor').on('ifChecked', function(event){
+                $('#viewer_fields').show()
+                if( $('#modalAddHyper #hostname').val()!='' && $('#modalAddHyper #viewer_hostname').val()=='' && $('#modalAddHyper #viewer_nat_hostname').val()==''){
+                    $('#modalAddHyper #viewer_hostname').val($('#modalAddHyper #hostname').val());
+                    $('#modalAddHyper #viewer_nat_hostname').val($('#modalAddHyper #hostname').val());                    
+                }
+                
+
+            });
+
+
+            $('#modalAddHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
+                $('#modalAddHyper #viewer_fields').hide()
+                    $('#modalAddHyper #modalAddHyper #viewer_hostname').val('');
+                    $('#modalAddHyper #modalAddHyper #viewer_nat_hostname').val('');                 
+            });
+                        
+
+            
 	});
+
+    $("#modalAddHyper #send").on('click', function(e){
+            var form = $('#modalAddHyper #modalAdd');
+            form.parsley().validate();
+            if (form.parsley().isValid()){
+                    data=$('#modalAddHyper #modalAdd').serializeObject();
+                    socket.emit('hyper_add',data)
+            }
+        });
+
+
+
+
+
+
+
+
 
 
       function timestamp() { return (new Date).getTime() / 1000; }
       chart={}
 
-    var table = $('#hypervisors').DataTable( {
+    table = $('#hypervisors').DataTable( {
         "ajax": {
             "url": "/admin/hypervisors/json",
             "dataSrc": ""
@@ -47,12 +90,13 @@ $(document).ready(function() {
             { "data": "id" , "width": "10px" },
             { "data": "enabled", "width": "10px" },
             { "data": "status", "width": "10px" },
+            { "data": "started_domains", "width": "10px", "defaultContent": 0},
             { "data": "hostname", "width": "10px" },
             { "data": "hypervisors_pools", "width": "10px" },
             { "data": "status_time" , "width": "10px" },
             //~ { "data": "description", "visible": false},
             { "data": "description" }],
-			 "order": [[4, 'asc']],
+			 "order": [[5, 'asc']],
 			 "columnDefs": [ {
 							"targets": 2,
 							"render": function ( data, type, full, meta ) {
@@ -64,27 +108,23 @@ $(document).ready(function() {
 							  return renderStatus(full);
 							}},
 							{
-							"targets": 4,
+							"targets": 5,
 							"render": function ( data, type, full, meta ) {
 							  return renderName(full);
 							}},
 							{
-							"targets": 6,
+							"targets": 7,
 							"render": function ( data, type, full, meta ) {
 							  return moment.unix(full.status_time).fromNow();
 							}},
 							{
-							"targets": 7,
+							"targets": 8,
 							"render": function ( data, type, full, meta ) {
 							  return renderGraph(full);
 							}}                            
              ],
              "initComplete": function(settings, json) {
                         this.api().rows().data().each(function(r){
-                            //~ str = JSON.stringify(r);
-                            //~ str = JSON.stringify(r, null, 4);
-                            //~ console.log(str)
-                            console.log('data: '+r.id)
                             chart[r.id]=$("#chart-"+r.id).epoch({
                                             type: "time.line",
                                             axes: ["right"],
@@ -101,7 +141,6 @@ $(document).ready(function() {
                                             ]
                                           });
                         })
-                        console.log(chart)
               }                             
     } );
 
@@ -116,47 +155,29 @@ $(document).ready(function() {
         }
         else {
             // Close other rows
-             if ( table.row( '.shown' ).length ) {
-                      $('.details-control', table.row( '.shown' ).node()).click();
-              }
+             //~ if ( table.row( '.shown' ).length ) {
+                      //~ $('.details-control', table.row( '.shown' ).node()).click();
+              //~ }
             // Open this row
             row.child( formatHypervisorPanel(row.data()) ).show();
             tr.addClass('shown');
             $('#status-detail-'+row.data().id).html(row.data().detail);
+            tableHypervisorDomains(row.data().id);
+            setHypervisorDetailButtonsStatus(row.data().id,row.data().status)
             actionsHyperDetail();
 
         }
     } );
 
-    $("#modalAddHyper #send").on('click', function(e){
-            var form = $('#modalAddHyper #modalAdd');
-            console.log('inside')
-            //~ form.parsley().validate();
-            //~ var queryString = $('#modalAdd').serialize();
-            data=$('#modalAddHyper #modalAdd').serializeObject();
-            console.log(data)
-            socket.emit('hypervisor_add',data)
-            //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
-            //~ }
-        });
+
         
     // SocketIO
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_admins');
      
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['hyper'])
-        console.log('Listening admins namespace');
+        socket.emit('join_rooms',['hyper','domains_stats'])
+        console.log('Listening admins and domains_stats namespace');
     });
 
     socket.on('connect_error', function(data) {
@@ -170,27 +191,30 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
-        console.log('add or update')
+        //~ console.log('hyper_data')
+        //~ console.log(data)
         var data = JSON.parse(data);
-		if($("#" + data.id).length == 0) {
-		  //it doesn't exist
-		  table.row.add(data).draw();
-		}else{
-          //if already exists do an update (ie. connection lost and reconnect)
-          var row = table.row('#'+data.id); 
-          table.row(row).data(data).invalidate();			
-		}
-        table.draw(false);
+        new_hyper=dtUpdateInsert(table,data,false);
+        if(new_hyper){tablepools.draw(false);}
+        setHypervisorDetailButtonsStatus(data.id,data.status)
+		//~ if($("#" + data.id).length == 0) {
+		  //~ //it doesn't exist
+		  //~ table.row.add(data); //.draw();
+          //~ tablepools.draw(false(
+		//~ }else{
+          //~ //if already exists do an update (ie. connection lost and reconnect)
+          //~ var row = table.row('#'+data.id); 
+          //~ data.started_domains = row.data().started_domains
+          //~ table.row(row).data(data).invalidate();			
+		//~ }
+        //~ table.draw(false);
     });
 
     socket.on('hyper_status', function(data){
+        //~ console.log('status')
         var data = JSON.parse(data);
-        //~ str = JSON.stringify(data);
-        //~ str = JSON.stringify(data, null, 4);
-        //~ console.log(str)
-        console.log('status: '+data.hyp_id)
-        console.log('status: '+data['cpu_percent-used'])
-        console.log('status: '+data['load-percent_free'])
+        table.row('#'+data.hyp_id).data().started_domains=data.domains
+        table.row('#'+data.hyp_id).invalidate().draw();
         chart[data.hyp_id].push([
         //~ chart.push([
           { time: timestamp(), y: data['cpu_percent-used']},
@@ -198,10 +222,11 @@ $(document).ready(function() {
         ]);
     });
         
-    socket.on('hyper_delete', function(data){
-        console.log('delete')
+    socket.on('hyper_deleted', function(data){
         var data = JSON.parse(data);
-        var row = table.row('#'+data.id).remove().draw();
+        //~ console.log('hyper deleted:'+data.id)
+        //~ var row = table.row('#'+data.id).remove().draw();
+         
         new PNotify({
                 title: "Hypervisor deleted",
                 text: "Hypervisor "+data.name+" has been deleted",
@@ -211,8 +236,34 @@ $(document).ready(function() {
                 opacity: 1,
                 type: 'success'
         });
+        table.ajax.reload()
+        tablepools.ajax.reload()
     });
-    
+
+    socket.on('add_form_result', function (data) {
+        console.log('received result')
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAddHyper #modalAdd")[0].reset();
+            $("#modalAddHyper").modal('hide');
+            $("#modalEditHyper #modalEdit")[0].reset();
+            $("#modalEditHyper").modal('hide');            
+            //~ $('body').removeClass('modal-open');
+            //~ $('.modal-backdrop').remove();
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+        table.ajax.reload()
+        tablepools.ajax.reload()        
+    });
+            
     socket.on('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -250,12 +301,49 @@ function formatHypervisorPanel( d ) {
 		return $newPanel
 }
 
-function actionsHyperDetail(){
-		$('.btn-edit').on('click', function () {
-            //Not implemented
-			});
+function setHypervisorDetailButtonsStatus(id,status){
+          if(status=='Online'){
+              $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', false);
+              //~ $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', false);
+              
+          }else{
+              $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', true);
+          } 
 
-		$('.btn-kind').on('click', function () {
+
+          if(status=='Offline' || status=='Error'){
+              $('#actions-delete-'+id+' *[class^="btn"]').prop('disabled', false);
+              
+          }else{
+              $('#actions-delete-'+id+' *[class^="btn"]').prop('disabled', true);
+          } 
+          
+          //~ if(status=='Online'){
+              //~ $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', false);
+              //~ $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', false);
+              
+          //~ }else{
+              //~ $('#actions-domains-'+id+' *[class^="btn"]').prop('disabled', true);
+          //~ } 
+          
+          
+          
+    
+          if(status=='Deleting'){
+                $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', true);
+                $('#delete_btn_text').html('Force delete')
+                $('#actions-delete-'+id+' *[class^="btn"]').prop('disabled', false);
+          }else{
+              $('#actions-enable-'+id+' *[class^="btn"]').prop('disabled', false);
+                //~ $('#delete_btn_text').html('Delete')
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+          }
+          
+
+}
+
+function actionsHyperDetail(){
+		$('.btn-enable').on('click', function () {
                 var closest=$(this).closest("div");
 				var pk=closest.attr("data-pk");
 				var name=closest.attr("data-name");
@@ -276,9 +364,7 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-                            console.log(pk);
-							api.ajax('/admin/hypervisors/toggle','POST',{'pk':pk,'name':'enabled'}).done(function(data) {
-							});  
+                            socket.emit('hyper_toggle',{'pk':pk,'name':name})
 						}).on('pnotify.cancel', function() {
                     });	
                 });
@@ -288,7 +374,7 @@ function actionsHyperDetail(){
 				var name=$(this).closest("div").attr("data-name");
 				new PNotify({
 						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete hypervisor: "+name+"?\n",
+							text: "Are you sure you want to delete hypervisor: "+name+"?",
 							hide: false,
 							opacity: 0.9,
 							confirm: {
@@ -303,11 +389,142 @@ function actionsHyperDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/admin/hypervisors_update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-							});  
+                            socket.emit('hyper_delete',{'pk':pk,'name':name})
 						}).on('pnotify.cancel', function() {
 				});	
-			});
+            });  
+
+		$('.btn-domstop').on('click', function () {
+				var pk=$(this).closest("div").attr("data-pk");
+				var name=$(this).closest("div").attr("data-name");
+				new PNotify({
+						title: 'Confirmation Needed',
+							text: "Are you sure you want to FORCE stop all domains in hypervisor: "+name+"?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':false})
+						}).on('pnotify.cancel', function() {
+				});	
+            }); 
+
+		$('.btn-domstop-woviewer').on('click', function () {
+				var pk=$(this).closest("div").attr("data-pk");
+				var name=$(this).closest("div").attr("data-name");
+				new PNotify({
+						title: 'Confirmation Needed',
+							text: "Are you sure you want to FORCE stop all domains in hypervisor "+name+" that doesn't have a client viewer now?",
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':true})
+						}).on('pnotify.cancel', function() {
+				});	
+            });
+            
+
+	$('.btn-edit').on('click', function () {
+				var pk=$(this).closest("div").attr("data-pk");
+				var name=$(this).closest("div").attr("data-name");
+            $("#modalEdit")[0].reset();
+            $("#modalEditHyper #hypervisors_pools_dropdown").find('option').remove();
+            
+			$('#modalEditHyper').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+
+            api.ajax('/admin/tabletest/hypervisors/post','POST',{'id':pk}).done(function(hyp) {
+                console.log(hyp)
+                $('#modalEditHyper #modalEdit #id').val(pk);
+                $('#modalEditHyper #modalEdit #fake_id').val(pk);
+                $('#modalEditHyper #modalEdit #description').val(hyp.description);
+                $('#modalEditHyper #modalEdit #hostname').val(hyp.hostname);
+                $('#modalEditHyper #modalEdit #user').val(hyp.user);
+                $('#modalEditHyper #modalEdit #port').val(hyp.port);
+                if(hyp['capabilities-disk_operations']){
+                    $('#modalEditHyper #modalEdit #capabilities-disk_operations').iCheck('check');
+                }
+                if(hyp['capabilities-hypervisor']){
+                    $('#modalEditHyper #modalEdit #capabilities-hypervisor').iCheck('check');
+                }                
+                //~ $('#modalEditHyper #modalEdit #capabilities-disk_operations').val(hyp['capabilities']['disk_operations']);
+                //~ $('#modalEditHyper #modalEdit #capabilities-hypervisor').val(hyp['capabilities']['hypervisor']);
+                $('#modalEditHyper #modalEdit #viewer_hostname').val(hyp.viewer_hostname);
+                $('#modalEditHyper #modalEdit #viewer_nat_hostname').val(hyp.viewer_nat_hostname);
+                
+            });
+           api.ajax('/admin/hypervisors_pools','GET','').done(function(pools) {
+                
+				$.each(pools,function(key, value) 
+				{
+					$("#modalEditHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
+                });
+                //Set selected!
+                
+            });            
+             //~ $('#hardware-block').hide();
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+
+
+
+            
+            $('#modalEditHyper .capabilities_hypervisor').on('ifChecked', function(event){
+                $('#modalEditHyper #viewer_fields').show()
+                if( $('#modalEditHyper #hostname').val()!='' && $('#modalEditHyper #viewer_hostname').val()=='' && $('#modalEditHyper #viewer_nat_hostname').val()==''){
+                    $('#modalEditHyper #viewer_hostname').val($('#modalEditHyper #hostname').val());
+                    $('#modalEditHyper #viewer_nat_hostname').val($('#modalEditHyper #hostname').val());                    
+                }
+                
+
+            });
+
+
+            $('#modalEditHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
+                $('#modalEditHyper #viewer_fields').hide()
+                    $('#modalEditHyper #viewer_hostname').val('');
+                    $('#modalEditHyper #viewer_nat_hostname').val('');                 
+            });
+            
+            $('#modalEditHyper #send').on('click', function(e){
+                    var form = $('#modalEditHyper #modalEdit');
+                    form.parsley().validate();
+                    if (form.parsley().isValid()){
+                            data=$('#modalEditHyper #modalEdit').serializeObject();
+                            //~ console.log(data)
+                            socket.emit('hyper_edit',data)
+                    }
+                });
+                    
+ 	});                       
+
+            
+	//~ });
+
+                                                
 }
 
 
@@ -358,3 +575,4 @@ function renderStatus(data){
 function renderGraph(data){
     return '<div class="epoch category40" id="chart-'+data.id+'" style="width: 220px; height: 50px;"></div>'
 }
+

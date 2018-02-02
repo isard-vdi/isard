@@ -25,66 +25,14 @@ columns= [
 				{ "data": "user"},
 				{ "data": "category"},
 				{ "data": "group"},
-                { "data": "accessed"},
+                { "data": "accessed",
+                 'defaultContent': ''},
                 ]
 if(url!="Desktops"){
     columns.push({"data": "derivates"});
 }
 
 $(document).ready(function() {
-	//~ $('#test').on( 'click', function () {
-		//~ data={'id':'_eea1554300_LOGO','id2':'_cpr585864606_QWERTT','id3':'_isx47893266_ServerJournal'}
-		//~ console.log('Invisible: '+domains_table.row('#'+data.id).id())
-		//~ console.log('Visible tb: '+domains_table.row('#'+data.id3).id())
-		//~ console.log('Inexistent: '+domains_table.row('#xxxyyy').id())
-		//~ if(typeof(domains_table.row('#'+data.id3).id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
-		//~ if(typeof(domains_table.row('#xxxyyy').id())=='undefined'){console.log('nulo')}else{console.log('gueno')}
-	//~ });
-    modal_add_builder = $('#modal_add_builder').DataTable()
-	initialize_modal_all_builder_events()
-
-    modal_add_install = $('#modal_add_install').DataTable()
-	initialize_modal_all_install_events()
-
-    modal_add_isos = $('#modal_add_isos').DataTable()
-	initialize_modal_all_isos_events()
-           
-	$('.add-new-virtbuilder').on( 'click', function () {
-                                //~ //Remove when engine does the job
-                                    //~ api.ajax('/admin/domains/virtrebuild','GET',{}).done(function(data) {
-                                                //~ console.log(data)
-                                                    //~ });  
-			setHardwareOptions('#modalAddFromBuilder');
-            $("#modalAddFromBuilder #modalAdd")[0].reset();
-			$('#modalAddFromBuilder').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalAddFromBuilder #modalAdd').parsley();
-            modal_add_builder_datatables();
-            //~ modal_add_install_datatables();
-            //~ modal_add_isos_datatables();
-	});
-
-	$('.add-new-iso').on( 'click', function () {
-                                //~ //Remove when engine does the job
-                                    //~ api.ajax('/admin/domains/virtrebuild','GET',{}).done(function(data) {
-                                                //~ console.log(data)
-                                                    //~ });  
-			setHardwareOptions('#modalAddFromIso');
-            $("#modalAddFromIso #modalAdd")[0].reset();
-			$('#modalAddFromIso').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalAddFromIso #modalAdd').parsley();
-            //~ modal_add_builder_datatables();
-            modal_add_install_datatables();
-            modal_add_isos_datatables();
-	});
-
-
-
 
         $template_domain = $(".template-detail-domain");
 
@@ -131,7 +79,11 @@ $(document).ready(function() {
 							{
 							"targets": 10,
 							"render": function ( data, type, full, meta ) {
-							  return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm"); //moment.unix(full.accessed).fromNow();
+                              if ( type === 'display' || type === 'filter' ) {
+                                  return moment.unix(full.accessed).fromNow();
+                              }  
+                              return full.accessed;                                 
+							  //~ return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm"); //moment.unix(full.accessed).fromNow();
 							}},
                             {
 							"targets": 2,
@@ -193,9 +145,14 @@ $(document).ready(function() {
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
 							api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                                $('#mactions option[value="none"]').prop("selected",true);
                 			}); 
 						}).on('pnotify.cancel', function() {
-				});	
+                            $('#mactions option[value="none"]').prop("selected",true);
+				});
+        
+        console.log('done')
+        
     } );
 
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
@@ -287,89 +244,7 @@ $(document).ready(function() {
 				});	
                 break;
             case 'btn-display':
-				if(detectXpiPlugin()){
-					//SPICE-XPI Plugin
-                    if(isXpiBlocked()){
-                            new PNotify({
-                            title: "Plugin blocked",
-                                text: "You should allow SpiceXPI plugin and then reload webpage.",
-                                hide: true,
-                                confirm: {
-                                    confirm: true,
-                                    cancel: false
-                                },
-                                //~ delay: 3000,
-                                icon: 'fa fa-alert-sign',
-                                opacity: 1,
-                                type: 'warning'
-                            });                        
-                    }else{
-                    socket.emit('domain_viewer',{'pk':data['id'],'kind':'xpi'})                       
-                    }
-				}else{
-                        new PNotify({
-                            title: 'Choose display connection',
-                            text: 'Open in browser (html5) or download remote-viewer file.',
-                            icon: 'glyphicon glyphicon-question-sign',
-                            hide: false,
-                            delay: 3000,
-                            confirm: {
-                                confirm: true,
-                                buttons: [
-                                    {
-                                        text: 'HTML5',
-                                        addClass: 'btn-primary',
-                                        click: function(notice){
-                                            notice.update({
-                                                title: 'You choosed html5 viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
-                                                confirm: {
-                                                    confirm: false
-                                                },
-                                                buttons: {
-                                                    closer: true,
-                                                    sticker: false
-                                                }
-                                            });                                            
-                                            socket.emit('domain_viewer',{'pk':data['id'],'kind':'html5'});
-                                        }
-                                    },
-                                    {
-                                        text: 'Download display file',
-                                        click: function(notice){
-                                            notice.update({
-                                                title: 'You choosed to download', text: 'File will be downloaded shortly', icon: true, type: 'info', hide: true,
-                                                confirm: {
-                                                    confirm: false
-                                                },
-                                                buttons: {
-                                                    closer: true,
-                                                    sticker: false
-                                                }
-                                            });
-                                            //~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'file'});
-                                            
-                                                var url = '/desktops/download_viewer/'+getOS()+'/'+data['id'];
-                                                var anchor = document.createElement('a');
-                                                    anchor.setAttribute('href', url);
-                                                    anchor.setAttribute('download', 'console.vv');
-                                                var ev = document.createEvent("MouseEvents");
-                                                    ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                                                    anchor.dispatchEvent(ev);                                              
-                                        }
-                                    },
-                                ]
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            }
-                        });                        
-
-
-					}
+                getClientViewer(data,socket);
                 break;
         }
     });	
@@ -388,6 +263,8 @@ $(document).ready(function() {
       connection_lost();
     });
     
+    startClientViewerSocket(socket);
+    
     socket.on('user_quota', function(data) {
         console.log('Quota update')
         var data = JSON.parse(data);
@@ -397,16 +274,6 @@ $(document).ready(function() {
     socket.on(kind+'_data', function(data){
         var data = JSON.parse(data);
         dtUpdateInsert(domains_table,data,false);
-        //~ applyData(domains_table,data,false)
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ domains_table.row.add(data).draw();
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = domains_table.row('#'+data.id); 
-          //~ domains_table.row(row).data(data).invalidate();			
-		//~ }
-        //~ domains_table.draw(false);
         setDomainDetailButtonsStatus(data.id, data.status);
     });
     
@@ -444,6 +311,9 @@ $(document).ready(function() {
         if(data.result){
             $("#modalAddFromBuilder #modalAdd")[0].reset();
             $("#modalAddFromBuilder").modal('hide');
+            $("#modalAddFromMedia #modalAdd")[0].reset();
+            $("#modalAddFromMedia").modal('hide');   
+            console.log('closed')         
             //~ $('body').removeClass('modal-open');
             //~ $('.modal-backdrop').remove();
         }
@@ -475,72 +345,6 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-
-
-    //~ // Stream domains_source
-	//~ if (!!window.EventSource) {
-	  //~ var domains_source = new EventSource('/admin/stream/domains');
-      //~ console.log('Listening domains...');
-	//~ } else {
-	  // Result to xhr polling :(
-	//~ }
-
-	//~ window.onbeforeunload = function(){
-	  //~ domains_source.close();
-	//~ };
-
-	//~ domains_source.addEventListener('open', function(e) {
-	  //~ // Connection was opened.
-	//~ }, false);
-
-	//~ domains_source.addEventListener('error', function(e) {
-	  //~ if (e.readyState == EventSource.CLOSED) {
-		//~ // Connection was closed.
-	  //~ }
-     
-	//~ }, false);
-
-	//~ domains_source.addEventListener('New', function(e) {
-	  //~ var data = JSON.parse(e.data);
-		//~ if($("#" + data.id).length == 0) {
-		  //~ //it doesn't exist
-		  //~ domains_table.row.add(data).draw();
-            //~ new PNotify({
-                //~ title: "Domain added",
-                //~ text: "Domain "+data.name+" has been created",
-                //~ hide: true,
-                //~ delay: 2000,
-                //~ icon: 'fa fa-success',
-                //~ opacity: 1,
-                //~ type: 'success'
-            //~ });          
-		//~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = table.row('#'+data.id); 
-          //~ domains_table.row(row).data(data);			
-		//~ }
-	//~ }, false);
-
-	//~ domains_source.addEventListener('Status', function(e) {
-          //~ var data = JSON.parse(e.data);
-          //~ var row = domains_table.row('#'+data.id); 
-          //~ domains_table.row(row).data(data);
-          //~ setDomainDetailButtonsStatus(data.id, data.status);
-	//~ }, false);
-
-	//~ domains_source.addEventListener('Deleted', function(e) {
-	  //~ var data = JSON.parse(e.data);
-      //~ var row = table.row('#'+data.id).remove().draw();
-            //~ new PNotify({
-                //~ title: "Domain deleted",
-                //~ text: "Domain "+data.name+" has been deleted",
-                //~ hide: true,
-                //~ delay: 2000,
-                //~ icon: 'fa fa-success',
-                //~ opacity: 1,
-                //~ type: 'info'
-            //~ });
-	//~ }, false);
     
 });
 
@@ -560,6 +364,26 @@ function actionsDomainDetail(){
             modal_edit_desktop_datatables(pk);
 	});
 
+	$('.btn-xml').on('click', function () {
+            var pk=$(this).closest("div").attr("data-pk");
+            $("#modalEditXmlForm")[0].reset();
+			$('#modalEditXml').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalEditXmlForm #id').val(pk);
+            $.ajax({
+                type: "GET",
+                url:"/admin/domains/xml/" + pk,
+                success: function(data)
+                {
+                    var data = JSON.parse(data);
+                    $('#xml').val(data);
+                }				
+            });
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+	});
 
     if(url=="Desktops"){
 
@@ -650,11 +474,14 @@ function setDomainDetailButtonsStatus(id,status){
           }
 }
 	
-function icon(name){
-       if(name=='windows' || name=='linux'){
-           return "<i class='fa fa-"+name+" fa-2x '></i>";
+function icon(data){
+       viewer=""
+       viewerIP="'No client viewer'"
+       if(data['viewer-client_since']){viewer=" style='color:green' ";viewerIP="'Viewer client from IP: "+data['viewer-client_addr']+"'";}
+       if(data.icon=='windows' || data.icon=='linux'){
+           return "<i class='fa fa-"+data.icon+" fa-2x ' "+viewer+" title="+viewerIP+"></i>";
         }else{
-            return "<span class='fl-"+name+" fa-2x'></span>";
+            return "<span class='fl-"+data.icon+" fa-2x' "+viewer+" title="+viewerIP+"></span>";
 		}       
 }
     
@@ -677,7 +504,7 @@ function renderDisplay(data){
 //~ }
                         
 function renderIcon(data){
-		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data)+'</span>'
 }
 
 function renderStatus(data){
@@ -727,10 +554,6 @@ function modal_edit_desktop_datatables(id){
 			$('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
             setHardwareDomainDefaults('#modalEditDesktop', id);
-            //~ $('#modalEditDesktop #hardware-interfaces').val(data['create_dict-hardware-interfaces'][0]);
-            //~ $('#modalEditDesktop #hardware-vcpus').val(data['create_dict-hardware-vcpus']);
-            //~ $hm.value = 5; //parseInt(data['create_dict-hardware-vcpus'])
-            //~ $('#modalEditDesktop #datatables-error-status').val(data);
 		}				
 	});
 }
@@ -745,303 +568,18 @@ function modal_edit_desktop_datatables(id){
             }
         });
 
-
-
-
-// MODAL BUILDER FUNCTIONS
-function initialize_modal_all_builder_events(){
-   $('#modal_add_builder tbody').on( 'click', 'tr', function () {
-        rdata=modal_add_builder.row(this).data()
-        console.log($(this).hasClass('selected'))
-        if ( $(this).hasClass('selected') ) {
-            $(this).removeClass('selected');
-            $('#modal_add_builder').closest('.x_panel').addClass('datatables-error');
-            $('#modalBuilder #datatables-error-status').html('No template selected').addClass('my-error');
-            
-            $('#modalBuilder #builder-id').val('');
-            $('#modalBuilder #icon').val('');
-            $('#modalBuilder #install-id').val('');
-            //~ $('#modalBuilder #btn-hardware').hide();
-            //~ $('#modalBuilder #hardware-block').hide();
-        }
-        else {
-            modal_add_builder.$('tr.selected').removeClass('selected');
-            $(this).addClass('selected');
-            $('#modal_add_builder').closest('.x_panel').removeClass('datatables-error');
-            $('#modalBuilder #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
-            $('#modalBuilder #builder-id').val(rdata['builder-id']);
-            $('#modalBuilder #builder-options').val(rdata['builder-options']);
-            $('#modalBuilder #icon').val(rdata['icon']);
-            $('#modalBuilder #install-id').val(rdata['install-id']);
-                //~ $('#modalAddFromBuilder #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
-        }
-    } );	
-        
-        //~ $("#modalBuilder #btn-hardware").on('click', function(e){
-                //~ $('#modalBuilder #hardware-block').show();
-        //~ });
-
-    $("#modalAddFromBuilder #send").on('click', function(e){
-            var form = $('#modalAddFromBuilder #modalAdd');
-            console.log('inside')
+    $("#modalEditXml #send").on('click', function(e){
+            var form = $('#modalEditXmlForm');
             //~ form.parsley().validate();
-            //~ var queryString = $('#modalAdd').serialize();
-            data=$('#modalAddFromBuilder #modalAdd').serializeObject();
-            console.log(data)
-            socket.emit('domain_virtbuilder_add',data)
             //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
+                    id=$('#modalEditXmlForm #id').val();
+                    xml=$('#modalEditXmlForm #xml').val();
+                    api.ajax('/admin/domains/xml/'+id,'POST',{'xml':xml}).done(function(data) {
+                        $("#modalEditXmlForm")[0].reset();
+                        $("#modalEditXml").modal('hide');
+                        console.log('updated')
+                	}); 
             //~ }
         });
-        
-}
 
-function modal_add_builder_datatables(){
-    modal_add_builder.destroy()
-    $('#modalBuilder #builder-id').val('');
-    $('#modalBuilder #icon').val('');
-    $('#modalBuilder #install-id').val('');
-    $('#modalBuilder #datatables-error-status').empty()
-    
-    $('#modal_add_builder thead th').each( function () {
-        var title = $(this).text();
-        if(title=='Name'){
-            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
-        }
-    } );
-    
-	modal_add_builder = $('#modal_add_builder').DataTable({
-			"ajax": {
-				"url": "/admin/table/builders/get",
-				"dataSrc": ""
-			},
-            "scrollY":        "125px",
-            "scrollCollapse": true,
-            "paging":         false,
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-                "zeroRecords":    "No matching templates found",
-                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
-                "infoEmpty":      "Showing 0 to 0 of 0 templates",
-                "infoFiltered":   "(filtered from _MAX_ total templates)"
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-				{ "data": "name"},
-                //~ { "data": "arch"},
-                //~ { "data": "revision"},
-                //~ { "data": "size"},
-                //~ { "data": "compressed_size"}
-				],
-			 "order": [[0, 'asc']],	
-             "pageLength": 10,	 
-	} );  
-
-    modal_add_builder.columns().every( function () {
-        var that = this;
- 
-        $( 'input', this.header() ).on( 'keyup change', function () {
-            if ( that.search() !== this.value ) {
-                that
-                    .search( this.value )
-                    .draw();
-            }
-        } );
-    } );
-
-}
-
-
-
-// MODAL install FUNCTIONS
-function initialize_modal_all_install_events(){
-   $('#modal_add_install tbody').on( 'click', 'tr', function () {
-        rdata=modal_add_install.row(this).data()
-        console.log($(this).hasClass('selected'))
-        if ( $(this).hasClass('selected') ) {
-            $(this).removeClass('selected');
-            $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
-            $('#modalInstall #datatables-error-status').html('No template selected').addClass('my-error');
-            
-            $('#modalInstall #install').val('');
-            //~ $('#modalInstall #btn-hardware').hide();
-            //~ $('#modalInstall #hardware-block').hide();
-        }
-        else {
-            modal_add_install.$('tr.selected').removeClass('selected');
-            $(this).addClass('selected');
-            $('#modal_add_install').closest('.x_panel').removeClass('datatables-error');
-            $('#modalInstall #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
-            $('#modalInstall #install').val(rdata['id']);
-                //~ $('#modalAddInstall #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddInstall',rdata['id'])
-        }
-    } );	
-        	
-}
-
-function modal_add_install_datatables(){
-    modal_add_install.destroy()
-    $('#modalInstall #install').val('');
-    $('#modalInstall #datatables-error-status').empty()
-    
-    $('#modal_add_install thead th').each( function () {
-        var title = $(this).text();
-        if(title=='Name'){
-            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
-        }
-    } );
-    
-	modal_add_install = $('#modal_add_install').DataTable({
-			"ajax": {
-				"url": "/admin/table/domains_virt_builders/get",
-				"dataSrc": ""
-			},
-            "scrollY":        "125px",
-            "scrollCollapse": true,
-            "paging":         false,
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-                "zeroRecords":    "No matching templates found",
-                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
-                "infoEmpty":      "Showing 0 to 0 of 0 templates",
-                "infoFiltered":   "(filtered from _MAX_ total templates)"
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-				{ "data": "name"},
-                { "data": "vers"},
-				],
-			 "order": [[0, 'asc']],	
-             "pageLength": 10,	 
-	} );  
-
-    modal_add_install.columns().every( function () {
-        var that = this;
- 
-        $( 'input', this.header() ).on( 'keyup change', function () {
-            if ( that.search() !== this.value ) {
-                that
-                    .search( this.value )
-                    .draw();
-            }
-        } );
-    } );
-
-}
-
-
-
-// MODAL ISOS FUNCTIONS
-function initialize_modal_all_isos_events(){
-   $('#modal_add_isos tbody').on( 'click', 'tr', function () {
-        rdata=modal_add_isos.row(this).data()
-        console.log($(this).hasClass('selected'))
-        if ( $(this).hasClass('selected') ) {
-            $(this).removeClass('selected');
-            $('#modal_add_isos').closest('.x_panel').addClass('datatables-error');
-            $('#modalIsos #datatables-error-status').html('No template selected').addClass('my-error');
-            
-            $('#modalIsos #iso').val('');
-            //~ $('#modalIsos #btn-hardware').hide();
-            //~ $('#modalIsos #hardware-block').hide();
-        }
-        else {
-            modal_add_isos.$('tr.selected').removeClass('selected');
-            $(this).addClass('selected');
-            $('#modal_add_isos').closest('.x_panel').removeClass('datatables-error');
-            $('#modalIsos #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
-            $('#modalIsos #iso').val(rdata['id']);
-                //~ $('#modalAddFromBuilder #btn-hardware').show();
-                //~ setHardwareDomainDefaults('#modalAddFromBuilder',rdata['id'])
-        }
-    } );	
-        
-        //~ $("#modalIsos #btn-hardware").on('click', function(e){
-                //~ $('#modalIsos #hardware-block').show();
-        //~ });
-
-    $("#modalAddFromIso #send").on('click', function(e){
-            var form = $('#modalAddFromIso #modalAdd');
-            console.log('inside')
-            //~ form.parsley().validate();
-            //~ var queryString = $('#modalAdd').serialize();
-            data=$('#modalAddFromIso #modalAdd').serializeObject();
-            console.log(data)
-            socket.emit('domain_virtbuilder_add',data)
-            //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
-            //~ }
-        });
-}
-
-function modal_add_isos_datatables(){
-    modal_add_isos.destroy()
-    $('#modalIsos #iso').val('');
-    $('#modalIsos #datatables-error-status').empty()
-    
-    $('#modal_add_isos thead th').each( function () {
-        var title = $(this).text();
-        if(title=='Name'){
-            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
-        }
-    } );
-    
-	modal_add_isos = $('#modal_add_isos').DataTable({
-			"ajax": {
-				"url": "/admin/table/isos/get",
-				"dataSrc": ""
-			},
-            "scrollY":        "125px",
-            "scrollCollapse": true,
-            "paging":         false,
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-                "zeroRecords":    "No matching templates found",
-                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
-                "infoEmpty":      "Showing 0 to 0 of 0 templates",
-                "infoFiltered":   "(filtered from _MAX_ total templates)"
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-				{ "data": "name"}
-				],
-			 "order": [[0, 'asc']],	
-             "pageLength": 10,	 
-	} );  
-
-    modal_add_isos.columns().every( function () {
-        var that = this;
- 
-        $( 'input', this.header() ).on( 'keyup change', function () {
-            if ( that.search() !== this.value ) {
-                that
-                    .search( this.value )
-                    .draw();
-            }
-        } );
-    } );
-
-}
+//~ }

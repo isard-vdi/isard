@@ -19,20 +19,36 @@
 
 import rethinkdb as r
 import configparser
-import os
-try:
-    rcfg = configparser.ConfigParser()
-    rcfg.read(os.path.join(os.path.dirname(__file__),'../isard.conf'))
-except Exception as e:
-    log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
-    sys.exit(0)
+import os, time
+# ~ try:
 
-RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
-RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
-RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
-with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
-    rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
-print(rconfig)
+# ~ except Exception as e:
+    # ~ log.info('The isard.conf file can not be opened. Please start webapp UI interface before engine.')
+    # ~ sys.exit(0)
+
+config_exists=False
+while not config_exists:
+    try:
+        rcfg = configparser.ConfigParser()
+        rcfg.read(os.path.join(os.path.dirname(__file__),'../isard.conf'))        
+        RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
+        RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
+        RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
+        config_exists=True
+    except:
+        print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+        time.sleep(5)
+
+table_exists=False
+while not table_exists:
+    try:
+        with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
+            rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
+        table_exists=True
+    except:
+        print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+        time.sleep(5)
+#print(rconfig)
 
 
 MAX_QUEUE_DOMAINS_STATUS = rconfig['stats']['max_queue_domains_status']
@@ -41,6 +57,7 @@ TIME_BETWEEN_POLLING = rconfig['intervals']['time_between_polling']
 TEST_HYP_FAIL_INTERVAL = rconfig['intervals']['test_hyp_fail']
 POLLING_INTERVAL_BACKGROUND = rconfig['intervals']['background_polling']
 POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig['intervals']['transitional_states_polling']
+GRAFANA = rconfig['grafana']
 
 TRANSITIONAL_STATUS = ('Starting', 'Stopping')
 
@@ -48,9 +65,9 @@ TRANSITIONAL_STATUS = ('Starting', 'Stopping')
 
 CONFIG_DICT = {
 'RETHINKDB':{
-'host':			RETHINK_HOST,
-'port':			RETHINK_PORT,
-'dbname':		RETHINK_DB
+'host':         RETHINK_HOST,
+'port':         RETHINK_PORT,
+'dbname':       RETHINK_DB
 },
 
     # This is important if you want to protect to man in the midle attack

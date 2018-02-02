@@ -101,10 +101,11 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
     #                 'when':now}
 
     r_conn = new_rethink_connection()
+    hostname_external = False
 
     if hyp_id is not False:
         rtable = r.table('hypervisors')
-        d = rtable.get(hyp_id).pluck('viewer_hostname', 'hostname', 'id').run(r_conn)
+        d = rtable.get(hyp_id).pluck('viewer_hostname', 'viewer_nat_hostname','hostname', 'id').run(r_conn)
         if 'viewer_hostname' in d.keys():
             if len(d['viewer_hostname']) > 0:
                 hostname = d['viewer_hostname']
@@ -112,8 +113,17 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
                 hostname = d['hostname']
         else:
             hostname = d['hostname']
+
+        if 'viewer_nat_hostname' in d.keys():
+            if len(d['viewer_nat_hostname']) > 0:
+                hostname_external = d['viewer_nat_hostname']
+            else:
+                hostname_external = False
+        else:
+            hostname_external = False
     else:
-        hostname = None
+        hostname = False
+        hostname_external = False
 
     dict_viewer = {}
     if hostname is not None:
@@ -121,6 +131,7 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
     else:
         dict_viewer['hostname'] = False
 
+    dict_viewer['hostname_external'] = hostname_external
     dict_viewer['tlsport'] = tlsport
     dict_viewer['port'] = port
     if passwd is not False:
@@ -149,6 +160,13 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
 #     close_rethink_connection(r_conn)
 #     return results
 
+
+def get_engine():
+    r_conn = new_rethink_connection()
+    rtable = r.table('engine')
+    engine = list(rtable.run(r_conn))[0]
+    close_rethink_connection(r_conn)
+    return engine
 
 def get_pool(id_pool):
     r_conn = new_rethink_connection()
@@ -317,8 +335,6 @@ def get_domains_from_template_origin():
 def update_table_field(table, id_doc, field, value, merge_dict=True):
     r_conn = new_rethink_connection()
     rtable = r.table(table)
-    print(id_doc)
-    print(field)
     if merge_dict is True:
         result = rtable.get(id_doc).update(
             {field: value}).run(r_conn)
@@ -328,100 +344,32 @@ def update_table_field(table, id_doc, field, value, merge_dict=True):
     close_rethink_connection(r_conn)
     return result
 
-# ~ {
-# ~ "id":  "014d0ca3-10b1-44c1-921f-4d20873c27b1" ,
-# ~ "name":  "wifislax-clone" ,
-# ~ "status": {
-# ~ "cpu_usage": 0.009960226519167989 ,
-# ~ "disk_rw": {
-# ~ "block_r_bytes_per_sec": 0 ,
-# ~ "block_r_reqs_per_sec": 0 ,
-# ~ "block_w_bytes_per_sec": 0 ,
-# ~ "block_w_reqs_per_sec": -4941.498376058712
-# ~ } ,
-# ~ "hyp":  "127.0.0.1" ,
-# ~ "net_rw": {
-# ~ "net_r_bytes_per_sec": 0 ,
-# ~ "net_r_drop_per_sec": 0 ,
-# ~ "net_r_errs_per_sec": 0 ,
-# ~ "net_r_pkts_per_sec": 0 ,
-# ~ "net_w_bytes_per_sec": 0 ,
-# ~ "net_w_drop_per_sec": 0 ,
-# ~ "net_w_errs_per_sec": 0 ,
-# ~ "net_w_pkts_per_sec": 0
-# ~ } ,
-# ~ "procesed_stats": {
-# ~ "block_r_bytes": 4814060 ,
-# ~ "block_r_reqs": 2201 ,
-# ~ "block_w_bytes": 4096 ,
-# ~ "block_w_reqs": 1 ,
-# ~ "cpu_time": 17.380056 ,
-# ~ "net_r_bytes": 28338 ,
-# ~ "net_r_drop": 0 ,
-# ~ "net_r_errs": 0 ,
-# ~ "net_r_pkts": 521 ,
-# ~ "net_w_bytes": 0 ,
-# ~ "net_w_drop": 0 ,
-# ~ "net_w_errs": 0 ,
-# ~ "net_w_pkts": 0 ,
-# ~ "ram_current": 1048576 ,
-# ~ "ram_defined": 1048576 ,
-# ~ "state": 1 ,
-# ~ "vcpus": 2
-# ~ } ,
-# ~ "raw_stats": {
-# ~ "balloon.current": 1048576 ,
-# ~ "balloon.maximum": 1048576 ,
-# ~ "block.0.allocation": 0 ,
-# ~ "block.0.capacity": 1172387840 ,
-# ~ "block.0.fl.reqs": 0 ,
-# ~ "block.0.fl.times": 0 ,
-# ~ "block.0.name":  "hda" ,
-# ~ "block.0.path":  "/libvirt/isos/wifislax-4-11-1-final.iso" ,
-# ~ "block.0.physical": 1172393984 ,
-# ~ "block.0.rd.bytes": 4329708 ,
-# ~ "block.0.rd.reqs": 2111 ,
-# ~ "block.0.rd.times": 1004989488 ,
-# ~ "block.0.wr.bytes": 0 ,
-# ~ "block.0.wr.reqs": 0 ,
-# ~ "block.0.wr.times": 0 ,
-# ~ "block.1.allocation": 396800 ,
-# ~ "block.1.capacity": 10737418240 ,
-# ~ "block.1.fl.reqs": 0 ,
-# ~ "block.1.fl.times": 0 ,
-# ~ "block.1.name":  "hdb" ,
-# ~ "block.1.path":  "/libvirt/qcows/wifislax-clone.qcow2" ,
-# ~ "block.1.physical": 5120466944 ,
-# ~ "block.1.rd.bytes": 484352 ,
-# ~ "block.1.rd.reqs": 90 ,
-# ~ "block.1.rd.times": 189293051 ,
-# ~ "block.1.wr.bytes": 4096 ,
-# ~ "block.1.wr.reqs": 1 ,
-# ~ "block.1.wr.times": 2123723 ,
-# ~ "block.count": 2 ,
-# ~ "cpu.system": 2490000000 ,
-# ~ "cpu.time": 17380056284 ,
-# ~ "cpu.user": 3130000000 ,
-# ~ "net.0.name":  "vnet0" ,
-# ~ "net.0.rx.bytes": 28338 ,
-# ~ "net.0.rx.drop": 0 ,
-# ~ "net.0.rx.errs": 0 ,
-# ~ "net.0.rx.pkts": 521 ,
-# ~ "net.0.tx.bytes": 0 ,
-# ~ "net.0.tx.drop": 0 ,
-# ~ "net.0.tx.errs": 0 ,
-# ~ "net.0.tx.pkts": 0 ,
-# ~ "net.count": 1 ,
-# ~ "state.reason": 1 ,
-# ~ "state.state": 1 ,
-# ~ "vcpu.0.state": 1 ,
-# ~ "vcpu.0.time": 5200000000 ,
-# ~ "vcpu.1.state": 1 ,
-# ~ "vcpu.1.time": 2000000000 ,
-# ~ "vcpu.current": 2 ,
-# ~ "vcpu.maximum": 2
-# ~ } ,
-# ~ "state":  "running" ,
-# ~ "state_reason":  "booted"
-# ~ } ,
-# ~ "when": 1459290773.018546
+def get_user(id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('users')
+
+    dict_user = rtable.get(id).run(r_conn)
+    close_rethink_connection(r_conn)
+    return dict_user
+
+def update_quota_user(id_user,running_desktops, quota_desktops,quota_templates,mem_max,num_cpus):
+    r_conn = new_rethink_connection()
+    rtable = r.table('users')
+
+    d = { 'quota': {'domains': {'desktops': quota_desktops,
+                               'running': running_desktops,
+                               'templates': quota_templates},
+                              'hardware': {'memory': mem_max, 'vcpus': num_cpus}}}
+
+    result = rtable.get(id_user).update(d).run(r_conn)
+
+    close_rethink_connection(r_conn)
+    return result
+
+def remove_media(id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('media')
+
+    result = rtable.get(id).delete().run(r_conn)
+    close_rethink_connection(r_conn)
+    return result

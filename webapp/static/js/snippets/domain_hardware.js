@@ -1,9 +1,10 @@
-	function setHardwareOptions(id){
+	function setHardwareOptions(id,default_boot){
+        default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
 			// id is the main div id containing hardware.html
 			$(id+" #hardware-interfaces").find('option').remove();
 			$(id+" #hardware-graphics").find('option').remove();
             $(id+" #hardware-videos").find('option').remove();
-            $(id+" #hardware-boots").find('option').remove();
+            $(id+" #hardware-boot_order").find('option').remove();
             $(id+" #hypervisors_pools").find('option').remove();
             $(id+" #forced_hyp").find('option').remove();
             
@@ -29,9 +30,11 @@
                 
                 //~ if(hardware.boots.length==1){$(id+" #hardware-boot_order").prop('disabled',true);}
 				$.each(hardware.boots,function(key, value) 
-				{
+				{   
+                    //~ if(value.id=='hd'){value.id='disk'}
 					$(id+" #hardware-boot_order").append('<option value=' + value.id + '>' + value.name + '</option>');
 				});
+                $(id+' #hardware-boot_order option[value="'+default_boot+'"]').prop("selected",true);
                 
                 //~ if(hardware.hypervisors_pools.length==1){$(id+" #hypervisors_pools").prop('disabled',true);}
 				$.each(hardware.hypervisors_pools,function(key, value) 
@@ -61,7 +64,7 @@
 						  }).data("ionRangeSlider").update();
                 if($(id+" #disk_size").length != 0) {
                     if(hardware.user['quota-domains-desktops_disk_max']/1000000>200){
-                        var dsize=200;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
+                        var dsize=80;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
                     $(id+" #disk_size").ionRangeSlider({
                               type: "single",
                               min: 1,
@@ -85,7 +88,13 @@
 				$(div_id+' #hardware-interfaces option[value="'+domain['hardware-interfaces'][0].id+'"]').prop("selected",true);
 				$(div_id+' #hardware-graphics option[value="'+domain['hardware-graphics-type']+'"]').prop("selected",true);
                 $(div_id+' #hardware-videos option[value="'+domain['hardware-video-type']+'"]').prop("selected",true);
+                
+                // Need to talk with engine and change this
+                if(domain['hardware-boot_order'][0]=='hd'){domain['hardware-boot_order'][0]='disk'}
+                if(domain['hardware-boot_order'][0]=='cdrom'){domain['hardware-boot_order'][0]='iso'}
+                if(domain['hardware-boot_order'][0]=='network'){domain['hardware-boot_order'][0]='pxe'}
                 $(div_id+' #hardware-boot_order option[value="'+domain['hardware-boot_order'][0]+'"]').prop("selected",true);
+                
                 $(div_id+' #hypervisors_pools option[value="'+domain['hypervisors_pools'][0]+'"]').prop("selected",true);
                 if(domain['forced_hyp']){
                     $(div_id+' #forced_hyp option[value="'+domain['forced_hyp']+'"]').prop("selected",true);

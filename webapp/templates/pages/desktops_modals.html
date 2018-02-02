@@ -1,67 +1,21 @@
 <style>
-    #modal_add_desktops tbody td {
-        padding: 0px; /* or whatever height you need to make them all consistent */
-    }
-    #modal_add_desktops thead th {
-        padding: 0px; /* or whatever height you need to make them all consistent */
+     [id^=modal_add_] .selected {
+        background-color: #ccccb3 !important;
     }
     
-    table.display thead th {
-        padding:0px;
-    }
-    
+     [id^=modal_add_] tr.even:hover {
+        background-color: #e0e0d1;
+    } 
+
+     [id^=modal_add_] tr.odd:hover {
+        background-color: #ebebe0;
+    }  
 
     .my-error{
       color: #B94A48 !important;
       background-color: #F2DEDE !important;
       border: 1px solid #EED3D7 !important;        
-    }
-        
-
-
-    #modal_add_desktops tbody tr.even:hover, #modal_add_desktops tbody tr.even td.highlighted {
-        background-color: #ECFFB3;
-    }
-
-    #modal_add_desktops tbody tr.odd:hover, #modal_add_desktops tbody tr.odd td.highlighted {
-        background-color: #E6FF99;
-    }
-
-     #modal_add_desktops .selected {
-        background-color: LightGreen !important;
-    }
-    
-     #modal_add_desktops tr.even:hover {
-        background-color: #ECFFB3;
-    }
-
-     #modal_add_desktops tr.even:hover td.sorting_1 {
-        background-color: #DDFF75;
-    }
-
-     #modal_add_desktops tr.even:hover td.sorting_2 {
-        background-color: #E7FF9E;
-    }
-
-     #modal_add_desktops tr.even:hover td.sorting_3 {
-        background-color: #E2FF89;
-    }
-
-     #modal_add_desktops tr.odd:hover {
-        background-color: #E6FF99;
-    }
-
-     #modal_add_desktops tr.odd:hover td.sorting_1 {
-        background-color: #D6FF5C;
-    }
-
-     #modal_add_desktops tr.odd:hover td.sorting_2 {
-        background-color: #E0FF84;
-    }
-
-     #modal_add_desktops tr.odd:hover td.sorting_3 {
-        background-color: #DBFF70;
-    }
+    }    
 </style>
 
 
@@ -276,6 +230,10 @@
 								  </option>
 								  <option value="public_template">Public
 								  </option>
+                                  {% if(current_user.role == 'admin') %}
+								  <option value="base">Base
+								  </option>
+                                  {% endif %}
 							   </select>
 							</div>
 					 </div>

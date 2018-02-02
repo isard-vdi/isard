@@ -1,0 +1,51 @@
+		<div style="display:none">
+            <div class="row template-detail-users">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>User detail <small>Activity report</small></h2>
+                    <ul class="nav navbar-left panel_toolbox">
+
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div> <!-- end x_tittle -->
+                  <div class="x_content">
+                      
+                    <div class="col-md-3 col-sm-3 col-xs-12 profile_left">
+                      <div class="profile_img">
+                        <div id="crop-avatar">
+                          <!-- Current avatar -->
+                          <img class="img-responsive avatar-view" src="/static/img/user.png" alt="Avatar" class="img-circle profile_img">
+                        </div>
+                      </div>
+
+                    </div>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+
+                      <div class="profile_title">
+                        <div class="col-md-6">
+                          <h2>d.name</h2>
+                        </div>
+                        <div class="col-md-6">
+                          <div id="actions-d.id" data-pk="d.id" data-name="d.name" class="pull-right" style="margin-top: 5px; background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #E6E9ED">
+                            <button class="btn btn-success btn-xs pull-right btn-active" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Enable/Disable</button>
+                            <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top"><i class="fa fa-pencil m-right-xs" ></i>Edit</button>
+                            <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
+                          </div>
+                        </div>
+                      </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div id="show-users-quota" style="padding: 5px;">
+                                 <p style="font-size: 18px;margin-bottom:0px;">Quotas</p>
+                                {% include '/snippets/quota_edit.html' %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                  </div> <!-- end x_content -->
+                </div> <!-- end of x_panel -->
+              </div>
+            </div> <!-- end row -->
+        </div>

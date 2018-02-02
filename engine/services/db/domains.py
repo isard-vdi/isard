@@ -4,6 +4,7 @@ import sys
 import time
 
 import rethinkdb as r
+from rethinkdb import ReqlNonExistenceError
 
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import new_rethink_connection, \
@@ -41,7 +42,7 @@ def update_domain_force_hyp(id_domain, hyp_id=None):
     return results
 
 
-def update_domain_status(status, id_domain, hyp_id=None, detail=''):
+def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=False):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
     # INFO TO DEVELOPER TODO: verificar que el estado que te ponen es realmente un estado válido
@@ -49,6 +50,10 @@ def update_domain_status(status, id_domain, hyp_id=None, detail=''):
     # INFO TO DEVELOPER TODO: MOLARÍA GUARDAR UN HISTÓRICO DE LOS ESTADOS COMO EN HYPERVISORES
 
     # INFO TO DEVELOPER: OJO CON hyp_started a None... peligro si alguien lo chafa, por eso estos if/else
+
+    if keep_hyp_id == True:
+        hyp_id = rtable.get(id_domain).pluck('hyp_started').run(r_conn)['hyp_started']
+
 
     if hyp_id is None:
         # print('ojojojo')
@@ -58,7 +63,6 @@ def update_domain_status(status, id_domain, hyp_id=None, detail=''):
             'detail': json.dumps(detail)}).run(r_conn)
     else:
         results = rtable.get_all(id_domain, index='id').update({'hyp_started': hyp_id,
-                                                                'hyp_started2': hyp_id,
                                                                 'status': status,
                                                                 'detail': json.dumps(detail)}).run(r_conn)
     if status == 'Stopped':
@@ -130,6 +134,7 @@ def get_domain_kind(id_domain):
         return ''
 
     return results['kind']
+
 
 
 def get_domain_hyp_started(id_domain):
@@ -222,6 +227,12 @@ def get_domains_with_transitional_status(list_status=TRANSITIONAL_STATUS):
 #         return []
 #     return [d['id'] for d in results]
 
+def update_domain_dict_create_dict(id, create_dict):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    results = rtable.get(id).update({'create_dict': create_dict}).run(r_conn)
+    close_rethink_connection(r_conn)
+    return results
 
 def update_domain_dict_hardware(id, domain_dict, xml=False):
     r_conn = new_rethink_connection()
@@ -424,10 +435,30 @@ def get_domain_status(id):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
 
-    domain_status = rtable.get(id).pluck('status').run(r_conn)
+    try:
+        domain_status = rtable.get(id).pluck('status').run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return None
+
     close_rethink_connection(r_conn)
     return domain_status['status']
 
+def get_if_delete_after_stop(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    try:
+        domain_status = rtable.get(id).pluck('delete_after_stopped').run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False
+
+    close_rethink_connection(r_conn)
+    if domain_status['delete_after_stopped'] is True:
+        return True
+    else:
+        return False
 
 def get_disks_all_domains():
     r_conn = new_rethink_connection()
@@ -440,6 +471,42 @@ def get_disks_all_domains():
     close_rethink_connection(r_conn)
     return tuples_id_disk
 
+def get_domains(user, status=None, origin=None):
+    """
+
+    :param user:
+    :param status:
+    :return:
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    obj = {'user':user}
+    if status:
+        obj['status'] = status
+    if origin:
+        obj['create_dict']={'origin':origin}
+    results = rtable.filter(obj).run(r_conn)
+    results = list(results)
+    close_rethink_connection(r_conn)
+    return results
+
+def get_domains_count(user, status=None, origin=None):
+    """
+
+    :param user:
+    :param status:
+    :return:
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    obj = {'user': user}
+    if status:
+        obj['status'] = status
+    if origin:
+        obj['create_dict'] = {'origin': origin}
+    result = rtable.filter(obj).count().run(r_conn)
+    close_rethink_connection(r_conn)
+    return result
 
 # def exist_domain(id):
 #     """
@@ -456,7 +523,6 @@ def get_disks_all_domains():
 #         return True
 #     else:
 #         return False
-
 
 def insert_domain(dict_domain):
     r_conn = new_rethink_connection()
@@ -497,8 +563,8 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
     else:
         hyp_started = ''
 
-    now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
-
+    #now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
+    now = time.time()
     update_domain_history_status(domain_id=domain_id,
                                  new_status=new_status,
                                  when=now,
@@ -517,6 +583,13 @@ def update_domain_history_status(domain_id, new_status, when, history_domain, de
     close_rethink_connection(r_conn)
     return results
 
+def get_history_domain(domain_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    result = rtable.get(domain_id).pluck('history_domain').run(r_conn)
+    results = list(result['history_domain'])
+    close_rethink_connection(r_conn)
+    return results
 
 def get_domain_spice(id_domain):
     r_conn = new_rethink_connection()
@@ -527,7 +600,7 @@ def get_domain_spice(id_domain):
         return False
     if 'tlsport' not in domain['viewer'].keys(): domain['viewer']['tlsport'] = False
     if 'port' not in domain['viewer'].keys(): domain['viewer']['port'] = False
-    return {'host': domain['viewer']['hostname'],
+    return {'hostname': domain['viewer']['hostname'],
             'kind': domain['hardware']['graphics']['type'],
             'port': domain['viewer']['port'],
             'tlsport': domain['viewer']['tlsport'],
@@ -565,6 +638,35 @@ def get_domains_from_user(user, kind='desktop'):
     close_rethink_connection(r_conn)
     return [{'kind': s['kind'], 'id': s['id'], 'status': s['status'], 'disk': s['hardware']['disks'][0]['file']} for s
             in l]
+
+def get_domains_id(user, id_pool, kind='desktop', origin=None):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    #TODO: filter also by pool
+    obj = {'user': user,
+           'kind':kind}
+    if origin:
+        obj['create_dict'] = {'origin': origin}
+    l = list(rtable.filter(obj).pluck('id').run(r_conn))
+    close_rethink_connection(r_conn)
+    ids = [d['id'] for d in l]
+    return ids
+
+def update_domain_delete_after_stopped(id_domain,do_delete=True):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    rtable.get(id_domain).update(
+        {'delete_after_stopped': do_delete}).run(r_conn)
+    close_rethink_connection(r_conn)
+
+def update_domain_start_after_created(id_domain,do_create=True):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    rtable.get(id_domain).update(
+        {'start_after_created': do_create}).run(r_conn)
+    close_rethink_connection(r_conn)
 
 
 def update_domain_createing_template(id_domain, template_field, status='CreatingTemplate'):

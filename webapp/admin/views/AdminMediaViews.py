@@ -15,15 +15,12 @@ from ...lib import admin_api
 
 app.adminapi = admin_api.isardAdmin()
 
-import rethinkdb as r
-from ...lib.flask_rethink import RethinkDB
-db = RethinkDB(app)
-db.init_app(app)
-
 from .decorators import isAdmin
 
-@app.route('/admin/isos', methods=['POST','GET'])
-def admin_isos():
+@app.route('/admin/media', methods=['POST','GET'])
+@login_required
+@isAdmin
+def admin_media():
     if request.method == 'POST':
         hp=request.form['hypervisors_pools']
         url=request.form['url']
@@ -40,5 +37,5 @@ def admin_isos():
         iso['user']=current_user.username
         if not app.isardapi.add_dict2table(iso,'isos'):
             flash('Something went wrong. Upload task not scheduled')
-        return redirect(url_for('isos_upload'))
-    return render_template('pages/isos.html', nav='Isos')
+        return redirect(url_for('admin_media_upload'))
+    return render_template('admin/pages/media.html', nav='Isos')

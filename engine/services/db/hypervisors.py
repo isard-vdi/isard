@@ -4,6 +4,8 @@ import time
 import rethinkdb as r
 
 from engine.services.db import new_rethink_connection, close_rethink_connection, MAX_LEN_PREV_STATUS_HYP
+from engine.services.log import log
+
 
 
 # def get_hyp_hostnames():
@@ -471,6 +473,20 @@ def get_hypers_in_pool(id_pool='default', only_online=True):
 
     close_rethink_connection(r_conn)
     return hyp_ids
+
+def get_hypers_info(id_pool='default', pluck=None):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+    return_operations = []
+    if not pluck:
+        results = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+             filter({'status': 'Online'}).run(r_conn))
+    else:
+        results = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                 filter({'status': 'Online'}).pluck(pluck).run(r_conn))
+
+    close_rethink_connection(r_conn)
+    return results
 
 
 # def delete_hyp(hyp_id):

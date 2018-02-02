@@ -24,7 +24,7 @@ from engine.services.db.disk_operations import insert_disk_operation, update_dis
 from engine.services.db import update_disk_backing_chain, get_domain, get_disks_all_domains, insert_domain, \
     get_domain_spice, update_domain_createing_template
 from engine.services.db.domains import update_domain_progress, update_domain_status
-from engine.services.log import *
+from engine.services.log import log,logs
 
 
 def check_tables_populated():
@@ -52,12 +52,12 @@ def get_threads_running():
     e = threading.enumerate()
     # l = [t.name for t in e]
     # l.sort()
-    log.debug('parent PID: {}'.format(os.getppid()))
+    logs.threads.debug('parent PID: {}'.format(os.getppid()))
     for t in e:
         if hasattr(t, 'tid'):  # only available on Unix
-            log.debug('Thread running (TID: {}): {}'.format(t.tid, t.name))
+            logs.threads.debug('Thread running (TID: {}): {}'.format(t.tid, t.name))
         else:
-            log.debug('Thread running: {}'.format(t.name))
+            logs.threads.debug('Thread running: {}'.format(t.name))
     return e
 
 
@@ -153,15 +153,20 @@ def test_hypervisor_conn(uri):
         return False
 
 
-def calcule_cpu_stats(start, end, round_digits=3):
+def calcule_cpu_hyp_stats(start, end, round_digits=3):
     diff_time = {}
     percent = {}
     total_diff_time = sum(end.values()) - sum(start.values())
+
+    #sum of all times in all cpus, for example for 12 cpus and 5 seconds between samples
+    #total_diff_time_in_seconds must be 60
+    total_diff_time_in_seconds = total_diff_time / 1000000000
     for k in start.keys():
         diff_time[k] = end[k] - start[k]
         percent[k] = round((diff_time[k] / float(total_diff_time)) * 100.0, round_digits)
     percent['used'] = percent['iowait'] + percent['kernel'] + percent['user']
     return percent, diff_time, total_diff_time
+
 
 
 DEFAULT_SIZE_TO_DISK = '10G'
@@ -245,7 +250,6 @@ def exec_remote_list_of_cmds(hostname, commands, username='root', port=22, sudo=
     client.close()
 
     return returned_array
-
 
 def exec_remote_list_of_cmds_dict(hostname, list_dict_commands, username='root', port=22, ssh_key_str='', sudo=False):
     client = paramiko.SSHClient()
@@ -357,8 +361,8 @@ def get_vv(id_domain):
     if not dict: return False
     config = get_config()
     ca = str(config['spice']['certificate'])
-    if not dict['host'].endswith(str(config['spice']['domain'])):
-        dict['host'] = dict['host'] + '.' + config['spice']['domain']
+    if not dict['hostname'].endswith(str(config['spice']['domain'])):
+        dict['hostname'] = dict['hostname'] + '.' + config['spice']['domain']
     if not dict['tlsport']:
         ######################
         # Consola sense TLS    #
@@ -376,7 +380,7 @@ def get_vv(id_domain):
     delete-this-file=1
     usb-filter=-1,-1,-1,-1,0
     ;tls-ciphers=DEFAULT
-    """ % (dict['kind'], dict['host'], dict['port'], dict['passwd'], id, c)
+    """ % (dict['kind'], dict['hostname'], dict['port'], dict['passwd'], id, c)
 
         consola = consola + """;host-subject=O=%s,CN=%s
     ;ca=%r
@@ -403,7 +407,7 @@ def get_vv(id_domain):
     delete-this-file=1
     usb-filter=-1,-1,-1,-1,0
     tls-ciphers=DEFAULT
-    """ % (dict['kind'], dict['host'], dict['passwd'], dict['tlsport'], id, c)
+    """ % (dict['kind'], dict['hostname'], dict['passwd'], dict['tlsport'], id, c)
 
         consola = consola + """;host-subject=O=%s,CN=%s
     ca=%r
@@ -442,18 +446,18 @@ def new_dict_from_raw_dict_stats(raw_values, round_digits=6):
     r_reqs = 0
     w_reqs = 0
 
-    for i in range(raw_values['block.count']):
-        r_bytes += raw_values['block.' + str(i) + '.rd.bytes']
+    for i in range(raw_values.get('block.count', 0)):
+        r_bytes += raw_values.get('block.' + str(i) + '.rd.bytes', 0)
 
         if 'block.' + str(i) + '.wr.bytes' in raw_values.keys():
-            w_bytes += raw_values['block.' + str(i) + '.wr.bytes']
+            w_bytes += raw_values.get('block.' + str(i) + '.wr.bytes', 0)
         else:
             w_bytes += 0
 
-        r_reqs += raw_values['block.' + str(i) + '.rd.reqs']
+        r_reqs += raw_values.get('block.' + str(i) + '.rd.reqs', 0)
 
         if 'block.' + str(i) + '.wr.reqs' in raw_values.keys():
-            w_reqs += raw_values['block.' + str(i) + '.wr.reqs']
+            w_reqs += raw_values.get('block.' + str(i) + '.wr.reqs', 0)
         else:
             w_reqs += 0
 
@@ -472,15 +476,15 @@ def new_dict_from_raw_dict_stats(raw_values, round_digits=6):
     r_errs = 0
     w_errs = 0
 
-    for i in range(raw_values['net.count']):
-        r_bytes += raw_values['net.' + str(i) + '.rx.bytes']
-        w_bytes += raw_values['net.' + str(i) + '.tx.bytes']
-        r_drop += raw_values['net.' + str(i) + '.rx.drop']
-        w_drop += raw_values['net.' + str(i) + '.tx.drop']
-        r_pkts += raw_values['net.' + str(i) + '.rx.pkts']
-        w_pkts += raw_values['net.' + str(i) + '.tx.pkts']
-        r_errs += raw_values['net.' + str(i) + '.rx.errs']
-        w_errs += raw_values['net.' + str(i) + '.tx.errs']
+    for i in range(raw_values.get('net.count', 0)):
+        r_bytes += raw_values.get('net.' + str(i) + '.rx.bytes', 0)
+        w_bytes += raw_values.get('net.' + str(i) + '.tx.bytes', 0)
+        r_drop += raw_values.get('net.' + str(i) + '.rx.drop', 0)
+        w_drop += raw_values.get('net.' + str(i) + '.tx.drop', 0)
+        r_pkts += raw_values.get('net.' + str(i) + '.rx.pkts', 0)
+        w_pkts += raw_values.get('net.' + str(i) + '.tx.pkts', 0)
+        r_errs += raw_values.get('net.' + str(i) + '.rx.errs', 0)
+        w_errs += raw_values.get('net.' + str(i) + '.tx.errs', 0)
 
     d['net_r_bytes'] = round(r_bytes, 2)
     d['net_w_bytes'] = round(w_bytes, 2)
@@ -913,16 +917,17 @@ def try_ssh(hostname, port, user, timeout):
         return False
 
 
-def execute_commands(host, ssh_commands, dict_mode=False, user='root', port=22):
+def execute_commands(hostname, ssh_commands, dict_mode=False, user='root', port=22):
     id = insert_disk_operation({'commands': ssh_commands})
     before = time.time()
+    dict_mode = True if type(ssh_commands[0]) is dict else False
     if dict_mode == True:
-        array_out_err = exec_remote_list_of_cmds_dict(host, ssh_commands, username=user, port=port)
+        array_out_err = exec_remote_list_of_cmds_dict(hostname, ssh_commands, username=user, port=port)
     else:
-        array_out_err = exec_remote_list_of_cmds(host, ssh_commands, username=user, port=port)
+        array_out_err = exec_remote_list_of_cmds(hostname, ssh_commands, username=user, port=port)
     after = time.time()
     time_elapsed = after - before
-    update_disk_operation(id, {'time_elapsed': time_elapsed, 'host': host, 'commands': ssh_commands,
+    update_disk_operation(id, {'time_elapsed': time_elapsed, 'host': hostname, 'commands': ssh_commands,
                                'results': array_out_err})
     return array_out_err
 
@@ -966,7 +971,6 @@ def check_all_backing_chains(hostname, path_to_write_json=None):
     for domain_id, path_domain_disk in tuples_domain_disk:
         cmds1.append({'title': domain_id, 'cmd': backing_chain_cmd(path_domain_disk)})
         cmds1.append({'title': domain_id, 'cmd': 'stat -c %Y "{}"'.format(path_domain_disk)})
-
 
     pprint(cmds1)
     array_out_err = execute_commands(hostname, cmds1, dict_mode=True)
@@ -1054,3 +1058,8 @@ def analize_backing_chains_outputs(array_out_err=[], path_to_write_json=None, pa
             update_disk_backing_chain(id, 0, l[0]['filename'], l)
 
     return ({'ok': domains_ok, 'err': domains_err})
+
+def engine_restart():
+
+    subprocess.call('curl http://localhost:5555/engine_restart &', shell=True)
+    return True

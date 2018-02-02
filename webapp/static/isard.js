@@ -324,13 +324,16 @@ function dtUpdateInsertoLD(table, data, append){
 
 function dtUpdateInsert(table, data, append){
     //Quickly appends new data rows.  Does not update rows
+    new_id=false
     if(append == true){
         table.rows.add(data);
+        new_id=true
     //Locate and update rows by rowId or add if new
     }else{
 		if(typeof(table.row('#'+data.id).id())=='undefined'){
 			// Does not exists yes
 			table.row.add(data);
+            new_id=true
 		}else{
 			// Exists, do update
 			table.row('#'+data.id).data(data).invalidate();
@@ -339,6 +342,7 @@ function dtUpdateInsert(table, data, append){
  
     //Redraw table maintaining paging
     table.draw(false);
+    return new_id
 }
 
 

@@ -40,6 +40,7 @@ class User(UserMixin):
         self.role = dict['role']
         self.category = dict['category']
         self.group = dict['group']
+        self.path = dict['category']+'/'+dict['group']+'/'+dict['id']+'/'
         self.mail = dict['mail']
         self.quota = dict['quota']
         self.is_admin=True if self.role=='admin' else False
@@ -68,7 +69,7 @@ LOCAL AUTHENTICATION AGAINS RETHINKDB USERS TABLE
 try:
     import ldap
 except Exception as e:
-    log.error('No ldap module found, disabling')
+    log.warning('No ldap module found, disabling ldap authentication')
     
 from ..config.ldapauth import myLdapAuth
 class auth(object):

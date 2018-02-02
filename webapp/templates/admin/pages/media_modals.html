@@ -1,6 +1,6 @@
 
-<div class="modal fade" id="modalAddIso" tabindex="-1" role="dialog" 
-     aria-labelledby="modalAddIso" aria-hidden="true">
+<div class="modal fade" id="modalAddMedia" tabindex="-1" role="dialog" 
+     aria-labelledby="modalAddMedia" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -11,13 +11,13 @@
                        <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i>   Upload ISO
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i>   Upload Media
                 </h4>
             </div>
             
             <!-- Modal Body -->
             <div class="modal-body" style="padding: 7px;">
-              <form id="modalAddIsoForm" class="form-horizontal form-label-left" method="POST" novalidate>
+              <form id="modalAddMediaForm" class="form-horizontal form-label-left" method="POST" novalidate>
 			  <div class="x_panel">
 					<div class="x_content">
                         <input id="id" hidden/>
@@ -28,6 +28,27 @@
                            <input id="url" class="form-control col-md-7 col-xs-12" parsley-trigger="change" parsley-type="url"  name="url" placeholder="http://" required="required" type="text">
                         </div>
                      </div>
+                     
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                          </label>
+                          <div class="col-md-6 col-sm-6 col-xs-12">
+                            <input id="name" class="form-control col-md-7 col-xs-12"  pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="Media name" data-parsley-trigger="change" required type="text">
+                          </div>
+                     </div>
+                                            
+                     <div class="item form-group">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Type <span class="required">*</span>
+                            </label>
+                            <div class="col-md-6 col-xs-12">
+                                   <select id="kind" name="kind" class="form-control" required>
+                                      <option value="">Choose..</option>
+                                      <option value="iso">ISO CD/DVD</option>
+                                      <option value="floppy">Floppy</option>
+                                   </select>
+                            </div>
+                     </div>
+
 <!--
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
@@ -37,6 +58,7 @@
                         </div>
                      </div>
 -->
+                     
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
                         </label>

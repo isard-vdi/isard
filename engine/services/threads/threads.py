@@ -13,7 +13,8 @@ import traceback
 
 from engine.models.hyp import hyp
 from engine.services.db import update_all_domains_status, update_disk_backing_chain, update_disk_template_created, \
-    get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown
+    get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown, remove_media
+from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.db import update_table_field
 from engine.services.db.domains import update_domain_status
 from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
@@ -47,7 +48,7 @@ def threading_enumerate():
     l = [t._Thread__name for t in e]
     l.sort()
     for i in l:
-        log.debug('Thread running: {}'.format(i))
+        threads_log.debug('Thread running: {}'.format(i))
     return e
 
 
@@ -88,7 +89,7 @@ def launch_delete_disk_action(action, hostname, user, port):
     disk_path = action['disk_path']
     id_domain = action['domain']
     array_out_err = execute_commands(hostname,
-                                     ssh_commands=action['ssh_comands'],
+                                     ssh_commands=action['ssh_commands'],
                                      user=user,
                                      port=port)
     # ALBERTO FALTA ACABAR
@@ -100,42 +101,63 @@ def launch_action_delete_disk(action, hostname, user, port):
     disk_path = action['disk_path']
     id_domain = action['domain']
     array_out_err = execute_commands(hostname,
-                                     ssh_commands=action['ssh_comands'],
+                                     ssh_commands=action['ssh_commands'],
                                      user=user,
                                      port=port)
     # last ls must fail
     if len([k['err'] for k in array_out_err if len(k['err']) == 1]):
         log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
 
+def launch_delete_media(action,hostname,user,port):
+    array_out_err = execute_commands(hostname,
+                                     ssh_commands=action['ssh_commands'],
+                                     user=user,
+                                     port=port)
+    path = action['path']
+    id_media = action['id_media']
+    if len([k['err'] for k in array_out_err if len(k['err']) == 0]) != 2:
+        log.error('failed deleting media {}'.format(id_media))
+        update_status_media_from_path(path, 'FailedDeleted')
+        return False
+    # ls of the file after deleted failed, has deleted ok
+    elif len(array_out_err[2]['err']) > 0:
+        update_status_media_from_path(path, 'Deleted')
+        return True
+    else:
+        log.error('failed deleting media {}'.format(id_media))
+        update_status_media_from_path(path, 'FailedDeleted')
+        return False
 
-def launch_action_disk(action, hostname, user, port):
+
+def launch_action_disk(action, hostname, user, port, from_scratch=False):
     disk_path = action['disk_path']
     id_domain = action['domain']
     index_disk = action['index_disk']
     array_out_err = execute_commands(hostname,
-                                     ssh_commands=action['ssh_comands'],
+                                     ssh_commands=action['ssh_commands'],
                                      user=user,
                                      port=port)
 
-    if action['type'] == 'create_disk':
+    if action['type'] in ['create_disk', 'create_disk_from_scratch']:
         if len([k['err'] for k in array_out_err if len(k['err']) == 0]):
             ##TODO: TEST WITH MORE THAN ONE DISK, 2 list_backing_chain must be created
             log.debug('all operations creating disk {} for new domain {} runned ok'.format(disk_path, id_domain))
-            out_cmd_backing_chain = array_out_err[-1]['out']
+            if from_scratch is False:
+                out_cmd_backing_chain = array_out_err[-1]['out']
 
-            list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
-            update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
-            ##INFO TO DEVELOPER
+                list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
+                update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
+                ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
             update_domain_status('CreatingDomain', id_domain, None,
                                  detail='new disk created, now go to creating desktop and testing if desktop start')
         else:
 
             log.error('operations creating disk {} for new domain {} failed.'.format(disk_path, id_domain))
-            log.error('\n'.join(['cmd: {} / out: {} / err: {}'.format(action['ssh_comands'][i],
+            log.error('\n'.join(['cmd: {} / out: {} / err: {}'.format(action['ssh_commands'][i],
                                                                       array_out_err[i]['out'],
                                                                       array_out_err[i]['err']) for i in
-                                 range(len(action['ssh_comands']))]))
+                                 range(len(action['ssh_commands']))]))
             update_domain_status('Failed', id_domain, detail='new disk create operation failed, details in logs')
 
     elif action['type'] == 'delete_disk':
@@ -145,7 +167,7 @@ def launch_action_disk(action, hostname, user, port):
             log.error('ERROR: {}'.format(array_out_err[0]['err']))
             update_domain_status('Failed', id_domain, detail='delete disk operation failed, disk not found: {}'.format(
                 array_out_err[0]['err']))
-        elif len(array_out_err[0]['err']) > 0:
+        elif len(array_out_err[1]['err']) > 0:
             log.error('disk from domain {} found, but erase command fail'.format(id_domain))
             log.error('ERROR: {}'.format(array_out_err[0]['err']))
             update_domain_status('Failed', id_domain, detail='delete disk command failed')

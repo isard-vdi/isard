@@ -1,8 +1,9 @@
 import random
 
-from engine.services.db.db import get_domains_from_classroom, get_domains_running_hypervisor
 from engine.services.db import get_domain_status, get_domains_from_group, get_all_domains_with_id_and_status, \
     get_domains_from_user
+from engine.services.db.db import get_domains_from_classroom, get_domains_running_hypervisor, \
+    get_domains_from_template_origin
 from engine.services.db.domains import update_domain_status
 from engine.services.log import *
 

@@ -34,6 +34,7 @@ def admin():
  
 @app.route('/admin/table/<table>/get')
 @login_required
+@isAdmin
 def admin_table_get(table):
     result=app.adminapi.get_admin_table(table)
     if table == 'scheduler_jobs': 
@@ -41,18 +42,49 @@ def admin_table_get(table):
             result[i].pop('job_state', None)
     return json.dumps(result), 200, {'ContentType':'application/json'} 
 
+@app.route('/admin/tabletest/<table>/post', methods=["POST"])
+@login_required
+@isAdmin
+def admin_tabletest_post(table):
+    if request.method == 'POST':
+        data=request.get_json(force=True)
+        print(data)
+        if 'id' not in data.keys():
+            data['id']=False        
+        if 'pluck' not in data.keys():
+            data['pluck']=False
+        if 'order' not in data.keys():
+            data['order']=False
+        if 'flatten' not in data.keys():
+            data['flatten']=True
+        result=app.adminapi.get_admin_table(table,id=data['id'],pluck=data['pluck'],order=data['order'],flatten=data['flatten'])
+        return json.dumps(result), 200, {'ContentType':'application/json'}
+    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+    
 @app.route('/admin/table/<table>/post', methods=["POST"])
 @login_required
+@isAdmin
 def admin_table_post(table):
     if request.method == 'POST':
         data=request.get_json(force=True)
         if 'pluck' not in data.keys():
             data['pluck']=False
+        #~ if 'order' not in data.keys():
+            #~ data['order']=False
         result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'])
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
 
-
+@app.route('/admin/getAllTemplates', methods=["POST"])
+@login_required
+@isAdmin
+def admin_get_all_templates():
+    if request.method == 'POST':
+        data=request.get_json(force=True)
+        result=app.adminapi.get_admin_templates(data['term'])
+        return json.dumps(result), 200, {'ContentType':'application/json'}
+    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+    
 @app.route('/admin/delete', methods=["POST"])
 @login_required
 @isAdmin
@@ -90,8 +122,8 @@ def admin_config_update():
             dict['auth']['local']={'active':False} if 'local' not in dict['auth']  else {'active':True}
             dict['auth']['ldap']['active']=False if 'active' not in dict['auth']['ldap'] else True
         if 'engine' in dict:
-            if 'carbon' in dict['engine']:
-                dict['engine']['carbon']['active']=False if 'active' not in dict['engine']['carbon'] else True
+            if 'grafana' in dict['engine']:
+                dict['engine']['grafana']['active']=False if 'active' not in dict['engine']['grafana'] else True
             if 'ssh' in dict['engine']:
                 if 'hidden' in dict['engine']['ssh']:
                     dict['engine']['ssh']['paramiko_host_key_policy_check']=True if 'paramiko_host_key_policy_check' in dict['engine']['ssh'] else False
@@ -111,7 +143,9 @@ def admin_disposable_add():
         dsps=[]
         #~ Next 2 lines should be removed when form returns a list
         nets=[request.form['nets']]
-        disposables=[request.form['disposables']]
+        #~ print(request.form)
+        disposables=request.form.getlist('disposables')
+        #~ disposables=[request.form['disposables']]
         for d in disposables:
             dsps.append(app.adminapi.get_admin_table('domains',pluck=['id','name','description'],id=d))
         disposable=[{'id': app.isardapi.parse_string(request.form['name']),
@@ -124,15 +158,15 @@ def admin_disposable_add():
             return json.dumps('Updated'), 200, {'ContentType':'application/json'}
     return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
     
-@app.route('/admin/config/checkport', methods=['POST'])
-@login_required
-@isAdmin
-def admin_config_checkport():
-    if request.method == 'POST':
+#~ @app.route('/admin/config/checkport', methods=['POST'])
+#~ @login_required
+#~ @isAdmin
+#~ def admin_config_checkport():
+    #~ if request.method == 'POST':
         
-        if app.adminapi.check_port(request.form['server'],request.form['port']):
-            return json.dumps('Port is open'), 200, {'ContentType':'application/json'}
-    return json.dumps('Port is closed'), 500, {'ContentType':'application/json'}
+        #~ if app.adminapi.check_port(request.form['server'],request.form['port']):
+            #~ return json.dumps('Port is open'), 200, {'ContentType':'application/json'}
+    #~ return json.dumps('Port is closed'), 500, {'ContentType':'application/json'}
 
 '''
 BACKUP & RESTORE
@@ -161,7 +195,7 @@ def admin_restore():
 def admin_restore_table(table):
     global backup_data,backup_db
     if request.method == 'POST':
-        print(table)
+        #~ print(table)
         data=request.get_json(force=True)['data']
         insert=data['new_backup_data']
         data.pop('new_backup_data',None)
@@ -228,23 +262,23 @@ def admin_backup_upload():
     return json.dumps('Updated'), 200, {'ContentType':'application/json'}
 
 
-@app.route('/admin/stream/<table>')
-@login_required
-@isAdmin
-def admin_stream_table(table):
-    return Response(admin_table_stream(table), mimetype='text/event-stream')
+#~ @app.route('/admin/stream/<table>')
+#~ @login_required
+#~ @isAdmin
+#~ def admin_stream_table(table):
+    #~ return Response(admin_table_stream(table), mimetype='text/event-stream')
 
-def admin_table_stream(table):
-    with app.app_context():
-        for c in r.table(table).changes(include_initial=False).run(db.conn):
-            if c['new_val'] is None:
-                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                continue
-            c['new_val'].pop('job_state', None)                
-            if c['old_val'] is None:
-                yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                continue             
-            yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
+#~ def admin_table_stream(table):
+    #~ with app.app_context():
+        #~ for c in r.table(table).changes(include_initial=False).run(db.conn):
+            #~ if c['new_val'] is None:
+                #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
+                #~ continue
+            #~ c['new_val'].pop('job_state', None)                
+            #~ if c['old_val'] is None:
+                #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
+                #~ continue             
+            #~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
                
 
 #~ @app.route('/admin/stream/backups')

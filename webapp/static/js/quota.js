@@ -6,13 +6,17 @@
 */
 
 $lost=0;
-$maxlost=1;
+//~ $maxlost=1;
     function connection_done(){
-      $lost=0;
-	  $('#modal-lostconnection').modal('hide');        
+      //~ $lost=0;
+      if($lost){
+        location.reload(); 
+      }
+	  //~ $('#modal-lostconnection').modal('hide');        
     }
+    
     function connection_lost(){
-        //~ $lost=$lost+1;
+        $lost=$lost+1;
         //~ if($lost>=$maxlost){
                 $('#modal-lostconnection').modal({
                     backdrop: 'static',
@@ -55,3 +59,4 @@ $maxlost=1;
         if(data.iqp > 50 && data.iqp <= 80){$('.quota-isos .badge').addClass('bg-orange');}
         if(data.iqp > 80){$('.quota-isos .badge').addClass('bg-red');}	
     }
+    

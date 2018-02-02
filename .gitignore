@@ -10,7 +10,7 @@ __pycache__/
 *.pyc
 
 # javascript bower
-webapp/bower_components/
+webapp/bower_components
 node_modules/
 webapp/node_modules/
 
@@ -19,6 +19,7 @@ rethinkdb_data/
 
 # log
 *.log
+logs/*
 
 #pycharm
 .idea/
@@ -40,3 +41,9 @@ install/viewer-certs/host_name
 
 #Conf files
 isard.conf
+
+#Csv files
+csv/
+
+#Wizard disable
+install/.wizard

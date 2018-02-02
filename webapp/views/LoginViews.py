@@ -17,6 +17,8 @@ def login():
     if request.method == 'POST':
         if request.form['user'] is '' or request.form['password'] is '':
             flash("Can't leave it blank",'danger')
+        elif request.form['user'].startswith(' '):
+            flash('Username not found or incorrect password.','warning')
         else:
             au=auth()
             user=au.check(request.form['user'],request.form['password'])
@@ -30,8 +32,6 @@ def login():
                 flash('Username not found or incorrect password.','warning')
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     disposables=app.isardapi.show_disposable(remote_addr)
-    log.info(disposables)
-    log.info(remote_addr)
     return render_template('login_disposables.html', disposables=disposables if disposables else '')
 
 @app.route('/voucher_login', methods=['POST', 'GET'])
@@ -54,11 +54,9 @@ def voucher_login():
 
 @app.route('/voucher_validation/<code>', methods=['GET'])
 def voucher_validation(code):
-    #~ if request.method == 'POST':
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     au=auth_voucher()
     valid=False
-    print('check validation:'+str(au.check_validation(code)))
     if au.check_validation(code):
         au.activate_user(code,remote_addr)
         valid=True
@@ -70,14 +68,13 @@ def index():
         if current_user.is_authenticated:
             if current_user.is_admin:
                return redirect(url_for('admin'))
-        else:
-            title='Sign in to start'
     except Exception as e:
-        print("Something went wrong with username? Exception:",e)
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        log.error(exc_type, fname, exc_tb.tb_lineno)
+        log.error("Something went wrong with username "+current_user.username+" authentication")
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     disposables=app.isardapi.show_disposable(remote_addr)
-    log.info(disposables)
-    log.info(remote_addr)    
     return render_template('login_disposables.html', disposables=disposables if disposables else '')
 
 @app.route('/logout')
