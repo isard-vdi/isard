@@ -19,15 +19,15 @@ $(document).ready(function() {
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            $("#hypervisors_pools_dropdown").find('option').remove();
+            $("#modalAddHyper #hypervisors_pools_dropdown").find('option').remove();
             api.ajax('/admin/hypervisors_pools','GET','').done(function(pools) {
 				$.each(pools,function(key, value) 
 				{
-					$("#hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
+					$("#modalAddHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
                 });
             });
 
-            $('.capabilities_hypervisor').on('ifChecked', function(event){
+            $('#modalAddHyper .capabilities_hypervisor').on('ifChecked', function(event){
                 $('#viewer_fields').show()
                 if( $('#modalAddHyper #hostname').val()!='' && $('#modalAddHyper #viewer_hostname').val()=='' && $('#modalAddHyper #viewer_nat_hostname').val()==''){
                     $('#modalAddHyper #viewer_hostname').val($('#modalAddHyper #hostname').val());
@@ -38,10 +38,10 @@ $(document).ready(function() {
             });
 
 
-            $('.capabilities_hypervisor').on('ifUnchecked', function(event){
-                $('#viewer_fields').hide()
-                    $('#modalAddHyper #viewer_hostname').val('');
-                    $('#modalAddHyper #viewer_nat_hostname').val('');                 
+            $('#modalAddHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
+                $('#modalAddHyper #viewer_fields').hide()
+                    $('#modalAddHyper #modalAddHyper #viewer_hostname').val('');
+                    $('#modalAddHyper #modalAddHyper #viewer_nat_hostname').val('');                 
             });
                         
 
@@ -56,6 +56,15 @@ $(document).ready(function() {
                     socket.emit('hyper_add',data)
             }
         });
+
+
+
+
+
+
+
+
+
 
       function timestamp() { return (new Date).getTime() / 1000; }
       chart={}
@@ -237,6 +246,8 @@ $(document).ready(function() {
         if(data.result){
             $("#modalAddHyper #modalAdd")[0].reset();
             $("#modalAddHyper").modal('hide');
+            $("#modalEditHyper #modalEdit")[0].reset();
+            $("#modalEditHyper").modal('hide');            
             //~ $('body').removeClass('modal-open');
             //~ $('.modal-backdrop').remove();
         }
@@ -300,7 +311,7 @@ function setHypervisorDetailButtonsStatus(id,status){
           } 
 
 
-          if(status=='Offline'){
+          if(status=='Offline' || status=='Error'){
               $('#actions-delete-'+id+' *[class^="btn"]').prop('disabled', false);
               
           }else{
@@ -332,10 +343,6 @@ function setHypervisorDetailButtonsStatus(id,status){
 }
 
 function actionsHyperDetail(){
-		$('.btn-edit').on('click', function () {
-            //Not implemented
-			});
-
 		$('.btn-enable').on('click', function () {
                 var closest=$(this).closest("div");
 				var pk=closest.attr("data-pk");
@@ -435,7 +442,89 @@ function actionsHyperDetail(){
                             socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':true})
 						}).on('pnotify.cancel', function() {
 				});	
-            });                                    
+            });
+            
+
+	$('.btn-edit').on('click', function () {
+				var pk=$(this).closest("div").attr("data-pk");
+				var name=$(this).closest("div").attr("data-name");
+            $("#modalEdit")[0].reset();
+            $("#modalEditHyper #hypervisors_pools_dropdown").find('option').remove();
+            
+			$('#modalEditHyper').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+
+            api.ajax('/admin/tabletest/hypervisors/post','POST',{'id':pk}).done(function(hyp) {
+                console.log(hyp)
+                $('#modalEditHyper #modalEdit #id').val(pk);
+                $('#modalEditHyper #modalEdit #fake_id').val(pk);
+                $('#modalEditHyper #modalEdit #description').val(hyp.description);
+                $('#modalEditHyper #modalEdit #hostname').val(hyp.hostname);
+                $('#modalEditHyper #modalEdit #user').val(hyp.user);
+                $('#modalEditHyper #modalEdit #port').val(hyp.port);
+                if(hyp['capabilities-disk_operations']){
+                    $('#modalEditHyper #modalEdit #capabilities-disk_operations').iCheck('check');
+                }
+                if(hyp['capabilities-hypervisor']){
+                    $('#modalEditHyper #modalEdit #capabilities-hypervisor').iCheck('check');
+                }                
+                //~ $('#modalEditHyper #modalEdit #capabilities-disk_operations').val(hyp['capabilities']['disk_operations']);
+                //~ $('#modalEditHyper #modalEdit #capabilities-hypervisor').val(hyp['capabilities']['hypervisor']);
+                $('#modalEditHyper #modalEdit #viewer_hostname').val(hyp.viewer_hostname);
+                $('#modalEditHyper #modalEdit #viewer_nat_hostname').val(hyp.viewer_nat_hostname);
+                
+            });
+           api.ajax('/admin/hypervisors_pools','GET','').done(function(pools) {
+                
+				$.each(pools,function(key, value) 
+				{
+					$("#modalEditHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
+                });
+                //Set selected!
+                
+            });            
+             //~ $('#hardware-block').hide();
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+
+
+
+            
+            $('#modalEditHyper .capabilities_hypervisor').on('ifChecked', function(event){
+                $('#modalEditHyper #viewer_fields').show()
+                if( $('#modalEditHyper #hostname').val()!='' && $('#modalEditHyper #viewer_hostname').val()=='' && $('#modalEditHyper #viewer_nat_hostname').val()==''){
+                    $('#modalEditHyper #viewer_hostname').val($('#modalEditHyper #hostname').val());
+                    $('#modalEditHyper #viewer_nat_hostname').val($('#modalEditHyper #hostname').val());                    
+                }
+                
+
+            });
+
+
+            $('#modalEditHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
+                $('#modalEditHyper #viewer_fields').hide()
+                    $('#modalEditHyper #viewer_hostname').val('');
+                    $('#modalEditHyper #viewer_nat_hostname').val('');                 
+            });
+            
+            $('#modalEditHyper #send').on('click', function(e){
+                    var form = $('#modalEditHyper #modalEdit');
+                    form.parsley().validate();
+                    if (form.parsley().isValid()){
+                            data=$('#modalEditHyper #modalEdit').serializeObject();
+                            //~ console.log(data)
+                            socket.emit('hyper_edit',data)
+                    }
+                });
+                    
+ 	});                       
+
+            
+	//~ });
+
+                                                
 }
 
 

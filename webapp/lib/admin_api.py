@@ -455,6 +455,38 @@ class isardAdmin():
         with app.app_context():
             return self.check(r.table('hypervisors_pools').insert(dict).run(db.conn),'inserted')
 
+    def hypervisor_edit(self,dict):
+        with app.app_context():
+            old_hyp=r.table('hypervisors').get(dict['id']).run(db.conn)
+            if not (old_hyp['status']=='Offline' or old_hyp['status']=='Error'): return False
+            if old_hyp['capabilities']['disk_operations'] and not dict['capabilities']['disk_operations']:
+                # We should remove it from pool. It is not going to be a disk op anymore!
+                id=dict['id']
+                for hp in dict['hypervisors_pools']:
+                    paths=r.table('hypervisors_pools').get(hp).run(db.conn)['paths']
+                    for p in paths:
+                        path_list=[]
+                        for i,path_data in enumerate(paths[p]):
+                            if id in path_data['disk_operations']:
+                                path_data['disk_operations'].remove(id)
+                                paths[p][i]['disk_operations']=path_data['disk_operations']
+                    r.table('hypervisors_pools').get(hp).update({'paths':paths}).run(db.conn)                
+            
+            
+            if dict['capabilities']['disk_operations'] and not old_hyp['capabilities']['disk_operations']:
+                # It was't a disk op, but now it will
+                id=dict['id']
+                for hp in dict['hypervisors_pools']:
+                    paths=r.table('hypervisors_pools').get(hp).run(db.conn)['paths']
+                    for p in paths:
+                        path_list=[]
+                        for i,path_data in enumerate(paths[p]):
+                            if id not in path_data['disk_operations']:
+                                path_data['disk_operations'].append(id)
+                                paths[p][i]['disk_operations']=path_data['disk_operations']
+                    r.table('hypervisors_pools').get(hp).update({'paths':paths,'enabled':False}).run(db.conn)
+            return self.check(r.table('hypervisors').update(dict).run(db.conn),'replaced')
+
 
     def hypervisor_delete(self,id):
         with app.app_context():

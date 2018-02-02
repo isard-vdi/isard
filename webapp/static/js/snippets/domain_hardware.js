@@ -4,7 +4,7 @@
 			$(id+" #hardware-interfaces").find('option').remove();
 			$(id+" #hardware-graphics").find('option').remove();
             $(id+" #hardware-videos").find('option').remove();
-            $(id+" #hardware-boots").find('option').remove();
+            $(id+" #hardware-boot_order").find('option').remove();
             $(id+" #hypervisors_pools").find('option').remove();
             $(id+" #forced_hyp").find('option').remove();
             

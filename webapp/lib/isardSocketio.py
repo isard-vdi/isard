@@ -404,6 +404,51 @@ def socketio_hyper_add(form_data):
                             namespace='/sio_admins', 
                             room='hyper')            
 
+@socketio.on('hyper_edit', namespace='/sio_admins')
+def socketio_hyper_edit(form_data):
+    if current_user.role == 'admin': 
+        create_dict=app.isardapi.f.unflatten_dict(form_data)
+        
+        if 'capabilities' not in create_dict: create_dict['capabilities']={}
+        if 'disk_operations' not in create_dict['capabilities']:
+            create_dict['capabilities']['disk_operations']=False
+        else:
+            create_dict['capabilities']['disk_operations']=True
+        if 'hypervisor' not in create_dict['capabilities']:
+            create_dict['capabilities']['hypervisor']=False
+        else:
+            create_dict['capabilities']['hypervisor']=True
+            
+        if create_dict['capabilities']['disk_operations'] or create_dict['capabilities']['hypervisor']:
+            # NOTE: Should be changed if multiple select instead of select
+            create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
+            create_dict['detail']=''
+            create_dict['info']=[]
+            create_dict['prev_status']=''
+            create_dict['status']='Updating'
+            create_dict['status_time']=''
+            create_dict['uri']=''
+            create_dict['enabled']=True
+            res=app.adminapi.hypervisor_edit(create_dict)
+
+            if res is True:
+                info=json.dumps({'result':True,'title':'Edit hypervisor','text':'Hypervisor '+create_dict['hostname']+' has been edited.','icon':'success','type':'success'})
+                ### Engine restart needed
+                
+                ### Warning
+            else:
+                info=json.dumps({'result':False,'title':'Edit hypervisor','text':'Hypervisor '+create_dict['hostname']+' can\'t be edited now.','icon':'warning','type':'error'})
+            socketio.emit('add_form_result',
+                            info,
+                            namespace='/sio_admins', 
+                            room='hyper')
+        else:
+            info=json.dumps({'result':False,'title':'Hypervisor edit error','text':'Hypervisor should have at least one capability!','icon':'warning','type':'error'})        
+            socketio.emit('result',
+                            info,
+                            namespace='/sio_admins', 
+                            room='hyper') 
+
 @socketio.on('hyper_delete', namespace='/sio_admins')
 def socketio_hyper_delete(data):
     if current_user.role == 'admin': 
