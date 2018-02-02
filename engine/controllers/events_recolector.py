@@ -27,14 +27,13 @@ from engine.services.log import *
 
 
 # Reference: https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
-
-def virEventLoopNativeRun():
-    while True:
+from pprint import pprint
+def virEventLoopNativeRun(stop):
+    while stop[0] is False:
         libvirt.virEventRunDefaultImpl()
 
-
 # Spawn a background thread to run the event loop
-def virEventLoopPureStart():
+def virEventLoopPureStart(stop):
     #    global eventLoopThread
     virEventLoopPureRegister()
     eventLoopThread = threading.Thread(target=virEventLoopPureRun, name="libvirtEventLoop")
@@ -49,9 +48,9 @@ def virEventLoopPureStart():
 #     eventLoopThread.setDaemon(True)
 #     eventLoopThread.start()
 #
-def virEventLoopNativeStart():
+def virEventLoopNativeStart(stop):
     libvirt.virEventRegisterDefaultImpl()
-    eventLoopThread = threading.Thread(target=virEventLoopNativeRun, name="EventLoop")
+    eventLoopThread = threading.Thread(target=virEventLoopNativeRun, name="EventLoop", args=(stop,))
     eventLoopThread.setDaemon(True)
     eventLoopThread.start()
     return eventLoopThread
@@ -437,6 +436,7 @@ class ThreadHypEvents(threading.Thread):
         threading.Thread.__init__(self)
         self.name = name
         self.stop = False
+        self.stop_event_loop = [False]
         self.REGISTER_GRAPHICS_EVENTS = register_graphics_events
         self.hyps = dict_hyps
         # self.hostname = get_hyp_hostname_from_id(hyp_id)
@@ -465,7 +465,7 @@ class ThreadHypEvents(threading.Thread):
                     break
                 time.sleep(0.1)
             else:
-                self.thread_event_loop = virEventLoopNativeStart()
+                self.thread_event_loop = virEventLoopNativeStart(self.stop_event_loop)
 
                 for hyp_id, hostname in self.hyps.items():
                     self.add_hyp_to_receive_events(hyp_id)
@@ -476,6 +476,9 @@ class ThreadHypEvents(threading.Thread):
                 if self.stop is True:
                     for hyp_id in list(self.hyps):
                         self.del_hyp_to_receive_events(hyp_id)
+                    self.stop_event_loop[0] = True
+                    while self.thread_event_loop.is_alive():
+                        pass
                 break
 
     def add_hyp_to_receive_events(self, hyp_id):
