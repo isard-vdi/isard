@@ -861,11 +861,11 @@ class hyp(object):
 
             for id_domain, s in self.stats_domains_now.items():
 
-                means = {'near':   self.stats_domains[id_domain]['means_near'],
-                         'medium': self.stats_domains[id_domain]['means_medium'],
-                         'long':   self.stats_domains[id_domain]['means_long'],
-                         'total':  self.stats_domains[id_domain]['means_total'],
-                         'boot':   self.stats_domains[id_domain]['means_boot'] }
+                means = {'near':   self.stats_domains[id_domain].get('means_near',False),
+                         'medium': self.stats_domains[id_domain].get('means_medium',False),
+                         'long':   self.stats_domains[id_domain].get('means_long',False),
+                         'total':  self.stats_domains[id_domain].get('means_total',False),
+                         'boot':   self.stats_domains[id_domain].get('means_boot',False)}
                 update_actual_stats_domain(id_domain, s, means)
             #for (h in )
 
