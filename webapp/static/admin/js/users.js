@@ -5,7 +5,7 @@
 * License: AGPLv3
 */
 
-
+var table= ''
 $(document).ready(function() {
 
     $template = $(".template-detail-users");
@@ -24,6 +24,13 @@ $(document).ready(function() {
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddBulkUsersForm')[0].reset();
         setModalUser();
+	});
+
+	$('.btn-old-users').on('click', function () {
+        $('#modalOldUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
+        populate_users_table()
+        //~ $('#modalAddUserForm')[0].reset();
+        //~ setModalUser();
 	});
     
     $("#modalAddUser #send").on('click', function(e){
@@ -164,7 +171,7 @@ $(document).ready(function() {
     });
         
             
-    var table=$('#users').DataTable( {
+    table=$('#users').DataTable( {
         "ajax": {
             "url": "/admin/users/get",
             "dataSrc": ""
@@ -451,3 +458,52 @@ function renderUsersDetailPannel ( d ) {
                 
         });
     }
+
+function populate_users_table(){
+        olduserstable=$('#oldusers_table').DataTable( {
+			"ajax": {
+				"url": "/admin/users/nonexists",
+                "contentType": "application/json",
+                "type": 'POST',
+                "data": function(d){return JSON.stringify({})}
+			},
+            "sAjaxDataProp": "",
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+            "bLengthChange": false,
+            "bFilter": false,
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+                { "data": "id", "width": "88px"},
+                { "data": "name"},
+                { "data": "accessed", "width": "88px"},
+                ],
+             "order": [[0, 'asc']],
+             "columnDefs": [ ]
+        } );
+
+    $('.btn-disable-olds').on( 'click', function () {
+				new PNotify({
+						title: 'Disable all this users',
+							text: "Do you really want to disable all this users? (they don't exists on your LDAP)",
+							hide: false,
+							opacity: 0.9,
+							confirm: {confirm: true},
+							buttons: {closer: false,sticker: false},
+							history: {history: false},
+							stack: stack_center
+						}).get().on('pnotify.confirm', function() {
+                            api.ajax('/admin/users/nonexists','POST',{'commit':true}).done(function(data) {
+                                            $("#modalOldUsers").modal('hide');
+                                            table.ajax.reload();
+                            });  
+						}).on('pnotify.cancel', function() {
+				});	         
+    });        
+        
+
+
+        
+}

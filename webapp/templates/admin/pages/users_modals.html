@@ -472,6 +472,60 @@
 </div>
 
 
+<div class="modal fade" id="modalOldUsers" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="width:800px">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Old LDAP users in system
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+<!--
+              <form id="modalAddBackupInfo" class="form-horizontal form-label-left">
+-->
+            <ul class="nav navbar-right panel_toolbox">
+				<li><a class="btn-disable-olds"><span style="color: #5499c7; "><i class="fa fa-ban"></i> Disable all</span></a>
+               </li>
+            </ul>
+<!--
+			  <div class="x_panel">
+                 <div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Table: <span class="required">*</span></label>
+                     </div> 
+				 </div>
+			  </div>
+-->
+
+    
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <table id="oldusers_table" class="display" width="100%">
+                    <thead>
+                      <tr>
+                         <th>Id</th>
+                         <th>Name</th>
+                         <th>Accessed</th>
+                      </tr>
+                   </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 
 
 <div class="modal fade" id="modalAddRole" tabindex="-1" role="dialog" 

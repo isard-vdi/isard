@@ -19,6 +19,8 @@ from .decorators import isAdmin
 '''
 USERS
 '''
+
+from ...auth.authentication import * 
 @app.route('/admin/users', methods=['POST','GET'])
 @login_required
 @isAdmin
@@ -36,7 +38,7 @@ def admin_users():
         # ~ else:
             # ~ flash('Could not create user. Maybe you have one with the same name?','danger')
             # ~ return redirect(url_for('admin_users'))
-
+   
     return render_template('admin/pages/users.html', nav="Users")
 
 
@@ -91,4 +93,26 @@ def admin_users_update_update():
             else:
                 return json.dumps('This is not a valid value.'), 500, {'ContentType':'application/json'}
         except Exception as e:
+            return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
+
+
+
+@app.route('/admin/users/nonexists', methods=['POST'])
+@login_required
+@isAdmin
+def admin_users_nonexists():
+    if request.method == 'POST':
+        try:
+            args = request.get_json(force=True)
+        except:
+            args = request.form.to_dict()
+        try:
+            au=auth()
+            if 'commit' in args.keys() and args['commit']:
+                data = au.ldap_users_exists(commit=True)
+            else:
+                data = au.ldap_users_exists()['nonvalid']
+            return json.dumps(data), 200, {'ContentType':'application/json'}
+        except Exception as e:
+            print(e)
             return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
