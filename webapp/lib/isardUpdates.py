@@ -36,6 +36,7 @@ class Updates(object):
                 with app.app_context():
                     r.table('config').get(1).update({'resources':{'code':req.json()}}).run(db.conn)
                     self.updateFromConfig()
+                    self.updateFromWeb()
                     return True
             else:
                 print('Error response code: '+str(req.status_code)+'\nDetail: '+r.json())
