@@ -49,12 +49,12 @@ else:
 #~ Populate database if not exists
 #~ '''
 
-#~ from .config.populate import Populate
-#~ p=Populate()
-#~ if p.database():
-    #~ p.defaults()
-#~ else:
-    #~ exit(1)
+# ~ from .config.populate import Populate
+# ~ p=Populate()
+# ~ if p.database():
+    # ~ p.defaults()
+# ~ else:
+    # ~ exit(1)
 
 '''
 Scheduler

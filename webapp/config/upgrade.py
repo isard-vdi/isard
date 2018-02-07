@@ -20,7 +20,7 @@ from ..auth.authentication import Password
 from ..lib.load_config import load_config
 
 
-class Populate(object):
+class Upgrade(object):
     def __init__(self):
         self.cfg=load_config()
         try:
@@ -50,91 +50,7 @@ class Populate(object):
             log.error('Can not connect to rethinkdb database! Is it running on HOST:'+self.cfg['RETHINKDB_HOST']+' PORT:'+self.cfg['RETHINKDB_PORT']+' DB:'+self.cfg['RETHINKDB_DB']+' ??')
             return False
 
-
-    def defaults(self):
-        print(self.check_integrity())
-        # ~ log.info('Checking table roles')
-        # ~ self.roles()
-        # ~ log.info('Checking table categories')
-        # ~ self.categories()
-        # ~ log.info('Checking table groups')
-        # ~ self.groups()
-        # ~ log.info('Checking table users')
-        # ~ self.users()
-        # ~ log.info('Checking table vouchers')
-        # ~ self.vouchers()
-        # ~ log.info('Checking table hypervisors and pools')
-        # ~ self.hypervisors()
-        # ~ log.info('Checking table interfaces')
-        # ~ self.interfaces()
-        # ~ log.info('Checking table graphics')
-        # ~ self.graphics()
-        # ~ log.info('Checking table videos')
-        # ~ self.videos()
-        # ~ log.info('Checking table disks')
-        # ~ self.disks()
-        # ~ log.info('Checking table domains')
-        # ~ self.domains()
-        # ~ log.info('Checking table domains_status')
-        # ~ self.domains_status()
-        # ~ log.info('Checking table virt_builder')
-        # ~ self.virt_builder()
-        # ~ log.info('Checking table virt_install')
-        # ~ self.virt_install()
-        # ~ log.info('Checking table builders')
-        # ~ self.builders()
-        # ~ log.info('Checking table media')
-        # ~ self.media()
-        # ~ log.info('Checking table scheduler_jobs')
-        # ~ self.scheduler_jobs()
-
-        # ~ log.info('Checking table boots')
-        # ~ self.boots()
-        # ~ log.info('Checking table hypervisors_events')
-        # ~ self.hypervisors_events()
-        # ~ log.info('Checking table hypervisors_status')
-        # ~ self.hypervisors_status()
-        # ~ log.info('Checking table disk_operations')
-        # ~ self.disk_operations()
-        # ~ log.info('Checking table hosts_viewers')
-        # ~ self.hosts_viewers()
-        # ~ log.info('Checking table places')
-        # ~ self.places()
-        # ~ log.info('Checking table disposables')
-        # ~ self.disposables()
-        # ~ log.info('Checking table backups')
-        # ~ self.backups()
-        # ~ log.info('Checking table config')
-        # ~ self.config()
-
-
-    def check_integrity(self,commit=False):
-        dbtables=r.table_list().run()
-        newtables=['roles','categories','groups','users','vouchers',
-                'hypervisors','hypervisors_pools','interfaces',
-                'graphics','videos','disks','domains','domains_status','domains_status_history',
-                'virt_builder','virt_install','builders','media',
-                'boots','hypervisors_events','hypervisors_status','hypervisors_status_history',
-                'disk_operations','hosts_viewers','places','disposables','eval_results',
-                'scheduler_jobs','backups','config','engine']
-        tables_to_create=list(set(newtables) - set(dbtables))
-        d = {k:v for v,k in enumerate(newtables)}
-        tables_to_create.sort(key=d.get)
-        tables_to_delete=list(set(dbtables) - set(newtables))
-        print(tables_to_create)
-        if not commit:
-            return {'tables_to_create':tables_to_create,'tables_to_delete':tables_to_delete}
-        else:
-            for t in tables_to_create:
-                table=t
-                if table.startswith('hypervisors_status'): table='hypervisors_status'
-                if table.startswith('domains_status'): table='domains_status'
-                log.info('Creating new table: '+t)
-                log.info('  Result: '+str(eval('self.'+table+'()')))
-            for t in tables_to_delete:
-                log.info('Deleting old table: '+t)
-                log.info('  Result: '+str(r.table_drop(t).run()))
-        return True
+    
 
     '''
     CONFIG
@@ -228,6 +144,8 @@ class Populate(object):
             if not r.table_list().contains('users').run():
                 log.info("Table users not found, creating...")
                 r.table_create('users', primary_key="id").run()
+                r.table('users').index_create("group").run()
+                r.table('users').index_wait("group").run()
 
                 if r.table('users').get('admin').run() is None:
                     usr = [{'id': 'admin',
@@ -300,7 +218,6 @@ class Populate(object):
                            ]
                     self.result(r.table('users').insert(usr, conflict='update').run())
                     log.info("  Inserted default eval username with random password")
-            self.index_update('users',['group'])
             return True
 
     '''
@@ -1163,12 +1080,5 @@ class Populate(object):
                                                            }]).run())
 
 
-    def index_create(table,indexes):
-        with app.app_context():
-            indexes_ontable=r.table(table).index_list().run()
-            apply_indexes=[mi for mi in must_indexes if mi not in indexes_ontable]
-            for i in apply_indexes:
-                r.table(table).index_create(i).run()
-                r.table(table).index_wait(i).run()
 
 ### disk_operations table not used anymore (delete if exists and remove creation)
