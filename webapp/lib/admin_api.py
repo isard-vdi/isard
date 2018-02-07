@@ -300,7 +300,7 @@ class isardAdmin():
                 if not id:
                     return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                         {
-                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                            "derivates": -1 #r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
