@@ -666,7 +666,56 @@ def socketio_admins_domain_edit(form_data):
                     data,
                     namespace='/sio_admins', 
                     room='domains')
-                    
+
+
+# ~ {'create_dict': {'hardware': {'boot_order': ['iso'],
+                              # ~ 'graphics': ['vnc'],
+                              # ~ 'interfaces': ['eli-c1j-bridge'],
+                              # ~ 'memory': 11008000,
+                              # ~ 'vcpus': '4',
+                              # ~ 'videos': ['qxl32']}},
+ # ~ 'forced_hyp': 'vdesktop1',
+ # ~ 'hypervisors_pools': ['admin_test_pool'],
+ # ~ 'ids': ['_cor47987476_Programas',
+         # ~ '_valejandre_programas',
+         # ~ '_jfuentes_Plantilla_de_Mia',
+         # ~ '_coc39947402_PIEDRA',
+         # ~ '_mjmartinez_Pepa',
+         # ~ '_cor26069823_PC-2',
+         # ~ '_opuigdomenech_PC_BASIC',
+         # ~ '_cor47576923_nueva_pr',
+         # ~ '_mcapdevila_M2-W7',
+         # ~ '_cor43636725_M0002',
+         # ~ '_lespinos_Lluis_ITEC',
+         # ~ '_lespinos_LLUIS',
+         # ~ '_cor47952154_EDRI',
+         # ~ '_coc43573404_Dgc8',
+         # ~ '_coc46746373_AUTOCAD_v2',
+         # ~ '_acontreras_aaaaa']}
+
+
+
+@socketio.on('domain_bulkedit', namespace='/sio_admins')
+def socketio_admins_domain_bulkedit(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict=parseHardware(create_dict)
+    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict.pop('hardware',None)
+    # ~ import pprint
+    # ~ pprint.pprint(create_dict)
+    res=app.adminapi.domains_update(create_dict.copy())
+    if res is True:
+        data=json.dumps({'id':create_dict['ids'], 'result':True,'title':'Updated desktops','text':'Desktop '+str(create_dict['ids'])+' has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'id':create_dict['ids'], 'result':False,'title':'Updated desktops','text':'Desktop '+str(create_dict['ids'])+' can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('edit_form_result',
+                    data,
+                    namespace='/sio_admins', 
+                    room='domains')
+                                        
 def parseHardware(create_dict):
     if 'hardware' not in create_dict.keys():
         #~ Hardware is not in create_dict

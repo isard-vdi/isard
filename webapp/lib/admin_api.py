@@ -306,7 +306,7 @@ class isardAdmin():
                 if not id:
                     return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
                         {
-                            "derivates": -1 #r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
@@ -350,6 +350,16 @@ class isardAdmin():
                             for d in list(r.table('domains').get_all(username, index='user').pluck('id','user',{'create_dict':{'origin'}}).run(db.conn)) ] 
             return self.domain_recursive_count(id,domains)-1
 
+    def domains_update(self, create_dict):
+        ids=create_dict['ids']
+        create_dict.pop('ids',None)
+        #~ description=create_dict['description']
+        #~ create_dict.pop('description',None)
+        for id in ids:
+            create_dict['status']='Updating'
+            self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
+        return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
+        #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
     def domain_recursive_count(self,id,domains):
         # ~ if count == 0:

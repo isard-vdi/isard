@@ -320,7 +320,7 @@ class isard():
 
     def get_domain_derivates(self, id):
         with app.app_context():
-            return list(r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name','kind','user').run(db.conn))
+            return list(r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name','kind','user','category','group').run(db.conn))
 
 
     def get_graphics(self):

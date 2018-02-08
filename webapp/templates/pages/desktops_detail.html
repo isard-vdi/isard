@@ -48,8 +48,10 @@
 -->
                               </div>
                                 <div class="col-md-12 col-md-12 col-xs-12">
-                                    <div id="events-d.id" class="x_content">
+                                    <div id="derivates-d.id" class="x_content">
+                                    {% if(current_user.role=='admin') %}
                                       {% include '/snippets/domain_derivates.html' %}
+                                    {% endif %}
                                     </div>
                                 </div>                              
                           </div>
