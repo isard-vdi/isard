@@ -195,7 +195,7 @@ class auth(object):
 
     def ldap_users_exists(self,commit=False):
         cfg=r.table('config').get(1).run(db.conn)['auth']
-        users=list(r.table('users').filter({'active':True}).pluck('id','name','accessed').run(db.conn))
+        users=list(r.table('users').filter({'active':True,'kind':'ldap'}).pluck('id','name','accessed').run(db.conn))
         nonvalid=[]
         valid=[]
         for u in users:

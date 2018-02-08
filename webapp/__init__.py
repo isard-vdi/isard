@@ -23,6 +23,9 @@ app.secret_key = "Change this key!//\xf7\x83\xbe\x17\xfa\xa3zT\n\\]m\xa6\x8bF\xd
 
 #~ app.config['LOG_LEVEL']='INFO'
 
+from webapp.config import upgrade
+up=upgrade.Upgrade()
+
 from webapp.wizard import WizardLib
 w=WizardLib.Wizard()
 # This will start a Wizard Flask app that will continue on wizard finish.

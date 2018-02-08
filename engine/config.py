@@ -43,7 +43,9 @@ table_exists=False
 while not table_exists:
     try:
         with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
-            rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)['engine']
+            rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)
+            grafana= rconfig['grafana']
+            rconfig = rconfig['engine']
         table_exists=True
     except:
         print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
@@ -57,7 +59,7 @@ TIME_BETWEEN_POLLING = rconfig['intervals']['time_between_polling']
 TEST_HYP_FAIL_INTERVAL = rconfig['intervals']['test_hyp_fail']
 POLLING_INTERVAL_BACKGROUND = rconfig['intervals']['background_polling']
 POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig['intervals']['transitional_states_polling']
-GRAFANA = rconfig['grafana']
+GRAFANA = grafana
 
 TRANSITIONAL_STATUS = ('Starting', 'Stopping')
 

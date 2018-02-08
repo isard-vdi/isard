@@ -67,22 +67,7 @@ class Wizard():
                     wlog.error('Javascript and CSS not installed!')
                     wlog.error(' Please install yarn: https://yarnpkg.com/lang/en/docs/install')
                     wlog.error(' and run yarn from install folder before starting again.')                
-                # ~ dnf install npm -y
-                # ~ npm install -g yarn
-                # ~ bash -c "cd /isard/src/isard/install; yarn"                
                     exit(1)
-            # ~ try:
-                # ~ if self.valid_rethinkdb():
-                    # ~ if not self.valid_isard_database():
-                        # ~ self.create_isard_database()
-                    # ~ # else:
-                        # ~ # self.done_start()
-            # ~ except Exception as e:
-                # ~ exc_type, exc_obj, exc_tb = sys.exc_info()
-                # ~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                # ~ wlog.error(exc_type, fname, exc_tb.tb_lineno)
-                # ~ wlog.error(e)
-                # ~ None
             self.run_server()
             
         else: # WIZARD NOT FORCED. SOMETHING IS NOT GOING AS EXPECTED WITH DATABASE?
