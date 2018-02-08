@@ -430,6 +430,9 @@ function renderAction(data){
         if(status=='Crashed'){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
         } 
+        if(status=='Disabled'){
+                return '<i class="fa fa-times fa-2x"></i>';
+        }            
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 

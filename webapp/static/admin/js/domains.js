@@ -540,7 +540,10 @@ function renderAction(data){
                 return '<i class="fa fa-stop"></i>';
             }
         } 
-        
+
+        if(status=='Disabled'){
+                return '<i class="fa fa-times fa-2x"></i>';
+        }         
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
