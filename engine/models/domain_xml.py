@@ -445,6 +445,7 @@ class DomainXML(object):
         xpath = '/domain/devices/interface'
         self.remove_device(xpath, order_num=order)
 
+
     def remove_device(self, xpath, order_num=-1):
         if self.tree.xpath('/domain/devices'):
             if self.tree.xpath(xpath):
@@ -523,6 +524,11 @@ class DomainXML(object):
         # <on_poweroff>destroy</on_poweroff>
         # <on_reboot>restart</on_reboot>
         # <on_crash>restart</on_crash>
+
+    def remove_boot_order_from_disks(self):
+        for disk_xpath in self.tree.xpath('/domain/devices/disk'):
+            for boot_xpath in disk_xpath.xpath('boot'):
+                disk_xpath.remove(boot_xpath)
 
     def update_boot_order(self,list_ordered_devs,boot_menu_enable=False):
 
@@ -633,7 +639,7 @@ def remove_recursive_tag(tag, parent):
         if tag == child.tag:
             parent.remove(child)
         else:
-            remove_recursive(tag, child)
+            remove_recursive_tag(tag, child)
 
     return parent
 
@@ -935,6 +941,9 @@ def recreate_xml_to_start(id, ssl=True):
         interface_index += 1
 
     x.remove_selinux_options()
+
+    #remove boot order in disk definition that conflict with /os/boot order in xml
+    x.remove_boot_order_from_disks()
 
     x.dict_from_xml()
     # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
