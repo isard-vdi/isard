@@ -210,14 +210,20 @@ $(document).ready(function() {
 							{
 							"targets": 1,
 							"render": function ( data, type, full, meta ) {
-                                if(full.active==true){return '<i class="fa fa-check" style="color:lightgreen"></i>';}
-                                return '<i class="fa fa-close" style="color:darkgray"></i>';
-							}},
+                                    if(type === "display"){
+                                        if(full.active==true){
+                                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
+                                        }else{
+                                            return '<i class="fa fa-close" style="color:darkgray"></i>';
+                                        }
+                                    }
+                                    return data;
+                                        }},
 							{
 							"targets": 8,
 							"render": function ( data, type, full, meta ) {
-							  return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ"); //moment.unix(full.accessed).fromNow();
-							}}                            
+                                        return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ"); //moment.unix(full.accessed).fromNow();
+                                        }}                            
              ]
         });
     //~ });

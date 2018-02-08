@@ -108,10 +108,11 @@ def admin_users_nonexists():
             args = request.form.to_dict()
         try:
             au=auth()
+            data = au.ldap_users_exists()['nonvalid']
             if 'commit' in args.keys() and args['commit']:
-                data = au.ldap_users_exists(commit=True)
-            else:
-                data = au.ldap_users_exists()['nonvalid']
+                for u in data:
+                    print('Disabling domains for user '+u['id'])
+                    app.adminapi.user_toggle_active(u['id'])
             return json.dumps(data), 200, {'ContentType':'application/json'}
         except Exception as e:
             print(e)

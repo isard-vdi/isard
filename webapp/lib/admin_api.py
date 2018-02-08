@@ -72,6 +72,8 @@ class isardAdmin():
                                 
                 domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)
                 res=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn)
+                domains_disabled=self.multiple_check_field(table,'status','Disabled',ids)
+                res=r.table(table).get_all(r.args(domains_disabled)).update({'status':'Deleting'}).run(db.conn)                
                 domains_failed=self.multiple_check_field(table,'status','Failed',ids)
                 res=r.table(table).get_all(r.args(domains_failed)).update({'status':'Deleting'}).run(db.conn) 
                 domains_creating=self.multiple_check_field(table,'status','Creating',ids)
@@ -215,9 +217,13 @@ class isardAdmin():
 
     def user_toggle_active(self,id):
         with app.app_context():
-            is_active = not r.table('users').get(id).pluck('active').run(db.conn)['active']           
+            is_active = not r.table('users').get(id).pluck('active').run(db.conn)['active'] 
+            if is_active:
+                r.table('domains').get_all(id, index='user').filter({'kind':'desktop','status':'Disabled'}).update({'status':'Stopped'}).run(db.conn)
+            else:
+                r.table('domains').get_all(id, index='user').filter({'kind':'desktop'}).update({'status':'Disabled'}).pluck('id').run(db.conn)
             return self.check(r.table('users').get(id).update({'active':is_active}).run(db.conn),'replaced')
-           
+
                     
     def get_admin_user(self):
         with app.app_context():
