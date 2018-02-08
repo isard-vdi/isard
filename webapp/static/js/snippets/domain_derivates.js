@@ -1,6 +1,5 @@
 var derivates_table =''
 function setDomainDerivates(id){
-
 	$("#bulk-edit-"+id).on( 'click', function () {
             $("#modalBulkEditForm")[0].reset();
             setHardwareOptions('#modalBulkEdit','disk');
