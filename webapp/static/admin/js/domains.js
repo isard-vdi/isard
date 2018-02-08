@@ -188,10 +188,12 @@ $(document).ready(function() {
                 $('#status-detail-'+row.data().id).html(row.data().detail);
                 actionsDomainDetail();
                 //~ setDomainDetailButtonsStatus(row.data().id,row.data().status)
-                if(row.data().status=='Stopped' || row.data().status=='Started'){
+                if(row.data().status=='Stopped' || row.data().status=='Started' || row.data().status=='Failed'){
                     setDomainGenealogy(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
-                    setDomainDerivates(row.data().id);
+                    if(url!="Desktops"){
+                        setDomainDerivates(row.data().id);
+                    }
                 }
             }            
         }
@@ -333,6 +335,8 @@ $(document).ready(function() {
         if(data.result){
             $("#modalEdit")[0].reset();
             $("#modalEditDesktop").modal('hide');
+            $("#modalBulkEditForm")[0].reset();
+            $("#modalBulkEdit").modal('hide');            
             setHardwareDomainDefaults_viewer('#hardware-'+data.id,data.id);
         }
         new PNotify({
