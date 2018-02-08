@@ -526,7 +526,7 @@ class DomainXML(object):
         # <on_crash>restart</on_crash>
 
     def remove_boot_order_from_disks(self):
-        for disk_xpath in x.tree.xpath('/domain/devices/disk'):
+        for disk_xpath in self.tree.xpath('/domain/devices/disk'):
             for boot_xpath in disk_xpath.xpath('boot'):
                 disk_xpath.remove(boot_xpath)
 
