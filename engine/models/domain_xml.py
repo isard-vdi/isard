@@ -656,6 +656,7 @@ def domain_xml_to_test(domain_id, ssl=True):
         x.spice_remove_passwd_nossl()
 
     x.remove_selinux_options()
+    x.remove_boot_order_from_disks()
     xml = x.return_xml()
     log.debug('#####################################################3')
     log.debug('#####################################################3')
@@ -775,6 +776,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
 
     v.randomize_vm()
     v.remove_selinux_options()
+    v.remove_boot_order_from_disks()
     # v.print_xml()
     xml_raw = v.return_xml()
     hw_updated = v.dict_from_xml()
