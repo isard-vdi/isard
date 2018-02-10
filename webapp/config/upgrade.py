@@ -18,7 +18,8 @@ release_version = 1
 
 
 
-tables=['config','hypervisors']
+# ~ tables=['config','hypervisors','hypervisors_pools']
+tables=['hypervisors_pools']
 
 class Upgrade(object):
     def __init__(self):
@@ -57,7 +58,7 @@ class Upgrade(object):
             for table in tables:
                 eval('self.'+table+'('+str(version)+')')
                 
-        r.table('config').get(1).update({'version':release_version}).run()
+        # ~ r.table('config').get(1).update({'version':release_version}).run()
 
         
 
@@ -66,33 +67,34 @@ class Upgrade(object):
     CONFIG TABLE UPGRADES
     '''
     def config(self,version):
-        cfg=r.table('config').get(1).run()
-        print('UPGRADING CONFIG TABLE TO VERSION '+str(version))
+        table='config'
+        d=r.table(table).get(1).run()     
+        print('UPGRADING '+table+' TABLE TO VERSION '+str(version))
         if version == 1:
             ##### PRE CHECKS    
-            if self.check_done( cfg,
+            if self.check_done( d,
                                 ['grafana','resources','voucher_access',['engine','api','token']],
                                 [['engine','carbon']]): return
             
             try:
                 ##### CONVERSION FIELDS
-                cfg['grafana']={'active':cfg['engine']['carbon']['active'],
-                                'url':cfg['engine']['carbon']['server'],
+                cfg['grafana']={'active':d['engine']['carbon']['active'],
+                                'url':d['engine']['carbon']['server'],
                                 'web_port':80,
-                                'carbon_port':cfg['engine']['carbon']['port'],
+                                'carbon_port':d['engine']['carbon']['port'],
                                 'graphite_port':3000}
-                r.table('config').update(cfg).run()                
+                r.table(table).update(cfg).run()                
                 ##### NEW FIELDS
-                self.add_keys('config', [   {'resources':  {'code':False,
+                self.add_keys(table, [   
+                                        {'resources':  {    'code':False,
                                                             'url':'http://www.isardvdi.com:5050'}},
-                                            {'voucher_access':{'active':False}},
-                                            {'engine':{'api':{  "token": "fosdem", 
-                                                                "url": 'http://isard-engine', 
-                                                                "web_port": 5555}}}
-                                        ])
+                                        {'voucher_access':{'active':False}},
+                                        {'engine':{'api':{  "token": "fosdem", 
+                                                            "url": 'http://isard-engine', 
+                                                            "web_port": 5555}}}])
 
                 #### REMOVE FIELDS
-                self.del_keys('config',[{'engine':{'carbon'}}])
+                self.del_keys(table,[{'engine':{'carbon'}}])
                 
             except Exception as e:
                 log.error('Something went wrong while upgrading config!')
@@ -103,15 +105,18 @@ class Upgrade(object):
 
 
     '''
-    CONFIG TABLE UPGRADES
+    HYPERVISORS TABLE UPGRADES
     '''
     def hypervisors(self,version):
-        hyps=list(r.table('hypervisors').run())
-        print('UPGRADING HYPERVISORS VERSION '+str(version))
+        table='hypervisors'
+        data=list(r.table(table).run())
+        print('UPGRADING '+table+' VERSION '+str(version))
         if version == 1:
-            for hyp in hyps:
+            for d in data:
+                id=d['id']
+                d.pop('id',None)                
                 ##### PRE CHECKS    
-                if self.check_done( hyp,
+                if self.check_done( d,
                                     ['viewer_hostname','viewer_nat_hostname'],
                                     []): continue                
                 try:
@@ -124,9 +129,10 @@ class Upgrade(object):
                     # ~ r.table('config').update(cfg).run()  
                                   
                     ##### NEW FIELDS
-                    self.add_keys('hypervisors', [  {'viewer_hostname': hyp['hostname']},
-                                                    {'viewer_nat_hostname': hyp['hostname']}
-                                            ])
+                    self.add_keys(  table, 
+                                    [   {'viewer_hostname': d['hostname']},
+                                        {'viewer_nat_hostname': d['hostname']} ],
+                                        id=id)
 
                     #### REMOVE FIELDS
                     # ~ self.del_keys('config',[{'engine':{'carbon'}}])
@@ -138,6 +144,59 @@ class Upgrade(object):
                 
         return True
 
+    '''
+    HYPERVISORS_POOLS TABLE UPGRADES
+    '''
+    def hypervisors_pools(self,version):
+        table='hypervisors_pools'
+        data=list(r.table(table).run())
+        print('UPGRADING '+table+' VERSION '+str(version))
+        if version == 1:
+            for d in data:
+                id=d['id']
+                d.pop('id',None)
+                ##### PRE CHECKS    
+                # ~ if self.check_done( d,
+                                    # ~ [['paths','media']],
+                                    # ~ [['paths','isos']]): continue                
+                try:
+                    ##### CONVERSION FIELDS
+                    # ~ d['paths']['media']={'active':cfg['engine']['carbon']['active'],
+                                    # ~ 'url':cfg['engine']['carbon']['server'],
+                                    # ~ 'web_port':80,
+                                    # ~ 'carbon_port':cfg['engine']['carbon']['port'],
+                                    # ~ 'graphite_port':3000}
+                    # ~ r.table(table).get(id).update(d).run()  
+
+                    ##### PRE CHECKS    
+                    if self.check_done( d,
+                                        [['paths','media']],
+                                        []): continue                                     
+                    ##### NEW FIELDS
+                    media=d['paths']['groups'] #.copy()
+                    # ~ print(media)
+                    medialist=[]
+                    for m in media:
+                        m['path']=m['path'].split('groups')[0]+'media'
+                        medialist.append(m)
+                    d['paths']['media']=medialist
+                    # ~ self.add_keys(table, [m],
+                                         # ~ id=id)
+
+                    ##### PRE CHECKS    
+                    if self.check_done( d,
+                                        [],
+                                        [['paths','isos']]): continue   
+                    #### REMOVE FIELDS
+                    self.del_keys(table,[{'paths':{'isos'}}])
+                    
+                except Exception as e:
+                    log.error('Something went wrong while upgrading hypervisors!')
+                    log.error(e)
+                    exit(1)
+                
+        return True
+        
     '''
     Upgrade general actions
     '''
