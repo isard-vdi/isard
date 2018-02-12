@@ -28,6 +28,7 @@ $(document).ready(function() {
             });
 		}else{	
 			setHardwareOptions('#modalAddDesktop');
+            //~ setHardwareDomainDefaults('#modalAddDesktop',pk);
             $("#modalAdd")[0].reset();
 			$('#modalAddDesktop').modal({
 				backdrop: 'static',
@@ -297,6 +298,7 @@ function actionsDesktopDetail(){
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
+            setHardwareDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
 				backdrop: 'static',

@@ -158,11 +158,12 @@ class isardAdmin():
             user['quota']['domains'][k]=int(v)
         for k,v in user['quota']['hardware'].items():
             user['quota']['hardware'][k]=int(v)     
-                    
+        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000                    
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}
         user['quota']['domains']={**qdomains, **user['quota']['domains']}       
+
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
     def users_add(self,users):
@@ -185,7 +186,7 @@ class isardAdmin():
                 user['quota']['domains'][k]=int(v)
             for k,v in user['quota']['hardware'].items():
                 user['quota']['hardware'][k]=int(v)  
-                        
+            user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000             
             qdomains ={'desktops_disk_max': 99999999,  # 100GB
                         'templates_disk_max': 99999999,
                         'isos_disk_max': 99999999}
@@ -208,6 +209,7 @@ class isardAdmin():
             user['quota']['domains'][k]=int(v)
         for k,v in user['quota']['hardware'].items():
             user['quota']['hardware'][k]=int(v)  
+        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000 
                     
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
@@ -282,7 +284,8 @@ class isardAdmin():
         for k,v in dict['quota']['domains'].items():
             dict['quota']['domains'][k]=int(v)
         for k,v in dict['quota']['hardware'].items():
-            dict['quota']['hardware'][k]=int(v)            
+            dict['quota']['hardware'][k]=int(v)
+        dict['quota']['hardware']['memory']=dict['quota']['hardware']['memory']*1000 
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}

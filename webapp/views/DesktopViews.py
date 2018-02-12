@@ -264,6 +264,18 @@ def domain():
     except:
         return json.dumps([])
 
+# ~ @app.route('/userhardwarequota', methods=['POST'])
+# ~ @login_required
+# ~ def domain():
+    # ~ try:
+        # ~ hs=request.get_json(force=True)['hs']
+    # ~ except:
+        # ~ hs=False
+    # ~ try:
+        # ~ return json.dumps(app.isardapi.user_hardware_quota(current_user.username, human_size=hs))
+    # ~ except:
+        # ~ return json.dumps([])
+        
 @app.route('/domain/alloweds', methods=['POST'])
 @login_required
 def domain_alloweds():

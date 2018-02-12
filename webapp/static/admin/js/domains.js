@@ -356,8 +356,9 @@ function actionsDomainDetail(){
     
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
-            console.log(pk)
+            //~ console.log(pk)
 			setHardwareOptions('#modalEditDesktop');
+            setHardwareDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
 				backdrop: 'static',
