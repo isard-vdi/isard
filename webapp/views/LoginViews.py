@@ -34,33 +34,33 @@ def login():
     disposables=app.isardapi.show_disposable(remote_addr)
     return render_template('login_disposables.html', disposables=disposables if disposables else '')
 
-@app.route('/voucher_login', methods=['POST', 'GET'])
-def voucher_login():
-    if request.method == 'POST':
-        remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-        au=auth_voucher()
-        if au.check_voucher(request.form['voucher']):
-            if au.check_user_exists(request.form['email']):
-                au.register_user(request.form['voucher'],request.form['email'],remote_addr)
-                flash('Resetting account. Email with new isard user sent to '+request.form['email']+'. Please check your email','warning')
-            else:
-                au.register_user(request.form['voucher'],request.form['email'],remote_addr)
-                flash('Email with isard user sent to '+request.form['email']+'. Please check your email','success')
-        else:
-            flash('Invalid registration voucher code','danger')
+# ~ @app.route('/voucher_login', methods=['POST', 'GET'])
+# ~ def voucher_login():
+    # ~ if request.method == 'POST':
+        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ au=auth_voucher()
+        # ~ if au.check_voucher(request.form['voucher']):
+            # ~ if au.check_user_exists(request.form['email']):
+                # ~ au.register_user(request.form['voucher'],request.form['email'],remote_addr)
+                # ~ flash('Resetting account. Email with new isard user sent to '+request.form['email']+'. Please check your email','warning')
+            # ~ else:
+                # ~ au.register_user(request.form['voucher'],request.form['email'],remote_addr)
+                # ~ flash('Email with isard user sent to '+request.form['email']+'. Please check your email','success')
+        # ~ else:
+            # ~ flash('Invalid registration voucher code','danger')
     
-    disposables=False
-    return render_template('login.html', disposables=disposables if disposables else '')
+    # ~ disposables=False
+    # ~ return render_template('login.html', disposables=disposables if disposables else '')
 
-@app.route('/voucher_validation/<code>', methods=['GET'])
-def voucher_validation(code):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    au=auth_voucher()
-    valid=False
-    if au.check_validation(code):
-        au.activate_user(code,remote_addr)
-        valid=True
-    return render_template('voucher_validation.html',valid=valid)
+# ~ @app.route('/voucher_validation/<code>', methods=['GET'])
+# ~ def voucher_validation(code):
+    # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    # ~ au=auth_voucher()
+    # ~ valid=False
+    # ~ if au.check_validation(code):
+        # ~ au.activate_user(code,remote_addr)
+        # ~ valid=True
+    # ~ return render_template('voucher_validation.html',valid=valid)
         
 @app.route('/')
 def index():
