@@ -61,6 +61,7 @@ class Logs (object):
                              'status',
                              'changes',
                              'downloads',
+                             'bulk',
                              'eval',
                              'hmlog',
                              'main',
