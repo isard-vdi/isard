@@ -229,18 +229,20 @@ class isard():
                 domain=self.f.flatten_dict(domain)
                 if human_size:
                     domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
-                    for i,dict in enumerate(domain['disks_info']):
-                        for key in dict.keys():
-                            if 'size' in key:
-                                domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
+                    if 'disks_info' in domain:
+                        for i,dict in enumerate(domain['disks_info']):
+                            for key in dict.keys():
+                                if 'size' in key:
+                                    domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
             else:
                 # This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields
                 if human_size:
                     domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
-                    for i,dict in enumerate(domain['disks_info']):
-                        for key in dict.keys():
-                            if 'size' in key:
-                                domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
+                    if 'disks_info' in domain:
+                        for i,dict in enumerate(domain['disks_info']):
+                            for key in dict.keys():
+                                if 'size' in key:
+                                    domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
             log.error('get_domain: '+str(e))
         return domain   

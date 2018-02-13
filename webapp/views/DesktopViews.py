@@ -58,7 +58,7 @@ def derivates(id):
 @app.route('/desktops')
 @login_required
 def desktops():
-    return render_template('pages/desktops.html', nav="Desktops")
+    return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
 
 @app.route('/desktops/get/')
 @app.route('/desktops/get/<kind>')
