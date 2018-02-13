@@ -127,7 +127,7 @@ if True:
     from .views import DesktopViews
     from .views import TemplateViews
     #~ from .views import IsosViews
-    from .views import ClassroomViews
+    #from .views import ClassroomViews
     from .views import ProfileViews
     from .views import AboutViews
 
@@ -136,7 +136,7 @@ if True:
     from .admin.views import AdminDomainsViews
     from .admin.views import AdminMediaViews
     from .admin.views import AdminHypersViews
-    from .admin.views import ClassroomViews
+    #from .admin.views import ClassroomViews
     from .admin.views import AdminGraphsViews
     from .admin.views import UpdatesViews
 
