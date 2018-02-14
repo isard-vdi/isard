@@ -202,7 +202,7 @@ class ManagerHypervisors(object):
 
                 #launch thread events
                 if self.manager.t_events is None:
-                    logs.info('launching hypervisor events thread')
+                    logs.main.info('launching hypervisor events thread')
                     self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
                 else:
                     #if new hypervisor has added then add hypervisor to receive events
