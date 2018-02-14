@@ -771,7 +771,7 @@ def send_viewer(data,kind='domain',remote_addr=False):
                         # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
     else:
         if data['kind'] == 'xpi':
-            viewer=app.isardapi.get_spice_xpi(data['pk'],remote_addr=remote_addr)
+            viewer=app.isardapi.get_spice_xpi(data['pk'])  #,remote_addr=remote_addr)
 
         if data['kind'] == 'html5':
             viewer=app.isardapi.get_domain_spice(data['pk'],remote_addr=remote_addr)
