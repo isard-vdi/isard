@@ -312,6 +312,40 @@ $(document).ready(function() {
 						  }).data("ionRangeSlider").update();                          
     }
 
+
+
+    // VIDEOS
+    boots_table=$('#boots').DataTable({
+			"ajax": {
+				"url": "/admin/table/boots/get",
+				"dataSrc": ""
+			},
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				{
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": '' //'<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+				},
+				{ "data": "name"},
+				{ "data": "description"},
+				{
+                "className":      'actions-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> \
+                                   <button id="btn-edit" class="btn btn-xs btn-edit-interface" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+				},                
+                ],
+			 "order": [[1, 'asc']]
+    } );
+    
+
     reconnect=-1;
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
     console.log(socket)
