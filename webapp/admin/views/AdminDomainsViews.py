@@ -31,9 +31,9 @@ def admin_domains(nav='Domains'):
     if nav=='Bases': icon='cubes'
     if nav=='Resources': 
         icon='arrows-alt'
-        return render_template('admin/pages/domains_resources.html', nav=nav, icon=icon) 
+        return render_template('admin/pages/domains_resources.html', title=nav, nav=nav, icon=icon) 
     else:
-        return render_template('admin/pages/domains.html', nav=nav, icon=icon) 
+        return render_template('admin/pages/domains.html', title=nav, nav=nav, icon=icon) 
 
 @app.route('/admin/mdomains', methods=['POST'])
 @login_required

@@ -197,10 +197,20 @@ class ManagerHypervisors(object):
             launch_try_hyps(dict_hyps_to_test)
             dict_hyps_ready = self.manager.dict_hyps_ready = get_hyps_ready_to_start()
 
-            self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
             if len(dict_hyps_ready) > 0:
                 logs.main.debug('hyps_ready_to_start: ' + pprint.pformat(dict_hyps_ready))
 
+                #launch thread events
+                if self.manager.t_events is None:
+                    logs.main.info('launching hypervisor events thread')
+                    self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
+                else:
+                    #if new hypervisor has added then add hypervisor to receive events
+                    logs.main.info('hypervisors added to thread events')
+                    logs.main.info(pprint.pformat(dict_hyps_ready))
+                    self.manager.t_events.hyps.update(dict_hyps_ready)
+                    for hyp_id, hostname in self.manager.t_events.hyps.items():
+                        self.manager.t_events.add_hyp_to_receive_events(hyp_id)
                 set_unknown_domains_not_in_hyps(dict_hyps_ready.keys())
                 set_domains_coherence(dict_hyps_ready)
 

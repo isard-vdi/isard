@@ -1,0 +1,4 @@
+.dataTables_filter {float: left; position: absolute;}
+.dataTables_filter input { max-width:90px;}
+
+.roundbox{border-radius:4px;border:1px solid #AAAAAA;}

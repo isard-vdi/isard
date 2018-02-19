@@ -27,7 +27,7 @@ def admin_updates():
     registered=u.is_registered()
     if not registered:
         flash("Unable to contact updates website.","error")
-    return render_template('admin/pages/updates.html', nav="Updates", registered=registered)
+    return render_template('admin/pages/updates.html', title="Updates", nav="Updates", registered=registered)
 
 @app.route('/admin/updates_register', methods=['POST'])
 @login_required

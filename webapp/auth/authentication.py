@@ -192,7 +192,28 @@ class auth(object):
     def update_access(self,username):
         with app.app_context():
             r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)
-   
+
+    def ldap_users_exists(self,commit=False):
+        cfg=r.table('config').get(1).run(db.conn)['auth']
+        users=list(r.table('users').filter({'active':True,'kind':'ldap'}).pluck('id','name','accessed').run(db.conn))
+        nonvalid=[]
+        valid=[]
+        for u in users:
+            conn = ldap.initialize(cfg['ldap']['ldap_server'])
+            id_conn = conn.search(cfg['ldap']['bind_dn'],ldap.SCOPE_SUBTREE,"uid=%s" % u['id'])
+            tmp,info=conn.result(id_conn, 0)
+            if len(info):
+                valid.append(u)
+            else:
+                nonvalid.append(u)
+        if commit:
+            nonvalid_list= [ u['id'] for u in nonvalid ]
+            return r.table('users').get_all(r.args(nonvalid_list)).update({'active':False}).run(db.conn)
+        else:
+            return {'nonvalid':nonvalid,'valid':valid}
+        #~ print(nonvalid)
+        #~ print('Non valids: '+str(len(nonvalid)))
+        #~ print('Valids: '+str(len(valid)))
    
 '''
 VOUCHER AUTH

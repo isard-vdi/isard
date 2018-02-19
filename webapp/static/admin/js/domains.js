@@ -188,10 +188,12 @@ $(document).ready(function() {
                 $('#status-detail-'+row.data().id).html(row.data().detail);
                 actionsDomainDetail();
                 //~ setDomainDetailButtonsStatus(row.data().id,row.data().status)
-                if(row.data().status=='Stopped' || row.data().status=='Started'){
+                if(row.data().status=='Stopped' || row.data().status=='Started' || row.data().status=='Failed'){
                     setDomainGenealogy(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
-                    setDomainDerivates(row.data().id);
+                    if(url!="Desktops"){
+                        setDomainDerivates(row.data().id);
+                    }
                 }
             }            
         }
@@ -333,6 +335,8 @@ $(document).ready(function() {
         if(data.result){
             $("#modalEdit")[0].reset();
             $("#modalEditDesktop").modal('hide');
+            $("#modalBulkEditForm")[0].reset();
+            $("#modalBulkEdit").modal('hide');            
             setHardwareDomainDefaults_viewer('#hardware-'+data.id,data.id);
         }
         new PNotify({
@@ -352,8 +356,9 @@ function actionsDomainDetail(){
     
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
-            console.log(pk)
+            //~ console.log(pk)
 			setHardwareOptions('#modalEditDesktop');
+            setHardwareDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
 				backdrop: 'static',
@@ -536,7 +541,10 @@ function renderAction(data){
                 return '<i class="fa fa-stop"></i>';
             }
         } 
-        
+
+        if(status=='Disabled'){
+                return '<i class="fa fa-times fa-2x"></i>';
+        }         
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 

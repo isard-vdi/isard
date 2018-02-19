@@ -72,6 +72,8 @@ class isardAdmin():
                                 
                 domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)
                 res=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn)
+                domains_disabled=self.multiple_check_field(table,'status','Disabled',ids)
+                res=r.table(table).get_all(r.args(domains_disabled)).update({'status':'Deleting'}).run(db.conn)                
                 domains_failed=self.multiple_check_field(table,'status','Failed',ids)
                 res=r.table(table).get_all(r.args(domains_failed)).update({'status':'Deleting'}).run(db.conn) 
                 domains_creating=self.multiple_check_field(table,'status','Creating',ids)
@@ -156,11 +158,12 @@ class isardAdmin():
             user['quota']['domains'][k]=int(v)
         for k,v in user['quota']['hardware'].items():
             user['quota']['hardware'][k]=int(v)     
-                    
+        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000                    
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}
         user['quota']['domains']={**qdomains, **user['quota']['domains']}       
+
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
     def users_add(self,users):
@@ -183,7 +186,7 @@ class isardAdmin():
                 user['quota']['domains'][k]=int(v)
             for k,v in user['quota']['hardware'].items():
                 user['quota']['hardware'][k]=int(v)  
-                        
+            user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000             
             qdomains ={'desktops_disk_max': 99999999,  # 100GB
                         'templates_disk_max': 99999999,
                         'isos_disk_max': 99999999}
@@ -206,6 +209,7 @@ class isardAdmin():
             user['quota']['domains'][k]=int(v)
         for k,v in user['quota']['hardware'].items():
             user['quota']['hardware'][k]=int(v)  
+        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000 
                     
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
@@ -215,9 +219,13 @@ class isardAdmin():
 
     def user_toggle_active(self,id):
         with app.app_context():
-            is_active = not r.table('users').get(id).pluck('active').run(db.conn)['active']           
+            is_active = not r.table('users').get(id).pluck('active').run(db.conn)['active'] 
+            if is_active:
+                r.table('domains').get_all(id, index='user').filter({'kind':'desktop','status':'Disabled'}).update({'status':'Stopped'}).run(db.conn)
+            else:
+                r.table('domains').get_all(id, index='user').filter({'kind':'desktop'}).update({'status':'Disabled'}).pluck('id').run(db.conn)
             return self.check(r.table('users').get(id).update({'active':is_active}).run(db.conn),'replaced')
-           
+
                     
     def get_admin_user(self):
         with app.app_context():
@@ -276,7 +284,8 @@ class isardAdmin():
         for k,v in dict['quota']['domains'].items():
             dict['quota']['domains'][k]=int(v)
         for k,v in dict['quota']['hardware'].items():
-            dict['quota']['hardware'][k]=int(v)            
+            dict['quota']['hardware'][k]=int(v)
+        dict['quota']['hardware']['memory']=dict['quota']['hardware']['memory']*1000 
         qdomains ={'desktops_disk_max': 99999999,  # 100GB
                     'templates_disk_max': 99999999,
                     'isos_disk_max': 99999999}
@@ -344,6 +353,16 @@ class isardAdmin():
                             for d in list(r.table('domains').get_all(username, index='user').pluck('id','user',{'create_dict':{'origin'}}).run(db.conn)) ] 
             return self.domain_recursive_count(id,domains)-1
 
+    def domains_update(self, create_dict):
+        ids=create_dict['ids']
+        create_dict.pop('ids',None)
+        #~ description=create_dict['description']
+        #~ create_dict.pop('description',None)
+        for id in ids:
+            create_dict['status']='Updating'
+            self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
+        return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
+        #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
     def domain_recursive_count(self,id,domains):
         # ~ if count == 0:

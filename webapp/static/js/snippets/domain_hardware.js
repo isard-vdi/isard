@@ -46,7 +46,7 @@
 				{   // hypervisors_pools is not inside hardware (take it into account when editing!)
 					$(id+" #forced_hyp").append('<option value=' + value.id + '>' + value.hostname+' ('+value.status+')' + '</option>');
 				});
-                
+                console.log(hardware.user['quota-hardware-memory'])
 				$(id+" #hardware-memory").ionRangeSlider({
 						  type: "single",
 						  min: 500,
@@ -109,6 +109,39 @@
 			}); 
 	}
 
+	//~ function setHardwareUserDefaults(div_id,user){
+			//~ // id is the domain id
+            //~ $(div_id+' #hardware-interfaces option:selected').prop("selected", false);
+            //~ $(div_id+' #hardware-graphics option:selected').prop("selected", false);
+            //~ $(div_id+' #hardware-videos option:selected').prop("selected", false);
+            //~ $(div_id+' #hardware-boot_order option:selected').prop("selected", false);
+            //~ $(div_id+' #hypervisors_pools option:selected').prop("selected", false);
+            
+			//~ api.ajax('/userhardwarequota','POST',{'pk':domain_id}).done(function(domain) {
+				//~ $(div_id+' #hardware-interfaces option[value="'+domain['hardware-interfaces'][0].id+'"]').prop("selected",true);
+				//~ $(div_id+' #hardware-graphics option[value="'+domain['hardware-graphics-type']+'"]').prop("selected",true);
+                //~ $(div_id+' #hardware-videos option[value="'+domain['hardware-video-type']+'"]').prop("selected",true);
+                
+                //~ // Need to talk with engine and change this
+                //~ if(domain['hardware-boot_order'][0]=='hd'){domain['hardware-boot_order'][0]='disk'}
+                //~ if(domain['hardware-boot_order'][0]=='cdrom'){domain['hardware-boot_order'][0]='iso'}
+                //~ if(domain['hardware-boot_order'][0]=='network'){domain['hardware-boot_order'][0]='pxe'}
+                //~ $(div_id+' #hardware-boot_order option[value="'+domain['hardware-boot_order'][0]+'"]').prop("selected",true);
+                
+                //~ $(div_id+' #hypervisors_pools option[value="'+domain['hypervisors_pools'][0]+'"]').prop("selected",true);
+                //~ if(domain['forced_hyp']){
+                    //~ $(div_id+' #forced_hyp option[value="'+domain['forced_hyp']+'"]').prop("selected",true);
+                //~ }
+				//~ $(div_id+" #hardware-memory").data("ionRangeSlider").update({
+						  //~ from: domain['hardware-memory']/1000
+                //~ });
+				//~ $(div_id+" #hardware-vcpus").data("ionRangeSlider").update({
+						  //~ from: domain['hardware-vcpus']
+                //~ });
+					  
+			//~ }); 
+	//~ }
+    
 	function setHardwareDomainDefaults_viewer(div_id,domain_id){
 			api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
 				$(div_id+" #vcpu").html(domain['hardware-vcpus']+' CPU(s)');

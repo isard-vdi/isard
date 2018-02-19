@@ -6,7 +6,7 @@
 #!flask/bin/python
 # coding=utf-8
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, render_template
 
 import os
 
@@ -27,6 +27,10 @@ from webapp.wizard import WizardLib
 w=WizardLib.Wizard()
 # This will start a Wizard Flask app that will continue on wizard finish.
 w=None
+
+from webapp.config import upgrade
+up=upgrade.Upgrade()
+
 print('Starting isard webapp...')
 if not os.path.exists('./install/.wizard'): exit(1)
 
@@ -49,12 +53,12 @@ else:
 #~ Populate database if not exists
 #~ '''
 
-#~ from .config.populate import Populate
-#~ p=Populate()
-#~ if p.database():
-    #~ p.defaults()
-#~ else:
-    #~ exit(1)
+# ~ from .config.populate import Populate
+# ~ p=Populate()
+# ~ if p.database():
+    # ~ p.defaults()
+# ~ else:
+    # ~ exit(1)
 
 '''
 Scheduler
@@ -103,7 +107,15 @@ def send_isardist(path):
 @app.route('/static/<path:path>')
 def send_static_js(path):
     return send_from_directory(os.path.join(app.root_path, 'static'), path)
-    
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('page_404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('page_500.html'), 500
+        
 '''
 Import all views
 '''
@@ -115,7 +127,7 @@ if True:
     from .views import DesktopViews
     from .views import TemplateViews
     #~ from .views import IsosViews
-    from .views import ClassroomViews
+    #from .views import ClassroomViews
     from .views import ProfileViews
     from .views import AboutViews
 
@@ -124,7 +136,7 @@ if True:
     from .admin.views import AdminDomainsViews
     from .admin.views import AdminMediaViews
     from .admin.views import AdminHypersViews
-    from .admin.views import ClassroomViews
+    #from .admin.views import ClassroomViews
     from .admin.views import AdminGraphsViews
     from .admin.views import UpdatesViews
 

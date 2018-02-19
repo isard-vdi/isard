@@ -28,6 +28,7 @@ $(document).ready(function() {
             });
 		}else{	
 			setHardwareOptions('#modalAddDesktop');
+            //~ setHardwareDomainDefaults('#modalAddDesktop',pk);
             $("#modalAdd")[0].reset();
 			$('#modalAddDesktop').modal({
 				backdrop: 'static',
@@ -297,6 +298,7 @@ function actionsDesktopDetail(){
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
+            setHardwareDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
 				backdrop: 'static',
@@ -430,6 +432,9 @@ function renderAction(data){
         if(status=='Crashed'){
             return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
         } 
+        if(status=='Disabled'){
+                return '<i class="fa fa-times fa-2x"></i>';
+        }            
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 

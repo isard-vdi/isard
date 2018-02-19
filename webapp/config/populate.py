@@ -7,16 +7,10 @@
 # coding=utf-8
 
 import rethinkdb as r
-import time
-#~ from webapp import app
-#~ from ..lib.flask_rethink import RethinkDB
+import time, sys
+
 from ..lib.log import *
-import sys
-#~ db = RethinkDB(app)
-#~ db.init_app(app)
-
 from ..auth.authentication import Password
-
 from ..lib.load_config import load_config
 
 
@@ -36,7 +30,6 @@ class Populate(object):
 
     def database(self):
         try:
-            #~ with app.app_context():
                 if not r.db_list().contains(self.cfg['RETHINKDB_DB']).run():
                     log.warning('Database {} not found, creating new one.'.format(self.cfg['RETHINKDB_DB']))
                     r.db_create(self.cfg['RETHINKDB_DB']).run()
@@ -52,60 +45,7 @@ class Populate(object):
 
 
     def defaults(self):
-        print(self.check_integrity())
-        # ~ log.info('Checking table roles')
-        # ~ self.roles()
-        # ~ log.info('Checking table categories')
-        # ~ self.categories()
-        # ~ log.info('Checking table groups')
-        # ~ self.groups()
-        # ~ log.info('Checking table users')
-        # ~ self.users()
-        # ~ log.info('Checking table vouchers')
-        # ~ self.vouchers()
-        # ~ log.info('Checking table hypervisors and pools')
-        # ~ self.hypervisors()
-        # ~ log.info('Checking table interfaces')
-        # ~ self.interfaces()
-        # ~ log.info('Checking table graphics')
-        # ~ self.graphics()
-        # ~ log.info('Checking table videos')
-        # ~ self.videos()
-        # ~ log.info('Checking table disks')
-        # ~ self.disks()
-        # ~ log.info('Checking table domains')
-        # ~ self.domains()
-        # ~ log.info('Checking table domains_status')
-        # ~ self.domains_status()
-        # ~ log.info('Checking table virt_builder')
-        # ~ self.virt_builder()
-        # ~ log.info('Checking table virt_install')
-        # ~ self.virt_install()
-        # ~ log.info('Checking table builders')
-        # ~ self.builders()
-        # ~ log.info('Checking table media')
-        # ~ self.media()
-        # ~ log.info('Checking table scheduler_jobs')
-        # ~ self.scheduler_jobs()
-
-        # ~ log.info('Checking table boots')
-        # ~ self.boots()
-        # ~ log.info('Checking table hypervisors_events')
-        # ~ self.hypervisors_events()
-        # ~ log.info('Checking table hypervisors_status')
-        # ~ self.hypervisors_status()
-        # ~ log.info('Checking table disk_operations')
-        # ~ self.disk_operations()
-        # ~ log.info('Checking table hosts_viewers')
-        # ~ self.hosts_viewers()
-        # ~ log.info('Checking table places')
-        # ~ self.places()
-        # ~ log.info('Checking table disposables')
-        # ~ self.disposables()
-        # ~ log.info('Checking table backups')
-        # ~ self.backups()
-        # ~ log.info('Checking table config')
-        # ~ self.config()
+        return self.check_integrity()
 
 
     def check_integrity(self,commit=False):
@@ -177,8 +117,8 @@ class Populate(object):
                                                                             'libvirt_hypervisor_timeout_connection': 3,
                                                                             'timeout_between_retries_hyp_is_alive': 1,
                                                                             'retries_hyp_is_alive': 3
-                                                                            },
-                                                                    'grafana':{'active':False,'url':'http://isard-grafana','web_port':80,'carbon_port':2003,'graphite_port':3000}},
+                                                                            }},
+                                                        'grafana':{'active':False,'url':'http://isard-grafana','web_port':80,'carbon_port':2003,'graphite_port':3000},
                                                         'version':0,
                                                         'resources': {'code':False,
                                                                     'url':'http://www.isardvdi.com:5050'}
@@ -228,8 +168,6 @@ class Populate(object):
             if not r.table_list().contains('users').run():
                 log.info("Table users not found, creating...")
                 r.table_create('users', primary_key="id").run()
-                r.table('users').index_create("group").run()
-                r.table('users').index_wait("group").run()
 
                 if r.table('users').get('admin').run() is None:
                     usr = [{'id': 'admin',
@@ -302,6 +240,7 @@ class Populate(object):
                            ]
                     self.result(r.table('users').insert(usr, conflict='update').run())
                     log.info("  Inserted default eval username with random password")
+            self.index_create('users',['group'])
             return True
 
     '''
@@ -314,8 +253,6 @@ class Populate(object):
             if not r.table_list().contains('vouchers').run():
                 log.info("Table vouchers not found, creating...")
                 r.table_create('vouchers', primary_key="id").run()
-                #~ r.table('users').index_create("group").run()
-                #~ r.table('users').index_wait("group").run()
             return True
 
 
@@ -456,14 +393,6 @@ class Populate(object):
             if not r.table_list().contains('interfaces').run():
                 log.info("Table interfaces not found, creating and populating default network...")
                 r.table_create('interfaces', primary_key="id").run()
-                r.table("interfaces").index_create("roles", multi=True).run()
-                r.table("interfaces").index_wait("roles").run()
-                r.table("interfaces").index_create("categories", multi=True).run()
-                r.table("interfaces").index_wait("categories").run()
-                r.table("interfaces").index_create("groups", multi=True).run()
-                r.table("interfaces").index_wait("groups").run()
-                r.table("interfaces").index_create("users", multi=True).run()
-                r.table("interfaces").index_wait("users").run()
                 self.result(r.table('interfaces').insert([{'id': 'default',
                                                            'name': 'Default',
                                                            'description': 'Default network',
@@ -477,6 +406,7 @@ class Populate(object):
                                                                'groups': [],
                                                                'users': []}
                                                            }]).run())
+            self.index_create('interfaces',['roles','categories','groups','users'])
             return True
 
     '''
@@ -637,10 +567,7 @@ class Populate(object):
             if not r.table_list().contains('media').run():
                 log.info("Table media not found, creating...")
                 r.table_create('media', primary_key="id").run()
-                r.table('media').index_create("status").run()
-                r.table('media').index_wait("status").run()
-                r.table('media').index_create("user").run()
-                r.table('media').index_wait("user").run()
+        self.index_create('media',['status','user'])
         return True
 
     '''
@@ -755,12 +682,7 @@ class Populate(object):
             if not r.table_list().contains('hypervisors_events').run():
                 log.info("Table hypervisors_events not found, creating...")
                 r.table_create('hypervisors_events', primary_key="id").run()
-                r.table('hypervisors_events').index_create("domain").run()
-                r.table('hypervisors_events').index_wait("domain").run()
-                r.table('hypervisors_events').index_create("event").run()
-                r.table('hypervisors_events').index_wait("event").run()
-                r.table('hypervisors_events').index_create("hyp_id").run()
-                r.table('hypervisors_events').index_wait("hyp_id").run()
+            self.index_create('hypervisors_events',['domain','event','hyp_id'])
             return True
 
     '''
@@ -772,17 +694,11 @@ class Populate(object):
             if not r.table_list().contains('hypervisors_status').run():
                 log.info("Table hypervisors_status not found, creating...")
                 r.table_create('hypervisors_status', primary_key="id").run()
-                r.table('hypervisors_status').index_create("connected").run()
-                r.table('hypervisors_status').index_wait("connected").run()
-                r.table('hypervisors_status').index_create("hyp_id").run()
-                r.table('hypervisors_status').index_wait("hyp_id").run()
+            self.index_create('hypervisors_status',['connected','hyp_id'])
             if not r.table_list().contains('hypervisors_status_history').run():
                 log.info("Table hypervisors_status_history not found, creating...")
                 r.table_create('hypervisors_status_history', primary_key="id").run()
-                r.table('hypervisors_status_history').index_create("connected").run()
-                r.table('hypervisors_status_history').index_wait("connected").run()
-                r.table('hypervisors_status_history').index_create("hyp_id").run()
-                r.table('hypervisors_status_history').index_wait("hyp_id").run()
+            self.index_create('hypervisors_status_history',['connected','hyp_id'])
             return True
 
     '''
@@ -794,18 +710,7 @@ class Populate(object):
             if not r.table_list().contains('domains').run():
                 log.info("Table domains not found, creating...")
                 r.table_create('domains', primary_key="id").run()
-                r.table('domains').index_create("status").run()
-                r.table('domains').index_wait("status").run()
-                r.table('domains').index_create("hyp_started").run()
-                r.table('domains').index_wait("hyp_started").run()
-                r.table('domains').index_create("user").run()
-                r.table('domains').index_wait("user").run()
-                r.table('domains').index_create("group").run()
-                r.table('domains').index_wait("group").run()
-                r.table('domains').index_create("category").run()
-                r.table('domains').index_wait("category").run()
-                r.table('domains').index_create("kind").run()
-                r.table('domains').index_wait("kind").run()
+            self.index_create('domains',['status','hyp_started','user','group','category','kind'])
             return True
             
     '''
@@ -817,17 +722,11 @@ class Populate(object):
             if not r.table_list().contains('domains_status').run():
                 log.info("Table domains_status not found, creating...")
                 r.table_create('domains_status', primary_key="id").run()
-                r.table('domains_status').index_create("name").run()
-                r.table('domains_status').index_wait("name").run()
-                r.table('domains_status').index_create("hyp_id").run()
-                r.table('domains_status').index_wait("hyp_id").run()
+            self.index_create('domains_status',['name','hyp_id'])
             if not r.table_list().contains('domains_status_history').run():
                 log.info("Table domains_status_history not found, creating...")
                 r.table_create('domains_status_history', primary_key="id").run()
-                r.table('domains_status_history').index_create("name").run()
-                r.table('domains_status_history').index_wait("name").run()
-                r.table('domains_status_history').index_create("hyp_id").run()
-                r.table('domains_status_history').index_wait("hyp_id").run()
+            self.index_create('domains_status_history',['name','hyp_id'])
             return True
             
     '''
@@ -853,8 +752,7 @@ class Populate(object):
                 # code --> Identify group of eval results.
                 # This group of results was taken over the same pool and hypervisors characteristics.
                 # Example: code: A
-                r.table('eval_results').index_create("code").run()
-                r.table('eval_results').index_wait("code").run()
+            self.index_create('eval_results',['code'])
 
             if not r.table_list().contains('eval_initial_ux').run():
                 log.info("Table eval_initial_ux not found, creating...")
@@ -925,6 +823,7 @@ class Populate(object):
                 r.table('hosts_viewers').index_wait("mac").run()
                 r.table('hosts_viewers').index_create("place_id").run()
                 r.table('hosts_viewers').index_wait("place_id").run()
+            self.index_create('hosts_viewers',['hostname','mac','place_id'])
             return True
             
     '''
@@ -936,10 +835,7 @@ class Populate(object):
             if not r.table_list().contains('places').run():
                 log.info("Table places not found, creating...")
                 r.table_create('places', primary_key="id").run()
-                r.table('places').index_create("network").run()
-                r.table('places').index_wait("network").run()
-                r.table('places').index_create("status").run()
-                r.table('places').index_wait("status").run()
+            self.index_create('places',['network','status'])
             return True
 
 
@@ -980,172 +876,172 @@ class Populate(object):
 
 
 
-    ''''
+    # ~ ''''
 
-    VIRT - BUILDER
-    VIRT - INSTALL
+    # ~ VIRT - BUILDER
+    # ~ VIRT - INSTALL
 
-    '''
+    # ~ '''
 
 
-    def create_builders(self):
-        l=[]
-        d_fedora25 = {'id': 'fedora25_gnome_office',
-                      'name': 'Fedora 25 with gnome and libre office',
-                      'builder':{
-                          'id': 'fedora-25',
-                          'options':
-    """--update
-    --selinux-relabel
-    --install "@workstation-product-environment"
-    --install "inkscape,tmux,@libreoffice,chromium"
-    --install "libreoffice-langpack-ca,langpacks-es"
-    --root-password password:isard
-    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
-    --firstboot-command 'localectl set-locale LANG=es_ES.utf8'
-    --firstboot-command 'localectl set-keymap es'
-    --firstboot-command 'systemctl isolate graphical.target'
-    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
-    --hostname 'isard-fedora'"""
-                      },
-                      'install':{
-                          'id': 'fedora25',
-                          'options': ''
-                      }
-                      }
-        l.append(d_fedora25)
+    # ~ def create_builders(self):
+        # ~ l=[]
+        # ~ d_fedora25 = {'id': 'fedora25_gnome_office',
+                      # ~ 'name': 'Fedora 25 with gnome and libre office',
+                      # ~ 'builder':{
+                          # ~ 'id': 'fedora-25',
+                          # ~ 'options':
+    # ~ """--update
+    # ~ --selinux-relabel
+    # ~ --install "@workstation-product-environment"
+    # ~ --install "inkscape,tmux,@libreoffice,chromium"
+    # ~ --install "libreoffice-langpack-ca,langpacks-es"
+    # ~ --root-password password:isard
+    # ~ --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+    # ~ --firstboot-command 'localectl set-locale LANG=es_ES.utf8'
+    # ~ --firstboot-command 'localectl set-keymap es'
+    # ~ --firstboot-command 'systemctl isolate graphical.target'
+    # ~ --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    # ~ --hostname 'isard-fedora'"""
+                      # ~ },
+                      # ~ 'install':{
+                          # ~ 'id': 'fedora25',
+                          # ~ 'options': ''
+                      # ~ }
+                      # ~ }
+        # ~ l.append(d_fedora25)
         
-        d_debian8 = {'id': 'debian8_gnome_office',
-                      'name': 'Debian 8 with gnome and libre office',
-                      'builder':{
-                          'id': 'debian-8',
-                          'options':
-    """--update
-    --selinux-relabel
-    --install 'xfce4,locales,ibus'
-    --install 'gdm3,libreoffice,libreoffice-l10n-es'
-    --install 'inkscape,tmux,chromium'
-    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
-    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
-    --run-command "locale-gen"
-    --root-password password:isard
-    --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
-    --hostname 'isard-debian'"""
-                      },
-                      'install':{
-                          'id': 'debian8',
-                          'options': ''
-                      }
-                      }
-        l.append(d_debian8)
+        # ~ d_debian8 = {'id': 'debian8_gnome_office',
+                      # ~ 'name': 'Debian 8 with gnome and libre office',
+                      # ~ 'builder':{
+                          # ~ 'id': 'debian-8',
+                          # ~ 'options':
+    # ~ """--update
+    # ~ --selinux-relabel
+    # ~ --install 'xfce4,locales,ibus'
+    # ~ --install 'gdm3,libreoffice,libreoffice-l10n-es'
+    # ~ --install 'inkscape,tmux,chromium'
+    # ~ --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    # ~ --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    # ~ --run-command "locale-gen"
+    # ~ --root-password password:isard
+    # ~ --firstboot-command 'useradd -m -p "" isard ; chage -d 0 isard'
+    # ~ --hostname 'isard-debian'"""
+                      # ~ },
+                      # ~ 'install':{
+                          # ~ 'id': 'debian8',
+                          # ~ 'options': ''
+                      # ~ }
+                      # ~ }
+        # ~ l.append(d_debian8)
         
-        d_ubuntu1604 = {'id': 'ubuntu1604_gnome_office',
-                      'name': 'Ubuntu 16.04 with gnome and libre office',
-                      'builder':{
-                          'id': 'ubuntu-16.04',
-                          'options':
-    """--update
-    --selinux-relabel
-    --install "ubuntu-desktop"
-    --install "inkscape,tmux,libreoffice,chromium-bsu"
-    --install 'language-pack-es-base,language-pack-es'
-    --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
-    --write '/etc/default/locale:LANG="es_ES.UTF-8"'
-    --run-command "locale-gen"
-    --root-password password:isard
-    --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
-    --firstboot-command 'systemctl isolate graphical.target'
-    --hostname 'isard-ubuntu'"""
-                      },
-                      'install':{
-                          'id': 'ubuntu16',
-                          'options': ''
-                      }
-                      }
-        l.append(d_ubuntu1604)
+        # ~ d_ubuntu1604 = {'id': 'ubuntu1604_gnome_office',
+                      # ~ 'name': 'Ubuntu 16.04 with gnome and libre office',
+                      # ~ 'builder':{
+                          # ~ 'id': 'ubuntu-16.04',
+                          # ~ 'options':
+    # ~ """--update
+    # ~ --selinux-relabel
+    # ~ --install "ubuntu-desktop"
+    # ~ --install "inkscape,tmux,libreoffice,chromium-bsu"
+    # ~ --install 'language-pack-es-base,language-pack-es'
+    # ~ --edit '/etc/default/keyboard: s/^XKBLAYOUT=.*/XKBLAYOUT="es"/'
+    # ~ --write '/etc/default/locale:LANG="es_ES.UTF-8"'
+    # ~ --run-command "locale-gen"
+    # ~ --root-password password:isard
+    # ~ --link /usr/lib/systemd/system/graphical.target:/etc/systemd/system/default.target
+    # ~ --firstboot-command 'systemctl isolate graphical.target'
+    # ~ --hostname 'isard-ubuntu'"""
+                      # ~ },
+                      # ~ 'install':{
+                          # ~ 'id': 'ubuntu16',
+                          # ~ 'options': ''
+                      # ~ }
+                      # ~ }
+        # ~ l.append(d_ubuntu1604)
 
-        d_cirros_35 = {'id': 'cirros35',
-                      'name': 'CirrOS 3.5',
-                      'builder':{
-                          'id': 'cirros-0.3.5',
-                          'options':
-    """"""
-                      },
-                      'install':{
-                          'id': 'centos7.0',
-                          'options': ''
-                      }
-                      }
-        l.append(d_cirros_35)
+        # ~ d_cirros_35 = {'id': 'cirros35',
+                      # ~ 'name': 'CirrOS 3.5',
+                      # ~ 'builder':{
+                          # ~ 'id': 'cirros-0.3.5',
+                          # ~ 'options':
+    # ~ """"""
+                      # ~ },
+                      # ~ 'install':{
+                          # ~ 'id': 'centos7.0',
+                          # ~ 'options': ''
+                      # ~ }
+                      # ~ }
+        # ~ l.append(d_cirros_35)
         
-        return l
+        # ~ return l
 
-    def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
+    # ~ def update_virtbuilder(self,url="http://libguestfs.org/download/builder/index"):
 
-        import urllib.request
-        with urllib.request.urlopen(url) as response:
-            f = response.read()
+        # ~ import urllib.request
+        # ~ with urllib.request.urlopen(url) as response:
+            # ~ f = response.read()
 
-        s = f.decode('utf-8')
-        #select only arch x86_64
-        l = [a.split(']') for a in s[1:].split('\n[') if a.find('\narch=x86_64') > 0]
+        # ~ s = f.decode('utf-8')
+        # ~ #select only arch x86_64
+        # ~ l = [a.split(']') for a in s[1:].split('\n[') if a.find('\narch=x86_64') > 0]
 
-        list_virtbuilder = []
-        for b in l:
-            d = {a.split('=')[0]: a.split('=')[1] for a in b[1].split('notes')[0].split('\n')[1:] if
-                       len(a) > 0 and a.find('=') > 0}
-            d['id'] = b[0]
-            list_virtbuilder.append(d)
+        # ~ list_virtbuilder = []
+        # ~ for b in l:
+            # ~ d = {a.split('=')[0]: a.split('=')[1] for a in b[1].split('notes')[0].split('\n')[1:] if
+                       # ~ len(a) > 0 and a.find('=') > 0}
+            # ~ d['id'] = b[0]
+            # ~ list_virtbuilder.append(d)
 
-        return list_virtbuilder
+        # ~ return list_virtbuilder
 
 
-    def update_virtinstall(self,from_osinfo_query=False):
+    # ~ def update_virtinstall(self,from_osinfo_query=False):
 
-        if from_osinfo_query is True:
-            import subprocess
-            data = subprocess.getoutput("osinfo-query os")
+        # ~ if from_osinfo_query is True:
+            # ~ import subprocess
+            # ~ data = subprocess.getoutput("osinfo-query os")
 
-        else:
-            from os import path
-            from os import getcwd
-            __location__ = path.realpath(
-                    path.join(getcwd(), path.dirname(__file__)))
-            f=open(__location__+'/osinfo.txt')
-            data = f.read()
-            f.close()
+        # ~ else:
+            # ~ from os import path
+            # ~ from os import getcwd
+            # ~ __location__ = path.realpath(
+                    # ~ path.join(getcwd(), path.dirname(__file__)))
+            # ~ f=open(__location__+'/osinfo.txt')
+            # ~ data = f.read()
+            # ~ f.close()
 
-        installs=[]
+        # ~ installs=[]
 
-        for l in data.split('\n')[2:]:
-            if l.find('|') > 1:
+        # ~ for l in data.split('\n')[2:]:
+            # ~ if l.find('|') > 1:
 
-                v=[a.strip() for a in l.split('|')]
+                # ~ v=[a.strip() for a in l.split('|')]
 
-                #DEFAULT FONT
-                font_type = 'font-awesome'
-                font_class = 'fa-linux'
+                # ~ #DEFAULT FONT
+                # ~ font_type = 'font-awesome'
+                # ~ font_class = 'fa-linux'
 
-                for oslinux in ('fedora,centos,debian,freebsd,mageia,mandriva,opensuse,ubuntu,opensuse'.split(',')):
-                        font_type  = 'font-linux'
-                        font_class = 'fl-'+oslinux
+                # ~ for oslinux in ('fedora,centos,debian,freebsd,mageia,mandriva,opensuse,ubuntu,opensuse'.split(',')):
+                        # ~ font_type  = 'font-linux'
+                        # ~ font_class = 'fl-'+oslinux
 
-                if v[0].find('rhel') == 0 or v[0].find('rhl') == 0:
-                    font_type  = 'font-linux'
-                    font_class = 'fl-redhat'
+                # ~ if v[0].find('rhel') == 0 or v[0].find('rhl') == 0:
+                    # ~ font_type  = 'font-linux'
+                    # ~ font_class = 'fl-redhat'
 
-                elif v[0].find('win') == 0:
-                    font_type  = 'font-awesome'
-                    font_class = 'fa-windows'
+                # ~ elif v[0].find('win') == 0:
+                    # ~ font_type  = 'font-awesome'
+                    # ~ font_class = 'fa-windows'
 
-                installs.append({'id':v[0].strip(),
-                                 'name':v[1].strip(),
-                                 'vers':v[2].strip(),
-                                 'www':v[3].strip(),
-                                 'font_type':font_type,
-                                 'icon':font_class})
+                # ~ installs.append({'id':v[0].strip(),
+                                 # ~ 'name':v[1].strip(),
+                                 # ~ 'vers':v[2].strip(),
+                                 # ~ 'www':v[3].strip(),
+                                 # ~ 'font_type':font_type,
+                                 # ~ 'icon':font_class})
 
-        return installs
+        # ~ return installs
     
     '''
     ENGINE
@@ -1164,5 +1060,12 @@ class Populate(object):
                                                            }]).run())
 
 
+    def index_create(self,table,indexes):
+        with app.app_context():
+            indexes_ontable=r.table(table).index_list().run()
+            apply_indexes = [mi for mi in indexes if mi not in indexes_ontable]
+            for i in apply_indexes:
+                r.table(table).index_create(i).run()
+                r.table(table).index_wait(i).run()
 
 ### disk_operations table not used anymore (delete if exists and remove creation)

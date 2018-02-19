@@ -853,8 +853,8 @@ class hyp(object):
         #hypervisors
         send_stats_to_rethink = True
         if self.id_hyp_rethink is None:
-            self.id_hyp_rethink = get_id_hyp_from_uri('qemu+ssh://root@isard-hypervisor:22/system')
-
+            #self.id_hyp_rethink = get_id_hyp_from_uri('qemu+ssh://root@isard-hypervisor:22/system')
+            self.id_hyp_rethink = get_id_hyp_from_uri(hostname_to_uri(self.hostname, user=self.user, port=self.port))
         if send_stats_to_rethink:
             update_actual_stats_hyp(self.id_hyp_rethink,
                                     self.stats_hyp_now)
