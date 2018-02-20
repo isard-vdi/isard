@@ -194,6 +194,14 @@ class MediaThread(threading.Thread):
                         event=c['new_val']['table']+'_data'
                     ## Admins should receive all updates on /admin namespace
                     socketio.emit(event, 
+                                    json.dumps(data), 
+                                    namespace='/sio_users', 
+                                    room='user_'+data['user'])
+                    socketio.emit('user_quota', 
+                                    json.dumps(app.isardapi.get_user_quotas(data['user'])), 
+                                    namespace='/sio_users', 
+                                    room='user_'+data['user'])                    
+                    socketio.emit(event, 
                                     json.dumps(data), #app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_admins', 
                                     room='media')
@@ -816,7 +824,13 @@ def socketio_media_update(data):
                     room='media')
                     
     
-    
+@socketio.on('media_update', namespace='/sio_users')
+def socketio_media_update(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    socketio.emit('result',
+                    app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)  
        
 
 @socketio.on('media_add', namespace='/sio_admins')
@@ -832,7 +846,87 @@ def socketio_admin_media_add(form_data):
                     namespace='/sio_admins', 
                     room='media')
 
+@socketio.on('media_add', namespace='/sio_users')
+def socketio_media_add(form_data):
+    form_data['hypervisors_pools']=[form_data['hypervisors_pools']]
+    res=app.adminapi.media_add(current_user.username, form_data)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New media','text':'Media is being downloaded...','icon':'success','type':'success'})
+    else:
+        info=json.dumps({'result':False,'title':'New media','text':'Media can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
 
+
+@socketio.on('domain_media_add', namespace='/sio_admins')
+def socketio_admin_domains_media_add(form_data):
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
+    create_dict['create_from_virt_install_xml']= create_dict['install']
+    create_dict.pop('install',None)
+    disk_size=create_dict['disk_size']+'G'
+    create_dict.pop('disk_size',None)
+    name=create_dict['name']
+    create_dict.pop('name',None)
+    description=create_dict['description']
+    create_dict.pop('description',None)
+    hyper_pools=[create_dict['hypervisors_pools']]
+    create_dict.pop('hypervisors_pools',None)
+    # ~ icon=create_dict['icon']
+    icon='circle-o'
+    create_dict.pop('icon',None)
+    create_dict.pop('allowed',None)
+    res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+    else:
+        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+
+@socketio.on('domain_media_add', namespace='/sio_users')
+def socketio_domains_media_add(form_data):
+    log.info(form_data)
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
+    create_dict['create_from_virt_install_xml']= create_dict['install']
+    create_dict.pop('install',None)
+    disk_size=create_dict['disk_size']+'G'
+    create_dict.pop('disk_size',None)
+    name=create_dict['name']
+    create_dict.pop('name',None)
+    description=create_dict['description']
+    create_dict.pop('description',None)
+    hyper_pools=[create_dict['hypervisors_pools']]
+    create_dict.pop('hypervisors_pools',None)
+    # ~ icon=create_dict['icon']
+    icon='circle-o'
+    create_dict.pop('icon',None)
+    create_dict.pop('allowed',None)
+    res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+    else:
+        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+                    
 ## Disposables
 @socketio.on('connect', namespace='/sio_disposables')
 def socketio_disposables_connect():
@@ -929,37 +1023,7 @@ def socketio_domains_virtualbuilder_add(form_data):
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
 
-@socketio.on('domain_media_add', namespace='/sio_admins')
-def socketio_domains_media_add(form_data):
-    create_dict=app.isardapi.f.unflatten_dict(form_data)
-    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
-    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
-    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
-    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
-    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
-    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
-    create_dict['create_from_virt_install_xml']= create_dict['install']
-    create_dict.pop('install',None)
-    disk_size=create_dict['disk_size']+'G'
-    create_dict.pop('disk_size',None)
-    name=create_dict['name']
-    create_dict.pop('name',None)
-    description=create_dict['description']
-    create_dict.pop('description',None)
-    hyper_pools=[create_dict['hypervisors_pools']]
-    create_dict.pop('hypervisors_pools',None)
-    # ~ icon=create_dict['icon']
-    icon='circle-o'
-    create_dict.pop('icon',None)
-    res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
-    if res is True:
-        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
-    else:
-        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
-    socketio.emit('add_form_result',
-                    info,
-                    namespace='/sio_admins', 
-                    room='user_'+current_user.username)
+
     
 
 

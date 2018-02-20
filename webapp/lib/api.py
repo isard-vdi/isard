@@ -178,6 +178,15 @@ class isard():
                 for net in d['nets']: 
                     if IPAddress(client_ip) in IPNetwork(net): return d
         return False
+
+    '''
+        MEDIA
+    '''
+    def get_user_media(self, user): #, filterdict=False):
+        #~ if not filterdict: filterdict={'kind': 'desktop'}
+        with app.app_context():
+            media=self.f.table_values_bstrap(r.table('media').get_all(user, index='user').run(db.conn))
+        return media    
         
 #~ STATUS
     def get_domain_last_messages(self, id):

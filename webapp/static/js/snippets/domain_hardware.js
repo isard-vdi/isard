@@ -64,7 +64,7 @@
 						  }).data("ionRangeSlider").update();
                 if($(id+" #disk_size").length != 0) {
                     if(hardware.user['quota-domains-desktops_disk_max']/1000000>200){
-                        var dsize=80;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
+                        var dsize=120;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
                     $(id+" #disk_size").ionRangeSlider({
                               type: "single",
                               min: 1,

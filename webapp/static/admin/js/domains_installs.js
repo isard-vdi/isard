@@ -256,7 +256,7 @@ function initialize_modal_all_media_events(){
                 media=$('#modalAddFromMedia #media').val();
                 install=$('#modalAddFromMedia #install').val();
                 if (media !='' && install !=''){
-                    var queryString = $('#modalAdd').serialize();
+                    //~ var queryString = $('#modalAdd').serialize();
                     data=$('#modalAddFromMedia  #modalAdd').serializeObject();
                     socket.emit('domain_media_add',data)
                 }else{                
