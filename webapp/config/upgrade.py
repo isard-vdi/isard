@@ -17,7 +17,7 @@ from ..lib.load_config import load_config
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 1
+release_version = 2
 tables=['config','hypervisors','hypervisors_pools']
 
 
@@ -58,7 +58,7 @@ class Upgrade(object):
             for table in tables:
                 eval('self.'+table+'('+str(version)+')')
                 
-        # ~ r.table('config').get(1).update({'version':release_version}).run()
+        r.table('config').get(1).update({'version':release_version}).run()
 
         
 
@@ -167,7 +167,48 @@ class Upgrade(object):
                 # ~ except Exception as e:
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
                     # ~ log.error('Error detail: '+str(e))                    
+
+        if version == 2:
+            for d in data:
+                id=d['id']
+                d.pop('id',None)                
                 
+                ''' CONVERSION FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):  
+                        ##### CONVERSION FIELDS
+                        # ~ cfg['field']={}
+                        # ~ r.table(table).update(cfg).run()  
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
+                    # ~ log.error('Error detail: '+str(e))
+   
+                ''' NEW FIELDS PRE CHECKS '''   
+                try: 
+                    if not self.check_done( d,
+                                        ['viewer_nat_offset'],
+                                        []):                                     
+                        ##### NEW FIELDS
+                        self.add_keys(  table, 
+                                        [   {'viewer_nat_offset':0} ],
+                                            id=id)
+                except Exception as e:
+                    log.error('Could not update table '+table+' remove fields for db version '+version+'!')
+                    log.error('Error detail: '+str(e))
+                
+                ''' REMOVE FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):   
+                        #### REMOVE FIELDS
+                        # ~ self.del_keys(TABLE,[])
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
+                    # ~ log.error('Error detail: '+str(e))                    
+                                
         return True
 
     '''
