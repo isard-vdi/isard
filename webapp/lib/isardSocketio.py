@@ -20,6 +20,10 @@ db.init_app(app)
 
 #~ from .decorators import ownsid
 from webapp import app
+
+from .isardViewer import isardViewer
+isardviewer = isardViewer()
+
 socketio = SocketIO(app)
 threads = {}
 
@@ -638,6 +642,13 @@ def socketio_domain_edit(form_data):
     create_dict=parseHardware(create_dict)
     create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
     create_dict.pop('hardware',None)
+
+    if 'options' not in create_dict:
+        create_dict['options']={'viewers':{'spice':{'fullscreen':False}}}
+    else:
+        if 'fullscreen' in create_dict['options']['viewers']['spice']:
+            create_dict['options']['viewers']['spice']['fullscreen']=True
+                
     res=app.isardapi.update_domain(create_dict.copy())
     if res is True:
         data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
@@ -747,70 +758,106 @@ def parseHardware(create_dict):
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    if current_user.role == 'admin': 
-        send_viewer(data,remote_addr=remote_addr)
+    viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
+    if viewer_data:
+        socketio.emit('domain_viewer',
+                        json.dumps(viewer_data),
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)          
+        
     else:
-        id=data['pk']
-                
-        if id.startswith('_'+current_user.id+'_'):
-            send_viewer(data,remote_addr=remote_addr)
-        else:
-            msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-            socketio.emit('result',
-                            msg,
-                            namespace='/sio_users', 
-                            room='user_'+current_user.username) 
-                            
-def send_viewer(data,kind='domain',remote_addr=False): 
-    if data['kind'] == 'file':
-        consola=app.isardapi.get_viewer_ticket(data['pk'],remote_addr=remote_addr)
-        if kind=='domain':
-            socketio.emit('domain_viewer',
-                            json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
-                            namespace='/sio_users', 
-                            room='user_'+current_user.username)  
-        else:
-            socketio.emit('disposable_viewer',
-                            json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
-                            namespace='/sio_disposables', 
-                            room='disposable_'+remote_addr)              
-        # ~ return Response(consola, 
-                        # ~ mimetype="application/x-virt-viewer",
-                        # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
-    else:
-        if data['kind'] == 'xpi':
-            viewer=app.isardapi.get_spice_xpi(data['pk'])  #,remote_addr=remote_addr)
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)     
+    
 
-        if data['kind'] == 'html5':
-            viewer=app.isardapi.get_domain_spice(data['pk'],remote_addr=remote_addr)
-            ##### Change this when engine opens ports accordingly (without tls)
-        if viewer is not False:
-            if viewer['port']:
-                viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
-                viewer['port'] = "5"+ viewer['port']
-                #~ viewer['port']=viewer['port']-1
-            if kind=='domain':
-                socketio.emit('domain_viewer',
-                                json.dumps({'kind':data['kind'],'viewer':viewer}),
-                                namespace='/sio_users', 
-                                room='user_'+current_user.username)
-            else:
-                socketio.emit('disposable_viewer',
-                                json.dumps({'kind':data['kind'],'viewer':viewer}),
-                                namespace='/sio_disposables', 
-                                room='disposable_'+remote_addr)                 
-        else:
-            msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-            if kind=='domain':
-                socketio.emit('result',
-                                msg,
-                                namespace='/sio_users', 
-                                room='user_'+current_user.username)
-            else:
-                socketio.emit('result',
-                                msg,
-                                namespace='/sio_disposables', 
-                                room='disposable_'+remote_addr) 
+@socketio.on('disposable_viewer', namespace='/sio_disposables')
+def socketio_disposables_viewer(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
+    if viewer_data:
+        socketio.emit('disposable_viewer',
+                        json.dumps(viewer_data),
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr)           
+        
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr)      
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        send_viewer(data,kind='disposable',remote_addr=remote_addr)
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr) 
+                        
+#~ def send_viewer(data,kind='domain',remote_addr): 
+    #~ if data['kind'] == 'file':
+        #~ consola=app.isardviewer.get_viewer_ticket(data['pk'],remote_addr=remote_addr)
+        #~ if kind=='domain':
+            #~ socketio.emit('domain_viewer',
+                            #~ json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
+                            #~ namespace='/sio_users', 
+                            #~ room='user_'+current_user.username)  
+        #~ else:
+            #~ socketio.emit('disposable_viewer',
+                            #~ json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
+                            #~ namespace='/sio_disposables', 
+                            #~ room='disposable_'+remote_addr)              
+        #~ # ~ return Response(consola, 
+                        #~ # ~ mimetype="application/x-virt-viewer",
+                        #~ # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
+    #~ else:
+        #~ if data['kind'] == 'xpi':
+            #~ viewer=app.isardapi.get_spice_xpi(data['pk'])  #,remote_addr=remote_addr)
+
+        #~ if data['kind'] == 'html5':
+            #~ viewer=app.isardapi.get_domain_spice(data['pk'],remote_addr=remote_addr)
+            #~ ##### Change this when engine opens ports accordingly (without tls)
+        #~ if viewer is not False:
+            #~ if viewer['port']:
+                #~ viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
+                #~ viewer['port'] = "5"+ viewer['port']
+                #viewer['port']=viewer['port']-1
+            #~ if kind=='domain':
+                #~ socketio.emit('domain_viewer',
+                                #~ json.dumps({'kind':data['kind'],'viewer':viewer}),
+                                #~ namespace='/sio_users', 
+                                #~ room='user_'+current_user.username)
+            #~ else:
+                #~ socketio.emit('disposable_viewer',
+                                #~ json.dumps({'kind':data['kind'],'viewer':viewer}),
+                                #~ namespace='/sio_disposables', 
+                                #~ room='disposable_'+remote_addr)                 
+        #~ else:
+            #~ msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+            #~ if kind=='domain':
+                #~ socketio.emit('result',
+                                #~ msg,
+                                #~ namespace='/sio_users', 
+                                #~ room='user_'+current_user.username)
+            #~ else:
+                #~ socketio.emit('result',
+                                #~ msg,
+                                #~ namespace='/sio_disposables', 
+                                #~ room='disposable_'+remote_addr) 
                                                             
 '''
 MEDIA
@@ -934,17 +981,7 @@ def socketio_disposables_connect():
     if app.isardapi.show_disposable(remote_addr):
         join_room('disposable_'+remote_addr)
 
-@socketio.on('disposable_viewer', namespace='/sio_disposables')
-def socketio_disposables_viewer(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
-        send_viewer(data,kind='disposable',remote_addr=remote_addr)
-    else:
-        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-        socketio.emit('result',
-                        msg,
-                        namespace='/sio_disposables', 
-                        room='disposable_'+remote_addr) 
+
                                     
 @socketio.on('disposables_add', namespace='/sio_disposables')
 def socketio_disposables_add(data):
