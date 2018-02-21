@@ -24,7 +24,7 @@ from webapp.lib import isardSocketio
 if __name__ == '__main__':
     # Start socketio threads
     isardSocketio.start_domains_thread()
-    isardSocketio.start_domains_stats_thread()
+    # ~ isardSocketio.start_domains_stats_thread()
     isardSocketio.start_users_thread()
     isardSocketio.start_media_thread()
     isardSocketio.start_hypervisors_thread()

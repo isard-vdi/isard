@@ -243,8 +243,8 @@ class Upgrade(object):
                             m['path']=m['path'].split('groups')[0]+'media'
                             medialist.append(m)
                         d['paths']['media']=medialist
-                        # ~ self.add_keys(table, [m],
-                                             # ~ id=id)
+                        self.add_keys(table, [{'paths':d['paths']}],
+                                             id=id)
 
                     ''' REMOVE FIELDS PRE CHECKS '''   
                     if not self.check_done( d,
