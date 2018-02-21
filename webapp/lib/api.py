@@ -187,6 +187,28 @@ class isard():
         with app.app_context():
             media=self.f.table_values_bstrap(r.table('media').get_all(user, index='user').run(db.conn))
         return media    
+
+    def get_media_installs(self):
+        with app.app_context():
+            data=r.table('virt_install').run(db.conn)
+            return self.f.table_values_bstrap(data)
+            #~ if pluck and not id:
+                #~ if order:
+                    #~ data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
+                    #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+                #~ else:
+                    #~ data=r.table(table).pluck(pluck).run(db.conn)
+                    #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+            #~ if pluck and id:
+                #~ data=r.table(table).get(id).pluck(pluck).run(db.conn)
+                #~ return self.f.flatten_dict(data) if flatten else data
+            #~ if order:
+                #~ data=r.table(table).order_by(order).run(db.conn)
+                #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+            #~ else:
+                #~ data=r.table(table).run(db.conn)
+                #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+
         
 #~ STATUS
     def get_domain_last_messages(self, id):

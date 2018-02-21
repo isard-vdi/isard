@@ -50,3 +50,12 @@ def media_get(kind='username'):
     #~ if kind=='group':
         #~ return json.dumps(app.isardapi.get_group_domains(current_user.group)), 200, {'ContentType': 'application/json'}
     return url_for('media')
+
+@app.route('/media/installs')
+@login_required
+def media_installs_get():
+    return json.dumps(app.isardapi.get_media_installs()), 200, {'ContentType': 'application/json'}
+    #~ if kind=='category': 
+        #~ return json.dumps(app.isardapi.get_category_domains(current_user.category)), 200, {'ContentType': 'application/json'}
+    #~ if kind=='group':
+        #~ return json.dumps(app.isardapi.get_group_domains(current_user.group)), 200, {'ContentType': 'application/json'}

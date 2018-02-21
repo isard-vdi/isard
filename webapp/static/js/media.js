@@ -384,7 +384,7 @@ function modal_add_install_datatables(){
     
 	modal_add_install = $('#modal_add_install').DataTable({
 			"ajax": {
-				"url": "/admin/table/virt_install/get",
+				"url": "/media/installs",
 				"dataSrc": ""
 			},
             "scrollY":        "125px",
