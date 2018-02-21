@@ -126,7 +126,7 @@ if True:
     from .views import LoginViews
     from .views import DesktopViews
     from .views import TemplateViews
-    #~ from .views import IsosViews
+    from .views import MediaViews
     #from .views import ClassroomViews
     from .views import ProfileViews
     from .views import AboutViews

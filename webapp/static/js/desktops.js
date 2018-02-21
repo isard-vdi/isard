@@ -626,6 +626,13 @@ function modal_edit_desktop_datatables(id){
 			$('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
             setHardwareDomainDefaults('#modalEditDesktop', id);
+            console.log(data)
+            if(data['options-viewers-spice-fullscreen']){
+                $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
+            }else{
+                //~ $('#modalEditHyper #modalEdit #capabilities-disk_operations').iCheck('check');
+            }
+            //~ $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
 		}				
 	});
   

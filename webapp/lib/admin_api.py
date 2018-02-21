@@ -580,6 +580,7 @@ class isardAdmin():
             dict={**partial_dict, **missing_keys}
             return self.insert_table_dict('media',dict)
         except Exception as e:
+            log.error(str(e))
             log.error('Exception error on media add')
             return False
         return False

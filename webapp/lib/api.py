@@ -178,6 +178,37 @@ class isard():
                 for net in d['nets']: 
                     if IPAddress(client_ip) in IPNetwork(net): return d
         return False
+
+    '''
+        MEDIA
+    '''
+    def get_user_media(self, user): #, filterdict=False):
+        #~ if not filterdict: filterdict={'kind': 'desktop'}
+        with app.app_context():
+            media=self.f.table_values_bstrap(r.table('media').get_all(user, index='user').run(db.conn))
+        return media    
+
+    def get_media_installs(self):
+        with app.app_context():
+            data=r.table('virt_install').run(db.conn)
+            return self.f.table_values_bstrap(data)
+            #~ if pluck and not id:
+                #~ if order:
+                    #~ data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
+                    #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+                #~ else:
+                    #~ data=r.table(table).pluck(pluck).run(db.conn)
+                    #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+            #~ if pluck and id:
+                #~ data=r.table(table).get(id).pluck(pluck).run(db.conn)
+                #~ return self.f.flatten_dict(data) if flatten else data
+            #~ if order:
+                #~ data=r.table(table).order_by(order).run(db.conn)
+                #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+            #~ else:
+                #~ data=r.table(table).run(db.conn)
+                #~ return self.f.table_values_bstrap(data) if flatten else list(data)
+
         
 #~ STATUS
     def get_domain_last_messages(self, id):
@@ -231,6 +262,7 @@ class isard():
                     domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
                     if 'disks_info' in domain:
                         for i,dict in enumerate(domain['disks_info']):
+                            #~ print(dict)
                             for key in dict.keys():
                                 if 'size' in key:
                                     domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
@@ -239,11 +271,16 @@ class isard():
                 if human_size:
                     domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
                     if 'disks_info' in domain:
+                        #~ import pprint
+                        #~ pprint.pprint(domain['disks_info'])
                         for i,dict in enumerate(domain['disks_info']):
                             for key in dict.keys():
                                 if 'size' in key:
                                     domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
+            #~ exc_type, exc_obj, exc_tb = sys.exc_info()
+            #~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            #~ log.error(exc_type, fname, exc_tb.tb_lineno)                      
             log.error('get_domain: '+str(e))
         return domain   
 
@@ -349,10 +386,6 @@ class isard():
         with app.app_context():
             return list(r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name','kind','user','category','group').run(db.conn))
 
-
-    def get_graphics(self):
-        with app.app_context():
-            return [{'id':'spice','name':'Spice'},{'id':'vnc','name':'VNC'}]
             
     def get_templates(self, dict):
         '''
@@ -906,240 +939,7 @@ class isard():
             else:
                 return False
 
-    ##### SPICE VIEWER
-    
-    def get_domain_spice(self, id, remote_addr=False):
-        try:
-            domain =  r.table('domains').get(id).run(db.conn)
-            
-            hostname=self.get_viewer_hostname(domain['viewer'],remote_addr)
-            
-            viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-            
-            if viewer['defaultMode'] == "Secure":
-                viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-                return {'host':hostname,
-                        'kind':domain['hardware']['graphics']['type'],
-                        'port':domain['viewer']['port'],
-                        'tlsport':domain['viewer']['tlsport'],
-                        'ca':viewer['certificate'],
-                        'domain':viewer['domain'],
-                        'passwd':domain['viewer']['passwd']}
-            else:
-                return {'host':hostname,
-                        'kind':domain['hardware']['graphics']['type'],
-                        'port':domain['viewer']['port'],
-                        'tlsport':False,
-                        'ca':'',
-                        'domain':'',
-                        'passwd':domain['viewer']['passwd']}
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            log.error(exc_type, fname, exc_tb.tb_lineno)            
-            log.error('Viewer for domain '+id+' exception:'+str(e))
-            return False
-    
-    def get_spice_xpi(self, id):
-        ### Dict for XPI viewer (isardSocketio)
-        
-        dict = self.get_domain_spice(id)
-        if not dict: return False
-        #~ ca = str(self.config['spice']['certificate'])
-        #~ if not dict['host'].endswith(str(self.config['spice']['domain'])):
-            #~ dict['host']=dict['host']+'.'+self.config['spice']['domain']
-        #~ ca = str(self.config['spice']['certificate'])
-        #~ dict['ca']=ca
-        return dict
 
-
-    ######### VIEWER DOWNLOAD FUNCTIONS
-    def get_viewer_ticket(self,id,remote_addr=False,os='generic'):
-        viewer = self.get_domain_spice(id,remote_addr=remote_addr)
-        if viewer is not False:
-            dict=viewer
-            if dict['kind']=='vnc':
-                return self.get_vnc_ticket(dict,id,os,remote_addr=remote_addr)
-            if dict['kind']=='spice':
-                return self.get_spice_ticket(dict,id,remote_addr=remote_addr)
-        return False
-        
-    def get_vnc_ticket(self, dict,id,os,remote_addr=False):
-        ## Should check if ssl in use: dict['tlsport']:
-        hostname=dict['host']
-        if dict['tlsport']:
-            return False
-        if os in ['iOS','Windows','Android','Linux', 'generic', None]:
-            consola="""[Connection]
-            Host=%s
-            Port=%s
-            Password=%s
-
-            [Options]
-            UseLocalCursor=1
-            UseDesktopResize=1
-            FullScreen=1
-            FullColour=0
-            LowColourLevel=0
-            PreferredEncoding=ZRLE
-            AutoSelect=1
-            Shared=0
-            SendPtrEvents=1
-            SendKeyEvents=1
-            SendCutText=1
-            AcceptCutText=1
-            Emulate3=1
-            PointerEventInterval=0
-            Monitor=
-            MenuKey=F8
-            """ % (hostname, dict['port'], dict['passwd'])
-            consola = consola.replace("'", "")
-            return 'vnc','text/plain',consola
-            
-        if os in ['MacOS']:
-            vnc="vnc://"+hostname+":"+dict['passwd']+"@"+hostname+":"+dict['port']
-            consola="""<?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0">
-            <dict>
-                <key>URL</key>
-                <string>%s</string>
-                <key>restorationAttributes</key>
-                <dict>
-                    <key>autoClipboard</key>
-                    <false/>
-                    <key>controlMode</key>
-                    <integer>1</integer>
-                    <key>isFullScreen</key>
-                    <false/>
-                    <key>quality</key>
-                    <integer>3</integer>
-                    <key>scalingMode</key>
-                    <true/>
-                    <key>screenConfiguration</key>
-                    <dict>
-                        <key>GlobalIsMixedMode</key>
-                        <false/>
-                        <key>GlobalScreen</key>
-                        <dict>
-                            <key>Flags</key>
-                            <integer>0</integer>
-                            <key>Frame</key>
-                            <string>{{0, 0}, {1920, 1080}}</string>
-                            <key>Identifier</key>
-                            <integer>0</integer>
-                            <key>Index</key>
-                            <integer>0</integer>
-                        </dict>
-                        <key>IsDisplayInfo2</key>
-                        <false/>
-                        <key>IsVNC</key>
-                        <true/>
-                        <key>ScaledSelectedScreenRect</key>
-                        <string>(0, 0, 1920, 1080)</string>
-                        <key>Screens</key>
-                        <array>
-                            <dict>
-                                <key>Flags</key>
-                                <integer>0</integer>
-                                <key>Frame</key>
-                                <string>{{0, 0}, {1920, 1080}}</string>
-                                <key>Identifier</key>
-                                <integer>0</integer>
-                                <key>Index</key>
-                                <integer>0</integer>
-                            </dict>
-                        </array>
-                    </dict>
-                    <key>selectedScreen</key>
-                    <dict>
-                        <key>Flags</key>
-                        <integer>0</integer>
-                        <key>Frame</key>
-                        <string>{{0, 0}, {1920, 1080}}</string>
-                        <key>Identifier</key>
-                        <integer>0</integer>
-                        <key>Index</key>
-                        <integer>0</integer>
-                    </dict>
-                    <key>targetAddress</key>
-                    <string>%s</string>
-                    <key>viewerScaleFactor</key>
-                    <real>1</real>
-                    <key>windowContentFrame</key>
-                    <string>{{0, 0}, {1829, 1029}}</string>
-                    <key>windowFrame</key>
-                    <string>{{45, 80}, {1829, 1097}}</string>
-                </dict>
-            </dict>
-            </plist>""" % (vnc,vnc)
-            consola = consola.replace("'", "")
-            return 'vncloc','text/plain',consola
-        
-        
-    def get_spice_ticket(self, dict,id,remote_addr=False):
-        #~ dict = self.get_domain_spice(id)
-        if not dict: return False
-        #~ ca = str(self.config['spice']['certificate'])
-        #~ if not dict['host'].endswith(str(self.config['spice']['domain'])):
-            #~ dict['host']=dict['host']+'.'+self.config['spice']['domain']
-        hostname=dict['host']
-        if not dict['tlsport']:
-            ######################
-            # Client without TLS #
-            ######################
-            c = '%'
-            consola = """[virt-viewer]
-        type=%s
-        host=%s
-        port=%s
-        password=%s
-        fullscreen=1
-        title=%s:%sd - Prem SHIFT+F12 per sortir
-        enable-smartcard=0
-        enable-usb-autoshare=1
-        delete-this-file=1
-        usb-filter=-1,-1,-1,-1,0
-        ;tls-ciphers=DEFAULT
-        """ % (dict['kind'],hostname, dict['port'], dict['passwd'], id, c)
-
-            consola = consola + """;host-subject=O=%s,CN=%s
-        ;ca=%r
-        toggle-fullscreen=shift+f11
-        release-cursor=shift+f12
-        secure-attention=ctrl+alt+end
-        ;secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard""" % (
-            'host-subject', 'hostname', '')
-
-        else:
-            ######################
-            # TLS Client         #
-            ######################
-            c = '%'
-            consola = """[virt-viewer]
-        type=%s
-        host=%s
-        password=%s
-        tls-port=%s
-        fullscreen=1
-        title=%s:%sd - Prem SHIFT+F12 per sortir
-        enable-smartcard=0
-        enable-usb-autoshare=1
-        delete-this-file=1
-        usb-filter=-1,-1,-1,-1,0
-        tls-ciphers=DEFAULT
-        """ % (dict['kind'],hostname, dict['passwd'], dict['tlsport'], id, c)
-
-            consola = consola + """;host-subject=O=%s,CN=%s
-        ca=%r
-        toggle-fullscreen=shift+f11
-        release-cursor=shift+f12
-        secure-attention=ctrl+alt+end
-        secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard""" % (
-            'host-subject', 'hostname', dict['ca'])
-
-        consola = consola.replace("'", "")
-        return 'vv','application/x-virt-viewer',consola
 
     def update_user_password(self,id,passwd):
         pw=Password()
@@ -1151,14 +951,6 @@ class isard():
     HELPERS
     '''
 
-    def get_viewer_hostname(self,viewer,remote_addr):
-        if remote_addr is False: return viewer['hostname'] 
-        if IPAddress(remote_addr).is_private() or not 'hostname_external' in viewer.keys():
-            return viewer['hostname']
-        else:
-            return viewer['hostname_external']
-            
-            
     def parse_string(self, txt):
         import re, unicodedata, locale
         if type(txt) is not str:

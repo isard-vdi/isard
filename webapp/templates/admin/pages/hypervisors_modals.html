@@ -150,7 +150,14 @@
                             <div class="col-md-6 col-sm-6 col-xs-12">
                                <input id="viewer_nat_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_nat_hostname" placeholder="External reacheable ip/dns name" type="text">
                             </div>
-                         </div>  
+                         </div>
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_nat_offset">Client viewers TCP offset
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_nat_offset" class="form-control col-md-7 col-xs-12" data-parsley-range='[0, 59635]' name="viewer_nat_offset" placeholder="Will be added to hyper spice port" type="text">
+                            </div>
+                         </div>                            
                         </div>
                                                   
 					<div class="item form-group">
@@ -315,7 +322,15 @@
                             <div class="col-md-6 col-sm-6 col-xs-12">
                                <input id="viewer_nat_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_nat_hostname" placeholder="External reacheable ip/dns name" type="text">
                             </div>
-                         </div>  
+                         </div> 
+                         
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_nat_offset">Client viewers TCP offset
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_nat_offset" class="form-control col-md-7 col-xs-12" data-parsley-range='[0, 59635]' name="viewer_nat_offset" placeholder="Will be added to hyper spice port" type="text">
+                            </div>
+                         </div> 
                         </div>
                                                   
 					<div class="item form-group">

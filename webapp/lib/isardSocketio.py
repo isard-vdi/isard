@@ -20,6 +20,10 @@ db.init_app(app)
 
 #~ from .decorators import ownsid
 from webapp import app
+
+from .isardViewer import isardViewer
+isardviewer = isardViewer()
+
 socketio = SocketIO(app)
 threads = {}
 
@@ -193,6 +197,14 @@ class MediaThread(threading.Thread):
                         data=c['new_val']
                         event=c['new_val']['table']+'_data'
                     ## Admins should receive all updates on /admin namespace
+                    socketio.emit(event, 
+                                    json.dumps(data), 
+                                    namespace='/sio_users', 
+                                    room='user_'+data['user'])
+                    socketio.emit('user_quota', 
+                                    json.dumps(app.isardapi.get_user_quotas(data['user'])), 
+                                    namespace='/sio_users', 
+                                    room='user_'+data['user'])                    
                     socketio.emit(event, 
                                     json.dumps(data), #app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_admins', 
@@ -630,6 +642,13 @@ def socketio_domain_edit(form_data):
     create_dict=parseHardware(create_dict)
     create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
     create_dict.pop('hardware',None)
+
+    if 'options' not in create_dict:
+        create_dict['options']={'viewers':{'spice':{'fullscreen':False}}}
+    else:
+        if 'fullscreen' in create_dict['options']['viewers']['spice']:
+            create_dict['options']['viewers']['spice']['fullscreen']=True
+                
     res=app.isardapi.update_domain(create_dict.copy())
     if res is True:
         data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
@@ -739,70 +758,106 @@ def parseHardware(create_dict):
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    if current_user.role == 'admin': 
-        send_viewer(data,remote_addr=remote_addr)
+    viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
+    if viewer_data:
+        socketio.emit('domain_viewer',
+                        json.dumps(viewer_data),
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)          
+        
     else:
-        id=data['pk']
-                
-        if id.startswith('_'+current_user.id+'_'):
-            send_viewer(data,remote_addr=remote_addr)
-        else:
-            msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-            socketio.emit('result',
-                            msg,
-                            namespace='/sio_users', 
-                            room='user_'+current_user.username) 
-                            
-def send_viewer(data,kind='domain',remote_addr=False): 
-    if data['kind'] == 'file':
-        consola=app.isardapi.get_viewer_ticket(data['pk'],remote_addr=remote_addr)
-        if kind=='domain':
-            socketio.emit('domain_viewer',
-                            json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
-                            namespace='/sio_users', 
-                            room='user_'+current_user.username)  
-        else:
-            socketio.emit('disposable_viewer',
-                            json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
-                            namespace='/sio_disposables', 
-                            room='disposable_'+remote_addr)              
-        # ~ return Response(consola, 
-                        # ~ mimetype="application/x-virt-viewer",
-                        # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
-    else:
-        if data['kind'] == 'xpi':
-            viewer=app.isardapi.get_spice_xpi(data['pk'])  #,remote_addr=remote_addr)
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)     
+    
 
-        if data['kind'] == 'html5':
-            viewer=app.isardapi.get_domain_spice(data['pk'],remote_addr=remote_addr)
-            ##### Change this when engine opens ports accordingly (without tls)
-        if viewer is not False:
-            if viewer['port']:
-                viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
-                viewer['port'] = "5"+ viewer['port']
-                #~ viewer['port']=viewer['port']-1
-            if kind=='domain':
-                socketio.emit('domain_viewer',
-                                json.dumps({'kind':data['kind'],'viewer':viewer}),
-                                namespace='/sio_users', 
-                                room='user_'+current_user.username)
-            else:
-                socketio.emit('disposable_viewer',
-                                json.dumps({'kind':data['kind'],'viewer':viewer}),
-                                namespace='/sio_disposables', 
-                                room='disposable_'+remote_addr)                 
-        else:
-            msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-            if kind=='domain':
-                socketio.emit('result',
-                                msg,
-                                namespace='/sio_users', 
-                                room='user_'+current_user.username)
-            else:
-                socketio.emit('result',
-                                msg,
-                                namespace='/sio_disposables', 
-                                room='disposable_'+remote_addr) 
+@socketio.on('disposable_viewer', namespace='/sio_disposables')
+def socketio_disposables_viewer(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
+    if viewer_data:
+        socketio.emit('disposable_viewer',
+                        json.dumps(viewer_data),
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr)           
+        
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr)      
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
+        send_viewer(data,kind='disposable',remote_addr=remote_addr)
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_disposables', 
+                        room='disposable_'+remote_addr) 
+                        
+#~ def send_viewer(data,kind='domain',remote_addr): 
+    #~ if data['kind'] == 'file':
+        #~ consola=app.isardviewer.get_viewer_ticket(data['pk'],remote_addr=remote_addr)
+        #~ if kind=='domain':
+            #~ socketio.emit('domain_viewer',
+                            #~ json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
+                            #~ namespace='/sio_users', 
+                            #~ room='user_'+current_user.username)  
+        #~ else:
+            #~ socketio.emit('disposable_viewer',
+                            #~ json.dumps({'kind':data['kind'],'ext':consola[0],'mime':consola[1],'content':consola[2]}),
+                            #~ namespace='/sio_disposables', 
+                            #~ room='disposable_'+remote_addr)              
+        #~ # ~ return Response(consola, 
+                        #~ # ~ mimetype="application/x-virt-viewer",
+                        #~ # ~ headers={"Content-Disposition":"attachment;filename=consola.vv"})
+    #~ else:
+        #~ if data['kind'] == 'xpi':
+            #~ viewer=app.isardapi.get_spice_xpi(data['pk'])  #,remote_addr=remote_addr)
+
+        #~ if data['kind'] == 'html5':
+            #~ viewer=app.isardapi.get_domain_spice(data['pk'],remote_addr=remote_addr)
+            #~ ##### Change this when engine opens ports accordingly (without tls)
+        #~ if viewer is not False:
+            #~ if viewer['port']:
+                #~ viewer['port'] = viewer['port'] if viewer['port'] else viewer['tlsport']
+                #~ viewer['port'] = "5"+ viewer['port']
+                #viewer['port']=viewer['port']-1
+            #~ if kind=='domain':
+                #~ socketio.emit('domain_viewer',
+                                #~ json.dumps({'kind':data['kind'],'viewer':viewer}),
+                                #~ namespace='/sio_users', 
+                                #~ room='user_'+current_user.username)
+            #~ else:
+                #~ socketio.emit('disposable_viewer',
+                                #~ json.dumps({'kind':data['kind'],'viewer':viewer}),
+                                #~ namespace='/sio_disposables', 
+                                #~ room='disposable_'+remote_addr)                 
+        #~ else:
+            #~ msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+            #~ if kind=='domain':
+                #~ socketio.emit('result',
+                                #~ msg,
+                                #~ namespace='/sio_users', 
+                                #~ room='user_'+current_user.username)
+            #~ else:
+                #~ socketio.emit('result',
+                                #~ msg,
+                                #~ namespace='/sio_disposables', 
+                                #~ room='disposable_'+remote_addr) 
                                                             
 '''
 MEDIA
@@ -816,7 +871,13 @@ def socketio_media_update(data):
                     room='media')
                     
     
-    
+@socketio.on('media_update', namespace='/sio_users')
+def socketio_media_update(data):
+    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    socketio.emit('result',
+                    app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)  
        
 
 @socketio.on('media_add', namespace='/sio_admins')
@@ -832,7 +893,87 @@ def socketio_admin_media_add(form_data):
                     namespace='/sio_admins', 
                     room='media')
 
+@socketio.on('media_add', namespace='/sio_users')
+def socketio_media_add(form_data):
+    form_data['hypervisors_pools']=[form_data['hypervisors_pools']]
+    res=app.adminapi.media_add(current_user.username, form_data)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New media','text':'Media is being downloaded...','icon':'success','type':'success'})
+    else:
+        info=json.dumps({'result':False,'title':'New media','text':'Media can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
 
+
+@socketio.on('domain_media_add', namespace='/sio_admins')
+def socketio_admin_domains_media_add(form_data):
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
+    create_dict['create_from_virt_install_xml']= create_dict['install']
+    create_dict.pop('install',None)
+    disk_size=create_dict['disk_size']+'G'
+    create_dict.pop('disk_size',None)
+    name=create_dict['name']
+    create_dict.pop('name',None)
+    description=create_dict['description']
+    create_dict.pop('description',None)
+    hyper_pools=[create_dict['hypervisors_pools']]
+    create_dict.pop('hypervisors_pools',None)
+    # ~ icon=create_dict['icon']
+    icon='circle-o'
+    create_dict.pop('icon',None)
+    create_dict.pop('allowed',None)
+    res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+    else:
+        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_admins', 
+                    room='user_'+current_user.username)
+
+@socketio.on('domain_media_add', namespace='/sio_users')
+def socketio_domains_media_add(form_data):
+    log.info(form_data)
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
+    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
+    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
+    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
+    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
+    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
+    create_dict['create_from_virt_install_xml']= create_dict['install']
+    create_dict.pop('install',None)
+    disk_size=create_dict['disk_size']+'G'
+    create_dict.pop('disk_size',None)
+    name=create_dict['name']
+    create_dict.pop('name',None)
+    description=create_dict['description']
+    create_dict.pop('description',None)
+    hyper_pools=[create_dict['hypervisors_pools']]
+    create_dict.pop('hypervisors_pools',None)
+    # ~ icon=create_dict['icon']
+    icon='circle-o'
+    create_dict.pop('icon',None)
+    create_dict.pop('allowed',None)
+    res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
+    if res is True:
+        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+    else:
+        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    info,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+                    
 ## Disposables
 @socketio.on('connect', namespace='/sio_disposables')
 def socketio_disposables_connect():
@@ -840,17 +981,7 @@ def socketio_disposables_connect():
     if app.isardapi.show_disposable(remote_addr):
         join_room('disposable_'+remote_addr)
 
-@socketio.on('disposable_viewer', namespace='/sio_disposables')
-def socketio_disposables_viewer(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
-    if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
-        send_viewer(data,kind='disposable',remote_addr=remote_addr)
-    else:
-        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
-        socketio.emit('result',
-                        msg,
-                        namespace='/sio_disposables', 
-                        room='disposable_'+remote_addr) 
+
                                     
 @socketio.on('disposables_add', namespace='/sio_disposables')
 def socketio_disposables_add(data):
@@ -929,37 +1060,7 @@ def socketio_domains_virtualbuilder_add(form_data):
                     namespace='/sio_admins', 
                     room='user_'+current_user.username)
 
-@socketio.on('domain_media_add', namespace='/sio_admins')
-def socketio_domains_media_add(form_data):
-    create_dict=app.isardapi.f.unflatten_dict(form_data)
-    create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']]
-    create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']]
-    create_dict['hardware']['videos']=[create_dict['hardware']['videos']]
-    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']]
-    create_dict['hardware']['memory']=int(create_dict['hardware']['memory'])*1024
-    create_dict['hardware']['vcpus']=create_dict['hardware']['vcpus']
-    create_dict['create_from_virt_install_xml']= create_dict['install']
-    create_dict.pop('install',None)
-    disk_size=create_dict['disk_size']+'G'
-    create_dict.pop('disk_size',None)
-    name=create_dict['name']
-    create_dict.pop('name',None)
-    description=create_dict['description']
-    create_dict.pop('description',None)
-    hyper_pools=[create_dict['hypervisors_pools']]
-    create_dict.pop('hypervisors_pools',None)
-    # ~ icon=create_dict['icon']
-    icon='circle-o'
-    create_dict.pop('icon',None)
-    res=app.adminapi.domain_from_media(current_user.username, name, description, icon, create_dict, hyper_pools, disk_size)
-    if res is True:
-        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
-    else:
-        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
-    socketio.emit('add_form_result',
-                    info,
-                    namespace='/sio_admins', 
-                    room='user_'+current_user.username)
+
     
 
 
