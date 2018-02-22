@@ -823,6 +823,7 @@ class isard():
         template_dict['icon']= original_domain['icon']
         template_dict['server']= original_domain['server']
         template_dict['os']= original_domain['os']
+        template_dict['options']= {'viewers':{'spice':{'fullscreen':True}}}
 
         create_dict={}
         create_dict['template_dict']=template_dict
@@ -858,7 +859,7 @@ class isard():
                   'icon': dom['icon'],
                   'server': dom['server'],
                   'os': dom['os'],
-
+                  'options': {'viewers':{'spice':{'fullscreen':True}}},
                   'create_dict': {'hardware':create_dict['hardware'], 
                                     'origin': create_dict['template']}, 
                   'hypervisors_pools': create_dict['hypervisors_pools'],

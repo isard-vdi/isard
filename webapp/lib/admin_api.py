@@ -200,8 +200,9 @@ class isardAdmin():
         # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
         # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
         p = Password()
-        usr = {'kind': 'local',
-               'active': True,
+        #### Removed kind. Kind cannot be modified, so the update will 
+        #### not interfere with this field
+        usr = {'active': True,
                 'accessed': time.time()}
         user={**usr, **user}
         
@@ -859,7 +860,7 @@ class isardAdmin():
                   'icon': icon,
                   'server': False,
                   'os': create_dict['builder']['id'],   #### Or name
-
+                  'options': {'viewers':{'spice':{'fullscreen':True}}},
                   'create_dict': create_dict, 
                   'hypervisors_pools': hyper_pools,
                   'allowed': {'roles': False,
@@ -897,7 +898,7 @@ class isardAdmin():
                   'icon': icon,
                   'server': False,
                   'os': create_dict['create_from_virt_install_xml'],   #### Or name
-
+                  'options': {'viewers':{'spice':{'fullscreen':True}}},
                   'create_dict': create_dict, 
                   'hypervisors_pools': hyper_pools,
                   'allowed': {'roles': False,

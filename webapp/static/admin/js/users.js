@@ -63,20 +63,20 @@ $(document).ready(function() {
         }
     }); 
 
-    $("#modalEditUser #send").on('click', function(e){
-        var form = $('#modalEditUserForm');
-        data=quota2dict($('#modalEditUserForm').serializeObject());
-        console.log(data)
-        form.parsley().validate();
-        if (form.parsley().isValid()){
+    //~ $("#modalEditUser #send").on('click', function(e){
+        //~ var form = $('#modalEditUserForm');
+        //~ data=quota2dict($('#modalEditUserForm').serializeObject());
+        //~ console.log(data)
+        //~ form.parsley().validate();
+        //~ if (form.parsley().isValid()){
             
-            data=quota2dict($('#modalEditUserForm').serializeObject());
-            delete data['password2']
-            data['id']=data['username']=$('#modalEditUserForm #id').val();
-            console.log(data)
-            socket.emit('user_edit',data)
-        }
-    }); 
+            //~ data=quota2dict($('#modalEditUserForm').serializeObject());
+            //~ delete data['password2']
+            //~ data['id']=data['username']=$('#modalEditUserForm #id').val();
+            //~ console.log(data)
+            //~ socket.emit('user_edit',data)
+        //~ }
+    //~ }); 
     
     $("#modalDeleteUser #send").on('click', function(e){
         var form = $('#modalDeleteUserForm');
@@ -349,7 +349,8 @@ function actionsUserDetail(){
                 $('#modalEditUserForm #category option:selected').prop("selected", false);
                 $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
                 $('#modalEditUserForm #group option:selected').prop("selected", false);
-                $('#modalEditForm #group option[value="'+user.group+'"]').prop("selected",true);                
+                $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);                
+                console.log(user.role+' '+user.category+' '+user.group)
             });
              //~ $('#hardware-block').hide();
             //~ $('#modalEdit').parsley();
@@ -448,8 +449,6 @@ function renderUsersDetailPannel ( d ) {
     function setModalUser(){
         api.ajax_async('/admin/userschema','POST','').done(function(d) {
             $.each(d, function(key, value) {
-                console.log(key)
-                
                     $("." + key).find('option').remove().end();
                     for(var i in d[key]){
                         if(value[i].id!='disposables' && value[i].id!='eval'){

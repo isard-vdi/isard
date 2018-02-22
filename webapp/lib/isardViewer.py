@@ -61,10 +61,7 @@ class isardViewer():
         try:
             domain =  r.table('domains').get(id).run(db.conn)
             
-            hostname=self.get_viewer_hostname(domain['viewer'],remote_addr)
-            import pprint
-            pprint.pprint(domain['viewer'])
-            log.error(hostname)
+            hostname = self.get_viewer_hostname(domain['viewer'],remote_addr)
             viewer = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
             
             if viewer['defaultMode'] == "Secure":
@@ -72,7 +69,7 @@ class isardViewer():
                 return {'host':hostname,
                         'kind':domain['hardware']['graphics']['type'],
                         'port':domain['viewer']['port'],
-                        'tlsport':domain['viewer']['tlsport'],
+                        'tlsport': self.get_viewer_port(domain['hyp_started'],domain['viewer']['tlsport'], remote_addr),
                         'ca':viewer['certificate'],
                         'domain':viewer['domain'],
                         'passwd':domain['viewer']['passwd'],
@@ -80,7 +77,7 @@ class isardViewer():
             else:
                 return {'host':hostname,
                         'kind':domain['hardware']['graphics']['type'],
-                        'port':domain['viewer']['port'],
+                        'port':self.get_viewer_port(domain['hyp_started'],domain['viewer']['port'],remote_addr),
                         'tlsport':False,
                         'ca':'',
                         'domain':'',
@@ -301,7 +298,15 @@ class isardViewer():
             return viewer['hostname']
         else:
             return viewer['hostname_external']
-            
+
+    def get_viewer_port(self,hypervisor,port,remote_addr):
+        if remote_addr is False: return viewer['hostname'] 
+        
+        if IPAddress(remote_addr).is_private():
+            return port
+        else:
+            return int(port) + int(r.table('hypervisors').get(hypervisor).run(db.conn)['viewer_nat_offset'])
+                        
     def get_graphics(self):
         with app.app_context():
             return [{'id':'spice','name':'Spice'},{'id':'vnc','name':'VNC'}]                            
