@@ -38,7 +38,11 @@
                   </li>
 
                   {% endif %}
+                  {% if current_user.role == 'admin' or current_user.role == 'advanced' %}
+                  <li><a href="/media"><i class="fa fa-circle-o"></i> Media</span></a>
+                  </li>
 
+                  {% endif %}
                 </ul>
             {% if current_user.role == 'admin' %}
                 <h3>Administrator</h3>
