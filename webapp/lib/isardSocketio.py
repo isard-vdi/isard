@@ -436,11 +436,11 @@ def socketio_hyper_edit(form_data):
             create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
             create_dict['detail']=''
             create_dict['info']=[]
-            create_dict['prev_status']=''
-            create_dict['status']='Updating'
+            #~ create_dict['prev_status']=''
+            #~ create_dict['status']='Updating'
             create_dict['status_time']=''
             create_dict['uri']=''
-            create_dict['enabled']=True
+            #~ create_dict['enabled']=True
             res=app.adminapi.hypervisor_edit(create_dict)
 
             if res is True:
