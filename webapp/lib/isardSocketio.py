@@ -863,7 +863,7 @@ def socketio_disposables_viewer(data):
 MEDIA
 '''
 @socketio.on('media_update', namespace='/sio_admins')
-def socketio_media_update(data):
+def socketio_admin_media_update(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     socketio.emit('result',
                     app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),

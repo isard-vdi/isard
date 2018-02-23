@@ -906,6 +906,10 @@ class isardAdmin():
                               'groups': False,
                               'users': False}}
         with app.app_context():
+            #~ import pprint
+            #~ pprint.pprint(new_domain)
+            #~ pprint.pprint(r.table('domains').insert(new_domain).run(db.conn))
+            #~ return True
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
     # ~ def isa_group_separator(self,line):
