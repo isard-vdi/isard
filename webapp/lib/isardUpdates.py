@@ -153,7 +153,7 @@ class Updates(object):
             if d['url-isard'] is False:
                 d['path']=current_user.path+d['url-web'].split('/')[-1] 
             else:
-                d['path']=d['url-isard']
+                d['path']=current_user.path+d['url-isard']
             # ~ if not d['path'].startswith(current_user.path):                  
                 # ~ d['path']=current_user.path+d['url-isard']                
         return new_data
