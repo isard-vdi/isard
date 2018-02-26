@@ -123,6 +123,12 @@ class Wizard():
                 if str('downloaded_'+u) == dom['id']:
                     self.insert_update('domains',[dom])
                     wlog.info('New download: '+u)
+        # Useful default media with drivers for Microsfot
+        medias=self.get_updates_new_kind('media','admin')
+        for media in medias:
+            if 'default-virtio-iso' in media.keys():
+                self.insert_update('media',[media])
+                wlog.info('New download: '+u)
         return True
         
     def insert_update(self,kind,data):

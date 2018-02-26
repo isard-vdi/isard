@@ -885,6 +885,20 @@ class isardAdmin():
         if media['kind']=='floppy':
             create_dict['hardware']['isos']=[]
             create_dict['hardware']['floppies']=[{'id': create_dict['media']}]                                                                                           
+
+        if 'add_virtio_iso' in create_dict:
+            with app.app_context():
+                iso_virtio_id=list(r.table('media').has_fields('default-virtio-iso').pluck('id').run(db.conn))
+            if len(iso_virtio_id):
+                create_dict['hardware']['isos'].append({'id': iso_virtio_id[0]['id']})
+                create_dict.pop('add_virtio_iso',None)
+        if 'add_virtio_fd' in create_dict:
+            with app.app_context():
+                fd_virtio_id=list(r.table('media').has_fields('default-virtio-fd').pluck('id').run(db.conn))
+            if len(fd_virtio_id):
+                create_dict['hardware']['floppies'].append({'id': fd_virtio_id[0]['id']})
+                create_dict.pop('add_virtio_fd',None)
+            
         new_domain={'id': '_'+user+'_'+parsed_name,
                   'name': name,
                   'description': description,

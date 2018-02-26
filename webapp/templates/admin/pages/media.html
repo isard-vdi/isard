@@ -1,6 +1,8 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
+    <!-- Dropzone.js -->
+    <link href="/vendors/dropzone/dist/min/dropzone.min.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <div class="right_col" role="main">
@@ -15,7 +17,8 @@
                   <div class="x_title">
                     <h2>Media list <small>Your media in system</small></h2>
                         <ul class="nav navbar-right panel_toolbox">
-                            <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                            <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new from URL</span></a>
+                            <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new from Local</span></a>
                            </li>
                         </ul>
                     <div class="clearfix"></div>
@@ -31,6 +34,7 @@
 <!--
 							 <th>Status</th>
 -->
+							 <th>User</th>
 							 <th>Progress</th>
                              <th>Status</th>
 						  </tr>
@@ -51,5 +55,7 @@
 <!--
     <script src="/static/js/restful.js"></script>
 -->
+    <!-- Dropzone.js -->
+    <script src="/vendors/dropzone/dist/min/dropzone.min.js"></script>
     <script src="/admin/js/media.js"></script>
 {% endblock %}

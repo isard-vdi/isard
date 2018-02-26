@@ -22,9 +22,26 @@ $(document).ready(function() {
                     $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                 }
             });
-            setAlloweds_add('#alloweds-add');
+            setAlloweds_add('#modalAddMediaForm #alloweds-add');
 	});
 
+	$('.btn-new-local').on('click', function () {
+            $("#modalAddMediaFormLocal")[0].reset();
+			$('#modalAddMediaLocal').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalAddMediaFormLocal').parsley();
+            //~ $('#modalAddMediaFormLocal #name').focus(function(){
+                //~ console.log(($(this).val()))
+                //~ if($(this).val()=='' && $('#modalAddMediaFormLocal #url').val() !=''){
+                    //~ console.log($('#modalAddMediaForm #url').val())
+                    //~ $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
+                //~ }
+            //~ });
+            setAlloweds_add('#modalAddMediaFormLocal #alloweds-add');
+	});
+    
     var table=$('#media').DataTable( {
         "ajax": {
                 "url": "/admin/table/media/get",
@@ -49,7 +66,7 @@ $(document).ready(function() {
 				//~ },
             { "data": "icon"},
             { "data": "name"},
-            //~ { "data": "status"},
+            { "data": "user"},
             { "data": null},
                 {"data": null,
                  'defaultContent': ''},  
@@ -66,7 +83,7 @@ $(document).ready(function() {
 							  return renderName(full);
 							}},
                             {
-							"targets": 2,
+							"targets": 3,
 							"render": function ( data, type, full, meta ) {
                                 if(full.status == 'Downloading'){
                                     return renderProgress(full);
@@ -75,7 +92,7 @@ $(document).ready(function() {
                                 return ''
 							}},
                             {
-							"targets": 3,
+							"targets": 4,
 							"render": function ( data, type, full, meta ) {                                
                                 if(full.status == 'Available' || full.status == "FailedDownload"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'

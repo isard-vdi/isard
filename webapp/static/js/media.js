@@ -427,15 +427,15 @@ function modal_add_install_datatables(){
             
             if (form.parsley().isValid()){
                 install=$('#modalAddFromMedia #install').val();
-                console.log('install:'+install+'XXX')
+                //~ console.log('install:'+install+'XXX')
                 
-                if (install !=''){console.log('install not empty')}else{console.log('install empty')}
+                //~ if (install !=''){console.log('install not empty')}else{console.log('install empty')}
                 
                 if (install !=''){
                     data=$('#modalAddFromMedia  #modalAdd').serializeObject();
                     socket.emit('domain_media_add',data)
                 }else{                
-                    console.log('OK!!')
+                    //~ console.log('OK!!')
                         $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
                         $('#modalAddFromMedia #datatables-install-error-status').html('No OS template selected').addClass('my-error');                    
                 }

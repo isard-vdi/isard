@@ -47,9 +47,9 @@
                                       <option value="floppy">Floppy</option>
                                    </select>
                             </div>
+<!--
                      </div>
 
-<!--
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
                         </label>
@@ -57,8 +57,8 @@
                            <input id="name" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="name" placeholder="New desktop name" required="required" type="text">
                         </div>
                      </div>
--->
                      
+-->
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
                         </label>
@@ -159,7 +159,42 @@
                                  <input  id="media" name="media" type="hidden" required>
                                  <label  id="media_name" name="media_name"></label>
                                  <label  id="media_size" name="media_size"></label>
-                                     
+ 
+								 <div class="item form-group">
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="add_virtio_iso">Windows install?
+									</label>
+                                    
+                                    
+                                    
+									<div class="col-md-6 col-sm-6 col-xs-12">
+									  <div class="checkbox">
+										<label class="">
+										  <div class="icheckbox_flat-green" style="position: relative;">
+											  <input type="checkbox" id="add_virtio_iso" name="add_virtio_iso" class="flat"  style="position: absolute; opacity: 0;">
+											  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+											  </ins>
+										  </div> It is a Windows install media
+										</label>
+									  </div> 
+									</div>                                              
+
+
+
+
+									<div class="col-md-6 col-sm-6 col-xs-12">
+									  <div class="checkbox">
+										<label class="">
+										  <div class="icheckbox_flat-green" style="position: relative;">
+											  <input type="checkbox" id="add_virtio_fd" name="add_virtio_fd" class="flat"  style="position: absolute; opacity: 0;">
+											  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+											  </ins>
+										  </div> Attach Windows drivers
+										</label>
+									  </div> 
+									</div>                                              
+							
+								 </div>
+                                    
 <!--
                                  <table id="modal_add_media" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
                                     <thead>
