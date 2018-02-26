@@ -436,11 +436,11 @@ def socketio_hyper_edit(form_data):
             create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']]
             create_dict['detail']=''
             create_dict['info']=[]
-            create_dict['prev_status']=''
-            create_dict['status']='Updating'
+            #~ create_dict['prev_status']=''
+            #~ create_dict['status']='Updating'
             create_dict['status_time']=''
             create_dict['uri']=''
-            create_dict['enabled']=True
+            #~ create_dict['enabled']=True
             res=app.adminapi.hypervisor_edit(create_dict)
 
             if res is True:
@@ -863,7 +863,7 @@ def socketio_disposables_viewer(data):
 MEDIA
 '''
 @socketio.on('media_update', namespace='/sio_admins')
-def socketio_media_update(data):
+def socketio_admin_media_update(data):
     remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
     socketio.emit('result',
                     app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),

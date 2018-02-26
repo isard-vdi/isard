@@ -276,6 +276,8 @@ $(document).ready(function() {
         if(data.result){
             $("#modalAddMediaForm")[0].reset();
             $("#modalAddMedia").modal('hide');
+            $("#modalAddFromMedia #modalAdd")[0].reset();
+            $("#modalAddFromMedia").modal('hide');            
         }
         new PNotify({
                 title: data.title,
@@ -430,7 +432,6 @@ function modal_add_install_datatables(){
                 if (install !=''){console.log('install not empty')}else{console.log('install empty')}
                 
                 if (install !=''){
-                    console.log('KKKKKKKKK')
                     data=$('#modalAddFromMedia  #modalAdd').serializeObject();
                     socket.emit('domain_media_add',data)
                 }else{                
@@ -451,16 +452,16 @@ function modal_add_install_datatables(){
         
         
         
-            var form = $('#modalAddFromMedia #modalAdd');
+            //~ var form = $('#modalAddFromMedia #modalAdd');
 
-            form.parsley().validate();
+            //~ form.parsley().validate();
 
-            if (form.parsley().isValid()){
-                data=$('#modalAddFromMedia #modalAdd').serializeObject();
-                data=replaceAlloweds_arrays(data)
-                console.log(data)
-                socket.emit('domain_media_add',data)
-            }
+            //~ if (form.parsley().isValid()){
+                //~ data=$('#modalAddFromMedia #modalAdd').serializeObject();
+                //~ data=replaceAlloweds_arrays(data)
+                //~ console.log(data)
+                //~ socket.emit('domain_media_add',data)
+            //~ }
             
 
         });    
