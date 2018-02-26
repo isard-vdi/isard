@@ -7,7 +7,7 @@
 
 
 $(document).ready(function() {
-    
+setDropzone();    
 	$('.btn-new').on('click', function () {
             $("#modalAddMediaForm")[0].reset();
 			$('#modalAddMedia').modal({
@@ -26,12 +26,13 @@ $(document).ready(function() {
 	});
 
 	$('.btn-new-local').on('click', function () {
-            $("#modalAddMediaFormLocal")[0].reset();
+            //~ $("#modalAddMediaFormLocal")[0].reset();
 			$('#modalAddMediaLocal').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            $('#modalAddMediaFormLocal').parsley();
+            
+            //~ $('#modalAddMediaFormLocal').parsley();
             //~ $('#modalAddMediaFormLocal #name').focus(function(){
                 //~ console.log(($(this).val()))
                 //~ if($(this).val()=='' && $('#modalAddMediaFormLocal #url').val() !=''){
@@ -39,7 +40,7 @@ $(document).ready(function() {
                     //~ $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                 //~ }
             //~ });
-            setAlloweds_add('#modalAddMediaFormLocal #alloweds-add');
+            //~ setAlloweds_add('#modal-add-media-form-local #alloweds-add');
 	});
     
     var table=$('#media').DataTable( {
@@ -57,7 +58,7 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
         "columns": [
-				//~ {
+				//~ {setDropzone();
                 //~ "className":      'details-control',
                 //~ "orderable":      false,
                 //~ "data":           null,
@@ -316,4 +317,54 @@ function icon(name){
         }else{
             return "<span class='fl-"+name+" fa-2x'></span>";
 		}       
+}
+
+
+function setDropzone(){
+console.log('set dropzone')
+Dropzone.options.modalAddMediaFormLocal = { // The camelized version of the ID of the form element
+
+  // The configuration we've talked about above
+  autoProcessQueue: false,
+  uploadMultiple: false,
+  //~ parallelUploads: 100,
+  maxFiles: 1,
+  maxFilesize: 10000,
+
+  // The setting up of the dropzone
+  init: function() {
+    var myDropzone = this;
+
+    // First change the button to actually tell Dropzone to process the queue.
+    this.element.querySelector("button[type=submit]").addEventListener("click", function(e) {
+      // Make sure that the form isn't actually being sent.
+      e.preventDefault();
+      e.stopPropagation();
+      myDropzone.processQueue();
+      console.log('done')
+    });
+
+    // Listen to the sendingmultiple event. In this case, it's the sendingmultiple event instead
+    // of the sending event because uploadMultiple is set to true.
+    this.on("sendingmultiple", function() {
+      // Gets triggered when the form is actually being sent.
+      // Hide the success button or the complete form.
+    });
+    this.on("successmultiple", function(files, response) {
+      // Gets triggered when the files have successfully been sent.
+      // Redirect user or notify of success.
+    });
+    this.on("errormultiple", function(files, response) {
+      // Gets triggered when there was an error sending the files.
+      // Maybe show form again, and notify user of error
+    });
+
+      this.on("uploadprogress", function(file, progress) {
+        console.log("File progress", progress);
+      });
+          
+  }
+ 
+}    
+    
 }

@@ -112,23 +112,11 @@
             </div>
             
             <!-- Modal Body -->
+<!--
             <div class="modal-body" style="padding: 7px;">
-              <form id="modalAddMediaFormLocal" class="form-horizontal form-label-left" method="POST" novalidate>
-			  <div class="x_panel">
-					<div class="x_content">
-
-                    <div class="x_panel">
-                      <div class="x_title">
-                        <h2>Backup drag&drop upload</h2>
-                        <div class="clearfix"></div>
-                      </div>
-                      <div class="x_content">
-                        <p>Drag multiple files to the box below for multi upload or click to select files.</p>
-                        <form action="{{ url_for('admin_backup_upload') }}" class="dropzone"></form>
-                        <br />
-                      </div>
-                    </div>
-                     
+-->
+              <form id="modal-add-media-form-local" action="{{ url_for('admin_media_localupload') }}" class="form-horizontal form-label-left dropzone" method="POST" novalidate>
+                <div class="dropzone-previews"></div>
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
                           </label>
@@ -168,12 +156,18 @@
                             </select>
                         </div>
                     </div>
-				</div>
-			  </div>
 
+                <button id="send" type="submit" class="btn btn-success">Start download</button>
+
+<!--
+			  </div>
+-->
+
+<!--
                                     <div id="alloweds-add">
                                       {% include '/snippets/alloweds_add.html' %}
                                     </div>
+-->
                                       
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 5px;">
@@ -182,7 +176,9 @@
                    </li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
+<!--
                     <li><button id="send" type="button" class="btn btn-success">Start download</button></li>
+-->
                    </li>
                 </ul>
             </div>                       
