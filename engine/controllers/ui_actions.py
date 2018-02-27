@@ -14,7 +14,7 @@ from os.path import dirname as extract_dir_path
 from time import sleep
 
 from engine.models.domain_xml import DomainXML, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
-from engine.models.domain_xml import recreate_xml_to_start
+from engine.models.domain_xml import recreate_xml_to_start, BUS_TYPES
 from engine.services.db import update_domain_viewer_started_values, update_table_field, \
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
@@ -440,6 +440,10 @@ class UiActions(object):
                 d_update_domain = {'hardware':{'disks':[{}]}}
                 d_update_domain['hardware']['disks'][0]['file'] = path_new_disk
                 d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
+                d_update_domain['hardware']['disks'][0]['size'] = dict_to_create['hardware']['disks'][0]['size']
+                if 'bus' in dict_to_create['hardware']['disks'][0].keys():
+                    if dict_to_create['hardware']['disks'][0]['bus'] in BUS_TYPES:
+                        d_update_domain['hardware']['disks'][0]['bus'] = dict_to_create['hardware']['disks'][0]['bus']
                 update_domain_dict_hardware(id_new, d_update_domain)
                 update_domain_dict_create_dict(id_new, d_update_domain)
 

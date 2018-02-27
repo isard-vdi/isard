@@ -21,7 +21,7 @@ from engine.services.db.downloads import get_downloads_in_progress, update_downl
 from engine.services.lib.qcow import get_host_disk_operations_from_path, get_path_to_disk, create_cmds_delete_disk
 from engine.services.lib.functions import get_tid
 
-
+URL_DOWNLOAD_INSECURE_SSL = True
 
 class DownloadThread(threading.Thread, object):
     def __init__(self, hyp_hostname, url, path, table, id_down, dict_header, finalished_threads):
@@ -59,20 +59,27 @@ class DownloadThread(threading.Thread, object):
         header_template = "--header '{header_key}: {header_value}' "
         headers = ''
 
+        if URL_DOWNLOAD_INSECURE_SSL == True:
+            insecure_option = '--insecure'
+        else:
+            insecure_option = ''
+
         for k,v in self.dict_header.items():
             headers += header_template.format(header_key=k, header_value=v)
 
         ssh_template = """ssh -oBatchMode=yes -p {port} {user}@{hostname} """ \
-                       """ "mkdir -p '{path_dir}'; curl -L -o '{path}' {headers} '{url}' " """
+                       """ "mkdir -p '{path_dir}'; curl {insecure_option} -L -o '{path}' {headers} '{url}' " """
 
         print(ssh_template)
+
         ssh_command = ssh_template.format(port=self.port,
                                           user=self.user,
                                           hostname=self.hostname,
                                           path= self.path,
                                           path_dir= dirname(self.path),
                                           headers=headers,
-                                          url= self.url)
+                                          url= self.url,
+                                          insecure_option = insecure_option)
         print(ssh_command)
 
         logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
