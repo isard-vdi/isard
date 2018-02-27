@@ -36,7 +36,7 @@ $(document).ready(function() {
                             $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                         }
                     });
-                    setAlloweds_add('#alloweds-add');
+                    setAlloweds_add('#modalAddMedia #alloweds-add');
                 }
 	});
 
@@ -99,6 +99,7 @@ $(document).ready(function() {
                                 }
                                 if(full.status == 'Downloaded' || full.status == 'Stopped'){
                                     return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
+                                            <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
                                             <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                                 } 
                                 return full.status;                                 
@@ -159,6 +160,12 @@ $(document).ready(function() {
                             }).on('pnotify.cancel', function() {
                     });	             
                 break;
+             case 'btn-alloweds':
+                    //~ var pk=$(this).closest("div").attr("data-pk");
+                    //~ console.log('abort:'+pk)
+                    //~ var name=$(this).closest("div").attr("data-name");
+                    modalAllowedsFormShow('media',data)
+                break;                
             case 'btn-createfromiso':
             console.log($('.quota-desktops .perc').text())
                 if($('.quota-desktops .perc').text() >=100){

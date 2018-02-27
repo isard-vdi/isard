@@ -48,7 +48,7 @@
 				  $(parentid+" #"+id).attr('disabled',true);
 			 });
 			 $(parentid+" #"+id).attr('disabled',true);
-			 console.log(id)
+			 //~ console.log(id)
 			 $(parentid+" #"+id).select2({
 				minimumInputLength: 2,
 				multiple: true,
@@ -79,4 +79,47 @@
 		});
 	
 	}
+    
+    
+    
+    function modalAllowedsFormShow(table,data){
+
+                    $('#modalAlloweds #alloweds_name').html(data.name)
+                    $('#modalAllowedsForm #id').val(data.id);
+                    $('#modalAlloweds #alloweds_panel').show()
+                    $("#modalAllowedsForm")[0].reset();
+                    $('#modalAlloweds').modal({
+                        backdrop: 'static',
+                        keyboard: false
+                    }).modal('show');
+                    //~ $('#modalAllowedsForm').parsley();
+                    setAlloweds_add('#modalAlloweds #alloweds-add'); 
+                    
+                    //~ ids=['a-roles','a-categories','a-groups','a-users']
+                     //~ $.each(ids,function(idx,id) 
+                     //~ {   $(parentid+' #'+id+'-cb').iCheck('uncheck');
+                         //~ $(parentid+' #'+id+'-cb').on('ifChecked', function(event){
+                              //~ $(parentid+" #"+id).attr('disabled',false);
+                         //~ });
+             
+                    api.ajax('/domain/alloweds/select2','POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
+                        
+                    
+                        $.each(alloweds,function(key, value) 
+                        {   
+                            //~ console.log(key)
+                            //~ console.log(value)
+                            console.log('a-'+key)
+                            if(value){
+                                console.log(value)
+                                    $("#modalAllowedsForm #alloweds-add a-"+key).select2({data: value});
+                            }
+
+                        });
+                    });
+
+                           
+    }
+
+
 	

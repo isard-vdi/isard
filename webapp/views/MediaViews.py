@@ -29,6 +29,7 @@ def media_get(kind='username'):
         #~ return json.dumps(app.isardapi.get_group_domains(current_user.group)), 200, {'ContentType': 'application/json'}
     return url_for('media')
 
+
 @app.route('/media/installs')
 @login_required
 def media_installs_get():
