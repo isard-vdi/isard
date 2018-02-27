@@ -101,7 +101,8 @@
                          //~ $(parentid+' #'+id+'-cb').on('ifChecked', function(event){
                               //~ $(parentid+" #"+id).attr('disabled',false);
                          //~ });
-             
+                    console.log('alloweds')
+                    console.log(data)
                     api.ajax('/domain/alloweds/select2','POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
                         
                     

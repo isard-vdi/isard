@@ -367,7 +367,13 @@ Dropzone.options.modalAddMediaFormLocal = { // The camelized version of the ID o
       });
           
   }
+
+myDropzone.on('sending', function(file, xhr, formData){
+            formData.append('userName', 'bob');
+        });   
+         
+}
+
  
-}    
     
 }

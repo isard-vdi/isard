@@ -285,6 +285,7 @@ def domain_alloweds():
 @app.route('/domain/alloweds/select2', methods=['POST'])
 @login_required
 def domain_alloweds_select2():
+    print(request.get_json(force=True))
     allowed=request.get_json(force=True)['allowed']
     return json.dumps(app.isardapi.get_alloweds_select2(allowed))
         

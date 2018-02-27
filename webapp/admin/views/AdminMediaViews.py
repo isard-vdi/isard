@@ -53,6 +53,7 @@ def admin_media_localupload():
         media['description']=request.form['description']
         media['hypervisors_pools']=[request.form['hypervisors_pools']]
         # Only one can be uploaded!
+        print(request.form)
         for f in request.files:
             handler=request.files[f]
         if '5000' not in request.url_root:
