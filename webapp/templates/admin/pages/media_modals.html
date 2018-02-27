@@ -112,9 +112,7 @@
             </div>
             
             <!-- Modal Body -->
-<!--
             <div class="modal-body" style="padding: 7px;">
--->
               <form id="modal-add-media-form-local" action="{{ url_for('admin_media_localupload') }}" class="form-horizontal form-label-left dropzone" method="POST" novalidate>
                 <div class="dropzone-previews"></div>
                      <div class="item form-group">
@@ -133,6 +131,7 @@
                                       <option value="">Choose..</option>
                                       <option value="iso">ISO CD/DVD</option>
                                       <option value="floppy">Floppy</option>
+                                      <option value="disk">Disk</option>
                                    </select>
                             </div>
                      </div>
@@ -157,17 +156,15 @@
                         </div>
                     </div>
 
-                <button id="send" type="submit" class="btn btn-success">Start download</button>
-
 <!--
-			  </div>
+                <button id="send" type="submit" class="btn btn-success">Start download</button>
 -->
 
-<!--
+			  </div>
+
                                     <div id="alloweds-add">
                                       {% include '/snippets/alloweds_add.html' %}
                                     </div>
--->
                                       
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 5px;">
@@ -176,9 +173,7 @@
                    </li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
-<!--
-                    <li><button id="send" type="button" class="btn btn-success">Start download</button></li>
--->
+                    <li><button id="send" type="submit" class="btn btn-success">Start download</button></li>
                    </li>
                 </ul>
             </div>                       

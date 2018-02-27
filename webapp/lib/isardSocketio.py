@@ -1095,7 +1095,7 @@ def socketio_admins_disconnect():
     try:
         leave_room('user_'+current_user.username)
     except Exception as e:
-        log.debug('USER has leaved without disconnect')
-    log.debug('USER: '+current_user.username+' DISCONNECTED')
+        log.debug('USER leaved without disconnect')
+    #~ log.debug('USER: '+current_user.username+' DISCONNECTED')
     
 

@@ -26,32 +26,33 @@ setDropzone();
 	});
 
 	$('.btn-new-local').on('click', function () {
-            //~ $("#modalAddMediaFormLocal")[0].reset();
+            $("#modal-add-media-form-local")[0].reset();
 			$('#modalAddMediaLocal').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
             
-            //~ $('#modalAddMediaFormLocal').parsley();
-            //~ $('#modalAddMediaFormLocal #name').focus(function(){
+            $('#modal-add-media-form-local').parsley();
+            //~ $('#modal-add-media-form-local #name').focus(function(){
                 //~ console.log(($(this).val()))
                 //~ if($(this).val()=='' && $('#modalAddMediaFormLocal #url').val() !=''){
                     //~ console.log($('#modalAddMediaForm #url').val())
                     //~ $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                 //~ }
             //~ });
-            //~ setAlloweds_add('#modal-add-media-form-local #alloweds-add');
+            setAlloweds_add('#modalAddMediaLocal #alloweds-add');
 	});
     
     var table=$('#media').DataTable( {
         "ajax": {
-                "url": "/admin/table/media/get",
-                "dataSrc": ""
-				//~ "url": "/admin/tabletest/media/post",
-                //~ "contentType": "application/json",
-                //~ "type": 'POST',
-                //~ "data": function(d){return JSON.stringify({'flatten':false})}            
+                //~ "url": "/admin/table/media/get",
+                //~ "dataSrc": ""
+				"url": "/admin/tabletest/media/post",
+                "contentType": "application/json",
+                "type": 'POST',
+                "data": function(d){return JSON.stringify({'flatten':false})}            
         },
+        "sAjaxDataProp": "",
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
 			},
@@ -287,6 +288,7 @@ setDropzone();
 
 
 function renderProgress(data){ 
+    console.log(data)
             perc = data.progress.received_percent
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
@@ -336,7 +338,8 @@ Dropzone.options.modalAddMediaFormLocal = { // The camelized version of the ID o
     var myDropzone = this;
 
     // First change the button to actually tell Dropzone to process the queue.
-    this.element.querySelector("button[type=submit]").addEventListener("click", function(e) {
+    //~ this.element.querySelector("button[type=submit]").addEventListener("click", function(e) {
+    $('#modal-add-media-form-local #send').on('click', function(e){ 
       // Make sure that the form isn't actually being sent.
       e.preventDefault();
       e.stopPropagation();

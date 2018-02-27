@@ -551,11 +551,12 @@ class isardAdmin():
     '''
     MEDIA
     '''
-    def media_add(self,username,partial_dict):
+    def media_add(self,username,partial_dict,filename=False):
         try:
             partial_dict['url-web']=partial_dict['url']
             del partial_dict['url']
-            # ~ filename = partial_dict['url-web'].split('/')[-1]
+            if filename is False:
+                filename = partial_dict['url-web'].split('/')[-1]
             user_data=app.isardapi.user_relative_media_path( username, partial_dict['name'])
             partial_dict={**partial_dict, **user_data}
             missing_keys={  'accessed': time.time(),
@@ -601,7 +602,7 @@ class isardAdmin():
         handler.save(os.path.join(path+filename))        
         
         print('File saved')
-        return self.media_add(username,media)
+        return self.media_add(username,media,filename=filename)
         
         
         

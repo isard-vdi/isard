@@ -55,6 +55,20 @@ def admin_media_localupload():
         # Only one can be uploaded!
         for f in request.files:
             handler=request.files[f]
-        media['url']=request.url_root+'admin/download/'+secure_filename(handler.filename)
+        if '5000' not in request.url_root:
+            url='https://'+request.url_root.split('http://')[1]
+        else:
+            url=request.url_root
+        media['url']=url+'admin/media/download/'+secure_filename(handler.filename)
         app.adminapi.media_upload(current_user.username,handler,media)
         return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+
+@app.route('/admin/media/download/<filename>', methods=['GET'])
+#~ @login_required
+#~ @isAdmin
+def admin_media_download(filename):
+    with open('./uploads/'+filename, 'rb') as isard_file:
+        data=isard_file.read()    
+    return Response( data,
+        mimetype="application/octet-stream",
+        headers={"Content-Disposition":"attachment;filename="+filename})
