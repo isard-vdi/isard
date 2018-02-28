@@ -184,7 +184,7 @@ setDropzone();
 
             if (form.parsley().isValid()){
                 data=$('#modalAddMediaForm').serializeObject();
-                data=replaceAlloweds_arrays(data)
+                data=replaceAlloweds_arrays('#modalAddMediaForm #alloweds-add',data)
                 socket.emit('media_add',data)
             }
             

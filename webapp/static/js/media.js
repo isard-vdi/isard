@@ -161,9 +161,6 @@ $(document).ready(function() {
                     });	             
                 break;
              case 'btn-alloweds':
-                    //~ var pk=$(this).closest("div").attr("data-pk");
-                    //~ console.log('abort:'+pk)
-                    //~ var name=$(this).closest("div").attr("data-name");
                     modalAllowedsFormShow('media',data)
                 break;                
             case 'btn-createfromiso':
@@ -214,12 +211,16 @@ $(document).ready(function() {
 
             if (form.parsley().isValid()){
                 data=$('#modalAddMediaForm').serializeObject();
-                data=replaceAlloweds_arrays(data)
+                data=replaceAlloweds_arrays('#modalAddMediaForm #alloweds-add',data)
                 socket.emit('media_add',data)
             }
             
 
         });
+
+
+
+
 
     // SocketIO
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');

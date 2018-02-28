@@ -365,10 +365,10 @@ class isard():
                 
     def get_user_templates(self, user):
         with app.app_context():
-            dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).run(db.conn))
+            dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).without('viewer','xml','history_domain').run(db.conn))
             for d in dom:
                 d['kind']='user_template' if self.is_user_template(user,d['id']) else 'public_template'
-            return self.f.table_values_bstrap(dom)
+            return dom #self.f.table_values_bstrap(dom)
 
     def get_domain_backing_images(self, id):
         chain=[]

@@ -39,6 +39,7 @@
                           <th>kind</th>
                           <th>status</th>
                           <th>pending</th>
+                          <th></th>
                        </tr>
                     </thead>
                     <tbody>
@@ -50,10 +51,14 @@
         </div>
     </div>
 </div>
+
 {% include '/pages/templates_detail.html' %}
+
 {% endblock %}
 
 {% block pagescript %}
     <script src="/static/js/restful.js"></script>
     <script src="/static/js/templates.js"></script>
 {% endblock %}
+
+{% include '/snippets/alloweds_form.html' %}

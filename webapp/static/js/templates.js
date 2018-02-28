@@ -25,7 +25,7 @@ $(document).ready(function() {
                 "orderable":      false,
                 "data":           null,
                 "width": "10px",
-                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+                "defaultContent": '<button id="btn-detail" class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
 				{ "data": "icon", "width": "10px" },
 				{ "data": "name"},
@@ -33,7 +33,9 @@ $(document).ready(function() {
 				{ "data": "kind"},
 				{ "data": "status"},
                 { "data": "pending"},
-				{ "data": "description", "visible": false}
+                { "data": null, 'defaultContent': ''},
+				{ "data": "description", "visible": false},
+                
 				],
 			 "order": [[2, 'asc']],
 			 "columnDefs": [ {
@@ -66,6 +68,14 @@ $(document).ready(function() {
 							"targets": 6,
 							"render": function ( data, type, full, meta ) {
 							  return renderPending(full);
+							}},
+							{
+							"targets": 7,
+							"render": function ( data, type, full, meta ) {
+                                if(full.status == 'Stopped' || full.status == 'Stopped'){
+                                    return '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'
+                                } 
+                                return full.status; 
 							}}
 							]
 		} );
@@ -92,6 +102,38 @@ $(document).ready(function() {
         }
     });
 
+
+
+    $('#templates').find(' tbody').on( 'click', 'button', function () {
+        var data = table.row( $(this).parents('tr') ).data();
+
+        switch($(this).attr('id')){
+            //~ case 'btn-detail':
+                //~ var tr = $(this).closest('tr');
+                //~ var row = table.row( tr );
+                //~ if ( row.child.isShown() ) {
+                    //~ // This row is already open - close it
+                    //~ row.child.hide();
+                    //~ row.child.remove();
+                    //~ tr.removeClass('shown');
+                //~ }
+                //~ else {
+                    //~ // Open this row
+                    //~ row.child( formatPanel(row.data()) ).show();
+                    //~ tr.addClass('shown');
+                    //~ setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                    //~ setHardwareGraph();
+                    //~ setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
+                    //~ actionsTmplDetail();
+                    
+                //~ }
+                //~ break;
+             case 'btn-alloweds':
+                    modalAllowedsFormShow('domains',data)
+             break;                
+        };
+    });   
+
    
     //~ Delete confirm modal
 	$('#confirm-modal > .modal-dialog > .modal-content > .modal-footer > .btn-primary').click(function() {
@@ -110,7 +152,7 @@ $(document).ready(function() {
 	});
 
     // SocketIO
-    var socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
 
     socket.on('connect', function() {
         connection_done();
@@ -127,12 +169,18 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
-    socket.on('template_update', function(data){
+    socket.on('template_data', function(data){
         console.log('update')
         var data = JSON.parse(data);
-        var row = table.row('#'+data.id); 
-        table.row(row).data(data);
-        setDesktopDetailButtonsStatus(data.id, data.status);
+        console.log(data)
+        dtUpdateInsert(table,data,false);
+        //~ setDesktopDetailButtonsStatus(data.id, data.status);
+
+        
+        //~ var data = JSON.parse(data);
+        //~ var row = table.row('#'+data.id); 
+        //~ table.row(row).data(data);
+        //~ setDesktopDetailButtonsStatus(data.id, data.status);
     });
 
     socket.on('template_add', function(data){

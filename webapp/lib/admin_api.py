@@ -137,6 +137,9 @@ class isardAdmin():
                                         
     def update_table_dict(self, table, id, dict):
         with app.app_context():
+            print(table)
+            print(id)
+            print(dict)
             return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
             
     '''
