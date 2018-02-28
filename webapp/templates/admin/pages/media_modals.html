@@ -113,22 +113,21 @@
             
             <!-- Modal Body -->
             <div class="modal-body" style="padding: 7px;">
-              <form id="modalAddMediaFormLocal" class="form-horizontal form-label-left" method="POST" novalidate>
-			  <div class="x_panel">
-					<div class="x_content">
+              <form id="modal-add-media-form-local"  class="form-horizontal form-label-left" method="POST" novalidate>
+<!--
+                  action="{{ url_for('admin_media_localupload') }}"
+-->
+                  
+<!--
+                <div class="dropzone-previews"></div>
+-->
 
-                    <div class="x_panel">
-                      <div class="x_title">
-                        <h2>Backup drag&drop upload</h2>
-                        <div class="clearfix"></div>
-                      </div>
-                      <div class="x_content">
-                        <p>Drag multiple files to the box below for multi upload or click to select files.</p>
-                        <form action="{{ url_for('admin_backup_upload') }}" class="dropzone"></form>
-                        <br />
-                      </div>
-                    </div>
-                     
+    <div class="dropzone dz-clickable dz-square" id="myDropzone">
+        <div class="dz-default dz-message" data-dz-message="">
+            <span>Drop files here to upload</span>
+        </div>
+    </div>                
+                
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
                           </label>
@@ -145,6 +144,7 @@
                                       <option value="">Choose..</option>
                                       <option value="iso">ISO CD/DVD</option>
                                       <option value="floppy">Floppy</option>
+                                      <option value="disk">Disk</option>
                                    </select>
                             </div>
                      </div>
@@ -168,13 +168,15 @@
                             </select>
                         </div>
                     </div>
-				</div>
+
+                
+
 			  </div>
 
                                     <div id="alloweds-add">
                                       {% include '/snippets/alloweds_add.html' %}
                                     </div>
-                                      
+                                <button id="send" type="button" class="btn btn-success">Start download</button>      
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 5px;">
                 <ul class="nav navbar-left panel_toolbox">
@@ -182,7 +184,9 @@
                    </li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Start download</button></li>
+<!--
+                    <li><button id="send" type="submit" class="btn btn-success">Start download</button></li>
+-->
                    </li>
                 </ul>
             </div>                       

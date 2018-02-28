@@ -185,7 +185,7 @@ class isard():
     def get_user_media(self, user): #, filterdict=False):
         #~ if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            media=self.f.table_values_bstrap(r.table('media').get_all(user, index='user').run(db.conn))
+            media=list(r.table('media').get_all(user, index='user').run(db.conn))
         return media    
 
     def get_media_installs(self):
@@ -365,10 +365,10 @@ class isard():
                 
     def get_user_templates(self, user):
         with app.app_context():
-            dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).run(db.conn))
+            dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).without('viewer','xml','history_domain').run(db.conn))
             for d in dom:
                 d['kind']='user_template' if self.is_user_template(user,d['id']) else 'public_template'
-            return self.f.table_values_bstrap(dom)
+            return dom #self.f.table_values_bstrap(dom)
 
     def get_domain_backing_images(self, id):
         chain=[]
@@ -525,7 +525,15 @@ class isard():
             if not allowed['roles'] and not allowed['categories'] and not allowed['groups'] and user in allowed['users']:
                 return True
         return False
-            
+
+    def get_alloweds_select2(self,allowed):
+        for k,v in allowed.items():
+            if v is not False and len(v):
+                with app.app_context():
+                    allowed[k]=list(r.table(k).get_all(r.args(v), index='id').pluck('id','name').map(
+                                                lambda doc: doc.merge({'text': doc['name']}).without('name')).run(db.conn))
+        return allowed
+        
     def get_alloweds_domains(self, user, filter_type, custom_filter, pluck=[]):
         with app.app_context():
             ud=r.table('users').get(user).run(db.conn)

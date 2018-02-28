@@ -90,7 +90,8 @@ class DomainsThread(threading.Thread):
                             event='template_data'
                             data['derivates']=app.adminapi.get_admin_domains_with_derivates(id=c['new_val']['id'],kind='template')
                     socketio.emit(event, 
-                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                    json.dumps(data), 
+                                    #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_users', 
                                     room='user_'+data['user'])
                     socketio.emit('user_quota', 
@@ -99,7 +100,8 @@ class DomainsThread(threading.Thread):
                                     room='user_'+data['user'])
                     ## Admins should receive all updates on /admin namespace
                     socketio.emit(event, 
-                                    json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                    json.dumps(data),
+                                    #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_admins', 
                                     room='domains')
                 except Exception as e:
@@ -1003,6 +1005,37 @@ def socketio_disposables_add(data):
                     namespace='/sio_disposables', 
                     room='disposable_'+remote_addr)
 
+
+
+## Alloweds
+@socketio.on('allowed_update', namespace='/sio_admins')
+def socketio_admin_allowed_update(data):
+    if current_user.role == 'admin': 
+        res = app.adminapi.update_table_dict(data['table'], data['id'],{'allowed':data['allowed']})
+        if res:
+            data=json.dumps({'result':True,'title':'Update permissions','text':'Permissions updated for '+data['id'],'icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':True,'title':'Update permissions','text':'Something went wrong. Could not update permissions!','icon':'warning','type':'error'})
+        socketio.emit('allowed_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='user_'+current_user.username)
+
+@socketio.on('allowed_update', namespace='/sio_users')
+def socketio_allowed_update(data):
+    res = app.adminapi.update_table_dict(data['table'], data['id'],{'allowed':data['allowed']})
+    if res:
+        data=json.dumps({'result':True,'title':'Update permissions','text':'Permissions updated for '+data['id'],'icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':True,'title':'Update permissions','text':'Something went wrong. Could not update permissions!','icon':'warning','type':'error'})
+    socketio.emit('allowed_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+                
+                
+                    
 ## Admin namespace
 @socketio.on('connect', namespace='/sio_admins')
 def socketio_admins_connect():
@@ -1095,7 +1128,7 @@ def socketio_admins_disconnect():
     try:
         leave_room('user_'+current_user.username)
     except Exception as e:
-        log.debug('USER has leaved without disconnect')
-    log.debug('USER: '+current_user.username+' DISCONNECTED')
+        log.debug('USER leaved without disconnect')
+    #~ log.debug('USER: '+current_user.username+' DISCONNECTED')
     
 

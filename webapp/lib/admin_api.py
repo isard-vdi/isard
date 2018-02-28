@@ -137,6 +137,9 @@ class isardAdmin():
                                         
     def update_table_dict(self, table, id, dict):
         with app.app_context():
+            print(table)
+            print(id)
+            print(dict)
             return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
             
     '''
@@ -551,11 +554,12 @@ class isardAdmin():
     '''
     MEDIA
     '''
-    def media_add(self,username,partial_dict):
+    def media_add(self,username,partial_dict,filename=False):
         try:
             partial_dict['url-web']=partial_dict['url']
             del partial_dict['url']
-            # ~ filename = partial_dict['url-web'].split('/')[-1]
+            if filename is False:
+                filename = partial_dict['url-web'].split('/')[-1]
             user_data=app.isardapi.user_relative_media_path( username, partial_dict['name'])
             partial_dict={**partial_dict, **user_data}
             missing_keys={  'accessed': time.time(),
@@ -593,7 +597,38 @@ class isardAdmin():
                     (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
                 ).run(conn))
         # ~ return list(r.table("domains").filter({'create_dict':{'hardware':{'isos':id}}).pluck('id').run(db.conn))                    
-    
+
+
+    def media_upload(self,username,handler,media):
+        path='./uploads/'
+        filename = secure_filename(handler.filename)
+        handler.save(os.path.join(path+filename))        
+        
+        print('File saved')
+        return self.media_add(username,media,filename=filename)
+        
+        
+        
+        #~ media['id']=handler.filename
+        #~ filename = secure_filename(handler.filename)
+        #~ handler.save(os.path.join(path+filename))
+
+        #~ with app.app_context():
+            #~ r.table('media').insert(        
+        #~ return True
+        
+    def remove_backup_db(self,id):
+        with app.app_context():
+            dict=r.table('backups').get(id).run(db.conn)
+        path=dict['path']
+        try:
+            os.remove(path+id+'.tar.gz')
+        except OSError:
+            pass
+        with app.app_context():
+            r.table('backups').get(id).delete().run(db.conn)
+           
+           
     '''
     BACKUP & RESTORE
     '''
@@ -889,6 +924,7 @@ class isardAdmin():
         if 'add_virtio_iso' in create_dict:
             with app.app_context():
                 iso_virtio_id=list(r.table('media').has_fields('default-virtio-iso').pluck('id').run(db.conn))
+                print(iso_virtio_id)
             if len(iso_virtio_id):
                 create_dict['hardware']['isos'].append({'id': iso_virtio_id[0]['id']})
                 create_dict.pop('add_virtio_iso',None)

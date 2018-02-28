@@ -20,20 +20,34 @@
 			}); 
 	}
 
-	function replaceAlloweds_arrays(data){
-		ids=['a-roles','a-categories','a-groups','a-users']
-		data['allowed']={}
-		 $.each(ids,function(idx,id) 
-         { 
-			 delete data[id];
-			 val = $('#'+id).val()  || false
-			 if(!(val) && id+'-cb' in data){val=[];}
-			 delete data[id+'-cb'];
-			 data['allowed'][id.replace('a-','')] = val; 
-		 });
-		 
-		 return data
-	}
+	function replaceAlloweds_arrays(parent_id,data){
+        data['allowed']={'roles':    parseAllowed(parent_id,'a-roles'),
+                        'categories':parseAllowed(parent_id,'a-categories'),
+                        'groups':parseAllowed(parent_id,'a-groups'),
+                        'users':parseAllowed(parent_id,'a-users')}
+        delete data['a-roles'];
+        delete data['a-categories'];
+        delete data['a-groups'];
+        delete data['a-users'];
+        delete data['a-roles-cb'];
+        delete data['a-categories-cb'];
+        delete data['a-groups-cb'];
+        delete data['a-users-cb'];        
+        return data
+    }
+        
+    function parseAllowed(parent_id,id){
+        d=$(parent_id+" #"+id).select2("val")
+        console.log(d)
+        if(d==null){
+            if($(parent_id+' #'+id+'-cb').iCheck('update')[0].checked){
+                return [];
+            }
+            return false
+        }
+        return d
+    }
+	
 
 
  	
@@ -46,9 +60,10 @@
 			 });
 			 $(parentid+' #'+id+'-cb').on('ifUnchecked', function(event){
 				  $(parentid+" #"+id).attr('disabled',true);
+                  $(parentid+" #"+id).empty().trigger('change')
 			 });
 			 $(parentid+" #"+id).attr('disabled',true);
-			 console.log(id)
+			 //~ console.log(id)
 			 $(parentid+" #"+id).select2({
 				minimumInputLength: 2,
 				multiple: true,
@@ -79,4 +94,72 @@
 		});
 	
 	}
-	
+    
+    
+    
+    function modalAllowedsFormShow(table,data){
+        $('#modalAlloweds #alloweds_name').html(data.name)
+        $('#modalAllowedsForm #id').val(data.id);
+        $('#modalAlloweds #alloweds_panel').show()
+        $("#modalAllowedsForm")[0].reset();
+        $('#modalAlloweds').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        //~ $('#modalAllowedsForm').parsley();
+        setAlloweds_add('#modalAlloweds #alloweds-add'); 
+        api.ajax('/domain/alloweds/select2','POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
+            $.each(alloweds,function(key, value) 
+            {   
+                $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
+                if(value){
+                    $("#modalAllowedsForm #alloweds-add #a-"+key).attr('disabled',false)
+                    $('#modalAllowedsForm #alloweds-add #a-'+key+'-cb').iCheck('check');
+                    value.forEach(function(data)
+                    {                                  
+                        var newOption = new Option(data.text, data.id, true, true);
+                        $("#modalAllowedsForm #alloweds-add #a-"+key).append(newOption).trigger('change');
+                    });
+                }
+
+            });
+        });
+            
+        socket.off('allowed_result');
+        socket.on('allowed_result', function (data) {
+            var data = JSON.parse(data);
+            if(data.result){
+                $("#modalAlloweds").modal('hide');       
+            }
+            new PNotify({
+                    title: data.title,
+                    text: data.text,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-'+data.icon,
+                    opacity: 1,
+                    type: data.type
+            });
+        });	                    
+
+        $("#modalAllowedsForm #send").off('click');
+        $("#modalAllowedsForm #send").on('click', function(e){
+                var form = $('#modalAllowedsForm');
+
+                form.parsley().validate();
+
+                if (form.parsley().isValid()){
+                    data=$('#modalAllowedsForm').serializeObject();
+                    data=replaceAlloweds_arrays('#modalAllowedsForm #alloweds-add',data)
+                    data['table']=table
+                    socket.emit('allowed_update',data)
+                }
+
+                
+
+            });                    
+    }
+
+
+
+

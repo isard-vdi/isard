@@ -276,10 +276,18 @@ def domain():
     # ~ except:
         # ~ return json.dumps([])
         
+        
 @app.route('/domain/alloweds', methods=['POST'])
 @login_required
 def domain_alloweds():
     return json.dumps(app.isardapi.f.unflatten_dict(app.isardapi.get_domain(request.get_json(force=True)['pk']))['allowed'])
+
+@app.route('/domain/alloweds/select2', methods=['POST'])
+@login_required
+def domain_alloweds_select2():
+    print(request.get_json(force=True))
+    allowed=request.get_json(force=True)['allowed']
+    return json.dumps(app.isardapi.get_alloweds_select2(allowed))
         
 @app.route('/desktops/template',methods=['POST'])
 @login_required
@@ -461,6 +469,9 @@ def templateUpdate(id):
     # ~ else:
         # ~ return txt
 
-            
+
+
+
+           
         
         

@@ -7,7 +7,7 @@
 
 
 $(document).ready(function() {
-    
+setDropzone();    
 	$('.btn-new').on('click', function () {
             $("#modalAddMediaForm")[0].reset();
 			$('#modalAddMedia').modal({
@@ -26,38 +26,40 @@ $(document).ready(function() {
 	});
 
 	$('.btn-new-local').on('click', function () {
-            $("#modalAddMediaFormLocal")[0].reset();
+            $("#modal-add-media-form-local")[0].reset();
 			$('#modalAddMediaLocal').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            $('#modalAddMediaFormLocal').parsley();
-            //~ $('#modalAddMediaFormLocal #name').focus(function(){
+            
+            $('#modal-add-media-form-local').parsley();
+            //~ $('#modal-add-media-form-local #name').focus(function(){
                 //~ console.log(($(this).val()))
                 //~ if($(this).val()=='' && $('#modalAddMediaFormLocal #url').val() !=''){
                     //~ console.log($('#modalAddMediaForm #url').val())
                     //~ $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                 //~ }
             //~ });
-            setAlloweds_add('#modalAddMediaFormLocal #alloweds-add');
+            setAlloweds_add('#modalAddMediaLocal #alloweds-add');
 	});
     
     var table=$('#media').DataTable( {
         "ajax": {
-                "url": "/admin/table/media/get",
-                "dataSrc": ""
-				//~ "url": "/admin/tabletest/media/post",
-                //~ "contentType": "application/json",
-                //~ "type": 'POST',
-                //~ "data": function(d){return JSON.stringify({'flatten':false})}            
+                //~ "url": "/admin/table/media/get",
+                //~ "dataSrc": ""
+				"url": "/admin/tabletest/media/post",
+                "contentType": "application/json",
+                "type": 'POST',
+                "data": function(d){return JSON.stringify({'flatten':false})}            
         },
+        "sAjaxDataProp": "",
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
 			},
 			"rowId": "id",
 			"deferRender": true,
         "columns": [
-				//~ {
+				//~ {setDropzone();
                 //~ "className":      'details-control',
                 //~ "orderable":      false,
                 //~ "data":           null,
@@ -182,7 +184,7 @@ $(document).ready(function() {
 
             if (form.parsley().isValid()){
                 data=$('#modalAddMediaForm').serializeObject();
-                data=replaceAlloweds_arrays(data)
+                data=replaceAlloweds_arrays('#modalAddMediaForm #alloweds-add',data)
                 socket.emit('media_add',data)
             }
             
@@ -286,6 +288,7 @@ $(document).ready(function() {
 
 
 function renderProgress(data){ 
+    console.log(data)
             perc = data.progress.received_percent
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
@@ -317,3 +320,71 @@ function icon(name){
             return "<span class='fl-"+name+" fa-2x'></span>";
 		}       
 }
+
+
+//~ function setDropzone(){
+    //~ console.log('set dropzone')
+    //~ Dropzone.autoDiscover = false;
+    //~ var myDropzone     = new Dropzone("div#myDropzone", { 
+        //~ url: '/admin/media/localupload',
+        //~ paramName: 'someParameter[image]',
+  //~ autoProcessQueue: false,// used for stopping auto processing uploads
+  //~ autoDiscover: false,        
+    //~ });
+
+    //~ $('#modalAddMediaLocalForm #send').click(function(){           
+      //~ myDropzone.processQueue();
+    //~ });
+
+    //~ myDropzone.on('sending', function(file, xhr, formData){
+        //~ formData.append('someParameter[image]', file);
+        //~ formData.append('someParameter[userName]', 'bob');
+    //~ }); 
+    
+//~ }
+
+ 
+ 
+function setDropzone(){
+    console.log('dropzone in')
+        Dropzone.autoDiscover = false;
+
+        var myDropzone = new Dropzone("div#myDropzone", {
+          url: '/admin/media/localupload',
+
+          maxFiles:1,
+          queueLimit:1,
+          //~ acceptedFiles:".zip",
+          init: function() {
+          this.on("maxfilesexceeded", function(file) {
+                this.removeAllFiles();
+                this.addFile(file);
+          })
+          this.on("error", function(file){if (!file.accepted) this.removeFile(file);});
+},
+          //~ previewsContainer:"#previewsContainer",
+
+          sending:function(file, xhr, formData){
+          formData.append('name',$("#name").val() );
+          formData.append('description',$("#description").val() );
+
+          },
+          success: function(file, response){
+                alert(response);
+            },
+
+          autoProcessQueue: false,
+        });
+
+
+        $('#modal-add-media-form-local #send').on('click', function(e){
+            console.log('send')
+          myDropzone.processQueue();
+        }); 
+
+    myDropzone.on('sending', function(file, xhr, formData){
+        formData.append('someParameter[image]', file);
+        formData.append('someParameter[userName]', 'bob');
+    });            
+}
+    
