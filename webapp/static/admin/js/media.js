@@ -322,58 +322,69 @@ function icon(name){
 }
 
 
-function setDropzone(){
-console.log('set dropzone')
-Dropzone.options.modalAddMediaFormLocal = { // The camelized version of the ID of the form element
+//~ function setDropzone(){
+    //~ console.log('set dropzone')
+    //~ Dropzone.autoDiscover = false;
+    //~ var myDropzone     = new Dropzone("div#myDropzone", { 
+        //~ url: '/admin/media/localupload',
+        //~ paramName: 'someParameter[image]',
+  //~ autoProcessQueue: false,// used for stopping auto processing uploads
+  //~ autoDiscover: false,        
+    //~ });
 
-  // The configuration we've talked about above
-  autoProcessQueue: false,
-  uploadMultiple: false,
-  //~ parallelUploads: 100,
-  maxFiles: 1,
-  maxFilesize: 10000,
+    //~ $('#modalAddMediaLocalForm #send').click(function(){           
+      //~ myDropzone.processQueue();
+    //~ });
 
-  // The setting up of the dropzone
-  init: function() {
-    var myDropzone = this;
-
-    // First change the button to actually tell Dropzone to process the queue.
-    //~ this.element.querySelector("button[type=submit]").addEventListener("click", function(e) {
-    $('#modal-add-media-form-local #send').on('click', function(e){ 
-      // Make sure that the form isn't actually being sent.
-      e.preventDefault();
-      e.stopPropagation();
-      myDropzone.processQueue();
-      console.log('done')
-    });
-
-    // Listen to the sendingmultiple event. In this case, it's the sendingmultiple event instead
-    // of the sending event because uploadMultiple is set to true.
-    this.on("sendingmultiple", function() {
-      // Gets triggered when the form is actually being sent.
-      // Hide the success button or the complete form.
-    });
-    this.on("successmultiple", function(files, response) {
-      // Gets triggered when the files have successfully been sent.
-      // Redirect user or notify of success.
-    });
-    this.on("errormultiple", function(files, response) {
-      // Gets triggered when there was an error sending the files.
-      // Maybe show form again, and notify user of error
-    });
-
-      this.on("uploadprogress", function(file, progress) {
-        console.log("File progress", progress);
-      });
-          
-  }
-
-myDropzone.on('sending', function(file, xhr, formData){
-            formData.append('userName', 'bob');
-        });   
-         
-}
+    //~ myDropzone.on('sending', function(file, xhr, formData){
+        //~ formData.append('someParameter[image]', file);
+        //~ formData.append('someParameter[userName]', 'bob');
+    //~ }); 
+    
+//~ }
 
  
-    
+ 
+function setDropzone(){
+    console.log('dropzone in')
+        Dropzone.autoDiscover = false;
+
+        var myDropzone = new Dropzone("div#myDropzone", {
+          url: '/admin/media/localupload',
+
+          maxFiles:1,
+          queueLimit:1,
+          //~ acceptedFiles:".zip",
+          init: function() {
+          this.on("maxfilesexceeded", function(file) {
+                this.removeAllFiles();
+                this.addFile(file);
+          })
+          this.on("error", function(file){if (!file.accepted) this.removeFile(file);});
+},
+          //~ previewsContainer:"#previewsContainer",
+
+          sending:function(file, xhr, formData){
+          formData.append('name',$("#name").val() );
+          formData.append('description',$("#description").val() );
+
+          },
+          success: function(file, response){
+                alert(response);
+            },
+
+          autoProcessQueue: false,
+        });
+
+
+        $('#modal-add-media-form-local #send').on('click', function(e){
+            console.log('send')
+          myDropzone.processQueue();
+        }); 
+
+    myDropzone.on('sending', function(file, xhr, formData){
+        formData.append('someParameter[image]', file);
+        formData.append('someParameter[userName]', 'bob');
+    });            
 }
+    

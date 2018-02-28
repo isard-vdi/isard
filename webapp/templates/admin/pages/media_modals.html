@@ -113,8 +113,21 @@
             
             <!-- Modal Body -->
             <div class="modal-body" style="padding: 7px;">
-              <form id="modal-add-media-form-local" action="{{ url_for('admin_media_localupload') }}" class="form-horizontal form-label-left dropzone" method="POST" novalidate>
+              <form id="modal-add-media-form-local"  class="form-horizontal form-label-left" method="POST" novalidate>
+<!--
+                  action="{{ url_for('admin_media_localupload') }}"
+-->
+                  
+<!--
                 <div class="dropzone-previews"></div>
+-->
+
+    <div class="dropzone dz-clickable dz-square" id="myDropzone">
+        <div class="dz-default dz-message" data-dz-message="">
+            <span>Drop files here to upload</span>
+        </div>
+    </div>                
+                
                      <div class="item form-group">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
                           </label>
@@ -156,14 +169,14 @@
                         </div>
                     </div>
 
-                <button id="send" type="submit" class="btn btn-success">Start download</button>
+                
 
 			  </div>
 
                                     <div id="alloweds-add">
                                       {% include '/snippets/alloweds_add.html' %}
                                     </div>
-                                      
+                                <button id="send" type="button" class="btn btn-success">Start download</button>      
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 5px;">
                 <ul class="nav navbar-left panel_toolbox">
