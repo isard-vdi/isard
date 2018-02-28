@@ -521,9 +521,11 @@ class isard():
     def is_user_template(self,user,id):
         with app.app_context():
             ud=r.table('users').get(user).run(db.conn)
-            allowed=r.table('domains').get(id).run(db.conn)['allowed']
-            if not allowed['roles'] and not allowed['categories'] and not allowed['groups'] and user in allowed['users']:
-                return True
+            dom=r.table('domains').get(id).run(db.conn)
+            allowed=dom['allowed']
+            if not allowed['roles'] and not allowed['categories'] and not allowed['groups']:
+                if (allowed['users'] and user in allowed['users']) or allowed['users'] is False:
+                    return True
         return False
 
     def get_alloweds_select2(self,allowed):
@@ -626,11 +628,10 @@ class isard():
                     #~ r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).union(
                     #~ r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'})), interleave='name').run(db.conn)
   
-            data1 = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            data1 = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
             data2 = r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
-            data3 = r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] != False or d['allowed']['groups'] != False or d['allowed']['categories'] != False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            data3 = r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
             data = data1+data2+data3
-  
             ## If we continue down here, data will be filtered by alloweds matching user role, domain, group and user
             #~ Generic get all: data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
             #~ for group in data:
