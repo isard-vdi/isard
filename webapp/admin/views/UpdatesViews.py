@@ -58,10 +58,11 @@ def admin_updates_actions(action,kind,id=False):
             if id is not False:
                 # Only one id
                 d=u.getNewKindId(kind,current_user.id,id)
-                missing_resources=u.get_missing_resources(d,current_user.id)
-                for k,v in missing_resources.items():
-                    for resource in v:
-                        app.adminapi.insert_or_update_table_dict(k,v)
+                if kind == 'domains':
+                    missing_resources=u.get_missing_resources(d,current_user.id)
+                    for k,v in missing_resources.items():
+                        for resource in v:
+                            app.adminapi.insert_or_update_table_dict(k,v)
                 if d is not False:
                     if kind == 'domains':
                         d=u.formatDomains([d],current_user)[0]
