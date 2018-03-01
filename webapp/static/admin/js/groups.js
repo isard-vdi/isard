@@ -57,12 +57,9 @@ $(document).ready(function() {
 
     $("#modalAddGroup #send").on('click', function(e){
             var form = $('#modalAddGroupForm');
-            console.log('inside')
-
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalAddGroupForm').serializeObject();
-                console.log(data)
                 data['table']='groups';
                 socket.emit('role_category_group_add',data)  
             }

@@ -57,7 +57,6 @@ function setDomainDerivates(id){
             //~ form.parsley().validate();
             //~ if (form.parsley().isValid()){
                     data=$('#modalBulkEditForm').serializeObject();
-                    console.log(data);
                     socket.emit('domain_bulkedit',data)
                     //~ console.log('is valid form')
             //~ }

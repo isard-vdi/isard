@@ -30,9 +30,7 @@ $(document).ready(function() {
                     }).modal('show');
                     $('#modalAddMediaForm').parsley();
                     $('#modalAddMediaForm #name').focus(function(){
-                        console.log(($(this).val()))
                         if($(this).val()=='' && $('#modalAddMediaForm #url').val() !=''){
-                            console.log($('#modalAddMediaForm #url').val())
                             $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                         }
                     });
@@ -164,7 +162,6 @@ $(document).ready(function() {
                     modalAllowedsFormShow('media',data)
                 break;                
             case 'btn-createfromiso':
-            console.log($('.quota-desktops .perc').text())
                 if($('.quota-desktops .perc').text() >=100){
                     new PNotify({
                         title: "Quota for adding new desktop full.",
@@ -181,7 +178,6 @@ $(document).ready(function() {
                     $('#modalAddFromMedia #modalAdd #media').val(data.id);
                     $('#modalAddFromMedia #modalAdd #media_name').html(data.name);
                     $('#modalAddFromMedia #modalAdd #media_size').html(data['progress-total']);
-                    console.log(data['progress-total'])
                     $('#modalAddFromMedia').modal({
                         backdrop: 'static',
                         keyboard: false
@@ -360,7 +356,6 @@ function icon(name){
 function initialize_modal_all_install_events(){
    $('#modal_add_install tbody').on( 'click', 'tr', function () {
         rdata=modal_add_install.row(this).data()
-        console.log($(this).hasClass('selected'))
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_install').closest('.x_panel').addClass('datatables-error');

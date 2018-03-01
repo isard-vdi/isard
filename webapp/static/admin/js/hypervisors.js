@@ -243,7 +243,7 @@ $(document).ready(function() {
     });
 
     socket.on('add_form_result', function (data) {
-        console.log('received result')
+        //~ console.log('received result')
         var data = JSON.parse(data);
         if(data.result){
             $("#modalAddHyper #modalAdd")[0].reset();
@@ -459,7 +459,7 @@ function actionsHyperDetail(){
 			}).modal('show');
 
             api.ajax('/admin/tabletest/hypervisors/post','POST',{'id':pk}).done(function(hyp) {
-                console.log(hyp)
+                //~ console.log(hyp)
                 $('#modalEditHyper #modalEdit #id').val(pk);
                 $('#modalEditHyper #modalEdit #fake_id').val(pk);
                 $('#modalEditHyper #modalEdit #description').val(hyp.description);

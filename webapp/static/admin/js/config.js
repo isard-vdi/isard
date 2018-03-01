@@ -255,7 +255,7 @@ $(document).ready(function() {
                                 //~ var optionSelected = $("option:selected", this);
                                 //~ console.log(optionSelected)
                                 var valueSelected = this.value;
-                                console.log(valueSelected+' '+$('#backup-id').val())
+                                //~ console.log(valueSelected+' '+$('#backup-id').val())
                                 api.ajax('/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':valueSelected}).done(function(data) {
                                     //~ console.log($('#backup-id').val())
                                     //~ console.log(data)
@@ -531,7 +531,6 @@ $(document).ready(function() {
     socket.on('backups_deleted', function(data){
         console.log('backup deleted')
         var data = JSON.parse(data);
-        console.log(data.id)
         var row = backups_table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Backup deleted",
@@ -568,7 +567,6 @@ $(document).ready(function() {
     socket.on('disposables_deleted', function(data){
         console.log('disposable deleted')
         var data = JSON.parse(data);
-        console.log(data.id)
         var row = disposables_table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Disposable deleted",

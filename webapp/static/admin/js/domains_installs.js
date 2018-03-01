@@ -45,7 +45,6 @@ $(document).ready(function() {
 function initialize_modal_all_builder_events(){
    $('#modal_add_builder tbody').on( 'click', 'tr', function () {
         rdata=modal_add_builder.row(this).data()
-        console.log($(this).hasClass('selected'))
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_builder').closest('.x_panel').addClass('datatables-error');
@@ -70,11 +69,9 @@ function initialize_modal_all_builder_events(){
 
     $("#modalAddFromBuilder #send").on('click', function(e){
             var form = $('#modalAddFromBuilder #modalAdd');
-            console.log('inside')
             //~ form.parsley().validate();
             //~ var queryString = $('#modalAdd').serialize();
             data=$('#modalAddFromBuilder #modalAdd').serializeObject();
-            console.log(data)
             socket.emit('domain_virtbuilder_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
@@ -154,7 +151,6 @@ function modal_add_builder_datatables(){
 function initialize_modal_all_install_events(){
    $('#modal_add_install tbody').on( 'click', 'tr', function () {
         rdata=modal_add_install.row(this).data()
-        console.log($(this).hasClass('selected'))
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
@@ -230,7 +226,6 @@ function modal_add_install_datatables(){
 function initialize_modal_all_media_events(){
    $('#modal_add_media tbody').on( 'click', 'tr', function () {
         rdata=modal_add_media.row(this).data()
-        console.log($(this).hasClass('selected'))
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
             $('#modal_add_media').closest('.x_panel').addClass('datatables-error');

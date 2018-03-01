@@ -109,7 +109,6 @@ $(document).ready(function() {
                 "initComplete": function(settings, json){
                      socket.on('domains_data', function(data){
                         var data = JSON.parse(data);
-                            console.log('domains_data for: '+data['id'])
                             //~ console.log(data['progress-received_percent'])
                         dtUpdateInsert(table['domains'],data,false);
                     });                   
@@ -121,13 +120,11 @@ $(document).ready(function() {
     $('#domains_tbl').find(' tbody').on( 'click', 'button', function () {
         var datarow = table['domains'].row( $(this).parents('tr') ).data();
         var id = datarow['id'];
-        console.log($(this).attr('id'),datarow);
         switch($(this).attr('id')){
             case 'btn-download':
                 api.ajax('/admin/updates/download/domains/'+id,'POST',{}).done(function(data) {
                     //~ dtUpdateInsert(table['domains'],id,false);
                     table['domains'].ajax.reload();
-                      console.log('inside:'+id)
                       //~ table['domains'].ajax.reload();
                   }); 
                 break;
@@ -135,13 +132,11 @@ $(document).ready(function() {
                 api.ajax('/admin/updates/abort/domains/'+id,'POST',{}).done(function(data) {
                     //~ dtUpdateInsert(table['domains'],id,false);
                     table['domains'].ajax.reload();
-                      console.log('inside:'+id)
                       //~ table['domains'].ajax.reload();
                   }); 
                 break;
             case 'btn-delete':
                 api.ajax('/admin/updates/delete/domains/'+id,'POST',{}).done(function(data) {
-                    console.log('inside:'+id)
                     table['domains'].ajax.reload();
                    //~ table['domains'].row('#'+id).remove().draw();
                   }); 

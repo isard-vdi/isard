@@ -16,9 +16,7 @@ setDropzone();
 			}).modal('show');
             $('#modalAddMediaForm').parsley();
             $('#modalAddMediaForm #name').focus(function(){
-                console.log(($(this).val()))
                 if($(this).val()=='' && $('#modalAddMediaForm #url').val() !=''){
-                    console.log($('#modalAddMediaForm #url').val())
                     $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                 }
             });
@@ -288,7 +286,6 @@ setDropzone();
 
 
 function renderProgress(data){ 
-    console.log(data)
             perc = data.progress.received_percent
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
@@ -346,7 +343,6 @@ function icon(name){
  
  
 function setDropzone(){
-    console.log('dropzone in')
         Dropzone.autoDiscover = false;
 
         var myDropzone = new Dropzone("div#myDropzone", {
@@ -378,7 +374,6 @@ function setDropzone(){
 
 
         $('#modal-add-media-form-local #send').on('click', function(e){
-            console.log('send')
           myDropzone.processQueue();
         }); 
 

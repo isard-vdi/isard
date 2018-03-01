@@ -81,7 +81,6 @@ $(document).ready(function() {
 		} );
 	
 	$('#templates').find('tbody').on('click', 'td.details-control', function () {
-		console.log('clicked');
         var tr = $(this).closest('tr');
         var row = table.row( tr );
         if ( row.child.isShown() ) {
@@ -137,7 +136,7 @@ $(document).ready(function() {
    
     //~ Delete confirm modal
 	$('#confirm-modal > .modal-dialog > .modal-content > .modal-footer > .btn-primary').click(function() {
-        console.log('id:'+$('#confirm-modal').data('id')+' - action: delete');
+        //~ console.log('id:'+$('#confirm-modal').data('id')+' - action: delete');
         // Needs some work
         });
         
@@ -170,9 +169,8 @@ $(document).ready(function() {
     });
 
     socket.on('template_data', function(data){
-        console.log('update')
+        //~ console.log('update')
         var data = JSON.parse(data);
-        console.log(data)
         dtUpdateInsert(table,data,false);
         //~ setDesktopDetailButtonsStatus(data.id, data.status);
 
@@ -184,7 +182,7 @@ $(document).ready(function() {
     });
 
     socket.on('template_add', function(data){
-        console.log('add')
+        //~ console.log('add')
         var data = JSON.parse(data);
 		if($("#" + data.id).length == 0) {
 		  //it doesn't exist
@@ -197,7 +195,7 @@ $(document).ready(function() {
     });
     
     socket.on('template_delete', function(data){
-        console.log('delete')
+        //~ console.log('delete')
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -335,7 +333,7 @@ function actionsTmplDetail(){
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
 							api.ajax('/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-								console.log('data received:'+data);
+								//~ console.log('data received:'+data);
 							});  
 						}).on('pnotify.cancel', function() {
 				});	

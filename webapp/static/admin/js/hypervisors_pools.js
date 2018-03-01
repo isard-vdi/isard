@@ -11,7 +11,6 @@ $(document).ready(function() {
 
 	$('#modalAddPool').on('hidden.bs.modal', function(){
         $(this).find('form')[0].reset();
-        console.log('reset')
         slider_avgcpu.reset()
         slider_freqcpu.reset()
         slider_freemem.reset()
@@ -148,11 +147,9 @@ $(document).ready(function() {
 
     $("#modalAddPool #send").on('click', function(e){
             var form = $('#modalAddHyper #modalAdd');
-            console.log('inside')
             //~ form.parsley().validate();
             //~ var queryString = $('#modalAdd').serialize();
             data=$('#modalAddPool #modalAdd').serializeObject();
-            console.log(data)
             //~ socket.emit('hypervisor_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();

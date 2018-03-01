@@ -48,7 +48,6 @@ def admin_table_get(table):
 def admin_tabletest_post(table):
     if request.method == 'POST':
         data=request.get_json(force=True)
-        print(data)
         if 'id' not in data.keys():
             data['id']=False        
         if 'pluck' not in data.keys():

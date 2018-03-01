@@ -41,7 +41,6 @@ $(document).ready(function() {
 
     $('#interfaces').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
                 //~ break;
@@ -60,7 +59,6 @@ $(document).ready(function() {
     window.Parsley.addValidator('cidr', {
       validateString: function(value, id) {
                 var ip = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$";
-                console.log(value.match(ip));
                 return value.match(ip);
       },
       messages: {
@@ -81,7 +79,6 @@ $(document).ready(function() {
 
     $("#modalInterface #send").on('click', function(e){
             var form = $('#modalAddInterface');
-            console.log('inside')
 
             form.parsley().validate();
             data=$('#modalAddInterface').serializeObject();
@@ -134,7 +131,7 @@ $(document).ready(function() {
 
     $('#disks').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
+        //~ console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
                 //~ break;
@@ -174,7 +171,7 @@ $(document).ready(function() {
 
     $('#graphics').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
+        //~ console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
                 //~ break;
@@ -192,7 +189,6 @@ $(document).ready(function() {
 
     $("#modalGraphics #send").on('click', function(e){
             var form = $('#modalAddGraphics');
-            console.log('inside')
             form.parsley().validate();
             data=$('#modalAddGraphics').serializeObject();
             data=replaceAlloweds_arrays(data)
@@ -246,7 +242,7 @@ $(document).ready(function() {
 
     $('#videos').find(' tbody').on( 'click', 'button', function () {
         var data = int_table.row( $(this).parents('tr') ).data();
-        console.log($(this).attr('id'),data);
+        //~ console.log($(this).attr('id'),data);
         //~ switch($(this).attr('id')){
             //~ case 'btn-play':        
                 //~ break;
@@ -265,11 +261,9 @@ $(document).ready(function() {
 
     $("#modalVideos #send").on('click', function(e){
             var form = $('#modalAddVideos');
-            console.log('inside')
             form.parsley().validate();
             data=$('#modalAddVideos').serializeObject();
             data=replaceAlloweds_arrays(data)
-            console.log(data)
             //~ socket.emit('domain_virtbuilder_add',data)
             //~ if (form.parsley().isValid()){
                 //~ template=$('#modalAddDesktop #template').val();
@@ -348,7 +342,6 @@ $(document).ready(function() {
 
     reconnect=-1;
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/sio_users');
-    console.log(socket)
      
     socket.on('connect', function() {
         connection_done();

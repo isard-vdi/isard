@@ -46,7 +46,7 @@
 				{   // hypervisors_pools is not inside hardware (take it into account when editing!)
 					$(id+" #forced_hyp").append('<option value=' + value.id + '>' + value.hostname+' ('+value.status+')' + '</option>');
 				});
-                console.log(hardware.user['quota-hardware-memory'])
+                //~ console.log(hardware.user['quota-hardware-memory'])
 				$(id+" #hardware-memory").ionRangeSlider({
 						  type: "single",
 						  min: 500,

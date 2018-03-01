@@ -151,7 +151,6 @@ $(document).ready(function() {
                             $('#mactions option[value="none"]').prop("selected",true);
 				});
         
-        console.log('done')
         
     } );
 
@@ -280,7 +279,6 @@ $(document).ready(function() {
     });
     
     socket.on(kind+'_delete', function(data){
-        console.log('delete')
         var data = JSON.parse(data);
         var row = domains_table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -315,7 +313,6 @@ $(document).ready(function() {
             $("#modalAddFromBuilder").modal('hide');
             $("#modalAddFromMedia #modalAdd")[0].reset();
             $("#modalAddFromMedia").modal('hide');   
-            console.log('closed')         
             //~ $('body').removeClass('modal-open');
             //~ $('.modal-backdrop').remove();
         }
@@ -556,7 +553,6 @@ function modal_edit_desktop_datatables(id){
 		url:"/desktops/templateUpdate/" + id,
 		success: function(data)
 		{
-            console.log(data)
 			$('#modalEditDesktop #name_hidden').val(data.name);
             $('#modalEditDesktop #name').val(data.name);
 			$('#modalEditDesktop #description').val(data.description);
@@ -570,9 +566,7 @@ function modal_edit_desktop_datatables(id){
             form.parsley().validate();
             if (form.parsley().isValid()){
                     data=$('#modalEdit').serializeObject();
-                    console.log(data);
                     socket.emit('domain_edit',data)
-                    console.log('is valid form')
             }
         });
 
