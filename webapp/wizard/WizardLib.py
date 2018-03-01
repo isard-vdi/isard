@@ -116,19 +116,23 @@ class Wizard():
         return dict
 
     def insert_updates_demo(self):
-        updates=['zxspectrum','menuetos','tetros']
+        updates=['zxspectrum','tetros']
         domains=self.get_updates_new_kind('domains','admin')
         for dom in domains:
             for u in updates:
                 if str('downloaded_'+u) == dom['id']:
+                    missing_resources=self.get_missing_resources(dom,'admin')
+                    for k,v in missing_resources.items():
+                        for resource in v:
+                            r.table(k).insert(v).run()
                     self.insert_update('domains',[dom])
                     wlog.info('New download: '+u)
         # Useful default media with drivers for Microsfot
-        medias=self.get_updates_new_kind('media','admin')
-        for media in medias:
-            if 'default-virtio-iso' in media.keys():
-                self.insert_update('media',[media])
-                wlog.info('New download: '+u)
+        #~ medias=self.get_updates_new_kind('media','admin')
+        #~ for media in medias:
+            #~ if 'default-virtio-iso' in media.keys():
+                #~ self.insert_update('media',[media])
+                #~ wlog.info('New download: '+u)
         return True
         
     def insert_update(self,kind,data):
@@ -188,6 +192,20 @@ class Wizard():
         except Exception as e:
             wlog.error("Error contacting.\n"+str(e))
         return False
+
+    def get_missing_resources(self,domain,username):
+        missing_resources={'videos':[]}
+        
+        dom_videos=domain['create_dict']['hardware']['videos']
+        sys_videos=list(r.table('videos').pluck('id').run())
+        sys_videos=[sv['id'] for sv in sys_videos]
+        for v in dom_videos:
+            if v not in sys_videos:
+                resource=self.getNewKindId('videos',username,v)
+                if resource is not False:
+                    missing_resources['videos'].append(resource)
+        ## graphics and interfaces missing
+        return missing_resources
 
     def is_registered(self):
         if not self.code is False: return True

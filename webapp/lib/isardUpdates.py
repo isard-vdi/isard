@@ -15,7 +15,7 @@ class Updates(object):
     def updateFromWeb(self):
         
         self.web={}
-        self.kinds=['media','domains','builders','virt_install','virt_builder']
+        self.kinds=['media','domains','builders','virt_install','virt_builder','videos']
         for k in self.kinds:
             self.web[k]=self.getKind(kind=k)
                 
@@ -162,3 +162,22 @@ class Updates(object):
         return {'category': current_user.category,
                 'group': current_user.group,
                 'user': current_user.id}        
+
+
+    '''
+    DOWNLOAD MISSING DOMAIN RESOURCES
+    '''
+    def get_missing_resources(self,domain,username):
+        missing_resources={'videos':[]}
+        
+        dom_videos=domain['create_dict']['hardware']['videos']
+        sys_videos=list(r.table('videos').pluck('id').run(db.conn))
+        sys_videos=[sv['id'] for sv in sys_videos]
+        for v in dom_videos:
+            if v not in sys_videos:
+                resource=self.getNewKindId('videos',username,v)
+                if resource is not False:
+                    missing_resources['videos'].append(resource)
+        ## graphics and interfaces missing
+        return missing_resources
+
