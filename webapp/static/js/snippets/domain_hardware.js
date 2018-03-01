@@ -85,25 +85,26 @@
             $(div_id+' #hypervisors_pools option:selected').prop("selected", false);
             
 			api.ajax('/domain','POST',{'pk':domain_id}).done(function(domain) {
-				$(div_id+' #hardware-interfaces option[value="'+domain['hardware-interfaces'][0].id+'"]').prop("selected",true);
-				$(div_id+' #hardware-graphics option[value="'+domain['hardware-graphics-type']+'"]').prop("selected",true);
-                $(div_id+' #hardware-videos option[value="'+domain['hardware-video-type']+'"]').prop("selected",true);
+				$(div_id+' #hardware-interfaces option[value="'+domain.hardware.interfaces[0].id+'"]').prop("selected",true);
+				$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics.type+'"]').prop("selected",true);
+                $(div_id+' #hardware-videos option[value="'+domain.hardware.video.type+'"]').prop("selected",true);
+                $(div_id+' #hardware-diskbus option[value="'+domain.hardware.disks[0].bus+'"]').prop("selected",true);
                 
                 // Need to talk with engine and change this
-                if(domain['hardware-boot_order'][0]=='hd'){domain['hardware-boot_order'][0]='disk'}
-                if(domain['hardware-boot_order'][0]=='cdrom'){domain['hardware-boot_order'][0]='iso'}
-                if(domain['hardware-boot_order'][0]=='network'){domain['hardware-boot_order'][0]='pxe'}
-                $(div_id+' #hardware-boot_order option[value="'+domain['hardware-boot_order'][0]+'"]').prop("selected",true);
+                if(domain.hardware.boot_order[0]=='hd'){domain.hardware.boot_order[0]='disk'}
+                if(domain.hardware.boot_order[0]=='cdrom'){domain.hardware.boot_order[0]='iso'}
+                if(domain.hardware.boot_order[0]=='network'){domain.hardware.boot_order[0]='pxe'}
+                $(div_id+' #hardware-boot_order option[value="'+domain.hardware.boot_order[0]+'"]').prop("selected",true);
                 
                 $(div_id+' #hypervisors_pools option[value="'+domain['hypervisors_pools'][0]+'"]').prop("selected",true);
                 if(domain['forced_hyp']){
                     $(div_id+' #forced_hyp option[value="'+domain['forced_hyp']+'"]').prop("selected",true);
                 }
 				$(div_id+" #hardware-memory").data("ionRangeSlider").update({
-						  from: domain['hardware-memory']/1000
+						  from: domain.hardware.memory/1000
                 });
 				$(div_id+" #hardware-vcpus").data("ionRangeSlider").update({
-						  from: domain['hardware-vcpus']
+						  from: domain.hardware.vcpus
                 });
 					  
 			}); 

@@ -372,7 +372,11 @@ function setDesktopDetailButtonsStatus(id,status){
                 $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
           }else{
                 $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          } 
+          }
+          if(status!='Started'){
+              $('#actions-'+id+' .btn-edit').prop('disabled', false);
+          }
+           
 }
 	
 function icon(name){
