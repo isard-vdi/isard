@@ -928,7 +928,7 @@ class isardAdmin():
             if len(iso_virtio_id):
                 create_dict['hardware']['isos'].append({'id': iso_virtio_id[0]['id']})
                 create_dict.pop('add_virtio_iso',None)
-        if 'add_virtio_fd' in create_dict:
+        #~ if 'add_virtio_fd' in create_dict:
             with app.app_context():
                 fd_virtio_id=list(r.table('media').has_fields('default-virtio-fd').pluck('id').run(db.conn))
             if len(fd_virtio_id):
