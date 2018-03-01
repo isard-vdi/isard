@@ -129,7 +129,7 @@ class Wizard():
                     wlog.info('New download: '+u)
 
         updates=['win7Virtio','win10Virtio','centos7.0','debian9','fedora26','ubuntu17.04','ubuntu16.10','winxp']
-        virt_installs=self.get_updates_new_kind('domains','admin')
+        virt_installs=self.get_updates_new_kind('virt_install','admin')
         for vi in virt_installs:
             for u in updates:
                 if u == vi['id']:
