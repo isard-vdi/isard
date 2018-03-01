@@ -948,7 +948,7 @@ class isardAdmin():
                   'icon': icon,
                   'server': False,
                   'os': create_dict['create_from_virt_install_xml'],   #### Or name
-                  'options': {'viewers':{'spice':{'fullscreen':True}}},
+                  'options': {'viewers':{'spice':{'fullscreen':False}}},
                   'create_dict': create_dict, 
                   'hypervisors_pools': hyper_pools,
                   'allowed': {'roles': False,

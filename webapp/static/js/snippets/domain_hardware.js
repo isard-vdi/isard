@@ -145,7 +145,6 @@
     
 	function setHardwareDomainDefaults_viewer(div_id,domain_id){
 			api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
-                console.log(domain)
 				$(div_id+" #vcpu").html(domain.hardware.vcpus+' CPU(s)');
 				$(div_id+" #ram").html(domain.hardware.memory);
                 // List could not be ordered! In theory all the disks have same virtual-size
