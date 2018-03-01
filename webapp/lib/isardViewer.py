@@ -300,7 +300,7 @@ class isardViewer():
             return viewer['hostname_external']
 
     def get_viewer_port(self,hypervisor,port,remote_addr):
-        if remote_addr is False: return viewer['hostname'] 
+        if remote_addr is False: return port #viewer['hostname'] 
         
         if IPAddress(remote_addr).is_private():
             return port

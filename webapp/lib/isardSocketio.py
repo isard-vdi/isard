@@ -305,9 +305,9 @@ class HypervisorsThread(threading.Thread):
                                         room='hyper')  
                 except Exception as e:
                     log.error('HypervisorsThread error:'+str(e))
-                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    log.error(exc_type, fname, exc_tb.tb_lineno)
+                    #~ exc_type, exc_obj, exc_tb = sys.exc_info()
+                    #~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    #~ log.error(exc_type, fname, exc_tb.tb_lineno)
                     
 def start_hypervisors_thread():
     global threads
