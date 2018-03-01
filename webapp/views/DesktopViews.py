@@ -256,7 +256,7 @@ def domain():
     except:
         hs=False
     try:
-        return json.dumps(app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=hs))
+        return json.dumps(app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=hs, flatten=False))
     except:
         return json.dumps([])
 
