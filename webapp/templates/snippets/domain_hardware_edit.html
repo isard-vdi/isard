@@ -30,6 +30,20 @@
                </select>
         </div>  
         <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>DiskBus:</label>
+               <select class="form-control roundbox" id="hardware-diskbus" name="hardware-diskbus">
+                  <option value="ide" selected="default">
+                     Default
+                  </option>  
+                  <option value="virtio">
+                     Virtio
+                  </option> 
+                  <option value="sata">
+                     SATA
+                  </option>  
+               </select>
+        </div>         
+        <div class="col-md-3 col-sm-3 col-xs-12">
                <label>Hyper pool:</label>
                <select class="form-control roundbox" id="hypervisors_pools" name="hypervisors_pools">
                   <option value="default" selected="default">

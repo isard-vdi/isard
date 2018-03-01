@@ -884,6 +884,17 @@ class isard():
         create_dict.pop('id',None)
         #~ description=create_dict['description']
         #~ create_dict.pop('description',None)
+        
+        if 'diskbus' in create_dict['create_dict']['hardware']:
+            new_create_dict=r.table('domains').get(id).pluck('create_dict').run(db.conn)
+            if len(new_create_dict['create_dict']['hardware']['disks']):
+                new_create_dict['create_dict']['hardware']['disks'][0]['bus']=create_dict['create_dict']['hardware']['diskbus']
+                create_dict['create_dict']['hardware']['disks']=new_create_dict['create_dict']['hardware']['disks']
+                
+                #~ new_create_dict['create_dict']['hardware']['disks'][0]['bus']=create_dict['create_dict']['hardware']['diskbus']
+                #~ create_dict['create_dict']['hardware']['disks']=
+                #~ create_dict['create_dict']['hardware']['disks'][0]=new_create_dict['create_dict']['hardware']['disks'][0]}
+                create_dict['create_dict']['hardware'].pop('diskbus',None)
         create_dict['status']='Updating'
         return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
