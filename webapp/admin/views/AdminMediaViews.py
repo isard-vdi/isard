@@ -62,7 +62,7 @@ def admin_media_localupload():
             url=request.url_root
         media['url']=url+'admin/media/download/'+secure_filename(handler.filename)
         app.adminapi.media_upload(current_user.username,handler,media)
-        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+        return render_template('admin/pages/media.html', nav='Media')
 
 @app.route('/admin/media/download/<filename>', methods=['GET'])
 #~ @login_required

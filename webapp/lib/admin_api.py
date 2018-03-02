@@ -607,14 +607,19 @@ class isardAdmin():
         # ~ print('File saved')
         # ~ return self.media_add(username,media,filename=filename)
         
-        
+        if media['kind']=='iso':
+            media['icon']='circle-o'
+        else:
+            media['icon']='floppy-o'
+        # ~ create_dict.pop('icon',None)
+        # ~ create_dict.pop('allowed',None)        
         
         media['id']=handler.filename
         filename = secure_filename(handler.filename)
         handler.save(os.path.join(path+filename))
 
         with app.app_context():
-            r.table('media').insert(media)        
+            r.table('media').insert(media).run(db.conn)      
         return True
 
         

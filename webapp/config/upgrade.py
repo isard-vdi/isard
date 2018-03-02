@@ -295,7 +295,7 @@ class Upgrade(object):
                                         []):                                     
                         ##### NEW FIELDS
                         self.add_keys(  table, 
-                                        [   {'options': {'viewers':{'spice':{'fullscreen':True}}}}],
+                                        [   {'options': {'viewers':{'spice':{'fullscreen':False}}}}],
                                             id=id)
                 except Exception as e:
                     log.error('Could not update table '+table+' add fields for db version '+version+'!')
