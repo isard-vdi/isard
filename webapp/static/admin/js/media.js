@@ -342,44 +342,76 @@ function icon(name){
 
  
  
+//~ function setDropzone(){
+        //~ Dropzone.autoDiscover = false;
+
+        //~ var myDropzone = new Dropzone("div#myDropzone", {
+          //~ url: '/admin/media/localupload',
+
+          //~ maxFiles:1,
+          //~ queueLimit:1,
+          //acceptedFiles:".zip",
+          //~ init: function() {
+          //~ this.on("maxfilesexceeded", function(file) {
+                //~ this.removeAllFiles();
+                //~ this.addFile(file);
+          //~ })
+          //~ this.on("error", function(file){if (!file.accepted) this.removeFile(file);});
+//~ },
+          //previewsContainer:"#previewsContainer",
+
+          //~ sending:function(file, xhr, formData){
+          //~ formData.append('name',$("#name").val() );
+          //~ formData.append('description',$("#description").val() );
+
+          //~ },
+          //~ success: function(file, response){
+                //~ alert(response);
+            //~ },
+
+          //~ autoProcessQueue: false,
+        //~ });
+
+
+        //~ $('#modal-add-media-form-local #send').on('click', function(e){
+          //~ myDropzone.processQueue();
+        //~ }); 
+
+    //~ myDropzone.on('sending', function(file, xhr, formData){
+        //~ formData.append('someParameter[image]', file);
+        //~ formData.append('someParameter[userName]', 'bob');
+    //~ });            
+//~ }
+
 function setDropzone(){
-        Dropzone.autoDiscover = false;
+    Dropzone.options.myDropzone= {
+        url: '/admin/media/localupload',
+        autoProcessQueue: false,
+        uploadMultiple: false,
+        parallelUploads: 5,
+        maxFiles: 1,
+        maxFilesize: 10000,
+        //~ acceptedFiles: 'image/*',
+        addRemoveLinks: true,
+        init: function() {
+            dzClosure = this; // Makes sure that 'this' is understood inside the functions below.
 
-        var myDropzone = new Dropzone("div#myDropzone", {
-          url: '/admin/media/localupload',
+            // for Dropzone to process the queue (instead of default form behavior):
+            document.getElementById("send-localupload").addEventListener("click", function(e) {
+                // Make sure that the form isn't actually being sent.
+                e.preventDefault();
+                e.stopPropagation();
+                dzClosure.processQueue();
+            });
 
-          maxFiles:1,
-          queueLimit:1,
-          //~ acceptedFiles:".zip",
-          init: function() {
-          this.on("maxfilesexceeded", function(file) {
-                this.removeAllFiles();
-                this.addFile(file);
-          })
-          this.on("error", function(file){if (!file.accepted) this.removeFile(file);});
-},
-          //~ previewsContainer:"#previewsContainer",
+            //send all the form data along with the files:
+            this.on("sending", function(data, xhr, formData) {
+                formData.append("name", $("#modal-add-media-form-local #name").val());
+                formData.append("kind", $("#modal-add-media-form-local #kind").val());
+                formData.append("description", $("#modal-add-media-form-local #description").val());
+                formData.append("hypervisors_pools", $("#modal-add-media-form-local #hypervisors_pools").val());
+            });
+        }
+    }    
 
-          sending:function(file, xhr, formData){
-          formData.append('name',$("#name").val() );
-          formData.append('description',$("#description").val() );
-
-          },
-          success: function(file, response){
-                alert(response);
-            },
-
-          autoProcessQueue: false,
-        });
-
-
-        $('#modal-add-media-form-local #send').on('click', function(e){
-          myDropzone.processQueue();
-        }); 
-
-    myDropzone.on('sending', function(file, xhr, formData){
-        formData.append('someParameter[image]', file);
-        formData.append('someParameter[userName]', 'bob');
-    });            
 }
-    

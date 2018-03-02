@@ -47,6 +47,7 @@ def admin_media():
 @login_required
 @isAdmin
 def admin_media_localupload():
+        print(request.form)
         media={}
         media['name']=request.form['name']
         media['kind']=request.form['kind']
