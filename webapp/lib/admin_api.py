@@ -601,21 +601,22 @@ class isardAdmin():
 
     def media_upload(self,username,handler,media):
         path='./uploads/'
+        # ~ filename = secure_filename(handler.filename)
+        # ~ handler.save(os.path.join(path+filename))        
+        
+        # ~ print('File saved')
+        # ~ return self.media_add(username,media,filename=filename)
+        
+        
+        
+        media['id']=handler.filename
         filename = secure_filename(handler.filename)
-        handler.save(os.path.join(path+filename))        
-        
-        print('File saved')
-        return self.media_add(username,media,filename=filename)
-        
-        
-        
-        #~ media['id']=handler.filename
-        #~ filename = secure_filename(handler.filename)
-        #~ handler.save(os.path.join(path+filename))
+        handler.save(os.path.join(path+filename))
 
-        #~ with app.app_context():
-            #~ r.table('media').insert(        
-        #~ return True
+        with app.app_context():
+            r.table('media').insert(media)        
+        return True
+
         
     def remove_backup_db(self,id):
         with app.app_context():
