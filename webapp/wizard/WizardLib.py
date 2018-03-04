@@ -71,6 +71,13 @@ class Wizard():
             self.run_server()
             
         else: # WIZARD NOT FORCED. SOMETHING IS NOT GOING AS EXPECTED WITH DATABASE?
+            wait_seconds=3
+            while wait_seconds > 0:
+                if not self.valid_rethinkdb():
+                    time.sleep(1)
+                    wait_seconds-=1
+                else:
+                    wait_seconds=0
             if not self.valid_rethinkdb():
                 wlog.error('Can not connect to rethinkdb database! Is it running?')
                 exit(1)

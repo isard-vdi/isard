@@ -15,7 +15,7 @@ class Updates(object):
     def updateFromWeb(self):
         
         self.web={}
-        self.kinds=['media','domains','builders','virt_install','virt_builder','videos']
+        self.kinds=['media','domains','builders','virt_install','virt_builder','videos','viewers']
         for k in self.kinds:
             self.web[k]=self.getKind(kind=k)
                 
@@ -45,6 +45,8 @@ class Updates(object):
         return False
 
     def getNewKind(self,kind,username):
+        if kind == 'viewers':
+            return self.web[kind]
         web=self.web[kind]
         dbb=list(r.table(kind).run(db.conn))
         result=[]
