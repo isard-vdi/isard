@@ -44,7 +44,7 @@ class isardAdmin():
         f=flatten()
         return f.unflatten_dict(dict)
         
-    def check_socket(host, port):
+    def check_socket(self, host, port):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
             if sock.connect_ex((host, port)) == 0:
                 return True
@@ -563,7 +563,7 @@ class isardAdmin():
             user_data=app.isardapi.user_relative_media_path( username, partial_dict['name'])
             partial_dict={**partial_dict, **user_data}
             missing_keys={  'accessed': time.time(),
-                            'detail': 'User added',
+                            'detail': 'Downloaded from website',
                             'icon': 'fa-circle-o' if partial_dict['kind']=='iso' else 'fa-floppy-o',
                             'progress': {
                                 "received":  "0" ,
@@ -590,6 +590,44 @@ class isardAdmin():
             return False
         return False
 
+    def media_upload(self,username,handler,media):
+        path='./uploads/'
+        
+        media['id']=handler.filename
+        filename = secure_filename(handler.filename)
+        handler.save(os.path.join(path+filename))
+
+        try:
+            user_data=app.isardapi.user_relative_media_path( username, filename)
+            media={**media, **user_data}
+            missing_keys={  'accessed': time.time(),
+                            'detail': 'Uploaded from local',
+                            'icon': 'fa-circle-o' if media['kind']=='iso' else 'fa-floppy-o',
+                            'progress': {
+                                "received":  "0" ,
+                                "received_percent": 0 ,
+                                "speed_current":  "" ,
+                                "speed_download_average":  "" ,
+                                "speed_upload_average":  "" ,
+                                "time_left":  "" ,
+                                "time_spent":  "" ,
+                                "time_total":  "" ,
+                                "total":  "" ,
+                                "total_percent": 0 ,
+                                "xferd":  "0" ,
+                                "xferd_percent":  "0"
+                                },
+                            'status': 'DownloadStarting',
+                            'url-isard': False,
+                            }
+            dict={**media, **missing_keys}
+            return self.insert_table_dict('media',dict)
+        except Exception as e:
+            log.error(str(e))
+            log.error('Exception error on media add')
+            return False
+        return False
+
 
     def media_domains_used():
         return list(r.table('domains').filter(
@@ -597,32 +635,7 @@ class isardAdmin():
                     (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
                 ).run(conn))
         # ~ return list(r.table("domains").filter({'create_dict':{'hardware':{'isos':id}}).pluck('id').run(db.conn))                    
-
-
-    def media_upload(self,username,handler,media):
-        path='./uploads/'
-        # ~ filename = secure_filename(handler.filename)
-        # ~ handler.save(os.path.join(path+filename))        
-        
-        # ~ print('File saved')
-        # ~ return self.media_add(username,media,filename=filename)
-        
-        if media['kind']=='iso':
-            media['icon']='circle-o'
-        else:
-            media['icon']='floppy-o'
-        # ~ create_dict.pop('icon',None)
-        # ~ create_dict.pop('allowed',None)        
-        
-        media['id']=handler.filename
-        filename = secure_filename(handler.filename)
-        handler.save(os.path.join(path+filename))
-
-        with app.app_context():
-            r.table('media').insert(media).run(db.conn)      
-        return True
-
-        
+       
     def remove_backup_db(self,id):
         with app.app_context():
             dict=r.table('backups').get(id).run(db.conn)

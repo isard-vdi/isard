@@ -47,20 +47,27 @@ def admin_media():
 @login_required
 @isAdmin
 def admin_media_localupload():
-        print(request.form)
         media={}
         media['name']=request.form['name']
         media['kind']=request.form['kind']
         media['description']=request.form['description']
         media['hypervisors_pools']=[request.form['hypervisors_pools']]
         # Only one can be uploaded!
+
         for f in request.files:
             handler=request.files[f]
-        if '5000' not in request.url_root:
-            url='https://'+request.url_root.split('http://')[1]
+
+        if app.adminapi.check_socket('isard-hypervisor',22):
+            # It is a docker!
+            url='http://isard-webapp:5000/'
         else:
             url=request.url_root
-        media['url']=url+'admin/media/download/'+secure_filename(handler.filename)
+            
+        # ~ if '5000' not in request.url_root:
+            # ~ url='https://'+request.url_root.split('http://')[1]
+        # ~ else:
+            # ~ url=request.url_root
+        media['url-web']=url+'admin/media/download/'+secure_filename(handler.filename)
         app.adminapi.media_upload(current_user.username,handler,media)
         return render_template('admin/pages/media.html', nav='Media')
 

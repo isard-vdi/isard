@@ -38,7 +38,14 @@ class Upgrade(object):
 
         if self.conn is not False and r.db_list().contains(self.conf['RETHINKDB_DB']).run():
             if r.table_list().contains('config').run():
-                self.cfg = r.table('config').get(1).run()
+                ready=False
+                while not ready:
+                    try:
+                        self.cfg = r.table('config').get(1).run()
+                        ready = True
+                    except Exception as e:
+                        log.info('Waiting for database to be ready...')
+                        time.sleep(1)
                 log.info('Your actual database version is: '+str(self.cfg['version']))
                 if release_version > self.cfg['version']:
                     log.warning('Database upgrade needed! You have version '+str(self.cfg['version'])+ ' and source code is for version '+str(release_version)+'!!')
