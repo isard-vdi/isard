@@ -11,7 +11,7 @@ $(document).ready(function() {
      
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['media'])
+        socket.emit('join_rooms',['media','domains'])
         console.log('Listening media namespace');
     });
 
@@ -25,8 +25,20 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
+    socket.on('desktop_data', function(data){
+        var data = JSON.parse(data);
+        if(data['id'].includes('_downloaded_')){
+            dtUpdateInsert(table['domains'],data,false);
+            //~ setDomainDetailButtonsStatus(data.id, data.status);
+        }
+    });
 
-
+    socket.on('desktop_delete', function(data){
+        var data = JSON.parse(data);
+        if(data['id'].includes('_downloaded_')){
+            var row = table['domains'].row('#'+data.id).remove().draw();
+        }
+    });
 
     table['domains']=$('#domains_tbl').DataTable({
 			"ajax": {
@@ -97,9 +109,9 @@ $(document).ready(function() {
                                 if(full.status == 'Available' || full.status == "FailedDownload"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
-                                if(full.status == 'Downloading'){
-                                    return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
-                                }
+                                //~ if(full.status == 'Downloading'){
+                                    //~ return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                                //~ }
                                 if(full.status == 'Downloaded' || full.status == 'Stopped'){
                                     return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                                 } 
