@@ -23,6 +23,7 @@ from engine.services.db.config import get_config, table_config_created_and_popul
 from engine.services.db.disk_operations import insert_disk_operation, update_disk_operation
 from engine.services.db import update_disk_backing_chain, get_domain, get_disks_all_domains, insert_domain, \
     get_domain_spice, update_domain_createing_template
+from engine.services.db import get_all_domains_with_id_and_status, delete_domain, update_domain_status
 from engine.services.db.domains import update_domain_progress, update_domain_status
 from engine.services.log import log,logs
 
@@ -1063,3 +1064,14 @@ def engine_restart():
 
     subprocess.call('curl http://localhost:5555/engine_restart &', shell=True)
     return True
+
+def clean_intermediate_status():
+    status_to_delete = ['DownloadAborting']
+    status_to_failed = ['Updating']
+
+    all_domains = get_all_domains_with_id_and_status()
+
+    [delete_domain(d['id']) for d in all_domains if d['status'] in status_to_delete]
+    [update_domain_status('Failed', d['id'],
+                          detail='change status from {} when isard engine restart'.format(d['status'])) for d in
+     all_domains if d['status'] in status_to_failed]

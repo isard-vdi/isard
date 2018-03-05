@@ -33,6 +33,7 @@ from engine.services.threads.download_thread import launch_thread_download_chang
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
     launch_disk_operations_thread, \
     launch_long_operations_thread
+from engine.services.lib.functions import clean_intermediate_status
 
 class ManagerHypervisors(object):
     def __init__(self, launch_threads=True, with_status_threads=True,
