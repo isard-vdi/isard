@@ -269,6 +269,11 @@ class DownloadChangesThread(threading.Thread):
 
         ## call disk_operations thread_to_delete
 
+    def remove_download_thread(self,dict_changes):
+        new_file_path, path_selected, type_path_selected, pool_id = self.get_file_path(dict_changes)
+        if new_file_path in self.download_threads.keys():
+            self.download_threads.pop(new_file_path)
+
     def start_download(self, dict_changes):
 
         new_file_path, path_selected, type_path_selected, pool_id = self.get_file_path(dict_changes)
@@ -369,8 +374,8 @@ class DownloadChangesThread(threading.Thread):
                         self.start_download(c['new_val'])
                 elif c.get('new_val',None) is None:
                     if c['old_val']['status'] in ['DownloadAborting']:
-                        #self.abort_download(c['old_val'])
-                        pass
+                        self.remove_download_thread(c['old_val'])
+
                 elif 'old_val' in c and 'new_val' in c:
                     if c['old_val']['status'] == 'FailedDownload' and c['new_val']['status'] == 'DownloadStarting':
                         self.start_download(c['new_val'])
