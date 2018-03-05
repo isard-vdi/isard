@@ -6,7 +6,9 @@
 
 import threading
 import pprint
+import signal
 from os.path import dirname
+import os
 import subprocess
 import rethinkdb as r
 
@@ -15,7 +17,7 @@ from engine.services.db.db import new_rethink_connection, remove_media
 from engine.services.db.domains import update_domain_status
 from engine.services.log import logs
 from engine.services.db import get_config_branch, get_hyp_hostname_user_port_from_id, update_table_field, \
-                               update_domain_dict_create_dict, get_domain
+                               update_domain_dict_create_dict, get_domain, delete_domain
 from engine.services.db.downloads import get_downloads_in_progress, update_download_percent, update_status_table,\
                                          get_media
 from engine.services.lib.qcow import get_host_disk_operations_from_path, get_path_to_disk, create_cmds_delete_disk
@@ -67,10 +69,12 @@ class DownloadThread(threading.Thread, object):
         for k,v in self.dict_header.items():
             headers += header_template.format(header_key=k, header_value=v)
 
-        ssh_template = """ssh -oBatchMode=yes -p {port} {user}@{hostname} """ \
-                       """ "mkdir -p '{path_dir}'; curl {insecure_option} -L -o '{path}' {headers} '{url}' " """
+        curl_template = "curl {insecure_option} -L -o '{path}' {headers} '{url}'"
 
-        print(ssh_template)
+        ssh_template = """ssh -oBatchMode=yes -p {port} {user}@{hostname} """ \
+                       """ "mkdir -p '{path_dir}'; """ + curl_template + '"'
+
+        logs.downloads.debug(ssh_template)
 
         ssh_command = ssh_template.format(port=self.port,
                                           user=self.user,
@@ -80,11 +84,14 @@ class DownloadThread(threading.Thread, object):
                                           headers=headers,
                                           url= self.url,
                                           insecure_option = insecure_option)
-        print(ssh_command)
 
         logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
 
-        p = subprocess.Popen(ssh_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(ssh_command,
+                             shell=True,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             preexec_fn=os.setsid)
         rc = p.poll()
         update_status_table(self.table,'Downloading',self.id,"downloading in hypervisor: {}".format(self.hostname))
         while rc != 0:
@@ -109,16 +116,47 @@ class DownloadThread(threading.Thread, object):
 
                 c = p.stderr.read(1).decode('utf8')
                 if self.stop is True:
-                    update_domain_status(self.table, 'FailedDownload', id, detail="download aborted")
-                    break
+
+                    curl_cmd = curl_template.format(path= self.path,
+                                                    headers=headers,
+                                                    url= self.url,
+                                                    insecure_option = insecure_option)
+                    #for pkill curl order is cleaned
+                    curl_cmd = curl_cmd.replace("'","")
+                    curl_cmd = curl_cmd.replace("  "," ")
+
+                    ssh_cmd_kill_curl = """ssh -p {port} {user}@{hostname} "pkill -f \\"^{curl_cmd}\\" " """.format(port=self.port,
+                                                                                  user=self.user,
+                                                                                  hostname=self.hostname,
+                                                                                  curl_cmd=curl_cmd
+                                                                                  )
+
+                    logs.downloads.info('download {} aborted, ready to send ssh kill to curl in hypervisor {}'.format(self.path,self.hostname))
+
+                    #destroy curl in hypervisor
+                    p_kill_curl = subprocess.Popen(ssh_cmd_kill_curl,
+                                                   shell=True)
+                    p_kill_curl.wait(timeout=5)
+                    #destroy ssh command
+                    try:
+                        os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+                    except Exception as e:
+                        logs.downloads.debug('ssh process not killed, has finalished')
+
+                    if self.table == 'media':
+                        remove_media(self.id)
+                    if self.table == 'domains':
+                        delete_domain(self.id)
+                    #update_status_table(self.table, 'FailedDownload', self.id, detail="download aborted")
+                    return False
                 if not c:
                     break
                 if c == '\r':
                     if len(line) > 60:
                         logs.downloads.debug(line)
                         values = line.split()
-                        print(self.url)
-                        print(line)
+                        logs.downloads.debug(self.url)
+                        logs.downloads.debug(line)
                         d_progress = dict(zip(keys,values))
                         d_progress['total_percent'] = int(float(d_progress['total_percent']))
                         d_progress['received_percent'] = int(float(d_progress['received_percent']))
@@ -130,23 +168,26 @@ class DownloadThread(threading.Thread, object):
 
             rc = p.poll()
 
-        logs.downloads.info('File downloaded: {}'.format(self.path))
-
-        assert rc == 0
-        if self.table == 'domains':
-            #update_table_field(self.table, self.id, 'path_downloaded', self.path)
-            d_update_domain = get_domain(self.id)['create_dict']
-            #d_update_domain = {'hardware': {'disks': [{}]}}
-            d_update_domain['hardware']['disks'][0]['file'] = self.path
-
-            update_domain_dict_create_dict(self.id, d_update_domain)
-            self.finalished_threads.append(self.path)
-            update_domain_status('Downloaded', self.id, detail="downloaded disk")
-            update_domain_status('Updating', self.id, detail="downloaded disk")
+        if self.stop is True:
+            return False
         else:
-            self.finalished_threads.append(self.path)
-            update_table_field(self.table,self.id,'path_downloaded',self.path)
-            update_status_table(self.table, 'Downloaded', self.id)
+            logs.downloads.info('File downloaded: {}'.format(self.path))
+
+            assert rc == 0
+            if self.table == 'domains':
+                #update_table_field(self.table, self.id, 'path_downloaded', self.path)
+                d_update_domain = get_domain(self.id)['create_dict']
+                #d_update_domain = {'hardware': {'disks': [{}]}}
+                d_update_domain['hardware']['disks'][0]['file'] = self.path
+
+                update_domain_dict_create_dict(self.id, d_update_domain)
+                self.finalished_threads.append(self.path)
+                update_domain_status('Downloaded', self.id, detail="downloaded disk")
+                update_domain_status('Updating', self.id, detail="downloaded disk")
+            else:
+                self.finalished_threads.append(self.path)
+                update_table_field(self.table,self.id,'path_downloaded',self.path)
+                update_status_table(self.table, 'Downloaded', self.id)
 
 
 
@@ -199,11 +240,12 @@ class DownloadChangesThread(threading.Thread):
 
     def abort_download(self, dict_changes):
         logs.downloads.debug('aborting download function')
-        new_file_path, path_selected = self.get_file_path(dict_changes)
-        if new_file_path not in self.download_threads:
+        new_file_path, path_selected, type_path_selected, pool_id = self.get_file_path(dict_changes)
+        if new_file_path in self.download_threads.keys():
             self.download_threads[new_file_path].stop = True
         else:
-            update_status_table(dict_changes['table'],'FailedDownload')
+            update_status_table(dict_changes['table'],'FailedDownload',dict_changes['id'])
+
 
     def delete_media(self,dict_changes):
         table = dict_changes['table']
@@ -293,7 +335,7 @@ class DownloadChangesThread(threading.Thread):
         logs.downloads.debug('RUN-DOWNLOAD-THREAD-------------------------------------')
         if self.stop is False:
             self.r_conn = new_rethink_connection()
-            for c in r.table('media').get_all(r.args(['Deleting','Deleted','Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
+            for c in r.table('media').get_all(r.args(['Deleting','Deleted','Downloaded','DownloadStarting', 'Downloading','Download','DownloadAborting']), index='status').\
                     pluck('id',
                           'path',
                           'url-isard',
@@ -301,7 +343,7 @@ class DownloadChangesThread(threading.Thread):
                           'status'
                           ).merge(
                 {'table': 'media'}).changes(include_initial=True).union(
-                r.table('domains').get_all(r.args(['Downloaded','DownloadStarting', 'Downloading','AbortingDownload']), index='status').\
+                r.table('domains').get_all(r.args(['Downloaded','DownloadStarting', 'Downloading','DownloadAborting']), index='status').\
                         pluck('id',
                               'create_dict',
                               'url-isard',
@@ -327,7 +369,8 @@ class DownloadChangesThread(threading.Thread):
                         self.start_download(c['new_val'])
                 elif c.get('new_val',None) is None:
                     if c['old_val']['status'] in ['DownloadAborting']:
-                        self.abort_download(c['old_val'])
+                        #self.abort_download(c['old_val'])
+                        pass
                 elif 'old_val' in c and 'new_val' in c:
                     if c['old_val']['status'] == 'FailedDownload' and c['new_val']['status'] == 'DownloadStarting':
                         self.start_download(c['new_val'])
