@@ -45,11 +45,14 @@ class isardAdmin():
         return f.unflatten_dict(dict)
         
     def check_socket(self, host, port):
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-            if sock.connect_ex((host, port)) == 0:
-                return True
-            else:
-                return False
+        try:
+            with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+                if sock.connect_ex((host, port)) == 0:
+                    return True
+                else:
+                    return False
+        except:
+            return False
                     
     '''
     ADMIN API
