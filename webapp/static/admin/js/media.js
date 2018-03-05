@@ -410,6 +410,10 @@ function setDropzone(){
                 formData.append("kind", $("#modal-add-media-form-local #kind").val());
                 formData.append("description", $("#modal-add-media-form-local #description").val());
                 formData.append("hypervisors_pools", $("#modal-add-media-form-local #hypervisors_pools").val());
+                
+                data=$('#modal-add-media-form-local #alloweds-add ').serializeObject();
+                data=replaceAlloweds_arrays('#modal-add-media-form-local #alloweds-add',data);
+                formData.append("allowed", data['allowed']);         
             });
         }
     }    
