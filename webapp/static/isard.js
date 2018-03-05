@@ -345,6 +345,16 @@ function dtUpdateInsert(table, data, append){
     return new_id
 }
 
+function dtUpdateOnly(table, data){
+		if(typeof(table.row('#'+data.id).id())=='undefined'){
+			// Does not exists yes
+		}else{
+			// Exists, do update
+			table.row('#'+data.id).data(data).invalidate();
+		}
+    //Redraw table maintaining paging
+    table.draw(false);
+}
 
 // Panel toolbox
 $(document).ready(function() {

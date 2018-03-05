@@ -25,20 +25,7 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
-    socket.on('desktop_data', function(data){
-        var data = JSON.parse(data);
-        if(data['id'].includes('_downloaded_')){
-            dtUpdateInsert(table['domains'],data,false);
-            //~ setDomainDetailButtonsStatus(data.id, data.status);
-        }
-    });
 
-    socket.on('desktop_delete', function(data){
-        var data = JSON.parse(data);
-        if(data['id'].includes('_downloaded_')){
-            var row = table['domains'].row('#'+data.id).remove().draw();
-        }
-    });
 
     table['domains']=$('#domains_tbl').DataTable({
 			"ajax": {
@@ -119,11 +106,20 @@ $(document).ready(function() {
 							}}],
 
                 "initComplete": function(settings, json){
-                     socket.on('domains_data', function(data){
+                    socket.on('desktop_data', function(data){
                         var data = JSON.parse(data);
-                            //~ console.log(data['progress-received_percent'])
-                        dtUpdateInsert(table['domains'],data,false);
-                    });                   
+                        if(data['id'].includes('_downloaded_')){
+                            dtUpdateInsert(table['domains'],data,false);
+                            //~ setDomainDetailButtonsStatus(data.id, data.status);
+                        }
+                    });
+
+                    socket.on('desktop_delete', function(data){
+                        var data = JSON.parse(data);
+                        if(data['id'].includes('_downloaded_')){
+                            var row = table['domains'].row('#'+data.id).remove().draw();
+                        }
+                    });                
                 }                            
                             
                             
@@ -232,13 +228,16 @@ $(document).ready(function() {
                                 return full.status;                                
 							}}],
                 "initComplete": function(settings, json){
-                     socket.on('media_data', function(data){
-                         console.log('media data received')
-                        //~ console.log('add or update')
+                    socket.on('media_data', function(data){
                         var data = JSON.parse(data);
-                            //~ console.log('media update')
-                        dtUpdateInsert(table['media'],data,false);
-                    });                   
+                            dtUpdateOnly(table['media'],data);
+                    });
+
+                    socket.on('media_delete', function(data){
+                        var data = JSON.parse(data);
+                        var row = table['media'].row('#'+data.id).remove().draw();
+                    });                    
+                                      
                 }
                             
                             
