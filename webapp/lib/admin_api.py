@@ -969,7 +969,7 @@ class isardAdmin():
                   'description': description,
                   'kind': 'desktop',
                   'user': userObj['id'],
-                  'status': 'Una puta mierda', #'CreatingDiskFromScratch',
+                  'status': 'CreatingDiskFromScratch',
                   'detail': None,
                   'category': userObj['category'],
                   'group': userObj['group'],
