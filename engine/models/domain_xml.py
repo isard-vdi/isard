@@ -636,6 +636,8 @@ class DomainXML(object):
             self.tree.xpath('/domain/devices/disk[@device="floppy"]')[index].xpath('source')[0].set('file',
                                                                                                   new_path_floppy)
             path = self.tree.xpath('/domain/devices/disk[@device="floppy"]')[index].xpath('source')[0].get('file')
+
+
             return path
 
     def randomize_vm(self):

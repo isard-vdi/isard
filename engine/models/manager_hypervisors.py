@@ -239,6 +239,8 @@ class ManagerHypervisors(object):
             q = self.manager.q.background
             first_loop = True
 
+            clean_intermediate_status()
+
             while self.manager.quit is False:
                 # ONLY FOR DEBUG
                 logs.main.debug('##### THREADS ##################')
