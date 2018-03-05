@@ -946,23 +946,30 @@ class isardAdmin():
         if 'add_virtio_iso' in create_dict:
             with app.app_context():
                 iso_virtio_id=list(r.table('media').has_fields('default-virtio-iso').pluck('id').run(db.conn))
-                print(iso_virtio_id)
+                #~ print(iso_virtio_id)
             if len(iso_virtio_id):
                 create_dict['hardware']['isos'].append({'id': iso_virtio_id[0]['id']})
                 create_dict.pop('add_virtio_iso',None)
+            
+            create_dict['hardware']['disks'].append({'file':'media/virtio_testdisk.qcow2',
+                                                'readonly':True,
+                                                'bus':'virtio',
+                                                'size':'1M'})   # 15G as a format    
+        #~ import pprint
+        #~ pprint.pprint(create_dict)
         #~ if 'add_virtio_fd' in create_dict:
-            with app.app_context():
-                fd_virtio_id=list(r.table('media').has_fields('default-virtio-fd').pluck('id').run(db.conn))
-            if len(fd_virtio_id):
-                create_dict['hardware']['floppies'].append({'id': fd_virtio_id[0]['id']})
-                create_dict.pop('add_virtio_fd',None)
+            #~ with app.app_context():
+                #~ fd_virtio_id=list(r.table('media').has_fields('default-virtio-fd').pluck('id').run(db.conn))
+            #~ if len(fd_virtio_id):
+                #~ create_dict['hardware']['floppies'].append({'id': fd_virtio_id[0]['id']})
+                #~ create_dict.pop('add_virtio_fd',None)
             
         new_domain={'id': '_'+user+'_'+parsed_name,
                   'name': name,
                   'description': description,
                   'kind': 'desktop',
                   'user': userObj['id'],
-                  'status': 'CreatingDiskFromScratch',
+                  'status': 'Una puta mierda', #'CreatingDiskFromScratch',
                   'detail': None,
                   'category': userObj['category'],
                   'group': userObj['group'],
@@ -977,6 +984,7 @@ class isardAdmin():
                               'categories': False,
                               'groups': False,
                               'users': False}}
+        #~ pprint.pprint(new_domain['create_dict'])
         with app.app_context():
             #~ import pprint
             #~ pprint.pprint(new_domain)

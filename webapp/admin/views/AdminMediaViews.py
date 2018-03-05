@@ -61,12 +61,10 @@ def admin_media_localupload():
             # It is a docker!
             url='http://isard-webapp:5000/'
         else:
-            url=request.url_root
-            
-        # ~ if '5000' not in request.url_root:
-            # ~ url='https://'+request.url_root.split('http://')[1]
-        # ~ else:
-            # ~ url=request.url_root
+            if '5000' not in request.url_root:
+                url='https://'+request.url_root.split('http://')[1]
+            else:
+                url=request.url_root
         media['url-web']=url+'admin/media/download/'+secure_filename(handler.filename)
         app.adminapi.media_upload(current_user.username,handler,media)
         return render_template('admin/pages/media.html', nav='Media')
