@@ -19,6 +19,7 @@ from engine.services.lib.functions import get_tid, engine_restart
 from engine.services.log import logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_action_disk, RETRIES_HYP_IS_ALIVE, \
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE, launch_delete_media
+from engine.models.domain_xml import XML_SNIPPET_CDROM, XML_SNIPPET_DISK_VIRTIO, XML_SNIPPET_DISK_CUSTOM
 
 class HypWorkerThread(threading.Thread):
     def __init__(self, name, hyp_id, queue_actions, queue_master=None):
@@ -162,6 +163,11 @@ class HypWorkerThread(threading.Thread):
                                            self.hostname,
                                            user,
                                            port)
+
+                    elif action['type'] in ['add_media_hot']:
+                        pass
+
+
 
                     elif action['type'] in ['delete_media']:
                         launch_delete_media (action,

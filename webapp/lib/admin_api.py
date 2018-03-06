@@ -951,10 +951,11 @@ class isardAdmin():
                 create_dict['hardware']['isos'].append({'id': iso_virtio_id[0]['id']})
                 create_dict.pop('add_virtio_iso',None)
             
-            create_dict['hardware']['disks'].append({'file':'media/virtio_testdisk.qcow2',
+            create_dict['hardware']['disks'].append({'file':'admin/admin/admin/virtio_testdisk.qcow2',
                                                 'readonly':True,
-                                                'bus':'virtio',
-                                                'size':'1M'})   # 15G as a format    
+                                                'type_path': 'media',
+                                                'bus':'virtio'
+                                                })   # 15G as a format    
         #~ import pprint
         #~ pprint.pprint(create_dict)
         #~ if 'add_virtio_fd' in create_dict:
@@ -969,7 +970,7 @@ class isardAdmin():
                   'description': description,
                   'kind': 'desktop',
                   'user': userObj['id'],
-                  'status': 'Una puta mierda', #'CreatingDiskFromScratch',
+                  'status': 'CreatingDiskFromScratch',
                   'detail': None,
                   'category': userObj['category'],
                   'group': userObj['group'],

@@ -146,11 +146,13 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                 out_cmd_backing_chain = array_out_err[-1]['out']
 
                 list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
-                update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
+                if id_domain is not False:
+                    update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
                 ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
-            update_domain_status('CreatingDomain', id_domain, None,
-                                 detail='new disk created, now go to creating desktop and testing if desktop start')
+            if id_domain is not False:
+                update_domain_status('CreatingDomain', id_domain, None,
+                                     detail='new disk created, now go to creating desktop and testing if desktop start')
         else:
 
             log.error('operations creating disk {} for new domain {} failed.'.format(disk_path, id_domain))
@@ -158,7 +160,8 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                                                                       array_out_err[i]['out'],
                                                                       array_out_err[i]['err']) for i in
                                  range(len(action['ssh_commands']))]))
-            update_domain_status('Failed', id_domain, detail='new disk create operation failed, details in logs')
+            if id_domain is not False:
+                update_domain_status('Failed', id_domain, detail='new disk create operation failed, details in logs')
 
     elif action['type'] == 'delete_disk':
         if len(array_out_err[0]['err']) > 0:

@@ -446,8 +446,8 @@ def get_host_disk_operations_from_path(path_selected, pool='default', type_path=
         return False
     # TODO must be revised to return random or less cpuload hypervisor
     for h in hyps:
-        print('------------------- hyp selected')
-        print(h)
+        #print('------------------- hyp selected')
+        #print(h)
         if 'disk_op_' + h in l_threads:
             return h
     
