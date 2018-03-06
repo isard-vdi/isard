@@ -38,7 +38,7 @@ setDropzone();
                     //~ $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
                 //~ }
             //~ });
-            setAlloweds_add('#modalAddMediaLocal #alloweds-add');
+            setAlloweds_add('#modalAddMediaLocal #upload-alloweds-add');
 	});
     
     var table=$('#media').DataTable( {
@@ -402,7 +402,9 @@ function setDropzone(){
                 e.preventDefault();
                 e.stopPropagation();
                 dzClosure.processQueue();
+                //~ $('#modalAddMediaLocal').modal('hide');
             });
+                
 
             //send all the form data along with the files:
             this.on("sending", function(data, xhr, formData) {
@@ -410,8 +412,17 @@ function setDropzone(){
                 formData.append("kind", $("#modal-add-media-form-local #kind").val());
                 formData.append("description", $("#modal-add-media-form-local #description").val());
                 formData.append("hypervisors_pools", $("#modal-add-media-form-local #hypervisors_pools").val());
+                data=$('#modal-add-media-form-local').serializeObject();
+                data=replaceAlloweds_arrays('#upload-alloweds-add',data)  
+                formData.append("allowed", JSON.stringify(data['allowed']));
+                            
             });
-        }
+        },
+            success: function(file, response){
+                $('#modalAddMediaLocal').modal('hide');
+                $('#modal-add-media-form-local')[0].reset();
+                this.removeAllFiles(true);
+            }        
     }    
 
 }

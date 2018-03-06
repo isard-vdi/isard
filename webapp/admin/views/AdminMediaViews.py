@@ -52,6 +52,7 @@ def admin_media_localupload():
         media['kind']=request.form['kind']
         media['description']=request.form['description']
         media['hypervisors_pools']=[request.form['hypervisors_pools']]
+        media['allowed']=json.loads(request.form['allowed'])
         # Only one can be uploaded!
 
         for f in request.files:

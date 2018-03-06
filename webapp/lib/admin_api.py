@@ -600,9 +600,13 @@ class isardAdmin():
         filename = secure_filename(handler.filename)
         handler.save(os.path.join(path+filename))
 
+        id='_'+username+'_'+app.isardapi.parse_string(media['name'])
+        name=media['name']
         try:
             user_data=app.isardapi.user_relative_media_path( username, filename)
             media={**media, **user_data}
+            media['id']=id
+            media['name']=name
             missing_keys={  'accessed': time.time(),
                             'detail': 'Uploaded from local',
                             'icon': 'fa-circle-o' if media['kind']=='iso' else 'fa-floppy-o',
