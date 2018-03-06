@@ -222,7 +222,46 @@ def start_media_thread():
         threads['media'].daemon = True
         threads['media'].start()
         log.info('MediaThread Started')
-        
+
+
+
+## MEDIA Threading
+class ResourcesThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.stop = False
+
+    def run(self):
+        with app.app_context():
+            for c in r.table('graphics').merge({'table':'graphics'}).changes(include_initial=False).union(
+                    r.table('videos').merge({'table':'videos'}).changes(include_initial=False).union(
+                    r.table('interfaces').merge({'table':'interfaces'}).changes(include_initial=False).union(
+                    r.table('boots').merge({'table':'boots'}).changes(include_initial=False)))).run(db.conn):
+                if self.stop==True: break
+                try:
+                    if c['new_val'] is None:
+                        data={'table':c['old_val']['table'],'data':c['old_val']}
+                        event='delete'
+                    else:
+                        data={'table':c['new_val']['table'],'data':c['new_val']}
+                        event='data'
+                    ## Admins should receive all updates on /admin namespace                  
+                    socketio.emit(event, 
+                                    json.dumps(data), #app.isardapi.f.flatten_dict(data)), 
+                                    namespace='/sio_admins', 
+                                    room='resources')
+                except Exception as e:
+                    log.error('MediaThread error:'+str(e))
+
+def start_resources_thread():
+    global threads
+    if 'resources' not in threads: threads['resources']=None
+    if threads['resources'] is None:
+        threads['resources'] = ResourcesThread()
+        threads['resources'].daemon = True
+        threads['resources'].start()
+        log.info('ResourcesThread Started')    
+            
 ## Users Threading
 class UsersThread(threading.Thread):
     def __init__(self):
@@ -1025,11 +1064,11 @@ def socketio_admin_allowed_update(data):
 def socketio_allowed_update(data):
     res = app.adminapi.update_table_dict(data['table'], data['id'],{'allowed':data['allowed']})
     if res:
-        data=json.dumps({'result':True,'title':'Update permissions','text':'Permissions updated for '+data['id'],'icon':'success','type':'success'})
+        info=json.dumps({'result':data,'title':'Update permissions','text':'Permissions updated for '+data['id'],'icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':True,'title':'Update permissions','text':'Something went wrong. Could not update permissions!','icon':'warning','type':'error'})
+        info=json.dumps({'result':False,'title':'Update permissions','text':'Something went wrong. Could not update permissions!','icon':'warning','type':'error'})
     socketio.emit('allowed_result',
-                    data,
+                    info,
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 

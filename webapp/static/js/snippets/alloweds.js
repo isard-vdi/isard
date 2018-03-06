@@ -38,7 +38,7 @@
         
     function parseAllowed(parent_id,id){
         d=$(parent_id+" #"+id).select2("val")
-        console.log(d)
+        //~ console.log(d)
         if(d==null){
             if($(parent_id+' #'+id+'-cb').iCheck('update')[0].checked){
                 return [];
@@ -124,6 +124,9 @@
 
             });
         });
+
+
+
             
         socket.off('allowed_result');
         socket.on('allowed_result', function (data) {
