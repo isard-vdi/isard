@@ -8,6 +8,7 @@
 import json
 
 from flask import render_template, Response, request, redirect, url_for
+from flask import after_this_request
 from flask_login import login_required, login_user, logout_user, current_user
 
 from werkzeug import secure_filename
@@ -19,7 +20,7 @@ app.adminapi = admin_api.isardAdmin()
 
 from .decorators import isAdmin
 
-import tempfile
+import tempfile,os
 
 @app.route('/admin/media', methods=['POST','GET'])
 @login_required
@@ -49,13 +50,14 @@ def admin_media():
 @login_required
 @isAdmin
 def admin_media_localupload():
-        print(tempfile.tempdir)
+        # ~ print(tempfile.tempdir)
         tempfile.tempdir='/var/tmp'
         media={}
         media['name']=request.form['name']
         media['kind']=request.form['kind']
         media['description']=request.form['description']
         media['hypervisors_pools']=[request.form['hypervisors_pools']]
+        media['allowed']=json.loads(request.form['allowed'])
         # Only one can be uploaded!
 
         for f in request.files:
@@ -81,7 +83,7 @@ def admin_media_download(filename):
     with open('./uploads/'+filename, 'rb') as isard_file:
         data=isard_file.read()  
 
-    @flask.after_this_request
+    @after_this_request
     def remove_file(response):
         try:
             os.remove('./uploads/'+filename)

@@ -342,7 +342,7 @@ class DomainXML(object):
     def add_disk(self,index=0,path_disk='/path/to/disk.qcow',type_disk='qcow2',bus='virtio'):
         global index_to_char_suffix_disks
 
-        prefix = BUS_LETTER['bus']
+        prefix = BUS_LETTER[bus]
         index_bus = self.index_disks[bus]
         xml_snippet = XML_SNIPPET_DISK_CUSTOM.format(type_disk=type_disk,
                                                      path_disk=path_disk,
@@ -751,7 +751,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
 
 
 
-            if i > total_disks_in_xml:
+            if i >= total_disks_in_xml:
                 force_bus = hw['disks'][i].get('bus', False)
                 if force_bus is False:
                     force_bus = 'virtio'

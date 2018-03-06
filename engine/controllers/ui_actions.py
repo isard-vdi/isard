@@ -415,6 +415,26 @@ class UiActions(object):
             log.error('template {} can not be inserted in rethink, domain_id duplicated??'.format(template_id))
             return False
 
+    def creating_test_disk(self,test_disk_relative_route,size_str='1M',type_path='media',pool_id='default'):
+
+        path_new_disk, path_selected = get_path_to_disk(test_disk_relative_route,
+                                                                     pool=pool_id,
+                                                                     type_path=type_path)
+
+        hyp_to_disk_create = get_host_disk_operations_from_path(path_selected, pool=pool_id, type_path=type_path)
+
+        cmds = create_cmd_disk_from_scratch(path_new_disk=path_new_disk,
+                                            size_str=size_str)
+
+        action = {}
+        action['type'] = 'create_disk_from_scratch'
+        action['disk_path'] = path_new_disk
+        action['index_disk'] = 0
+        action['domain'] = False
+        action['ssh_commands'] = cmds
+
+        self.manager.q_disk_operations[hyp_to_disk_create].put(action)
+
     def creating_disk_from_scratch(self,id_new):
         dict_domain = get_domain(id_new)
 
@@ -438,6 +458,23 @@ class UiActions(object):
                 # UPDATE PATH IN DOMAIN
 
                 d_update_domain = {'hardware':{'disks':[{}]}}
+                if len(dict_to_create['hardware']['disks']) > 0:
+                    ## supplementary disks
+                    for i,dict_other_disk in enumerate(dict_to_create['hardware']['disks'][1:]):
+                        path_other_disk, path_other_disk_selected = get_path_to_disk(dict_other_disk['file'],
+                                                                                     pool=pool_id,
+                                                                                     type_path=dict_other_disk['type_path'])
+                        d_update_domain['hardware']['disks'].append({})
+                        d_update_domain['hardware']['disks'][i+1]['file'] = path_other_disk
+                        d_update_domain['hardware']['disks'][i+1]['path_selected'] = path_other_disk_selected
+                        d_update_domain['hardware']['disks'][i + 1]['bus'] = dict_other_disk.get('bus','virtio')
+                        if dict_other_disk.get('readonly',True) is True:
+                            d_update_domain['hardware']['disks'][i + 1]['readonly'] = True
+                        else:
+                            pass
+                            # TODO
+                            # update_media_write_access_by_domain(id_media,id_domain)
+
                 d_update_domain['hardware']['disks'][0]['file'] = path_new_disk
                 d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
                 d_update_domain['hardware']['disks'][0]['size'] = dict_to_create['hardware']['disks'][0]['size']
@@ -477,6 +514,12 @@ class UiActions(object):
                     log.error(
                         'Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(
                             e))
+
+        else:
+            update_domain_status(status='CreatingDomain',
+                                 id_domain=id_new,
+                                 hyp_id=False,
+                                 detail='Creating domain withouth disks')
 
 
     def creating_disk_from_virtbuilder(self,
