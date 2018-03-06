@@ -19,6 +19,8 @@ app.adminapi = admin_api.isardAdmin()
 
 from .decorators import isAdmin
 
+import tempfile
+
 @app.route('/admin/media', methods=['POST','GET'])
 @login_required
 @isAdmin
@@ -47,6 +49,8 @@ def admin_media():
 @login_required
 @isAdmin
 def admin_media_localupload():
+        print(tempfile.tempdir)
+        tempfile.tempdir='/var/tmp'
         media={}
         media['name']=request.form['name']
         media['kind']=request.form['kind']
@@ -67,6 +71,7 @@ def admin_media_localupload():
                 url=request.url_root
         media['url-web']=url+'admin/media/download/'+secure_filename(handler.filename)
         app.adminapi.media_upload(current_user.username,handler,media)
+        tempfile.tempdir=None
         return render_template('admin/pages/media.html', nav='Media')
 
 @app.route('/admin/media/download/<filename>', methods=['GET'])
@@ -74,7 +79,16 @@ def admin_media_localupload():
 #~ @isAdmin
 def admin_media_download(filename):
     with open('./uploads/'+filename, 'rb') as isard_file:
-        data=isard_file.read()    
+        data=isard_file.read()  
+
+    @flask.after_this_request
+    def remove_file(response):
+        try:
+            os.remove('./uploads/'+filename)
+        except Exception as error:
+            print("Error removing or closing downloaded file handle", error)
+        return response
+                  
     return Response( data,
         mimetype="application/octet-stream",
         headers={"Content-Disposition":"attachment;filename="+filename})
