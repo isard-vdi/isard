@@ -724,9 +724,9 @@ def socketio_domain_template_add(form_data):
     #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
 
     if res is True:
-        data=json.dumps({'result':True,'title':'New template','text':'Template '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+        data=json.dumps({'result':True,'title':'New template','text':'Template '+partial_tmpl_dict['name']+' is being created...','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':False,'title':'New template','text':'Template '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New template','text':'Template '+partial_tmpl_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
     socketio.emit('add_form_result',
                     data,
                     namespace='/sio_users', 

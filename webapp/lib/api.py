@@ -957,30 +957,38 @@ class isard():
         with app.app_context():
             tmpl_dict=r.table('domains').get(from_id).run(db.conn)
             u=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-        parsed_name = self.parse_string(name)
+        parsed_name = self.parse_string(part_dict['name'])
         part_dict['id'] = '_' + user + '_' + parsed_name
         # Checking if domain exists:
         if r.table('domains').get(part_dict['id']).run(db.conn) is not None: return False
         
+        part_dict['create_dict']['hardware']['disks']=tmpl_dict['create_dict']['hardware']['disks']
+        
+        tmpl_dict['create_dict']['template_dict']={**tmpl_dict,**part_dict}
+        tmpl_dict['create_dict']['origin']=from_id
+        
         dir_disk, disk_filename = self.get_disk_path(u, parsed_name)
-        part_dict['create_dict']['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':'', 'bus':part_dict['create_dict']['hardware']['diskbus']}  
+        tmpl_dict['create_dict']['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':''}  #, 'bus':part_dict['create_dict']['hardware']['diskbus']}  
         part_dict['create_dict']['hardware'].pop('diskbus',None)
-        
-        
-        tmpl_dict={**tmpl_dict,**part_dict}
-        tmpl_dict['origin']=from_id
-        
+                
         with app.app_context():
-            return self.check(r.table('domains').get(from_id['id']).update({"create_dict": create_dict, "status": "CreatingTemplate"}).run(db.conn),'replaced')
+            return self.check(r.table('domains').get(from_id).update({"create_dict": tmpl_dict['create_dict'], "status": "CreatingTemplate"}).run(db.conn),'replaced')
 
 
-        create_dict['template_dict']=template_dict
-        create_dict['hardware']=original_domain['create_dict']['hardware']
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
-        create_dict['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':''}
-        create_dict['origin']=original_domain['id']
-        with app.app_context():
-            return self.check(r.table('domains').get(original_domain['id']).update({"create_dict": create_dict, "status": "CreatingTemplate"}).run(db.conn),'replaced')
+        #~ dir_disk, disk_filename = self.get_disk_path(u, parsed_name)
+        #~ part_dict['create_dict']['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':'', 'bus':part_dict['create_dict']['hardware']['diskbus']}  
+        #~ part_dict['create_dict']['hardware'].pop('diskbus',None)
+ 
+
+
+
+        #~ create_dict['template_dict']=template_dict
+        #~ create_dict['hardware']=original_domain['create_dict']['hardware']
+        #~ dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        #~ create_dict['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':''}
+        #~ create_dict['origin']=original_domain['id']
+        #~ with app.app_context():
+            #~ return self.check(r.table('domains').get(original_domain['id']).update({"create_dict": create_dict, "status": "CreatingTemplate"}).run(db.conn),'replaced')
 
 
     def new_domain_from_tmpl(self, user, create_dict):
