@@ -764,7 +764,6 @@ class isard():
         with app.app_context():
             ud=r.table('users').get(user).run(db.conn)
             delete_allowed_key=False
-            print(table,kind,field,value,user)
             if pluck is not False:
                 data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user'] is user or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck(pluck).run(db.conn)
             else:
