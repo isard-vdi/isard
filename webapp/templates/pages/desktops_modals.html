@@ -217,7 +217,8 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 
-              <form class="form-horizontal form-label-left" action="{{ url_for('desktops_template') }}" method="POST" novalidate>
+              <form id="modalTemplateDesktopForm" class="form-horizontal form-label-left" novalidate>       
+
 			  <div class="x_panel">
 				 <div class="x_title">
 					<h2>New template properties<small></small></h2>
@@ -260,8 +261,16 @@
 							   </select>
 							</div>
 					 </div>
+
+                    
+                     
 				</div>
 			  </div>
+
+                                    <div id="alloweds-add">
+                                      {% include '/snippets/alloweds_add.html' %}
+                                    </div> 
+              
 				  <div class="x_panel" >
 					 <div class="x_title">
 						<h2>Hardware<small></small></h2>
@@ -273,29 +282,14 @@
 					 </div>
 					 <div class="x_content">
 						{% include '/snippets/domain_hardware_edit.html' %}
-						<div class="row">
-								<div class="col-md-3 col-sm-3 col-xs-12">
-									<div class="item form-group">
-									   <label>Hyper pool:</label>
-									   <select class="form-control" id="hypervisor_pool" name="hypervisor_pool" disabled>
-										  <option value="default" selected="default">
-											 Default
-										  </option>
-									   </select>
-									</div>
-								</div>
-								<div class="col-md-3 col-sm-3 col-xs-12">
-								</div>
-								<div class="col-md-3 col-sm-3 col-xs-12">
-								</div>
-								<div class="col-md-3 col-sm-3 col-xs-12">
-								</div>							
-							</div>
-
 					 </div>
 				  </div>
-            </div>
-            
+<!--
+                  </div>
+-->
+                      <div id="media-block">
+                            {% include '/snippets/media.html' %}
+                      </div>              
             <!-- Modal Footer -->
             <div class="modal-footer">
                      <div class="form-group">

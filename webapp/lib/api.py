@@ -290,14 +290,20 @@ class isard():
         media={'isos':[],'floppies':[]}
         if 'isos' in domain_cd and domain_cd['isos'] is not []:
             for m in domain_cd['isos']:
-                iso=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
-                if iso is not None:
+                try:
+                    iso=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
                     media['isos'].append(iso)
+                except:
+                    # Media does not exist
+                    None
         if 'floppies' in domain_cd and domain_cd['floppies'] is not []:
             for m in domain_cd['floppies']:
-                fd=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
-                if fd is not None:
+                try:
+                    fd=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
                     media['floppies'].append(fd)
+                except:
+                    # media does not exist
+                    None
         return media
                         
     def user_hardware_quota(self, user, human_size=False, flatten=True):
@@ -785,7 +791,7 @@ class isard():
                                 continue
                             if ud['role'] in d['allowed']['roles']:
                                 if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data[group].append(d)
+                                allowed_data.append(d)
                                 continue
                         if d['allowed']['categories'] is not False:
                             if not d['allowed']['categories']:
@@ -923,44 +929,51 @@ class isard():
                 'user':user,
                 'category':userObj['category'],
                 'group':userObj['group'],}
-        
-    def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
-        with app.app_context():
-            userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-            parsed_name = self.parse_string(name)
-            id = '_' + user + '_' + parsed_name
-            # Checking if domain exists:
-            exists=r.table('domains').get(id).run(db.conn)
-            if exists is not None: return False
-        if kind=='public_template' or kind=='base':
-            ar=[]
-            ac=[]
-            ag=[]
-            au=[]
-        else:
-            ar=False
-            ac=False
-            ag=False
-            au=[userObj['id']]
-        template_dict=r.table('domains').get(original_domain['id']).run(db.conn)
-        template_dict['id']= id
-        template_dict['kind']= kind
-        template_dict['user']= userObj['id']
-        # template_dict['role']= userObj['role']
-        template_dict['category']= userObj['category']
-        template_dict['group']= userObj['group']
-        template_dict['name']= name
-        template_dict['description']= description
-        template_dict['allowed']= {  'roles': ar,
-                                      'categories': ac,
-                                      'groups': ag,
-                                      'users': au}
-        template_dict['icon']= original_domain['icon']
-        template_dict['server']= original_domain['server']
-        template_dict['os']= original_domain['os']
-        template_dict['options']= {'viewers':{'spice':{'fullscreen':True}}}
 
-        create_dict={}
+
+
+
+#~ {'allowed': {'categories': False,
+             #~ 'groups': False,
+             #~ 'roles': False,
+             #~ 'users': ['cpe47993090']},
+ #~ 'create_dict': {'hardware': {'boot_order': ['iso'],
+                              #~ 'diskbus': 'virtio',
+                              #~ 'floppies': [{'id': '_jvinolas_virtio-win-0.1.141_amd64'}],
+                              #~ 'graphics': ['vnc'],
+                              #~ 'interfaces': ['elo-n2l-bridge'],
+                              #~ 'isos': [],
+                              #~ 'memory': 524288,
+                              #~ 'vcpus': '1',
+                              #~ 'videos': ['qxl32']}},
+ #~ 'description': '',
+ #~ 'forced_hyp': 'default',
+ #~ 'hypervisors_pools': ['admin_test_pool'],
+                            #~ 'id': '_admin_222222',
+ #~ 'kind': 'user_template',
+ #~ 'name': 'Template 222222'}
+        
+    def new_tmpl_from_domain(self, from_id, part_dict, user):
+        with app.app_context():
+            tmpl_dict=r.table('domains').get(from_id).run(db.conn)
+            u=r.table('users').get(user).pluck('id','category','group').run(db.conn)
+        parsed_name = self.parse_string(name)
+        part_dict['id'] = '_' + user + '_' + parsed_name
+        # Checking if domain exists:
+        if r.table('domains').get(part_dict['id']).run(db.conn) is not None: return False
+        
+        dir_disk, disk_filename = self.get_disk_path(u, parsed_name)
+        part_dict['create_dict']['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':'', 'bus':part_dict['create_dict']['hardware']['diskbus']}  
+        part_dict['create_dict']['hardware'].pop('diskbus',None)
+        
+        
+        tmpl_dict={**tmpl_dict,**part_dict}
+        tmpl_dict['origin']=from_id
+        
+        with app.app_context():
+            return self.check(r.table('domains').get(from_id['id']).update({"create_dict": create_dict, "status": "CreatingTemplate"}).run(db.conn),'replaced')
+
+
         create_dict['template_dict']=template_dict
         create_dict['hardware']=original_domain['create_dict']['hardware']
         dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)

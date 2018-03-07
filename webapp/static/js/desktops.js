@@ -309,7 +309,7 @@ function actionsDesktopDetail(){
             modal_edit_desktop_datatables(pk);
             
             setDomainMediaDefaults('#modalEditDesktop',pk);
-            setMedia_add('#media-block')
+            setMedia_add('#modalEditDesktop #media-block')
 	});
 
 	$('.btn-template').on('click', function () {
@@ -325,13 +325,20 @@ function actionsDesktopDetail(){
             });
 		}else{	
 			var pk=$(this).closest("div").attr("data-pk");
+            
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
 			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+            
 			$('#modalTemplateDesktop').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+
+            setDomainMediaDefaults('#modalTemplateDesktop',pk);
+            setMedia_add('#modalTemplateDesktop #media-block')  
+            
+            setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
         }
 	});
 
@@ -618,6 +625,31 @@ function initalize_modal_all_desktops_events(){
         $("#modalAddDesktop #btn-hardware").on('click', function(e){
                 $('#modalAddDesktop #hardware-block').show();
         });
+
+
+
+    $("#modalTemplateDesktop #send").on('click', function(e){
+            var form = $('#modalTemplateDesktopForm');
+
+            form.parsley().validate();
+
+            if (form.parsley().isValid()){
+                desktop_id=$('#modalTemplateDesktopForm #id').val();
+                if (desktop_id !=''){
+                    data=$('#modalTemplateDesktopForm').serializeObject();
+                    data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
+                    data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
+                    socket.emit('domain_template_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                }
+            }
+        });
+        
+        //~ $("#modalAddDesktop #btn-hardware").on('click', function(e){
+                //~ $('#modalAddDesktop #hardware-block').show();
+        //~ });
         	
 }
 

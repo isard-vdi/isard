@@ -697,6 +697,40 @@ def socketio_domain_edit(form_data):
                     data,
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
+
+@socketio.on('domain_template_add', namespace='/sio_users')
+def socketio_domain_template_add(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+        
+    #~ if float(app.isardapi.get_user_quotas(current_user.username)['tqp']) >= 100:
+        #~ flash('Quota for creating new templates is full','danger')
+        #~ return redirect(url_for('desktops'))
+    #~ # if app.isardapi.is_domain_id_unique
+    #~ original=app.isardapi.get_domain(form_data['id'])
+
+    partial_tmpl_dict=app.isardapi.f.unflatten_dict(form_data)
+    partial_tmpl_dict=parseHardware(partial_tmpl_dict)
+    partial_tmpl_dict['create_dict']['hardware']={**partial_tmpl_dict['hardware'], **partial_tmpl_dict['create_dict']['hardware']}
+    partial_tmpl_dict.pop('hardware',None)
+    from_id=partial_tmpl_dict['id']
+    partial_tmpl_dict.pop('id',None)
+
+    res=app.isardapi.new_tmpl_from_domain(from_id, partial_tmpl_dict, current_user.username)
+
+    #~ create_dict=app.isardapi.f.unflatten_dict(form_data)
+    #~ create_dict=parseHardware(create_dict)
+    #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    if res is True:
+        data=json.dumps({'result':True,'title':'New template','text':'Template '+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'New template','text':'Template '+create_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
                     
 @socketio.on('domain_update', namespace='/sio_users')
 def socketio_domains_update(data):
