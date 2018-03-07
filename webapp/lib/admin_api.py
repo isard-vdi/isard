@@ -145,11 +145,11 @@ class isardAdmin():
             return r.table(table).insert(dict, conflict='update').run(db.conn)
                                         
     def update_table_dict(self, table, id, dict):
-        with app.app_context():
-            print(table)
-            print(id)
-            print(dict)
-            return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
+        # ~ with app.app_context():
+            # ~ print(table)
+            # ~ print(id)
+            # ~ print(dict)
+        return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
             
     '''
     USERS
@@ -170,11 +170,17 @@ class isardAdmin():
             user['quota']['domains'][k]=int(v)
         for k,v in user['quota']['hardware'].items():
             user['quota']['hardware'][k]=int(v)     
-        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000                    
-        qdomains ={'desktops_disk_max': 99999999,  # 100GB
-                    'templates_disk_max': 99999999,
-                    'isos_disk_max': 99999999}
-        user['quota']['domains']={**qdomains, **user['quota']['domains']}       
+        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000 
+        
+        with app.app_context():  
+            qdomains=r.table('roles').get(user['role']).run(db.conn)['quota']['domains']
+        user['quota']['domains']={**qdomains, **user['quota']['domains']} 
+        
+        
+        # ~ qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                    # ~ 'templates_disk_max': 99999999,
+                    # ~ 'isos_disk_max': 99999999}
+        # ~ user['quota']['domains']={**qdomains, **user['quota']['domains']}       
 
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 

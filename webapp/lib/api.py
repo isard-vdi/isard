@@ -751,7 +751,49 @@ class isard():
                                 if delete_allowed_key: d.pop('allowed', None)
                                 allowed_data.append(d)
             return allowed_data
-            
+
+    # ~ def is_id_allowed_for_user(self,allowed,user):
+        # ~ with app.app_context():
+            # ~ u=r.table('users').get(user).run(db.conn)
+                # ~ allowed_data.append(d)
+                # ~ continue
+            # ~ if d['allowed']['roles'] is not False:
+                # ~ if not d['allowed']['roles']:  # Len is not 0
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data.append(d)
+                    # ~ continue
+                # ~ if ud['role'] in d['allowed']['roles']:
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data[group].append(d)
+                    # ~ continue
+            # ~ if d['allowed']['categories'] is not False:
+                # ~ if not d['allowed']['categories']:
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data.append(d)
+                    # ~ continue
+                # ~ if ud['category'] in d['allowed']['categories']:
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data.append(d)
+                    # ~ continue
+            # ~ if d['allowed']['groups'] is not False:
+                # ~ if not d['allowed']['groups']:
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data.append(d)
+                    # ~ continue
+                # ~ if ud['group'] in d['allowed']['groups']:
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data.append(d)
+                    # ~ continue
+            # ~ if d['allowed']['users'] is not False:
+                # ~ if not d['allowed']['users']:
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data.append(d)
+                    # ~ continue
+                # ~ if user in d['allowed']['users']:
+                    # ~ if delete_allowed_key: d.pop('allowed', None)
+                    # ~ allowed_data.append(d)        
+        
+        
     def get_distinc_field(self, user, field, filter_type, pluck=[]):
         '''
         TODO: This is not ordering, probably because of dict keys
