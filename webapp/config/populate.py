@@ -567,7 +567,7 @@ class Populate(object):
             if not r.table_list().contains('media').run():
                 log.info("Table media not found, creating...")
                 r.table_create('media', primary_key="id").run()
-        self.index_create('media',['status','user'])
+        self.index_create('media',['status','user','kind'])
         return True
 
     '''

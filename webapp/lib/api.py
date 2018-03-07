@@ -284,6 +284,22 @@ class isard():
             log.error('get_domain: '+str(e))
         return domain   
 
+    def get_domain_media(self,id):
+        with app.app_context():
+            domain_cd = r.table('domains').get(id).pluck({'create_dict':{'hardware'}}).run(db.conn)['create_dict']['hardware']
+        media={'isos':[],'floppies':[]}
+        if 'isos' in domain_cd and domain_cd['isos'] is not []:
+            for m in domain_cd['isos']:
+                iso=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
+                if iso is not None:
+                    media['isos'].append(iso)
+        if 'floppies' in domain_cd and domain_cd['floppies'] is not []:
+            for m in domain_cd['floppies']:
+                fd=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
+                if fd is not None:
+                    media['floppies'].append(fd)
+        return media
+                        
     def user_hardware_quota(self, user, human_size=False, flatten=True):
         #~ Should verify something???
         with app.app_context():

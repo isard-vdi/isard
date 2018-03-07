@@ -123,13 +123,19 @@ class isardAdmin():
                 data=r.table(table).run(db.conn)
                 return self.f.table_values_bstrap(data) if flatten else list(data)
 
-    def get_admin_table_term(self, table, field, value, pluck=False):
+    def get_admin_table_term(self, table, field, value, kind=False, pluck=False):
         with app.app_context():
-            if pluck:
-                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+            if kind:
+                if pluck:
+                    return self.f.table_values_bstrap(r.table(table).get_all(kind, index='kind').filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+                else:
+                    return self.f.table_values_bstrap(r.table(table).get_all(kind, index='kind').filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
             else:
-                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
-
+                if pluck:
+                    return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+                else:
+                    return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
+                
     def insert_table_dict(self, table, dict):
         with app.app_context():
             return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
