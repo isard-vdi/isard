@@ -56,6 +56,7 @@ def media_select2_post():
         if data['kind'] == 'floppies': kind = 'floppy'
         #~ if 'order' not in data.keys():
             #~ data['order']=False
-        result=app.adminapi.get_admin_table_term('media','name',data['term'],kind=kind,pluck=data['pluck'])
+        result=app.isardapi.get_all_table_allowed_term('media',kind,'name',data['term'],current_user.username,pluck=data['pluck'])
+        #~ result=app.adminapi.get_admin_table_term('media','name',data['term'],kind=kind,pluck=data['pluck'])
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not select.'), 500, {'ContentType':'application/json'} 

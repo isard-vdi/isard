@@ -679,7 +679,7 @@ def socketio_domain_edit(form_data):
         #~ None
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardware(create_dict)
-    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict['create_dict']['hardware']={**create_dict['hardware'], **create_dict['create_dict']['hardware']}
     create_dict.pop('hardware',None)
 
     if 'options' not in create_dict:
@@ -687,7 +687,7 @@ def socketio_domain_edit(form_data):
     else:
         if 'fullscreen' in create_dict['options']['viewers']['spice']:
             create_dict['options']['viewers']['spice']['fullscreen']=True
-                
+    
     res=app.isardapi.update_domain(create_dict.copy())
     if res is True:
         data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})

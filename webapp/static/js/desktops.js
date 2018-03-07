@@ -650,7 +650,8 @@ function modal_edit_desktop_datatables(id){
             form.parsley().validate();
             if (form.parsley().isValid()){
                     data=$('#modalEdit').serializeObject();
-                    //~ data=replaceMedia_arrays('#modalEditDesktop',data);
+                    data=replaceMedia_arrays('#modalEditDesktop',data);
+                    //~ console.log(data)
                     socket.emit('domain_edit',data)
             }
         });

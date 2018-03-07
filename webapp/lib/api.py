@@ -687,7 +687,10 @@ class isard():
 
     def get_all_alloweds_table(self, table, user, pluck='default'):
         if pluck is 'default':
-            pluck={'id','name','allowed','kind','icon','description'}
+            pluck=['id','name','allowed','kind','icon','description']
+        if pluck is not False:
+            if 'user' not in pluck: pluck.append('user')
+            if 'allowed' not in pluck: pluck.append('allowed')            
         with app.app_context():
             ud=r.table('users').get(user).run(db.conn)
             delete_allowed_key=False
@@ -705,6 +708,67 @@ class isard():
             #~ Generic get all: data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
             #~ for group in data:
                     #~ allowed_data[group]=[]
+            allowed_data=[]
+            for d in data:
+                        d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
+                        if d['user']==user:
+                            allowed_data.append(d)
+                            continue
+                        # False doesn't check, [] means all allowed
+                        # Role is the master and user the least. If allowed in roles,
+                        #   won't check categories, groups, users
+                        #~ allowed=d['allowed']
+                        if d['allowed']['roles'] is not False:
+                            if not d['allowed']['roles']:  # Len is not 0
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+                                continue
+                            if ud['role'] in d['allowed']['roles']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+                                continue
+                        if d['allowed']['categories'] is not False:
+                            if not d['allowed']['categories']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+                                continue
+                            if ud['category'] in d['allowed']['categories']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+                                continue
+                        if d['allowed']['groups'] is not False:
+                            if not d['allowed']['groups']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+                                continue
+                            if ud['group'] in d['allowed']['groups']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+                                continue
+                        if d['allowed']['users'] is not False:
+                            if not d['allowed']['users']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+                                continue
+                            if user in d['allowed']['users']:
+                                if delete_allowed_key: d.pop('allowed', None)
+                                allowed_data.append(d)
+            return allowed_data
+
+    def get_all_table_allowed_term(self, table, kind, field, value, user, pluck='default'):
+        if pluck is 'default':
+            pluck=['id','name','allowed','kind','icon','user','description']
+        if pluck is not False:
+            if 'user' not in pluck: pluck.append('user')
+            if 'allowed' not in pluck: pluck.append('allowed')
+        with app.app_context():
+            ud=r.table('users').get(user).run(db.conn)
+            delete_allowed_key=False
+            print(table,kind,field,value,user)
+            if pluck is not False:
+                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user'] is user or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck(pluck).run(db.conn)
+            else:
+                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user']==user or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').run(db.conn)
             allowed_data=[]
             for d in data:
                         d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
@@ -751,48 +815,7 @@ class isard():
                                 if delete_allowed_key: d.pop('allowed', None)
                                 allowed_data.append(d)
             return allowed_data
-
-    # ~ def is_id_allowed_for_user(self,allowed,user):
-        # ~ with app.app_context():
-            # ~ u=r.table('users').get(user).run(db.conn)
-                # ~ allowed_data.append(d)
-                # ~ continue
-            # ~ if d['allowed']['roles'] is not False:
-                # ~ if not d['allowed']['roles']:  # Len is not 0
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data.append(d)
-                    # ~ continue
-                # ~ if ud['role'] in d['allowed']['roles']:
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data[group].append(d)
-                    # ~ continue
-            # ~ if d['allowed']['categories'] is not False:
-                # ~ if not d['allowed']['categories']:
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data.append(d)
-                    # ~ continue
-                # ~ if ud['category'] in d['allowed']['categories']:
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data.append(d)
-                    # ~ continue
-            # ~ if d['allowed']['groups'] is not False:
-                # ~ if not d['allowed']['groups']:
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data.append(d)
-                    # ~ continue
-                # ~ if ud['group'] in d['allowed']['groups']:
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data.append(d)
-                    # ~ continue
-            # ~ if d['allowed']['users'] is not False:
-                # ~ if not d['allowed']['users']:
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data.append(d)
-                    # ~ continue
-                # ~ if user in d['allowed']['users']:
-                    # ~ if delete_allowed_key: d.pop('allowed', None)
-                    # ~ allowed_data.append(d)        
-        
+            
         
     def get_distinc_field(self, user, field, filter_type, pluck=[]):
         '''

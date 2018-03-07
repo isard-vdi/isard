@@ -1,24 +1,4 @@
 
-	//~ function setMedia_viewer(div_id,id){
-			//~ api.ajax('/domain/alloweds','POST',{'pk':id}).done(function(alloweds) {
-                //~ var all=false;
-                //~ $.each(alloweds,function(key, value) 
-                //~ {
-                    //~ if(typeof value !== 'undefined' && value.length == 0){all=true;}
-                //~ });
-                //~ if(all){
-                    //~ $(div_id+" #table-alloweds-"+id).append('<tr><td>Everyone</td><td>Has access</td></tr>');
-                //~ }else{
-                    //~ $.each(alloweds,function(key, value) 
-                    //~ {   
-                        //~ if(value){
-                                //~ $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+value+'</td></tr>');
-                        //~ }
-
-                    //~ });
-                //~ }
-			//~ }); 
-	//~ }
 
 	function replaceMedia_arrays(parent_id,data){
         data['create_dict']={'hardware':{'isos':    parseMedia(parent_id,'m-isos'),
@@ -85,7 +65,7 @@
             api.ajax('/domain/media','POST',{'pk':domain_id}).done(function(kinds) {
                 $.each(kinds,function(key, value) 
                 {   
-                    //~ $.each(list,function(item)                         
+                        $(div_id+"  #m-"+key).empty().trigger('change')
                         if(value){
                             value.forEach(function(data)
                             {                                  
@@ -93,7 +73,6 @@
                                  $(div_id+"  #m-"+key).append(newOption).trigger('change');
                             });
                         }
-                    //~ });
                 });
             });
 
