@@ -10,7 +10,7 @@ function filterTemplate(obj) {
     var dropdownList = document.getElementById("template");
 	$.ajax({
 		type: "GET",
-		url:"/desktops/filterTemplate/" + kind,
+		url:"/desktops/filterTemplate/" + kind +"/",
 		success: function(templates)
 		{
 		  var categories= Object.keys(templates);
@@ -50,7 +50,7 @@ function templateFiltersFill(kind){
 		var dropdownGroup = document.getElementById("templateFilterGroup");
 		$.ajax({
 			type: "GET",
-			url:"/desktops/getDistinc/"+"user"+"/"+kind,
+			url:"/desktops/getDistinc/"+"user"+"/"+kind+"/",
 			success: function(dictOptions)
 			{
 			  var options= Object.keys(dictOptions);
@@ -94,7 +94,7 @@ function filterTemplateBy(field,element) {
 	var dropdownList = document.getElementById("template");
 	$.ajax({
 		type: "GET",
-		url:"/desktops/filterTemplate/public_template/"+field+"/" + value,
+		url:"/desktops/filterTemplate/public_template/"+field+"/" + value + "/",
 		success: function(templates)
 		{
 		  var categories= Object.keys(templates);

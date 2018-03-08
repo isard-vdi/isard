@@ -110,7 +110,7 @@ def viewer_download(os,id):
         
 @app.route('/disposable/download_viewer/<os>/<id>')
 def viewer_disposable_download(os,id):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     if id.startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
         extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
         return Response(consola, 
@@ -171,7 +171,7 @@ def domains_update():
 # ~ def desktops_add_disposable():
     # ~ res=True
     # ~ if request.method == 'POST':
-        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         # ~ template=request.get_json(force=True)['pk']
         # ~ ## Checking permissions
         # ~ disposables = app.isardapi.show_disposable(remote_addr)
@@ -329,7 +329,7 @@ def filterTemplate(kind,category=False,group=False,user=False):
     #~ return Response(json.dumps(domains), mimetype='application/json')
     return Response(json.dumps(app.isardapi.get_alloweds_domains(current_user.username,kind, custom_filter)), mimetype='application/json')
 
-@app.route('/desktops/getAllTemplates', methods=['GET'])
+@app.route('/desktops/getAllTemplates/', methods=['GET'])
 @login_required
 def getAllTemplates():
     custom_filter={}

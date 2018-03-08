@@ -44,7 +44,7 @@ $(document).ready(function() {
 	//DataTable Main renderer
 	var table = $('#desktops').DataTable({
 			"ajax": {
-				"url": "/desktops/get",
+				"url": "/desktops/get/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -65,7 +65,8 @@ $(document).ready(function() {
 				{ "data": null, "width": "10px"},
 				{ "data": "status", "width": "10px"},
 				{ "data": "name"},
-                { "data": "hyp_started", "width": "10px"}
+                { "data": null, "width": "60px"},
+                { "data": null, "width": "60px"}
 				],
 			 "order": [[3, 'desc']],		 
 		"columnDefs": [ {
@@ -96,7 +97,12 @@ $(document).ready(function() {
 							{
 							"targets": 6,
 							"render": function ( data, type, full, meta ) {
-							  return renderHypStarted(full);
+							  return renderMedia(full);
+							}},
+							{
+							"targets": 7,
+							"render": function ( data, type, full, meta ) {
+							  return renderMedia(full);
 							}}
 							]
 	} );
@@ -452,9 +458,42 @@ function renderAction(data){
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
-function renderHypStarted(data){
-        if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
-        if('hyp_started' in data){ return data.hyp_started;}
+//~ function renderHypStarted(data){
+        //~ if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
+        //~ if('hyp_started' in data){ return data.hyp_started;}
+		//~ return '';
+//~ }
+
+function renderMedia(data){
+        html=''
+        //~ console.log(data)
+        if('isos' in data.create_dict.hardware){
+            return '<span class="tooltip" title="hello world"><i class="fa fa-circle-o fa-2x title="pepino">3</i></';
+            return 	 '<ul class="nav navbar-nav navbar-right"> \
+                        <li role="presentation" class="quota-templates"> \
+                          <a href="javascript:" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false"> \
+                            <i class="fa fa-circle-o fa-2x"></i> \
+                            <span class="badge">'+data.create_dict.hardware.isos.length+'</span> \
+                          </a> \
+                          <ul id="menu1" class="dropdown-menu list-unstyled msg_list" role="menu"> \
+                            <li> \
+                              <a> \
+                                <span class="image"><i class="fa fa-circle-o"></i></span> \
+                                <span> \
+                                  <span>Isos</span> \
+                                  <span class="time"><span class="perc"></span>%</span> \
+                                </span> \
+                                <span class="message"> \
+                                  You have <span class="have"></span> ISO files of <span class="of"></span> in your quota. \
+                                </span> \
+                              </a> \
+                            </li> \
+                           </ul> \
+                         </li> \
+                        </ul>';
+        }
+        //~ if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
+        //~ if('hyp_started' in data){ return data.hyp_started;}
 		return '';
 }
 

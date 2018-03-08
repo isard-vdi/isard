@@ -8,7 +8,7 @@
             $(id+" #hypervisors_pools").find('option').remove();
             $(id+" #forced_hyp").find('option').remove();
             
-			api.ajax_async('/hardware','GET','').done(function(hardware) {
+			api.ajax_async('/hardware/','GET','').done(function(hardware) {
                 // Needs a hidden input to activate disabled dropdowns...
                 //~ if(hardware.nets.length==1){$(id+" #hardware-interfaces").prop('disabled',true);}
 				$.each(hardware.nets,function(key, value) 
@@ -84,7 +84,7 @@
             $(div_id+' #hardware-boot_order option:selected').prop("selected", false);
             $(div_id+' #hypervisors_pools option:selected').prop("selected", false);
             
-			api.ajax('/domain','POST',{'pk':domain_id}).done(function(domain) {
+			api.ajax('/domain/','POST',{'pk':domain_id}).done(function(domain) {
 				$(div_id+' #hardware-interfaces option[value="'+domain.hardware.interfaces[0].id+'"]').prop("selected",true);
 				$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics.type+'"]').prop("selected",true);
                 $(div_id+' #hardware-videos option[value="'+domain.hardware.video.type+'"]').prop("selected",true);
@@ -144,7 +144,7 @@
 	//~ }
     
 	function setHardwareDomainDefaults_viewer(div_id,domain_id){
-			api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
+			api.ajax('/domain/','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
 				$(div_id+" #vcpu").html(domain.hardware.vcpus+' CPU(s)');
 				$(div_id+" #ram").html(domain.hardware.memory);
                 // List could not be ordered! In theory all the disks have same virtual-size

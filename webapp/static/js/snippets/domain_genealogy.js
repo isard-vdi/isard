@@ -1,5 +1,5 @@
 	function setDomainGenealogy(id){
-			api.ajax('/domain_genealogy','POST',{'pk':id}).done(function(gen) {
+			api.ajax('/domain_genealogy/','POST',{'pk':id}).done(function(gen) {
                 var wasted=0
                 //~ $.each(gen['genealogy'],function(index,disk){
                 $.each(gen['gen_ids'],function(index,val){

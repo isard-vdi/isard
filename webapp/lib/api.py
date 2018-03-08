@@ -229,7 +229,8 @@ class isard():
     def get_user_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml').run(db.conn))
+            # ~ domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml').run(db.conn))
+            domains=list(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml','history_domain','allowed').run(db.conn))
         return domains
 
     def get_group_domains(self, group, filterdict=False):
@@ -1041,7 +1042,7 @@ class isard():
                 #~ new_create_dict['create_dict']['hardware']['disks'][0]['bus']=create_dict['create_dict']['hardware']['diskbus']
                 #~ create_dict['create_dict']['hardware']['disks']=
                 #~ create_dict['create_dict']['hardware']['disks'][0]=new_create_dict['create_dict']['hardware']['disks'][0]}
-                create_dict['create_dict']['hardware'].pop('diskbus',None)
+            create_dict['create_dict']['hardware'].pop('diskbus',None)
         create_dict['status']='Updating'
         return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])

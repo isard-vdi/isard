@@ -31,7 +31,7 @@ $(document).ready(function() {
 							return false;
 						}
 						
-						api.ajax('/about','POST',{'username':username,'password':password}).done(function() {
+						api.ajax('/about/','POST',{'username':username,'password':password}).done(function() {
 							notice.update({
 								title: 'Welcome',
 								text: 'Successfully logged in as ' + username,

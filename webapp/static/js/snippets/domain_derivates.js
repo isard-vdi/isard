@@ -14,7 +14,7 @@ function setDomainDerivates(id){
         
     derivates_table=$("#table-derivates-"+id).DataTable({
 			"ajax": {
-				"url": "/domain_derivates",
+				"url": "/domain_derivates/",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'pk':id})}
@@ -45,7 +45,7 @@ function setDomainDerivates(id){
 							//~ }}]
     } );
             
-			//~ api.ajax('/domain_derivates','POST',{'pk':id}).done(function(derivates) {
+			//~ api.ajax('/domain_derivates/','POST',{'pk':id}).done(function(derivates) {
                 //~ var wasted=0
                 //~ $.each(derivates,function(index,val){
                     //~ $("#table-derivates-"+id).append('<tr><td>'+val['name']+'</td><td>'+val['kind']+'</td><td>'+val['user']+'</td></tr>');

@@ -215,7 +215,7 @@ class Upgrade(object):
                 # ~ except Exception as e:
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
                     # ~ log.error('Error detail: '+str(e))                    
-                                
+                                                    
         return True
 
     '''

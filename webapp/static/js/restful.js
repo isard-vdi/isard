@@ -8,6 +8,10 @@
 function apiCall() {
     var self = this;
     self.ajax = function(uri,method, data) {
+        if(uri.endsWith('/')){uri=uri.substring(0, uri.length - 1);}
+        console.log(uri)
+        console.log(method)
+        console.log(data)
                 var request = {
                     url: uri,
                     type: method,
@@ -20,6 +24,7 @@ function apiCall() {
                         console.log("ajax error " + jqXHR.status);
                     }
                 };
+                console.log(request)
                 return $.ajax(request);
     };
 
