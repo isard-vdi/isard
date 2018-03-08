@@ -279,9 +279,10 @@ class isard():
                                 if 'size' in key:
                                     domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
-            #~ exc_type, exc_obj, exc_tb = sys.exc_info()
-            #~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            #~ log.error(exc_type, fname, exc_tb.tb_lineno)                      
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            log.error(exc_type, fname, exc_tb.tb_lineno)
+            log.error('DomainsStatusThread error:'+str(e))                  
             log.error('get_domain: '+str(e))
         return domain   
 
