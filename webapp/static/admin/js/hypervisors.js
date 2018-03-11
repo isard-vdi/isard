@@ -73,7 +73,7 @@ $(document).ready(function() {
 
     table = $('#hypervisors').DataTable( {
         "ajax": {
-            "url": "/admin/hypervisors/json",
+            "url": "/admin/hypervisors/json/",
             "dataSrc": ""
         },
 			"language": {

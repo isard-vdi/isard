@@ -44,7 +44,7 @@ $(document).ready(function() {
 	//DataTable Main renderer
 	var table = $('#desktops').DataTable({
 			"ajax": {
-				"url": "/desktops/get/",
+				"url": "/desktops/get",
 				"dataSrc": ""
 			},
 			"language": {
@@ -547,7 +547,7 @@ function modal_add_desktop_datatables(){
     
 	modal_add_desktops = $('#modal_add_desktops').DataTable({
 			"ajax": {
-				"url": "/desktops/getAllTemplates",
+				"url": "/desktops/getAllTemplates/",
 				"dataSrc": ""
 			},
 

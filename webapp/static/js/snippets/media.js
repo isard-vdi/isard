@@ -32,7 +32,7 @@
 				multiple: true,
 				ajax: {
 					type: "POST",
-					url: '/media/select2/post/',
+					url: '/media/select2/post',
 					dataType: 'json',
 					contentType: "application/json",
 					delay: 250,
@@ -62,7 +62,7 @@
 
 	function setDomainMediaDefaults(div_id,domain_id){
 			// id is the domain id
-            api.ajax('/domain/media/','POST',{'pk':domain_id}).done(function(kinds) {
+            api.ajax('/domain/media','POST',{'pk':domain_id}).done(function(kinds) {
                 $.each(kinds,function(key, value) 
                 {   
                         $(div_id+"  #m-"+key).empty().trigger('change')
