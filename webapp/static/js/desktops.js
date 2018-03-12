@@ -44,7 +44,7 @@ $(document).ready(function() {
 	//DataTable Main renderer
 	var table = $('#desktops').DataTable({
 			"ajax": {
-				"url": "/desktops/get",
+				"url": "/desktops/get/",
 				"dataSrc": ""
 			},
 			"language": {

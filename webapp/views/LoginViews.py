@@ -30,7 +30,7 @@ def login():
                 return redirect(url_for('desktops'))
             else:
                 flash('Username not found or incorrect password.','warning')
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     disposables=app.isardapi.show_disposable(remote_addr)
     return render_template('login_disposables.html', disposables=disposables if disposables else '')
 
@@ -73,7 +73,7 @@ def index():
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(exc_type, fname, exc_tb.tb_lineno)
         log.error("Something went wrong with username "+current_user.username+" authentication")
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     disposables=app.isardapi.show_disposable(remote_addr)
     return render_template('login_disposables.html', disposables=disposables if disposables else '')
 

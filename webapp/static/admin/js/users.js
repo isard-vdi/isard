@@ -164,7 +164,7 @@ $(document).ready(function() {
             
     table=$('#users').DataTable( {
         "ajax": {
-            "url": "/admin/users/get",
+            "url": "/admin/users/get/",
             "dataSrc": ""
         },
 			"language": {

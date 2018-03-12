@@ -40,7 +40,7 @@ $(document).ready(function() {
 
     var table=$('#media').DataTable( {
         "ajax": {
-                "url": "/media/get",
+                "url": "/media/get/",
                 "dataSrc": ""
 				//~ "url": "/admin/tabletest/media/post",
                 //~ "contentType": "application/json",

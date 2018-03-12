@@ -170,6 +170,7 @@ class isard():
                 return False
                 
     def show_disposable(self,client_ip):
+        # ~ return False
         disposables_config=self.config['disposable_desktops']
         if disposables_config['active']:
             with app.app_context():

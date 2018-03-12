@@ -11,7 +11,7 @@ $(document).ready(function() {
 	$template = $(".template-detail");
 	table = $('#templates').DataTable({
 			"ajax": {
-				"url": "/templates/get",
+				"url": "/templates/get/",
 				"dataSrc": ""
 			},
 			"language": {
