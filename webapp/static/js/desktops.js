@@ -66,7 +66,7 @@ $(document).ready(function() {
 				{ "data": "status", "width": "10px"},
 				{ "data": "name"},
                 { "data": null, "width": "90px"},
-                { "data": null, "width": "90px"}
+                //~ { "data": null, "width": "90px"}
 				],
 			 "order": [[3, 'desc']],		 
 		"columnDefs": [ {
@@ -99,11 +99,11 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
 							  return renderMedia(full);
 							}},
-							{
-							"targets": 7,
-							"render": function ( data, type, full, meta ) {
-							  return renderHotplugMedia(full);
-							}}
+							//~ {
+							//~ "targets": 7,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderHotplugMedia(full);
+							//~ }}
 							]
 	} );
 
@@ -378,6 +378,8 @@ function actionsDesktopDetail(){
 //~ RENDER DATATABLE	
 function addDesktopDetailPannel ( d ) {
 		$newPanel = $template.clone();
+        $newPanel.find('#derivates-d\\.id').remove();
+        $newPanel.find('.btn-xml').remove();
 		$newPanel.html(function(i, oldHtml){
 			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
 		});
@@ -469,17 +471,17 @@ function renderMedia(data){
         html=''
         if('isos' in data.create_dict.hardware){
             $.each(data.create_dict.hardware.isos,function(key, value){
-                html+='<i class="fa fa-circle-o fa-2x" title="'+value.id+'"></i> ';
+                html+='<i class="fa fa-circle-o fa-2x" title="'+value.name+'"></i> ';
             });
         }
         if('floppies' in data.create_dict.hardware){
             $.each(data.create_dict.hardware.floppies,function(key, value){
-                html+='<i class="fa fa-floppy-o fa-2x" title="'+value.id+'"></i> ';
+                html+='<i class="fa fa-floppy-o fa-2x" title="'+value.name+'"></i> ';
             });
         }
         if('storage' in data.create_dict.hardware){
             $.each(data.create_dict.hardware.storage,function(key, value){
-                html+='<i class="fa fa-hdd-o fa-2x" title="'+value.id+'"></i> ';
+                html+='<i class="fa fa-hdd-o fa-2x" title="'+value.name+'"></i> ';
             });
         }                
         return html;

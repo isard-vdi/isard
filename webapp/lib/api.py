@@ -1005,6 +1005,8 @@ class isard():
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'parent':parent_disk}]
 
+        create_dict=self.parse_media_info(create_dict)
+        
         new_domain={'id': '_'+user+'_'+parsed_name,
                   'name': create_dict['name'],
                   'description': create_dict['description'],
@@ -1045,10 +1047,24 @@ class isard():
                 #~ create_dict['create_dict']['hardware']['disks']=
                 #~ create_dict['create_dict']['hardware']['disks'][0]=new_create_dict['create_dict']['hardware']['disks'][0]}
             create_dict['create_dict']['hardware'].pop('diskbus',None)
+            
+        create_dict['create_dict']=self.parse_media_info(create_dict['create_dict'])
+                            
         create_dict['status']='Updating'
         return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
+    def parse_media_info(self, create_dict):
+        medias=['isos','floppies','storage']
+        for m in medias:
+            if m in create_dict['hardware']:
+                newlist=[]
+                for item in create_dict['hardware'][m]:
+                    with app.app_context():
+                        newlist.append(r.table('media').get(item['id']).pluck('id','name','description').run(db.conn))
+                create_dict['hardware'][m]=newlist
+        return create_dict
+        
     def new_domain_disposable_from_tmpl(self, client_ip, template):
         parsed_name = self.parse_string(client_ip)
         parsed_name = client_ip.replace(".", "_") 
