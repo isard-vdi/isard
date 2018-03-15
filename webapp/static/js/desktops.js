@@ -65,8 +65,8 @@ $(document).ready(function() {
 				{ "data": null, "width": "10px"},
 				{ "data": "status", "width": "10px"},
 				{ "data": "name"},
-                { "data": null, "width": "60px"},
-                { "data": null, "width": "60px"}
+                { "data": null, "width": "90px"},
+                { "data": null, "width": "90px"}
 				],
 			 "order": [[3, 'desc']],		 
 		"columnDefs": [ {
@@ -102,7 +102,7 @@ $(document).ready(function() {
 							{
 							"targets": 7,
 							"render": function ( data, type, full, meta ) {
-							  return renderMedia(full);
+							  return renderHotplugMedia(full);
 							}}
 							]
 	} );
@@ -466,35 +466,41 @@ function renderAction(data){
 
 function renderMedia(data){
         html=''
-        //~ console.log(data)
         if('isos' in data.create_dict.hardware){
-            return '<span class="tooltip" title="hello world"><i class="fa fa-circle-o fa-2x title="pepino">3</i></';
-            return 	 '<ul class="nav navbar-nav navbar-right"> \
-                        <li role="presentation" class="quota-templates"> \
-                          <a href="javascript:" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false"> \
-                            <i class="fa fa-circle-o fa-2x"></i> \
-                            <span class="badge">'+data.create_dict.hardware.isos.length+'</span> \
-                          </a> \
-                          <ul id="menu1" class="dropdown-menu list-unstyled msg_list" role="menu"> \
-                            <li> \
-                              <a> \
-                                <span class="image"><i class="fa fa-circle-o"></i></span> \
-                                <span> \
-                                  <span>Isos</span> \
-                                  <span class="time"><span class="perc"></span>%</span> \
-                                </span> \
-                                <span class="message"> \
-                                  You have <span class="have"></span> ISO files of <span class="of"></span> in your quota. \
-                                </span> \
-                              </a> \
-                            </li> \
-                           </ul> \
-                         </li> \
-                        </ul>';
+            $.each(data.create_dict.hardware.isos,function(key, value){
+                html+='<i class="fa fa-circle-o fa-2x" title="'+value.id+'"></i> ';
+            });
         }
-        //~ if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
-        //~ if('hyp_started' in data){ return data.hyp_started;}
-		return '';
+        if('floppies' in data.create_dict.hardware){
+            $.each(data.create_dict.hardware.floppies,function(key, value){
+                html+='<i class="fa fa-floppy-o fa-2x" title="'+value.id+'"></i> ';
+            });
+        }
+        if('storage' in data.create_dict.hardware){
+            $.each(data.create_dict.hardware.storage,function(key, value){
+                html+='<i class="fa fa-hdd-o fa-2x" title="'+value.id+'"></i> ';
+            });
+        }                
+        return html;
+}
+
+function renderHotplugMedia(data){
+        html='<button class="btn btn-xs btn-hotplug" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button> '
+        if('hotplug' in data){
+            $.each(data.hotplug,function(key, value){
+                if(value.kind=='iso'){
+                    html+='<i class="fa fa-circle-o fa-2x" title="'+value.id+'"></i> ';
+                }
+                if(value.kind=='fd'){
+                    if(value.status=='Plugging'){
+                        html+='<i class="fa fa-floppy-o fa-2x blink" title="'+value.name+'" style="color:#ff9933"></i> ';
+                    }else{
+                        html+='<i class="fa fa-floppy-o fa-2x" title="'+value.name+'" style="color:#0c3300"></i> ';
+                    }
+                }                
+            });
+        }
+        return html;
 }
 
 function setDefaultsTemplate(id) {
