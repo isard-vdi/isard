@@ -73,7 +73,7 @@ $(document).ready(function() {
 
     table = $('#hypervisors').DataTable( {
         "ajax": {
-            "url": "/admin/hypervisors/json",
+            "url": "/admin/hypervisors/json/",
             "dataSrc": ""
         },
 			"language": {
@@ -125,25 +125,25 @@ $(document).ready(function() {
 							  return renderGraph(full);
 							}}                            
              ],
-             "initComplete": function(settings, json) {
-                        this.api().rows().data().each(function(r){
-                            chart[r.id]=$("#chart-"+r.id).epoch({
-                                            type: "time.line",
-                                            axes: ["right"],
-                                            ticks: {right:1},
-                                            pixelRatio: 10,
-                                            fps: 60,
-                                            windowsSize: 60,
-                                            queueSize:120,
-                                            data: [
-                                              {label: "Load", values: [{x:0, y: 100}]},
-                                              {label: "Mem", values: [{x:0, y: 100}]}
-                                              //~ {label: "Load", values: [{time: timestamp(), y: 100}]},
-                                              //~ {label: "Mem", values: [{time: timestamp(), y: 100}]}
-                                            ]
-                                          });
-                        })
-              }                             
+             //~ "initComplete": function(settings, json) {
+                        //~ this.api().rows().data().each(function(r){
+                            //~ chart[r.id]=$("#chart-"+r.id).epoch({
+                                            //~ type: "time.line",
+                                            //~ axes: ["right"],
+                                            //~ ticks: {right:1},
+                                            //~ pixelRatio: 10,
+                                            //~ fps: 60,
+                                            //~ windowsSize: 60,
+                                            //~ queueSize:120,
+                                            //~ data: [
+                                              //~ {label: "Load", values: [{x:0, y: 100}]},
+                                              //~ {label: "Mem", values: [{x:0, y: 100}]}
+                                             // {label: "Load", values: [{time: timestamp(), y: 100}]},
+                                             // {label: "Mem", values: [{time: timestamp(), y: 100}]}
+                                            //~ ]
+                                          //~ });
+                        //~ })
+              //~ }                             
     } );
 
 	$('#hypervisors').find('tbody').on('click', 'td.details-control', function () {

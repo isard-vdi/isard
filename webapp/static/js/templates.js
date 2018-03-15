@@ -303,7 +303,7 @@ function actionsTmplDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/template/togglekind/','POST',{'pk':pk}).done(function(data) {
+							api.ajax('/template/togglekind','POST',{'pk':pk}).done(function(data) {
 								//~ console.log('data received:'+data);
                                 table.ajax.reload()	;
 							});  
@@ -332,7 +332,7 @@ function actionsTmplDetail(){
 							},
 							stack: stack_center
 						}).get().on('pnotify.confirm', function() {
-							api.ajax('/domains/update/','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
+							api.ajax('/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
 								//~ console.log('data received:'+data);
 							});  
 						}).on('pnotify.cancel', function() {

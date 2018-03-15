@@ -45,7 +45,7 @@ setDropzone();
         "ajax": {
                 //~ "url": "/admin/table/media/get",
                 //~ "dataSrc": ""
-				"url": "/admin/tabletest/media/post",
+				"url": "/admin/tabletest/media/post/",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'flatten':false})}            
