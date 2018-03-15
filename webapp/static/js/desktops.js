@@ -143,8 +143,9 @@ $(document).ready(function() {
                 actionsDesktopDetail();
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
                 if(row.data().status=='Stopped' || row.data().status=='Started'){
-                    setDomainGenealogy(row.data().id);
-                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                    //~ setDomainGenealogy(row.data().id);
+                    setDomainHotplug(row.data().id);
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                 }                
                 
                

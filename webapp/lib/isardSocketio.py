@@ -36,7 +36,7 @@ class DomainsThread(threading.Thread):
     def run(self):
         starteddict={}
         with app.app_context():
-            for c in r.table('domains').without('xml','hardware','viewer').changes(include_initial=False).run(db.conn):
+            for c in r.table('domains').without('xml','viewer').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
                 if self.stop==True: break
                 try:

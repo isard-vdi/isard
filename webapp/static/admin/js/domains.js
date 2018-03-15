@@ -186,10 +186,10 @@ $(document).ready(function() {
                 tr.addClass('shown');
                 $('#status-detail-'+row.data().id).html(row.data().detail);
                 actionsDomainDetail();
-                //~ setDomainDetailButtonsStatus(row.data().id,row.data().status)
+                setDomainDetailButtonsStatus(row.data().id,row.data().status)
                 if(row.data().status=='Stopped' || row.data().status=='Started' || row.data().status=='Failed'){
-                    setDomainGenealogy(row.data().id);
-                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                    //~ setDomainGenealogy(row.data().id);
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                     if(url!="Desktops"){
                         setDomainDerivates(row.data().id);
                     }
@@ -462,6 +462,9 @@ function setDefaultsTemplate(id) {
 //~ RENDER DATATABLE	
 function addDomainDetailPannel ( d ) {
 		$newPanel = $template_domain.clone();
+        if(kind=='desktop'){
+            $newPanel.find('#derivates-d\\.id').remove();
+        }
 		$newPanel.html(function(i, oldHtml){
 			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
 		});
