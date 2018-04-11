@@ -29,6 +29,7 @@ if __name__ == '__main__':
     isardSocketio.start_media_thread()
     isardSocketio.start_hypervisors_thread()
     isardSocketio.start_config_thread()
+    isardSocketio.start_resources_thread()
     
     import logging
     logger=logging.getLogger("socketio")

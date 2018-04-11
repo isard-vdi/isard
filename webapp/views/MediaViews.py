@@ -22,7 +22,7 @@ def media():
 @login_required
 def media_get(kind='username'):
     if kind=='username':
-        return json.dumps(app.isardapi.get_user_media(current_user.username)), 200, {'ContentType': 'application/json'}
+        return json.dumps(app.isardapi.get_all_alloweds_table('media',current_user.username, pluck=False)), 200, {'ContentType': 'application/json'}
     #~ if kind=='category': 
         #~ return json.dumps(app.isardapi.get_category_domains(current_user.category)), 200, {'ContentType': 'application/json'}
     #~ if kind=='group':
