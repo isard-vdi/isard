@@ -225,7 +225,7 @@ class Upgrade(object):
         table='hypervisors_pools'
         data=list(r.table(table).run())
         log.info('UPGRADING '+table+' VERSION '+str(version))
-        if version == 1:
+        if version == 1 or version == 3:
             for d in data:
                 id=d['id']
                 d.pop('id',None)
