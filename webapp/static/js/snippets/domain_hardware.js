@@ -64,7 +64,7 @@
 						  }).data("ionRangeSlider").update();
                 if($(id+" #disk_size").length != 0) {
                     if(hardware.user['quota-domains-desktops_disk_max']/1000000>200){
-                        var dsize=120;}else{ var dsize=hardware.user['quota-domains-desktops_disk_max']/1000000;}
+                        var dsize=120;}else{ var dsize=(hardware.user['quota-domains-desktops_disk_max']/1000000).toFixed(1);}
                     $(id+" #disk_size").ionRangeSlider({
                               type: "single",
                               min: 1,
@@ -78,6 +78,7 @@
     
 	function setHardwareDomainDefaults(div_id,domain_id){
 			// id is the domain id
+            //~ console.log('setHardwareDomainDefaults')
             $(div_id+' #hardware-interfaces option:selected').prop("selected", false);
             $(div_id+' #hardware-graphics option:selected').prop("selected", false);
             $(div_id+' #hardware-videos option:selected').prop("selected", false);
@@ -143,24 +144,25 @@
 			//~ }); 
 	//~ }
     
-	function setHardwareDomainDefaults_viewer(div_id,domain_id){
-			api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
-				$(div_id+" #vcpu").html(domain.hardware.vcpus+' CPU(s)');
-				$(div_id+" #ram").html(domain.hardware.memory);
+	function setHardwareDomainDefaults_viewer(div_id,data){
+        //~ console.log(data)
+			//~ api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
+				$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
+				$(div_id+" #ram").html(data.hardware.memory+data.hardware.memory_unit);
                 // List could not be ordered! In theory all the disks have same virtual-size
                 //~ $(div_id+" #disks").html(domain['disks_info'][0]['virtual-size']);
-				$(div_id+" #net").html(domain.hardware.interfaces[0].id);
-				$(div_id+" #graphics").html(domain.hardware.graphics.type);
-                $(div_id+" #video").html(domain.hardware.video.type);
-                $(div_id+" #boot").html(domain.hardware['boot_order']);
-                $(div_id+" #hypervisor_pool").html(domain['hypervisors_pools'][0]);
-                if(domain['forced_hyp']){
-                    $(div_id+" #forced_hyp").html(domain['forced_hyp']);
+				$(div_id+" #net").html(data.hardware.interfaces[0].id);
+				$(div_id+" #graphics").html(data.hardware.graphics.type);
+                $(div_id+" #video").html(data.hardware.video.type);
+                $(div_id+" #boot").html(data.hardware['boot_order']);
+                $(div_id+" #hypervisor_pool").html(data['hypervisors_pools'][0]);
+                if(data['forced_hyp']){
+                    $(div_id+" #forced_hyp").html(data['forced_hyp']);
                     $(div_id+" #forced_hyp").closest("tr").show();
                 }else{
                     $(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
                 }
-			}); 
+			//~ }); 
 	}
 
     function setHardwareGraph() {

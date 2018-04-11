@@ -566,7 +566,7 @@ class Wizard():
             @self.wapp.route('/content', methods=['POST'])
             def wizard_content():
                 global html
-                remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+                remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
                 if request.method == 'POST':
                     step=request.form['step_number']
                     if step == '1':

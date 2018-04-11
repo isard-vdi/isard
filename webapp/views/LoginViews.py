@@ -37,7 +37,7 @@ def login():
 # ~ @app.route('/voucher_login', methods=['POST', 'GET'])
 # ~ def voucher_login():
     # ~ if request.method == 'POST':
-        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         # ~ au=auth_voucher()
         # ~ if au.check_voucher(request.form['voucher']):
             # ~ if au.check_user_exists(request.form['email']):
@@ -54,7 +54,7 @@ def login():
 
 # ~ @app.route('/voucher_validation/<code>', methods=['GET'])
 # ~ def voucher_validation(code):
-    # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     # ~ au=auth_voucher()
     # ~ valid=False
     # ~ if au.check_validation(code):

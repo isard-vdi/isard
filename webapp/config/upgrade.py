@@ -17,8 +17,8 @@ from ..lib.load_config import load_config
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 2
-tables=['config','hypervisors','hypervisors_pools','domains']
+release_version = 3
+tables=['config','hypervisors','hypervisors_pools','domains','media']
 
 
 class Upgrade(object):
@@ -65,7 +65,7 @@ class Upgrade(object):
             for table in tables:
                 eval('self.'+table+'('+str(version)+')')
                 
-        r.table('config').get(1).update({'version':release_version}).run()
+        #~ r.table('config').get(1).update({'version':release_version}).run()
 
         
 
@@ -215,7 +215,7 @@ class Upgrade(object):
                 # ~ except Exception as e:
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
                     # ~ log.error('Error detail: '+str(e))                    
-                                
+                                                    
         return True
 
     '''
@@ -267,10 +267,6 @@ class Upgrade(object):
                 
         return True
 
-
-
-
-
     '''
     DOMAINS TABLE UPGRADES
     '''
@@ -321,6 +317,57 @@ class Upgrade(object):
          
         return True
 
+    '''
+    DOMAINS TABLE UPGRADES
+    '''
+    def media(self,version):
+        table='media'
+        log.info('UPGRADING '+table+' VERSION '+str(version))
+        #~ data=list(r.table(table).run())
+        if version == 3:
+            ''' KEY INDEX FIELDS PRE CHECKS ''' 
+            self.index_create(table,['kind']) 
+            
+            #~ for d in data:
+                #~ id=d['id']
+                #~ d.pop('id',None)                
+                #~ ''' CONVERSION FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):  
+                        ##### CONVERSION FIELDS
+                        # ~ cfg['field']={}
+                        # ~ r.table(table).update(cfg).run()  
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
+                    # ~ log.error('Error detail: '+str(e))
+   
+                #~ ''' NEW FIELDS PRE CHECKS '''   
+                #~ try: 
+                    #~ if not self.check_done( d,
+                                        #~ ['preferences'],
+                                        #~ []):                                     
+                        #~ ##### NEW FIELDS
+                        #~ self.add_keys(  table, 
+                                        #~ [   {'options': {'viewers':{'spice':{'fullscreen':False}}}}],
+                                            #~ id=id)
+                #~ except Exception as e:
+                    #~ log.error('Could not update table '+table+' add fields for db version '+version+'!')
+                    #~ log.error('Error detail: '+str(e))
+                
+                #~ ''' REMOVE FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):   
+                        #### REMOVE FIELDS
+                        # ~ self.del_keys(TABLE,[])
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
+                    # ~ log.error('Error detail: '+str(e))                    
+         
+        return True
         
     '''
     Upgrade general actions
@@ -376,3 +423,12 @@ class Upgrade(object):
             except KeyError:
                 return False
         return True
+
+
+    def index_create(self,table,indexes):
+        with app.app_context():
+            indexes_ontable=r.table(table).index_list().run()
+            apply_indexes = [mi for mi in indexes if mi not in indexes_ontable]
+            for i in apply_indexes:
+                r.table(table).index_create(i).run()
+                r.table(table).index_wait(i).run()

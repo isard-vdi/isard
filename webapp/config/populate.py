@@ -269,7 +269,7 @@ class Populate(object):
                                                       'name': 'User',
                                                       'description': 'Can create desktops and start it',
                                                       'quota': {'domains': {'desktops': 3,
-                                                                            'desktops_disk_max': 60000000,
+                                                                            'desktops_disk_max': 25000000,
                                                                             'templates': 0,
                                                                             'templates_disk_max': 0,
                                                                             'running': 1,
@@ -282,12 +282,12 @@ class Populate(object):
                                                       'name': 'Advanced user',
                                                       'description': 'Can create desktops and templates and start desktops',
                                                       'quota': {'domains': {'desktops': 6,
-                                                                            'desktops_disk_max': 90000000,
+                                                                            'desktops_disk_max': 40000000,
                                                                             'templates': 4,
-                                                                            'templates_disk_max': 50000000,
+                                                                            'templates_disk_max': 40000000,
                                                                             'running': 2,
                                                                             'isos': 3,
-                                                                            'isos_disk_max': 3000000},
+                                                                            'isos_disk_max': 5000000},
                                                                 'hardware': {'vcpus': 3,
                                                                              'memory': 3000000}},  # 3GB
                                                       },
@@ -295,12 +295,12 @@ class Populate(object):
                                                       'name': 'Administrator',
                                                       'description': 'Is God',
                                                       'quota': {'domains': {'desktops': 12,
-                                                                            'desktops_disk_max': 150000000,
+                                                                            'desktops_disk_max': 350000000,
                                                                             'templates': 8,
-                                                                            'templates_disk_max': 150000000,
+                                                                            'templates_disk_max': 350000000,
                                                                             'running': 4,
                                                                             'isos': 6,
-                                                                            'isos_disk_max': 8000000},
+                                                                            'isos_disk_max': 15000000},
                                                                 'hardware': {'vcpus': 4,
                                                                              'memory': 4000000}}  # 10GB
                                                       }]).run())
@@ -567,7 +567,7 @@ class Populate(object):
             if not r.table_list().contains('media').run():
                 log.info("Table media not found, creating...")
                 r.table_create('media', primary_key="id").run()
-        self.index_create('media',['status','user'])
+        self.index_create('media',['status','user','kind'])
         return True
 
     '''
@@ -613,6 +613,7 @@ class Populate(object):
                                                      'hostname': vals[0],
                                                      'viewer_hostname': self._hypervisor_viewer_hostname(vals[1]),
                                                      'viewer_nat_hostname': self._hypervisor_viewer_hostname(vals[1]),
+                                                     'viewer_nat_offset': 0,
                                                      'user': vals[2],
                                                      'port': vals[3],
                                                      'uri': '',

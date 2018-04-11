@@ -123,13 +123,19 @@ class isardAdmin():
                 data=r.table(table).run(db.conn)
                 return self.f.table_values_bstrap(data) if flatten else list(data)
 
-    def get_admin_table_term(self, table, field, value, pluck=False):
+    def get_admin_table_term(self, table, field, value, kind=False, pluck=False):
         with app.app_context():
-            if pluck:
-                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+            if kind:
+                if pluck:
+                    return self.f.table_values_bstrap(r.table(table).get_all(kind, index='kind').filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+                else:
+                    return self.f.table_values_bstrap(r.table(table).get_all(kind, index='kind').filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
             else:
-                return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
-
+                if pluck:
+                    return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
+                else:
+                    return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
+                
     def insert_table_dict(self, table, dict):
         with app.app_context():
             return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
@@ -139,11 +145,11 @@ class isardAdmin():
             return r.table(table).insert(dict, conflict='update').run(db.conn)
                                         
     def update_table_dict(self, table, id, dict):
-        with app.app_context():
-            print(table)
-            print(id)
-            print(dict)
-            return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
+        # ~ with app.app_context():
+            # ~ print(table)
+            # ~ print(id)
+            # ~ print(dict)
+        return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
             
     '''
     USERS
@@ -164,11 +170,17 @@ class isardAdmin():
             user['quota']['domains'][k]=int(v)
         for k,v in user['quota']['hardware'].items():
             user['quota']['hardware'][k]=int(v)     
-        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000                    
-        qdomains ={'desktops_disk_max': 99999999,  # 100GB
-                    'templates_disk_max': 99999999,
-                    'isos_disk_max': 99999999}
-        user['quota']['domains']={**qdomains, **user['quota']['domains']}       
+        user['quota']['hardware']['memory']=user['quota']['hardware']['memory']*1000 
+        
+        with app.app_context():  
+            qdomains=r.table('roles').get(user['role']).run(db.conn)['quota']['domains']
+        user['quota']['domains']={**qdomains, **user['quota']['domains']} 
+        
+        
+        # ~ qdomains ={'desktops_disk_max': 99999999,  # 100GB
+                    # ~ 'templates_disk_max': 99999999,
+                    # ~ 'isos_disk_max': 99999999}
+        # ~ user['quota']['domains']={**qdomains, **user['quota']['domains']}       
 
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
@@ -314,32 +326,32 @@ class isardAdmin():
         with app.app_context():
             if 'template' in kind:
                 if not id:
-                    return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','hardware','history_domain').merge(lambda domain:
+                    return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
-                    return list(r.table("domains").get(id).without('xml','hardware','history_domain').merge(lambda domain:
+                    return list(r.table("domains").get(id).without('xml','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
             elif kind == 'base':
                 if not id:
-                    return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware','history_domain').merge(lambda domain:
+                    return list(r.table("domains").get_all(kind,index='kind').without('xml','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
-                    return list(r.table("domains").get(id).without('xml','hardware','history_domain').merge(lambda domain:
+                    return list(r.table("domains").get(id).without('xml','history_domain').merge(lambda domain:
                         {
                             "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))                
             else:
-               return list(r.table("domains").get_all(kind,index='kind').without('xml','hardware').merge(lambda domain:
+               return list(r.table("domains").get_all(kind,index='kind').without('xml').merge(lambda domain:
                     {
                         #~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count(),
                         "accessed": domain['history_domain'][0]['when'].default(0)

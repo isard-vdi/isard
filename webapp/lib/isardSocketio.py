@@ -36,7 +36,7 @@ class DomainsThread(threading.Thread):
     def run(self):
         starteddict={}
         with app.app_context():
-            for c in r.table('domains').without('xml','hardware','viewer').changes(include_initial=False).run(db.conn):
+            for c in r.table('domains').without('xml','viewer').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
                 if self.stop==True: break
                 try:
@@ -187,9 +187,6 @@ class MediaThread(threading.Thread):
         with app.app_context():
             for c in r.table('domains').get_all(r.args(['Downloading','Downloaded']),index='status').pluck('id','name','description','icon','progress','status','user').merge({'table':'domains'}).changes(include_initial=False).union(
                     r.table('media').get_all(r.args(['DownloadStarting','Downloading','Downloaded']),index='status').merge({'table':'media'}).changes(include_initial=False)).run(db.conn):
-            
-            # ~ for c in r.table('media').changes(include_initial=False).run(db.conn):
-                #~ .pluck('id','percentage')
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -199,6 +196,7 @@ class MediaThread(threading.Thread):
                         data=c['new_val']
                         event=c['new_val']['table']+'_data'
                     ## Admins should receive all updates on /admin namespace
+                    ## Users should receive not only their media updates, also the shared one's with them!
                     socketio.emit(event, 
                                     json.dumps(data), 
                                     namespace='/sio_users', 
@@ -208,7 +206,7 @@ class MediaThread(threading.Thread):
                                     namespace='/sio_users', 
                                     room='user_'+data['user'])                    
                     socketio.emit(event, 
-                                    json.dumps(data), #app.isardapi.f.flatten_dict(data)), 
+                                    json.dumps(data),
                                     namespace='/sio_admins', 
                                     room='media')
                 except Exception as e:
@@ -249,7 +247,7 @@ class ResourcesThread(threading.Thread):
                     socketio.emit(event, 
                                     json.dumps(data), #app.isardapi.f.flatten_dict(data)), 
                                     namespace='/sio_admins', 
-                                    room='resources')
+                                    room='resources')                                  
                 except Exception as e:
                     log.error('MediaThread error:'+str(e))
 
@@ -681,7 +679,7 @@ def socketio_domain_edit(form_data):
         #~ None
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardware(create_dict)
-    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict['create_dict']['hardware']={**create_dict['hardware'], **create_dict['create_dict']['hardware']}
     create_dict.pop('hardware',None)
 
     if 'options' not in create_dict:
@@ -689,13 +687,47 @@ def socketio_domain_edit(form_data):
     else:
         if 'fullscreen' in create_dict['options']['viewers']['spice']:
             create_dict['options']['viewers']['spice']['fullscreen']=True
-                
+    
     res=app.isardapi.update_domain(create_dict.copy())
     if res is True:
         data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' has been updated...','icon':'success','type':'success'})
     else:
         data=json.dumps({'id':create_dict['id'], 'result':True,'title':'Updated desktop','text':'Desktop '+create_dict['name']+' can\'t be updated.','icon':'warning','type':'error'})
     socketio.emit('edit_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
+
+@socketio.on('domain_template_add', namespace='/sio_users')
+def socketio_domain_template_add(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+        
+    #~ if float(app.isardapi.get_user_quotas(current_user.username)['tqp']) >= 100:
+        #~ flash('Quota for creating new templates is full','danger')
+        #~ return redirect(url_for('desktops'))
+    #~ # if app.isardapi.is_domain_id_unique
+    #~ original=app.isardapi.get_domain(form_data['id'])
+
+    partial_tmpl_dict=app.isardapi.f.unflatten_dict(form_data)
+    partial_tmpl_dict=parseHardware(partial_tmpl_dict)
+    partial_tmpl_dict['create_dict']['hardware']={**partial_tmpl_dict['hardware'], **partial_tmpl_dict['create_dict']['hardware']}
+    partial_tmpl_dict.pop('hardware',None)
+    from_id=partial_tmpl_dict['id']
+    partial_tmpl_dict.pop('id',None)
+
+    res=app.isardapi.new_tmpl_from_domain(from_id, partial_tmpl_dict, current_user.username)
+
+    #~ create_dict=app.isardapi.f.unflatten_dict(form_data)
+    #~ create_dict=parseHardware(create_dict)
+    #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    if res is True:
+        data=json.dumps({'result':True,'title':'New template','text':'Template '+partial_tmpl_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'New template','text':'Template '+partial_tmpl_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
                     data,
                     namespace='/sio_users', 
                     room='user_'+current_user.username)

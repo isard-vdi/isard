@@ -8,6 +8,7 @@
 function apiCall() {
     var self = this;
     self.ajax = function(uri,method, data) {
+//        if(uri.endsWith('/')){uri=uri.substring(0, uri.length - 1);}
                 var request = {
                     url: uri,
                     type: method,

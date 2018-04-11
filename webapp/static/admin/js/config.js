@@ -8,7 +8,7 @@
 $(document).ready(function() {
 
 
-    api.ajax('/admin/config','POST',{}).done(function(data) {
+    api.ajax('/admin/config/','POST',{}).done(function(data) {
         $.each( data, function( key, value ) {
             if(typeof(value) === "boolean"){
                 $('#'+key).iCheck('disable');

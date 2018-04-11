@@ -1,18 +1,18 @@
 var derivates_table =''
-function setDomainDerivates(id){
-	$("#bulk-edit-"+id).on( 'click', function () {
-            $("#modalBulkEditForm")[0].reset();
-            setHardwareOptions('#modalBulkEdit','disk');
-			$('#modalBulkEdit').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            setHardwareDomainDefaults('#modalBulkEdit', id);
-            //~ $('#modalAddFromBuilder #modalAdd').parsley();
-            modal_bulk_edit_setdata("#modalBulkEditForm");
-	});    
+function setDomainHotplug(id){
+	//~ $("#bulk-edit-"+id).on( 'click', function () {
+            //~ $("#modalBulkEditForm")[0].reset();
+            //~ setHardwareOptions('#modalBulkEdit','disk');
+			//~ $('#modalBulkEdit').modal({
+				//~ backdrop: 'static',
+				//~ keyboard: false
+			//~ }).modal('show');
+            //~ setHardwareDomainDefaults('#modalBulkEdit', id);
+            //$('#modalAddFromBuilder #modalAdd').parsley();
+            //~ modal_bulk_edit_setdata("#modalBulkEditForm");
+	//~ });    
         
-    derivates_table=$("#table-derivates-"+id).DataTable({
+    hotplug_table=$("#table-hotplug-"+id).DataTable({
 			"ajax": {
 				"url": "/domain_derivates/",
                 "contentType": "application/json",
@@ -64,35 +64,35 @@ function setDomainDerivates(id){
             
 }
     
-function modal_bulk_edit_setdata(id){
-        names=''
-        ids=[]
-        $(id+" #ids").find('option').remove();
-        if(derivates_table.rows('.active').data().length){
-            $.each(derivates_table.rows('.active').data(),function(key, value){
+//~ function modal_bulk_edit_setdata(id){
+        //~ names=''
+        //~ ids=[]
+        //~ $(id+" #ids").find('option').remove();
+        //~ if(derivates_table.rows('.active').data().length){
+            //~ $.each(derivates_table.rows('.active').data(),function(key, value){
                 //~ names+=value['name']+'\n';
                 //~ ids.push(value['id']);
-                $(id+' #ids').append('<option value=' + value.id + '>' + value.name + '</option>');
-            });
+                //~ $(id+' #ids').append('<option value=' + value.id + '>' + value.name + '</option>');
+            //~ });
             //~ var text = "You are about to these desktops:\n\n "+names
-        }else{ 
-            $.each(derivates_table.rows({filter: 'applied'}).data(),function(key, value){
+        //~ }else{ 
+            //~ $.each(derivates_table.rows({filter: 'applied'}).data(),function(key, value){
                 //~ ids.push(value['id']);
-                $(id+' #ids').append('<option value=' + value.id + '>' + value.name + '</option>');
-            });
+                //~ $(id+' #ids').append('<option value=' + value.id + '>' + value.name + '</option>');
+            //~ });
             //~ var text = "You are about to "+derivates_table.rows({filter: 'applied'}).data().length+" desktops!\n All the desktops in list!"
-        }    
-        $(id+' #ids > option').attr("selected",true);
+        //~ }    
+        //~ $(id+' #ids > option').attr("selected",true);
         //~ console.log(text)
         //~ $(id+' #afecteds').val(text);
         
-        $(id+" .btn-unselect-all").on( 'click', function () {
-            $(id+' #ids > option').attr("selected",false);
-        })
+        //~ $(id+" .btn-unselect-all").on( 'click', function () {
+            //~ $(id+' #ids > option').attr("selected",false);
+        //~ })
 
 
-        $(id+" .btn-select-all").on( 'click', function () {
-            $(id+' #ids > option').attr("selected",true);
-        })        
+        //~ $(id+" .btn-select-all").on( 'click', function () {
+            //~ $(id+' #ids > option').attr("selected",true);
+        //~ })        
     
-}
+//~ }
