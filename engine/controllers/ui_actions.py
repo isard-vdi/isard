@@ -44,10 +44,11 @@ class UiActions(object):
 
 
 
-    def start_domain_from_id(self, id, ssl=True):
+    def start_domain_from_id(self, id, ssl=True, cpu_host_model=False):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
 
-        xml = recreate_xml_to_start(id,ssl)
+        # TODO: Read the cpu_host_model value from hypervisor_pool database
+        xml = recreate_xml_to_start(id, ssl, cpu_host_model=True)
 
         pool_id = get_pool_from_domain(id)
 
