@@ -17,7 +17,7 @@ from ..lib.load_config import load_config
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 3
+release_version = 4
 tables=['config','hypervisors','hypervisors_pools','domains','media']
 
 
@@ -260,6 +260,39 @@ class Upgrade(object):
                         #### REMOVE FIELDS
                         self.del_keys(table,[{'paths':{'isos'}}])
                     
+                except Exception as e:
+                    log.error('Something went wrong while upgrading hypervisors!')
+                    log.error(e)
+                    exit(1)
+
+        if version == 4:
+            for d in data:
+                id = d['id']
+                d.pop('id', None)
+                try:
+                    ''' CONVERSION FIELDS PRE CHECKS '''
+                    # ~ if not self.check_done( d,
+                    # ~ [],
+                    # ~ []):
+                    ##### CONVERSION FIELDS
+                    # ~ cfg['field']={}
+                    # ~ r.table(table).update(cfg).run()
+
+                    ''' NEW FIELDS PRE CHECKS '''
+                    if not self.check_done(d,
+                                           [['cpu_host_model']],
+                                           []):
+                        ##### NEW FIELDS
+                        self.add_keys(table, [{'cpu_host_model': False}],
+                                      id=id)
+
+                    # ''' REMOVE FIELDS PRE CHECKS '''
+                    # if not self.check_done(d,
+                    #                        [],
+                    #                        [['paths', 'isos']]):
+                    #     #### REMOVE FIELDS
+                    #     self.del_keys(table, [{'paths': {'isos'}}])
+
                 except Exception as e:
                     log.error('Something went wrong while upgrading hypervisors!')
                     log.error(e)
