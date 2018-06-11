@@ -328,6 +328,7 @@ def filterTemplate(kind,category=False,group=False,user=False):
     #~ domains = app.isardapi.get_templates(dict)
     #~ return Response(json.dumps(domains), mimetype='application/json')
     return Response(json.dumps(app.isardapi.get_alloweds_domains(current_user.username,kind, custom_filter)), mimetype='application/json')
+    #~ return Response(json.dumps(app.isardapi.get_all_alloweds_table(current_user.username,kind, custom_filter)), mimetype='application/json')
 
 @app.route('/desktops/getAllTemplates', methods=['GET'])
 @login_required

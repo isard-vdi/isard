@@ -1,5 +1,6 @@
 
 	function setAlloweds_viewer(div_id,id){
+		console.log('allowed viewer')
 			api.ajax('/domain/alloweds','POST',{'pk':id}).done(function(alloweds) {
                 var all=false;
                 $.each(alloweds,function(key, value) 

@@ -64,7 +64,7 @@ def templates_kind():
         except:
             args = request.form.to_dict()
         try:
-            if app.isardapi.template_kind_toogle(current_user.username,args['pk']):
+            if app.isardapi.template_kind_toggle(current_user.username,args['pk']):
                 return json.dumps('Updated'), 200, {'ContentType':'application/json'}
             else:
                 return json.dumps('Something went wrong.'), 500, {'ContentType':'application/json'}

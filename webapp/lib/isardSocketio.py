@@ -89,6 +89,7 @@ class DomainsThread(threading.Thread):
                         else:
                             event='template_data'
                             data['derivates']=app.adminapi.get_admin_domains_with_derivates(id=c['new_val']['id'],kind='template')
+                            data['kind']=app.isardapi.get_template_kind(data['user'],data)
                     socketio.emit(event, 
                                     json.dumps(data), 
                                     #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
