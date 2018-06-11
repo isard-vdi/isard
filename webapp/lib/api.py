@@ -664,7 +664,7 @@ class isard():
                                 continue
                             if ud['role'] in d['allowed']['roles']:
                                 if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data[group].append(d)
+                                allowed_data.append(d)
                                 continue
                         if d['allowed']['categories'] is not False:
                             if not d['allowed']['categories']:
