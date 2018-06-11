@@ -65,7 +65,7 @@ class Upgrade(object):
             for table in tables:
                 eval('self.'+table+'('+str(version)+')')
                 
-        #~ r.table('config').get(1).update({'version':release_version}).run()
+        r.table('config').get(1).update({'version':release_version}).run()
 
         
 
