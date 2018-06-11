@@ -119,7 +119,7 @@ class isardViewer():
         hostname=dict['host']
         if dict['tlsport']:
             return False
-        os='MacOS'
+        #~ os='MacOS'
         if os in ['iOS','Windows','Android','Linux', 'generic', None]:
             consola="""[Connection]
             Host=%s
