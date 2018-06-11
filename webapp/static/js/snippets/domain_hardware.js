@@ -147,6 +147,7 @@
 	function setHardwareDomainDefaults_viewer(div_id,data){
         //~ console.log(data)
 			//~ api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
+			if(data["hardware"]  != undefined){
 				$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
 				$(div_id+" #ram").html(data.hardware.memory+data.hardware.memory_unit);
                 // List could not be ordered! In theory all the disks have same virtual-size
@@ -162,6 +163,7 @@
                 }else{
                     $(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
                 }
+            }
 			//~ }); 
 	}
 

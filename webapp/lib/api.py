@@ -332,8 +332,8 @@ class isard():
                                 domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
             log.error('get_domain: '+str(e))
-        import pprint
-        pprint.pprint(domain)
+        #~ import pprint
+        #~ pprint.pprint(domain)
         return domain 
         
     def get_backing_ids(self,id):
