@@ -711,7 +711,6 @@ function modal_edit_desktop_datatables(id){
 			$('#modalEditDesktop #name_hidden').val(data.name);
             $('#modalEditDesktop #name').val(data.name);
 			$('#modalEditDesktop #description').val(data.description);
-			console.log(id)
             $('#modalEditDesktop #id').val(data.id);
             setHardwareDomainDefaults('#modalEditDesktop', id);
             if(data['options-viewers-spice-fullscreen']){
@@ -731,7 +730,6 @@ function modal_edit_desktop_datatables(id){
             form.parsley().validate();
             if (form.parsley().isValid()){
                     data=$('#modalEdit').serializeObject();
-                    console.log(data)
                     data=replaceMedia_arrays('#modalEditDesktop',data);
                     socket.emit('domain_edit',data)
             }
