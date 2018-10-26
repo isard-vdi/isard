@@ -26,7 +26,7 @@ type endpointKey struct {
 
 var jsonEmptyList, _ = json.Marshal(&vmList{})
 
-var tests = []struct {
+var listTests = []struct {
 	list       *vmList
 	validToken string
 	endpoints  map[string]endpointKey
@@ -95,7 +95,7 @@ var tests = []struct {
 }
 
 func TestListVMs(t *testing.T) {
-	for _, tt := range tests {
+	for _, tt := range listTests {
 		endpoints = tt.endpoints
 
 		t.Run("returns the VMs list correctly", func(t *testing.T) {
