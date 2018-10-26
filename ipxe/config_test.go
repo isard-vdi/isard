@@ -56,7 +56,7 @@ func finishTest() error {
 func TestCreateInitialConfig(t *testing.T) {
 	t.Run("creates the configuration file correctly", func(t *testing.T) {
 		if err := prepareTest(); err != nil {
-			t.Fatalf("error preparating the test: %v", err)
+			t.Fatalf("error preparing the test: %v", err)
 		}
 
 		err := createInitialConfig()
@@ -72,12 +72,12 @@ func TestCreateInitialConfig(t *testing.T) {
 	t.Run("error creating the file", func(t *testing.T) {
 		initialFolder, err := os.Getwd()
 		if err != nil {
-			t.Fatalf("error preparating the test: %v", err)
+			t.Fatalf("error preparing the test: %v", err)
 		}
 
 		err = os.Chdir("/")
 		if err != nil {
-			t.Fatalf("error preparating the test: %v", err)
+			t.Fatalf("error preparing the test: %v", err)
 		}
 
 		err = createInitialConfig()
@@ -95,7 +95,7 @@ func TestCreateInitialConfig(t *testing.T) {
 func TestReadConfig(t *testing.T) {
 	t.Run("reads the configuration successfully", func(t *testing.T) {
 		if err := prepareTest(); err != nil {
-			t.Fatalf("error preparating the test: %v", err)
+			t.Fatalf("error preparing the test: %v", err)
 		}
 
 		expectedConfig := &config{
@@ -120,12 +120,12 @@ func TestReadConfig(t *testing.T) {
 	t.Run("create initial config fails", func(t *testing.T) {
 		initialFolder, err := os.Getwd()
 		if err != nil {
-			t.Fatalf("error preparating the test: %v", err)
+			t.Fatalf("error preparing the test: %v", err)
 		}
 
 		err = os.Chdir("/")
 		if err != nil {
-			t.Fatalf("error preparating the test: %v", err)
+			t.Fatalf("error preparing the test: %v", err)
 		}
 
 		expectedConfig := &config{}
