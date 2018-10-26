@@ -7,9 +7,16 @@ import (
 	"testing"
 )
 
+var initialFolder string
 var testingFolder string
 
 func prepareTest() error {
+	var err error
+	initialFolder, err = os.Getwd()
+	if err != nil {
+		return err
+	}
+
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	b := make([]byte, 6)
@@ -19,7 +26,7 @@ func prepareTest() error {
 
 	testingFolder = "/tmp/isard-ipxe_test_" + string(b)
 
-	err := os.Mkdir(testingFolder, 0755)
+	err = os.Mkdir(testingFolder, 0755)
 	if err != nil {
 		return err
 	}
@@ -34,6 +41,11 @@ func prepareTest() error {
 
 func finishTest() error {
 	err := os.RemoveAll(testingFolder)
+	if err != nil {
+		return err
+	}
+
+	err = os.Chdir(initialFolder)
 	if err != nil {
 		return err
 	}
@@ -58,7 +70,12 @@ func TestCreateInitialConfig(t *testing.T) {
 	})
 
 	t.Run("error creating the file", func(t *testing.T) {
-		err := os.Chdir("/")
+		initialFolder, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("error preparating the test: %v", err)
+		}
+
+		err = os.Chdir("/")
 		if err != nil {
 			t.Fatalf("error preparating the test: %v", err)
 		}
@@ -66,6 +83,11 @@ func TestCreateInitialConfig(t *testing.T) {
 		err = createInitialConfig()
 		if !os.IsPermission(err) {
 			t.Errorf("expected %v, but got %v", os.ErrPermission, err)
+		}
+
+		err = os.Chdir(initialFolder)
+		if err != nil {
+			t.Fatalf("error finishing the test: %v", err)
 		}
 	})
 }
@@ -96,7 +118,12 @@ func TestReadConfig(t *testing.T) {
 	})
 
 	t.Run("create initial config fails", func(t *testing.T) {
-		err := os.Chdir("/")
+		initialFolder, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("error preparating the test: %v", err)
+		}
+
+		err = os.Chdir("/")
 		if err != nil {
 			t.Fatalf("error preparating the test: %v", err)
 		}
@@ -111,6 +138,11 @@ func TestReadConfig(t *testing.T) {
 
 		if !reflect.DeepEqual(config, expectedConfig) {
 			t.Errorf("expecting %v, but git %v", expectedConfig, config)
+		}
+
+		err = os.Chdir(initialFolder)
+		if err != nil {
+			t.Fatalf("error finishing the test: %v", err)
 		}
 	})
 }
