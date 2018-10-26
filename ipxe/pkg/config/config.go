@@ -1,4 +1,4 @@
-package isardipxe
+package config
 
 import (
 	"io/ioutil"
@@ -7,14 +7,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// config is the struct that contains all the configuration parameters
-type config struct {
+// Config is the struct that contains all the configuration parameters
+type Config struct {
 	BaseURL string `yaml:"base_url"`
 }
 
 // createInitialConfig creates the configuration file and populates it with the default values
 func createInitialConfig() error {
-	c := &config{
+	c := &Config{
 		BaseURL: "https://isard.domain.com",
 	}
 
@@ -32,7 +32,7 @@ func createInitialConfig() error {
 }
 
 // ReadConfig reads the configuration
-func (c *config) ReadConfig() error {
+func (c *Config) ReadConfig() error {
 	if _, err := os.Stat("config.yml"); os.IsNotExist(err) {
 		if err = createInitialConfig(); err != nil {
 			return err
