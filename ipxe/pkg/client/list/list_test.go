@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -16,6 +17,10 @@ type testWebRequest struct{}
 
 func (testWebRequest) Get(url string) ([]byte, int, error) {
 	return endpoints[url].Body, endpoints[url].Code, endpoints[url].Err
+}
+
+func (testWebRequest) Post(url string, body io.ReadCloser) ([]byte, int, error) {
+	return []byte(""), 500, nil
 }
 
 var endpoints map[string]endpointKey
