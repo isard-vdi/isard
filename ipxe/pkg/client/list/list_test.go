@@ -19,7 +19,7 @@ func (testWebRequest) Get(url string) ([]byte, int, error) {
 	return endpoints[url].Body, endpoints[url].Code, endpoints[url].Err
 }
 
-func (testWebRequest) Post(url string, body io.ReadCloser) ([]byte, int, error) {
+func (testWebRequest) Post(url string, body io.Reader) ([]byte, int, error) {
 	return nil, 500, nil
 }
 
