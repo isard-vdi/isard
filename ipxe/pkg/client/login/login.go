@@ -30,7 +30,7 @@ func Call(webRequest mocks.WebRequest, username string, password string) (string
 		Password: password,
 	})
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	body := bytes.NewBuffer(encodedBody)
