@@ -12,7 +12,12 @@ func GenerateLogin() (string, error) {
 
 	err := config.ReadConfig()
 	if err != nil {
-		return "", err
+		menu := `#!ipxe
+echo There was an error reading the configuration file. If this error persists, contact your IsardVDI administrator.
+prompt Press any key to try again
+reboot`
+
+		return menu, err
 	}
 
 	url := config.BaseURL + "/pxe/boot/login"

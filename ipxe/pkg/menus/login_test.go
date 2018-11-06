@@ -36,7 +36,10 @@ chain https://isard.domain.com/pxe/boot/login?usr=${username:uristring}&pwd=${pa
 			t.Fatalf("error preparing the test %v", err)
 		}
 
-		expectedRsp := ""
+		expectedRsp := `#!ipxe
+echo There was an error reading the configuration file. If this error persists, contact your IsardVDI administrator.
+prompt Press any key to try again
+reboot`
 		expectedErr := "open config.yml: permission denied"
 
 		menu, err := menus.GenerateLogin()
