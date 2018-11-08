@@ -10,12 +10,16 @@ import (
 // Config is the struct that contains all the configuration parameters
 type Config struct {
 	BaseURL string `yaml:"base_url"`
+
+	// TLS Certificates
+	CACert string `yaml:"ca_cert"`
 }
 
 // createInitialConfig creates the configuration file and populates it with the default values
 func createInitialConfig() error {
 	c := &Config{
 		BaseURL: "https://isard.domain.com",
+		CACert:  "./certs/ca.pem",
 	}
 
 	d, err := yaml.Marshal(c)
