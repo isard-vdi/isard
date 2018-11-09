@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"reflect"
@@ -63,6 +64,7 @@ func finishTest(workOnTmp bool) error {
 
 	return nil
 }
+
 func TestReadConfig(t *testing.T) {
 	t.Run("reads the configuration successfully", func(t *testing.T) {
 		if err := prepareTest(true); err != nil {
@@ -109,6 +111,63 @@ func TestReadConfig(t *testing.T) {
 		}
 
 		if err = finishTest(false); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+
+	t.Run("there's an error reading the configuration file", func(t *testing.T) {
+		if err := prepareTest(true); err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		config := config.Config{}
+		err := config.ReadConfig()
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		err = os.Chmod("config.yml", 0000)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		expectedErr := "open config.yml: permission denied"
+
+		err = config.ReadConfig()
+		if err.Error() != expectedErr {
+			t.Errorf("expecting %s, but got %v", expectedErr, err)
+		}
+
+		if err = finishTest(true); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+
+	t.Run("there's an error parsing the YAML", func(t *testing.T) {
+		if err := prepareTest(true); err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		config := config.Config{}
+		err := config.ReadConfig()
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		err = ioutil.WriteFile("config.yml", []byte(`%&'
+:;|[]()`), 0644)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		expectedErr := "yaml: could not find expected directive name"
+
+		err = config.ReadConfig()
+		if err.Error() != expectedErr {
+			t.Errorf("expecting %s, but got %v", expectedErr, err)
+		}
+
+		if err = finishTest(true); err != nil {
 			t.Fatalf("error finishing the test: %v", err)
 		}
 	})
