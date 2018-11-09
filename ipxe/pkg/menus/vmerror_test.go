@@ -11,13 +11,11 @@ import (
 func TestGenerateVMError(t *testing.T) {
 	t.Run("should work as expected", func(t *testing.T) {
 		expectedRsp := `#!ipxe
-set username nefix
-set password p4$$w0rd!
 echo The VM start has failed: testing error
 prompt Press any key to go back
-chain https://isard.domain.com/pxe/boot/login?usr=${username:uristring}&pwd=${password:uristring}`
+chain https://isard.domain.com/pxe/boot/`
 
-		menu, err := menus.GenerateVMError(errors.New("testing error"), "nefix", "p4$$w0rd!")
+		menu, err := menus.GenerateVMError(errors.New("testing error"))
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

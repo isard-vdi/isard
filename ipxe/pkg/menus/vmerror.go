@@ -7,7 +7,7 @@ import (
 )
 
 // GenerateVMError generates an iPXE menu with an error
-func GenerateVMError(vmErr error, username string, password string) (string, error) {
+func GenerateVMError(vmErr error) (string, error) {
 	config := config.Config{}
 	err := config.ReadConfig()
 	if err != nil {
@@ -20,9 +20,7 @@ reboot`
 	}
 
 	return fmt.Sprintf(`#!ipxe
-set username %s
-set password %s
 echo The VM start has failed: %v
 prompt Press any key to go back
-chain %v/pxe/boot/login?usr=${username:uristring}&pwd=${password:uristring}`, username, password, vmErr, config.BaseURL), nil
+chain %v/pxe/boot/`, vmErr, config.BaseURL), nil
 }
