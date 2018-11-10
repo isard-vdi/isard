@@ -15,7 +15,7 @@ from ..lib.log import *
 from ..lib.isardViewer import isardViewer
 isardviewer = isardViewer()                   
 
-# ~ import secrets
+from uuid import uuid4
 import time,json
 
 class usrTokens():
@@ -24,8 +24,7 @@ class usrTokens():
         self.valid_seconds = 60 # Between client accesses to api
 
     def add(self,usr):
-        # ~ tkn=secrets.token_urlsafe(32)
-        tkn="oqwefj0w9jfw0eijfwaeifj"
+        tkn=str(uuid4())[:32]
         self.tokens[tkn]={"usr":usr,"timestamp":time.time(),"domains":[]}
         return tkn
         # we should check other tokens for expiry time
