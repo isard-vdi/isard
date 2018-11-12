@@ -1,7 +1,7 @@
 package menus
 
 import (
-	"fmt"
+	"bytes"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 )
@@ -12,21 +12,22 @@ func GenerateLogin() (string, error) {
 
 	err := config.ReadConfig()
 	if err != nil {
-		menu := `#!ipxe
-echo There was an error reading the configuration file. If this error persists, contact your IsardVDI administrator.
-prompt Press any key to try again
-reboot`
+		buf := new(bytes.Buffer)
 
-		return menu, err
+		t := parseTemplate("error.ipxe")
+		t.Execute(buf, menuTemplateData{
+			Err: "reading the configuration file",
+		})
+
+		return buf.String(), err
 	}
 
-	url := config.BaseURL + "/pxe/boot/login"
+	buf := new(bytes.Buffer)
 
-	menu := fmt.Sprintf(`#!ipxe
-set username
-set password
-login
-chain %s?usr=${username:uristring}&pwd=${password:uristring}`, url)
+	t := parseTemplate("login.ipxe")
+	t.Execute(buf, menuTemplateData{
+		BaseURL: config.BaseURL,
+	})
 
-	return menu, nil
+	return buf.String(), nil
 }

@@ -84,11 +84,11 @@ item reboot Reboot -->
 item poweroff Poweroff -->
 choose target && goto ${target}
 :_nefix_KDE_Neon_5
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn}&id=_nefix_KDE_Neon_5
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_KDE_Neon_5
 :_nefix_Debian_9
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn}&id=_nefix_Debian_9
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Debian_9
 :_nefix_Arch_Linux
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn}&id=_nefix_Arch_Linux
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Arch_Linux
 :bootFromDisk
 sanboot --no-describe --drive 0x80
 :reboot
@@ -120,11 +120,12 @@ func TestGenerateList(t *testing.T) {
 set username
 set password
 login
-chain https://isard.domain.com/pxe/boot/login?usr=${username:uristring}&pwd=${password:uristring}`
+chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${password:uristring}`
+			expectedErr := "HTTP Code: 403"
 
 			menu, err := menus.GenerateList(testWebRequest{}, "invalidtoken", tt.username)
-			if err != nil {
-				t.Errorf("unexpected error %v", err)
+			if err.Error() != expectedErr {
+				t.Errorf("expecting %s, but got %v", expectedErr, err)
 			}
 
 			if menu != expectedRsp {

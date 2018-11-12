@@ -13,7 +13,7 @@ func TestGenerateLogin(t *testing.T) {
 set username
 set password
 login
-chain https://isard.domain.com/pxe/boot/login?usr=${username:uristring}&pwd=${password:uristring}`
+chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${password:uristring}`
 
 		menu, err := menus.GenerateLogin()
 		if err != nil {

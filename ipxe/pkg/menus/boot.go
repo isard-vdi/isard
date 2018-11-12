@@ -1,7 +1,7 @@
 package menus
 
 import (
-	"fmt"
+	"bytes"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 )
@@ -11,18 +11,24 @@ func GenerateBoot(token string, vmID string) (string, error) {
 	config := config.Config{}
 	err := config.ReadConfig()
 	if err != nil {
-		menu := `#!ipxe
-echo There was an error reading the configuration file. If this error persists, contact your IsardVDI administrator.
-prompt Press any key to try again
-reboot`
+		buf := new(bytes.Buffer)
 
-		return menu, err
+		t := parseTemplate("error.ipxe")
+		t.Execute(buf, menuTemplateData{
+			Err: "reading the configuration file",
+		})
+
+		return buf.String(), err
 	}
 
-	menu := fmt.Sprintf(`#!ipxe
-kernel %s/pxe/vmlinuz tkn=%s id=%s initrd=%s/pxe/initrd
-initrd %s/pxe/initrd
-boot`, config.BaseURL, token, vmID, config.BaseURL, config.BaseURL)
+	buf := new(bytes.Buffer)
 
-	return menu, nil
+	t := parseTemplate("boot.ipxe")
+	t.Execute(buf, menuTemplateData{
+		BaseURL: config.BaseURL,
+		Token:   token,
+		VMID:    vmID,
+	})
+
+	return buf.String(), nil
 }

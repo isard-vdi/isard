@@ -42,7 +42,7 @@ prompt Press any key to try again
 reboot`
 		expectedErr := "open config.yml: permission denied"
 
-		menu, err := menus.GenerateLogin()
+		menu, err := menus.GenerateVMError(errors.New("testing error"))
 		if err.Error() != expectedErr {
 			t.Errorf("expecting %s, but got %v", expectedErr, err)
 		}

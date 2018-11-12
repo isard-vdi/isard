@@ -1,0 +1,18 @@
+#!ipxe
+set tkn {{.Token}}
+menu IsardVDI - {{.Username}}{{range .VMs}}
+item {{.ID}} {{.Name}} -->{{end}}
+item
+item --gap -- ---- Actions ----
+item bootFromDisk Boot from disk -->
+item reboot Reboot -->
+item poweroff Poweroff -->
+choose target && goto ${target}
+{{range .VMs}}:{{.ID}}
+chain {{$.BaseURL}}/pxe/boot/start?tkn=${tkn:uristring}&id={{.ID}}
+{{end}}:bootFromDisk
+sanboot --no-describe --drive 0x80
+:reboot
+reboot
+:poweroff
+poweroff
