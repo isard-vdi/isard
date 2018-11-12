@@ -43,8 +43,8 @@ func Call(webRequest mocks.WebRequest, token string, vmID string) error {
 	if code != 200 {
 		if code == 500 {
 			type err500 struct {
-				Code    int
-				Message string
+				Code    int    `json:"code"`
+				Message string `json:"message"`
 			}
 
 			rspErr := &err500{}
