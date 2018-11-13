@@ -23,6 +23,9 @@ class usrTokens():
         self.tokens={}
         self.valid_seconds = 60 # Between client accesses to api
 
+    def tkns(self):
+        return self.tokens
+        
     def add(self,usr):
         tkn=str(uuid4())[:32]
         self.tokens[tkn]={"usr":usr,"timestamp":time.time(),"domains":[]}
@@ -81,7 +84,7 @@ class usrTokens():
         # SPICE {'kind':'file','ext':'vv','mime':'application/x-virt-viewer','content':'vv data file'}
         # PC VNC 'vnc','text/plain'
         
-tokens=usrTokens() 
+app.tokens=usrTokens() 
 
 @app.route('/pxe/login', methods=['POST'])
 def pxe_login():
@@ -89,18 +92,17 @@ def pxe_login():
     # ~ pwd = request.args.get('pwd')
     usr = request.get_json(force=True)['usr']
     pwd = request.get_json(force=True)['pwd']    
-    print(usr)
-    tkn=tokens.login(usr,pwd)
+    tkn=app.tokens.login(usr,pwd)
+
     if tkn:
-        print(tkn)
         return json.dumps({"tkn":tkn}), 200, {'ContentType': 'application/json'} 
     return json.dumps({"tkn":""}), 401, {'ContentType': 'application/json'} 
 
 @app.route('/pxe/list', methods=['GET'])
 def pxe_list():
-    tkn = request.args.get('tkn')
-    domains = tokens.domains(tkn)
-    if domains:
+    tkn = request.args.get('tkn')  
+    domains = app.tokens.domains(tkn)
+    if domains is not False:
         # What happens if user has no domains?
         return json.dumps({"vms":domains}), 200, {'ContentType': 'application/json'}
     return json.dumps({"vms":""}), 403, {'ContentType': 'application/json'}
@@ -109,7 +111,7 @@ def pxe_list():
 def pxe_start():
     tkn = request.args.get('tkn')
     id = request.args.get('id')
-    res=tokens.start(tkn,id)
+    res=app.tokens.start(tkn,id)
     if res is False:
         return json.dumps({"code":0,"msg":"Token expired or not user domain"}), 403, {'ContentType': 'application/json'}
     else:
@@ -127,7 +129,7 @@ def pxe_viewer():
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     tkn = request.args.get('tkn')
     id = request.args.get('id')
-    res=tokens.viewer(tkn,id,remote_addr)
+    res=app.tokens.viewer(tkn,id,remote_addr)
     if res is False:
         return json.dumps({"code":0,"msg":"Token expired or not user domain"}), 403, {'ContentType': 'application/json'}
     else:
