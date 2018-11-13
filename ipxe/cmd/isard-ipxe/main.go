@@ -19,20 +19,6 @@ func (w *logWriter) Write(b []byte) (int, error) {
 	return w.File.Write(b)
 }
 
-func configureLogging() {
-	f, err := os.OpenFile("isard-ipxe.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatalf("error opening log file: %v", err)
-	}
-	defer f.Close()
-
-	w := &logWriter{
-		File: f,
-	}
-
-	log.SetOutput(w)
-}
-
 func generateMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handlers.LoginHandler)
@@ -44,8 +30,20 @@ func generateMux() *http.ServeMux {
 }
 
 func main() {
-	// Server setup
-	configureLogging()
+	// Configure the logging
+	f, err := os.OpenFile("isard-ipxe.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatalf("error opening log file: %v", err)
+	}
+	defer f.Close()
+
+	w := &logWriter{
+		File: f,
+	}
+
+	log.SetOutput(w)
+
+	// Generate the router
 	mux := generateMux()
 
 	// Start the server
