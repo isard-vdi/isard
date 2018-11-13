@@ -56,7 +56,9 @@ class usrTokens():
         return self.tokens[tkn]['domains']
 
     def start(self,tkn,id):
+        print('token start:'+str(tkn))
         if not self.valid(tkn):
+            print('token invalid')
             return False
         if not any(d['id'] == id for d in self.tokens[tkn]['domains']):
             return False
@@ -109,8 +111,8 @@ def pxe_list():
 
 @app.route('/pxe/start', methods=['POST'])
 def pxe_start():
-    tkn = request.args.get('tkn')
-    id = request.args.get('id')
+    tkn = request.get_json(force=True)['tkn']
+    id = request.get_json(force=True)['id']
     res=app.tokens.start(tkn,id)
     if res is False:
         return json.dumps({"code":0,"msg":"Token expired or not user domain"}), 403, {'ContentType': 'application/json'}
@@ -124,7 +126,7 @@ def pxe_start():
                 return json.dumps({"code":1,"msg":"Engine seems to be down. Contact administrator."}), 500, {'ContentType': 'application/json'}
         return json.dumps({"code":1,"msg":"Unknown error. Domain status is: "+str(res)}), 500, {'ContentType': 'application/json'}
 
-@app.route('/pxe/viewer', methods=['POST'])
+@app.route('/pxe/viewer', methods=['GET'])
 def pxe_viewer():
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     tkn = request.args.get('tkn')
