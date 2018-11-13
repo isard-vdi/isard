@@ -56,9 +56,7 @@ class usrTokens():
         return self.tokens[tkn]['domains']
 
     def start(self,tkn,id):
-        print('token start:'+str(tkn))
         if not self.valid(tkn):
-            print('token invalid')
             return False
         if not any(d['id'] == id for d in self.tokens[tkn]['domains']):
             return False
@@ -90,8 +88,6 @@ app.tokens=usrTokens()
 
 @app.route('/pxe/login', methods=['POST'])
 def pxe_login():
-    # ~ usr = request.args.get('usr')
-    # ~ pwd = request.args.get('pwd')
     usr = request.get_json(force=True)['usr']
     pwd = request.get_json(force=True)['pwd']    
     tkn=app.tokens.login(usr,pwd)
