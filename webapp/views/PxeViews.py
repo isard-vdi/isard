@@ -56,7 +56,9 @@ class usrTokens():
         return self.tokens[tkn]['domains']
 
     def start(self,tkn,id):
+        print('token start:'+str(tkn))
         if not self.valid(tkn):
+            print('token invalid')
             return False
         if not any(d['id'] == id for d in self.tokens[tkn]['domains']):
             return False
