@@ -45,8 +45,13 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("error calling the login API endpoint: %v", err)
+
+		menu := menus.GenerateError("calling the login API endpoint")
+
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, menu)
+		return
 	}
 
 	menu, err := menus.GenerateAuth(token, username)
@@ -93,6 +98,11 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Printf("error calling the start API endpoint: %v", err)
+
+		menu := menus.GenerateError("calling the start API endpoint")
+
+		fmt.Fprint(w, menu)
+		return
 	}
 
 	menu, err := menus.GenerateBoot(token, vmID)
