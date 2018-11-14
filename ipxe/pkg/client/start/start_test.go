@@ -95,6 +95,27 @@ var tests = []struct {
 				Code: 403,
 				Err:  nil,
 			},
+			requestKey{
+				ReqBody: startBody{
+					Token: "vmfailed",
+					Id:    "_nefix_Debian_9",
+				},
+				Body: []byte(`{
+	"code": 2,
+	"message": "testing error"
+}`),
+				Code: 500,
+				Err:  nil,
+			},
+			requestKey{
+				ReqBody: startBody{
+					Token: "vmfailedjson",
+					Id:    "_nefix_Debian_9",
+				},
+				Body: []byte(`%ss3`),
+				Code: 500,
+				Err:  nil,
+			},
 		},
 	},
 }
@@ -147,6 +168,24 @@ func TestStart(t *testing.T) {
 			expectedErr := "HTTP Code: 403"
 
 			err := start.Call(testWebRequest{}, "unauthorized", tt.vmID)
+			if err.Error() != expectedErr {
+				t.Errorf("expecting %v, but got %v", expectedErr, err)
+			}
+		})
+
+		t.Run("the code is 500", func(t *testing.T) {
+			expectedErr := "VM start failed: testing error"
+
+			err := start.Call(testWebRequest{}, "vmfailed", tt.vmID)
+			if err.Error() != expectedErr {
+				t.Errorf("expecting %v, but got %v", expectedErr, err)
+			}
+		})
+
+		t.Run("the code is 500 and there's an error decoding the JSON body", func(t *testing.T) {
+			expectedErr := "invalid character '%' looking for beginning of value"
+
+			err := start.Call(testWebRequest{}, "vmfailedjson", tt.vmID)
 			if err.Error() != expectedErr {
 				t.Errorf("expecting %v, but got %v", expectedErr, err)
 			}

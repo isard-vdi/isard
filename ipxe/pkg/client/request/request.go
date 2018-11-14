@@ -45,7 +45,7 @@ type Request struct{}
 
 // Get makes a GET call to the specified url. If there's no error calling the API, error will be nil;
 // even if the status code is 500
-func (r *Request) Get(url string) (body []byte, code int, err error) {
+func (r Request) Get(url string) (body []byte, code int, err error) {
 	client, err := createClient()
 	if err != nil {
 		return nil, 0, err
@@ -67,7 +67,7 @@ func (r *Request) Get(url string) (body []byte, code int, err error) {
 
 // Post makes a POST call tot he specified url. If there's no error calling the API, error will be nil;
 // even if the status code is 500
-func (r *Request) Post(url string, body io.Reader) ([]byte, int, error) {
+func (r Request) Post(url string, body io.Reader) ([]byte, int, error) {
 	client, err := createClient()
 	if err != nil {
 		return nil, 0, err

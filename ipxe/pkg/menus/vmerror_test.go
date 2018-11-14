@@ -1,21 +1,21 @@
 package menus_test
 
 import (
+	"errors"
 	"os"
 	"testing"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/menus"
 )
 
-func TestGenerateLogin(t *testing.T) {
+func TestGenerateVMError(t *testing.T) {
 	t.Run("should work as expected", func(t *testing.T) {
 		expectedRsp := `#!ipxe
-set username
-set password
-login
-chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${password:uristring}`
+echo The VM start has failed: testing error
+prompt Press any key to go back
+chain https://isard.domain.com/pxe/boot/`
 
-		menu, err := menus.GenerateLogin()
+		menu, err := menus.GenerateVMError(errors.New("testing error"))
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -42,7 +42,7 @@ prompt Press any key to try again
 reboot`
 		expectedErr := "open config.yml: permission denied"
 
-		menu, err := menus.GenerateLogin()
+		menu, err := menus.GenerateVMError(errors.New("testing error"))
 		if err.Error() != expectedErr {
 			t.Errorf("expecting %s, but got %v", expectedErr, err)
 		}

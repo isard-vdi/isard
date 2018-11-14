@@ -6,10 +6,9 @@ import (
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 )
 
-// GenerateLogin generates a login iPXE menu
-func GenerateLogin() (string, error) {
+// GenerateAuth returns the menu that needs to be generated after a correct call at the AuthHandler
+func GenerateAuth(token string, username string) (string, error) {
 	config := config.Config{}
-
 	err := config.ReadConfig()
 	if err != nil {
 		buf := new(bytes.Buffer)
@@ -24,9 +23,11 @@ func GenerateLogin() (string, error) {
 
 	buf := new(bytes.Buffer)
 
-	t := parseTemplate("login.ipxe")
+	t := parseTemplate("auth.ipxe")
 	t.Execute(buf, menuTemplateData{
-		BaseURL: config.BaseURL,
+		BaseURL:  config.BaseURL,
+		Token:    token,
+		Username: username,
 	})
 
 	return buf.String(), nil

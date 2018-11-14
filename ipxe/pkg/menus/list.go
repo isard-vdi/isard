@@ -1,7 +1,7 @@
 package menus
 
 import (
-	"fmt"
+	"bytes"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
 	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
@@ -13,65 +13,48 @@ func GenerateList(webRequest mocks.WebRequest, token string, username string) (s
 	config := config.Config{}
 	err := config.ReadConfig()
 	if err != nil {
-		menu := `#!ipxe
-echo There was an error reading the configuration file. If this error persists, contact your IsardVDI administrator.
-prompt Press any key to try again
-reboot`
+		buf := new(bytes.Buffer)
 
-		return menu, err
+		t := parseTemplate("error.ipxe")
+		t.Execute(buf, menuTemplateData{
+			Err: "reading the configuration file",
+		})
+
+		return buf.String(), err
 	}
-
-	menu := fmt.Sprintf(`#!ipxe
-set tkn %s
-menu IsardVDI - %s
-`, token, username)
 
 	vms, err := list.Call(webRequest, token)
 	if err != nil {
 		if err.Error() == "HTTP Code: 403" {
-			menu = fmt.Sprintf(`#!ipxe
-set username
-set password
-login
-chain %v/pxe/boot/login?usr=${username:uristring}&pwd=${password:uristring}`, config.BaseURL)
+			buf := new(bytes.Buffer)
 
-			return menu, nil
+			t := parseTemplate("login.ipxe")
+			t.Execute(buf, menuTemplateData{
+				BaseURL: config.BaseURL,
+			})
+
+			return buf.String(), err
 		}
 
-		menu = fmt.Sprintf(`#!ipxe
-echo There was an error calling the API. If this error persists, contact your IsardVDI administrator.
-prompt Press any key to try again
-reboot`)
+		buf := new(bytes.Buffer)
 
-		return menu, err
+		t := parseTemplate("error.ipxe")
+		t.Execute(buf, menuTemplateData{
+			Err: "calling the API",
+		})
+
+		return buf.String(), err
 	}
 
-	var entries string
+	buf := new(bytes.Buffer)
 
-	for _, vm := range vms.VMs {
-		menu += fmt.Sprintf(`item %s %s -->
-`, vm.ID, vm.Name)
+	t := parseTemplate("VMList.ipxe")
+	t.Execute(buf, menuTemplateData{
+		BaseURL:  config.BaseURL,
+		Token:    token,
+		Username: username,
+		VMs:      vms.VMs,
+	})
 
-		entries += fmt.Sprintf(`:%s
-chain %s/pxe/boot/start?tkn=${tkn}&id=%s
-`, vm.ID, config.BaseURL, vm.ID)
-	}
-
-	menu += `item
-item --gap -- ---- Actions ----
-item bootFromDisk Boot from disk -->
-item reboot Reboot -->
-item poweroff Poweroff -->
-choose target && goto ${target}
-`
-	entries += `:bootFromDisk
-sanboot --no-describe --drive 0x80
-:reboot
-reboot
-:poweroff
-poweroff`
-
-	menu += entries
-
-	return menu, nil
+	return buf.String(), err
 }

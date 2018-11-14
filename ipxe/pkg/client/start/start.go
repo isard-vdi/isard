@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
@@ -35,10 +36,30 @@ func Call(webRequest mocks.WebRequest, token string, vmID string) error {
 
 	body := bytes.NewBuffer(encodedBody)
 
-	_, code, err := webRequest.Post(url, body)
+	rspBody, code, err := webRequest.Post(url, body)
 	if err != nil {
 		return err
-	} else if code != 200 {
+	}
+
+	if code != 200 {
+		if code == 500 {
+			type err500 struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+			}
+
+			rspErr := &err500{}
+
+			err = json.Unmarshal(rspBody, rspErr)
+			if err != nil {
+				return err
+			}
+
+			if rspErr.Code == 2 {
+				return fmt.Errorf("VM start failed: %s", rspErr.Message)
+			}
+		}
+
 		return fmt.Errorf("HTTP Code: %d", code)
 	}
 

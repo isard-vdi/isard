@@ -40,11 +40,7 @@ func prepareTest(workOnTmp bool, workDir ...string) error {
 	}
 
 	err = os.Chdir(workDir[0])
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func finishTest(workOnTmp bool) error {
@@ -58,11 +54,7 @@ func finishTest(workOnTmp bool) error {
 	}
 
 	err = os.Chdir(initialFolder)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func TestReadConfig(t *testing.T) {
