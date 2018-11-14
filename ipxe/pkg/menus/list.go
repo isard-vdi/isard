@@ -48,6 +48,17 @@ func GenerateList(webRequest mocks.WebRequest, token string, username string) (s
 
 	buf := new(bytes.Buffer)
 
+	if len(vms.VMs) == 1 {
+		t := parseTemplate("individualVM.ipxe")
+		t.Execute(buf, menuTemplateData{
+			BaseURL: config.BaseURL,
+			Token:   token,
+			VMID:    vms.VMs[0].ID,
+		})
+
+		return buf.String(), err
+	}
+
 	t := parseTemplate("VMList.ipxe")
 	t.Execute(buf, menuTemplateData{
 		BaseURL:  config.BaseURL,

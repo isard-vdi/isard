@@ -1,0 +1,2 @@
+#!ipxe
+chain {{.BaseURL}}/pxe/boot/start?tkn={{.Token}}&id={{.VMID}}

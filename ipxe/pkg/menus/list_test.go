@@ -60,6 +60,19 @@ var generateListTests = []struct {
 				Code: 200,
 				Err:  nil,
 			},
+			"https://isard.domain.com/pxe/list?tkn=individualVM": {
+				Body: []byte(`{
+					"vms": [
+						{
+							"id": "_nefix_Debian_9",
+							"name": "Debian 9",
+							"description": "This is a VM that's using Debian 9"
+						}
+					]
+				}`),
+				Code: 200,
+				Err:  nil,
+			},
 			"https://isard.domain.com/pxe/list?tkn=invalidtoken": {
 				Body: []byte(`{}`),
 				Code: 403,
@@ -112,6 +125,20 @@ func TestGenerateList(t *testing.T) {
 
 			if menu != expectedRsp {
 				t.Errorf("expecting %v, but got %v", expectedRsp, menu)
+			}
+		})
+
+		t.Run("should return a chain menu if the user has only one VM", func(t *testing.T) {
+			expectedRsp := `#!ipxe
+chain https://isard.domain.com/pxe/boot/start?tkn=individualVM&id=_nefix_Debian_9`
+
+			menu, err := menus.GenerateList(testWebRequest{}, "individualVM", tt.username)
+			if err != nil {
+				t.Errorf("unexpected error %v", err)
+			}
+
+			if menu != expectedRsp {
+				t.Errorf("expecting %s, but got %s", expectedRsp, menu)
 			}
 		})
 
