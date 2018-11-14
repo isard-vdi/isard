@@ -35,7 +35,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("error opening log file: %v", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatalf("error closing the log file: %v", err)
+		}
+	}()
 
 	w := &logWriter{
 		File: f,

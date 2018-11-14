@@ -88,7 +88,8 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if strings.HasPrefix(err.Error(), "VM start failed: ") {
-			menu, err := menus.GenerateVMError(errors.New(strings.Split(err.Error(), ": ")[1]))
+			var menu string
+			menu, err = menus.GenerateVMError(errors.New(strings.Split(err.Error(), ": ")[1]))
 			if err != nil {
 				log.Printf("error generating the VM error menu: %v", err)
 			}

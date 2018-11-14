@@ -28,11 +28,7 @@ func createInitialConfig() error {
 	}
 
 	err = ioutil.WriteFile("config.yml", d, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // ReadConfig reads the configuration
@@ -49,9 +45,5 @@ func (c *Config) ReadConfig() error {
 	}
 
 	err = yaml.Unmarshal(yamlFile, c)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
