@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
