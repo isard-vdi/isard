@@ -51,8 +51,8 @@ func main() {
 	mux := generateMux()
 
 	// Start the server
-	log.Println("Starting to listen at port :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	log.Println("Starting to listen at port :3000")
+	if err := http.ListenAndServe(":3000", mux); err != nil {
 		log.Fatalf("error listening the server: %v", err)
 	}
 }
