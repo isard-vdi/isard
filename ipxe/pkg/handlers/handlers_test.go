@@ -41,7 +41,7 @@ func prepareCerts() error {
 
 // Should work as expected
 func TestLoginHandler(t *testing.T) {
-	r, err := http.NewRequest("GET", "/login", nil)
+	r, err := http.NewRequest("GET", "/pxe/boot/login", nil)
 	if err != nil {
 		t.Fatalf("error preparing the test: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestLoginHandlerErr(t *testing.T) {
 		t.Fatalf("error preparing the test %v", err)
 	}
 
-	r, err := http.NewRequest("GET", "/login", nil)
+	r, err := http.NewRequest("GET", "/pxe/boot/login", nil)
 	if err != nil {
 		t.Fatalf("error preparing the test: %v", err)
 	}
@@ -161,7 +161,7 @@ type endpointKeyList struct {
 func TestVMListHandler(t *testing.T) {
 	handlers.WebRequest = testWebRequestList{}
 
-	r, err := http.NewRequest("GET", "/list?tkn=ShibAWD6OKjA8950vRIPUEZu848Ke0Rzp3Oxtye_V1c", nil)
+	r, err := http.NewRequest("GET", "/pxe/boot/list?tkn=ShibAWD6OKjA8950vRIPUEZu848Ke0Rzp3Oxtye_V1c", nil)
 	if err != nil {
 		t.Fatalf("error preparing the test: %v", err)
 	}
@@ -212,7 +212,7 @@ poweroff`)
 func TestVMListHandlerErrAuth(t *testing.T) {
 	handlers.WebRequest = testWebRequestList{}
 
-	r, err := http.NewRequest("GET", "/list?tkn=invalidtoken", nil)
+	r, err := http.NewRequest("GET", "/pxe/boot/list?tkn=invalidtoken", nil)
 	if err != nil {
 		t.Fatalf("error preparing the test: %v", err)
 	}
@@ -244,7 +244,7 @@ chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${pas
 func TestVMListHandlerErr(t *testing.T) {
 	handlers.WebRequest = request.Request{}
 
-	r, err := http.NewRequest("GET", "/list", nil)
+	r, err := http.NewRequest("GET", "/pxe/boot/list", nil)
 	if err != nil {
 		t.Fatalf("error preparing the test: %v", err)
 	}

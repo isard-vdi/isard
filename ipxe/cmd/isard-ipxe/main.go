@@ -22,9 +22,9 @@ func (w *logWriter) Write(b []byte) (int, error) {
 func generateMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handlers.LoginHandler)
-	mux.HandleFunc("/auth", handlers.AuthHandler)
-	mux.HandleFunc("/list", handlers.VMListHandler)
-	mux.HandleFunc("/start", handlers.StartHandler)
+	mux.HandleFunc("/pxe/boot/auth", handlers.AuthHandler)
+	mux.HandleFunc("/pxe/boot/list", handlers.VMListHandler)
+	mux.HandleFunc("/pxe/boot/start", handlers.StartHandler)
 
 	return mux
 }
