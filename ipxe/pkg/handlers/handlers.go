@@ -25,7 +25,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	menu, err := menus.GenerateLogin()
 	if err != nil {
 		log.Printf("error generating the login menu: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	fmt.Fprint(w, menu)
@@ -49,7 +48,6 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 
 		menu := menus.GenerateError("calling the login API endpoint")
 
-		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, menu)
 		return
 	}
@@ -57,8 +55,6 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	menu, err := menus.GenerateAuth(token, username)
 	if err != nil {
 		log.Printf("error generating the VM error menu: %v", err)
-
-		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	fmt.Fprint(w, menu)
@@ -75,7 +71,6 @@ func VMListHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 
 		} else {
-			w.WriteHeader(http.StatusInternalServerError)
 			log.Printf("error generating the VM list menu: %v", err)
 		}
 	}
@@ -99,8 +94,6 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 			var menu string
 			menu, err = menus.GenerateVMError(errors.New(strings.Split(err.Error(), ": ")[1]))
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-
 				log.Printf("error generating the VM error menu: %v", err)
 			}
 
@@ -112,7 +105,6 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 
 		menu := menus.GenerateError("calling the start API endpoint")
 
-		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprint(w, menu)
 		return
 	}
