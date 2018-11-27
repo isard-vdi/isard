@@ -47,6 +47,8 @@ class Updates(object):
     def getNewKind(self,kind,username):
         if kind == 'viewers':
             return self.web[kind]
+        print(kind)
+        print(self.web[kind])
         web=self.web[kind]
         dbb=list(r.table(kind).run(db.conn))
         result=[]

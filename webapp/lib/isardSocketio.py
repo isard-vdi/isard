@@ -36,7 +36,7 @@ class DomainsThread(threading.Thread):
     def run(self):
         starteddict={}
         with app.app_context():
-            for c in r.table('domains').without('xml','hardware','viewer').changes(include_initial=False).run(db.conn):
+            for c in r.table('domains').without('xml','viewer').changes(include_initial=False).run(db.conn):
                 #~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
                 if self.stop==True: break
                 try:
@@ -89,6 +89,7 @@ class DomainsThread(threading.Thread):
                         else:
                             event='template_data'
                             data['derivates']=app.adminapi.get_admin_domains_with_derivates(id=c['new_val']['id'],kind='template')
+                            data['kind']=app.isardapi.get_template_kind(data['user'],data)
                     socketio.emit(event, 
                                     json.dumps(data), 
                                     #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
@@ -503,7 +504,7 @@ def socketio_hyper_edit(form_data):
 @socketio.on('hyper_delete', namespace='/sio_admins')
 def socketio_hyper_delete(data):
     if current_user.role == 'admin': 
-        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         res=app.adminapi.hypervisor_delete(data['pk'])
         # ~ res=app.adminapi.update_table_dict('hypervisors',data['pk'],{'enabled':False,'status':'Deleting'}),
         if res is True:
@@ -518,7 +519,7 @@ def socketio_hyper_delete(data):
 @socketio.on('hyper_toggle', namespace='/sio_admins')
 def socketio_hyper_toggle(data):
     if current_user.role == 'admin': 
-        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         res=app.adminapi.hypervisor_toggle_enabled(data['pk'])
         if res is True:
             info=json.dumps({'result':True,'title':'Hypervisor enable/disable','text':'Hypervisor '+data['name']+' enable/disable success.','icon':'success','type':'success'})
@@ -532,7 +533,7 @@ def socketio_hyper_toggle(data):
 @socketio.on('hyper_domains_stop', namespace='/sio_admins')
 def socketio_hyper_domains_stop(data):
     if current_user.role == 'admin': 
-        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         res=app.adminapi.domains_stop(hyp_id=data['pk'],without_viewer=data['without_viewer'])
         if res is False:
             info=json.dumps({'result':False,'title':'Hypervisor domains stoping','text':'Domains in '+data['name']+' hypervisor could not be stopped now.!','icon':'warning','type':'error'}) 
@@ -612,7 +613,7 @@ def socketio_bulkuser_add(form_data):
 @socketio.on('user_toggle', namespace='/sio_admins')
 def socketio_user_toggle(data):
     if current_user.role == 'admin': 
-        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         res=app.adminapi.user_toggle_active(data['pk'])
         if res is True:
             info=json.dumps({'result':True,'title':'User enable/disable','text':'User '+data['name']+' enable/disable success.','icon':'success','type':'success'})
@@ -697,10 +698,44 @@ def socketio_domain_edit(form_data):
                     data,
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
+
+@socketio.on('domain_template_add', namespace='/sio_users')
+def socketio_domain_template_add(form_data):
+    #~ Check if user has quota and rights to do it
+    #~ if current_user.role=='admin':
+        #~ None
+        
+    #~ if float(app.isardapi.get_user_quotas(current_user.username)['tqp']) >= 100:
+        #~ flash('Quota for creating new templates is full','danger')
+        #~ return redirect(url_for('desktops'))
+    #~ # if app.isardapi.is_domain_id_unique
+    #~ original=app.isardapi.get_domain(form_data['id'])
+
+    partial_tmpl_dict=app.isardapi.f.unflatten_dict(form_data)
+    partial_tmpl_dict=parseHardware(partial_tmpl_dict)
+    partial_tmpl_dict['create_dict']['hardware']={**partial_tmpl_dict['hardware'], **partial_tmpl_dict['create_dict']['hardware']}
+    partial_tmpl_dict.pop('hardware',None)
+    from_id=partial_tmpl_dict['id']
+    partial_tmpl_dict.pop('id',None)
+
+    res=app.isardapi.new_tmpl_from_domain(from_id, partial_tmpl_dict, current_user.username)
+
+    #~ create_dict=app.isardapi.f.unflatten_dict(form_data)
+    #~ create_dict=parseHardware(create_dict)
+    #~ res=app.isardapi.new_domain_from_tmpl(current_user.username, create_dict)
+
+    if res is True:
+        data=json.dumps({'result':True,'title':'New template','text':'Template '+partial_tmpl_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'New template','text':'Template '+partial_tmpl_dict['name']+' can\'t be created.','icon':'warning','type':'error'})
+    socketio.emit('add_form_result',
+                    data,
+                    namespace='/sio_users', 
+                    room='user_'+current_user.username)
                     
 @socketio.on('domain_update', namespace='/sio_users')
 def socketio_domains_update(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     socketio.emit('result',
                     app.isardapi.update_table_status(current_user.username, 'domains', data,remote_addr),
                     namespace='/sio_users', 
@@ -796,7 +831,7 @@ def parseHardware(create_dict):
     
 @socketio.on('domain_viewer', namespace='/sio_users')
 def socketio_domains_viewer(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
     if viewer_data:
         socketio.emit('domain_viewer',
@@ -814,7 +849,7 @@ def socketio_domains_viewer(data):
 
 @socketio.on('disposable_viewer', namespace='/sio_disposables')
 def socketio_disposables_viewer(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
     if viewer_data:
         socketio.emit('disposable_viewer',
@@ -837,7 +872,7 @@ def socketio_disposables_viewer(data):
     
     
     
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     if data['pk'].startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
         send_viewer(data,kind='disposable',remote_addr=remote_addr)
     else:
@@ -903,7 +938,7 @@ MEDIA
 '''
 @socketio.on('media_update', namespace='/sio_admins')
 def socketio_admin_media_update(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     socketio.emit('result',
                     app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
                     namespace='/sio_admins', 
@@ -912,7 +947,7 @@ def socketio_admin_media_update(data):
     
 @socketio.on('media_update', namespace='/sio_users')
 def socketio_media_update(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     socketio.emit('result',
                     app.isardapi.update_table_status(current_user.username, 'media', data,remote_addr),
                     namespace='/sio_users', 
@@ -1016,7 +1051,7 @@ def socketio_domains_media_add(form_data):
 ## Disposables
 @socketio.on('connect', namespace='/sio_disposables')
 def socketio_disposables_connect():
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     if app.isardapi.show_disposable(remote_addr):
         join_room('disposable_'+remote_addr)
 
@@ -1024,7 +1059,7 @@ def socketio_disposables_connect():
                                     
 @socketio.on('disposables_add', namespace='/sio_disposables')
 def socketio_disposables_add(data):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     template=data['pk'] ##request.get_json(force=True)['pk']
     ## Checking permissions
     disposables = app.isardapi.show_disposable(remote_addr)

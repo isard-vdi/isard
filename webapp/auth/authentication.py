@@ -160,7 +160,7 @@ class auth(object):
             else:
                 return False
         except Exception as e:
-            log.error("LDAP ERROR:",e)
+            log.error("LDAP ERROR: "+str(e))
             return False
             
     def authentication_fakeadmin(self,fakeuser,admin_password):

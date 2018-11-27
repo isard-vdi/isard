@@ -167,7 +167,7 @@ $(document).ready(function() {
 
     tablepools = $('#hypervisors_pools').DataTable( {
         "ajax": {
-            "url": "/admin/hypervisors_pools",
+            "url": "/admin/hypervisors_pools/",
             "dataSrc": ""
         },
 		"rowId": "id",

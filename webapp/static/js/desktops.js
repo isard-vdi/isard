@@ -44,7 +44,7 @@ $(document).ready(function() {
 	//DataTable Main renderer
 	var table = $('#desktops').DataTable({
 			"ajax": {
-				"url": "/desktops/get",
+				"url": "/desktops/get/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -65,7 +65,8 @@ $(document).ready(function() {
 				{ "data": null, "width": "10px"},
 				{ "data": "status", "width": "10px"},
 				{ "data": "name"},
-                { "data": "hyp_started", "width": "10px"}
+                { "data": null, "width": "90px"},
+                //~ { "data": null, "width": "90px"}
 				],
 			 "order": [[3, 'desc']],		 
 		"columnDefs": [ {
@@ -96,8 +97,13 @@ $(document).ready(function() {
 							{
 							"targets": 6,
 							"render": function ( data, type, full, meta ) {
-							  return renderHypStarted(full);
-							}}
+							  return renderMedia(full);
+							}},
+							//~ {
+							//~ "targets": 7,
+							//~ "render": function ( data, type, full, meta ) {
+							  //~ return renderHotplugMedia(full);
+							//~ }}
 							]
 	} );
 
@@ -137,8 +143,9 @@ $(document).ready(function() {
                 actionsDesktopDetail();
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
                 if(row.data().status=='Stopped' || row.data().status=='Started'){
-                    setDomainGenealogy(row.data().id);
-                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
+                    //~ setDomainGenealogy(row.data().id);
+                    setDomainHotplug(row.data().id);
+                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                 }                
                 
                
@@ -309,7 +316,7 @@ function actionsDesktopDetail(){
             modal_edit_desktop_datatables(pk);
             
             setDomainMediaDefaults('#modalEditDesktop',pk);
-            setMedia_add('#media-block')
+            setMedia_add('#modalEditDesktop #media-block')
 	});
 
 	$('.btn-template').on('click', function () {
@@ -325,13 +332,20 @@ function actionsDesktopDetail(){
             });
 		}else{	
 			var pk=$(this).closest("div").attr("data-pk");
+            
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
 			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+            
 			$('#modalTemplateDesktop').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+
+            setDomainMediaDefaults('#modalTemplateDesktop',pk);
+            setMedia_add('#modalTemplateDesktop #media-block')  
+            
+            setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
         }
 	});
 
@@ -364,6 +378,8 @@ function actionsDesktopDetail(){
 //~ RENDER DATATABLE	
 function addDesktopDetailPannel ( d ) {
 		$newPanel = $template.clone();
+        $newPanel.find('#derivates-d\\.id').remove();
+        $newPanel.find('.btn-xml').remove();
 		$newPanel.html(function(i, oldHtml){
 			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
 		});
@@ -445,10 +461,49 @@ function renderAction(data){
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
-function renderHypStarted(data){
-        if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
-        if('hyp_started' in data){ return data.hyp_started;}
-		return '';
+//~ function renderHypStarted(data){
+        //~ if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
+        //~ if('hyp_started' in data){ return data.hyp_started;}
+		//~ return '';
+//~ }
+
+function renderMedia(data){
+        html=''
+        if('isos' in data.create_dict.hardware){
+            $.each(data.create_dict.hardware.isos,function(key, value){
+                html+='<i class="fa fa-circle-o fa-2x" title="'+value.name+'"></i> ';
+            });
+        }
+        if('floppies' in data.create_dict.hardware){
+            $.each(data.create_dict.hardware.floppies,function(key, value){
+                html+='<i class="fa fa-floppy-o fa-2x" title="'+value.name+'"></i> ';
+            });
+        }
+        if('storage' in data.create_dict.hardware){
+            $.each(data.create_dict.hardware.storage,function(key, value){
+                html+='<i class="fa fa-hdd-o fa-2x" title="'+value.name+'"></i> ';
+            });
+        }                
+        return html;
+}
+
+function renderHotplugMedia(data){
+        html='<button class="btn btn-xs btn-hotplug" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button> '
+        if('hotplug' in data){
+            $.each(data.hotplug,function(key, value){
+                if(value.kind=='iso'){
+                    html+='<i class="fa fa-circle-o fa-2x" title="'+value.id+'"></i> ';
+                }
+                if(value.kind=='fd'){
+                    if(value.status=='Plugging'){
+                        html+='<i class="fa fa-floppy-o fa-2x blink" title="'+value.name+'" style="color:#ff9933"></i> ';
+                    }else{
+                        html+='<i class="fa fa-floppy-o fa-2x" title="'+value.name+'" style="color:#0c3300"></i> ';
+                    }
+                }                
+            });
+        }
+        return html;
 }
 
 function setDefaultsTemplate(id) {
@@ -501,7 +556,7 @@ function modal_add_desktop_datatables(){
     
 	modal_add_desktops = $('#modal_add_desktops').DataTable({
 			"ajax": {
-				"url": "/desktops/getAllTemplates",
+				"url": "/desktops/getAllTemplates/",
 				"dataSrc": ""
 			},
 
@@ -618,6 +673,31 @@ function initalize_modal_all_desktops_events(){
         $("#modalAddDesktop #btn-hardware").on('click', function(e){
                 $('#modalAddDesktop #hardware-block').show();
         });
+
+
+
+    $("#modalTemplateDesktop #send").on('click', function(e){
+            var form = $('#modalTemplateDesktopForm');
+
+            form.parsley().validate();
+
+            if (form.parsley().isValid()){
+                desktop_id=$('#modalTemplateDesktopForm #id').val();
+                if (desktop_id !=''){
+                    data=$('#modalTemplateDesktopForm').serializeObject();
+                    data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
+                    data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
+                    socket.emit('domain_template_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                }
+            }
+        });
+        
+        //~ $("#modalAddDesktop #btn-hardware").on('click', function(e){
+                //~ $('#modalAddDesktop #hardware-block').show();
+        //~ });
         	
 }
 
@@ -651,7 +731,6 @@ function modal_edit_desktop_datatables(id){
             if (form.parsley().isValid()){
                     data=$('#modalEdit').serializeObject();
                     data=replaceMedia_arrays('#modalEditDesktop',data);
-                    //~ console.log(data)
                     socket.emit('domain_edit',data)
             }
         });

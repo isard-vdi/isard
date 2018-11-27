@@ -42,7 +42,7 @@ def admin_users():
     return render_template('admin/pages/users.html', nav="Users")
 
 
-@app.route('/admin/users/get')
+@app.route('/admin/users/get/')
 @login_required
 @isAdmin
 def admin_users_get():

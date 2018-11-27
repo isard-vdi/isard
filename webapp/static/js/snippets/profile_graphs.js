@@ -1,5 +1,5 @@
 	//~ function setProfile(id){
-			//~ api.ajax('/quota','POST',{'pk':id}).done(function(gen) {
+			//~ api.ajax('/quota/','POST',{'pk':id}).done(function(gen) {
                 //~ var wasted=0
                 //~ $.each(gen['gen_ids'],function(index,val){
                     //~ $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+val.name+'</td></tr>');

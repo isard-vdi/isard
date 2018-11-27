@@ -613,6 +613,7 @@ class Populate(object):
                                                      'hostname': vals[0],
                                                      'viewer_hostname': self._hypervisor_viewer_hostname(vals[1]),
                                                      'viewer_nat_hostname': self._hypervisor_viewer_hostname(vals[1]),
+                                                     'viewer_nat_offset': 0,
                                                      'user': vals[2],
                                                      'port': vals[3],
                                                      'uri': '',

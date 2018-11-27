@@ -65,7 +65,7 @@ class Upgrade(object):
             for table in tables:
                 eval('self.'+table+'('+str(version)+')')
                 
-        #~ r.table('config').get(1).update({'version':release_version}).run()
+        r.table('config').get(1).update({'version':release_version}).run()
 
         
 
@@ -215,7 +215,7 @@ class Upgrade(object):
                 # ~ except Exception as e:
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
                     # ~ log.error('Error detail: '+str(e))                    
-                                
+                                                    
         return True
 
     '''
@@ -225,7 +225,7 @@ class Upgrade(object):
         table='hypervisors_pools'
         data=list(r.table(table).run())
         log.info('UPGRADING '+table+' VERSION '+str(version))
-        if version == 1:
+        if version == 1 or version == 3:
             for d in data:
                 id=d['id']
                 d.pop('id',None)

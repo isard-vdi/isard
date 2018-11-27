@@ -41,7 +41,7 @@ $(document).ready(function() {
 
     var table=$('#media').DataTable( {
         "ajax": {
-                "url": "/media/get",
+                "url": "/media/get/",
                 "dataSrc": ""
 				//~ "url": "/admin/tabletest/media/post",
                 //~ "contentType": "application/json",
@@ -402,7 +402,7 @@ function modal_add_install_datatables(){
     
 	modal_add_install = $('#modal_add_install').DataTable({
 			"ajax": {
-				"url": "/media/installs",
+				"url": "/media/installs/",
 				"dataSrc": ""
 			},
             "scrollY":        "125px",

@@ -164,7 +164,7 @@ $(document).ready(function() {
             
     table=$('#users').DataTable( {
         "ajax": {
-            "url": "/admin/users/get",
+            "url": "/admin/users/get/",
             "dataSrc": ""
         },
 			"language": {
@@ -453,7 +453,7 @@ function renderUsersDetailPannel ( d ) {
 function populate_users_table(){
         olduserstable=$('#oldusers_table').DataTable( {
 			"ajax": {
-				"url": "/admin/users/nonexists",
+				"url": "/admin/users/nonexists/",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({})}

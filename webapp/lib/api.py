@@ -170,6 +170,7 @@ class isard():
                 return False
                 
     def show_disposable(self,client_ip):
+        # ~ return False
         disposables_config=self.config['disposable_desktops']
         if disposables_config['active']:
             with app.app_context():
@@ -229,7 +230,8 @@ class isard():
     def get_user_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml').run(db.conn))
+            # ~ domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml').run(db.conn))
+            domains=list(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml','history_domain','allowed').run(db.conn))
         return domains
 
     def get_group_domains(self, group, filterdict=False):
@@ -278,9 +280,10 @@ class isard():
                                 if 'size' in key:
                                     domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
-            #~ exc_type, exc_obj, exc_tb = sys.exc_info()
-            #~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            #~ log.error(exc_type, fname, exc_tb.tb_lineno)                      
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            log.error(exc_type, fname, exc_tb.tb_lineno)
+            log.error('DomainsStatusThread error:'+str(e))                  
             log.error('get_domain: '+str(e))
         return domain   
 
@@ -290,14 +293,20 @@ class isard():
         media={'isos':[],'floppies':[]}
         if 'isos' in domain_cd and domain_cd['isos'] is not []:
             for m in domain_cd['isos']:
-                iso=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
-                if iso is not None:
+                try:
+                    iso=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
                     media['isos'].append(iso)
+                except:
+                    # Media does not exist
+                    None
         if 'floppies' in domain_cd and domain_cd['floppies'] is not []:
             for m in domain_cd['floppies']:
-                fd=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
-                if fd is not None:
+                try:
+                    fd=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
                     media['floppies'].append(fd)
+                except:
+                    # media does not exist
+                    None
         return media
                         
     def user_hardware_quota(self, user, human_size=False, flatten=True):
@@ -323,8 +332,8 @@ class isard():
                                 domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
             log.error('get_domain: '+str(e))
-        import pprint
-        pprint.pprint(domain)
+        #~ import pprint
+        #~ pprint.pprint(domain)
         return domain 
         
     def get_backing_ids(self,id):
@@ -383,9 +392,15 @@ class isard():
         with app.app_context():
             dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).without('viewer','xml','history_domain').run(db.conn))
             for d in dom:
-                d['kind']='user_template' if self.is_user_template(user,d['id']) else 'public_template'
+                d['kind']=self.get_template_kind(user,d)
             return dom #self.f.table_values_bstrap(dom)
 
+    def get_template_kind(self,user,d):
+        if d['allowed']['roles'] is False and d['allowed']['categories'] is False and d['allowed']['groups'] is False:
+            if (d['allowed']['users'] and user in d['allowed']['users']) or d['allowed']['users'] is False:    
+                return 'Private'
+        return 'Shared' 
+                        
     def get_domain_backing_images(self, id):
         chain=[]
         with app.app_context():
@@ -411,15 +426,17 @@ class isard():
         with app.app_context():
             return r.table('domains').filter(dict).order_by('name').group('category').pluck({'id','name'}).run(db.conn)
 
-    def template_kind_toogle(self,user,id):
-        if self.is_user_template(user,id):
-            allowed={'roles':[],'categories':[],'groups':[],'users':[]}
-            kind='public_template'
-        else:
+    def template_kind_toggle(self,user,id):
+        with app.app_context():
+            dom=r.table('domains').get(id).run(db.conn)
+            allowed=dom['allowed']
+            if not allowed['roles'] and not allowed['categories'] and not allowed['groups']:
+                if (allowed['users'] and user in allowed['users']) or allowed['users'] is False:
+                    allowed={'roles':[],'categories':[],'groups':[],'users':[]}
+                    kind='public_template'
+                    return self.check(r.table('domains').get(id).update({'allowed':allowed,'kind':kind}).run(db.conn),'replaced')
             allowed={'roles':False,'categories':False,'groups':False,'users':[user]}
             kind='user_template'
-            
-        with app.app_context():
             return self.check(r.table('domains').get(id).update({'allowed':allowed,'kind':kind}).run(db.conn),'replaced')
 
     def get_alloweds(self, user, table, pluck=[], order=False):
@@ -534,16 +551,6 @@ class isard():
                         allowed_data.append(d)
             return allowed_data
 
-    def is_user_template(self,user,id):
-        with app.app_context():
-            ud=r.table('users').get(user).run(db.conn)
-            dom=r.table('domains').get(id).run(db.conn)
-            allowed=dom['allowed']
-            if not allowed['roles'] and not allowed['categories'] and not allowed['groups']:
-                if (allowed['users'] and user in allowed['users']) or allowed['users'] is False:
-                    return True
-        return False
-
     def get_alloweds_select2(self,allowed):
         for k,v in allowed.items():
             if v is not False and len(v):
@@ -627,63 +634,113 @@ class isard():
                         #~ print(allowed,k,dom['id'])
             return allowed_data
 
+    #~ def get_all_alloweds_domains(self, user):
+        #~ with app.app_context():
+            #~ ud=r.table('users').get(user).run(db.conn)
+            #~ delete_allowed_key=False
+
+            #~ data1 = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            #~ data2 = r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            #~ data3 = r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            #~ data = data1+data2+data3
+            #~ data = [i for n, i in enumerate(data) if i not in data[n + 1:]]
+            #~ ## If we continue down here, data will be filtered by alloweds matching user role, domain, group and user
+            # Generic get all: data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
+            # for group in data:
+            #        allowed_data[group]=[]
+            #~ allowed_data=[]
+            #~ for d in data:
+                        #~ d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
+                        #~ # False doesn't check, [] means all allowed
+                        #~ # Role is the master and user the least. If allowed in roles,
+                        #~ #   won't check categories, groups, users
+                        # allowed=d['allowed']
+                        #~ if d['allowed']['roles'] is not False:
+                            #~ if not d['allowed']['roles']:  # Len is not 0
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+                                #~ continue
+                            #~ if ud['role'] in d['allowed']['roles']:
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+                                #~ continue
+                        #~ if d['allowed']['categories'] is not False:
+                            #~ if not d['allowed']['categories']:
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+                                #~ continue
+                            #~ if ud['category'] in d['allowed']['categories']:
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+                                #~ continue
+                        #~ if d['allowed']['groups'] is not False:
+                            #~ if not d['allowed']['groups']:
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+                                #~ continue
+                            #~ if ud['group'] in d['allowed']['groups']:
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+                                #~ continue
+                        #~ if d['allowed']['users'] is not False:
+                            #~ if not d['allowed']['users']:
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+                                #~ continue
+                            #~ if user in d['allowed']['users']:
+                                #~ if delete_allowed_key: d.pop('allowed', None)
+                                #~ allowed_data.append(d)
+            #~ return allowed_data
+
+
     def get_all_alloweds_domains(self, user):
         with app.app_context():
             ud=r.table('users').get(user).run(db.conn)
-            delete_allowed_key=False
-
-            data1 = r.table('domains').get_all('base', index='kind').filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
-            data2 = r.table('domains').get_all(user, index='user').filter(r.row['kind'].match("template")).filter({'allowed':{'roles':False,'categories':False,'groups':False}}).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
-            data3 = r.table('domains').filter(r.row['kind'].match("template")).filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
-            data = data1+data2+data3
-            ## If we continue down here, data will be filtered by alloweds matching user role, domain, group and user
-            #~ Generic get all: data=r.table('domains').get_all('public_template','user_template', index='kind').order_by('name').group('category').pluck({'id','name','allowed'}).run(db.conn)
-            #~ for group in data:
-                    #~ allowed_data[group]=[]
-            allowed_data=[]
+            data1 = r.table('domains').get_all('base', index='kind').order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            data2 = r.table('domains').filter(r.row['kind'].match("template")).order_by('name').pluck({'id','name','allowed','kind','group','icon','user','description'}).run(db.conn)
+            data = data1+data2
+            alloweds=[]
             for d in data:
-                        d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
-                        # False doesn't check, [] means all allowed
-                        # Role is the master and user the least. If allowed in roles,
-                        #   won't check categories, groups, users
-                        #~ allowed=d['allowed']
-                        if d['allowed']['roles'] is not False:
-                            if not d['allowed']['roles']:  # Len is not 0
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['role'] in d['allowed']['roles']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data[group].append(d)
-                                continue
-                        if d['allowed']['categories'] is not False:
-                            if not d['allowed']['categories']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['category'] in d['allowed']['categories']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['groups'] is not False:
-                            if not d['allowed']['groups']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['group'] in d['allowed']['groups']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['users'] is not False:
-                            if not d['allowed']['users']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if user in d['allowed']['users']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-            return allowed_data
-
+                d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
+                if ud['role']=='admin': 
+                    alloweds.append(d)
+                    continue
+                if d['user']==ud['id']:
+                    alloweds.append(d)
+                    continue
+                if d['allowed']['roles'] is not False:
+                    if len(d['allowed']['roles'])==0:
+                        alloweds.append(d)
+                        continue
+                    else:
+                        if ud['role'] in d['allowed']['roles']:
+                            alloweds.append(d)
+                            continue
+                if d['allowed']['categories'] is not False:
+                    if len(d['allowed']['categories'])==0:
+                        alloweds.append(d)
+                        continue
+                    else:
+                        if ud['category'] in d['allowed']['categories']:
+                            alloweds.append(d)
+                            continue
+                if d['allowed']['groups'] is not False:
+                    if len(d['allowed']['groups'])==0:
+                        alloweds.append(d)
+                        continue
+                    else:
+                        if ud['group'] in d['allowed']['groups']:
+                            alloweds.append(d)
+                            continue
+                if d['allowed']['users'] is not False:
+                    if len(d['allowed']['users'])==0:
+                        alloweds.append(d)
+                        continue
+                    else:
+                        if ud['id'] in d['allowed']['users']:
+                            alloweds.append(d)
+                            continue   
+            return alloweds
 
     def get_all_alloweds_table(self, table, user, pluck='default'):
         if pluck is 'default':
@@ -785,7 +842,7 @@ class isard():
                                 continue
                             if ud['role'] in d['allowed']['roles']:
                                 if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data[group].append(d)
+                                allowed_data.append(d)
                                 continue
                         if d['allowed']['categories'] is not False:
                             if not d['allowed']['categories']:
@@ -923,51 +980,66 @@ class isard():
                 'user':user,
                 'category':userObj['category'],
                 'group':userObj['group'],}
-        
-    def new_tmpl_from_domain(self, user, name, description, kind, original_domain):
-        with app.app_context():
-            userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-            parsed_name = self.parse_string(name)
-            id = '_' + user + '_' + parsed_name
-            # Checking if domain exists:
-            exists=r.table('domains').get(id).run(db.conn)
-            if exists is not None: return False
-        if kind=='public_template' or kind=='base':
-            ar=[]
-            ac=[]
-            ag=[]
-            au=[]
-        else:
-            ar=False
-            ac=False
-            ag=False
-            au=[userObj['id']]
-        template_dict=r.table('domains').get(original_domain['id']).run(db.conn)
-        template_dict['id']= id
-        template_dict['kind']= kind
-        template_dict['user']= userObj['id']
-        # template_dict['role']= userObj['role']
-        template_dict['category']= userObj['category']
-        template_dict['group']= userObj['group']
-        template_dict['name']= name
-        template_dict['description']= description
-        template_dict['allowed']= {  'roles': ar,
-                                      'categories': ac,
-                                      'groups': ag,
-                                      'users': au}
-        template_dict['icon']= original_domain['icon']
-        template_dict['server']= original_domain['server']
-        template_dict['os']= original_domain['os']
-        template_dict['options']= {'viewers':{'spice':{'fullscreen':True}}}
 
-        create_dict={}
-        create_dict['template_dict']=template_dict
-        create_dict['hardware']=original_domain['create_dict']['hardware']
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
-        create_dict['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':''}
-        create_dict['origin']=original_domain['id']
+
+
+
+#~ {'allowed': {'categories': False,
+             #~ 'groups': False,
+             #~ 'roles': False,
+             #~ 'users': ['cpe47993090']},
+ #~ 'create_dict': {'hardware': {'boot_order': ['iso'],
+                              #~ 'diskbus': 'virtio',
+                              #~ 'floppies': [{'id': '_jvinolas_virtio-win-0.1.141_amd64'}],
+                              #~ 'graphics': ['vnc'],
+                              #~ 'interfaces': ['elo-n2l-bridge'],
+                              #~ 'isos': [],
+                              #~ 'memory': 524288,
+                              #~ 'vcpus': '1',
+                              #~ 'videos': ['qxl32']}},
+ #~ 'description': '',
+ #~ 'forced_hyp': 'default',
+ #~ 'hypervisors_pools': ['admin_test_pool'],
+                            #~ 'id': '_admin_222222',
+ #~ 'kind': 'user_template',
+ #~ 'name': 'Template 222222'}
+        
+    def new_tmpl_from_domain(self, from_id, part_dict, user):
         with app.app_context():
-            return self.check(r.table('domains').get(original_domain['id']).update({"create_dict": create_dict, "status": "CreatingTemplate"}).run(db.conn),'replaced')
+            tmpl_dict=r.table('domains').get(from_id).run(db.conn)
+            u=r.table('users').get(user).pluck('id','category','group').run(db.conn)
+        parsed_name = self.parse_string(part_dict['name'])
+        part_dict['id'] = '_' + user + '_' + parsed_name
+        # Checking if domain exists:
+        if r.table('domains').get(part_dict['id']).run(db.conn) is not None: return False
+        
+        part_dict['create_dict']['hardware']['disks']=tmpl_dict['create_dict']['hardware']['disks']
+        
+        tmpl_dict['create_dict']['template_dict']={**tmpl_dict,**part_dict}
+        tmpl_dict['create_dict']['origin']=from_id
+        
+        dir_disk, disk_filename = self.get_disk_path(u, parsed_name)
+        tmpl_dict['create_dict']['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':''}  #, 'bus':part_dict['create_dict']['hardware']['diskbus']}  
+        part_dict['create_dict']['hardware'].pop('diskbus',None)
+                
+        with app.app_context():
+            return self.check(r.table('domains').get(from_id).update({"create_dict": tmpl_dict['create_dict'], "status": "CreatingTemplate"}).run(db.conn),'replaced')
+
+
+        #~ dir_disk, disk_filename = self.get_disk_path(u, parsed_name)
+        #~ part_dict['create_dict']['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':'', 'bus':part_dict['create_dict']['hardware']['diskbus']}  
+        #~ part_dict['create_dict']['hardware'].pop('diskbus',None)
+ 
+
+
+
+        #~ create_dict['template_dict']=template_dict
+        #~ create_dict['hardware']=original_domain['create_dict']['hardware']
+        #~ dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
+        #~ create_dict['hardware']['disks'][0]={'file':dir_disk+'/'+disk_filename, 'parent':''}
+        #~ create_dict['origin']=original_domain['id']
+        #~ with app.app_context():
+            #~ return self.check(r.table('domains').get(original_domain['id']).update({"create_dict": create_dict, "status": "CreatingTemplate"}).run(db.conn),'replaced')
 
 
     def new_domain_from_tmpl(self, user, create_dict):
@@ -981,6 +1053,8 @@ class isard():
         create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
                                             'parent':parent_disk}]
 
+        create_dict=self.parse_media_info(create_dict)
+        
         new_domain={'id': '_'+user+'_'+parsed_name,
                   'name': create_dict['name'],
                   'description': create_dict['description'],
@@ -1020,11 +1094,25 @@ class isard():
                 #~ new_create_dict['create_dict']['hardware']['disks'][0]['bus']=create_dict['create_dict']['hardware']['diskbus']
                 #~ create_dict['create_dict']['hardware']['disks']=
                 #~ create_dict['create_dict']['hardware']['disks'][0]=new_create_dict['create_dict']['hardware']['disks'][0]}
-                create_dict['create_dict']['hardware'].pop('diskbus',None)
+            create_dict['create_dict']['hardware'].pop('diskbus',None)
+            
+        create_dict['create_dict']=self.parse_media_info(create_dict['create_dict'])
+                            
         create_dict['status']='Updating'
         return self.check(r.table('domains').get(id).update(create_dict).run(db.conn),'replaced')
         #~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
+    def parse_media_info(self, create_dict):
+        medias=['isos','floppies','storage']
+        for m in medias:
+            if m in create_dict['hardware']:
+                newlist=[]
+                for item in create_dict['hardware'][m]:
+                    with app.app_context():
+                        newlist.append(r.table('media').get(item['id']).pluck('id','name','description').run(db.conn))
+                create_dict['hardware'][m]=newlist
+        return create_dict
+        
     def new_domain_disposable_from_tmpl(self, client_ip, template):
         parsed_name = self.parse_string(client_ip)
         parsed_name = client_ip.replace(".", "_") 

@@ -29,7 +29,7 @@ $(document).ready(function() {
 
     table['domains']=$('#domains_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/domains",
+				"url": "/admin/updates/domains/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -156,7 +156,7 @@ $(document).ready(function() {
 
     table['media']=$('#media_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/media",
+				"url": "/admin/updates/media/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -275,7 +275,7 @@ $(document).ready(function() {
     
     table['builders']=$('#builders_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/builders",
+				"url": "/admin/updates/builders/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -348,7 +348,7 @@ $(document).ready(function() {
     
     table['virt_builder']=$('#virt_builder_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/virt_builder",
+				"url": "/admin/updates/virt_builder/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -421,7 +421,7 @@ $(document).ready(function() {
     
     table['virt_install']=$('#virt_install_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/virt_install",
+				"url": "/admin/updates/virt_install/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -489,7 +489,7 @@ $(document).ready(function() {
 
     table['videos']=$('#videos_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/videos",
+				"url": "/admin/updates/videos/",
 				"dataSrc": ""
 			},
 			"language": {
@@ -578,7 +578,7 @@ $(document).ready(function() {
 
     table['viewers']=$('#viewers_tbl').DataTable({
 			"ajax": {
-				"url": "/admin/updates/viewers",
+				"url": "/admin/updates/viewers/",
 				"dataSrc": ""
 			},
 			"language": {

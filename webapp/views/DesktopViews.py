@@ -110,7 +110,7 @@ def viewer_download(os,id):
         
 @app.route('/disposable/download_viewer/<os>/<id>')
 def viewer_disposable_download(os,id):
-    remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     if id.startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
         extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
         return Response(consola, 
@@ -171,7 +171,7 @@ def domains_update():
 # ~ def desktops_add_disposable():
     # ~ res=True
     # ~ if request.method == 'POST':
-        # ~ remote_addr=request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         # ~ template=request.get_json(force=True)['pk']
         # ~ ## Checking permissions
         # ~ disposables = app.isardapi.show_disposable(remote_addr)
@@ -284,128 +284,29 @@ def domain_alloweds_select2():
     allowed=request.get_json(force=True)['allowed']
     return json.dumps(app.isardapi.get_alloweds_select2(allowed))
         
-@app.route('/desktops/template',methods=['POST'])
-@login_required
-@ownsid
-def desktops_template():
-    msg=True
-    if request.method == 'POST':
-        if float(app.isardapi.get_user_quotas(current_user.username)['tqp']) >= 100:
-            flash('Quota for creating new templates is full','danger')
-            return redirect(url_for('desktops'))
-        #~ # if app.isardapi.is_domain_id_unique
-        original=app.isardapi.get_domain(request.form['id'])
-        domain_dict=app.isardapi.f.unflatten_dict(original)
-        res=app.isardapi.new_tmpl_from_domain(current_user.username,
-                                              request.form['name'],
-                                              request.form['description'],
-                                              request.form['kind'],
-                                              domain_dict)
-        if res is True:
-            flash('Template creation queued, wait to complete','success')
-            return redirect(url_for('desktops'))
-        else:
-            flash('Could not create template now','danger')
-    return redirect(url_for('desktops'))
-
-#~ @socketio.on('connect', namespace='/test')
-#~ def test_connect():
-    #~ print(current_user.username)
-    #~ global thread
-    #~ if thread is None:
-        #~ thread = socketio.start_background_task(target=background_thread)
-    #~ emit('my_response', {'data': 'Connected', 'count': 0})
-
-#~ def background_thread():
-    #~ """Example of how to send server generated events to clients."""
-    #~ count = 0
-    #~ while True:
-        #~ socketio.sleep(10)
-        #~ count += 1
-        #~ socketio.emit('my_response',
-                      #~ {'data': 'Server generated event', 'count': count},
-                      #~ namespace='/test')
-
-#~ @socketio.on('connect')
-#~ def desktops_connect_handler():
-    #~ if current_user.is_authenticated:
-        #~ log.info('authenticated: '+current_user.username)
-        #~ with app.app_context():
-            #~ for c in r.table('domains').get_all(current_user.username, index='user').merge({"table": "domains"}).changes(include_initial=False).run(db.conn):
-                #~ if c['new_val'] is not None:
-                   #~ log.info('new event for user '+current_user.username+' desktop:'+c['new_val']['id'])
-                   #~ emit('status_desktop',c['new_val'])
-    #~ else:
-        #~ log.info('not authenticated')
-        #~ return False  # not allowed here
-
-#~ @socketio.on('disconnect')
-#~ def disconnect():
-    #~ print("%s disconnected" % (current_user.username))
-    
-# ~ def desktops_stream():
-        # ~ with app.app_context():
-            # ~ for c in r.table('domains').get_all(current_user.username, index='user').merge({"table": "domains"}).changes(include_initial=False).run(db.conn):
-                # ~ if c['new_val'] is not None:
-                   # ~ print('new event for user '+current_user.username+' desktop:'+c['new_val']['id'])
-                   # ~ emit('status_desktop',c['new_val'])
-
-#~ @app.route('/stream/desktops')
+#~ @app.route('/desktops/template',methods=['POST'])
 #~ @login_required
-#~ def sse_request():
-        #~ return Response(event_stream(current_user.username), mimetype='text/event-stream')
+#~ @ownsid
+#~ def desktops_template():
+    #~ msg=True
+    #~ if request.method == 'POST':
+        #~ if float(app.isardapi.get_user_quotas(current_user.username)['tqp']) >= 100:
+            #~ flash('Quota for creating new templates is full','danger')
+            #~ return redirect(url_for('desktops'))
+        #~ original=app.isardapi.get_domain(request.form['id'])
+        #~ domain_dict=app.isardapi.f.unflatten_dict(original)
+        #~ res=app.isardapi.new_tmpl_from_domain(current_user.username,
+                                              #~ request.form['name'],
+                                              #~ request.form['description'],
+                                              #~ request.form['kind'],
+                                              #~ domain_dict)
+        #~ if res is True:
+            #~ flash('Template creation queued, wait to complete','success')
+            #~ return redirect(url_for('desktops'))
+        #~ else:
+            #~ flash('Could not create template now','danger')
+    #~ return redirect(url_for('desktops'))
 
-#~ def event_stream(username):
-        #~ with app.app_context():
-            #~ #dom_started=set(['_jvinolas_asdf'])
-            #~ dom_started=[]
-            #~ for c in r.table('domains').get_all(username, index='user').merge({"table": "domains"}).changes(include_initial=False).union(
-                #~ r.table('domains_status').get_all(r.args(dom_started)).merge({"table": "domains_status"}).changes(include_initial=False)).run(db.conn):
-                #~ #get_all(username, index='user').filter({'kind': 'desktop'})
-                #~ #r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
-                #~ #r.table('domains_status').get_all(r.args(list(dom_started)), index='name')
-                #~ #r.table('domains_status').filter(lambda domain: r.table('domains').get_all(username, index='user').filter({'status':'Started'}))
-                #~ print(list(r.table('domains_status').get_all(r.args(list(dom_started)), index='name').merge({"table": "domains_status"}).run(db.conn)))
-                #~ if (c['new_val'] is not None and c['new_val']['table'] == 'domains') or (c['old_val'] is not None and c['old_val']['table'] == 'domains'):
-                    #~ if c['new_val'] is None:
-                        #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']))
-                        #~ continue
-                    #~ if c['old_val'] is None:
-                        #~ yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))   
-                        #~ continue             
-                    #~ #if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                    #~ if c['old_val']['status']=='Starting' and c['new_val']['status']=='Started': 
-                        #~ dom_started.append(c['new_val']['id'])
-                    #~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(app.isardapi.f.flatten_dict(c['new_val'])))
-                #~ else:
-                    #~ print('THIS IS A DOMAIN STATUS')
-                    #~ print(c['new_val']['name'],c['new_val']['status']['cpu_usage'])
-
-# ~ @app.route('/stream/disposable')
-# ~ def sse_request_disposable():
-    # ~ id = '_disposable_'+app.isardapi.parse_string(request.headers['X-Forwarded-For'] if 'X-Forwarded-For' in request.headers else request.remote_addr)
-    # ~ return Response(event_disposable_stream(id), mimetype='text/event-stream')
-
-# ~ def event_disposable_stream(id):
-    # ~ with app.app_context():
-        # ~ for c in r.table('domains').get(id).changes(include_initial=False).run(db.conn):
-            # ~ if 'new_val' in c:
-                # ~ if c['new_val']['status'] == 'Started':
-                    # ~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Started',time.time(),json.dumps(c['new_val']))
-
-
-# ~ @app.route('/stream/backend')
-# ~ @login_required
-# ~ def sse_request_backend():
-        # ~ return Response(event_stream_backend(current_user.username, current_user.quota), mimetype='text/event-stream')
-
-# ~ import random
-# ~ def event_stream_backend(username,quota):
-        # ~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Quota',time.time(),json.dumps(app.isardapi.get_user_quotas(username, quota)))
-        # ~ with app.app_context():
-            # ~ for c in r.table('domains').get_all(username, index='user').filter({'kind': 'desktop'}).changes(include_initial=False).run(db.conn):
-                    # ~ yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Quota',time.time(),json.dumps(app.isardapi.get_user_quotas(username, quota)))
-                    # ~ continue
 
 @app.route('/desktops/filterTemplate/<kind>', methods=['GET'])
 @app.route('/desktops/filterTemplate/<kind>/category/<category>', methods=['GET'])
@@ -427,6 +328,7 @@ def filterTemplate(kind,category=False,group=False,user=False):
     #~ domains = app.isardapi.get_templates(dict)
     #~ return Response(json.dumps(domains), mimetype='application/json')
     return Response(json.dumps(app.isardapi.get_alloweds_domains(current_user.username,kind, custom_filter)), mimetype='application/json')
+    #~ return Response(json.dumps(app.isardapi.get_all_alloweds_table(current_user.username,kind, custom_filter)), mimetype='application/json')
 
 @app.route('/desktops/getAllTemplates', methods=['GET'])
 @login_required
@@ -452,17 +354,6 @@ def templateUpdate(id):
     hardware=app.isardapi.get_domain(id)
     return Response(json.dumps(hardware),  mimetype='application/json')
 
-## Helpers
-
-# ~ def validCharacters(txt):
-    # ~ import re, unicodedata, locale
-    # ~ txt=txt.decode('utf-8')
-    # ~ locale.setlocale(locale.LC_ALL, 'ca_ES')
-    # ~ prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$".decode('UTF-8'), re.L)
-    # ~ if not prog.match(txt):
-        # ~ return False
-    # ~ else:
-        # ~ return txt
 
 
 
