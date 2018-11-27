@@ -36,7 +36,8 @@
                   {% if current_user.role == 'admin' or current_user.role == 'advanced' %}
                   <li><a href="/templates"><i class="fa fa-cubes"></i> Templates</span></a>
                   </li>
-
+                  <li><a href="/media"><i class="fa fa-circle-o"></i> Media</span></a>
+                  </li>
                   {% endif %}
                   {% if current_user.role == 'admin' %}
 <!--
