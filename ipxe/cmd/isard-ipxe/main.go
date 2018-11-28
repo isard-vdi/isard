@@ -26,6 +26,8 @@ func generateMux() *http.ServeMux {
 	mux.HandleFunc("/pxe/boot/auth", handlers.AuthHandler)
 	mux.HandleFunc("/pxe/boot/list", handlers.VMListHandler)
 	mux.HandleFunc("/pxe/boot/start", handlers.StartHandler)
+	mux.HandleFunc("/pxe/boot/vmlinuz", handlers.VmlinuzHandler)
+	mux.HandleFunc("/pxe/boot/initrd", handlers.InitrdHandler)
 
 	return mux
 }
