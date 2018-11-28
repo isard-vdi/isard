@@ -1,4 +1,4 @@
 #!ipxe
-kernel {{.BaseURL}}/pxe/vmlinuz tkn={{.Token}} id={{.VMID}} initrd={{.BaseURL}}/pxe/initrd
-initrd {{.BaseURL}}/pxe/initrd
+kernel {{.BaseURL}}/pxe/boot/vmlinuz tkn={{.Token}} id={{.VMID}} initrd={{.BaseURL}}/pxe/boot/initrd
+initrd {{.BaseURL}}/pxe/boot/initrd
 boot
