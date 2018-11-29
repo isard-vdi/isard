@@ -48,7 +48,7 @@ class UiActions(object):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
 
         pool_id = get_pool_from_domain(id)
-        cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model',False)
+        cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model','host-model')
 
         # TODO: Read the cpu_host_model value from hypervisor_pool database
         xml = recreate_xml_to_start(id, ssl, cpu_host_model)

@@ -283,7 +283,7 @@ class Upgrade(object):
                                            [['cpu_host_model']],
                                            []):
                         ##### NEW FIELDS
-                        self.add_keys(table, [{'cpu_host_model': False}],
+                        self.add_keys(table, [{'cpu_host_model': 'host-model'}],
                                       id=id)
 
                     # ''' REMOVE FIELDS PRE CHECKS '''

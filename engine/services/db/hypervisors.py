@@ -458,7 +458,7 @@ def update_hypervisor_failed_connection(id, fail_connected_reason=''):
 
 def get_pool_hypers_conf(id_pool='default'):
     r_conn = new_rethink_connection()
-    rtable = r.table('pool_hypervisors')
+    rtable = r.table('hypervisors_pools')
 
     result = rtable.get(id_pool).run(r_conn)
 
