@@ -12,7 +12,10 @@ echo There was an error during tests. If this error persists, contact your Isard
 prompt Press any key to try again
 reboot`
 
-	menu := menus.GenerateError("during tests")
+	menu, err := menus.GenerateError("during tests")
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+	}
 
 	if menu != expected {
 		t.Errorf("expecting %s, but got %s", expected, menu)

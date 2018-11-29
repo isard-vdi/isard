@@ -27,7 +27,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error generating the login menu: %v", err)
 	}
 
-	fmt.Fprint(w, menu)
+	if _, err = fmt.Fprint(w, menu); err != nil {
+		log.Printf("error writting the login menu")
+	}
 }
 
 // AuthHandler is the handler that authenticates the user. If the authentication succeeds, it calls the VMListHandler and if it fails,
@@ -46,9 +48,11 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("error calling the login API endpoint: %v", err)
 
-		menu := menus.GenerateError("calling the login API endpoint")
+		menu, err := menus.GenerateError("calling the login API endpoint")
 
-		fmt.Fprintf(w, menu)
+		if _, err = fmt.Fprint(w, menu); err != nil {
+			log.Printf("error writting the error menu")
+		}
 		return
 	}
 
@@ -57,7 +61,9 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error generating the VM error menu: %v", err)
 	}
 
-	fmt.Fprint(w, menu)
+	if _, err = fmt.Fprint(w, menu); err != nil {
+		log.Printf("error writting the auth menu")
+	}
 }
 
 // VMListHandler is the handler that returns a list with all the VMs
@@ -75,7 +81,9 @@ func VMListHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Fprint(w, menu)
+	if _, err = fmt.Fprint(w, menu); err != nil {
+		log.Printf("error writting the list menu")
+	}
 }
 
 // StartHandler is the handler that starts the selected VM
@@ -97,15 +105,19 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 				log.Printf("error generating the VM error menu: %v", err)
 			}
 
-			fmt.Fprint(w, menu)
+			if _, err = fmt.Fprint(w, menu); err != nil {
+				log.Printf("error writting the error menu")
+			}
 			return
 		}
 
 		log.Printf("error calling the start API endpoint: %v", err)
 
-		menu := menus.GenerateError("calling the start API endpoint")
+		menu, err := menus.GenerateError("calling the start API endpoint")
 
-		fmt.Fprint(w, menu)
+		if _, err = fmt.Fprint(w, menu); err != nil {
+			log.Printf("error writting the error menu")
+		}
 		return
 	}
 
@@ -114,5 +126,7 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error generating the boot menu: %v", err)
 	}
 
-	fmt.Fprint(w, menu)
+	if _, err = fmt.Fprint(w, menu); err != nil {
+		log.Printf("error writting the boot menu")
+	}
 }

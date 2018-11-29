@@ -16,7 +16,7 @@ func GenerateList(webRequest mocks.WebRequest, token string, username string) (s
 		buf := new(bytes.Buffer)
 
 		t := parseTemplate("error.ipxe")
-		t.Execute(buf, menuTemplateData{
+		err = t.Execute(buf, menuTemplateData{
 			Err: "reading the configuration file",
 		})
 
@@ -29,7 +29,7 @@ func GenerateList(webRequest mocks.WebRequest, token string, username string) (s
 			buf := new(bytes.Buffer)
 
 			t := parseTemplate("login.ipxe")
-			t.Execute(buf, menuTemplateData{
+			err = t.Execute(buf, menuTemplateData{
 				BaseURL: config.BaseURL,
 			})
 
@@ -39,7 +39,7 @@ func GenerateList(webRequest mocks.WebRequest, token string, username string) (s
 		buf := new(bytes.Buffer)
 
 		t := parseTemplate("error.ipxe")
-		t.Execute(buf, menuTemplateData{
+		err = t.Execute(buf, menuTemplateData{
 			Err: "calling the API",
 		})
 
@@ -50,7 +50,7 @@ func GenerateList(webRequest mocks.WebRequest, token string, username string) (s
 
 	if len(vms.VMs) == 1 {
 		t := parseTemplate("individualVM.ipxe")
-		t.Execute(buf, menuTemplateData{
+		err = t.Execute(buf, menuTemplateData{
 			BaseURL: config.BaseURL,
 			Token:   token,
 			VMID:    vms.VMs[0].ID,
@@ -60,7 +60,7 @@ func GenerateList(webRequest mocks.WebRequest, token string, username string) (s
 	}
 
 	t := parseTemplate("VMList.ipxe")
-	t.Execute(buf, menuTemplateData{
+	err = t.Execute(buf, menuTemplateData{
 		BaseURL:  config.BaseURL,
 		Token:    token,
 		Username: username,

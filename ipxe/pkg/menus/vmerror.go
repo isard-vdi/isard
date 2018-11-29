@@ -15,7 +15,7 @@ func GenerateVMError(vmErr error) (string, error) {
 		buf := new(bytes.Buffer)
 		t := parseTemplate("error.ipxe")
 
-		t.Execute(buf, menuTemplateData{
+		err = t.Execute(buf, menuTemplateData{
 			Err: "reading the configuration file",
 		})
 
@@ -25,10 +25,10 @@ func GenerateVMError(vmErr error) (string, error) {
 	buf := new(bytes.Buffer)
 	t := parseTemplate("errorVM.ipxe")
 
-	t.Execute(buf, menuTemplateData{
+	err = t.Execute(buf, menuTemplateData{
 		BaseURL: config.BaseURL,
 		Err:     fmt.Sprintf("%v", vmErr),
 	})
 
-	return buf.String(), nil
+	return buf.String(), err
 }
