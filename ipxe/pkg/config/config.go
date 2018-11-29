@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Config is the struct that contains all the configuration parameters

@@ -3,13 +3,13 @@ package menus
 import "bytes"
 
 // GenerateError generates a menu with an error
-func GenerateError(err string) string {
+func GenerateError(msg string) (string, error) {
 	buf := new(bytes.Buffer)
 
 	t := parseTemplate("error.ipxe")
-	t.Execute(buf, menuTemplateData{
-		Err: err,
+	err := t.Execute(buf, menuTemplateData{
+		Err: msg,
 	})
 
-	return buf.String()
+	return buf.String(), err
 }

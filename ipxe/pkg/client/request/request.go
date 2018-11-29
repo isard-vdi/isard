@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 
@@ -55,7 +56,11 @@ func (r Request) Get(url string) (body []byte, code int, err error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err = rsp.Body.Close(); err != nil {
+			log.Printf("error closing the response body: %s", url)
+		}
+	}()
 
 	body, err = ioutil.ReadAll(rsp.Body)
 	if err != nil {
@@ -77,7 +82,11 @@ func (r Request) Post(url string, body io.Reader) ([]byte, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err = rsp.Body.Close(); err != nil {
+			log.Printf("error closing the response body: %s", url)
+		}
+	}()
 
 	rspBody, err := ioutil.ReadAll(rsp.Body)
 	if err != nil {
