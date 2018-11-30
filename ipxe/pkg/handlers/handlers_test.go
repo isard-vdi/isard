@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -143,8 +144,8 @@ func (testWebRequestAuth) Post(url string, body io.Reader) ([]byte, int, error) 
 			},
 			rsp: rsp{
 				body: []byte(""),
-				code: 500,
-				err:  nil,
+				code: 200,
+				err:  errors.New("testing error"),
 			},
 		},
 	}
@@ -410,6 +411,226 @@ reboot`)
 		handlers.VMListHandler(w, r)
 
 		// Code needs to be 200, since iPXE doesn't boot 500's
+		if w.Code != http.StatusOK {
+			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
+		}
+
+		if !bytes.Equal(w.Body.Bytes(), expected) {
+			t.Errorf("expecting %s, but got %s", expected, w.Body.Bytes())
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+}
+
+type testWebRequestStart struct{}
+
+func (testWebRequestStart) Get(url string) ([]byte, int, error) {
+	return nil, 500, nil
+}
+
+func (testWebRequestStart) Post(url string, body io.Reader) ([]byte, int, error) {
+	type rsp struct {
+		body []byte
+		code int
+		err  error
+	}
+
+	type startBody struct {
+		Token string `json:"tkn"`
+		ID    string `json:"id"`
+	}
+
+	endpoints := []struct {
+		url  string
+		body startBody
+		rsp  rsp
+	}{
+		{
+			url: "https://isard.domain.com/pxe/start",
+			body: startBody{
+				Token: "TpnYVH0-OsVrA050YufAi0rPAm_r3aNPcmdhQ69jrMk",
+				ID:    "_nefix_KDE_Neon_5",
+			},
+			rsp: rsp{
+				body: []byte(""),
+				code: 200,
+				err:  nil,
+			},
+		},
+		{
+			url: "https://isard.domain.com/pxe/start",
+			body: startBody{
+				Token: "invalidtoken",
+				ID:    "_nefix_KDE_Neon_5",
+			},
+			rsp: rsp{
+				body: []byte(""),
+				code: 403,
+				err:  nil,
+			},
+		},
+		{
+			url: "https://isard.domain.com/pxe/start",
+			body: startBody{
+				Token: "error",
+				ID:    "_nefix_KDE_Neon_5",
+			},
+			rsp: rsp{
+				body: []byte(""),
+				code: 200,
+				err:  errors.New("testing error"),
+			},
+		},
+		{
+			url: "https://isard.domain.com/pxe/start",
+			body: startBody{
+				Token: "vmerror",
+				ID:    "_nefix_KDE_Neon_5",
+			},
+			rsp: rsp{
+				body: []byte(`{
+	"code": 2,
+	"msg": "testing error"
+}`),
+				code: 500,
+				err:  nil,
+			},
+		},
+	}
+
+	bodyBuf := new(bytes.Buffer)
+	bodyBuf.ReadFrom(body)
+
+	var decodedBuffer startBody
+
+	err := json.Unmarshal(bodyBuf.Bytes(), &decodedBuffer)
+	if err != nil {
+		return nil, 500, fmt.Errorf("bad formatted body: %v", err)
+	}
+
+	for _, endpoint := range endpoints {
+		if url == endpoint.url {
+			if reflect.DeepEqual(decodedBuffer, endpoint.body) {
+				return endpoint.rsp.body, endpoint.rsp.code, endpoint.rsp.err
+			}
+		}
+	}
+
+	return []byte("The endpoint wasn't found!"), 404, nil
+}
+
+func TestStartHandler(t *testing.T) {
+	t.Run("should work as expected", func(t *testing.T) {
+		handlers.WebRequest = testWebRequestStart{}
+
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=TpnYVH0-OsVrA050YufAi0rPAm_r3aNPcmdhQ69jrMk&id=_nefix_KDE_Neon_5", nil)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		w := httptest.NewRecorder()
+
+		expected := []byte(`#!ipxe
+kernel https://isard.domain.com/pxe/vmlinuz tkn=TpnYVH0-OsVrA050YufAi0rPAm_r3aNPcmdhQ69jrMk id=_nefix_KDE_Neon_5 initrd=https://isard.domain.com/pxe/initrd
+initrd https://isard.domain.com/pxe/initrd
+boot`)
+
+		handlers.StartHandler(w, r)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
+		}
+
+		if !bytes.Equal(w.Body.Bytes(), expected) {
+			t.Errorf("expecting %s, but got %s", expected, w.Body.Bytes())
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+
+	t.Run("should return a login menu", func(t *testing.T) {
+		handlers.WebRequest = testWebRequestStart{}
+
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=invalidtoken&id=_nefix_KDE_Neon_5", nil)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		w := httptest.NewRecorder()
+
+		expected := []byte(`#!ipxe
+set username
+set password
+login
+chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${password:uristring}`)
+
+		handlers.StartHandler(w, r)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
+		}
+
+		if !bytes.Equal(w.Body.Bytes(), expected) {
+			t.Errorf("expecting %s, but got %s", expected, w.Body.Bytes())
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+
+	t.Run("should return a VM error menu", func(t *testing.T) {
+		handlers.WebRequest = testWebRequestStart{}
+
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=vmerror&id=_nefix_KDE_Neon_5", nil)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		w := httptest.NewRecorder()
+
+		expected := []byte(`#!ipxe
+echo The VM start has failed: testing error
+prompt Press any key to go back
+chain https://isard.domain.com/pxe/boot/`)
+
+		handlers.StartHandler(w, r)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
+		}
+
+		if !bytes.Equal(w.Body.Bytes(), expected) {
+			t.Errorf("expecting %s, but got %s", expected, w.Body.Bytes())
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+
+	t.Run("should return an error menu", func(t *testing.T) {
+		handlers.WebRequest = testWebRequestStart{}
+
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=error&id=_nefix_KDE_Neon_5", nil)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		w := httptest.NewRecorder()
+
+		expected := []byte(`#!ipxe
+echo There was an error calling the start API endpoint. If this error persists, contact your IsardVDI administrator.
+prompt Press any key to try again
+reboot`)
+
+		handlers.StartHandler(w, r)
+
 		if w.Code != http.StatusOK {
 			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
 		}
