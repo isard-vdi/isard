@@ -3,10 +3,12 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
@@ -79,6 +81,181 @@ reboot`)
 		}
 
 		if err := os.Chdir(initialFolder); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+}
+
+type testWebRequestAuth struct{}
+
+func (testWebRequestAuth) Get(url string) ([]byte, int, error) {
+	return nil, 500, nil
+}
+
+func (testWebRequestAuth) Post(url string, body io.Reader) ([]byte, int, error) {
+	type rsp struct {
+		body []byte
+		code int
+		err  error
+	}
+
+	type authBody struct {
+		Username string `json:"usr"`
+		Password string `json:"pwd"`
+	}
+
+	endpoints := []struct {
+		url  string
+		body authBody
+		rsp  rsp
+	}{
+		{
+			url: "https://isard.domain.com/pxe/login",
+			body: authBody{
+				Username: "nefix",
+				Password: "P4$$w0rd! ",
+			},
+			rsp: rsp{
+				body: []byte(`{
+	"tkn": "cr7B-duhaj3YkMIAmv1jZOb_ytH-23ruSnKwlVHWxrU"
+}`),
+				code: 200,
+				err:  nil,
+			},
+		},
+		{
+			url: "https://isard.domain.com/pxe/login",
+			body: authBody{
+				Username: "nefix",
+				Password: "invalidpassword",
+			},
+			rsp: rsp{
+				body: []byte(""),
+				code: 401,
+				err:  nil,
+			},
+		},
+		{
+			url: "https://isard.domain.com/pxe/login",
+			body: authBody{
+				Username: "nefix",
+				Password: "error",
+			},
+			rsp: rsp{
+				body: []byte(""),
+				code: 500,
+				err:  nil,
+			},
+		},
+	}
+
+	bodyBuf := new(bytes.Buffer)
+	bodyBuf.ReadFrom(body)
+
+	var decodedBuffer authBody
+
+	err := json.Unmarshal(bodyBuf.Bytes(), &decodedBuffer)
+	if err != nil {
+		return nil, 500, fmt.Errorf("bad formatted body: %v", err)
+	}
+
+	for _, endpoint := range endpoints {
+		if url == endpoint.url {
+			if reflect.DeepEqual(decodedBuffer, endpoint.body) {
+				return endpoint.rsp.body, endpoint.rsp.code, endpoint.rsp.err
+			}
+		}
+	}
+
+	return []byte("The endpoint wasn't found!"), 404, nil
+}
+
+func TestAuthHandler(t *testing.T) {
+	t.Run("should work as expected", func(t *testing.T) {
+		handlers.WebRequest = testWebRequestAuth{}
+
+		r, err := http.NewRequest("GET", "/pxe/boot/auth?usr=nefix&pwd=P4$$w0rd! ", nil)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		w := httptest.NewRecorder()
+
+		expected := []byte(`#!ipxe
+chain https://isard.domain.com/pxe/boot/list?tkn=cr7B-duhaj3YkMIAmv1jZOb_ytH-23ruSnKwlVHWxrU&usr=nefix`)
+
+		handlers.AuthHandler(w, r)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
+		}
+
+		if !bytes.Equal(w.Body.Bytes(), expected) {
+			t.Errorf("expecting %s, but got %s", expected, w.Body.Bytes())
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+
+	t.Run("should return a login menu", func(t *testing.T) {
+		handlers.WebRequest = testWebRequestAuth{}
+
+		r, err := http.NewRequest("GET", "/pxe/boot/auth?usr=nefix&pwd=invalidpassword", nil)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		w := httptest.NewRecorder()
+
+		expected := []byte(`#!ipxe
+set username
+set password
+login
+chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${password:uristring}`)
+
+		handlers.AuthHandler(w, r)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("expecting %d, but got %d", http.StatusUnauthorized, w.Code)
+		}
+
+		if !bytes.Equal(w.Body.Bytes(), expected) {
+			t.Errorf("expecting %s, but got %s", expected, w.Body.Bytes())
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
+
+	t.Run("should return an error menu", func(t *testing.T) {
+		handlers.WebRequest = testWebRequestAuth{}
+
+		r, err := http.NewRequest("GET", "/pxe/boot/auth?usr=nefix&pwd=error", nil)
+		if err != nil {
+			t.Fatalf("error preparing the test: %v", err)
+		}
+
+		w := httptest.NewRecorder()
+
+		expected := []byte(`#!ipxe
+echo There was an error calling the login API endpoint. If this error persists, contact your IsardVDI administrator.
+prompt Press any key to try again
+reboot`)
+
+		handlers.AuthHandler(w, r)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
+		}
+
+		if !bytes.Equal(w.Body.Bytes(), expected) {
+			t.Errorf("expecting %s, but got %s", expected, w.Body.Bytes())
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
 			t.Fatalf("error finishing the test: %v", err)
 		}
 	})
