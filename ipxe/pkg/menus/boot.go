@@ -14,9 +14,11 @@ func GenerateBoot(token string, vmID string) (string, error) {
 		buf := new(bytes.Buffer)
 
 		t := parseTemplate("error.ipxe")
-		err = t.Execute(buf, menuTemplateData{
+		if tmplErr := t.Execute(buf, menuTemplateData{
 			Err: "reading the configuration file",
-		})
+		}); tmplErr != nil {
+			return buf.String(), tmplErr
+		}
 
 		return buf.String(), err
 	}
