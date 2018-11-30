@@ -7,18 +7,15 @@
 # Build stage
 #
 
-# Use golang 1.11 as stage stage
+# Use golang 1.11 as build stage
 FROM golang:1.11 as build
 
-# Download Isard iPXE
-WORKDIR /go/src/github.com/isard-vdi
-RUN git clone https://github.com/isard-vdi/isard-ipxe
-
 # Move to the correct directory
+COPY . /go/src/github.com/isard-vdi/isard-ipxe/
 WORKDIR /go/src/github.com/isard-vdi/isard-ipxe
 
 # Compile the binary
-RUN CGO_ENABLED=0 go build -a -ldflags "-s -w" -o isard-ipxe cmd/isard-ipxe/main.go
+RUN make build
 
 # Create the user
 RUN adduser --disabled-password --gecos '' app
@@ -36,11 +33,12 @@ COPY --from=build /etc/passwd /etc/passwd
 # Copy the compiled binary from the build stage
 COPY --from=build /go/src/github.com/isard-vdi/isard-ipxe/isard-ipxe /app/isard-ipxe
 
+# Create the data directory and set the correct permissions
+RUN mkdir /data
+RUN chown app /data
+
 # Move to the correct directory
 WORKDIR /data
-
-# Change the directory permissions
-RUN chown app /data
 
 # Use the 'app' user
 USER app
