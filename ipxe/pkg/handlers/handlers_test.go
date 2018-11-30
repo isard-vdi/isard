@@ -203,10 +203,8 @@ chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${pas
 
 	handlers.VMListHandler(w, r)
 
-	// Code needs to be 200, since iPXE doesn't boot 403's
-	// TODO: Check that this is true
-	if w.Code != http.StatusOK {
-		t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expecting %d, but got %d", http.StatusForbidden, w.Code)
 	}
 
 	if !bytes.Equal(w.Body.Bytes(), expected) {
