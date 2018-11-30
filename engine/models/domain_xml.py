@@ -24,6 +24,8 @@ from engine.services.db.downloads import get_media
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
 
+CPU_MODEL_FALLBACK = 'core2duo'
+
 DEFAULT_BALLOON = 0.80
 
 BUS_TYPES =  ['sata', 'ide', 'virtio']
@@ -70,6 +72,53 @@ XML_SNIPPET_DISK_CUSTOM = '''
       <target dev="{preffix_descriptor}d{suffix_descriptor}" bus="{bus}"/>
     </disk>
 '''
+
+CPU_MODEL_NAMES = ['486',
+ 'pentium',
+ 'pentium2',
+ 'pentium3',
+ 'pentiumpro',
+ 'coreduo',
+ 'n270',
+ 'core2duo',
+ 'qemu32',
+ 'kvm32',
+ 'cpu64-rhel5',
+ 'cpu64-rhel6',
+ 'kvm64',
+ 'qemu64',
+ 'Conroe',
+ 'Penryn',
+ 'Nehalem',
+ 'Nehalem-IBRS',
+ 'Westmere',
+ 'Westmere-IBRS',
+ 'SandyBridge',
+ 'SandyBridge-IBRS',
+ 'IvyBridge',
+ 'IvyBridge-IBRS',
+ 'Haswell-noTSX',
+ 'Haswell-noTSX-IBRS',
+ 'Haswell',
+ 'Haswell-IBRS',
+ 'Broadwell-noTSX',
+ 'Broadwell-noTSX-IBRS',
+ 'Broadwell',
+ 'Broadwell-IBRS',
+ 'Skylake-Client',
+ 'Skylake-Client-IBRS',
+ 'Skylake-Server',
+ 'Skylake-Server-IBRS',
+ 'athlon',
+ 'phenom',
+ 'Opteron_G1',
+ 'Opteron_G2',
+ 'Opteron_G3',
+ 'Opteron_G4',
+ 'Opteron_G5',
+ 'EPYC',
+ 'EPYC-IBPB']
+
 
 index_to_char_suffix_disks = 'a,b,c,d,e,f,g,h,i,j,k,l,m,n'.split(',')
 
@@ -321,22 +370,27 @@ class DomainXML(object):
             element = etree.parse(StringIO('<vcpu placement=\'{}\'>{}</vcpu>'.format(placement, vcpus))).getroot()
             self.tree.xpath('/domain/name')[0].addnext(element)
 
+    def add_to_domain(self, xpath_same, element_tree, xpath_next='', xpath_previous='', xpath_parent='/domain'):
+        if self.tree.xpath(xpath_parent):
+            if self.tree.xpath(xpath_same):
+                self.tree.xpath(xpath_same)[-1].addnext(element_tree)
+
+            elif xpath_next and self.tree.xpath(xpath_next):
+                self.tree.xpath(xpath_next)[0].addprevious(element_tree)
+
+            elif xpath_previous and self.tree.xpath(xpath_previous):
+                self.tree.xpath(xpath_previous)[-1].addnext(element_tree)
+
+            else:
+                self.tree.xpath(xpath_parent)[0].insert(1, element_tree)
+
+        else:
+            log.debug('element {} not found in xml_tree when adding to the domain'.format(xpath_parent))
+
     def add_device(self, xpath_same, element_tree, xpath_next='', xpath_previous=''):
         # mejor añadir a la vez cds y discos para verificar que no hay lio con los hda, hdb...
 
-        if self.tree.xpath('/domain/devices'):
-
-            if self.tree.xpath(xpath_same):
-                self.tree.xpath(xpath_same)[-1].addnext(element_tree)
-            elif xpath_next and self.tree.xpath(xpath_next):
-                self.tree.xpath(xpath_next)[0].addprevious(element_tree)
-            elif xpath_previous and self.tree.xpath(xpath_previous):
-                self.tree.xpath(xpath_previous)[-1].addnext(element_tree)
-            else:
-                self.tree.xpath('/domain/devices')[0].insert(1, element_tree)
-
-        else:
-            log.debug('element /domain/devices not found in xml_etree when adding disk')
+        if not self.add_to_domain(xpath_same, element_tree, xpath_next, xpath_previous, '/domain/devices'):
             return False
 
     def add_disk(self,index=0,path_disk='/path/to/disk.qcow',type_disk='qcow2',bus='virtio'):
@@ -423,6 +477,51 @@ class DomainXML(object):
     def reset_viewer_passwd(self, ssl=True):
         passwd = ''.join([random.choice(string.ascii_letters + string.digits) for n in range(16)])
         self.set_viewer_passwd(passwd, ssl)
+
+    def set_cpu_host_model(self, cpu_host_model='host-model'):
+        """update cpu host_model from xml original in domain,
+        by default cpu_host_model is host-model (see libvirt xml help)
+        cpu_host_mode: not-change, custom, host-model, host-passthrough"""
+
+        if cpu_host_model == 'not-change':
+            return False
+
+
+        fallback = etree.parse(StringIO("<model fallback='allow'>{}</model>".format(CPU_MODEL_FALLBACK))).getroot()
+
+        if cpu_host_model == 'host-model' or cpu_host_model is False:
+            #cpu = etree.Element('cpu', mode='host-model', check='partial')
+            #cpu.append(etree.Element('model', fallback='allow'))
+
+            #cpu = etree.parse(StringIO("<cpu mode='host-model' check='partial'>").getroot()
+            cpu = etree.parse(StringIO("<cpu mode='host-model' > </cpu>")).getroot()
+            cpu.append(fallback)
+
+        elif cpu_host_model == 'host-passthrough':
+            cpu = etree.parse(StringIO("cpu mode='{}' > </cpu>".format(cpu_host_model))).getroot()
+            cpu.append(fallback)
+
+        elif cpu_host_model in CPU_MODEL_NAMES:
+            exact_cpu = etree.parse(StringIO("<model>{}</model>".format(cpu_host_model))).getroot()
+            cpu = etree.parse(StringIO("<cpu mode='custom' > </cpu>")).getroot()
+            cpu.append(exact_cpu)
+
+        else:
+            log.error('cpu_host_model not supported, cpu section not modified: ' + cpu_host_model)
+            return False
+
+        #delete old cpu section
+        domain = self.tree.xpath('/domain')[0]
+
+        cpu_old = domain.xpath('cpu')
+        if len(cpu_old) == 1:
+            domain.remove(cpu_old[0])
+
+        #insert new cpu section
+        xpath_same = '/domain/cpu'
+        xpath_previous = '/domain/features'
+        xpath_next = '/domain/clock'
+        self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
     def set_graphics_type(self, type_graphics):
         self.tree.xpath('/domain/devices/graphics')[0].set('type', type_graphics)
@@ -951,13 +1050,16 @@ def create_dict_graphics_from_id(id, pool_id):
 
     return d
 
-def recreate_xml_to_start(id, ssl=True):
+def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     dict_domain = get_domain(id)
 
     xml = dict_domain['xml']
     x = DomainXML(xml)
 
     ##### actions to customize xml
+
+    if dict_domain.get('not_change_cpu_section',False) is False:
+        x.set_cpu_host_model(cpu_host_model)
 
     # spice password
     if ssl is True:

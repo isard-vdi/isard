@@ -420,7 +420,7 @@ class hyp(object):
             log.error('can not get stats from libvirt if hypervisor {} is not connected'.format(self.hostname))
             return False
 
-    def process_hypervisor_stats(self, raw_stats):
+    def     process_hypervisor_stats(self, raw_stats):
         if len(self.info) == 0:
             self.get_hyp_info()
 
@@ -568,7 +568,7 @@ class hyp(object):
 
                 sum_vcpus += current['vcpu.current']
 
-                d_stats['cpu_load'] = round(((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'])*100,3)
+                #d_stats['cpu_load'] = round(((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'])*100,3)
                 if current.get('cpu.time') and previous.get('cpu.time'):
                     d_stats['cpu_load'] = round((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'],3)
 
