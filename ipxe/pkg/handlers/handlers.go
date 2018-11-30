@@ -28,7 +28,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err = fmt.Fprint(w, menu); err != nil {
-		log.Printf("error writting the login menu")
+		log.Printf("error writting the login menu: %v", err)
 	}
 }
 
@@ -48,10 +48,14 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("error calling the login API endpoint: %v", err)
 
-		menu, err := menus.GenerateError("calling the login API endpoint")
+		var menu string
+		menu, err = menus.GenerateError("calling the login API endpoint")
+		if err != nil {
+			log.Printf("error generating the error menu: %v", err)
+		}
 
 		if _, err = fmt.Fprint(w, menu); err != nil {
-			log.Printf("error writting the error menu")
+			log.Printf("error writting the error menu: %v", err)
 		}
 		return
 	}
@@ -62,7 +66,7 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err = fmt.Fprint(w, menu); err != nil {
-		log.Printf("error writting the auth menu")
+		log.Printf("error writting the auth menu: %v", err)
 	}
 }
 
@@ -82,7 +86,7 @@ func VMListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err = fmt.Fprint(w, menu); err != nil {
-		log.Printf("error writting the list menu")
+		log.Printf("error writting the list menu: %v", err)
 	}
 }
 
@@ -106,17 +110,21 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if _, err = fmt.Fprint(w, menu); err != nil {
-				log.Printf("error writting the error menu")
+				log.Printf("error writting the error menu: %v", err)
 			}
 			return
 		}
 
 		log.Printf("error calling the start API endpoint: %v", err)
 
-		menu, err := menus.GenerateError("calling the start API endpoint")
+		var menu string
+		menu, err = menus.GenerateError("calling the start API endpoint")
+		if err != nil {
+			log.Printf("error generating the error menu: %v", err)
+		}
 
 		if _, err = fmt.Fprint(w, menu); err != nil {
-			log.Printf("error writting the error menu")
+			log.Printf("error writting the error menu: %v", err)
 		}
 		return
 	}
@@ -127,6 +135,6 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err = fmt.Fprint(w, menu); err != nil {
-		log.Printf("error writting the boot menu")
+		log.Printf("error writting the boot menu: %v", err)
 	}
 }
