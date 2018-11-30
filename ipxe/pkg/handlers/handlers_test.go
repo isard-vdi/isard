@@ -7,37 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"testing"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
 	"github.com/isard-vdi/isard-ipxe/pkg/client/request"
 	"github.com/isard-vdi/isard-ipxe/pkg/handlers"
 )
-
-func prepareCerts() error {
-	if err := os.Mkdir("certs", 0755); err != nil {
-		return err
-	}
-
-	cmd1 := exec.Command("openssl", "genrsa", "-des3", "-passout", "pass:qwerty", "-out", "certs/ca.key", "512")
-	cmd2 := exec.Command("openssl", "rsa", "-passin", "pass:qwerty", "-in", "certs/ca.key", "-out", "certs/ca.key")
-	cmd3 := exec.Command("openssl", "req", "-x509", "-new", "-nodes", "-key", "certs/ca.key", "-sha256", "-days", "1", "-out", "certs/ca.pem", "-subj", "/CN=isard.domain.com")
-
-	if err := cmd1.Run(); err != nil {
-		return err
-	}
-
-	if err := cmd2.Run(); err != nil {
-		return err
-	}
-
-	if err := cmd3.Run(); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 // Should work as expected
 func TestLoginHandler(t *testing.T) {
@@ -95,8 +70,9 @@ reboot`)
 
 	handlers.LoginHandler(w, r)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expecting %d, but got %d", http.StatusInternalServerError, w.Code)
+	// Code needs to be 200, since iPXE doesn't boot 500's
+	if w.Code != http.StatusOK {
+		t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
 	}
 
 	if !bytes.Equal(w.Body.Bytes(), expected) {
@@ -227,8 +203,10 @@ chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${pas
 
 	handlers.VMListHandler(w, r)
 
-	if w.Code != http.StatusForbidden {
-		t.Errorf("expecting %d, but got %d", http.StatusForbidden, w.Code)
+	// Code needs to be 200, since iPXE doesn't boot 403's
+	// TODO: Check that this is true
+	if w.Code != http.StatusOK {
+		t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
 	}
 
 	if !bytes.Equal(w.Body.Bytes(), expected) {
@@ -258,8 +236,9 @@ reboot`)
 
 	handlers.VMListHandler(w, r)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expecting %d, but got %d", http.StatusInternalServerError, w.Code)
+	// Code needs to be 200, since iPXE doesn't boot 500's
+	if w.Code != http.StatusOK {
+		t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
 	}
 
 	if !bytes.Equal(w.Body.Bytes(), expected) {
