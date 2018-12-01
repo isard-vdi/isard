@@ -12,7 +12,7 @@ from time import sleep
 from traceback import format_exc
 
 from engine.services.balancers.balancer_factory import BalancerFactory
-from engine.services.db.hypervisors import get_hypers_in_pool
+from engine.services.db.hypervisors import get_hypers_in_pool,get_pool_hypers_conf
 from engine.services.log import logs
 
 
@@ -27,6 +27,8 @@ class PoolHypervisors():
             # format_exc() -- > This is like print_exc(limit) but returns a string instead of printing to a file.
             # print_exc(limit) --> This is a shorthand for print_exception(*sys.exc_info(), limit, file, chain).
             logs.hmlog.error(format_exc())
+
+        self.conf = get_pool_hypers_conf(id_pool)
 
     def init_balancer(self, manager, hyps_ready_count):
         hyps = self.get_hyps_obj(manager, hyps_ready_count)
