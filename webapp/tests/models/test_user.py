@@ -6,7 +6,7 @@
 #      Alberto Larraz Dalmases
 #      Néfix Estrada Campañá
 # License: AGPLv3
-from ...types.user import User
+from ...models.user import User
 
 from ..mocks.rethink import *
 
