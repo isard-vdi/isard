@@ -1,6 +1,5 @@
 
 	function setAlloweds_viewer(div_id,id){
-		console.log('allowed viewer')
 			api.ajax('/domain/alloweds','POST',{'pk':id}).done(function(alloweds) {
                 var all=false;
                 $.each(alloweds,function(key, value) 
@@ -70,7 +69,7 @@
 				multiple: true,
 				ajax: {
 					type: "POST",
-					url: '/alloweds_term/'+id.replace('a-',''),
+					url: '/alloweds/term/'+id.replace('a-',''),
 					dataType: 'json',
 					contentType: "application/json",
 					delay: 250,
@@ -110,7 +109,6 @@
         //~ $('#modalAllowedsForm').parsley();
         setAlloweds_add('#modalAlloweds #alloweds-add'); 
         api.ajax('/alloweds/table/'+table,'POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
-			console.log(alloweds)
             $.each(alloweds,function(key, value) 
             {   
                 $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')

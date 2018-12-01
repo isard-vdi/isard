@@ -67,13 +67,11 @@ def domains_hadware():
 @ownsid
 def alloweds_table(table):
     if table in ['domains','media']:
-        print(app.adminapi.get_admin_table(table, pluck=['allowed'], id=request.get_json(force=True)['pk'], flatten=False)['allowed'])
-        return json.dumps(app.adminapi.get_admin_table(table, pluck=['allowed'], id=request.get_json(force=True)['pk'], flatten=False)['allowed'])
-    # ~ return json.dumps(app.isardapi.f.unflatten_dict(app.isardapi.get_domain(request.get_json(force=True)['pk']))['allowed'])
+        return json.dumps(app.isardapi.get_alloweds_select2(app.adminapi.get_admin_table(table, pluck=['allowed'], id=request.get_json(force=True)['pk'], flatten=False)['allowed']))
 
 
-# Gets all list of roles, categories, groups and users
-@app.route('/alloweds_term/<table>', methods=["POST"])
+# Gets all list of roles, categories, groups and users from a 2+ chars term
+@app.route('/alloweds/term/<table>', methods=["POST"])
 @login_required
 def alloweds_table_term(table):
     if request.method == 'POST' and table in ['roles','categories','groups','users']:
@@ -84,31 +82,3 @@ def alloweds_table_term(table):
     return json.dumps('Could not select.'), 500, {'ContentType':'application/json'} 
     
     
-
-
-
-# ~ @app.route('/domain_messages', methods=['POST'])
-# ~ @login_required
-# ~ @ownsid
-# ~ def domain_messages():
-    # ~ if request.method == 'POST':
-        # ~ return json.dumps(app.isardapi.get_domain_last_messages(request.get_json(force=True)['id']))
-    # ~ return False
-
-# ~ @app.route('/domain_events', methods=['POST'])
-# ~ @login_required
-# ~ @ownsid
-# ~ def domain_events():
-    # ~ if request.method == 'POST':
-        # ~ return json.dumps(app.isardapi.get_domain_last_events(request.get_json(force=True)['id']))
-    # ~ return False
-   
-# ~ @app.route('/chain', methods=['POST'])
-# ~ @login_required
-# ~ def chain():
-    # ~ if request.method == 'POST':
-        # ~ return json.dumps(app.isardapi.get_domain_backing_images(request.get_json(force=True)['id']))
-    # ~ return False
-           
-        
-        

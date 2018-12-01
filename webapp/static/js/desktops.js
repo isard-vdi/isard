@@ -525,9 +525,10 @@ function setDefaultsTemplate(id) {
 
 
 function renderTemplateKind(data){
-		if(data.kind=="public_template"){return "public";}
-        if(data.kind=="user_template"){return "private";}
-        return "base"
+		//~ if(data.kind=="public_template"){return "public";}
+        //~ if(data.kind=="user_template"){return "private";}
+	if(data.kind=='base'){return 'base';}
+        return "template"
 }
 
 function modal_add_desktop_datatables(){

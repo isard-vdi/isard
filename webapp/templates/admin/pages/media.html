@@ -48,13 +48,12 @@
               </div>
 -->
               {% include 'admin/pages/media_modals.html' %}
+	      {% include '/snippets/alloweds_form.html' %}
           </div>
         </div>
 {% endblock %}
 {% block pagescript %}
-<!--
     <script src="/static/js/restful.js"></script>
--->
     <!-- Dropzone.js -->
     <script src="/vendors/dropzone/dist/min/dropzone.min.js"></script>
     <script src="/admin/js/media.js"></script>

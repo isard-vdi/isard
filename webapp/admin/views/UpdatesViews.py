@@ -24,10 +24,13 @@ from .decorators import isAdmin
 @login_required
 @isAdmin
 def admin_updates():
+    if not u.is_conected():
+        flash("There is a network or update server error at the moment. Try again later.","error")
+        return render_template('admin/pages/updates.html', title="Updates", nav="Updates", registered=False, connected=False)    
     registered=u.is_registered()
     if not registered:
-        flash("Unable to contact updates website.","error")
-    return render_template('admin/pages/updates.html', title="Updates", nav="Updates", registered=registered)
+        flash("IsardVDI hasn't been registered yet.","error")
+    return render_template('admin/pages/updates.html', title="Updates", nav="Updates", registered=registered, connected=True)
 
 @app.route('/admin/updates_register', methods=['POST'])
 @login_required

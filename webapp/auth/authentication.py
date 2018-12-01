@@ -133,7 +133,7 @@ class auth(object):
         with app.app_context():
             dbuser=r.table('users').get(username).run(db.conn)
             log.info('USER:'+username)
-            if dbuser is None:
+            if dbuser is None or dbuser['active'] is not True:
                 return False
         pw=Password()
         if pw.valid(password,dbuser['password']):
