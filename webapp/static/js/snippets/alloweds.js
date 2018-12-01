@@ -70,7 +70,7 @@
 				multiple: true,
 				ajax: {
 					type: "POST",
-					url: '/admin/table/'+id.replace('a-','')+'/post',
+					url: '/alloweds_term/'+id.replace('a-',''),
 					dataType: 'json',
 					contentType: "application/json",
 					delay: 250,
@@ -109,7 +109,8 @@
         }).modal('show');
         //~ $('#modalAllowedsForm').parsley();
         setAlloweds_add('#modalAlloweds #alloweds-add'); 
-        api.ajax('/'+table+'/alloweds/select2','POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
+        api.ajax('/alloweds/table/'+table,'POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
+			console.log(alloweds)
             $.each(alloweds,function(key, value) 
             {   
                 $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')

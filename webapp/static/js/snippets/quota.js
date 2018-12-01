@@ -67,7 +67,8 @@
          })
         return data;
     }
-
+    
+	//~ Used in users.js
 	function setQuotaTableDefaults(div_id,table,id){
 			api.ajax('/admin/tabletest/'+table+'/post','POST',{'id':id}).done(function(domain) {
 				$(div_id+" #quota-domains-desktops").data("ionRangeSlider").update({

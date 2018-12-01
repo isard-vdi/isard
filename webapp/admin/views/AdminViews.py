@@ -42,6 +42,7 @@ def admin_table_get(table):
             result[i].pop('job_state', None)
     return json.dumps(result), 200, {'ContentType':'application/json'} 
 
+# Used in quota.js for admin users
 @app.route('/admin/tabletest/<table>/post', methods=["POST"])
 @login_required
 @isAdmin

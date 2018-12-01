@@ -167,8 +167,5 @@
 			//~ }); 
 	}
 
-    function setHardwareGraph() {
-        // Not implemented
-    }
 
 

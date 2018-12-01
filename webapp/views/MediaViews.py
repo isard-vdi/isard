@@ -41,7 +41,7 @@ def media_installs_get():
 
 
 @app.route('/media/select2/post', methods=["POST"])
-# ~ @login_required
+@login_required
 def media_select2_post():
     if request.method == 'POST':
         data=request.get_json(force=True)

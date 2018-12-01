@@ -78,27 +78,24 @@ def domains_update():
 
 
 
-@app.route('/domains/genealogy', methods=['POST'])
-@login_required
-@ownsid
-def domains_genealogy():
-    domain=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)
-    if 'disks_info' not in domain.keys():
-        return json.dumps({'wasted':0,'free':0,'wasted_hs':0,'free_hs':0,'genealogy':[],'gen_ids':[]})
-    gen=domain['disks_info']
-    gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info']
-    wasted=0
-    try:
-        for i,v in enumerate(gen):
-            gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
-            wasted+=gen[i]['actual-size']
-        #~ gen_ids=[]
-        #~ print('kind: '+domain['kind'])
-        #~ if domain['kind'] !='desktop':
-        gen_ids=app.isardapi.get_backing_ids(request.get_json(force=True)['pk'])
-    except Exception as e:
-        return json.dumps({'wasted':0,'free':0,'wasted_hs':0,'free_hs':0,'genealogy':[],'gen_ids':[]})
-    return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
+# ~ @app.route('/domains/genealogy', methods=['POST'])
+# ~ @login_required
+# ~ @ownsid
+# ~ def domains_genealogy():
+    # ~ domain=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=False)
+    # ~ if 'disks_info' not in domain.keys():
+        # ~ return json.dumps({'wasted':0,'free':0,'wasted_hs':0,'free_hs':0,'genealogy':[],'gen_ids':[]})
+    # ~ gen=domain['disks_info']
+    # ~ gen_human=app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=True)['disks_info']
+    # ~ wasted=0
+    # ~ try:
+        # ~ for i,v in enumerate(gen):
+            # ~ gen_human[i]['size_percentage']="%.0f" % round(gen[i]['actual-size']*100/gen[i]['virtual-size'],0),
+            # ~ wasted+=gen[i]['actual-size']
+        # ~ gen_ids=app.isardapi.get_backing_ids(request.get_json(force=True)['pk'])
+    # ~ except Exception as e:
+        # ~ return json.dumps({'wasted':0,'free':0,'wasted_hs':0,'free_hs':0,'genealogy':[],'gen_ids':[]})
+    # ~ return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
 
 
 @app.route('/domains/derivates', methods=['POST'])
@@ -118,11 +115,11 @@ def domains_derivates():
 
 
         
-@app.route('/domain/alloweds', methods=['POST'])
-@login_required
-@ownsid
-def domain_alloweds():
-    return json.dumps(app.isardapi.f.unflatten_dict(app.isardapi.get_domain(request.get_json(force=True)['pk']))['allowed'])
+# ~ @app.route('/domain/alloweds', methods=['POST'])
+# ~ @login_required
+# ~ @ownsid
+# ~ def domain_alloweds():
+    # ~ return json.dumps(app.isardapi.f.unflatten_dict(app.isardapi.get_domain(request.get_json(force=True)['pk']))['allowed'])
 
 # Gets all allowed for a domain
 @app.route('/domain/alloweds/select2', methods=['POST'])
@@ -177,36 +174,36 @@ def templateUpdate(id):
     return Response(json.dumps(hardware),  mimetype='application/json')
 
 # Will get allowed resources for current_user         
-@app.route('/domains/hardware/allowed', methods=['GET'])
-@login_required
-def domains_hardware_allowed():
-    dict={}
-    dict['nets']=app.isardapi.get_alloweds(current_user.username,'interfaces',pluck=['id','name','description'],order='name')
-    #~ dict['disks']=app.isardapi.get_alloweds(current_user.username,'disks',pluck=['id','name','description'],order='name')
-    dict['graphics']=app.isardapi.get_alloweds(current_user.username,'graphics',pluck=['id','name','description'],order='name')
-    dict['videos']=app.isardapi.get_alloweds(current_user.username,'videos',pluck=['id','name','description'],order='name')
-    dict['boots']=app.isardapi.get_alloweds(current_user.username,'boots',pluck=['id','name','description'],order='name')
-    dict['hypervisors_pools']=app.isardapi.get_alloweds(current_user.username,'hypervisors_pools',pluck=['id','name','description'],order='name')
-    dict['forced_hyps']=[]
-    if current_user.role == 'admin':
-        dict['forced_hyps']=app.adminapi.get_admin_table('hypervisors',['id','hostname','description','status'])
-    dict['forced_hyps'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
-    dict['user']=app.isardapi.get_user(current_user.username)
-    return json.dumps(dict)
+# ~ @app.route('/domains/hardware/allowed', methods=['GET'])
+# ~ @login_required
+# ~ def domains_hardware_allowed():
+    # ~ dict={}
+    # ~ dict['nets']=app.isardapi.get_alloweds(current_user.username,'interfaces',pluck=['id','name','description'],order='name')
+    # ~ #~ dict['disks']=app.isardapi.get_alloweds(current_user.username,'disks',pluck=['id','name','description'],order='name')
+    # ~ dict['graphics']=app.isardapi.get_alloweds(current_user.username,'graphics',pluck=['id','name','description'],order='name')
+    # ~ dict['videos']=app.isardapi.get_alloweds(current_user.username,'videos',pluck=['id','name','description'],order='name')
+    # ~ dict['boots']=app.isardapi.get_alloweds(current_user.username,'boots',pluck=['id','name','description'],order='name')
+    # ~ dict['hypervisors_pools']=app.isardapi.get_alloweds(current_user.username,'hypervisors_pools',pluck=['id','name','description'],order='name')
+    # ~ dict['forced_hyps']=[]
+    # ~ if current_user.role == 'admin':
+        # ~ dict['forced_hyps']=app.adminapi.get_admin_table('hypervisors',['id','hostname','description','status'])
+    # ~ dict['forced_hyps'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
+    # ~ dict['user']=app.isardapi.get_user(current_user.username)
+    # ~ return json.dumps(dict)
 
 # Get hardware for domain
-@app.route('/domains/hardware', methods=['POST'])
-@login_required
-@ownsid
-def domains_hadware():
-    try:
-        hs=request.get_json(force=True)['hs']
-    except:
-        hs=False
-    try:
-        return json.dumps(app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=hs, flatten=False))
-    except:
-        return json.dumps([])
+# ~ @app.route('/domains/hardware', methods=['POST'])
+# ~ @login_required
+# ~ @ownsid
+# ~ def domains_hadware():
+    # ~ try:
+        # ~ hs=request.get_json(force=True)['hs']
+    # ~ except:
+        # ~ hs=False
+    # ~ try:
+        # ~ return json.dumps(app.isardapi.get_domain(request.get_json(force=True)['pk'], human_size=hs, flatten=False))
+    # ~ except:
+        # ~ return json.dumps([])
 
 
 

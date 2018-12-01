@@ -94,7 +94,7 @@ $(document).ready(function() {
             row.child( formatPanel(row.data()) ).show();
             tr.addClass('shown');
             setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
-            setHardwareGraph();
+	    //~ setDomainGenealogy(row.data().id)
             setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
             actionsTmplDetail();
             
