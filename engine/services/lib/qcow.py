@@ -153,8 +153,7 @@ def create_cmds_disk_template_from_domain(path_template_disk, path_domain_disk, 
     cmds1.append({'title': 'chown', 'cmd': 'chown {} {}'.format(user_owner, touch_test_path)})
     cmds1.append({'title': 'verify_touch',
                   'cmd': 'stat -c \'mountpoint:%m group:%G user:%U rights:%A\' {}'.format(touch_test_path)})
-    # ~ cmds1.append({'title': 'df_template_mountpoint', 'cmd': 'df $(stat -c \'%m\' {})'.format(touch_test_path)})
-    # ~ cmds1.append({'title': 'df_template_mountpoint', 'cmd': 'df {})'.format(touch_test_path)})
+    cmds1.append({'title': 'df_template_mountpoint', 'cmd': 'df $(stat -c \'%m\' {})'.format(touch_test_path)})
     cmds1.append({'title': 'size_template_disk', 'cmd': 'stat -c \'%s\' {}'.format(path_domain_disk)})
     cmds1.append({'title': 'rm_touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
     # path_template_disk must be error
