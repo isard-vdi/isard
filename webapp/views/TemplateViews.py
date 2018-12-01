@@ -27,31 +27,9 @@ def templates():
     return render_template('pages/templates.html', nav="Templates")
 
 @app.route('/templates/get/')
-@app.route('/templates/get/<kind>')
 @login_required
-def templates_get(kind='username'):
+def templates_get():
 	return json.dumps(app.isardapi.get_user_templates(current_user.username)), 200, {'ContentType': 'application/json'}
-
-@app.route('/stream/templates')
-@login_required
-@checkRole
-def sse_request_templates():
-        return Response(event_stream_templates(current_user.username), mimetype='text/event-stream')
-
-import random
-def event_stream_templates(username):
-        with app.app_context():
-            for c in r.table('domains').get_all(username, index='user').filter((r.row["kind"] == 'user_template') | (r.row["kind"] == 'public_template')).pluck({'id', 'name','icon','kind','description'}).changes(include_initial=True).run(db.conn):
-                if c['new_val'] is None:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Deleted',time.time(),json.dumps(c['old_val']['id']))
-                    continue
-                if 'old_val' not in c:
-                    yield 'retry: 5000\nevent: %s\nid: %d\ndata: %s\n\n' % ('New',time.time(),json.dumps(c['new_val']))   
-                    continue             
-                if 'detail' not in c['new_val']: c['new_val']['detail']=''
-                c['new_val']['derivates']=app.isardapi.get_domain_derivates(c['new_val']['id'])
-                yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Status',time.time(),json.dumps(c['new_val']))
-                yield 'retry: 2000\nevent: %s\nid: %d\ndata: %s\n\n' % ('Quota',time.time(),json.dumps(qdict))
 
 @app.route('/template/togglekind', methods=['POST'])
 @login_required

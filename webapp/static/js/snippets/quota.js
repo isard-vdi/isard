@@ -1,6 +1,6 @@
 	function setQuotaOptions(parentid,disabled){
         disabled = typeof disabled !== 'undefined' ? disabled : false;
-        api.ajax('/hardware','GET','').done(function(hardware) {
+        api.ajax('/domains/hardware/allowed','GET','').done(function(hardware) {
             user=hardware.user
             parentid=parentid+' ';
             //~ if( $(parentid+"#quota-domains-desktops").hasAttribute('data-grid') ){
@@ -94,7 +94,7 @@
 	}
 
 	function setQuotaDataDefaults(div_id,data){
-        api.ajax('/hardware','GET','').done(function(hardware) {
+        api.ajax('/domains/hardware/allowed','GET','').done(function(hardware) {
             user=hardware.user
             parentid=div_id+' ';
             disabled=true

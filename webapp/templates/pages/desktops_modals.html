@@ -244,24 +244,20 @@
                            <textarea id="description" name="description" class="form-control col-md-7 col-xs-12 template-description"></textarea>
                         </div>
                      </div>
+                                  {% if(current_user.role == 'admin') %}		     
 				     <div class="item form-group">
-							<label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Type of template
-							</label>
-							<div class="col-md-6 col-sm-6 col-xs-12">
-							   <select class="form-control" id="kind" name="kind" class="template-kind">
-								  <option value="user_template" selected="selected">
-									 Private
-								  </option>
-								  <option value="public_template">Public
-								  </option>
-                                  {% if(current_user.role == 'admin') %}
-								  <option value="base">Base
-								  </option>
+					<label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Type of template
+					</label>
+					<div class="col-md-6 col-sm-6 col-xs-12">
+					   <select class="form-control" id="kind" name="kind" class="template-kind">
+						  <option value="user_template" selected="selected">Private</option>
+						  <option value="base">Base</option>
+					   </select>
+					</div>
+				    </div>
+				  {% else %}
+				   <input id="id" name="id" class="template-kind" hidden value="Private" ></input>
                                   {% endif %}
-							   </select>
-							</div>
-					 </div>
-
                     
                      
 				</div>

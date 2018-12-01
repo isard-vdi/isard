@@ -650,7 +650,11 @@ def socketio_users_connect():
     
 @socketio.on('disconnect', namespace='/sio_users')
 def socketio_domains_disconnect():
-    log.debug('USER: '+current_user.username+' DISCONNECTED')
+    None
+    # ~ try:
+        # ~ log.debug('USER: '+current_user.username+' DISCONNECTED')
+    # ~ except:
+        # ~ None
 
 '''
 DOMAINS
@@ -1126,7 +1130,7 @@ def socketio_admins_joinrooms(join_rooms):
     if current_user.role=='admin':
         for rm in join_rooms:
             join_room(rm)
-            log.debug('USER: '+current_user.username+' JOINED ROOM: '+rm)
+            # ~ log.debug('USER: '+current_user.username+' JOINED ROOM: '+rm)
 
 @socketio.on('get_tree_list', namespace='/sio_admins')
 def socketio_get_tree_list():

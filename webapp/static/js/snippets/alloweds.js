@@ -109,7 +109,7 @@
         }).modal('show');
         //~ $('#modalAllowedsForm').parsley();
         setAlloweds_add('#modalAlloweds #alloweds-add'); 
-        api.ajax('/domain/alloweds/select2','POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
+        api.ajax('/'+table+'/alloweds/select2','POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
             $.each(alloweds,function(key, value) 
             {   
                 $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
