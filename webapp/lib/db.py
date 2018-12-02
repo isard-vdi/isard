@@ -9,10 +9,12 @@
 
 import rethinkdb as r
 
+
 class DB:
     """
     DB is the class responsible for creating connections with the DB
     """
+
     def __init__(self):
         """
         __init__ creates the connection with the DB
