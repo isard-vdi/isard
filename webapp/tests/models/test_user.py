@@ -16,30 +16,117 @@ class TestUser:
     This is the class for testing the User class
     """
 
-    def test_init(self):
+    class TestInit:
         """
-        __init__ should work as expected
+        This class is the responsible for testing the __init__ function
         """
-        generated_user = User(users[0])
 
-        for k, v in users[0].items():
-            assert getattr(generated_user, k) == v
+        @staticmethod
+        def test_should_work_as_expected():
+            user = User(generated_users[0])
 
-    def test_get_found(self, create_users):
-        """
-        get should work as expected
-        """
-        generated_user = User(None)
-        generated_user.get("nefix", create_users)
+            for k, v in generated_users[0].items():
+                if k == "accessed":
+                    assert time.strftime(
+                        "%Y/%m/%d_%H:%M", time.gmtime(getattr(user, k))
+                    ) == time.strftime("%Y/%m/%d_%H:%M", time.gmtime(v))
+                else:
+                    assert getattr(user, k) == v
 
-        for k, v in users[0].items():
-            assert getattr(generated_user, k) == v
+        # TODO
+        @staticmethod
+        def test_empty_user():
+            user = User()
 
-    def test_get_not_found(self, create_tables):
+    class TestGet:
         """
-        get should throw a not found error
+        This class is the responsible for testing the get function
         """
-        generated_user = User(None)
 
-        with pytest.raises(User.NotFound):
-            generated_user.get("nefix", create_tables)
+        @staticmethod
+        def test_should_work_as_expected(create_users):
+            user = User()
+            user.conn = create_users
+
+            user.get("nefix")
+
+            for k, v in generated_users[0].items():
+                assert getattr(user, k) == v
+
+        @staticmethod
+        def test_user_not_found(create_tables):
+            user = User()
+            user.conn = create_tables
+
+            with pytest.raises(User.NotFound):
+                user.get("nefix")
+
+    class TestAuth:
+        """
+        This class is the responsible for testing the auth function
+        """
+
+        @staticmethod
+        def test_user_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.auth("P4$$w0rd! ")
+
+        @staticmethod
+        def test_admin(create_admin):
+            user = User()
+            user.conn = create_admin
+            user.get("admin")
+
+            assert user.auth("P4$$w0rd! ")
+
+        @staticmethod
+        def test_disabled(create_users):
+            user = User(generated_users[0])
+            user.active = False
+
+            assert not user.auth("P4$$w0rd! ")
+
+        @staticmethod
+        def test_local(create_users):
+            user = User(generated_users[0])
+
+            assert user.auth("P4$$w0rd! ")
+
+    class TestUpdateAccess:
+        """
+        This class is the responsible for testing the update_access function
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_users):
+            user = User(generated_users[0])
+            user.conn = create_users
+
+            rsp = user.update_access()
+            assert rsp["replaced"] == 1
+
+            current_time = time.gmtime()
+            db_time = time.gmtime(
+                r.table("users").get(user.id).run(create_users)["accessed"]
+            )
+
+            assert time.strftime("%Y/%m/%d_%H:%M", current_time) == time.strftime(
+                "%Y/%m/%d_%H:%M", db_time
+            )
+
+        @staticmethod
+        def test_user_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.update_access()
+
+        @staticmethod
+        def test_user_not_found(create_tables):
+            user = User(generated_users[0])
+            user.conn = create_tables
+
+            with pytest.raises(User.NotFound):
+                user.update_access()

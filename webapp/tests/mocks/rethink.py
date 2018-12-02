@@ -7,24 +7,89 @@
 #      Néfix Estrada Campañá
 # License: AGPLv3
 import pytest
+import bcrypt
+import time
 import rethinkdb as r
 
-users = [
+generated_users = [
     {
         "id": "nefix",
+        "password": bcrypt.hashpw("P4$$w0rd! ".encode("utf-8"), bcrypt.gensalt()),
+        "kind": "local",
         "name": "Néfix Estrada",
-        "password": "P4$$w0rd! ",
+        "mail": "nefix@domain.com",
         "role": "admin",
         "category": "admin",
         "group": "admin",
-        "mail": "nefix@domain.com",
-        "quota": None,
         "active": True,
+        "accessed": time.time(),
+        "quota": {
+            "domains": {
+                "desktops": 99,
+                "desktops_disk_max": 999999999,
+                "templates": 99,
+                "templates_disk_max": 999999999,
+                "running": 99,
+                "isos": 99,
+                "isos_disk_max": 999999999,
+            },
+            "hardware": {"vcpus": 8, "memory": 20000000},
+        },
     }
 ]
 
+generated_cfg = {
+    "id": 1,
+    "version": 0,
+    "auth": {
+        "local": {"active": True},
+        "ldap": {
+            "active": False,
+            "ldap_server": "ldap://ldap.domain.com",
+            "bind_dn": "dc=domain,dc=com",
+        },
+    },
+    "resources": {"code": False, "url": "http://www.isardvdi.com:5050"},
+    "engine": {
+        "intervals": {
+            "status_polling": 10,
+            "time_between_polling": 5,
+            "test_hyp_fail": 20,
+            "background_polling": 10,
+            "transitional_states_polling": 2,
+        },
+        "ssh": {"paramiko_host_key_policy_check": False},
+        "stats": {
+            "active": True,
+            "max_queue_domains_status": 10,
+            "max_queue_hyps_status": 10,
+            "hyp_stats_interval": 5,
+        },
+        "log": {"log_name": "isard", "log_level": "DEBUG", "log_file": "msg.log"},
+        "timeouts": {
+            "ssh_paramiko_hyp_test_connection": 4,
+            "timeout_trying_ssh": 2,
+            "timeout_trying_hyp_and_ssh": 10,
+            "timeout_queues": 2,
+            "timeout_hypervisor": 10,
+            "libvirt_hypervisor_timeout_connection": 3,
+            "timeout_between_retries_hyp_is_alive": 1,
+            "retries_hyp_is_alive": 3,
+        },
+    },
+    "grafana": {
+        "active": False,
+        "url": "http://isard-grafana",
+        "web_port": 80,
+        "carbon_port": 2003,
+        "graphite_port": 3000,
+    },
+    "disposable_desktops": {"active": False},
+    "voucher_access": {"active": False},
+}
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture()
 def conn():
     """
     connects with the DB server
@@ -33,7 +98,7 @@ def conn():
     return r.connect("localhost", 28015)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def drop_database(conn):
     """
     Deletes the DB
@@ -48,7 +113,7 @@ def drop_database(conn):
     return conn
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def create_database(drop_database):
     """
     Creates the DB
@@ -60,23 +125,52 @@ def create_database(drop_database):
     return drop_database
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def create_tables(create_database):
     """
     Creates the tables
     :return: returns the DB connection
     """
     r.table_create("users").run(create_database)
+    r.table_create("config").run(create_database)
 
     return create_database
 
 
-@pytest.fixture(scope="function")
-def create_users(create_tables):
+@pytest.fixture()
+def create_config(create_tables):
+    """
+    Creates the default configuration
+    :return: returns de DB connection
+    """
+    r.table("config").insert(generated_cfg).run(create_tables)
+
+    return create_tables
+
+
+@pytest.fixture()
+def create_users(create_config):
     """
     Creates the users inside the users table
     :return: returns the DB connection
     """
-    r.table("users").insert(users).run(create_tables)
+    r.table("users").insert(generated_users).run(create_config)
 
-    return create_tables
+    return create_config
+
+
+@pytest.fixture()
+def create_admin(create_config):
+    """
+    Creates the admin inside the users table
+    :return: returns the DB connection
+    """
+    admin = generated_users[0].copy()
+    admin["id"] = "admin"
+    admin["name"] = "Administrator"
+    admin["mail"] = "admin@isard.io"
+    admin["kind"] = "ldap"
+
+    r.table("users").insert(admin).run(create_config)
+
+    return create_config

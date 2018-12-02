@@ -9,13 +9,16 @@
 import subprocess
 import os
 import pytest
+from sys import argv
 import shutil
 
 # Start the DB
 p = subprocess.Popen("rethinkdb", stdout=open(os.devnull, "w"))
 
 # Run the tests
-pytest.main(["-v"])
+pytest.main(
+    ["-v", "--cov-report=term-missing", "--cov=../models", "--cov=../auth"] + argv[1:]
+)
 
 # Stop the DB
 p.kill()

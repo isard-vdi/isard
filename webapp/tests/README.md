@@ -4,6 +4,7 @@
 
 - A working installation of RethinkDB
 - Pytest + all the Python dependenceies (venv is highly recommended)
+- Pytest Cov (`pip install pytest-cov`)
 
 ### How can I test it?
 
