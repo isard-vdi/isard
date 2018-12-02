@@ -9,6 +9,7 @@
 
 from ldap3 import Connection, core
 
+from .auth import Disabled
 from ..models.config import Config
 
 from ..lib.log import *
@@ -43,11 +44,3 @@ def check(user, password):
             return False
 
     raise Disabled
-
-
-class Disabled(Exception):
-    """
-    Disabled is the exception that is raised when the ldap authentication is disabled
-    """
-
-    pass

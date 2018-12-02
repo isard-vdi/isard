@@ -148,3 +148,39 @@ class TestUser:
 
             with pytest.raises(User.NotFound):
                 user.update_access()
+
+    class TestIsActive:
+        """
+        This class is the responsible for testing the is_active function (used by flask-login)
+        """
+
+        @staticmethod
+        def test_should_work_as_expected_active():
+            user = User(generated_users[0])
+
+            assert user.is_active()
+
+        @staticmethod
+        def test_should_work_as_expected_non_active():
+            user = User(generated_users[0])
+            user.active = False
+
+            assert not user.is_active()
+
+        @staticmethod
+        def test_user_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.is_active()
+
+    class TestIsAnonymous:
+        """
+        This class is the responsible for testing the is_anonymous function (used by flask-login)
+        """
+
+        @staticmethod
+        def test_should_work_as_expected():
+            user = User(generated_users[0])
+
+            assert not user.is_anonymous()

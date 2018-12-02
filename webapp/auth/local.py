@@ -8,6 +8,7 @@
 # License: AGPLv3
 import bcrypt
 
+from .auth import Disabled
 from ..models.config import Config
 
 
@@ -21,15 +22,10 @@ def check(user, password):
     cfg = Config()
     cfg.get()
 
+    if user and user.id == "admin":
+        return bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8"))
+
     if cfg.auth["local"]["active"]:
-        return bcrypt.checkpw(password.encode("utf-8"), user.password)
+        return bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8"))
 
     raise Disabled
-
-
-class Disabled(Exception):
-    """
-    Disabled is the exception that is raised when the local authentication is disabled
-    """
-
-    pass

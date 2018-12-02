@@ -14,7 +14,9 @@ import rethinkdb as r
 generated_users = [
     {
         "id": "nefix",
-        "password": bcrypt.hashpw("P4$$w0rd! ".encode("utf-8"), bcrypt.gensalt()),
+        "password": bcrypt.hashpw(
+            "P4$$w0rd! ".encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8"),
         "kind": "local",
         "name": "Néfix Estrada",
         "mail": "nefix@domain.com",

@@ -31,6 +31,17 @@ class TestLocal:
         assert not check(user, "n0p3!")
 
     @staticmethod
+    def test_admin(create_users):
+        r.table("config").get(1).update({"auth": {"local": {"active": False}}}).run(
+            create_users
+        )
+
+        user = User(generated_users[0])
+        user.id = "admin"
+
+        assert check(user, "P4$$w0rd! ")
+
+    @staticmethod
     def test_disabled(create_config):
         r.table("config").get(1).update({"auth": {"local": {"active": False}}}).run(
             create_config

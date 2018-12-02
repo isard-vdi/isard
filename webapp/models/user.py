@@ -9,13 +9,14 @@
 
 import rethinkdb as r
 import time
+from flask_login import UserMixin
 
 from ..lib.db import DB
 from ..auth.local import check as local_check
 from ..auth.ldap import check as ldap_check
 
 
-class User:
+class User(UserMixin):
     """
     User is the class that contains all the actions related with the users
     """
@@ -142,6 +143,23 @@ class User:
             raise User.NotFound
 
         return rsp
+
+    def is_active(self):
+        """
+        is_active is a function used by flask-login to check if the user is currently logged in
+        :return: returns the login status of the user
+        """
+        if self.id == "":
+            raise User.NotLoaded
+
+        return self.active
+
+    def is_anonymous(self):
+        """
+        is_anonymous is a function used by flask-login to check if the user is an anoynmous user. Since it's disabled, it's always going to return False
+        :return: False
+        """
+        return False
 
     class NotFound(Exception):
         """
