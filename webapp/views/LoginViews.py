@@ -69,7 +69,9 @@ def login():
 
                 else:
                     if authenticated:
+                        user.update_access()
                         login_user(user)
+
                         flash("Logged in successfully", "success")
 
                         if user.is_admin:
