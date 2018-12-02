@@ -9,6 +9,8 @@
 
 import rethinkdb as r
 
+from .load_config import load_config
+
 
 class DB:
     """
@@ -19,5 +21,7 @@ class DB:
         """
         __init__ creates the connection with the DB
         """
-        self.conn = r.connect(host="localhost")
-        self.conn.use("isard")
+        cfg = load_config()
+
+        self.conn = r.connect(host=cfg["RETHINKDB_HOST"], port=cfg["RETHINKDB_PORT"])
+        self.conn.use(cfg["RETHINKDB_DB"])

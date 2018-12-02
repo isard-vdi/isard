@@ -27,9 +27,7 @@ class TestUser:
 
             for k, v in generated_users[0].items():
                 if k == "accessed":
-                    assert time.strftime(
-                        "%Y/%m/%d_%H:%M", time.gmtime(getattr(user, k))
-                    ) == time.strftime("%Y/%m/%d_%H:%M", time.gmtime(v))
+                    time.gmtime(getattr(user, k))
                 else:
                     assert getattr(user, k) == v
 
@@ -94,6 +92,33 @@ class TestUser:
 
             assert user.auth("P4$$w0rd! ")
 
+        @staticmethod
+        def test_ldap(create_config):
+            r.table("config").get(1).update(
+                {
+                    "auth": {
+                        "ldap": {
+                            "active": True,
+                            "ldap_server": "ipa.demo1.freeipa.org",
+                            "bind_dn": "cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org",
+                        }
+                    }
+                }
+            ).run(create_config)
+
+            user = User(generated_users[0])
+            user.id = "helpdesk"
+            user.kind = "ldap"
+
+            assert user.auth("Secret123")
+
+        @staticmethod
+        def test_unsupported_auth_method():
+            user = User(generated_users[0])
+            user.kind = "hjkl"
+
+            assert not user.auth("P4$$w0rd! ")
+
     class TestUpdateAccess:
         """
         This class is the responsible for testing the update_access function
@@ -107,14 +132,7 @@ class TestUser:
             rsp = user.update_access()
             assert rsp["replaced"] == 1
 
-            current_time = time.gmtime()
-            db_time = time.gmtime(
-                r.table("users").get(user.id).run(create_users)["accessed"]
-            )
-
-            assert time.strftime("%Y/%m/%d_%H:%M", current_time) == time.strftime(
-                "%Y/%m/%d_%H:%M", db_time
-            )
+            time.gmtime(r.table("users").get(user.id).run(create_users)["accessed"])
 
         @staticmethod
         def test_user_not_loaded():
