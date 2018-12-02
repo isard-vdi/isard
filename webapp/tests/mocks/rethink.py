@@ -40,6 +40,30 @@ generated_users = [
     }
 ]
 
+empty_user = {
+    "id": "",
+    "password": "",
+    "kind": "local",
+    "name": "",
+    "mail": "",
+    "role": "",
+    "category": "",
+    "group": "",
+    "active": False,
+    "quota": {
+        "domains": {
+            "desktops": 0,
+            "desktops_disk_max": 0,
+            "templates": 0,
+            "templates_disk_max": 0,
+            "running": 0,
+            "isos": 0,
+            "isos_disk_max": 0,
+        },
+        "hardware": {"vcpus": 0, "memory": 0},
+    },
+}
+
 generated_cfg = {
     "id": 1,
     "version": 0,
@@ -85,6 +109,52 @@ generated_cfg = {
         "web_port": 80,
         "carbon_port": 2003,
         "graphite_port": 3000,
+    },
+    "disposable_desktops": {"active": False},
+    "voucher_access": {"active": False},
+}
+
+empty_cfg = {
+    "id": 1,
+    "version": 0,
+    "auth": {
+        "local": {"active": False},
+        "ldap": {"active": False, "ldap_server": "", "bind_dn": ""},
+    },
+    "resources": {"code": False, "url": ""},
+    "engine": {
+        "intervals": {
+            "status_polling": 0,
+            "time_between_polling": 0,
+            "test_hyp_fail": 0,
+            "background_polling": 0,
+            "transitional_states_polling": 0,
+        },
+        "ssh": {"paramiko_host_key_policy_check": False},
+        "stats": {
+            "active": False,
+            "max_queue_domains_status": 0,
+            "max_queue_hyps_status": 0,
+            "hyp_stats_interval": 0,
+        },
+        "log": {"log_name": "", "log_level": "", "log_file": ""},
+        "timeouts": {
+            "ssh_paramiko_hyp_test_connection": 0,
+            "timeout_trying_ssh": 0,
+            "timeout_trying_hyp_and_ssh": 0,
+            "timeout_queues": 0,
+            "timeout_hypervisor": 0,
+            "libvirt_hypervisor_timeout_connection": 0,
+            "timeout_between_retries_hyp_is_alive": 0,
+            "retries_hyp_is_alive": 0,
+        },
+    },
+    "grafana": {
+        "active": False,
+        "url": "",
+        "web_port": 0,
+        "carbon_port": 0,
+        "graphite_port": 0,
     },
     "disposable_desktops": {"active": False},
     "voucher_access": {"active": False},

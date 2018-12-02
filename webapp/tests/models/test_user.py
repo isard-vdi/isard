@@ -31,10 +31,12 @@ class TestUser:
                 else:
                     assert getattr(user, k) == v
 
-        # TODO
         @staticmethod
         def test_empty_user():
             user = User()
+
+            for k, v in empty_user.items():
+                assert getattr(user, k) == v
 
     class TestGet:
         """

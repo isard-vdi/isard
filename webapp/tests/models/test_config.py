@@ -28,10 +28,12 @@ class TestConfig:
             for k, v in generated_cfg.items():
                 assert getattr(cfg, k) == v
 
-        # TODO
         @staticmethod
         def test_empty_config():
             cfg = Config()
+
+            for k, v in empty_cfg.items():
+                assert getattr(cfg, k) == v
 
     class TestGet:
         """
