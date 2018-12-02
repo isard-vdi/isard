@@ -677,7 +677,7 @@ class hyp(object):
         started = self.stats_domains[d]['started']
         time_delta_now = timestamp - started
 
-        fields = "cpu_load / mem_load / mem_used / mem_balloon / mem_max / " + \
+        fields = "vcpu_load / vcpu_iowait / mem_load / mem_used / mem_balloon / mem_max / " + \
                  "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
         fields = [s.strip() for s in fields.split('/')]
 

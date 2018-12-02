@@ -1,6 +1,7 @@
 import rethinkdb as r
 
 from engine.services.db import new_rethink_connection, close_rethink_connection
+from engine.services.log import *
 
 
 def get_last_hyp_status(id):
@@ -39,7 +40,11 @@ def  update_actual_stats_domain(id_domain, domain_stats, means):
     r_conn = new_rethink_connection()
     rtable = r.table('domains_status')
 
-    rtable.insert(d,conflict='update').run(r_conn, durability="soft", noreply=True)
+    try:
+        rtable.insert(d,conflict='update').run(r_conn, durability="soft", noreply=True)
+    except Exception as e:
+        log.debug('Error inserting domain_stats: {}'.format(id_domain))
+        log.debug(e)
     close_rethink_connection(r_conn)
 
 def insert_db_hyp_status(dict_hyp_status):
