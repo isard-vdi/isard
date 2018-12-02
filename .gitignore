@@ -9,6 +9,9 @@ __pycache__/
 # Python compiled
 *.pyc
 
+# Virtualenv
+venv/
+
 # javascript bower
 webapp/bower_components
 node_modules/
