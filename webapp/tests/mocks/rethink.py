@@ -236,6 +236,82 @@ empty_group = {
     },
 }
 
+generated_roles = [
+    {
+        "id": "admin",
+        "name": "Administrator",
+        "description": "Is God",
+        "permissions": [{"id": "media", "view": True, "edit": True}],
+        "quota": {
+            "domains": {
+                "desktops": 99,
+                "desktops_disk_max": 999999999,
+                "templates": 99,
+                "templates_disk_max": 999999999,
+                "running": 99,
+                "isos": 99,
+                "isos_disk_max": 999999999,
+            },
+            "hardware": {"vcpus": 8, "memory": 20000000},
+        },
+    },
+    {
+        "id": "advanced",
+        "name": "Advanced user",
+        "description": "Can create desktops and templates and start them",
+        "permissions": [{"id": "media", "view": True, "edit": True}],
+        "quota": {
+            "domains": {
+                "desktops": 99,
+                "desktops_disk_max": 999999999,
+                "templates": 99,
+                "templates_disk_max": 999999999,
+                "running": 99,
+                "isos": 99,
+                "isos_disk_max": 999999999,
+            },
+            "hardware": {"vcpus": 8, "memory": 20000000},
+        },
+    },
+    {
+        "id": "user",
+        "name": "User",
+        "description": "Can create desktops and start them",
+        "permissions": [{"id": "media", "view": False, "edit": False}],
+        "quota": {
+            "domains": {
+                "desktops": 99,
+                "desktops_disk_max": 999999999,
+                "templates": 99,
+                "templates_disk_max": 999999999,
+                "running": 99,
+                "isos": 99,
+                "isos_disk_max": 999999999,
+            },
+            "hardware": {"vcpus": 8, "memory": 20000000},
+        },
+    },
+]
+
+empty_role = {
+    "id": "",
+    "name": "",
+    "description": "",
+    "permissions": [{"id": "media", "view": False, "edit": False}],
+    "quota": {
+        "domains": {
+            "desktops": 0,
+            "desktops_disk_max": 0,
+            "templates": 0,
+            "templates_disk_max": 0,
+            "running": 0,
+            "isos": 0,
+            "isos_disk_max": 0,
+        },
+        "hardware": {"vcpus": 0, "memory": 0},
+    },
+}
+
 
 @pytest.fixture()
 def conn():
@@ -283,6 +359,7 @@ def create_tables(create_database):
     r.table_create("config").run(create_database)
     r.table_create("categories").run(create_database)
     r.table_create("groups").run(create_database)
+    r.table_create("roles").run(create_database)
 
     return create_database
 
@@ -344,5 +421,16 @@ def create_groups(create_tables):
     :return: returns the DB connection
     """
     r.table("groups").insert(generated_groups).run(create_tables)
+
+    return create_tables
+
+
+@pytest.fixture()
+def create_roles(create_tables):
+    """
+    Creates the roles inside the roles table
+    :return: returns the DB connection
+    """
+    r.table("roles").insert(generated_roles).run(create_tables)
 
     return create_tables
