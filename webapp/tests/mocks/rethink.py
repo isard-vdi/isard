@@ -160,6 +160,44 @@ empty_cfg = {
     "voucher_access": {"active": False},
 }
 
+generated_categories = [
+    {
+        "id": "admin",
+        "name": "Admin",
+        "description": "Administrators",
+        "quota": {
+            "domains": {
+                "desktops": 99,
+                "desktops_disk_max": 999999999,
+                "templates": 99,
+                "templates_disk_max": 999999999,
+                "running": 99,
+                "isos": 99,
+                "isos_disk_max": 999999999,
+            },
+            "hardware": {"vcpus": 8, "memory": 20000000},
+        },
+    }
+]
+
+empty_category = {
+    "id": "",
+    "name": "",
+    "description": "",
+    "quota": {
+        "domains": {
+            "desktops": 0,
+            "desktops_disk_max": 0,
+            "templates": 0,
+            "templates_disk_max": 0,
+            "running": 0,
+            "isos": 0,
+            "isos_disk_max": 0,
+        },
+        "hardware": {"vcpus": 0, "memory": 0},
+    },
+}
+
 
 @pytest.fixture()
 def conn():
@@ -205,19 +243,9 @@ def create_tables(create_database):
     """
     r.table_create("users").run(create_database)
     r.table_create("config").run(create_database)
+    r.table_create("categories").run(create_database)
 
     return create_database
-
-
-@pytest.fixture()
-def create_config(create_tables):
-    """
-    Creates the default configuration
-    :return: returns de DB connection
-    """
-    r.table("config").insert(generated_cfg).run(create_tables)
-
-    return create_tables
 
 
 @pytest.fixture()
@@ -246,3 +274,25 @@ def create_admin(create_config):
     r.table("users").insert(admin).run(create_config)
 
     return create_config
+
+
+@pytest.fixture()
+def create_config(create_tables):
+    """
+    Creates the default configuration
+    :return: returns de DB connection
+    """
+    r.table("config").insert(generated_cfg).run(create_tables)
+
+    return create_tables
+
+
+@pytest.fixture()
+def create_categories(create_tables):
+    """
+    Creates a category inside the categories table
+    :return: returns the DB connection
+    """
+    r.table("categories").insert(generated_categories).run(create_tables)
+
+    return create_tables
