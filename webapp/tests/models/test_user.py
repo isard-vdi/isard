@@ -82,13 +82,6 @@ class TestUser:
             assert user.auth("P4$$w0rd! ")
 
         @staticmethod
-        def test_disabled(create_users):
-            user = User(generated_users[0])
-            user.active = False
-
-            assert not user.auth("P4$$w0rd! ")
-
-        @staticmethod
         def test_local(create_users):
             user = User(generated_users[0])
 
@@ -120,6 +113,57 @@ class TestUser:
             user.kind = "hjkl"
 
             assert not user.auth("P4$$w0rd! ")
+
+    class TestCreate:
+        """
+        This class is the responsible for testing the create function
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_tables):
+            for generated_user in generated_users:
+                user = User(generated_user)
+                user.create()
+
+                user = User()
+                user.get(generated_user["id"])
+
+                for k, v in generated_user.items():
+                    if k == "accessed":
+                        time.gmtime(getattr(user, k))
+                    else:
+                        assert getattr(user, k) == v
+
+        @staticmethod
+        def test_ldap(create_roles):
+            for generated_ldap_user in generated_ldap_users:
+                user = User(generated_ldap_user)
+                user.create()
+
+                user = User()
+                user.get(generated_ldap_user["id"])
+
+                for k, v in generated_ldap_user.items():
+                    if k == "accessed":
+                        time.gmtime(getattr(user, k))
+                    else:
+                        assert getattr(user, k) == v
+
+        @staticmethod
+        def test_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.create()
+
+        @staticmethod
+        def test_already_exists(create_users):
+            for generated_user in generated_users:
+                user = User()
+                user.get(generated_user["id"])
+
+                with pytest.raises(User.Exists):
+                    user.create()
 
     class TestUpdateAccess:
         """
@@ -159,6 +203,7 @@ class TestUser:
         @staticmethod
         def test_should_work_as_expected_active():
             user = User(generated_users[0])
+            user.active = True
 
             assert user.is_active()
 

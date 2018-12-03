@@ -23,7 +23,7 @@ generated_users = [
         "role": "admin",
         "category": "admin",
         "group": "admin",
-        "active": True,
+        "active": False,
         "accessed": time.time(),
         "quota": {
             "domains": {
@@ -38,6 +38,61 @@ generated_users = [
             "hardware": {"vcpus": 8, "memory": 20000000},
         },
     }
+]
+
+generated_ldap_users = [
+    {
+        "id": "admin",
+        "password": bcrypt.hashpw("Secret123".encode("utf-8"), bcrypt.gensalt()).decode(
+            "utf-8"
+        ),
+        "kind": "ldap",
+        "name": "Administrator",
+        "mail": "",
+        "role": "user",
+        "category": "admins",
+        "group": "admins",
+        "active": False,
+        "accessed": time.time(),
+        "quota": {
+            "domains": {
+                "desktops": 99,
+                "desktops_disk_max": 999999999,
+                "templates": 99,
+                "templates_disk_max": 999999999,
+                "running": 99,
+                "isos": 99,
+                "isos_disk_max": 999999999,
+            },
+            "hardware": {"vcpus": 8, "memory": 20000000},
+        },
+    },
+    {
+        "id": "helpdesk",
+        "password": bcrypt.hashpw("Secret123".encode("utf-8"), bcrypt.gensalt()).decode(
+            "utf-8"
+        ),
+        "kind": "ldap",
+        "name": "Test Helpdesk",
+        "mail": "helpdesk@ipa.demo1.freeipa.org",
+        "role": "user",
+        "category": "ipausers",
+        "group": "ipausers",
+        "active": False,
+        "accessed": time.time(),
+        "quota": {
+            "domains": {
+                "desktops": 99,
+                "desktops_disk_max": 999999999,
+                "templates": 99,
+                "templates_disk_max": 999999999,
+                "running": 99,
+                "isos": 99,
+                "isos_disk_max": 999999999,
+            },
+            "hardware": {"vcpus": 8, "memory": 20000000},
+        },
+    },
 ]
 
 empty_user = {
