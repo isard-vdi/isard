@@ -81,4 +81,11 @@ def alloweds_table_term(table):
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not select.'), 500, {'ContentType':'application/json'} 
     
-    
+
+@app.route('/domains/removable', methods=['POST'])
+@login_required
+@ownsid
+def domain_removable():
+    if request.method == 'POST':
+        return json.dumps(app.adminapi.is_template_removable(request.get_json(force=True)['id'],current_user.username))
+    return json.dumps('Could not check.'), 500, {'ContentType':'application/json'} 

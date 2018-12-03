@@ -144,7 +144,7 @@ $(document).ready(function() {
                 setDesktopDetailButtonsStatus(row.data().id,row.data().status)
                 if(row.data().status=='Stopped' || row.data().status=='Started'){
                     //~ setDomainGenealogy(row.data().id);
-                    setDomainHotplug(row.data().id);
+                    //~ setDomainHotplug(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                 }                
                 
@@ -373,6 +373,71 @@ function actionsDesktopDetail(){
 						}).on('pnotify.cancel', function() {
 				});	
 	});
+
+	$('.btn-xml').on('click', function () {
+            var pk=$(this).closest("div").attr("data-pk");
+            $("#modalShowInfoForm")[0].reset();
+			$('#modalEditXml').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalShowInfoForm #id').val(pk);
+            $.ajax({
+                type: "GET",
+                url:"/admin/domains/xml/" + pk,
+                success: function(data)
+                {
+                    var data = JSON.parse(data);
+                    $('#xml').val(data);
+                }				
+            });
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+	});
+
+	$('.btn-events').on('click', function () {
+	    console.log('events')
+            var pk=$(this).closest("div").attr("data-pk");
+            $("#modalShowInfoForm")[0].reset();
+			$('#modalShowInfo').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalShowInfoForm #id').val(pk);
+            $.ajax({
+                type: "GET",
+                url:"/admin/domains/events/" + pk,
+                success: function(data)
+                {
+                    var data = JSON.parse(data);
+		    $('#xml').val(JSON.stringify(data, undefined, 4));
+                }				
+            });
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+	});
+	
+	$('.btn-messages').on('click', function () {
+            var pk=$(this).closest("div").attr("data-pk");
+            $("#modalShowInfoForm")[0].reset();
+			$('#modalShowInfo').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalShowInfoForm #id').val(pk);
+            $.ajax({
+                type: "GET",
+                url:"/admin/domains/messages/" + pk,
+                success: function(data)
+                {
+                    var data = JSON.parse(data);
+                    $('#xml').val(JSON.stringify(data, undefined, 4));
+                }				
+            });
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+	});		
+		
 }
 	
 //~ RENDER DATATABLE	

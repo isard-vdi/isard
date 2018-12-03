@@ -214,11 +214,11 @@ class isard():
 #~ STATUS
     def get_domain_last_messages(self, id):
         with app.app_context():
-            return r.table('domains_status').get_all(id, index='name').order_by(r.desc('when')).pluck('when',{'status':['state','state_reason']}).limit(6).run(db.conn)
+            return r.table('domains_status').get_all(id, index='name').order_by(r.desc('when')).pluck('when',{'status':['state','state_reason']}).limit(10).run(db.conn)
 
     def get_domain_last_events(self, id):
         with app.app_context():
-            return r.table('hypervisors_events').get_all(id, index='domain').order_by(r.desc('when')).limit(6).run(db.conn)
+            return r.table('hypervisors_events').get_all(id, index='domain').order_by(r.desc('when')).limit(10).run(db.conn)
 
 
     def get_user(self, user):
@@ -416,7 +416,6 @@ class isard():
     def get_domain_derivates(self, id):
         with app.app_context():
             return list(r.table('domains').filter({'create_dict':{'origin':id}}).pluck('id','name','kind','user','category','group').run(db.conn))
-
             
     def get_templates(self, dict):
         '''

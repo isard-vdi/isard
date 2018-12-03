@@ -98,19 +98,13 @@ def domains_update():
     # ~ return json.dumps({'wasted':wasted,'free':gen[0]['virtual-size']-wasted,'wasted_hs':app.isardapi.human_size(wasted),'free_hs':app.isardapi.human_size(gen[0]['virtual-size']-wasted),'genealogy':gen_human,'gen_ids':gen_ids})
 
 
-@app.route('/domains/derivates', methods=['POST'])
-@login_required
-@ownsid
-def domains_derivates():
-    return json.dumps(app.isardapi.get_domain_derivates(request.get_json(force=True)['pk']))
-
-# ~ @app.route('/derivates/<id>', methods=['GET', 'POST'])
+# ~ @app.route('/domains/derivates', methods=['POST'])
 # ~ @login_required
 # ~ @ownsid
-# ~ def derivates(id):
-    # ~ if request.method == 'POST':
-        # ~ return json.dumps(app.isardapi.get_domain_derivates(request.get_json(force=True)['id']))
-    # ~ return json.dumps(app.isardapi.get_domain_derivates(id))
+# ~ def domains_derivates():
+    # ~ return json.dumps(app.isardapi.get_domain_derivates(request.get_json(force=True)['pk']))
+
+
 
 
 
@@ -209,21 +203,7 @@ def templateUpdate(id):
 
 
 
-# ~ @app.route('/domain_messages', methods=['POST'])
-# ~ @login_required
-# ~ @ownsid
-# ~ def domain_messages():
-    # ~ if request.method == 'POST':
-        # ~ return json.dumps(app.isardapi.get_domain_last_messages(request.get_json(force=True)['id']))
-    # ~ return False
 
-# ~ @app.route('/domain_events', methods=['POST'])
-# ~ @login_required
-# ~ @ownsid
-# ~ def domain_events():
-    # ~ if request.method == 'POST':
-        # ~ return json.dumps(app.isardapi.get_domain_last_events(request.get_json(force=True)['id']))
-    # ~ return False
    
 # ~ @app.route('/chain', methods=['POST'])
 # ~ @login_required

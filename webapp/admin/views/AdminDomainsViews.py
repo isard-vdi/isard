@@ -67,7 +67,6 @@ def admin_domains_get(kind=False):
 @login_required
 @isAdmin
 def admin_domains_xml(id):
-    # ~ print('in domains xml')
     if request.method == 'POST':
         res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
         if res:
@@ -76,6 +75,30 @@ def admin_domains_xml(id):
             return json.dumps(res), 500,  {'ContentType': 'application/json'}
     return json.dumps(app.adminapi.get_admin_table('domains',pluck='xml',id=id)['xml']), 200, {'ContentType': 'application/json'}
 
+
+@app.route('/admin/domains/events/<id>', methods=['GET'])
+@login_required
+@isAdmin
+def admin_domains_events(id):
+    # ~ if request.method == 'POST':
+        # ~ res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
+        # ~ if res:
+            # ~ return json.dumps(res), 200,  {'ContentType': 'application/json'}
+        # ~ else:
+            # ~ return json.dumps(res), 500,  {'ContentType': 'application/json'}
+    return json.dumps(app.isardapi.get_domain_last_events(id)), 200, {'ContentType': 'application/json'}
+
+@app.route('/admin/domains/messages/<id>', methods=['GET'])
+@login_required
+@isAdmin
+def admin_domains_messages(id):
+    # ~ if request.method == 'POST':
+        # ~ res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
+        # ~ if res:
+            # ~ return json.dumps(res), 200,  {'ContentType': 'application/json'}
+        # ~ else:
+            # ~ return json.dumps(res), 500,  {'ContentType': 'application/json'}
+    return json.dumps(app.isardapi.get_domain_last_messages(id)), 200, {'ContentType': 'application/json'}    
 
 
 
