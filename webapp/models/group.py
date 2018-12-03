@@ -12,16 +12,16 @@ import rethinkdb as r
 from ..lib.db import DB
 
 
-class Category:
+class Group:
     """
-    Category is the class that contains all the actions related with the categories
+    Group is the class that contains all the actions related with the groups
     """
 
-    def __init__(self, category=None):
+    def __init__(self, group=None):
         self.conn = DB().conn
 
-        if category is None:
-            category = {
+        if group is None:
+            group = {
                 "id": "",
                 "name": "",
                 "description": "",
@@ -39,29 +39,29 @@ class Category:
                 },
             }
 
-        self.id = category["id"]
-        self.name = category["name"]
-        self.description = category["description"]
-        self.quota = category["quota"]
+        self.id = group["id"]
+        self.name = group["name"]
+        self.description = group["description"]
+        self.quota = group["quota"]
 
-    def get(self, category_id):
+    def get(self, group_id):
         """
-        get retrieves a category from the DB using their id. If the category isn't found, it throws an exception
-        :param category_id: username is the username of the user
+        get retrieves a group from the DB using their id. If the group isn't found, it throws an exception
+        :param group_id: username is the username of the user
         """
-        category = r.table("categories").get(category_id).run(self.conn)
+        group = r.table("groups").get(group_id).run(self.conn)
 
-        if category is None:
+        if group is None:
             raise self.NotFound()
 
-        self.id = category["id"]
-        self.name = category["name"]
-        self.description = category["description"]
-        self.quota = category["quota"]
+        self.id = group["id"]
+        self.name = group["name"]
+        self.description = group["description"]
+        self.quota = group["quota"]
 
     def create(self):
         """
-        create inserts the category to the DB
+        create inserts the group to the DB
         """
         if self.id == "":
             raise self.NotLoaded
@@ -70,7 +70,7 @@ class Category:
             self.get(self.id)
 
         except self.NotFound:
-            r.table("categories").insert(
+            r.table("groups").insert(
                 {
                     "id": self.id,
                     "name": self.name,
@@ -84,21 +84,21 @@ class Category:
 
     class NotFound(Exception):
         """
-        This exception is raised when the category isn't found in the DB
+        This exception is raised when the group isn't found in the DB
         """
 
         pass
 
     class NotLoaded(Exception):
         """
-        This exception is raised when a method needs to work with the category but this is empty (not loaded). If you are
-        encountering this error, you should init the Category class with a dict containing the user information or call
-        Category.get
+        This exception is raised when a method needs to work with the group but this is empty (not loaded). If you are
+        encountering this error, you should init the Group class with a dict containing the user information or call
+        Group.get
         """
 
         pass
 
     class Exists(Exception):
         """
-        This exception is raised when the category already exists in the DB and something tries to insert it into the DB as new category
+        This exception is raised when the group already exists in the DB and something tries to insert it into the DB as new group
         """
