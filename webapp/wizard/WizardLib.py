@@ -376,8 +376,8 @@ class Wizard():
     def valid_hypervisor(self,remote_addr=False):
         try:
             if r.table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
-                if remote_addr is not False:
-                    self.update_hypervisor_viewer(remote_addr)
+                # ~ if remote_addr is not False:
+                    # ~ self.update_hypervisor_viewer(remote_addr)
                 return True
             return False
         except:
@@ -535,6 +535,17 @@ class Wizard():
                     return json.dumps(True)
                 return render_template('wizard_pwd.html')
 
+            @self.wapp.route('/hypervisor_address', methods=['GET','POST'])
+            def wizard_hypervisor_address():
+                print('UPDATING HYPERVISOR ADDRESS TO:'+str(request.get_json(force=True)))
+                if self.update_hypervisor_viewer(request.get_json(force=True)):
+                    return True
+                return False
+                # ~ if request.method == 'POST':
+                    # ~ r.db('isard').table('users').get('admin').update({'password':pw.encrypt(request.get_json(force=True))}).run()
+                    # ~ return json.dumps(True)
+                # ~ return render_template('wizard_pwd.html')
+                
             @self.wapp.route('/shutdown', methods=['POST'])
             def wizard_shutdown():
                 # This shutdowns wizard flask server and allows for main isard src to continue loading.
@@ -596,7 +607,7 @@ class Wizard():
                             return html[5]['ko']
                         return html[5]['ok']  
                     if step == '6':
-                        if not (self.valid_hypervisor(remote_addr) if self.valid_isard_database() else False):
+                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
                             return html[6]['ko']
                         return html[6]['ok']  
                         return 'Hypervisor online' 

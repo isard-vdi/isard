@@ -9,16 +9,18 @@ db.init_app(app)
         
 class Updates(object):
     def __init__(self):
+        self.working=True
         self.updateFromConfig()
         self.updateFromWeb()
-
+        
     def updateFromWeb(self):
         
         self.web={}
         self.kinds=['media','domains','builders','virt_install','virt_builder','videos','viewers']
         for k in self.kinds:
             self.web[k]=self.getKind(kind=k)
-                
+            if self.web[k] is False:
+                self.working=False
         
     def updateFromConfig(self):
         with app.app_context():
@@ -26,8 +28,24 @@ class Updates(object):
         self.url=cfg['url']
         self.code=cfg['code']
 
+    def is_conected(self):
+        try:
+            req= requests.get(self.url,allow_redirects=False, verify=False, timeout=3)
+            if req.status_code==200:
+                return True
+        except:
+            return False
+        return False
+        
     def is_registered(self):
-        return self.code
+        if self.is_conected():
+            if self.working:
+                return self.code 
+            else:
+                # we have an invalid code. (changes in web database?)
+                with app.app_context():
+                    r.table('config').get(1).update({'resources':{'code':False}}).run(db.conn)
+        return False
 
     def register(self):
         try:
@@ -47,8 +65,6 @@ class Updates(object):
     def getNewKind(self,kind,username):
         if kind == 'viewers':
             return self.web[kind]
-        print(kind)
-        print(self.web[kind])
         web=self.web[kind]
         dbb=list(r.table(kind).run(db.conn))
         result=[]

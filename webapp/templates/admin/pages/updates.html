@@ -10,7 +10,24 @@
       </div>
    </div>
    <div class="clearfix"></div>
-   {% if registered == false %}
+   {% if connected == false %}
+        <div class="row">
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Can't contact now with IsardVDI updates <small>Try again later...</small></h2>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+					It could be a network problem or we are currently updating IsardVDI oline updates server<br>
+                    <div class="clearfix"></div>                        
+                 </div>
+                </div>
+              </div>
+            </div>
+        </div>   
+   {% elif registered == false %}
         <div class="row">
             <div class="row">
               <div class="col-md-12 col-sm-12 col-xs-12">

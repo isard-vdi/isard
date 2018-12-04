@@ -360,6 +360,16 @@ class isardAdmin():
                     }
                 ).run(db.conn))
 
+    def is_template_removable(self,tmpl_id,user_id):
+        print(tmpl_id)
+        all_template_derivates = self.domain_derivates_count(tmpl_id)
+        usr_template_derivates = self.domain_derivates_count(tmpl_id,user_id)
+        print('all:'+str(all_template_derivates)+' usr:'+str(usr_template_derivates))
+        if all_template_derivates != usr_template_derivates:
+            # Thre are templates/desktops not owned by the user
+            return False 
+        else: 
+            return True
 
 
     def domain_derivates_count(self,id=False,username=False):
@@ -370,6 +380,8 @@ class isardAdmin():
             else:
                 domains= [ {'id':d['id'],'origin':(d['create_dict']['origin'] if 'create_dict' in d and 'origin' in d['create_dict'] else None)}
                             for d in list(r.table('domains').get_all(username, index='user').pluck('id','user',{'create_dict':{'origin'}}).run(db.conn)) ] 
+            import pprint
+            pprint.pprint(domains)
             return self.domain_recursive_count(id,domains)-1
 
     def domains_update(self, create_dict):

@@ -128,6 +128,7 @@ if True:
     from .views import DesktopViews
     from .views import TemplateViews
     from .views import MediaViews
+    from .views import AllowedsViews
     #from .views import ClassroomViews
     from .views import ProfileViews
     from .views import AboutViews

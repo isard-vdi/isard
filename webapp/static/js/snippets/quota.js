@@ -1,6 +1,6 @@
 	function setQuotaOptions(parentid,disabled){
         disabled = typeof disabled !== 'undefined' ? disabled : false;
-        api.ajax('/hardware','GET','').done(function(hardware) {
+        api.ajax('/domains/hardware/allowed','GET','').done(function(hardware) {
             user=hardware.user
             parentid=parentid+' ';
             //~ if( $(parentid+"#quota-domains-desktops").hasAttribute('data-grid') ){
@@ -67,7 +67,8 @@
          })
         return data;
     }
-
+    
+	//~ Used in users.js
 	function setQuotaTableDefaults(div_id,table,id){
 			api.ajax('/admin/tabletest/'+table+'/post','POST',{'id':id}).done(function(domain) {
 				$(div_id+" #quota-domains-desktops").data("ionRangeSlider").update({
@@ -94,7 +95,7 @@
 	}
 
 	function setQuotaDataDefaults(div_id,data){
-        api.ajax('/hardware','GET','').done(function(hardware) {
+        api.ajax('/domains/hardware/allowed','GET','').done(function(hardware) {
             user=hardware.user
             parentid=div_id+' ';
             disabled=true

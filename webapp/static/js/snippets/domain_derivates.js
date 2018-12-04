@@ -14,7 +14,7 @@ function setDomainDerivates(id){
         
     derivates_table=$("#table-derivates-"+id).DataTable({
 			"ajax": {
-				"url": "/domain_derivates/",
+				"url": "/domains/derivates/",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'pk':id})}

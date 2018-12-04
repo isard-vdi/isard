@@ -8,7 +8,7 @@
             $(id+" #hypervisors_pools").find('option').remove();
             $(id+" #forced_hyp").find('option').remove();
             
-			api.ajax_async('/hardware','GET','').done(function(hardware) {
+			api.ajax_async('/domains/hardware/allowed','GET','').done(function(hardware) {
                 // Needs a hidden input to activate disabled dropdowns...
                 //~ if(hardware.nets.length==1){$(id+" #hardware-interfaces").prop('disabled',true);}
 				$.each(hardware.nets,function(key, value) 
@@ -85,7 +85,7 @@
             $(div_id+' #hardware-boot_order option:selected').prop("selected", false);
             $(div_id+' #hypervisors_pools option:selected').prop("selected", false);
             
-			api.ajax('/domain','POST',{'pk':domain_id}).done(function(domain) {
+			api.ajax('/domains/hardware','POST',{'pk':domain_id}).done(function(domain) {
 				$(div_id+' #hardware-interfaces option[value="'+domain.hardware.interfaces[0].id+'"]').prop("selected",true);
 				$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics.type+'"]').prop("selected",true);
                 $(div_id+' #hardware-videos option[value="'+domain.hardware.video.type+'"]').prop("selected",true);
@@ -145,15 +145,13 @@
 	//~ }
     
 	function setHardwareDomainDefaults_viewer(div_id,data){
-        //~ console.log(data)
-			//~ api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
-			if(data["hardware"]  != undefined){
-				$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
-				$(div_id+" #ram").html(data.hardware.memory+data.hardware.memory_unit);
-                // List could not be ordered! In theory all the disks have same virtual-size
+	    if(data["hardware"]  != undefined){
+		$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
+		$(div_id+" #ram").html(data.hardware.memory+data.hardware.memory_unit);
+		// List could not be ordered! In theory all the disks have same virtual-size
                 //~ $(div_id+" #disks").html(domain['disks_info'][0]['virtual-size']);
-				$(div_id+" #net").html(data.hardware.interfaces[0].id);
-				$(div_id+" #graphics").html(data.hardware.graphics.type);
+	    $(div_id+" #net").html(data.hardware.interfaces[0].id);
+	    $(div_id+" #graphics").html(data.hardware.graphics.type);
                 $(div_id+" #video").html(data.hardware.video.type);
                 $(div_id+" #boot").html(data.hardware['boot_order']);
                 $(div_id+" #hypervisor_pool").html(data['hypervisors_pools'][0]);
@@ -167,8 +165,5 @@
 			//~ }); 
 	}
 
-    function setHardwareGraph() {
-        // Not implemented
-    }
 
 

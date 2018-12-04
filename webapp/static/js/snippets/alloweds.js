@@ -1,7 +1,6 @@
 
 	function setAlloweds_viewer(div_id,id){
-		console.log('allowed viewer')
-			api.ajax('/domain/alloweds','POST',{'pk':id}).done(function(alloweds) {
+			api.ajax('/alloweds/table/domains','POST',{'pk':id}).done(function(alloweds) {
                 var all=false;
                 $.each(alloweds,function(key, value) 
                 {
@@ -13,7 +12,12 @@
                     $.each(alloweds,function(key, value) 
                     {   
                         if(value){
-                                $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+value+'</td></tr>');
+			    var values=""
+			    value.forEach(function(data)
+			    {            
+				values=values+data.text+','                      
+			    });			    
+			    $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+values+'</td></tr>');
                         }
 
                     });
@@ -70,7 +74,7 @@
 				multiple: true,
 				ajax: {
 					type: "POST",
-					url: '/admin/table/'+id.replace('a-','')+'/post',
+					url: '/alloweds/term/'+id.replace('a-',''),
 					dataType: 'json',
 					contentType: "application/json",
 					delay: 250,
@@ -109,7 +113,7 @@
         }).modal('show');
         //~ $('#modalAllowedsForm').parsley();
         setAlloweds_add('#modalAlloweds #alloweds-add'); 
-        api.ajax('/domain/alloweds/select2','POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
+        api.ajax('/alloweds/table/'+table,'POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
             $.each(alloweds,function(key, value) 
             {   
                 $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
