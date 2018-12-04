@@ -123,19 +123,19 @@ $(document).ready(function() {
              if ( table.row( '.shown' ).length ) {
                       $('.details-control', table.row( '.shown' ).node()).click();
               }
-             if (row.data().status=='Creating'){
+             //~ if (row.data().status=='Creating'){
                  //In this case better not to open detail as ajax snippets will fail
                  //Maybe needs to be blocked also on other -ing's
-						new PNotify({
-						title: "Domain is being created",
-							text: "Wait till domain ["+row.data().name+"] creation completes to view details",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});                 
-             }else{
+						//~ new PNotify({
+						//~ title: "Domain is being created",
+							//~ text: "Wait till domain ["+row.data().name+"] creation completes to view details",
+							//~ hide: true,
+							//~ delay: 3000,
+							//~ icon: 'fa fa-alert-sign',
+							//~ opacity: 1,
+							//~ type: 'error'
+						//~ });                 
+             //~ }else{
                 // Open this row
                 row.child( addDesktopDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
@@ -146,11 +146,8 @@ $(document).ready(function() {
                     //~ setDomainGenealogy(row.data().id);
                     //~ setDomainHotplug(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
-                }                
-                
-               
-                
-            }
+                }                   
+            //~ }
           }
     } );
 
