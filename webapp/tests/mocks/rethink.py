@@ -20,79 +20,29 @@ generated_users = [
         "kind": "local",
         "name": "Néfix Estrada",
         "mail": "nefix@domain.com",
-        "role": "admin",
+        "role": None,
         "category": "admin",
         "group": "admin",
-        "active": False,
+        "active": True,
         "accessed": time.time(),
-        "quota": {
-            "domains": {
-                "desktops": 99,
-                "desktops_disk_max": 999999999,
-                "templates": 99,
-                "templates_disk_max": 999999999,
-                "running": 99,
-                "isos": 99,
-                "isos_disk_max": 999999999,
-            },
-            "hardware": {"vcpus": 8, "memory": 20000000},
-        },
+        "quota": None,
     }
 ]
 
 generated_ldap_users = [
     {
-        "id": "admin",
-        "password": bcrypt.hashpw("Secret123".encode("utf-8"), bcrypt.gensalt()).decode(
-            "utf-8"
-        ),
+        "id": "nefix",
+        "password": None,
         "kind": "ldap",
-        "name": "Administrator",
-        "mail": "",
-        "role": "user",
-        "category": "admins",
-        "group": "admins",
-        "active": False,
-        "accessed": time.time(),
-        "quota": {
-            "domains": {
-                "desktops": 99,
-                "desktops_disk_max": 999999999,
-                "templates": 99,
-                "templates_disk_max": 999999999,
-                "running": 99,
-                "isos": 99,
-                "isos_disk_max": 999999999,
-            },
-            "hardware": {"vcpus": 8, "memory": 20000000},
-        },
-    },
-    {
-        "id": "helpdesk",
-        "password": bcrypt.hashpw("Secret123".encode("utf-8"), bcrypt.gensalt()).decode(
-            "utf-8"
-        ),
-        "kind": "ldap",
-        "name": "Test Helpdesk",
-        "mail": "helpdesk@ipa.demo1.freeipa.org",
-        "role": "user",
-        "category": "ipausers",
-        "group": "ipausers",
-        "active": False,
-        "accessed": time.time(),
-        "quota": {
-            "domains": {
-                "desktops": 99,
-                "desktops_disk_max": 999999999,
-                "templates": 99,
-                "templates_disk_max": 999999999,
-                "running": 99,
-                "isos": 99,
-                "isos_disk_max": 999999999,
-            },
-            "hardware": {"vcpus": 8, "memory": 20000000},
-        },
-    },
+        "name": "Néfix Estrada",
+        "mail": "nefix@domain.com",
+        "role": None,
+        "category": "employees",
+        "group": "group1",
+        "active": True,
+        "accessed": 0,
+        "quota": None,
+    }
 ]
 
 empty_user = {
@@ -101,22 +51,12 @@ empty_user = {
     "kind": "local",
     "name": "",
     "mail": "",
-    "role": "",
+    "role": None,
     "category": "",
     "group": "",
     "active": False,
-    "quota": {
-        "domains": {
-            "desktops": 0,
-            "desktops_disk_max": 0,
-            "templates": 0,
-            "templates_disk_max": 0,
-            "running": 0,
-            "isos": 0,
-            "isos_disk_max": 0,
-        },
-        "hardware": {"vcpus": 0, "memory": 0},
-    },
+    "accessed": 0,
+    "quota": None,
 }
 
 generated_cfg = {
@@ -126,8 +66,15 @@ generated_cfg = {
         "local": {"active": True},
         "ldap": {
             "active": False,
-            "ldap_server": "ldap://ldap.domain.com",
+            "ldap_server": "ldap.domain.com",
             "bind_dn": "dc=domain,dc=com",
+            "query_dn": "",
+            "query_password": "",
+            "category_attribute": "ou",
+            "group_objectclass": "posixGroup",
+            "group_attribute": "memberUid",
+            "selected_groups": ["group1"],
+            "selected_categories": ["employees"],
         },
     },
     "resources": {"code": False, "url": "http://www.isardvdi.com:5050"},
@@ -174,7 +121,18 @@ empty_cfg = {
     "version": 0,
     "auth": {
         "local": {"active": False},
-        "ldap": {"active": False, "ldap_server": "", "bind_dn": ""},
+        "ldap": {
+            "active": False,
+            "ldap_server": "",
+            "bind_dn": "",
+            "query_dn": "",
+            "query_password": "",
+            "category_attribute": "",
+            "group_objectclass": "",
+            "group_attribute": "",
+            "selected_groups": [],
+            "selected_categories": [],
+        },
     },
     "resources": {"code": False, "url": ""},
     "engine": {
@@ -220,18 +178,9 @@ generated_categories = [
         "id": "admin",
         "name": "Admin",
         "description": "Administrators",
-        "quota": {
-            "domains": {
-                "desktops": 99,
-                "desktops_disk_max": 999999999,
-                "templates": 99,
-                "templates_disk_max": 999999999,
-                "running": 99,
-                "isos": 99,
-                "isos_disk_max": 999999999,
-            },
-            "hardware": {"vcpus": 8, "memory": 20000000},
-        },
+        "kind": "local",
+        "role": None,
+        "quota": None,
     }
 ]
 
@@ -239,18 +188,9 @@ empty_category = {
     "id": "",
     "name": "",
     "description": "",
-    "quota": {
-        "domains": {
-            "desktops": 0,
-            "desktops_disk_max": 0,
-            "templates": 0,
-            "templates_disk_max": 0,
-            "running": 0,
-            "isos": 0,
-            "isos_disk_max": 0,
-        },
-        "hardware": {"vcpus": 0, "memory": 0},
-    },
+    "kind": "",
+    "role": None,
+    "quota": None,
 }
 
 generated_groups = [
@@ -258,18 +198,9 @@ generated_groups = [
         "id": "advanced",
         "name": "Advanced",
         "description": "Advanced users",
-        "quota": {
-            "domains": {
-                "desktops": 99,
-                "desktops_disk_max": 999999999,
-                "templates": 99,
-                "templates_disk_max": 999999999,
-                "running": 99,
-                "isos": 99,
-                "isos_disk_max": 999999999,
-            },
-            "hardware": {"vcpus": 8, "memory": 20000000},
-        },
+        "kind": "local",
+        "role": None,
+        "quota": None,
     }
 ]
 
@@ -277,18 +208,9 @@ empty_group = {
     "id": "",
     "name": "",
     "description": "",
-    "quota": {
-        "domains": {
-            "desktops": 0,
-            "desktops_disk_max": 0,
-            "templates": 0,
-            "templates_disk_max": 0,
-            "running": 0,
-            "isos": 0,
-            "isos_disk_max": 0,
-        },
-        "hardware": {"vcpus": 0, "memory": 0},
-    },
+    "kind": "",
+    "role": None,
+    "quota": None,
 }
 
 generated_roles = [
@@ -420,6 +342,17 @@ def create_tables(create_database):
 
 
 @pytest.fixture()
+def create_config(create_tables):
+    """
+    Creates the default configuration
+    :return: returns de DB connection
+    """
+    r.table("config").insert(generated_cfg).run(create_tables)
+
+    return create_tables
+
+
+@pytest.fixture()
 def create_users(create_config):
     """
     Creates the users inside the users table
@@ -448,44 +381,33 @@ def create_admin(create_config):
 
 
 @pytest.fixture()
-def create_config(create_tables):
-    """
-    Creates the default configuration
-    :return: returns de DB connection
-    """
-    r.table("config").insert(generated_cfg).run(create_tables)
-
-    return create_tables
-
-
-@pytest.fixture()
-def create_categories(create_tables):
+def create_categories(create_config):
     """
     Creates the categories inside the categories table
     :return: returns the DB connection
     """
-    r.table("categories").insert(generated_categories).run(create_tables)
+    r.table("categories").insert(generated_categories).run(create_config)
 
-    return create_tables
+    return create_config
 
 
 @pytest.fixture()
-def create_groups(create_tables):
+def create_groups(create_config):
     """
     Creates the groups inside the groups table
     :return: returns the DB connection
     """
-    r.table("groups").insert(generated_groups).run(create_tables)
+    r.table("groups").insert(generated_groups).run(create_config)
 
-    return create_tables
+    return create_config
 
 
 @pytest.fixture()
-def create_roles(create_tables):
+def create_roles(create_config):
     """
     Creates the roles inside the roles table
     :return: returns the DB connection
     """
-    r.table("roles").insert(generated_roles).run(create_tables)
+    r.table("roles").insert(generated_roles).run(create_config)
 
-    return create_tables
+    return create_config

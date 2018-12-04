@@ -9,6 +9,7 @@
 from ...models.user import User
 
 from ..mocks.rethink import *
+from ..mocks.ldap import *
 
 
 class TestUser:
@@ -22,7 +23,7 @@ class TestUser:
         """
 
         @staticmethod
-        def test_should_work_as_expected():
+        def test_should_work_as_expected(create_config):
             user = User(generated_users[0])
 
             for k, v in generated_users[0].items():
@@ -32,11 +33,14 @@ class TestUser:
                     assert getattr(user, k) == v
 
         @staticmethod
-        def test_empty_user():
+        def test_empty_user(create_config):
             user = User()
 
             for k, v in empty_user.items():
-                assert getattr(user, k) == v
+                if k == "accessed":
+                    time.gmtime(getattr(user, k))
+                else:
+                    assert getattr(user, k) == v
 
     class TestGet:
         """
@@ -54,20 +58,21 @@ class TestUser:
                 assert getattr(user, k) == v
 
         @staticmethod
-        def test_user_not_found(create_tables):
+        def test_user_not_found(create_config):
             user = User()
-            user.conn = create_tables
+            user.conn = create_config
 
             with pytest.raises(User.NotFound):
                 user.get("nefix")
 
+    # TODO: Use mocks for the LDAP
     class TestAuth:
         """
         This class is the responsible for testing the auth function
         """
 
         @staticmethod
-        def test_user_not_loaded():
+        def test_user_not_loaded(create_config):
             user = User()
 
             with pytest.raises(User.NotLoaded):
@@ -80,6 +85,13 @@ class TestUser:
             user.get("admin")
 
             assert user.auth("P4$$w0rd! ")
+
+        @staticmethod
+        def test_disabled(create_users):
+            user = User(generated_users[0])
+            user.active = False
+
+            assert not user.auth("P4$$w0rd! ")
 
         @staticmethod
         def test_local(create_users):
@@ -120,7 +132,7 @@ class TestUser:
         """
 
         @staticmethod
-        def test_should_work_as_expected(create_tables):
+        def test_should_work_as_expected(create_config):
             for generated_user in generated_users:
                 user = User(generated_user)
                 user.create()
@@ -135,9 +147,22 @@ class TestUser:
                         assert getattr(user, k) == v
 
         @staticmethod
-        def test_ldap(create_roles):
+        def test_ldap(create_roles, ldap_create_everything):
             for generated_ldap_user in generated_ldap_users:
+                r.table("config").get(1).update(
+                    {
+                        "auth": {
+                            "ldap": {
+                                "active": True,
+                                "ldap_server": "ipa.demo1.freeipa.org",
+                            }
+                        }
+                    }
+                ).run(create_roles)
+
                 user = User(generated_ldap_user)
+                user.kinds["ldap"].conn = ldap_create_everything
+
                 user.create()
 
                 user = User()
@@ -149,8 +174,20 @@ class TestUser:
                     else:
                         assert getattr(user, k) == v
 
+                # TODO: Improve this assert
+                assert (
+                    r.table("categories")
+                    .get(generated_ldap_user["category"])
+                    .run(create_roles)
+                )
+                assert (
+                    r.table("groups")
+                    .get(generated_ldap_user["group"])
+                    .run(create_roles)
+                )
+
         @staticmethod
-        def test_not_loaded():
+        def test_not_loaded(create_config):
             user = User()
 
             with pytest.raises(User.NotLoaded):
@@ -181,16 +218,16 @@ class TestUser:
             time.gmtime(r.table("users").get(user.id).run(create_users)["accessed"])
 
         @staticmethod
-        def test_user_not_loaded():
+        def test_user_not_loaded(create_config):
             user = User()
 
             with pytest.raises(User.NotLoaded):
                 user.update_access()
 
         @staticmethod
-        def test_user_not_found(create_tables):
+        def test_user_not_found(create_config):
             user = User(generated_users[0])
-            user.conn = create_tables
+            user.conn = create_config
 
             with pytest.raises(User.NotFound):
                 user.update_access()
@@ -201,21 +238,20 @@ class TestUser:
         """
 
         @staticmethod
-        def test_should_work_as_expected_active():
+        def test_should_work_as_expected_active(create_config):
             user = User(generated_users[0])
-            user.active = True
 
             assert user.is_active()
 
         @staticmethod
-        def test_should_work_as_expected_non_active():
+        def test_should_work_as_expected_non_active(create_config):
             user = User(generated_users[0])
             user.active = False
 
             assert not user.is_active()
 
         @staticmethod
-        def test_user_not_loaded():
+        def test_user_not_loaded(create_config):
             user = User()
 
             with pytest.raises(User.NotLoaded):
@@ -227,7 +263,7 @@ class TestUser:
         """
 
         @staticmethod
-        def test_should_work_as_expected():
+        def test_should_work_as_expected(create_config):
             user = User(generated_users[0])
 
             assert not user.is_anonymous()

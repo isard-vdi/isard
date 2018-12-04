@@ -12,7 +12,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 
 from webapp import app
 from ..models.user import User
-from ..auth.auth import AuthException, Disabled
+from ..auth.exceptions import AuthException, Disabled
 
 
 @app.route("/")

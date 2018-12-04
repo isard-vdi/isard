@@ -7,18 +7,30 @@
 #      Néfix Estrada Campañá
 # License: AGPLv3
 
+from ..models.config import Config
 
-class AuthException(Exception):
+from .local import Local
+from .ldap import LDAP
+
+
+"""
+kinds is an array that contains all the authentication kinds
+"""
+kinds = {"local": Local, "ldap": LDAP}
+
+
+def initialize_kinds():
     """
-    This is the base exception for all the exceptions during authentication
+    initialize_kinds initializes all the enabled authentication classes
+    :return: returns an object where the key is the kind an the content is the authentication object initialized
     """
+    cfg = Config()
+    cfg.get()
 
-    pass
+    initialized_kinds = {}
 
+    for kind in kinds:
+        if cfg.auth[kind]["active"]:
+            initialized_kinds[kind] = kinds[kind]()
 
-class Disabled(AuthException):
-    """
-    Disabled is the exception that is raised when the ldap authentication is disabled
-    """
-
-    pass
+    return initialized_kinds

@@ -7,7 +7,7 @@
 #      Néfix Estrada Campañá
 # License: AGPLv3
 
-from ...auth.local import check, Disabled
+from ...auth.local import Local
 from ...models.user import User
 
 from ..mocks.rethink import *
@@ -15,37 +15,24 @@ from ..mocks.rethink import *
 
 class TestLocal:
     """
-    This class is the responsible for testing the check function
+    This class is the responsible for testing the Local class
     """
 
-    @staticmethod
-    def test_should_work_as_expected(create_users):
-        user = User(generated_users[0])
+    class TestCheck:
+        """
+        This class is the responsible for testing the check function
+        """
 
-        assert check(user, "P4$$w0rd! ")
+        @staticmethod
+        def test_should_work_as_expected(create_users):
+            user = User(generated_users[0])
+            local = Local()
 
-    @staticmethod
-    def test_wrong_password(create_users):
-        user = User(generated_users[0])
+            assert local.check(user, "P4$$w0rd! ")
 
-        assert not check(user, "n0p3!")
+        @staticmethod
+        def test_wrong_password(create_users):
+            user = User(generated_users[0])
+            local = Local()
 
-    @staticmethod
-    def test_admin(create_users):
-        r.table("config").get(1).update({"auth": {"local": {"active": False}}}).run(
-            create_users
-        )
-
-        user = User(generated_users[0])
-        user.id = "admin"
-
-        assert check(user, "P4$$w0rd! ")
-
-    @staticmethod
-    def test_disabled(create_config):
-        r.table("config").get(1).update({"auth": {"local": {"active": False}}}).run(
-            create_config
-        )
-
-        with pytest.raises(Disabled):
-            check(None, "")
+            assert not local.check(user, "n0p3!")

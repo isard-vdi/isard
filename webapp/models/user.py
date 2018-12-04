@@ -12,11 +12,9 @@ import time
 from flask_login import UserMixin
 
 from ..lib.db import DB
-from ..models.role import Role
 from ..models.category import Category
 from ..models.group import Group
-from ..auth.local import check as local_check
-from ..auth.ldap import check as ldap_check
+from ..auth.auth import initialize_kinds
 
 
 class User(UserMixin):
@@ -36,22 +34,11 @@ class User(UserMixin):
                 "kind": "local",
                 "name": "",
                 "mail": "",
-                "role": "",
+                "role": None,
                 "category": "",
                 "group": "",
                 "active": False,
-                "quota": {
-                    "domains": {
-                        "desktops": 0,
-                        "desktops_disk_max": 0,
-                        "templates": 0,
-                        "templates_disk_max": 0,
-                        "running": 0,
-                        "isos": 0,
-                        "isos_disk_max": 0,
-                    },
-                    "hardware": {"vcpus": 0, "memory": 0},
-                },
+                "quota": None,
             }
 
         self.id = user["id"]
@@ -70,8 +57,9 @@ class User(UserMixin):
         self.is_admin = True if self.role == "admin" else False
         self.accessed = time.time()
 
-        self.path = user["category"] + "/" + user["group"] + "/" + user["id"] + "/"
         self.quota = user["quota"]
+
+        self.kinds = initialize_kinds()
 
     def get(self, user_id):
         """
@@ -100,7 +88,6 @@ class User(UserMixin):
         self.is_admin = True if self.role == "admin" else False
         self.accessed = user["accessed"]
 
-        self.path = user["category"] + "/" + user["group"] + "/" + user["id"] + "/"
         self.quota = user["quota"]
 
     def auth(self, password):
@@ -113,13 +100,13 @@ class User(UserMixin):
             raise self.NotLoaded
 
         if self.id == "admin":
-            return local_check(self, password)
+            return self.kinds["local"].check(self, password)
 
-        if self.kind == "local":
-            return local_check(self, password)
+        if not self.active:
+            return False
 
-        if self.kind == "ldap":
-            return ldap_check(self, password)
+        if self.kind in self.kinds:
+            return self.kinds[self.kind].check(self, password)
 
         return False
 
@@ -149,40 +136,27 @@ class User(UserMixin):
                 "quota": self.quota,
             }
 
-            if self.kind == "ldap":
+            if self.kind != "local":
+                user = self.kinds[self.kind].get_user(self.id)
+
                 category = Category()
 
                 try:
-                    category.get(self.category)
+                    category.get(user["category"])
 
                 except category.NotFound:
-                    role = Role()
-                    role.get("user")
-
                     category = Category(
-                        {
-                            "id": self.category,
-                            "name": self.category.title(),
-                            "description": "",
-                            "quota": role.quota,
-                        }
+                        self.kinds[self.kind].get_category(user["category"])
                     )
                     category.create()
 
                 group = Group()
 
                 try:
-                    group.get(self.group)
+                    group.get(user["group"])
 
                 except group.NotFound:
-                    group = Group(
-                        {
-                            "id": self.group,
-                            "name": self.group.title(),
-                            "description": "",
-                            "quota": role.quota,
-                        }
-                    )
+                    group = Group(self.kinds[self.kind].get_group(user["group"]))
                     group.create()
 
             r.table("users").insert(user).run(self.conn)
@@ -212,8 +186,8 @@ class User(UserMixin):
 
     def is_active(self):
         """
-        is_active is a function used by flask-login to check if the user is currently logged in
-        :return: returns the login status of the user
+        is_active is a function used by flask-login to check if the user is disabled or not
+        :return: returns the status of the user
         """
         if self.id == "":
             raise self.NotLoaded

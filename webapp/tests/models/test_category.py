@@ -74,6 +74,8 @@ class TestCategory:
                         "id": generated_category["id"],
                         "name": generated_category["name"],
                         "description": generated_category["description"],
+                        "kind": generated_category["kind"],
+                        "role": generated_category["role"],
                         "quota": generated_category["quota"],
                     }
                 )

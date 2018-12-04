@@ -12,6 +12,7 @@ import rethinkdb as r
 from ..lib.db import DB
 
 
+# TODO: DB migration: LDAP
 class Config:
     """
     Config is the class that contains all the actions related with the configuration
@@ -26,7 +27,18 @@ class Config:
                 "version": 0,
                 "auth": {
                     "local": {"active": False},
-                    "ldap": {"active": False, "ldap_server": "", "bind_dn": ""},
+                    "ldap": {
+                        "active": False,
+                        "ldap_server": "",
+                        "bind_dn": "",
+                        "query_dn": "",
+                        "query_password": "",
+                        "category_attribute": "",
+                        "group_objectclass": "",
+                        "group_attribute": "",
+                        "selected_groups": [],
+                        "selected_categories": [],
+                    },
                 },
                 "resources": {"code": False, "url": ""},
                 "engine": {

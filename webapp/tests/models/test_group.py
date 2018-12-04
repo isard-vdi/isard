@@ -74,6 +74,8 @@ class TestGroup:
                         "id": generated_group["id"],
                         "name": generated_group["name"],
                         "description": generated_group["description"],
+                        "kind": generated_group["kind"],
+                        "role": generated_group["role"],
                         "quota": generated_group["quota"],
                     }
                 )

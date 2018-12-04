@@ -25,23 +25,16 @@ class Group:
                 "id": "",
                 "name": "",
                 "description": "",
-                "quota": {
-                    "domains": {
-                        "desktops": 0,
-                        "desktops_disk_max": 0,
-                        "templates": 0,
-                        "templates_disk_max": 0,
-                        "running": 0,
-                        "isos": 0,
-                        "isos_disk_max": 0,
-                    },
-                    "hardware": {"vcpus": 0, "memory": 0},
-                },
+                "kind": "",
+                "role": None,
+                "quota": None,
             }
 
         self.id = group["id"]
         self.name = group["name"]
         self.description = group["description"]
+        self.kind = group["kind"]
+        self.role = group["role"]
         self.quota = group["quota"]
 
     def get(self, group_id):
@@ -57,6 +50,8 @@ class Group:
         self.id = group["id"]
         self.name = group["name"]
         self.description = group["description"]
+        self.kind = group["kind"]
+        self.role = group["role"]
         self.quota = group["quota"]
 
     def create(self):
@@ -75,6 +70,8 @@ class Group:
                     "id": self.id,
                     "name": self.name,
                     "description": self.description,
+                    "kind": self.kind,
+                    "role": self.role,
                     "quota": self.quota,
                 }
             ).run(self.conn)

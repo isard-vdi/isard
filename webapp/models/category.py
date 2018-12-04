@@ -25,23 +25,16 @@ class Category:
                 "id": "",
                 "name": "",
                 "description": "",
-                "quota": {
-                    "domains": {
-                        "desktops": 0,
-                        "desktops_disk_max": 0,
-                        "templates": 0,
-                        "templates_disk_max": 0,
-                        "running": 0,
-                        "isos": 0,
-                        "isos_disk_max": 0,
-                    },
-                    "hardware": {"vcpus": 0, "memory": 0},
-                },
+                "kind": "",
+                "role": None,
+                "quota": None,
             }
 
         self.id = category["id"]
         self.name = category["name"]
         self.description = category["description"]
+        self.kind = category["kind"]
+        self.role = category["role"]
         self.quota = category["quota"]
 
     def get(self, category_id):
@@ -57,6 +50,8 @@ class Category:
         self.id = category["id"]
         self.name = category["name"]
         self.description = category["description"]
+        self.kind = category["kind"]
+        self.role = category["role"]
         self.quota = category["quota"]
 
     def create(self):
@@ -75,6 +70,8 @@ class Category:
                     "id": self.id,
                     "name": self.name,
                     "description": self.description,
+                    "kind": self.kind,
+                    "role": self.role,
                     "quota": self.quota,
                 }
             ).run(self.conn)

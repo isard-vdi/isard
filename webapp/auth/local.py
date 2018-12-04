@@ -8,24 +8,24 @@
 # License: AGPLv3
 import bcrypt
 
-from .auth import Disabled
 from ..models.config import Config
 
 
-def check(user, password):
+class Local:
     """
-    check checks if the password provided as a parameter is the correct password for the user
-    :param user: user is the whole models.user.User class instance
-    :param password: password is the password that the user has introduced
-    :return: auth returns True if the authentication has succeeded and False if it hasn't
+    Local is the class that contains all the actions related with the local authentication
     """
-    cfg = Config()
-    cfg.get()
 
-    if user and user.id == "admin":
+    def __init__(self):
+        self.cfg = Config()
+        self.cfg.get()
+
+    @staticmethod
+    def check(user, password):
+        """
+        check checks if the password provided as a parameter is the correct password for the user
+        :param user: user is the whole models.user.User class instance
+        :param password: password is the password that the user has introduced
+        :return: auth returns True if the authentication has succeeded and False if it hasn't
+        """
         return bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8"))
-
-    if cfg.auth["local"]["active"]:
-        return bcrypt.checkpw(password.encode("utf-8"), user.password.encode("utf-8"))
-
-    raise Disabled
