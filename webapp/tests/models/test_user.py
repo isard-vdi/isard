@@ -65,7 +65,6 @@ class TestUser:
             with pytest.raises(User.NotFound):
                 user.get("nefix")
 
-    # TODO: Use mocks for the LDAP
     class TestAuth:
         """
         This class is the responsible for testing the auth function

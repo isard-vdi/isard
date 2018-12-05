@@ -12,6 +12,7 @@ import rethinkdb as r
 from ..lib.db import DB
 
 
+# TODO: DB migration
 class Category:
     """
     Category is the class that contains all the actions related with the categories
@@ -58,7 +59,7 @@ class Category:
         """
         create inserts the category to the DB
         """
-        if self.id == "":
+        if self.id == "" or self.id is None:
             raise self.NotLoaded
 
         try:

@@ -12,7 +12,6 @@ import pytest
 from sys import argv
 import shutil
 
-# TODO: Check if the configuration was existing
 # Copy the default configuration as the main configuration during the tests
 shutil.copy("../../isard.conf.default", "../../isard.conf")
 

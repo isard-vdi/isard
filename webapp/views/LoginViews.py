@@ -11,6 +11,7 @@ from flask import request, flash, redirect, url_for, render_template
 from flask_login import login_user, logout_user, login_required, current_user
 
 from webapp import app
+from ..auth.auth import initialize_kinds
 from ..models.user import User
 from ..auth.exceptions import AuthException, Disabled
 
@@ -49,6 +50,32 @@ def login():
                 user.get(request.form["user"])
 
             except User.NotFound:
+                kinds = initialize_kinds()
+
+                for kind in kinds:
+                    if kind != "local":
+                        user = User(kinds[kind].get_user(request.form["user"]))
+
+                        try:
+                            authenticated = user.auth(request.form["password"])
+
+                        except User.NotLoaded:
+                            pass
+
+                        else:
+                            if authenticated:
+                                user.create()
+
+                                user.update_access()
+                                login_user(user)
+
+                                flash("Logged in successfully", "success")
+
+                                if user.is_admin:
+                                    return redirect(url_for("admin"))
+
+                                return redirect(url_for("desktops"))
+
                 flash("User not found", "warning")
 
             else:
@@ -58,7 +85,10 @@ def login():
                 except AuthException as e:
                     if isinstance(e, Disabled):
                         flash(
-                            "The " + user.kind + " authentication is disabled", "danger"
+                            "The "
+                            + user.kind
+                            + " authentication or this specific user are disabled",
+                            "danger",
                         )
 
                     else:

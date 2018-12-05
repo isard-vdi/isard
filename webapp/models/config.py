@@ -12,7 +12,7 @@ import rethinkdb as r
 from ..lib.db import DB
 
 
-# TODO: DB migration: LDAP
+# is None DB migration: LDAP
 class Config:
     """
     Config is the class that contains all the actions related with the configuration

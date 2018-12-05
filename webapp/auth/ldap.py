@@ -33,7 +33,7 @@ class LDAP:
         """
         self.conn = Connection(
             self.cfg.auth["ldap"]["ldap_server"],
-            self.cfg.auth["ldap"]["query_password"],
+            self.cfg.auth["ldap"]["query_dn"],
             self.cfg.auth["ldap"]["query_password"],
             auto_bind=True,
         )
@@ -86,7 +86,6 @@ class LDAP:
             )
 
             if not self.conn.entries:
-                # TODO: User not found
                 return None
 
             ldap_user = self.conn.entries[0]
@@ -136,11 +135,9 @@ class LDAP:
             )
 
             if not self.conn.entries:
-                # TODO: Category not found
                 return None
 
             if category_id not in self.cfg.auth["ldap"]["selected_categories"]:
-                # TODO: Category not found in selected
                 return None
 
             description = None
@@ -190,15 +187,13 @@ class LDAP:
             self.conn.search(
                 self.cfg.auth["ldap"]["bind_dn"],
                 search_query,
-                attributes=[self.cfg.auth["ldap"]["group_objectclass"], "description"],
+                attributes=["description"],
             )
 
             if not self.conn.entries:
-                # TODO: Category not found
                 return None
 
             if group_id not in self.cfg.auth["ldap"]["selected_groups"]:
-                # TODO: Group not found in selected
                 return None
 
             description = None

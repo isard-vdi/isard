@@ -96,7 +96,7 @@ class User(UserMixin):
         :param password: password is the password that the user has introduced
         :return: auth returns True if the authentication has succeeded and False if it hasn't
         """
-        if self.id == "":
+        if self.id == "" or self.id is None:
             raise self.NotLoaded
 
         if self.id == "admin":
@@ -114,7 +114,7 @@ class User(UserMixin):
         """
         create inserts the user to the DB
         """
-        if self.id == "":
+        if self.id == "" or self.id is None:
             raise self.NotLoaded
 
         try:
@@ -169,7 +169,7 @@ class User(UserMixin):
         update_access updates the last time that the user has logged in
         :return returns the response from the DB
         """
-        if self.id == "":
+        if self.id == "" or self.id is None:
             raise self.NotLoaded
 
         rsp = (
@@ -189,7 +189,7 @@ class User(UserMixin):
         is_active is a function used by flask-login to check if the user is disabled or not
         :return: returns the status of the user
         """
-        if self.id == "":
+        if self.id == "" or self.id is None:
             raise self.NotLoaded
 
         return self.active

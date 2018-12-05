@@ -20,6 +20,13 @@ class Local:
         self.cfg = Config()
         self.cfg.get()
 
+    def connect(self):
+        """
+        Implements the connect method
+        :return: Always returns True
+        """
+        return True
+
     @staticmethod
     def check(user, password):
         """

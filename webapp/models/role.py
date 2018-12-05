@@ -74,7 +74,7 @@ class Role:
         """
         create inserts the role to the DB
         """
-        if self.id == "":
+        if self.id == "" or self.id is None:
             raise self.NotLoaded
 
         try:

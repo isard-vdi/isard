@@ -32,5 +32,6 @@ def initialize_kinds():
     for kind in kinds:
         if cfg.auth[kind]["active"]:
             initialized_kinds[kind] = kinds[kind]()
+            initialized_kinds[kind].connect()
 
     return initialized_kinds

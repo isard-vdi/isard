@@ -12,6 +12,7 @@ import rethinkdb as r
 from ..lib.db import DB
 
 
+# TODO: DB migration
 class Group:
     """
     Group is the class that contains all the actions related with the groups
@@ -58,7 +59,7 @@ class Group:
         """
         create inserts the group to the DB
         """
-        if self.id == "":
+        if self.id == "" or self.id is None:
             raise self.NotLoaded
 
         try:

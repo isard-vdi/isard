@@ -18,6 +18,15 @@ class TestLocal:
     This class is the responsible for testing the Local class
     """
 
+    class TestConnect:
+        """
+        This class is the responsible of testing the connect method
+        """
+
+        local = Local()
+
+        assert local.connect()
+
     class TestCheck:
         """
         This class is the responsible for testing the check function
