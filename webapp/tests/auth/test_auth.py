@@ -23,16 +23,8 @@ class TestInitializeKinds:
 
     @staticmethod
     def test_shoud_work_as_expected_ldap_enabled(create_config):
-        r.table("config").get(1).update(
-            {
-                "auth": {
-                    "ldap": {
-                        "active": True,
-                        "ldap_server": "ipa.demo1.freeipa.org",
-                        "bind_dn": "cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org",
-                    }
-                }
-            }
-        ).run(create_config)
+        r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+            create_config
+        )
 
         assert len(initialize_kinds().items()) == 2

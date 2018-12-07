@@ -7,79 +7,140 @@
 #      Néfix Estrada Campañá
 # License: AGPLv3
 
-import pytest
-from ldap3 import Connection, MOCK_SYNC
+ldap_users = [
+    {
+        "id": "professor",
+        "password": "professor",
+        "kind": "ldap",
+        "name": "Professor Farnsworth",
+        "mail": "professor@planetexpress.com",
+        "role": None,
+        "category": "people",
+        "group": "admin_staff",
+        "active": True,
+        "accessed": 0,
+        "quota": None,
+    },
+    {
+        "id": "fry",
+        "password": "fry",
+        "kind": "ldap",
+        "name": "Fry",
+        "mail": "fry@planetexpress.com",
+        "role": None,
+        "category": "people",
+        "group": "ship_crew",
+        "active": True,
+        "accessed": 0,
+        "quota": None,
+    },
+    {
+        "id": "zoidberg",
+        "password": "zoidberg",
+        "kind": "ldap",
+        "name": "Zoidberg",
+        "mail": "zoidberg@planetexpress.com",
+        "role": None,
+        "category": "people",
+        "group": "default_ldap",
+        "active": True,
+        "accessed": 0,
+        "quota": None,
+    },
+    {
+        "id": "hermes",
+        "password": "hermes",
+        "kind": "ldap",
+        "name": "Hermes",
+        "mail": "hermes@planetexpress.com",
+        "role": None,
+        "category": "people",
+        "group": "admin_staff",
+        "active": True,
+        "accessed": 0,
+        "quota": None,
+    },
+    {
+        "id": "leela",
+        "password": "leela",
+        "kind": "ldap",
+        "name": "Leela",
+        "mail": "leela@planetexpress.com",
+        "role": None,
+        "category": "people",
+        "group": "ship_crew",
+        "active": True,
+        "accessed": 0,
+        "quota": None,
+    },
+    {
+        "id": "bender",
+        "password": "bender",
+        "kind": "ldap",
+        "name": "Bender",
+        "mail": "bender@planetexpress.com",
+        "role": None,
+        "category": "people",
+        "group": "ship_crew",
+        "active": True,
+        "accessed": 0,
+        "quota": None,
+    },
+]
 
+ldap_users_dn = {
+    "professor": "cn=Hubert J. Farnsworth,ou=people,dc=planetexpress,dc=com",
+    "fry": "cn=Philip J. Fry,ou=people,dc=planetexpress,dc=com",
+    "zoidberg": "cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com",
+    "hermes": "cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com",
+    "leela": "cn=Turanga Leela,ou=people,dc=planetexpress,dc=com",
+    "bender": "cn=Bender Bending Rodríguez,ou=people,dc=planetexpress,dc=com",
+}
 
-@pytest.fixture()
-def ldap_create_everything():
-    """
-    Creates the users, groups and categories inside the mock LDAP
-    :return: returns the mock connection
-    """
-    conn = Connection("mock-server", client_strategy=MOCK_SYNC)
-    conn.bind()
+ldap_default_category = {
+    "id": "default_ldap",
+    "name": "Default LDAP",
+    "description": "This is the default LDAP category",
+    "kind": "ldap",
+    "role": None,
+    "quota": None,
+}
 
-    # Create all the categories
-    conn.strategy.add_entry(
-        "ou=employees,dc=domain,dc=com",
-        {
-            "ou": "employees",
-            "objectClass": "organizationalUnit",
-            "description": "Employees",
-        },
-    )
-    conn.strategy.add_entry(
-        "ou=users,ou=employees,dc=domain,dc=com",
-        {
-            "ou": "users",
-            "objectClass": "organizationalUnit",
-            "description": "All the employeers",
-        },
-    )
+ldap_default_group = {
+    "id": "default_ldap",
+    "name": "Default LDAP",
+    "description": "This is the default LDAP group",
+    "kind": "ldap",
+    "role": None,
+    "quota": None,
+}
 
-    # Create all the groups
-    conn.strategy.add_entry(
-        "cn=group1,ou=employees,dc=domain,dc=com",
-        {
-            "cn": "group1",
-            "objectClass": "posixGroup",
-            "memberUid": "nefix",
-            "description": "Description for Group 1",
-        },
-    )
-    conn.strategy.add_entry(
-        "cn=group2,cn=group1,ou=employees,dc=domain,dc=com",
-        {
-            "cn": "group2",
-            "objectClass": "posixGroup",
-            "memberUid": "nefix",
-            "description": "Description for Group 2",
-        },
-    )
+ldap_categories = [
+    {
+        "id": "people",
+        "name": "People",
+        "description": "Planet Express crew",
+        "kind": "ldap",
+        "role": None,
+        "quota": None,
+    }
+]
 
-    # Create all the users
-    conn.strategy.add_entry(
-        "uid=nefix,cn=group2,cn=group1,ou=users,ou=employees,dc=domain,dc=com",
-        {
-            "uid": "nefix",
-            "cn": "Néfix Estrada",
-            "objectclass": "person",
-            "userPassword": "P4$$w0rd! ",
-            "displayName": "Néfix Estrada",
-            "mail": "nefix@domain.com",
-        },
-    )
-    conn.strategy.add_entry(
-        "uid=individual,dc=domain,dc=com",
-        {
-            "uid": "individual",
-            "cn": "Individual User",
-            "objectclass": "person",
-            "userPassword": "P4$$w0rd! ",
-            "displayName": "Individual User",
-            "mail": "individual@domain.com",
-        },
-    )
-
-    return conn
+ldap_groups = [
+    {
+        "id": "ship_crew",
+        "name": "Ship_Crew",
+        "description": None,
+        "kind": "ldap",
+        "role": None,
+        "quota": None,
+    },
+    {
+        "id": "admin_staff",
+        "name": "Admin_Staff",
+        "description": None,
+        "kind": "ldap",
+        "role": None,
+        "quota": None,
+    },
+]

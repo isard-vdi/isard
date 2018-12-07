@@ -23,9 +23,11 @@ class TestLocal:
         This class is the responsible of testing the connect method
         """
 
-        local = Local()
+        @staticmethod
+        def should_work_as_expected(create_config):
+            local = Local()
 
-        assert local.connect()
+            assert local.connect()
 
     class TestCheck:
         """
@@ -34,14 +36,16 @@ class TestLocal:
 
         @staticmethod
         def test_should_work_as_expected(create_users):
-            user = User(generated_users[0])
-            local = Local()
+            for i, user in enumerate(generated_users):
+                user = User(user)
+                local = Local()
 
-            assert local.check(user, "P4$$w0rd! ")
+                assert local.check(user, generated_users_passwords[i])
 
         @staticmethod
         def test_wrong_password(create_users):
-            user = User(generated_users[0])
-            local = Local()
+            for user in generated_users:
+                user = User(user)
+                local = Local()
 
-            assert not local.check(user, "n0p3!")
+                assert not local.check(user, "n0p3!")

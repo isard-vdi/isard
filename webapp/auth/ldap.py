@@ -11,6 +11,8 @@ from ldap3 import Connection, core
 
 from .exceptions import Disabled
 from ..models.config import Config
+from ..models.category import Category
+from ..models.group import Group
 
 from ..lib.log import *
 
@@ -48,23 +50,32 @@ class LDAP:
         :return: auth returns True if the authentication has succeeded and False if it hasn't
         """
         if self.cfg.auth["ldap"]["active"]:
-            dn = "uid=" + user.id + "," + self.cfg.auth["ldap"]["bind_dn"]
+            search_query = f"(&(objectclass=person)(uid={user.id}))"
 
-            try:
-                Connection(
-                    self.cfg.auth["ldap"]["ldap_server"], dn, password, auto_bind=True
-                )
-                return True
+            self.conn.search(self.cfg.auth["ldap"]["bind_dn"], search_query)
 
-            except core.exceptions.LDAPExceptionError as e:
-                # Check that the exception isn't an invalidCredentials exception
-                if (not isinstance(e, core.exceptions.LDAPBindError)) or (
-                    len(str(e).split(" - ")) > 1
-                    and str(e).split(" - ")[1] != "invalidCredentials"
-                ):
-                    log.error("LDAP ERROR: " + str(e))
+            if self.conn.entries:
+                dn = self.conn.response[0]["dn"]
 
-                return False
+                try:
+
+                    Connection(
+                        self.cfg.auth["ldap"]["ldap_server"],
+                        dn,
+                        password,
+                        auto_bind=True,
+                    )
+                    return True
+
+                except core.exceptions.LDAPExceptionError as e:
+                    # Check that the exception isn't an invalidCredentials exception
+                    if (not isinstance(e, core.exceptions.LDAPBindError)) or (
+                        len(str(e).split(" - ")) > 1
+                        and str(e).split(" - ")[1] != "invalidCredentials"
+                    ):
+                        log.error("LDAP ERROR: " + str(e))
+
+            return False
 
         raise Disabled
 
@@ -99,6 +110,8 @@ class LDAP:
             if ldap_user["mail"]:
                 mail = ldap_user["mail"].values[0]
 
+            dn = self.conn.response[0]["dn"]
+
             user = {
                 "id": user_id,
                 "password": None,
@@ -106,8 +119,8 @@ class LDAP:
                 "name": name,
                 "mail": mail,
                 "role": role,
-                "category": self.set_category(self.conn.response[0]["dn"]),
-                "group": self.set_group(user_id),
+                "category": self.set_category(dn),
+                "group": self.set_group(user_id, dn),
                 "active": True,
                 "accessed": 0,
                 "quota": quota,
@@ -169,7 +182,15 @@ class LDAP:
                 category = item.split("=")[1]
 
                 if self.get_category(category):
-                    return category
+                    try:
+                        db_category = Category()
+                        db_category.get(category)
+
+                    except Category.NotFound:
+                        db_category = None
+
+                    if not db_category or db_category.kind == "ldap":
+                        return category
 
         return "default_ldap"
 
@@ -214,13 +235,20 @@ class LDAP:
 
         raise Disabled
 
-    def set_group(self, user_id):
+    def set_group(self, user_id, dn):
         """
         set_group returns the group ID that the new LDAP users are going to use when being created in the DB
-        :param user_id: user_id is the ID of the user
+        :param user_id: user_id is ID of the user
+        :param dn: dn is the whole DN of the user
         :return: returns the ID of the group
         """
-        search_query = f"(&(objectclass={self.cfg.auth['ldap']['group_objectclass']})({self.cfg.auth['ldap']['group_attribute']}={user_id}))"
+        search_query = f"""(&
+            (objectclass={self.cfg.auth['ldap']['group_objectclass']})
+            (|
+                ({self.cfg.auth['ldap']['group_attribute']}={user_id})
+                ({self.cfg.auth['ldap']['group_attribute']}={dn})
+            )
+        )"""
 
         self.conn.search(
             self.cfg.auth["ldap"]["bind_dn"], search_query, attributes=["cn"]
@@ -237,8 +265,16 @@ class LDAP:
 
                 if current_group_len > shortest_group_len:
                     if self.get_group(group["cn"].values[0]):
-                        shortest_group = group["cn"].values[0]
-                        shortest_group_len = current_group_len
+                        try:
+                            db_group = Group()
+                            db_group.get(group["cn"].values[0])
+
+                        except Group.NotFound:
+                            db_group = None
+
+                        if not db_group or db_group.kind == "ldap":
+                            shortest_group = group["cn"].values[0]
+                            shortest_group_len = current_group_len
 
             if shortest_group:
                 return shortest_group

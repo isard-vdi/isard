@@ -11,11 +11,13 @@ import bcrypt
 import time
 import rethinkdb as r
 
+generated_users_passwords = ["P4$$w0rd! "]
+
 generated_users = [
     {
         "id": "nefix",
         "password": bcrypt.hashpw(
-            "P4$$w0rd! ".encode("utf-8"), bcrypt.gensalt()
+            generated_users_passwords[0].encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8"),
         "kind": "local",
         "name": "Néfix Estrada",
@@ -25,22 +27,6 @@ generated_users = [
         "group": "admin",
         "active": True,
         "accessed": time.time(),
-        "quota": None,
-    }
-]
-
-generated_ldap_users = [
-    {
-        "id": "nefix",
-        "password": None,
-        "kind": "ldap",
-        "name": "Néfix Estrada",
-        "mail": "nefix@domain.com",
-        "role": None,
-        "category": "employees",
-        "group": "group1",
-        "active": True,
-        "accessed": 0,
         "quota": None,
     }
 ]
@@ -66,15 +52,15 @@ generated_cfg = {
         "local": {"active": True},
         "ldap": {
             "active": False,
-            "ldap_server": "ldap.domain.com",
-            "bind_dn": "dc=domain,dc=com",
+            "ldap_server": "localhost",
+            "bind_dn": "dc=planetexpress,dc=com",
             "query_dn": "",
             "query_password": "",
             "category_attribute": "ou",
-            "group_objectclass": "posixGroup",
-            "group_attribute": "memberUid",
-            "selected_groups": ["group1"],
-            "selected_categories": ["employees"],
+            "group_objectclass": "Group",
+            "group_attribute": "member",
+            "selected_categories": ["people"],
+            "selected_groups": ["admin_staff", "ship_crew"],
         },
     },
     "resources": {"code": False, "url": "http://www.isardvdi.com:5050"},
@@ -201,7 +187,15 @@ generated_groups = [
         "kind": "local",
         "role": None,
         "quota": None,
-    }
+    },
+    {
+        "id": "default_ldap",
+        "name": "Default LDAP",
+        "description": "This is the default LDAP group",
+        "kind": "ldap",
+        "role": None,
+        "quota": None,
+    },
 ]
 
 empty_group = {

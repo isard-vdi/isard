@@ -98,25 +98,16 @@ class TestUser:
 
             assert user.auth("P4$$w0rd! ")
 
+        # TODO: Why is this failing when executing all the tests?
         @staticmethod
         def test_ldap(create_config):
-            r.table("config").get(1).update(
-                {
-                    "auth": {
-                        "ldap": {
-                            "active": True,
-                            "ldap_server": "ipa.demo1.freeipa.org",
-                            "bind_dn": "cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org",
-                        }
-                    }
-                }
-            ).run(create_config)
+            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+                create_config
+            )
 
-            user = User(generated_users[0])
-            user.id = "helpdesk"
-            user.kind = "ldap"
-
-            assert user.auth("Secret123")
+            for ldap_user in ldap_users:
+                user = User(ldap_user)
+                assert user.auth(ldap_user["password"])
 
         @staticmethod
         def test_unsupported_auth_method():
@@ -146,44 +137,36 @@ class TestUser:
                         assert getattr(user, k) == v
 
         @staticmethod
-        def test_ldap(create_roles, ldap_create_everything):
-            for generated_ldap_user in generated_ldap_users:
-                r.table("config").get(1).update(
-                    {
-                        "auth": {
-                            "ldap": {
-                                "active": True,
-                                "ldap_server": "ipa.demo1.freeipa.org",
-                            }
-                        }
-                    }
-                ).run(create_roles)
+        def test_ldap(create_groups):
+            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+                create_groups
+            )
 
-                user = User(generated_ldap_user)
-                user.kinds["ldap"].conn = ldap_create_everything
-
+            for ldap_user in ldap_users:
+                user = User(ldap_user)
                 user.create()
 
                 user = User()
-                user.get(generated_ldap_user["id"])
+                user.get(ldap_user["id"])
 
-                for k, v in generated_ldap_user.items():
+                user.password = ldap_user["password"]
+
+                for k, v in ldap_user.items():
                     if k == "accessed":
                         time.gmtime(getattr(user, k))
                     else:
                         assert getattr(user, k) == v
 
-                # TODO: Improve this assert
-                assert (
-                    r.table("categories")
-                    .get(generated_ldap_user["category"])
-                    .run(create_roles)
+                db_category = (
+                    r.table("categories").get(ldap_user["category"]).run(create_groups)
                 )
+                db_group = r.table("groups").get(ldap_user["group"]).run(create_groups)
+
                 assert (
-                    r.table("groups")
-                    .get(generated_ldap_user["group"])
-                    .run(create_roles)
+                    db_category in ldap_categories
+                    or db_category == ldap_default_category
                 )
+                assert db_group in ldap_groups or db_group == ldap_default_group
 
         @staticmethod
         def test_not_loaded(create_config):

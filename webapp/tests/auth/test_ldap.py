@@ -27,17 +27,9 @@ class TestLDAP:
 
         @staticmethod
         def test_should_work_as_expected(create_config):
-            r.table("config").get(1).update(
-                {
-                    "auth": {
-                        "ldap": {
-                            "active": True,
-                            "ldap_server": "ipa.demo1.freeipa.org",
-                            "bind_dn": "cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org",
-                        }
-                    }
-                }
-            ).run(create_config)
+            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+                create_config
+            )
 
             ldap = LDAP()
             assert ldap.connect()
@@ -49,69 +41,57 @@ class TestLDAP:
 
         @staticmethod
         def test_should_work_as_expected(create_config):
-            r.table("config").get(1).update(
-                {
-                    "auth": {
-                        "ldap": {
-                            "active": True,
-                            "ldap_server": "ipa.demo1.freeipa.org",
-                            "bind_dn": "cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org",
-                        }
-                    }
-                }
-            ).run(create_config)
-
-            user = User(generated_users[0])
-            user.id = "helpdesk"
+            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+                create_config
+            )
 
             ldap = LDAP()
-            assert ldap.check(user, "Secret123")
+            ldap.connect()
+
+            for ldap_user in ldap_users:
+                user = User(ldap_user)
+                assert ldap.check(user, user.password)
 
         @staticmethod
         def test_wrong_password(create_config):
-            r.table("config").get(1).update(
-                {
-                    "auth": {
-                        "ldap": {
-                            "active": True,
-                            "ldap_server": "ipa.demo1.freeipa.org",
-                            "bind_dn": "cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org",
-                        }
-                    }
-                }
-            ).run(create_config)
-
-            user = User(generated_users[0])
-            user.id = "helpdesk"
+            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+                create_config
+            )
 
             ldap = LDAP()
-            assert not ldap.check(user, "n0p3!")
+            ldap.connect()
+
+            for ldap_user in ldap_users:
+                user = User(ldap_user)
+                assert not ldap.check(user, "nop3!")
 
         @staticmethod
         def test_error_connection(create_config):
-            r.table("config").get(1).update(
-                {
-                    "auth": {
-                        "ldap": {
-                            "active": True,
-                            "ldap_server": "ldap.ihopethisdomain.neverexists",
-                            "bind_dn": "cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org",
-                        }
-                    }
-                }
-            ).run(create_config)
-
-            user = User(generated_users[0])
-            user.id = "helpdesk"
+            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+                create_config
+            )
 
             ldap = LDAP()
-            assert not ldap.check(user, "Secret123")
+            ldap.connect()
+
+            user = User(None)
+
+            r.table("config").get(1).update(
+                {"auth": {"ldap": {"ldap_server": "ldap.ihopethisdomain.neverexists"}}}
+            ).run(create_config)
+
+            ldap.cfg.get()
+
+            assert not ldap.check(user, user.password)
 
         @staticmethod
         def test_disabled(create_config):
+            ldap = LDAP()
+
+            user = User(None)
+
             with pytest.raises(Disabled):
-                ldap = LDAP()
-                ldap.check(None, "")
+                assert not ldap.check(user, user.password)
 
     class TestGetUser:
         """
@@ -119,27 +99,28 @@ class TestLDAP:
         """
 
         @staticmethod
-        def test_should_work_as_expected(create_roles, ldap_create_everything):
+        def test_should_work_as_expected(create_roles):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_roles
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            # TODO: Improve this assert
-            assert ldap.get_user("nefix")
+            for ldap_user in ldap_users:
+                ldap_user["password"] = None
+                assert ldap.get_user(ldap_user["id"]) == ldap_user
 
         @staticmethod
-        def test_non_existing(create_config, ldap_create_everything):
+        def test_non_existing(create_config):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_config
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            assert ldap.get_user("nefixestrada") is None
+            assert ldap.get_user("nefix") is None
 
         @staticmethod
         def test_disabled(create_config):
@@ -153,44 +134,45 @@ class TestLDAP:
         """
 
         @staticmethod
-        def test_should_work_as_expected(create_roles, ldap_create_everything):
+        def test_should_work_as_expected(create_roles):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_roles
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            # TODO: Improve this assert
-            assert ldap.get_category("employees")
+            for ldap_category in ldap_categories:
+                assert ldap.get_category(ldap_category["id"]) == ldap_category
 
         @staticmethod
-        def test_not_found(create_config, ldap_create_everything):
+        def test_not_found(create_config):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_config
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
+            assert ldap.get_category("gods") is None
             assert ldap.get_category("managers") is None
 
         @staticmethod
-        def test_not_selected(create_config, ldap_create_everything):
-            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
-                create_config
-            )
+        def test_not_selected(create_config):
+            r.table("config").get(1).update(
+                {"auth": {"ldap": {"active": True, "selected_categories": []}}}
+            ).run(create_config)
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            assert ldap.get_category("users") is None
+            for ldap_category in ldap_categories:
+                assert ldap.get_category(ldap_category["id"]) is None
 
         @staticmethod
         def test_disabled(create_config):
-            ldap = LDAP()
-
             with pytest.raises(Disabled):
+                ldap = LDAP()
                 ldap.get_category("")
 
     class TestSetCategory:
@@ -198,27 +180,35 @@ class TestLDAP:
         This class is the responsible for testing the set_category function
         """
 
+        # TODO: Add more groups
         @staticmethod
-        def test_should_work_as_expected(create_roles, ldap_create_everything):
+        def test_should_work_as_expected(create_roles):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_roles
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            assert (
-                ldap.set_category("cn=nefix,ou=users,ou=employees,dc=domain,dc=com")
-                == "employees"
-            )
+            for ldap_user in ldap_users:
+                assert (
+                    ldap.set_category(ldap_users_dn[ldap_user["id"]])
+                    == ldap_user["category"]
+                )
 
         @staticmethod
-        def test_default_cateogory(create_config, ldap_create_everything):
+        def test_default_cateogory(create_config):
+            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
+                create_config
+            )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            assert ldap.set_category("cn=nefix,dc=domain,dc=com") == "default_ldap"
+            assert (
+                ldap.set_category("cn=Néfix Estrada,dc=planetexpress,dc=com")
+                == "default_ldap"
+            )
 
     class TestGetGroup:
         """
@@ -226,38 +216,40 @@ class TestLDAP:
         """
 
         @staticmethod
-        def test_should_work_as_expected(create_roles, ldap_create_everything):
+        def test_should_work_as_expected(create_roles):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_roles
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            # TODO: Improve this assert
-            assert ldap.get_group("group1")
+            for ldap_group in ldap_groups:
+                assert ldap.get_group(ldap_group["id"]) == ldap_group
 
         @staticmethod
-        def test_not_found(create_config, ldap_create_everything):
+        def test_not_found(create_config):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_config
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
             assert ldap.get_group("gods") is None
+            assert ldap.get_group("managers") is None
 
         @staticmethod
-        def test_not_selected(create_config, ldap_create_everything):
-            r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
-                create_config
-            )
+        def test_not_selected(create_config):
+            r.table("config").get(1).update(
+                {"auth": {"ldap": {"active": True, "selected_groups": []}}}
+            ).run(create_config)
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            assert ldap.get_group("group2") is None
+            for ldap_group in ldap_groups:
+                assert ldap.get_group(ldap_group["id"]) is None
 
         @staticmethod
         def test_disabled(create_config):
@@ -271,21 +263,30 @@ class TestLDAP:
         This class is the responsible for testing the set_group function
         """
 
+        # TODO: Add more categories
         @staticmethod
-        def test_should_work_as_expected(create_roles, ldap_create_everything):
+        def test_should_work_as_expected(create_roles):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(
                 create_roles
             )
 
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            assert ldap.set_group("nefix") == "group1"
+            for ldap_user in ldap_users:
+                assert (
+                    ldap.set_group(ldap_user["id"], ldap_users_dn[ldap_user["id"]])
+                    == ldap_user["group"]
+                )
 
         @staticmethod
-        def test_default_cateogory(create_config, ldap_create_everything):
-
+        def test_default_cateogory(create_config):
             ldap = LDAP()
-            ldap.conn = ldap_create_everything
+            ldap.connect()
 
-            assert ldap.set_group("individual") == "default_ldap"
+            assert (
+                ldap.set_group(
+                    "nefix", "cn=Néfix Estrada,ou=people,dc=planetexpress,dc=com"
+                )
+                == "default_ldap"
+            )
