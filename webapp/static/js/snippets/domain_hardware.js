@@ -145,15 +145,13 @@
 	//~ }
     
 	function setHardwareDomainDefaults_viewer(div_id,data){
-        //~ console.log(data)
-			//~ api.ajax('/domain','POST',{'pk':domain_id,'hs':true}).done(function(domain) {
-			if(data["hardware"]  != undefined){
-				$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
-				$(div_id+" #ram").html(data.hardware.memory+data.hardware.memory_unit);
-                // List could not be ordered! In theory all the disks have same virtual-size
+	    if(data["hardware"]  != undefined){
+		$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
+		$(div_id+" #ram").html(data.hardware.memory+data.hardware.memory_unit);
+		// List could not be ordered! In theory all the disks have same virtual-size
                 //~ $(div_id+" #disks").html(domain['disks_info'][0]['virtual-size']);
-				$(div_id+" #net").html(data.hardware.interfaces[0].id);
-				$(div_id+" #graphics").html(data.hardware.graphics.type);
+	    $(div_id+" #net").html(data.hardware.interfaces[0].id);
+	    $(div_id+" #graphics").html(data.hardware.graphics.type);
                 $(div_id+" #video").html(data.hardware.video.type);
                 $(div_id+" #boot").html(data.hardware['boot_order']);
                 $(div_id+" #hypervisor_pool").html(data['hypervisors_pools'][0]);

@@ -227,10 +227,13 @@ class Wizard():
         return False
         
     def render_updates(self,dict):
-        html='<table><tr>'
+        html='<div style="overflow-y: auto; height:360px"><h4><ul>'
         for k in dict.keys():
-            html+='<td>'+k+' ('+str(len(dict[k]))+' available to donwload)</td>'
-        html+='</tr></table>'
+            html+='<li>'+k+' ('+str(len(dict[k]))+'):<ul>'
+            for n in dict[k]:
+                html+='<li>'+n['name']+'</li>'
+            html+='</ul></li>'
+        html+='</ul></h4></div>'
         return html
     '''
     CHECK VALID ITEMS
@@ -376,8 +379,8 @@ class Wizard():
     def valid_hypervisor(self,remote_addr=False):
         try:
             if r.table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
-                if remote_addr is not False:
-                    self.update_hypervisor_viewer(remote_addr)
+                # ~ if remote_addr is not False:
+                    # ~ self.update_hypervisor_viewer(remote_addr)
                 return True
             return False
         except:
@@ -464,20 +467,20 @@ class Wizard():
         else:
             errors.append({'stepnum':3,'iserror':False})
             
-        if not res['internet']: 
+        # ~ if not res['internet']: 
+            # ~ errors.append({'stepnum':4,'iserror':True})
+        # ~ else:
+            # ~ errors.append({'stepnum':4,'iserror':False})
+            
+        if not res['engine']: 
             errors.append({'stepnum':4,'iserror':True})
         else:
             errors.append({'stepnum':4,'iserror':False})
             
-        if not res['engine']: 
+        if not res['hyper']: 
             errors.append({'stepnum':5,'iserror':True})
         else:
             errors.append({'stepnum':5,'iserror':False})
-            
-        if not res['hyper']: 
-            errors.append({'stepnum':6,'iserror':True})
-        else:
-            errors.append({'stepnum':6,'iserror':False})
         return errors
     
     def wizard_routes(self):
@@ -535,6 +538,17 @@ class Wizard():
                     return json.dumps(True)
                 return render_template('wizard_pwd.html')
 
+            @self.wapp.route('/hypervisor_address', methods=['GET','POST'])
+            def wizard_hypervisor_address():
+                print('UPDATING HYPERVISOR ADDRESS TO:'+str(request.get_json(force=True)))
+                if self.update_hypervisor_viewer(request.get_json(force=True)):
+                    return json.dumps(True)
+                return json.dumps(False)
+                # ~ if request.method == 'POST':
+                    # ~ r.db('isard').table('users').get('admin').update({'password':pw.encrypt(request.get_json(force=True))}).run()
+                    # ~ return json.dumps(True)
+                # ~ return render_template('wizard_pwd.html')
+                
             @self.wapp.route('/shutdown', methods=['POST'])
             def wizard_shutdown():
                 # This shutdowns wizard flask server and allows for main isard src to continue loading.
@@ -554,13 +568,13 @@ class Wizard():
                         return json.dumps(self.valid_rethinkdb() and self.valid_isard_database())
                     if step is '3':
                         return json.dumps(self.valid_password())
+                    # ~ if step is '4':
+                        # ~ return json.dumps(self.valid_server('isardvdi.com'))
                     if step is '4':
-                        return json.dumps(self.valid_server('isardvdi.com'))
-                    if step is '5':
                         return json.dumps(self.valid_engine())
-                    if step is '6':
+                    if step is '5':
                         return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False)                        
-                    if step is '7':
+                    if step is '6':
                         return json.dumps(self.valid_server()) 
                                                                                                                     
             @self.wapp.route('/content', methods=['POST'])
@@ -587,25 +601,24 @@ class Wizard():
                         if not self.valid_password():
                             return html[3]['ko']
                         return html[3]['ok']
+                    # ~ if step == '4':
+                        # ~ if not self.valid_server('isardvdi.com'):
+                            # ~ return html[4]['ko']
+                        # ~ return html[4]['ok']                                              
                     if step == '4':
-                        if not self.valid_server('isardvdi.com'):
-                            return html[4]['ko']
-                        return html[4]['ok']                                              
-                    if step == '5':
                         if not self.valid_engine():
+                            return html[4]['ko']
+                        return html[4]['ok']  
+                    if step == '5':
+                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
                             return html[5]['ko']
                         return html[5]['ok']  
                     if step == '6':
-                        if not (self.valid_hypervisor(remote_addr) if self.valid_isard_database() else False):
-                            return html[6]['ko']
-                        return html[6]['ok']  
-                        return 'Hypervisor online' 
-                    if step == '7':
                         if not self.valid_server():
-                            return 'Isard update website seems down...'
+                            return html[6]['noservice']
                         if self.is_registered() is False:
-                            return 'Isard is not registered'
-                        return str(self.render_updates(self.get_updates_list()))
+                            return html[6]['noregister']
+                        return html[6]['ok'] % (self.render_updates(self.get_updates_list()))
 
 
 '''
@@ -777,7 +790,7 @@ html[2]={'ok':'''   <h2 class="StepTitle">Step 2. Rethinkdb database service and
                        </div><!--end container-->
                     </section> '''}
                                 
-html[3]={'ok':'''   <h2 class="StepTitle">Step 1. Change default admin password</h2> 
+html[3]={'ok':'''   <h2 class="StepTitle">Step 3. Change default admin password</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -796,7 +809,7 @@ html[3]={'ok':'''   <h2 class="StepTitle">Step 1. Change default admin password<
                           </div><!--end row-->
                        </div><!--end container-->
                     </section> ''',
-        'ko':'''   <h2 class="StepTitle">Step 1. Change default admin password</h2> 
+        'ko':'''   <h2 class="StepTitle">Step 3. Change default admin password</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -817,41 +830,41 @@ html[3]={'ok':'''   <h2 class="StepTitle">Step 1. Change default admin password<
                        </div><!--end container-->
                     </section> '''}
 
-html[4]={'ok':'''   <h2 class="StepTitle">Step 4. Internet connection</h2> 
-                    <section>
-                       <div class="container">
-                          <div class="row">
-                             <div class="col-md-2">
-                                <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
-                             </div>
-                             <div class="col-md-10">
-                                <h3 style="color:darkgreen">Seems to be an Internet connection. You can continue.</h3>
-                             </div>                             
-                          </div><!--end row-->
-                       </div><!--end container-->
-                    </section> ''',
-        'ko':'''   <h2 class="StepTitle">Step 4. Internet connection</h2> 
-                    <section>
-                       <div class="container">
-                          <div class="row">
-                             <div class="col-md-2">
-                                <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
-                             </div>
-                             <div class="col-md-10">
-                                <h3 style="color:darkred">Can't connect to Internet.</h3>
-                             </div>                             
-                          </div><!--end row-->
-                          <hr><br><br>
-                          <div class="row">
-                             <div class="col-md-12">
-                                <a href="javascript:void(0);" onclick="skipInternet();$('#wizard').smartWizard('goToStep', 5);"><button  type="button" class="btn btn-warning">Skip Internet check</button></a>
-                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 4);"><button  type="button" class="btn btn-success">Check again</button></a>
-                             </div>                             
-                          </div><!--end row-->
-                       </div><!--end container-->
-                    </section> '''}        
+# ~ html[4]={'ok':'''   <h2 class="StepTitle">Step 4. Internet connection</h2> 
+                    # ~ <section>
+                       # ~ <div class="container">
+                          # ~ <div class="row">
+                             # ~ <div class="col-md-2">
+                                # ~ <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
+                             # ~ </div>
+                             # ~ <div class="col-md-10">
+                                # ~ <h3 style="color:darkgreen">Seems to be an Internet connection. You can continue.</h3>
+                             # ~ </div>                             
+                          # ~ </div><!--end row-->
+                       # ~ </div><!--end container-->
+                    # ~ </section> ''',
+        # ~ 'ko':'''   <h2 class="StepTitle">Step 4. Internet connection</h2> 
+                    # ~ <section>
+                       # ~ <div class="container">
+                          # ~ <div class="row">
+                             # ~ <div class="col-md-2">
+                                # ~ <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
+                             # ~ </div>
+                             # ~ <div class="col-md-10">
+                                # ~ <h3 style="color:darkred">Can't connect to Internet.</h3>
+                             # ~ </div>                             
+                          # ~ </div><!--end row-->
+                          # ~ <hr><br><br>
+                          # ~ <div class="row">
+                             # ~ <div class="col-md-12">
+                                # ~ <a href="javascript:void(0);" onclick="skipInternet();$('#wizard').smartWizard('goToStep', 5);"><button  type="button" class="btn btn-warning">Skip Internet check</button></a>
+                                # ~ <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 4);"><button  type="button" class="btn btn-success">Check again</button></a>
+                             # ~ </div>                             
+                          # ~ </div><!--end row-->
+                       # ~ </div><!--end container-->
+                    # ~ </section> '''}        
 
-html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Isard Engine</h2> 
+html[4]={'ok':'''   <h2 class="StepTitle">Step 4. Isard Engine</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -864,7 +877,7 @@ html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Isard Engine</h2>
                           </div><!--end row-->
                        </div><!--end container-->
                     </section> ''',
-        'ko':'''   <h2 class="StepTitle">Step 5. Isard Engine</h2> 
+        'ko':'''   <h2 class="StepTitle">Step 4. Isard Engine</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -891,7 +904,7 @@ html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Isard Engine</h2>
                        </div><!--end container-->
                     </section> '''}          
         
-html[6]={'ok':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2> 
+html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Hypervisors</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -904,7 +917,7 @@ html[6]={'ok':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2>
                           </div><!--end row-->
                        </div><!--end container-->
                     </section> ''',
-        'ko':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2> 
+        'ko':'''   <h2 class="StepTitle">Step 5. Hypervisors</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -932,7 +945,7 @@ html[6]={'ok':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2>
                        </div><!--end container-->
                     </section> '''} 
 
-html[7]={'ok':'''   <h2 class="StepTitle">Step 6. Updates</h2> 
+html[6]={'ok':'''   <h2 class="StepTitle">Step 6. Updates</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -940,12 +953,15 @@ html[7]={'ok':'''   <h2 class="StepTitle">Step 6. Updates</h2>
                                 <div class="text-center"><i class="fa fa-check fa-4x" aria-hidden="true" style="color:green"></i></div>
                              </div>
                              <div class="col-md-10">
-                                <h3 style="color:darkgreen">Found a running hypervisor. You can continue</h3>
+                                <h3 style="color:darkgreen">Demo items in updates service</h3>
                              </div>                             
                           </div><!--end row-->
+                          <div class="row">
+                             %s                
+                          </div><!--end row-->                          
                        </div><!--end container-->
                     </section> ''',
-        'ko':'''   <h2 class="StepTitle">Step 6. Hypervisors</h2> 
+        'noservice':'''   <h2 class="StepTitle">Step 6. Updates</h2> 
                     <section>
                        <div class="container">
                           <div class="row">
@@ -953,22 +969,41 @@ html[7]={'ok':'''   <h2 class="StepTitle">Step 6. Updates</h2>
                                 <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
                              </div>
                              <div class="col-md-10">
-                                <h3 style="color:darkred">Can't contact any hypervisor.</h3>
+                                <h3 style="color:darkred">Can't contact IsardVDI updates service.</h3>
                              </div>                             
                           </div><!--end row-->
-                          <hr><br><br>
+                          <hr><br>
                           <div class="row">
                              <div class="col-md-12">
-                                <a href="javascript:void(0);" onclick="skipHypervisor();$('#wizard').smartWizard('goToStep', 7);"><button type="button" class="btn btn-warning">Skip Hypervisor check</button></a>
-                                <a href="javascript:void(0);" onclick="$('#wizard').smartWizard('goToStep', 6);"><button  type="button" class="btn btn-success">Check again</button></a>
+                                <h4 style="color:darkblue">It could be your Internet connection or IsardVDI updates is in manteinance mode.</h4>
+                                  <div class="row">
+                                     <div class="col-md-2">
+                                        <div class="text-center"><i class="fa fa-check fa-2x" aria-hidden="true" style="color:green"></i></div>
+                                     </div>
+                                     <div class="col-md-10">
+                                        <h3 style="color:darkgreen">You can finish wizard now and try connecting to updates later.</h3>
+                                     </div>                             
+                                  </div><!--end row-->
                              </div>                             
                           </div><!--end row-->
-                          <hr><br><br>
+                       </div><!--end container-->
+                    </section> ''',
+        'noregister':'''   <h2 class="StepTitle">Step 6. Updates</h2> 
+                    <section>
+                       <div class="container">
+                          <hr><br>
                           <div class="row">
-                            <div class="col-md-12">
-                                <p>Please check that engine is running.</p>
-                                <p> It can be started with: <b>python3 run_engine.py</b>
-                            </div>
-                          </div>                          
+                             <div class="col-md-12">
+                                <h4 style="color:darkblue">You unchecked demo updates.</h4>
+                                  <div class="row">
+                                     <div class="col-md-2">
+                                        <div class="text-center"><i class="fa fa-check fa-2x" aria-hidden="true" style="color:green"></i></div>
+                                     </div>
+                                     <div class="col-md-10">
+                                        <h3 style="color:darkgreen">You can finish wizard now and register for updates later.</h3>
+                                     </div>                             
+                                  </div><!--end row-->
+                             </div>                             
+                          </div><!--end row-->
                        </div><!--end container-->
                     </section> '''}                             

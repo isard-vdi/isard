@@ -147,6 +147,7 @@
                          <small>Protect admin account</small>
                       </span>
                   </a></li>    
+<!--
                 <li><a href="#step-4">
                       <label class="stepNumber">4</label>
                       <span class="stepDesc">
@@ -154,54 +155,61 @@
                          <small>Internet connection</small>
                       </span>                   
                    </a></li>
-                <li><a href="#step-5">
-                      <label class="stepNumber">5</label>
+-->
+                <li><a href="#step-4">
+                      <label class="stepNumber">4</label>
                       <span class="stepDesc">
                          Engine<br />
                          <small>Backend engine</small>
                       </span>                   
                   </a></li>
-                <li><a href="#step-6">
-                      <label class="stepNumber">6</label>
+                <li><a href="#step-5">
+                      <label class="stepNumber">5</label>
                       <span class="stepDesc">
                          Hypervisor<br />
                          <small>Available hypervisors</small>
                       </span>                   
                   </a></li>
-                <li><a href="#step-7">
-                      <label class="stepNumber">7</label>
+                <li><a href="#step-6">
+                      <label class="stepNumber">6</label>
                       <span class="stepDesc">
                          Updates<br />
                          <small>Media and config updates</small>
                       </span>                   
                   </a></li>
               </ul>
-              <div id="step-1" style="height:450px">   
+              <div id="step-1" style="height:370px">   
                   <h2 class="StepTitle">Step 1. Configuration file</h2>
                    <!-- step content -->
               </div>
-              <div id="step-2" style="height:450px">
+              <div id="step-2" style="height:370px">
                   <h2 class="StepTitle">Step 2 Content</h2> 
                    <!-- step content -->
               </div>                      
-              <div id="step-3" style="height:450px">
+              <div id="step-3" style="height:370px">
                   <h2 class="StepTitle">Step 3. Set admin user password</h2> 
                    <!-- step content -->
               </div>
-              <div id="step-4" style="height:450px">
+<!--
+              <div id="step-4" style="height:370px">
+-->
+<!--
                   <h2 class="StepTitle">Step 4 Connection</h2>   
+-->
+                   <!-- step content -->                         
+<!--
+              </div>
+-->
+              <div id="step-4" style="height:370px">
+                  <h2 class="StepTitle">Step 4 Engine</h2>   
                    <!-- step content -->                         
               </div>
-              <div id="step-5" style="height:450px">
-                  <h2 class="StepTitle">Step 5 Engine</h2>   
-                   <!-- step content -->                         
-              </div>
-              <div id="step-6" style="height:450px">
-                  <h2 class="StepTitle">Step 6 Hypervisors</h2>   
+              <div id="step-5" style="height:370px">
+                  <h2 class="StepTitle">Step 5 Hypervisors</h2>   
                    <!-- step content -->                         
               </div>              
-              <div id="step-7" style="height:450px">
-                  <h2 class="StepTitle">Step 7 Updates</h2>   
+              <div id="step-6" style="height:370px">
+                  <h2 class="StepTitle">Step 6 Updates</h2>   
                    <!-- step content -->                         
               </div> 
             </div>
@@ -222,7 +230,7 @@
 -->
 			</div>
 			<div class="modal-body">
-                    <textarea rows="15" cols="65" id="aboutDescription"  style="resize: none; round" disabled>
+                    <textarea rows="16" cols="55" id="aboutDescription"  style="resize: none; round" disabled>
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
@@ -231,7 +239,6 @@
  of this license document, but changing it is not allowed.  
  
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                  
-                    
                     </textarea>
 				<form>
 <!--
@@ -240,7 +247,7 @@
                     </div>
 -->
                     <div class="form-group">
-                        <input id="reg" name="reg" type="checkbox" checked >Update demo data</button>
+                        <input id="reg" name="reg" type="checkbox" checked >Get demonstration domains</button>
 					</div>                    
 					<div class="form-group">
 						<button id="send-reg" type="button" class="btn btn-primary btn-lg btn-block login-btn">Start!</button>
@@ -385,8 +392,10 @@ $(document).ready(function(){
     function leaveAStepCallback(obj, context){
         //~ alert("Leaving step " + context.fromStep + " to go to step " + context.toStep);
 
-        if(context.fromStep==4 && skip_internet){setError(4); return true;}
-        if(context.fromStep==6 && skip_hypervisor){setError(6); return true;}
+	if(context.fromStep==4){updateHypervisor();}
+
+        //~ if(context.fromStep==4 && skip_internet){setError(4); return true;}
+        if(context.fromStep==5 && skip_hypervisor){setError(5); return true;}
         if(validateSteps(context.fromStep)=='true'){
             return true;
         }else{
@@ -465,7 +474,6 @@ $(document).ready(function(){
         function createCONFIG(cfg){
                //~ $('#populate-div').hide();
                //~ $('#populating-div').show();
-
                result=$.ajax({
                     type: "POST",
                     url: "/create_config",
@@ -474,18 +482,33 @@ $(document).ready(function(){
                 }).responseText;
                 //~ if(result=='true'){$('#populate').hide();}
                 $('#wizard').smartWizard('goToStep', 1);
-        }             
+        } 
+	
+	function updateHypervisor(){
+		response= $.ajax({
+                    type: "POST",
+                    url: "/hypervisor_address",
+                    async: false,
+                    data: JSON.stringify(window.location.hostname),
+                    contentType: "application/json; charset=utf-8",
+                    traditional: true,
+                    //~ success: function (data) {
+                        //~ $("#changepw").reset();
+                        //~ $("#registerModal").modal('hide');
+                    //~ }                    
+                });	    
+	}
 </script>
 <script>
 $(document).ready(function(){
-    
+   
 			$('#registerModal').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
             
     $("#send-reg").on('click', function(e) {
-        console.log($('#reg').val())
+        //~ console.log($('#reg').val())
         if ($('#reg').is(":checked"))
         {
           reg=true;
