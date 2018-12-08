@@ -293,9 +293,11 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                 try:
                     xml_started = dom.XMLDesc()
                     vm = DomainXML(xml_started)
-                    port, tlsport = vm.get_graphics_port()
-                    update_domain_viewer_started_values(dom_id, hyp_id=hyp_id, port=port, tlsport=tlsport)
-                    logs.status.info('DOMAIN STARTED - {} in {} (port: {} / tlsport:{})'.format(dom_id, hyp_id, port, tlsport))
+                    spice, spice_tls, vnc, vnc_websocket = vm.get_graphics_port()
+                    update_domain_viewer_started_values(dom_id, hyp_id=hyp_id,
+                                                        spice=spice, spice_tls=spice_tls,
+                                                        vnc = vnc,vnc_websocket=vnc_websocket)
+                    logs.status.info(f'DOMAIN STARTED - {dom_id} in {hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})')
                     update_domain_status(id_domain=dom_id,
                                          status=domEventToString(event),
                                          hyp_id=hyp_id,

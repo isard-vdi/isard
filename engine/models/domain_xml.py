@@ -529,6 +529,19 @@ class DomainXML(object):
     def set_video_type(self, type_video):
         self.tree.xpath('/domain/devices/video/model')[0].set('type', type_video)
 
+    def add_vlc_with_websockets(self):
+        xpath_same = '/domain/devices/graphics'
+        xpath_previous = '/domain/devices/interface'
+        xpath_next = '/domain/devices/video'
+        passwd = self.viewer_passwd
+        #vlc_string_xml = "<graphics type='vnc' port=auto autoport='no' websocket='-1' listen='0.0.0.0'>. <listen type='address' address='0.0.0.0'/>"
+
+        vlc_string_xml  = f"<graphics type='vnc' passwd='{passwd}' autoport='yes' websocket='-1' listen='0.0.0.0' > \n" + \
+                           "     <listen type='address' address='0.0.0.0'/> \n" + \
+                           "</graphics>"
+        vlc = etree.parse(StringIO(vlc_string_xml)).getroot()
+        self.add_to_domain(xpath_same, vlc, xpath_next, xpath_previous)
+
     def set_viewer_passwd(self, passwd, ssl=True):
         # if self.tree.xpath('/domain/devices/graphics')[0].get('type') == 'spice':
         if 'password' in self.tree.xpath('/domain/devices/graphics')[0].keys():
@@ -591,17 +604,27 @@ class DomainXML(object):
         self.vm_dict['spice']['passwd'] = self.spice_passwd
 
     def get_graphics_port(self):
-        if 'tlsPort' in self.tree.xpath('/domain/devices/graphics')[0].keys():
-            tlsPort = self.tree.xpath('/domain/devices/graphics')[0].get('tlsPort')
+        if 'tlsPort' in self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].keys():
+            spice_tls  =  self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].get('tlsPort')
         else:
-            tlsPort = None
+            spice_tls = None
 
-        if 'port' in self.tree.xpath('/domain/devices/graphics')[0].keys():
-            port = self.tree.xpath('/domain/devices/graphics')[0].get('port')
+        if 'port' in self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].keys():
+            spice  =  self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].get('port')
         else:
-            port = None
+            spice = None
 
-        return port, tlsPort
+        if 'port' in self.tree.xpath('/domain/devices/graphics[@type="vnc"]')[0].keys():
+            vnc =    self.tree.xpath('/domain/devices/graphics[@type="vnc"]')[0].get('port')
+        else:
+            vnc = None
+
+        if 'websocket' in   self.tree.xpath('/domain/devices/graphics[@type="vnc"]')[0].keys():
+            vnc_websocket = self.tree.xpath('/domain/devices/graphics[@type="vnc"]')[0].get('websocket')
+        else:
+            vnc_websocket = None
+
+        return spice, spice_tls, vnc, vnc_websocket
 
     def remove_selinux_options(self):
         self.remove_recursive_tag('seclabel', self.tree.getroot())
@@ -1063,17 +1086,21 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
 
     # spice password
     if ssl is True:
+        #recreate random password in x.viewer_passwd
         x.reset_viewer_passwd()
     else:
         # only for test purposes, not use in production
         x.spice_remove_passwd_nossl()
+
+    #add vlc access
+    x.add_vlc_with_websockets()
 
     # redo network
     try:
         list_interfaces = dict_domain['create_dict']['hardware']['interfaces']
     except KeyError:
         list_interfaces = []
-        log.info('domain {} withouth key interfaces in crate_dict'.format(id))
+        log.info('domain {} withouth key interfaces in create_dict'.format(id))
 
     mac_address = []
     for interface_index in range(len(x.vm_dict['interfaces'])):
@@ -1101,6 +1128,7 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
     update_domain_dict_hardware(id, x.vm_dict, xml=xml)
     if 'viewer_passwd' in x.__dict__.keys():
+        #update password in database
         update_domain_viewer_started_values(id, passwd=x.viewer_passwd)
         log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id))
 

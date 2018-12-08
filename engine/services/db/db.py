@@ -92,7 +92,12 @@ def get_ferrary(id):
     return results['ferrary']
 
 
-def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=False, passwd=False):
+def update_domain_viewer_started_values(id, hyp_id=False,
+                                        spice=False,
+                                        spice_tls=False,
+                                        vnc=False,
+                                        vnc_websocket=False,
+                                        passwd=False):
     #
     # dict_event = {'domain':dom.name(),
     #               'hyp_id':hyp_id,
@@ -132,8 +137,12 @@ def update_domain_viewer_started_values(id, hyp_id=False, port=False, tlsport=Fa
         dict_viewer['hostname'] = False
 
     dict_viewer['hostname_external'] = hostname_external
-    dict_viewer['tlsport'] = tlsport
-    dict_viewer['port'] = port
+    dict_viewer['tlsport'] = spice_tls
+    dict_viewer['port'] = spice
+    dict_viewer['port_spice'] = spice
+    dict_viewer['port_spice_ssl'] = spice_tls
+    dict_viewer['port_vnc'] = vnc
+    dict_viewer['port_vnc_websocket'] = vnc_websocket
     if passwd is not False:
         dict_viewer['passwd'] = passwd
 
