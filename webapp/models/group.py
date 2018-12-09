@@ -10,6 +10,7 @@
 import rethinkdb as r
 
 from ..lib.db import DB
+from .role import Role
 
 
 # TODO: DB migration
@@ -54,6 +55,35 @@ class Group:
         self.kind = group["kind"]
         self.role = group["role"]
         self.quota = group["quota"]
+
+    # TODO: Test!
+    def get_quota(self):
+        """
+        get_quota returns the correct quota of the group. If the group quota is None, it calls the role mehtod (User -> Category -> *Group* -> Role ["user" by default])
+        :return: returns a dict with the quota
+        """
+        if self.quota:
+            return self.quota
+
+        try:
+            role = Role()
+            role.get(self.role)
+
+        except Role.NotFound:
+            return {
+                "domains": {
+                    "desktops": 0,
+                    "desktops_disk_max": 0,
+                    "templates": 0,
+                    "templates_disk_max": 0,
+                    "running": 0,
+                    "isos": 0,
+                    "isos_disk_max": 0,
+                },
+                "hardware": {"vcpus": 0, "memory": 0},
+            }
+
+        return role.get_quota()
 
     def create(self):
         """

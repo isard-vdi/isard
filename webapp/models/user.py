@@ -12,8 +12,8 @@ import time
 from flask_login import UserMixin
 
 from ..lib.db import DB
-from ..models.category import Category
-from ..models.group import Group
+from .category import Category
+from .group import Group
 from ..auth.auth import initialize_kinds
 
 
@@ -90,25 +90,78 @@ class User(UserMixin):
 
         self.quota = user["quota"]
 
-    def auth(self, password):
+    # TODO: Test!
+    def get_quota(self):
         """
-        auth checks the validity of the password sent as an arg
-        :param password: password is the password that the user has introduced
-        :return: auth returns True if the authentication has succeeded and False if it hasn't
+        get_quota returns the correct quota of the user. If the user quota is None, it calls the category mehtod (User -> Category -> Group -> Role ["user" by default])
+        :return: returns a dict with the quota
+        """
+        if self.quota:
+            return self.quota
+
+        try:
+            category = Category()
+            category.get(self.category)
+
+        except Category.NotFound:
+            return {
+                "domains": {
+                    "desktops": 0,
+                    "desktops_disk_max": 0,
+                    "templates": 0,
+                    "templates_disk_max": 0,
+                    "running": 0,
+                    "isos": 0,
+                    "isos_disk_max": 0,
+                },
+                "hardware": {"vcpus": 0, "memory": 0},
+            }
+
+        return category.get_quota()
+
+    # TODO: Test!
+    def get_desktops(self):
+        """
+        get_desktops retrieves all the desktops of the user from the DB
+        :return: returns an array containing all the desktops of the user
         """
         if self.id == "" or self.id is None:
             raise self.NotLoaded
 
-        if self.id == "admin":
-            return self.kinds["local"].check(self, password)
+        return r.table("domains").get_all(self.id, index="user").filter({"kind": "desktop"}).run(self.conn)
 
-        if not self.active:
-            return False
+    # TODO: Test!
+    def get_started_desktops(self):
+        """
+        get_started_desktops retrieves all the started desktops of the user from the DB
+        :return: returns an array containing all the started desktops of the user
+        """
+        if self.id == "" or self.id is None:
+            raise self.NotLoaded
 
-        if self.kind in self.kinds:
-            return self.kinds[self.kind].check(self, password)
+        return r.table("domains").get_all(self.id, index="user").filter({"kind": "desktop", "status": "Started"}).run(self.conn)
 
-        return False
+    # TODO: Test!
+    def get_templates(self):
+        """
+        get_templates retrieves all the templates of the user form the DB
+        :return: returns an array containing all the templates of the user
+        """
+        if self.id == "" or self.id is None:
+            raise self.NotLoaded
+
+        return r.table("domains").get_all(self.id, index="user").filter({"kind": "user_template"}).run(self.conn)
+
+    # TODO: Test!
+    def get_media(self):
+        """
+        get_media retrieves all the media of the user from the DB
+        :return: returns an array containing all the media of the user
+        """
+        if self.id == "" or self.id is None:
+            raise self.NotLoaded
+
+        return r.table("media").get_all(self.id, index="user")
 
     def create(self):
         """
@@ -183,6 +236,26 @@ class User(UserMixin):
             raise self.NotFound
 
         return rsp
+
+    def auth(self, password):
+        """
+        auth checks the validity of the password sent as an arg
+        :param password: password is the password that the user has introduced
+        :return: auth returns True if the authentication has succeeded and False if it hasn't
+        """
+        if self.id == "" or self.id is None:
+            raise self.NotLoaded
+
+        if self.id == "admin":
+            return self.kinds["local"].check(self, password)
+
+        if not self.active:
+            return False
+
+        if self.kind in self.kinds:
+            return self.kinds[self.kind].check(self, password)
+
+        return False
 
     def is_active(self):
         """

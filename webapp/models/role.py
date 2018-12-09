@@ -70,6 +70,34 @@ class Role:
         self.permissions = role["permissions"]
         self.quota = role["quota"]
 
+    def get_quota(self):
+        """
+        get_quota returns the correct quota of the role. If the role quota is None, it loads the user role quota (User -> Category -> Group -> *Role ["user" by default]*)
+        :return: returns a dict with the quota
+        """
+        if self.quota:
+            return self.quota
+
+        try:
+            role = Role()
+            role.get("user")
+
+        except Role.NotFound:
+            return {
+                "domains": {
+                    "desktops": 0,
+                    "desktops_disk_max": 0,
+                    "templates": 0,
+                    "templates_disk_max": 0,
+                    "running": 0,
+                    "isos": 0,
+                    "isos_disk_max": 0,
+                },
+                "hardware": {"vcpus": 0, "memory": 0},
+            }
+
+        return role.get_quota()
+
     def create(self):
         """
         create inserts the role to the DB
