@@ -47,14 +47,26 @@ class UiActions(object):
     def start_domain_from_id(self, id, ssl=True):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
 
-        pool_id = get_pool_from_domain(id)
+        id_domain = id
+        pool_id = get_pool_from_domain(id_domain)
         cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model','host-model')
 
         # TODO: Read the cpu_host_model value from hypervisor_pool database
-        xml = recreate_xml_to_start(id, ssl, cpu_host_model)
+        try:
+            xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
+        except Exception as e:
+            log.error('recreate_xml_to_start in domain {}'.format(id_domain))
+            log.error('Traceback: \n .{}'.format(traceback.format_exc()))
+            log.error('Exception message: {}'.format(e))
+            xml = False
 
-        hyp = self.start_domain_from_xml(xml, id, pool_id=pool_id)
-        return hyp
+        if xml is False:
+            update_domain_status('Failed', id_domain,
+                                 detail="DomainXML can't parse and modify xml to start")
+            return False
+        else:
+            hyp = self.start_domain_from_xml(xml, id_domain, pool_id=pool_id)
+            return hyp
 
     def start_paused_domain_from_xml(self, xml, id_domain, pool_id):
     #def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
@@ -400,6 +412,12 @@ class UiActions(object):
                 hw_dict['disks'][i]['file'] = template_dict['create_dict']['hardware']['disks'][i]['file']
             update_table_field('domains', template_id, 'hardware', hw_dict, merge_dict=False)
             xml_parsed = update_xml_from_dict_domain(id_domain=template_id, xml=domain_dict['xml'])
+            if xml_parsed is False:
+                update_domain_status(status='Failed',
+                                     id_domain=template_id,
+                                     hyp_id=False,
+                                     detail='XML Parser Error, xml is not valid')
+                return False
             remove_disk_template_created_list_in_domain(id_domain)
             remove_dict_new_template_from_domain(id_domain)
             # update_table_field('domains', template_id, 'xml', xml_parsed, merge_dict=False)
@@ -665,6 +683,12 @@ class UiActions(object):
 
         try:
             xml_raw = update_xml_from_dict_domain(id_domain)
+            if xml_raw is False:
+                update_domain_status(status='Failed',
+                                     id_domain=id_domain,
+                                     detail='XML Parser Error, xml is not valid')
+                return False
+
         except Exception as e:
             log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
             log.error('Traceback: \n .{}'.format(traceback.format_exc()))
@@ -727,6 +751,11 @@ class UiActions(object):
         update_table_field('domains', id_domain, 'xml', xml_from)
 
         xml_raw = update_xml_from_dict_domain(id_domain)
+        if xml_raw is False:
+            update_domain_status(status='FailedCreatingDomain',
+                                 id_domain=id_domain,
+                                 detail='XML Parser Error, xml is not valid')
+            return False
         update_domain_status('CreatingDomain', id_domain,
                              detail='xml and hardware dict updated, waiting to test if domain start paused in hypervisor')
         pool_id = get_pool_from_domain(id_domain)
@@ -741,10 +770,21 @@ class UiActions(object):
 
         else:
             #change viewer password, remove selinux options and recreate network interfaces
-            xml = recreate_xml_to_start(id_domain)
-            self.start_paused_domain_from_xml(xml=xml,
-                                              id_domain=id_domain,
-                                              pool_id=pool_id)
+            try:
+                xml = recreate_xml_to_start(id_domain)
+            except Exception as e:
+                log.error('recreate_xml_to_start in domain {}'.format(id_domain))
+                log.error('Traceback: \n .{}'.format(traceback.format_exc()))
+                log.error('Exception message: {}'.format(e))
+                xml = False
+
+            if xml is False:
+                update_domain_status('Failed', id_domain,
+                                     detail="DomainXML can't parse and modify xml to start")
+            else:
+                self.start_paused_domain_from_xml(xml=xml,
+                                                  id_domain=id_domain,
+                                                  pool_id=pool_id)
 
 
     # INFO TO DEVELOPER: HAY QUE QUITAR CATEGORY Y GROUP DE LOS PARÁMETROS QUE RECIBE LA FUNCIÓN
@@ -788,6 +828,12 @@ class UiActions(object):
             dict_domain_new['server'] = dict_domain_template['server']
 
         x = DomainXML(dict_domain_template['xml'])
+        if x.parser is False:
+            log.error('error when parsing xml')
+            dict_domain_new['status'] = 'FailedCreatingDomain'
+            dict_domain_new['detail'] = 'XML Parser have failed, xml with errors'
+            return False
+
         x.set_name(id_new)
         x.set_title(name)
         x.set_description(description)

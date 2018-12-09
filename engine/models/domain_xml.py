@@ -129,11 +129,13 @@ class DomainXML(object):
         parser = etree.XMLParser(remove_blank_text=True)
         try:
             self.tree = etree.parse(StringIO(xml), parser)
+            self.parser = True
         except Exception as e:
             log.error('Exception when parse xml: {}'.format(e))
             log.error('xml that fail: \n{}'.format(xml))
             log.error('Traceback: {}'.format(traceback.format_exc()))
-            return False
+            self.parser = False
+            return None
 
         self.vm_dict = self.dict_from_xml(self.tree)
 
@@ -805,37 +807,6 @@ def remove_recursive_tag(tag, parent):
     return parent
 
 
-def domain_xml_to_test(domain_id, ssl=True):
-    id = domain_id
-    # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
-    dict_domain = get_domain(domain_id)
-    xml = dict_domain['xml']
-    x = DomainXML(xml)
-    if ssl is True:
-        x.reset_viewer_passwd()
-    else:
-        x.spice_remove_passwd_nossl()
-
-    x.remove_selinux_options()
-    x.remove_boot_order_from_disks()
-    xml = x.return_xml()
-    log.debug('#####################################################3')
-    log.debug('#####################################################3')
-    log.debug('#####################################################3')
-    log.debug('#####################################################3')
-    log.debug(xml)
-    log.debug('#####################################################3')
-    log.debug('#####################################################3')
-    log.debug('#####################################################3')
-    log.debug('#####################################################3')
-
-    x.dict_from_xml()
-    update_domain_dict_hardware(id, x.vm_dict, xml=xml)
-    # update_domain_viewer_started_values(id,passwd=x.viewer_passwd)
-
-    return xml
-
-
 def create_template_from_dict(dict_template_new):
     pass
 
@@ -847,6 +818,8 @@ def update_xml_from_dict_domain(id_domain, xml=None):
         v = DomainXML(d['xml'])
     else:
         v = DomainXML(xml)
+    if v.parser is False:
+        return False
     # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
     v.set_memory(memory=hw['memory'], unit=hw['memory_unit'],current=int(hw.get('currentMemory',hw['memory'])*DEFAULT_BALLOON))
     total_disks_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="disk"]'))
@@ -1078,6 +1051,9 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
 
     xml = dict_domain['xml']
     x = DomainXML(xml)
+    if x.parser is False:
+        #error when parsing xml
+        return False
 
     ##### actions to customize xml
 
