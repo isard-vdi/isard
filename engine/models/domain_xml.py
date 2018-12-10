@@ -24,6 +24,8 @@ from engine.services.db.downloads import get_media
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
 
+DEFAULT_SPICE_VIDEO_COMPRESSION = 'auto_glz'
+
 CPU_MODEL_FALLBACK = 'core2duo'
 
 DEFAULT_BALLOON = 0.80
@@ -536,28 +538,57 @@ class DomainXML(object):
         xpath_previous = '/domain/devices/interface'
         xpath_next = '/domain/devices/video'
         passwd = self.viewer_passwd
+
+        xpath_vlc = '/domain/devices/graphics[@type="vnc"]'
+
+        #remove if exist vlc
+        if self.tree.xpath('/domain/devices'):
+            if self.tree.xpath(xpath_vlc):
+                self.tree.xpath(xpath_vlc)[0].getparent().remove(self.tree.xpath(xpath_vlc)[0])
+        else:
+            log.debug('element /domain/devices not found in xml_etree when adding disk')
+            return False
+
         #vlc_string_xml = "<graphics type='vnc' port=auto autoport='no' websocket='-1' listen='0.0.0.0'>. <listen type='address' address='0.0.0.0'/>"
 
-        vlc_string_xml  = f"<graphics type='vnc' passwd='{passwd}' autoport='yes' websocket='-1' listen='0.0.0.0' > \n" + \
-                           "     <listen type='address' address='0.0.0.0'/> \n" + \
-                           "</graphics>"
+        vlc_string_xml  = f"    <graphics type='vnc' passwd='{passwd}' autoport='yes' websocket='-1' listen='0.0.0.0' > \n" + \
+                           "        <listen type='address' address='0.0.0.0'/> \n" + \
+                           "    </graphics>"
         vlc = etree.parse(StringIO(vlc_string_xml)).getroot()
         self.add_to_domain(xpath_same, vlc, xpath_next, xpath_previous)
 
+    def add_spice_graphics_if_not_exist(self,video_compression=None):
+        xpath_spice = '/domain/devices/graphics[@type="spice"]'
+
+        if not self.tree.xpath(xpath_spice):
+            xpath_same = '/domain/devices/graphics'
+            xpath_previous = '/domain/devices/interface'
+            xpath_next = '/domain/devices/video'
+
+            if video_compression is None:
+                video_compression = DEFAULT_SPICE_VIDEO_COMPRESSION
+
+            string_xml = '    <graphics type="spice" port="-1" tlsPort="-1" autoport="yes">\n' + \
+                         f'        <image compression="{video_compression}"/>\n' + \
+                         '    </graphics>'
+
+            spice_graphics = etree.parse(StringIO(string_xml)).getroot()
+            self.add_to_domain(xpath_same, spice_graphics, xpath_next, xpath_previous)
+
     def set_viewer_passwd(self, passwd, ssl=True):
         # if self.tree.xpath('/domain/devices/graphics')[0].get('type') == 'spice':
-        if 'password' in self.tree.xpath('/domain/devices/graphics')[0].keys():
-            self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('password')
-        self.tree.xpath('/domain/devices/graphics')[0].set('passwd', passwd)
+        if 'password' in self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].keys():
+            self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].attrib.pop('password')
+        self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].set('passwd', passwd)
         self.viewer_passwd = passwd
         if ssl is True:
             # mode secure if you not use websockets
-            # self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode','secure')
+            # self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].set('defaultMode','secure')
             # defaultMode=any is the default value, if you pop defaultMode attrib is the same
-            self.tree.xpath('/domain/devices/graphics')[0].set('defaultMode', 'any')
+            self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].set('defaultMode', 'any')
         else:
-            if 'defaultMode' in self.tree.xpath('/domain/devices/graphics')[0].keys():
-                self.tree.xpath('/domain/devices/graphics')[0].attrib.pop('defaultMode')
+            if 'defaultMode' in self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].keys():
+                self.tree.xpath('/domain/devices/graphics[@type="spice"]')[0].attrib.pop('defaultMode')
                 # else:
                 #     log.error('domain {} has not spice graphics and can not change password of spice connection'.format(self.vm_dict['name']))
 
@@ -1060,7 +1091,10 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     if dict_domain.get('not_change_cpu_section',False) is False:
         x.set_cpu_host_model(cpu_host_model)
 
+
     # spice password
+    x.add_spice_graphics_if_not_exist()
+
     if ssl is True:
         #recreate random password in x.viewer_passwd
         x.reset_viewer_passwd()

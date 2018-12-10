@@ -62,7 +62,7 @@ class UiActions(object):
 
         if xml is False:
             update_domain_status('Failed', id_domain,
-                                 detail="DomainXML can't parse and modify xml to start")
+                                 detail="DomainXML can not parse and modify xml to start")
             return False
         else:
             hyp = self.start_domain_from_xml(xml, id_domain, pool_id=pool_id)

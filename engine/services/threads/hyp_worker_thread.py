@@ -133,8 +133,12 @@ class HypWorkerThread(threading.Thread):
                             #update_domain_status('Started', action['id_domain'], hyp_id=self.hyp_id, detail='Domain has started in worker thread')
                             logs.workers.debug('STARTED domain {}: createdXML action in hypervisor {} has been sent'.format(
                                 action['id_domain'], host))
+                        except libvirtError as e:
+                            update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id,
+                                                 detail=("Hypervisor can not create domain with libvirt exception: " + str(e)))
+                            logs.workers.debug('exception in starting domain {}: '.format(e))
                         except Exception as e:
-                            update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
+                            update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=("Exception when starting domain: " + str(e)))
                             logs.workers.debug('exception in starting domain {}: '.format(e))
 
                     ## STOP DOMAIN
