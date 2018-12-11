@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/isard-vdi/isard-ipxe/pkg/cert"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 )
 
@@ -23,7 +24,7 @@ func createClient() (*http.Client, error) {
 	var client = &http.Client{}
 
 	protocol := strings.Split(config.BaseURL, ":")[0]
-	if protocol == "https" {
+	if protocol == "https" && !cert.IsValid {
 		caCert, err := ioutil.ReadFile(config.CACert)
 		if err != nil {
 			return nil, err

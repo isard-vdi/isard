@@ -102,7 +102,7 @@ var tests = []struct {
 				},
 				Body: []byte(`{
 	"code": 2,
-	"message": "testing error"
+	"msg": "testing error"
 }`),
 				Code: 500,
 				Err:  nil,

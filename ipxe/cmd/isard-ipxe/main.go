@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/isard-vdi/isard-ipxe/pkg/cert"
 	"github.com/isard-vdi/isard-ipxe/pkg/handlers"
 )
 
@@ -36,7 +37,7 @@ func main() {
 		log.Fatalf("error opening log file: %v", err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
+		if err = f.Close(); err != nil {
 			log.Fatalf("error closing the log file: %v", err)
 		}
 	}()
@@ -49,6 +50,12 @@ func main() {
 
 	// Generate the router
 	mux := generateMux()
+
+	// Check the certificate
+	err = cert.Check()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Start the server
 	log.Println("Starting to listen at port :3000")
