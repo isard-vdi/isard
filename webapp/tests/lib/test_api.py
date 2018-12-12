@@ -17,14 +17,25 @@ class TestGetUserQuotas:
     This is the class responsible of testing the get_user_quotas method
     """
 
+    # TODO: Better assertions
     @staticmethod
-    def test_should_work_as_expected(create_users):
+    def test_should_work_as_expected(create_users_and_domains):
         for user in generated_users:
-            print(isard.get_user_quotas(user["id"]))
-            assert False
+            assert isard.get_user_quotas(user["id"]) == {
+                "d": 1,
+                "dq": 0,
+                "dqp": "100.00",
+                "r": 0,
+                "rq": 0,
+                "rqp": "100.00",
+                "t": 0,
+                "tq": 0,
+                "tqp": "100.00",
+                "i": 0,
+                "iq": 0,
+                "iqp": "100.00",
+            }
 
     @staticmethod
-    def test_fake_quota(create_users):
-        for user in generated_users:
-            print(isard.get_user_quotas(user["id"], True))
-            assert False
+    def test_user_not_found(create_config):
+        assert isard.get_user_quotas("nefix") == {}

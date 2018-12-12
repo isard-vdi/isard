@@ -615,12 +615,11 @@ class isard:
         return idchain
 
     @staticmethod
-    def get_user_quotas(user_id, fakequota=False):
+    def get_user_quotas(user_id):
         """
         get_user_quotas returns the quota of the user. If it's None, it's going to search through the permissions chain until it finds the correct one:
         user -> group -> category -> role (by default "user")
         :param user_id: is the ID of the user
-        :param fakequota: NO IDEA :D
         :return returns the quota of the user
         """
         user = User()
@@ -631,10 +630,8 @@ class isard:
         except User.NotFound:
             return {}
 
-        if fakequota:
-            user.quota = fakequota
-
         user.get_quota()
+        quota = user.quota
 
         desktops = user.get_desktops()
         started_desktops = user.get_started_desktops()
@@ -642,41 +639,41 @@ class isard:
         media = user.get_media()
 
         try:
-            qpdesktops = len(desktops) * 100 / user.quota["domains"]["desktops"]
+            qpdesktops = len(desktops) * 100 / quota["domains"]["desktops"]
 
-        except KeyError:
+        except ZeroDivisionError:
             qpdesktops = 100
 
         try:
-            qpup = len(started_desktops) * 100 / user.quota["domains"]["running"]
+            qpup = len(started_desktops) * 100 / quota["domains"]["running"]
 
-        except KeyError:
+        except ZeroDivisionError:
             qpup = 100
 
         try:
-            qptemplates = len(templates) * 100 / user.quota["domains"]["templates"]
+            qptemplates = len(templates) * 100 / quota["domains"]["templates"]
 
-        except KeyError:
+        except ZeroDivisionError:
             qptemplates = 100
 
         try:
-            qpisos = len(media) * 100 / user.quota["domains"]["isos"]
+            qpisos = len(media) * 100 / quota["domains"]["isos"]
 
-        except KeyError:
+        except ZeroDivisionError:
             qpisos = 100
 
         return {
             "d": len(desktops),
-            "dq": user.quota["domains"]["desktops"],
+            "dq": quota["domains"]["desktops"],
             "dqp": "%.2f" % round(qpdesktops, 2),
             "r": len(started_desktops),
-            "rq": user.quota["domains"]["running"],
+            "rq": quota["domains"]["running"],
             "rqp": "%.2f" % round(qpup, 2),
             "t": len(templates),
-            "tq": user.quota["domains"]["templates"],
+            "tq": quota["domains"]["templates"],
             "tqp": "%.2f" % round(qptemplates, 2),
             "i": len(media),
-            "iq": user.quota["domains"]["isos"],
+            "iq": quota["domains"]["isos"],
             "iqp": "%.2f" % round(qpisos, 2),
         }
 

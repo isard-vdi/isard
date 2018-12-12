@@ -65,6 +65,192 @@ class TestUser:
             with pytest.raises(User.NotFound):
                 user.get("nefix")
 
+    class TestGetQuota:
+        """
+        This class is the responsible for testing the get_quota method
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_groups):
+            r.table("groups").get("advanced").update({"category": "admin"}).run(
+                create_groups
+            )
+            r.table("categories").get("admin").update({"role": "admin"}).run(
+                create_groups
+            )
+
+            for generated_user in generated_users:
+                user_dict = generated_user.copy()
+                user_dict["group"] = "advanced"
+
+                user = User(user_dict)
+                user.get_quota()
+
+                assert (
+                    user.quota
+                    == [
+                        role["quota"]
+                        for role in generated_roles
+                        if role["id"] == "admin"
+                    ][0]
+                )
+
+        @staticmethod
+        def test_no_group(create_groups):
+            for generated_user in generated_users:
+                user_dict = generated_user.copy()
+                user_dict["group"] = None
+
+                user = User(user_dict)
+                user.get_quota()
+
+                assert user.quota == {
+                    "domains": {
+                        "desktops": 0,
+                        "desktops_disk_max": 0,
+                        "templates": 0,
+                        "templates_disk_max": 0,
+                        "running": 0,
+                        "isos": 0,
+                        "isos_disk_max": 0,
+                    },
+                    "hardware": {"vcpus": 0, "memory": 0},
+                }
+
+        @staticmethod
+        def test_group_not_fould(create_config):
+            for generated_user in generated_users:
+                user = User(generated_user)
+                user.get_quota()
+
+                assert user.quota == {
+                    "domains": {
+                        "desktops": 0,
+                        "desktops_disk_max": 0,
+                        "templates": 0,
+                        "templates_disk_max": 0,
+                        "running": 0,
+                        "isos": 0,
+                        "isos_disk_max": 0,
+                    },
+                    "hardware": {"vcpus": 0, "memory": 0},
+                }
+
+        @staticmethod
+        def test_existing_quota():
+            for generated_user in generated_users:
+                user_dict = generated_user.copy()
+                user_dict["quota"] = {
+                    "domains": {
+                        "desktops": 5,
+                        "desktops_disk_max": 999999999,
+                        "templates": 5,
+                        "templates_disk_max": 999999999,
+                        "running": 2,
+                        "isos": 0,
+                        "isos_disk_max": 999999999,
+                    },
+                    "hardware": {"vcpus": 4, "memory": 10000000},
+                }
+
+                user = User(user_dict)
+                user.get_quota()
+
+                assert user.quota == user_dict["quota"]
+
+    class TestGetDesktops:
+        """
+        This class is the responsible of testing the get_desktops method
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_users_and_domains):
+            for generated_user in generated_users:
+                user = User(generated_user)
+
+                assert user.get_desktops() == [
+                    desktop
+                    for desktop in generated_domains
+                    if desktop["kind"] == "desktop" and desktop["user"] == user.id
+                ]
+
+        @staticmethod
+        def test_user_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.get_desktops()
+
+    class TestGetStartedDesktops:
+        """
+        This class is the responsible of testing the get_started_desktops method
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_users_and_domains):
+            for generated_user in generated_users:
+                user = User(generated_user)
+
+                assert user.get_started_desktops() == [
+                    desktop
+                    for desktop in generated_domains
+                    if desktop["kind"] == "desktop"
+                    and desktop["user"] == user.id
+                    and desktop["status"] == "Started"
+                ]
+
+        @staticmethod
+        def test_user_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.get_started_desktops()
+
+    class TestGetTemplates:
+        """
+        This class is the responsible of testing the get_templates method
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_users_and_domains):
+            for generated_user in generated_users:
+                user = User(generated_user)
+
+                assert user.get_templates() == [
+                    template
+                    for template in generated_domains
+                    if template["kind"] == "user_template"
+                    and template["user"] == user.id
+                ]
+
+        @staticmethod
+        def test_user_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.get_templates()
+
+    class TestGetMedia:
+        """
+        This class is the responsible of testing the get_media method
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_users_and_media):
+            for generated_user in generated_users:
+                user = User(generated_user)
+
+                assert user.get_media() == [
+                    media for media in generated_media if media["user"] == user.id
+                ]
+
+        @staticmethod
+        def test_user_not_loaded():
+            user = User()
+
+            with pytest.raises(User.NotLoaded):
+                user.get_media()
+
     class TestAuth:
         """
         This class is the responsible for testing the auth function
@@ -98,7 +284,6 @@ class TestUser:
 
             assert user.auth("P4$$w0rd! ")
 
-        # TODO: Why is this failing when executing all the tests?
         @staticmethod
         def test_ldap(create_config):
             r.table("config").get(1).update({"auth": {"ldap": {"active": True}}}).run(

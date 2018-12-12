@@ -111,6 +111,7 @@ ldap_default_group = {
     "name": "Default LDAP",
     "description": "This is the default LDAP group",
     "kind": "ldap",
+    "category": "default_ldap",
     "role": None,
     "quota": None,
 }
@@ -126,12 +127,14 @@ ldap_categories = [
     }
 ]
 
+# TODO: Add group with description
 ldap_groups = [
     {
         "id": "ship_crew",
         "name": "Ship_Crew",
         "description": None,
         "kind": "ldap",
+        "category": "people",
         "role": None,
         "quota": None,
     },
@@ -140,6 +143,7 @@ ldap_groups = [
         "name": "Admin_Staff",
         "description": None,
         "kind": "ldap",
+        "category": "people",
         "role": None,
         "quota": None,
     },

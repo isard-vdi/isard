@@ -108,8 +108,9 @@ class TestLDAP:
             ldap.connect()
 
             for ldap_user in ldap_users:
-                ldap_user["password"] = None
-                assert ldap.get_user(ldap_user["id"]) == ldap_user
+                ldap_user_check = ldap_user.copy()
+                ldap_user_check["password"] = None
+                assert ldap.get_user(ldap_user["id"]) == ldap_user_check
 
         @staticmethod
         def test_non_existing(create_config):
@@ -225,7 +226,10 @@ class TestLDAP:
             ldap.connect()
 
             for ldap_group in ldap_groups:
-                assert ldap.get_group(ldap_group["id"]) == ldap_group
+                assert (
+                    ldap.get_group(ldap_group["id"], ldap_group["category"])
+                    == ldap_group
+                )
 
         @staticmethod
         def test_not_found(create_config):
@@ -236,8 +240,8 @@ class TestLDAP:
             ldap = LDAP()
             ldap.connect()
 
-            assert ldap.get_group("gods") is None
-            assert ldap.get_group("managers") is None
+            assert ldap.get_group("gods", "") is None
+            assert ldap.get_group("managers", "") is None
 
         @staticmethod
         def test_not_selected(create_config):
@@ -249,14 +253,14 @@ class TestLDAP:
             ldap.connect()
 
             for ldap_group in ldap_groups:
-                assert ldap.get_group(ldap_group["id"]) is None
+                assert ldap.get_group(ldap_group["id"], ldap_group["category"]) is None
 
         @staticmethod
         def test_disabled(create_config):
             ldap = LDAP()
 
             with pytest.raises(Disabled):
-                ldap.get_group("")
+                ldap.get_group("", "")
 
     class TestSetGroup:
         """

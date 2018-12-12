@@ -10,7 +10,7 @@
 import rethinkdb as r
 
 from ..lib.db import DB
-from .role import Role
+from .category import Category
 
 
 # TODO: DB migration
@@ -28,6 +28,7 @@ class Group:
                 "name": "",
                 "description": "",
                 "kind": "",
+                "category": "",
                 "role": None,
                 "quota": None,
             }
@@ -36,6 +37,7 @@ class Group:
         self.name = group["name"]
         self.description = group["description"]
         self.kind = group["kind"]
+        self.category = group["category"]
         self.role = group["role"]
         self.quota = group["quota"]
 
@@ -53,37 +55,40 @@ class Group:
         self.name = group["name"]
         self.description = group["description"]
         self.kind = group["kind"]
+        self.category = group["category"]
         self.role = group["role"]
         self.quota = group["quota"]
 
-    # TODO: Test!
     def get_quota(self):
         """
-        get_quota returns the correct quota of the group. If the group quota is None, it calls the role mehtod (User -> Category -> *Group* -> Role ["user" by default])
-        :return: returns a dict with the quota
+        get_quota sets the correct quota of the group. If the group quota is None, it calls the category mehtod (User -> *Group* -> Category -> Role ["user" by default])
         """
-        if self.quota:
-            return self.quota
+        if not self.quota:
+            try:
+                if self.category:
+                    category = Category()
+                    category.get(self.category)
 
-        try:
-            role = Role()
-            role.get(self.role)
+                else:
+                    raise Category.NotFound
 
-        except Role.NotFound:
-            return {
-                "domains": {
-                    "desktops": 0,
-                    "desktops_disk_max": 0,
-                    "templates": 0,
-                    "templates_disk_max": 0,
-                    "running": 0,
-                    "isos": 0,
-                    "isos_disk_max": 0,
-                },
-                "hardware": {"vcpus": 0, "memory": 0},
-            }
+            except Category.NotFound:
+                self.quota = {
+                    "domains": {
+                        "desktops": 0,
+                        "desktops_disk_max": 0,
+                        "templates": 0,
+                        "templates_disk_max": 0,
+                        "running": 0,
+                        "isos": 0,
+                        "isos_disk_max": 0,
+                    },
+                    "hardware": {"vcpus": 0, "memory": 0},
+                }
 
-        return role.get_quota()
+            else:
+                category.get_quota()
+                self.quota = category.quota
 
     def create(self):
         """
@@ -102,6 +107,7 @@ class Group:
                     "name": self.name,
                     "description": self.description,
                     "kind": self.kind,
+                    "category": self.category,
                     "role": self.role,
                     "quota": self.quota,
                 }

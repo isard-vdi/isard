@@ -61,6 +61,85 @@ class TestCategory:
                 with pytest.raises(Category.NotFound):
                     category.get(generated_category["id"])
 
+    class TestGetQuota:
+        """
+        This class is the responsible for testing the get_quota method
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_roles):
+            for generated_category in generated_categories:
+                category_dict = generated_category.copy()
+                category_dict["role"] = "admin"
+
+                category = Category(category_dict)
+                category.get_quota()
+
+                assert (
+                    category.quota
+                    == [
+                        role["quota"]
+                        for role in generated_roles
+                        if role["id"] == "admin"
+                    ][0]
+                )
+
+        @staticmethod
+        def test_no_role(create_roles):
+            for generated_category in generated_categories:
+                category = Category(generated_category)
+                category.get_quota()
+
+                assert (
+                    category.quota
+                    == [
+                        role["quota"]
+                        for role in generated_roles
+                        if role["id"] == "user"
+                    ][0]
+                )
+
+        @staticmethod
+        def test_role_not_fould(create_config):
+            for generated_category in generated_categories:
+                category = Category(generated_category)
+                category.get_quota()
+
+                assert category.quota == {
+                    "domains": {
+                        "desktops": 0,
+                        "desktops_disk_max": 0,
+                        "templates": 0,
+                        "templates_disk_max": 0,
+                        "running": 0,
+                        "isos": 0,
+                        "isos_disk_max": 0,
+                    },
+                    "hardware": {"vcpus": 0, "memory": 0},
+                }
+
+        @staticmethod
+        def test_existing_quota():
+            for generated_category in generated_categories:
+                category_dict = generated_category.copy()
+                category_dict["quota"] = {
+                    "domains": {
+                        "desktops": 5,
+                        "desktops_disk_max": 999999999,
+                        "templates": 5,
+                        "templates_disk_max": 999999999,
+                        "running": 2,
+                        "isos": 0,
+                        "isos_disk_max": 999999999,
+                    },
+                    "hardware": {"vcpus": 4, "memory": 10000000},
+                }
+
+                category = Category(category_dict)
+                category.get_quota()
+
+                assert category.quota == category_dict["quota"]
+
     class TestCreate:
         """
         This class is the responsible for testing the create function

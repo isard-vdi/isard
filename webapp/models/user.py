@@ -90,78 +90,91 @@ class User(UserMixin):
 
         self.quota = user["quota"]
 
-    # TODO: Test!
     def get_quota(self):
         """
-        get_quota returns the correct quota of the user. If the user quota is None, it calls the category mehtod (User -> Category -> Group -> Role ["user" by default])
-        :return: returns a dict with the quota
+        get_quota sets the correct quota of the user. If the user quota is None, it calls the category mehtod (*User* -> Group -> Category -> Role ["user" by default])
         """
-        if self.quota:
-            return self.quota
+        if not self.quota:
+            try:
+                if self.group:
+                    group = Group()
+                    group.get(self.group)
 
-        try:
-            category = Category()
-            category.get(self.category)
+                else:
+                    raise Group.NotFound
 
-        except Category.NotFound:
-            return {
-                "domains": {
-                    "desktops": 0,
-                    "desktops_disk_max": 0,
-                    "templates": 0,
-                    "templates_disk_max": 0,
-                    "running": 0,
-                    "isos": 0,
-                    "isos_disk_max": 0,
-                },
-                "hardware": {"vcpus": 0, "memory": 0},
-            }
+            except Group.NotFound:
+                self.quota = {
+                    "domains": {
+                        "desktops": 0,
+                        "desktops_disk_max": 0,
+                        "templates": 0,
+                        "templates_disk_max": 0,
+                        "running": 0,
+                        "isos": 0,
+                        "isos_disk_max": 0,
+                    },
+                    "hardware": {"vcpus": 0, "memory": 0},
+                }
 
-        return category.get_quota()
+            else:
+                group.get_quota()
+                self.quota = group.quota
 
-    # TODO: Test!
     def get_desktops(self):
         """
         get_desktops retrieves all the desktops of the user from the DB
-        :return: returns an array containing all the desktops of the user
+        :return: returns a list containing all the desktops of the user
         """
         if self.id == "" or self.id is None:
             raise self.NotLoaded
 
-        return r.table("domains").get_all(self.id, index="user").filter({"kind": "desktop"}).run(self.conn)
+        return list(
+            r.table("domains")
+            .get_all(self.id, index="user")
+            .filter({"kind": "desktop"})
+            .run(self.conn)
+        )
 
-    # TODO: Test!
     def get_started_desktops(self):
         """
         get_started_desktops retrieves all the started desktops of the user from the DB
-        :return: returns an array containing all the started desktops of the user
+        :return: returns a list containing all the started desktops of the user
         """
         if self.id == "" or self.id is None:
             raise self.NotLoaded
 
-        return r.table("domains").get_all(self.id, index="user").filter({"kind": "desktop", "status": "Started"}).run(self.conn)
+        return list(
+            r.table("domains")
+            .get_all(self.id, index="user")
+            .filter({"kind": "desktop", "status": "Started"})
+            .run(self.conn)
+        )
 
-    # TODO: Test!
     def get_templates(self):
         """
         get_templates retrieves all the templates of the user form the DB
-        :return: returns an array containing all the templates of the user
+        :return: returns a list containing all the templates of the user
         """
         if self.id == "" or self.id is None:
             raise self.NotLoaded
 
-        return r.table("domains").get_all(self.id, index="user").filter({"kind": "user_template"}).run(self.conn)
+        return list(
+            r.table("domains")
+            .get_all(self.id, index="user")
+            .filter({"kind": "user_template"})
+            .run(self.conn)
+        )
 
-    # TODO: Test!
     def get_media(self):
         """
         get_media retrieves all the media of the user from the DB
-        :return: returns an array containing all the media of the user
+        :return: returns a list containing all the media of the user
         """
         if self.id == "" or self.id is None:
             raise self.NotLoaded
 
-        return r.table("media").get_all(self.id, index="user")
+        return list(r.table("media").get_all(self.id, index="user").run(self.conn))
 
     def create(self):
         """
@@ -209,7 +222,9 @@ class User(UserMixin):
                     group.get(user["group"])
 
                 except group.NotFound:
-                    group = Group(self.kinds[self.kind].get_group(user["group"]))
+                    group = Group(
+                        self.kinds[self.kind].get_group(user["group"], category.id)
+                    )
                     group.create()
 
             r.table("users").insert(user).run(self.conn)

@@ -194,10 +194,11 @@ class LDAP:
 
         return "default_ldap"
 
-    def get_group(self, group_id, role=None, quota=None):
+    def get_group(self, group_id, category_id, role=None, quota=None):
         """
         get_group queries the LDAP server and creates a Group.__init__ dict using the values gotten from it
         :param group_id: is the ID of the group
+        :param category_id: is the ID of the category
         :param role: role is the role of the group. By default gets the quota from their parent (category)
         :param quota: quota is the quota of the group. By default gets the quota of their parent (category)
         :return: get_group returns a dictionary compatible with the Group.__init__ function (the return is the parameter used when calling the __init__ method)
@@ -227,6 +228,7 @@ class LDAP:
                 "name": group_id.title(),
                 "description": description,
                 "kind": "ldap",
+                "category": category_id,
                 "role": role,
                 "quota": quota,
             }
@@ -264,7 +266,7 @@ class LDAP:
                 current_group_len = len(self.conn.response[0]["dn"].split(","))
 
                 if current_group_len > shortest_group_len:
-                    if self.get_group(group["cn"].values[0]):
+                    if self.get_group(group["cn"].values[0], self.set_category(dn)):
                         try:
                             db_group = Group()
                             db_group.get(group["cn"].values[0])

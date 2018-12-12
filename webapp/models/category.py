@@ -10,7 +10,7 @@
 import rethinkdb as r
 
 from ..lib.db import DB
-from .group import Group
+from .role import Role
 
 
 # TODO: DB migration
@@ -56,34 +56,37 @@ class Category:
         self.role = category["role"]
         self.quota = category["quota"]
 
-
     def get_quota(self):
         """
-        get_quota returns the correct quota of the category. If the category quota is None, it calls the group mehtod (User -> *Category* -> Group -> Role ["user" by default])
-        :return: returns a dict with the quota
+        get_quota sets the correct quota of the category. If the category quota is None, it calls the role mehtod (User -> Group -> *Category* -> Role ["user" by default])
         """
-        if self.quota:
-            return self.quota
+        if not self.quota:
+            try:
+                role = Role()
 
-        try:
-            group = Group()
-            group.get(self.group)
+                if self.role:
+                    role.get(self.role)
 
-        except Group.NotFound:
-            return {
-                "domains": {
-                    "desktops": 0,
-                    "desktops_disk_max": 0,
-                    "templates": 0,
-                    "templates_disk_max": 0,
-                    "running": 0,
-                    "isos": 0,
-                    "isos_disk_max": 0,
-                },
-                "hardware": {"vcpus": 0, "memory": 0},
-            }
+                else:
+                    role.get("user")
 
-        return group.get_quota()
+            except Role.NotFound:
+                self.quota = {
+                    "domains": {
+                        "desktops": 0,
+                        "desktops_disk_max": 0,
+                        "templates": 0,
+                        "templates_disk_max": 0,
+                        "running": 0,
+                        "isos": 0,
+                        "isos_disk_max": 0,
+                    },
+                    "hardware": {"vcpus": 0, "memory": 0},
+                }
+
+            else:
+                role.get_quota()
+                self.quota = role.quota
 
     def create(self):
         """

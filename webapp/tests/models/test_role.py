@@ -61,6 +61,61 @@ class TestRole:
                 with pytest.raises(Role.NotFound):
                     role.get(generated_role["id"])
 
+    class TestGetQuota:
+        """
+        This class is the responsible for testing the get_quota method
+        """
+
+        @staticmethod
+        def test_should_work_as_expected(create_roles):
+            for generated_role in generated_roles:
+                role = Role(generated_role)
+                role.get_quota()
+
+                assert role.quota == generated_role["quota"]
+
+        @staticmethod
+        def test_role_no_quota(create_roles):
+            for generated_role in generated_roles:
+                role_dict = generated_role.copy()
+
+                if generated_role["id"] != "user":
+                    role_dict["quota"] = None
+
+                role = Role(role_dict)
+                role.get_quota()
+
+                assert (
+                    role.quota
+                    == [
+                        role["quota"]
+                        for role in generated_roles
+                        if role["id"] == "user"
+                    ][0]
+                )
+
+        @staticmethod
+        def test_role_user_not_fould(create_config):
+            for generated_role in generated_roles:
+                role_dict = generated_role.copy()
+                role_dict["quota"] = None
+
+                role = Role(role_dict)
+                role.get_quota()
+
+                assert role.quota == {
+                    "domains": {
+                        "desktops": 0,
+                        "desktops_disk_max": 0,
+                        "templates": 0,
+                        "templates_disk_max": 0,
+                        "running": 0,
+                        "isos": 0,
+                        "isos_disk_max": 0,
+                    },
+                    "hardware": {"vcpus": 0, "memory": 0},
+                }
+
     class TestCreate:
         """
         This class is the responsible for testing the create function
