@@ -7,7 +7,8 @@ Isard**VDI** directly manages KVM Linux hypervisors using libvirt.
 
 A web application that allows agile desktop deployments and centralized hypervisors management.
 
-Use only for testing purposes. Work in progress. 
+
+![Main admin screen](docs/images/main.png?raw=true "Main admin")
 
 ## Features
 ##### Benefits to users
