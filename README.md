@@ -9,9 +9,9 @@ Open Source Virtual Desktops Infrastructure based on KVM Linux and dockers.
 
 Start containers with **docker-compose up**
 
-Connect to https://<ip/domain> and follow wizard.
+Connect to **https://<ip/domain>** and follow wizard.
 
-![Main admin screen](docs/images/main.png?raw=true "Main admin" | width=70)
+![Main admin screen](docs/images/main.png?raw=true "Main admin")
 
 ## Documentation
 
