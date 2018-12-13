@@ -1,14 +1,22 @@
 # Isard**VDI**
-VDI deployment based on KVM Linux. Users create and share desktops with any OS and software through templating in seconds. The Isard engine orchestrates hypervisors and focuses on optimizing desktop virtualization performance.
 
-Isard**VDI** was born with the aim of creating a free software alternative to privative virtual desktop solutions such as Citrix XenDesktops or VMware Horizon.
+Open Source Virtual Desktops Infrastructure based on KVM Linux and dockers. 
 
-Isard**VDI** directly manages KVM Linux hypervisors using libvirt.
+- Engine that monitors hypervisors and domains (desktops)
+- Websocket user interface with real time events.
 
-A web application that allows agile desktop deployments and centralized hypervisors management.
+## Quick Start
 
+Start containers with **docker-compose up**
 
-![Main admin screen](docs/images/main.png?raw=true "Main admin")
+Connect to https://<ip/domain> and follow wizard.
+
+![Main admin screen](docs/images/main.png?raw=true "Main admin" | width=70)
+
+## Documentation
+
+- https://isardvdi.readthedocs.io/en/latest/
+
 
 ## Features
 ##### Benefits to users
@@ -71,6 +79,7 @@ In 2016 we focused all our efforts on a solid and versatile software that materi
 
 ### Contributors
 + Daniel Criado Casas
++ Néfix Estrada
 
 ### Support/Contact
 Please send us an email to info@isardvdi.com if you have any questions 
