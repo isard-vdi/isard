@@ -24,7 +24,7 @@ copyright: Copyright &copy; 2016 <a href="http://www.isardvdi.com">IsardVDI</a>.
 
 # Documentation and theme
 #theme: 'material'
-theme: 'default'
+#theme: 'default'
 
 # Options
 extra:
