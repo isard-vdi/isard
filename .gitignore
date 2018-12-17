@@ -29,6 +29,9 @@ engine/.idea/
 #backups
 backups/*
 
+#uploads
+uploads/*
+
 #docker run scripts
 run_docker_engine.py
 run_docker_webapp.py
