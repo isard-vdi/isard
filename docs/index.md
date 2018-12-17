@@ -53,7 +53,7 @@ consumption costs at classrooms.
 
 ### Contributors
 + Daniel Criado Casas
-+ Néfix Estrada
++ Nefix Estrada
 
 ### Support/Contact
 Please send us an email to info@isardvdi.com if you have any questions or fill in an issue.
