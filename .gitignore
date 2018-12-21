@@ -26,6 +26,10 @@ logs/*
 webapp/.idea/
 engine/.idea/
 
+#pytest
+.pytest_cache
+__pycache__
+
 #backups
 backups/*
 

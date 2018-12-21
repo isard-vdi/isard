@@ -1,0 +1,82 @@
+		<div style="display:none">
+            <div class="row template-detail-domain">
+			  <div class="col-md-2 col-sm-2 col-xs-12">
+                        <div class="row">
+                       <div class="col-md-12 col-md-12 col-xs-12" id="actions-d.id" data-pk="d.id" data-name="d.name">
+                             {% if(current_user.role!='user') %}
+                             <button class="btn btn-success btn-xs pull-right btn-template" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Template it</button>
+                             {% endif %}
+                             {% if(current_user.role=='admin') %}
+                             <button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>XML</button>
+			     <button class="btn btn-info btn-xs pull-right btn-events" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Events</button>
+			     <button class="btn btn-info btn-xs pull-right btn-messages" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Messages</button>
+                             {% endif %}
+                             <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil m-right-xs"></i>Edit</button>
+                             <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
+                        </div>
+						</div>
+			  </div>
+              <div class="col-md-10 col-sm-10 col-xs-12">
+                <div class="x_panel" style="background-color:ghostwhite">
+                    <div class="row">
+                        <div class="col-md-12 col-md-12 col-xs-12">
+                            <div class="x_panel">
+                                  <div class="x_content">  
+                                      <h2>Status detailed info: <small id="status-detail-d.id"></small></h2> 
+<!--
+                                      <p id="hiddenpass-d.id" hidden></p>
+                                      <input type="button" data-id="d.id" value="Copy viewer password to clipboard" onclick="copyToClipboard(this);" />                           
+-->
+                                  </div>
+                            </div>
+                        </div>
+                    </div>
+					<div class="row" >
+						  <div class="col-md-4 col-md-4 col-xs-12">
+							  <div id="hardware-d.id" class="x_content">
+								{% include '/snippets/domain_hardware.html' %}
+                              </div>
+						  </div>
+                          
+                          <div class="col-md-8 col-md-8 col-xs-12">
+                              <div class="row" >
+<!--
+                                <div class="col-md-12 col-md-12 col-xs-12">
+                                    <div id="hotplug-d.id" class="x_content">
+                                      include '/snippets/domain_hotplugged.html' 
+                                    </div>
+                                </div>                                  
+-->
+<!--
+                                <div class="col-md-12 col-md-12 col-xs-12">
+                                    <div id="events-d.id" class="x_content">
+                                      include '/snippets/domain_genealogy.html' 
+                                    </div>
+                                </div>
+-->
+<!--
+                                <div class="col-md-12 col-md-12 col-xs-12">
+                                    <div id="graphs-d.id" class="x_content">
+                                       include '/snippets/domain_graphs.html' 
+                                    </div>                                    
+                                </div>
+-->
+                              </div>
+                        </div>
+                  </div>
+                  <div class="row" >
+                  
+<!--
+                        <div class="col-md-12 col-md-12 col-xs-12">
+                            <div id="derivates-d.id" class="x_content">
+                            {% if(current_user.role=='admin') %}
+                              include '/snippets/domain_derivates.html'
+                            {% endif %}
+                            </div>
+                        </div>                              
+-->
+                  </div>
+                </div>
+              </div>
+            </div>
+        </div>
