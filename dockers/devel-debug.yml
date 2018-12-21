@@ -1,0 +1,103 @@
+version: '2'
+services:
+    isard-alpine-pandas:
+        image: isard/alpine-pandas:1.0.0
+# Will take long time to build
+#        build:
+#            context: .
+#            dockerfile: dockers/alpine-pandas/Dockerfile
+    isard-database:
+        restart: always
+        image: rethinkdb
+        hostname: isard-database
+        volumes:
+            - "/opt/isard/src/database:/data"
+        ##### - only devel - ############################
+        ports:
+            - "8080:8080"
+        #################################################
+        expose:
+            - "28015"
+        networks:
+            main:
+                aliases:
+                - rethinkdb
+
+    isard-nginx:
+        restart: always
+        image: isard/nginx:1.0.1b
+        build:
+            context: .
+            dockerfile: dockers/nginx/Dockerfile
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - "/opt/isard/certs/default:/etc/nginx/external"
+        hostname: isard-nginx
+        links:
+            - "isard-app"
+        networks:
+            main:
+                aliases:
+                - isard-nginx
+
+    isard-hypervisor:
+        restart: always
+        image: isard/hypervisor:1.0.1b
+        build:
+            context: .
+            dockerfile: dockers/hypervisor/Dockerfile
+        hostname: isard-hypervisor
+        ports:
+            - "5900-5949:5900-5949"
+            - "55900-55949:55900-55949"
+        expose:
+            - "22"
+        privileged: true
+        volumes:
+            - "sshkeys:/root/.ssh"
+            - "/opt/isard:/isard"
+            - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
+        networks:
+            main:
+                aliases:
+                - isard-hypervisor
+        command: /usr/bin/supervisord -c /etc/supervisord.conf
+        
+    isard-app:
+        restart: always
+        image: isard/app:1.0.0
+        build:
+            context: .
+            dockerfile: dockers/app_devel/Dockerfile
+        links:
+            - "isard-database"
+            - "isard-hypervisor"
+        hostname: isard-app
+        volumes:
+            ##### - only devel - ############################
+            - "/opt/isard_devel/src:/isard"
+            - "/opt/ipython_profile_default:/root/.ipython/profile_default"
+            #################################################
+            - "sshkeys:/root/.ssh"
+            - "/opt/isard/certs:/certs"
+            - "/opt/isard/logs:/isard/logs"
+            - "/opt/isard/database/wizard:/isard/install/wizard"
+
+        expose:
+            - "5000"
+        environment:
+            PYTHONUNBUFFERED: 0
+        extra_hosts:
+            - "isard-engine:127.0.0.1"
+        networks:
+            main:
+                aliases:
+                - isard-app
+        command: /usr/bin/supervisord -c /etc/supervisord.conf
+
+networks:
+    main:
+volumes:
+    sshkeys:
