@@ -30,6 +30,9 @@ engine/.idea/
 .pytest_cache
 __pycache__
 
+#ipython
+.ipython
+
 #backups
 backups/*
 
