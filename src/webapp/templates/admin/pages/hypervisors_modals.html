@@ -1,0 +1,695 @@
+<div class="modal fade" id="modalAddHyper" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-rocket"> </i>   Add new hypervisor
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+              <form id="modalAdd" class="form-horizontal form-label-left">
+<!--
+              action="{{ url_for('admin_hypervisors') }}" method="POST" novalidate>
+-->
+			  <div class="x_panel">
+					<div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Id <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="id" placeholder="New hypervisor id" required="required" type="text">
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12"></textarea>
+                        </div>
+                     </div>
+				</div>
+			  </div>
+
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>External address for client viewers<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content">
+
+ 
+                </div>	
+			  </div>
+              
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>Network ssh info<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content">
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hostname">Hostname <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
+                        </div>
+                     </div>
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="user">User <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="user" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="user" placeholder="User used to connect" required="required" type="text">
+                        </div>
+                     </div>
+                     
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">SSH Port <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="port" placeholder="SSH port" required="required" type="text">
+                        </div>
+                     </div>
+                                          
+                </div>	
+			  </div>
+
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>Capabilities & Pools<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content"> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-disk_operations">Disk operations
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="capabilities-disk_operations" name="capabilities-disk_operations" class="flat"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div> Select if it can operate disks
+                            </label>
+                          </div>                
+                        </div>
+                     </div>
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-hypervisor">Hypervisor
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="capabilities_hypervisor" name="capabilities-hypervisor" class="flat capabilities_hypervisor"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div> Select if can launch desktops
+                            </label>
+                          </div> 
+                        </div>                                              
+                     </div>
+
+                      <div id="viewer_fields" style="display:none;">
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_hostname">Client viewers address
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_hostname" placeholder="External reacheable ip/dns name" type="text">
+                            </div>
+                         </div>  
+
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_nat_hostname">Client viewers nat address
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_nat_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_nat_hostname" placeholder="External reacheable ip/dns name" type="text">
+                            </div>
+                         </div>
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_nat_offset">Client viewers TCP offset
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_nat_offset" class="form-control col-md-7 col-xs-12" data-parsley-range='[0, 59635]' name="viewer_nat_offset" placeholder="Will be added to hyper spice port" type="text">
+                            </div>
+                         </div>                            
+                        </div>
+                                                  
+					<div class="item form-group">
+						<label>Pools:</label>
+                            <select class="form-control" id="hypervisors_pools_dropdown" name="hypervisors_pools">
+                            </select>
+                    </div>                     
+                </div>
+            </div>
+        </div>
+                       
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="button" class="btn btn-success">Create hypervisor</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalEditHyper" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-rocket"> </i>   Edit hypervisor
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+              <form id="modalEdit" class="form-horizontal form-label-left">
+<!--
+              action="{{ url_for('admin_hypervisors') }}" method="POST" novalidate>
+-->
+			  <div class="x_panel">
+					<div class="x_content">
+                         <input type="hidden" id="id" name="id"/>                        
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Id <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="fake_id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="fake_id" placeholder="New hypervisor id" required="required" type="text" disabled>
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12"></textarea>
+                        </div>
+                     </div>
+				</div>
+			  </div>
+              
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>Network ssh info<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content">
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hostname">Hostname <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
+                        </div>
+                     </div>
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="user">User <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="user" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="user" placeholder="User used to connect" required="required" type="text">
+                        </div>
+                     </div>
+                     
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">SSH Port <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="port" placeholder="SSH port" required="required" type="text">
+                        </div>
+                     </div>
+                                          
+                </div>	
+			  </div>
+
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>Capabilities & Pools<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content"> 
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-disk_operations">Disk operations
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="capabilities-disk_operations" name="capabilities-disk_operations" class="flat"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div> Select if it can operate disks
+                            </label>
+                          </div>                
+                        </div>
+                     </div>
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-hypervisor">Hypervisor
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="capabilities-hypervisor" name="capabilities-hypervisor" class="flat capabilities_hypervisor"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div> Select if can launch desktops
+                            </label>
+                          </div> 
+                        </div>                                              
+                     </div>
+
+                      <div id="viewer_fields" style="display:block;">
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_hostname">Client viewers address
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_hostname" placeholder="External reacheable ip/dns name" type="text">
+                            </div>
+                         </div>  
+
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_nat_hostname">Client viewers nat address
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_nat_hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer_nat_hostname" placeholder="External reacheable ip/dns name" type="text">
+                            </div>
+                         </div> 
+                         
+                         <div class="item form-group" id="viewer_">
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer_nat_offset">Client viewers TCP offset
+                            </label>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                               <input id="viewer_nat_offset" class="form-control col-md-7 col-xs-12" data-parsley-range='[0, 59635]' name="viewer_nat_offset" placeholder="Will be added to hyper spice port" type="text">
+                            </div>
+                         </div> 
+                        </div>
+                                                  
+					<div class="item form-group">
+						<label>Pools:</label>
+                            <select class="form-control" id="hypervisors_pools_dropdown" name="hypervisors_pools">
+                            </select>
+                    </div>                     
+                </div>
+            </div>
+        </div>
+                       
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="button" class="btn btn-success">Update hypervisor</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="modal fade" id="modalAddPool" tabindex="-1" role="dialog" 
+     aria-labelledby="modalAddPool" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="modalAddPool">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-object-group"> </i>   Add new Pool
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+              <form id="modalAdd" class="form-horizontal form-label-left" action="{{ url_for('hypervisors_pools_get') }}" method="POST" novalidate>
+			  <div class="x_panel">
+					<div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="name" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="name" placeholder="New hypervisor pool name" required="required" type="text">
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12"></textarea>
+                        </div>
+                     </div>
+				</div>
+			  </div>
+
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>System Paths<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content">
+
+
+
+                    <div class="row">
+                        <div class="col-md-2 col-sm-2 col-xs-12">
+                            <label class="control-label">Bases
+                            </label>
+                        </div>
+                        <div class="col-md-10 col-sm-10 col-xs-12">
+                            <div class="row"></div>
+                            
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-bases">Path <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-bases" class="form-control col-md-7 col-xs-12" name="paths-bases" placeholder="Absolute path (/isard/templates)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-bases-disk_operations">Disk operations <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-bases-disk_operations" class="form-control col-md-7 col-xs-12" name="paths-bases-disk_operations" placeholder="Absolute path (/isard/bases)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-bases-weight">Weight <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-bases-weight" class="form-control col-md-7 col-xs-12" name="paths-bases-weight" placeholder="Absolute path (/isard/bases)" required="required" type="text">
+                                    </div>
+                                </div>
+                                
+                           </div> 
+                    </div> 
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-md-2 col-sm-2 col-xs-12">
+                            <label class="control-label">Templates
+                            </label>
+                        </div>
+                        <div class="col-md-10 col-sm-10 col-xs-12">
+                            <div class="row"></div>
+                            
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-templates">Path <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-templates" class="form-control col-md-7 col-xs-12" name="paths-templates" placeholder="Absolute path (/isard/templates)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-templates-disk_operations">Disk operations <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-templates-disk_operations" class="form-control col-md-7 col-xs-12" name="paths-templates-disk_operations" placeholder="Absolute path (/isard/templates)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-templates-weight">Weight <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-templates-weight" class="form-control col-md-7 col-xs-12" name="paths-templates-weight" placeholder="Absolute path (/isard/templates)" required="required" type="text">
+                                    </div>
+                                </div>
+                                
+                           </div> 
+                    </div> 
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-2 col-sm-2 col-xs-12">
+                            <label class="control-label">groups
+                            </label>
+                        </div>
+                        <div class="col-md-10 col-sm-10 col-xs-12">
+                            <div class="row"></div>
+                            
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-groups">Path <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-groups" class="form-control col-md-7 col-xs-12" name="paths-groups" placeholder="Absolute path (/isard/groups)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-groups-disk_operations">Disk operations <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-groups-disk_operations" class="form-control col-md-7 col-xs-12" name="paths-groups-disk_operations" placeholder="Absolute path (/isard/groups)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-groups-weight">Weight <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-groups-weight" class="form-control col-md-7 col-xs-12" name="paths-groups-weight" placeholder="Absolute path (/isard/groups)" required="required" type="text">
+                                    </div>
+                                </div>
+                                
+                           </div> 
+                    </div> 
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-2 col-sm-2 col-xs-12">
+                            <label class="control-label">isos
+                            </label>
+                        </div>
+                        <div class="col-md-10 col-sm-10 col-xs-12">
+                            <div class="row"></div>
+                            
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-isos">Path <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-isos" class="form-control col-md-7 col-xs-12" name="paths-isos" placeholder="Absolute path (/isard/isos)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-isos-disk_operations">Disk operations <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-isos-disk_operations" class="form-control col-md-7 col-xs-12" name="paths-isos-disk_operations" placeholder="Absolute path (/isard/isos)" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="paths-isos-weight">Weight <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-9 col-sm-9 col-xs-12">
+                                       <input id="paths-isos-weight" class="form-control col-md-7 col-xs-12" name="paths-isos-weight" placeholder="Absolute path (/isard/isos)" required="required" type="text">
+                                    </div>
+                                </div>
+                                
+                           </div> 
+                    </div>                                                             
+                    
+                </div>
+            </div>
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>Network Interfaces<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content"> 
+                    <div class="item form-group">
+                        <label>Interfaces:</label>
+                        <select class="form-control" id="interfaces" name="interfaces">
+                        <option value="default" selected="selected">Default</option>
+                        </select>
+                    </div>                
+                </div>
+              </div>
+
+			  <div class="x_panel">
+					 <div class="x_title">
+						<h2>Viewer<small></small></h2>
+						<ul class="nav navbar-right panel_toolbox">
+						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+						   </li>
+						</ul>
+						<div class="clearfix"></div>
+					 </div>
+					 <div class="x_content"> 
+                    <div class="item form-group">
+                        <label>Interfaces:</label>
+                        <select class="form-control" id="viewer-defaultMode" name="viewer-defaultMode">
+                        <option value="Secure" selected="selected">Secure</option>
+                        <option value="Insecure" >Insecure</option>
+                        </select>
+                    </div>  
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-domain">Domain
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="viewer-domain" placeholder="domain.com" type="text">
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-certificate">Certificate
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <textarea id="viewer-certificate" name="viewer-certificate" placeholder="Paste it from BEGIN to END included." class="form-control col-md-7 col-xs-12"></textarea>
+                        </div>
+                     </div>
+                </div>
+              </div>
+
+            </div>
+                       
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="submit" class="btn btn-success">Create pool</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditViewer" tabindex="-1" role="dialog" 
+     aria-labelledby="modalEditViewer" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="modalAddPool">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-object-group"> </i>   Edit pool viewer
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+              <form id="modalEdit" class="form-horizontal form-label-left" action="{{ url_for('hypervisors_pools_get') }}" method="POST" novalidate>
+                      <div class="x_panel">
+                             <div class="x_title">
+                                <h2>Viewer<small></small></h2>
+                                <ul class="nav navbar-right panel_toolbox">
+                                   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+                                   </li>
+                                </ul>
+                                <div class="clearfix"></div>
+                             </div>
+                             <div class="x_content"> 
+                            <div class="item form-group">
+                                <label>Mode:</label>
+                                <select class="form-control" id="viewer-defaultMode" name="viewer-defaultMode">
+                                <option value="Secure" selected="selected">Secure</option>
+                                <option value="Insecure" >Insecure</option>
+                                </select>
+                            </div>  
+                             <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-domain">Domain
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                   <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="viewer-domain" placeholder="domain.com" type="text">
+                                </div>
+                             </div>
+                             <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-certificate">Certificate
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                   <textarea id="viewer-certificate" name="viewer-certificate" placeholder="Paste it from BEGIN to END included." class="form-control col-md-7 col-xs-12"></textarea>
+                                </div>
+                             </div>
+                        </div>
+                      </div>
+
+               </div>
+                       
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="submit" class="btn btn-success">Update pool viewer</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
