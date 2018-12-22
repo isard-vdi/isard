@@ -1,0 +1,7 @@
+APScheduler==3.3.1
+Flask-SocketIO==2.8.6
+iniparse==0.4
+rethinkdb==2.3.0.post6
+pynpm==0.1.1
+graphyte==1.4
+pem==18.2.0

@@ -10,20 +10,14 @@ site_author: IsardVDI
 repo_name: 'isard-vdi/isard'
 repo_url: https://github.com/isard-vdi/isard
 
-# TOC
-pages:
-- Introduction: index.md
-- Installation:
-    - On linux: install/linux.md
-    - Using docker-compose: install/docker-compose.md
-- Quick Start: quick-start/first.md
-- About: about/license.md
-
 # Copyright
 copyright: Copyright &copy; 2016 <a href="http://www.isardvdi.com">IsardVDI</a>.
 
 # Documentation and theme
 #theme: 'material'
+theme:
+  name: "readthedocs"
+strict: true
 
 # Options
 extra:
@@ -54,3 +48,13 @@ markdown_extensions:
       guess_lang: false
   - toc:
       permalink: true
+
+# TOC
+pages:
+- Introduction: index.md
+- Installation:
+    - On linux: install/linux.md
+    - Using docker-compose: install/docker-compose.md
+- Quick Start: quick-start/first.md
+- About: about/license.md
+

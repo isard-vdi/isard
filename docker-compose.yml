@@ -1,0 +1,97 @@
+version: '2'
+services:
+# Will take long time to build, better get dockerhub already build
+#    isard-alpine-pandas:
+#        image: isard/alpine-pandas:1.0.0
+#        build:
+#            context: .
+#            dockerfile: dockers/alpine-pandas/Dockerfile
+    isard-database:
+        restart: always
+        image: rethinkdb
+        hostname: isard-database
+        volumes:
+            - "/opt/isard/database:/data"
+        expose:
+            - "28015"
+        networks:
+            main:
+                aliases:
+                - rethinkdb
+
+    isard-nginx:
+        restart: always
+        image: isard/nginx:1.0.0
+        build:
+            context: .
+            dockerfile: dockers/nginx/Dockerfile
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - "/opt/isard/certs/default:/etc/nginx/external"
+            - "/opt/isard/logs/nginx:/var/log/nginx"
+        hostname: isard-nginx
+        links:
+            - "isard-app"
+        networks:
+            main:
+                aliases:
+                - isard-nginx
+                
+    isard-hypervisor:
+        restart: always
+        image: isard/hypervisor:1.0.0
+        build:
+            context: .
+            dockerfile: dockers/hypervisor/Dockerfile
+        hostname: isard-hypervisor
+        ports:
+            - "5900-5949:5900-5949"
+            - "55900-55949:55900-55949"
+        expose:
+            - "22"
+        privileged: true
+        volumes:
+            - "sshkeys:/root/.ssh"
+            - "/opt/isard:/isard"
+            - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
+        networks:
+            main:
+                aliases:
+                - isard-hypervisor
+        command: /usr/bin/supervisord -c /etc/supervisord.conf
+        
+    isard-app:
+        restart: always
+        image: isard/app:1.0.0
+        build:
+            context: .
+            dockerfile: dockers/app/Dockerfile
+        links:
+            - "isard-database"
+            - "isard-hypervisor"
+        hostname: isard-app
+        volumes:
+            - "sshkeys:/root/.ssh"
+            - "/opt/isard/certs:/certs"
+            - "/opt/isard/logs:/isard/logs"
+            - "/opt/isard/database/wizard:/isard/install/wizard"
+            - "/opt/isard/backups:/isard/backups"
+            - "/opt/isard/uploads:/isard/uploads"
+        expose:
+            - "5000"
+        environment:
+            PYTHONUNBUFFERED: 0
+        extra_hosts:
+            - "isard-engine:127.0.0.1"
+        networks:
+            main:
+                aliases:
+                - isard-app
+        command: /usr/bin/supervisord -c /etc/supervisord.conf
+
+networks:
+    main:
+volumes:
+    sshkeys:
