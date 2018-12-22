@@ -706,7 +706,8 @@ class UiActions(object):
 
         kind = get_domain_kind(id_domain)
         if kind == 'desktop':
-            self.start_paused_domain_from_xml(xml=xml_raw, id_domain=id_domain, pool_id=pool_id)
+            xml_to_test = recreate_xml_to_start(id_domain)
+            self.start_paused_domain_from_xml(xml=xml_to_test, id_domain=id_domain, pool_id=pool_id)
         else:
             update_domain_status('Stopped', id_domain,
                                  detail='Updating finalished, ready to derivate desktops')
