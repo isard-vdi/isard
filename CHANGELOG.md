@@ -2,8 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2018-12-22 | Anayet
+This is the stable release of IsardVDI.
 
-## 0.9.1 - 2018-02-19
+### Added
+- Unique docker-compose version with alpine base images
+- Updated websocket viewers with spice and vnc
+- Secure spice and vnc connections with certificates.
+- Self-signed and commercial certificates can be used.
+- Wizard will generate self-signed certificates for websocket viewers if none found.
+- New graphics definition that will allow better tuning of graphics parameters.
+- Redefined modal for opening viewers that allow setting preferred one.
+
+### Changed
+- User admin can change private template to base template
+- All templates are private and can define permissions
+- Wizard: More information about updates
+- Improved the design of the Nginx 502 static page.
+- Advanced users can upload and manage media
+- The login form has a "required" indicator in the password field
+
+### Fixed
+- Cpu and graphics rewritten in domain XML previous to start. 
+- Improved bugs in configuration forms
+- When edit xml, create more exceptions and logs if failed trying to start
+
+### Removed
+- Create from virt-install y and virt-builder deactivated in this release. 
+
+## [0.9.1] - 2018-02-19
 
 ### Fixed
 
@@ -18,7 +45,7 @@ All notable changes to this project will be documented in this file.
 - Bulk actions updated
 
 
-## 0.9.0 - 2018-02-02
+## [0.9.0] - 2018-02-02
 
 ### Added
 
@@ -33,11 +60,11 @@ All notable changes to this project will be documented in this file.
 - New tests to try policy balanced algorithm and domains behaviours
 
 
-## 0.8.1 - 2017-11-04
+## [0.8.1] - 2017-11-04
 
 - Fixing bugs
 
 
-## 0.8.0 - 2017-06-20
+## [0.8.0] - 2017-06-20
 
 - First public release

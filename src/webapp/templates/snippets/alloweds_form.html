@@ -1,0 +1,44 @@
+
+<div class="modal fade" id="modalAlloweds" tabindex="-1" role="dialog" 
+     aria-labelledby="modalAlloweds" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header"  style="padding: 5px;">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-users"> </i>   Edit permissions
+                </h4>
+                <span id="alloweds_name"></span>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+              <form id="modalAllowedsForm" class="form-horizontal form-label-left" method="POST" novalidate>
+                                    <input type="hidden" id="id" name="id"/> 
+                                    <div id="alloweds-add">
+                                      {% include '/snippets/alloweds_add.html' %}
+                                    </div>
+
+                                  
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Update permissions</button></li>
+                </ul>
+            </div>                       
+            </form>
+        </div>
+    </div>
+</div>
+</div>
+
+        <!-- jQuery Tags Input -->
+    <script src="/static/js/snippets/alloweds.js"></script>  

@@ -1,0 +1,168 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+    <!-- Ion.RangeSlider -->
+    <link href="/vendors/normalize-css/normalize.css" rel="stylesheet">
+<!--
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+    <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
+-->
+        <!-- Switchery -->
+    <link href="/vendors/switchery/dist/switchery.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="right_col" role="main">
+<div class="page-title">
+   <div class="title_left">
+      <h3><i id="test" class="fa fa-desktop"></i> Desktops <small></small></h3>
+   </div>
+</div>
+<div class="clearfix"></div>
+<div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+         <div class="x_title">
+            <h2>List of desktops <small></small></h2>
+            <ul class="nav navbar-right panel_toolbox">
+				<li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+               </li>
+            </ul>
+            <div class="clearfix"></div>
+         </div>
+         <div class="x_content">
+            <p class="text-muted font-13 m-b-30">
+            </p>
+            <table id="desktops" class="table table-striped" width="100%">
+               <thead>
+                  <tr>
+					 <th></th>
+                     <th></th>
+                     <th>Action</th>
+                     <th>Display</th>
+                     <th>Status</th>
+                     <th>Viewer</th>
+                     <th>Name</th>
+                     <th>Media</th>
+<!--
+                     <th>Hotplug</th>
+-->
+                  </tr>
+               </thead>
+               <tbody>
+               </tbody>
+            </table>
+         </div>
+      </div>
+   </div>
+
+</div>
+
+<div class="clearfix"></div>
+<div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+	  <div class="x_panel" style="background-color:rgb(238, 238, 238);">
+		 <div class="x_title">
+					<h2><i class="fa fa-rss"></i> How to connect to desktops <small></small></h2> 
+					<ul class="nav navbar-right panel_toolbox">
+<!--
+					  <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+					  </li>
+-->
+<!--
+					  <li><a class="close-link"><i class="fa fa-close"></i></a>
+					  </li>
+-->
+					</ul>
+					<div class="clearfix"></div>
+				  </div>
+		 <div class="x_content">
+			<p class="text-muted font-13 m-b-30">
+			</p>
+			<ul>
+				<li><h2><b>Spice client app</b></h2>
+					<ul>
+					  <div class="howto-Windows" style="display:none">
+						<li>Windows 64bits: <a href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi">Install viewer </a> - <a href="https://www.spice-space.org/download/windows/usbdk/UsbDk_1.0.19_x64.msi">Install usb plug </a></li>
+						<li>Windows 32bits: <a href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi">Install viewer</a> -  - <a href="https://www.spice-space.org/download/windows/usbdk/UsbDk_1.0.19_x86.msi">Install usb plug </a></li>
+					  </div>
+					  <div class="howto-Linux" style="display:none">
+						<li><b>Debian/Ubuntu based distros:</b> sudo apt install virt-viewer -y</li>
+						<li><b>RedHat/CentOS/Fedora based distros:</b> sudo dnf install remote-viewer -y</li>
+					  </div>
+					  <div class="howto-Android" style="display:none">
+						<li>Android: <a href="https://play.google.com/store/apps/details?id=com.iiordanov.freeaSPICE">Install aSpice viewer </a></li>
+					  </div>
+					  <div class="howto-MacOS" style="display:none">
+						<li>MacOS: There is no spice client app currently. Use default VNC client option.</li>
+					  </div>
+					  <div class="howto-iOS" style="display:none">
+						<li>iOS: <a href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263">Install FlexVDI viewer</a></li>
+					  </div>
+					</ul>
+				</li>
+				<li><h2><b>Spice & VNC browser client</b></h2> Use your browser to connect without installing apps. <b>You should allow pop-up windows.</b>
+					<ul>
+						<li><b>Chrome browser:</b> Should work</li>
+						<li><b>Firefox browser:</b> If you use self signed certificates to encrypt connection it will open a second pop-up window to accept certificate before connecting. You can close that window after accepting certificate.</li>
+					</ul>
+				</li>
+				<li><h2><b>VNC client app</b></h2>
+					<ul>
+					  <div class="howto-Windows" style="display:none">
+						<li><b>RealPlayer</b> <a href="https://www.realvnc.com/en/connect/download/viewer/linux/">Install viewer </a>. When opening file in RealPlayer it will ask for password. You can copy&paste password from desktop details.</li>
+					  </div>
+					  <div class="howto-Linux" style="display:none">
+						<li><b>Linux:</b> vinagre -F console.vnc</li>
+					  </div>
+					  <div class="howto-Android" style="display:none">
+						<li><b>Android:</b> Not tested.</li>
+					  </div>
+					  <div class="howto-MacOS" style="display:none">
+						<li><b>MacOS:</b> Open downloaded console.vncloc file with default VNC client viewer app.</li>
+					  </div>
+					  <div class="howto-iOS" style="display:none">
+						<li><b>iOS:</b> Not tested</li>
+					  </div>
+					</ul>
+				</li>
+			</ul>
+		 </div>
+	  </div>
+   </div>
+</div>
+
+</div>
+{% include '/pages/desktops_viewers.html' %}
+{% include '/pages/desktops_modals.html' %}
+
+
+<!-- Warning: this comment is needed for spiceTLS
+<textarea id="caStore" type="text" cols="65" rows="15" style="display:none"></textarea>
+-->
+<!-- Is it possible to hide this? -->
+<embed type="application/x-spice" width=0 height=0>
+
+{% include '/pages/desktops_detail.html' %}
+{% endblock %}
+
+{% block pagescript %}
+   <!-- Ion.RangeSlider -->
+<!--
+    <script src="/vendors/ion.rangeSlider/js/ion.rangeSlider.min.js"></script>
+-->
+   <!-- Ion.RangeSlider -->
+    <script src="/vendors/ion.rangeSlider/js/ion.rangeSlider.min.js"></script>
+    <!-- iCheck -->
+    <script src="/vendors/iCheck/icheck.min.js"></script> 
+    <!-- Switchery -->
+    <script src="/vendors/switchery/dist/switchery.min.js"></script>
+    <!-- Isard restful ajax calls -->
+    <script src="/static/js/restful.js"></script>
+    <!-- Spice viewer -->
+    <script src="/static/js/viewer.js"></script> 
+    <!-- Desktops sse & modals -->
+    <script src="/static/js/desktops.js"></script>
+<!--
+    <script src="/static/js/desktops_modals.js"></script>
+-->
+{% endblock %}
