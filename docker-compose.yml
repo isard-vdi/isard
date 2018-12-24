@@ -65,8 +65,8 @@ services:
         target: /root/.ssh
         read_only: false
       - type: bind
-        source: /opt/isard/certs/default
-        target: /etc/pki/libvirt-spice
+        source: /opt/isard/certs/
+        target: /certs
         read_only: false
       - type: bind
         source: /opt/isard/logs
