@@ -65,7 +65,7 @@ services:
         target: /root/.ssh
         read_only: false
       - type: bind
-        source: /opt/isard/certs/
+        source: /opt/isard/certs
         target: /certs
         read_only: false
       - type: bind
