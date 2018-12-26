@@ -41,6 +41,25 @@ def update_domain_force_hyp(id_domain, hyp_id=None):
     close_rethink_connection(r_conn)
     return results
 
+def update_domain_parents(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    d = rtable.get(id_domain).pluck({'create_dict': 'origin'}, 'parents').run(r_conn)
+
+    if 'parents' not in d.keys():
+        parents_with_new_origin = []
+    elif type(d['parents']) is not list:
+        parents_with_new_origin = []
+    else:
+        parents_with_new_origin = d['parents'].copy()
+
+    if 'origin' in d['create_dict'].keys():
+        parents_with_new_origin.append(d['create_dict']['origin'])
+        results = rtable.get_all(id_domain, index='id').update({'parents': parents_with_new_origin}).run(r_conn)
+
+    close_rethink_connection(r_conn)
+    return results
+
 
 def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=False):
     r_conn = new_rethink_connection()
@@ -56,7 +75,7 @@ def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=
 
 
     if hyp_id is None:
-        # print('ojojojo')
+        # print('ojojojo')rtable.get(id_domain)
         results = rtable.get_all(id_domain, index='id').update({
             'status': status,
             'hyp_started': '',

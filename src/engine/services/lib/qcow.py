@@ -487,3 +487,6 @@ def get_host_and_path_diskoperations_to_write_in_path(type_path, relative_path, 
     else:
         path_absolute = path_selected + '/' + relative_path
         return host_disk_operations_selected, path_absolute
+
+def test_hypers_disk_operations(hypers_disk_operations):
+    pass

@@ -28,6 +28,7 @@ from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_
     set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain
 from engine.services.db.domains import update_domain_status, update_domain_start_after_created, update_domain_delete_after_stopped
 from engine.services.lib.functions import get_threads_running, get_tid, engine_restart
+from engine.services.lib.qcow import test_hypers_disk_operations
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
@@ -50,7 +51,7 @@ class ManagerHypervisors(object):
                  status_polling_interval=STATUS_POLLING_INTERVAL,
                  test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL):
 
-        logs.main.info('MAIN PID: {}'.format(get_tid()))
+        logs.main.info('MAIN TID: {}'.format(get_tid()))
 
         self.time_between_polling = TIME_BETWEEN_POLLING
         self.polling_interval_background = POLLING_INTERVAL_BACKGROUND
@@ -181,6 +182,8 @@ class ManagerHypervisors(object):
 
             self.manager.hypers_disk_operations = get_hypers_disk_operations()
 
+            test_hypers_disk_operations(self.manager.hypers_disk_operations)
+
             for hyp_disk_operations in self.manager.hypers_disk_operations:
                 hyp_long_operations = hyp_disk_operations
                 d = get_hyp_hostname_user_port_from_id(hyp_disk_operations)
@@ -201,6 +204,17 @@ class ManagerHypervisors(object):
                 )
 
         def test_hyps_and_start_threads(self):
+            """If status of hypervisor is Error or Offline and are enabled,
+            this function try to connect and launch threads.
+            If hypervisor pass connection test, status change to ReadyToStart,
+            then change to StartingThreads previous to launch threads, when
+            threads are running state is Online. Status sequence is:
+            (Offline,Error) => ReadyToStart => StartingThreads => (Online,Error)"""
+
+            # DISK_OPERATIONS:
+            if len(self.manager.t_disk_operations) == 0:
+                self.launch_threads_disk_and_long_operations()
+
 
             l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
 
@@ -209,7 +223,11 @@ class ManagerHypervisors(object):
                                            'user': d['user'] if 'user' in d.keys() else 'root'} for d in
                                  l_hyps_to_test}
 
+            #TRY hypervisor connexion and UPDATE hypervisors status
+            # update status: ReadyToStart if all ok
             launch_try_hyps(dict_hyps_to_test)
+
+            #hyp_hostnames of hyps ready to start
             dict_hyps_ready = self.manager.dict_hyps_ready = get_hyps_ready_to_start()
 
             if len(dict_hyps_ready) > 0:
@@ -219,24 +237,31 @@ class ManagerHypervisors(object):
                 if self.manager.t_events is None:
                     logs.main.info('launching hypervisor events thread')
                     self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
-                else:
-                    #if new hypervisor has added then add hypervisor to receive events
-                    logs.main.info('hypervisors added to thread events')
-                    logs.main.info(pprint.pformat(dict_hyps_ready))
-                    self.manager.t_events.hyps.update(dict_hyps_ready)
-                    for hyp_id, hostname in self.manager.t_events.hyps.items():
-                        self.manager.t_events.add_hyp_to_receive_events(hyp_id)
+                # else:
+                #     #if new hypervisor has added then add hypervisor to receive events
+                #     logs.main.info('hypervisors added to thread events')
+                #     logs.main.info(pprint.pformat(dict_hyps_ready))
+                #     self.manager.t_events.hyps.update(dict_hyps_ready)
+                #     for hyp_id, hostname in self.manager.t_events.hyps.items():
+                #         self.manager.t_events.add_hyp_to_receive_events(hyp_id)
+
                 set_unknown_domains_not_in_hyps(dict_hyps_ready.keys())
                 set_domains_coherence(dict_hyps_ready)
 
                 pools = set()
                 for hyp_id, hostname in dict_hyps_ready.items():
                     update_hyp_status(hyp_id, 'StartingThreads')
-                    # start worker thread
+
+                    # launch worker thread
                     self.manager.t_workers[hyp_id], self.manager.q.workers[hyp_id] = launch_thread_worker(hyp_id)
+
+                    # LAUNCH status thread
                     if self.manager.with_status_threads is True:
                         self.manager.t_status[hyp_id] = launch_thread_status(hyp_id,
                                                                              self.manager.STATUS_POLLING_INTERVAL)
+
+                    # ADD hyp to receive_events
+                    self.manager.t_events.add_hyp_to_receive_events(hyp_id)
 
                     # self.manager.launch_threads(hyp_id)
                     # INFO TO DEVELOPER FALTA VERIFICAR QUE REALMENTE ESTÁN ARRANCADOS LOS THREADS??
@@ -244,6 +269,7 @@ class ManagerHypervisors(object):
                     update_hyp_status(hyp_id, 'Online')
                     pools.update(get_pools_from_hyp(hyp_id))
 
+                #if hypervisor no in pools defined in manager add it
                 for id_pool in pools:
                     if id_pool not in self.manager.pools.keys():
                         self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager, len(dict_hyps_ready))
@@ -254,7 +280,9 @@ class ManagerHypervisors(object):
             q = self.manager.q.background
             first_loop = True
 
-            clean_intermediate_status()
+            # if domains have intermedite states (updating, download_aborting...)
+            # to Failed or Delete
+            clean_intermediate_states()
 
             l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
             while len(l_hyps_to_test) == 0:
@@ -263,45 +291,62 @@ class ManagerHypervisors(object):
                 l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
 
             while self.manager.quit is False:
+                ####################################################################
+                ### MAIN LOOP ######################################################
+
                 # ONLY FOR DEBUG
                 logs.main.debug('##### THREADS ##################')
-                get_threads_running()
-                self.manager.update_info_threads_engine()
+                theads_running = get_threads_running()
+                alive, dead, not_defined = self.manager.update_info_threads_engine()
 
-                # DISK_OPERATIONS:
-                if len(self.manager.t_disk_operations) == 0:
-                    self.launch_threads_disk_and_long_operations()
+                # Threads that must be running always, with or withouth hypervisor
+                # changes_hyp, changes_domains, disk_operations and long_operations,
+                # downloads_changes, events, broom
 
                 # TEST HYPS AND START THREADS FROM RETHINK
                 self.test_hyps_and_start_threads()
 
-                # LAUNCH CHANGES THREADS
+                # LAUNCH MAIN THREADS
                 if first_loop is True:
                     update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
+                    # launch changes_hyp thread
                     self.manager.t_changes_hyps = self.manager.HypervisorChangesThread('changes_hyp', self.manager)
                     self.manager.t_changes_hyps.daemon = True
                     self.manager.t_changes_hyps.start()
 
+                    #launch changes_domains_thread
                     self.manager.t_changes_domains = self.manager.DomainsChangesThread('changes_domains', self.manager)
                     self.manager.t_changes_domains.daemon = True
                     self.manager.t_changes_domains.start()
 
+                    #launch downloads changes thread
                     logs.main.debug('Launching Download Changes Thread')
                     self.manager.t_downloads_changes = launch_thread_download_changes(self.manager)
 
+                    #launch brrom thread
                     self.manager.t_broom = launch_thread_broom(self.manager)
+
+                    #launch events thread
+                    logs.main.debug('launching hypervisor events thread')
+                    self.manager.t_events = launch_thread_hyps_event({})
 
                     first_loop = False
 
                     logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
                     update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
+
                     while True:
+                        #wait all
                         sleep(0.1)
                         alive, dead, not_defined = self.manager.update_info_threads_engine()
                         pprint.pprint({'alive':alive,
                                        'dead':dead,
                                        'not_defined':not_defined})
-                        if len(not_defined) == 0 and len(dead) == 0:
+                        #if thread events is None and len(dict_hyps ready) == 0, must recheck hypers
+                        if len(not_defined) > 0 and len(self.manager.dict_hyps_ready) == 0:
+                            sleep(3)
+                            self.test_hyps_and_start_threads()
+                        elif len(not_defined) == 0 and len(dead) == 0:
                             update_table_field('engine', 'engine', 'status_all_threads', 'Started')
                             self.manager.num_workers = len(self.manager.t_workers)
                             self.manager.threads_started = True
@@ -525,7 +570,8 @@ class ManagerHypervisors(object):
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
 
-                if old_status == 'Stopped' and new_status == "Deleting":
+                if old_status == 'Stopped' and new_status == "Deleting" or \
+                        old_status == 'Downloaded' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
 
                 if (old_status == 'Stopped' and new_status == "Updating") or \
