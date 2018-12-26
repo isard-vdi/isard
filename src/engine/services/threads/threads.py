@@ -16,7 +16,7 @@ from engine.services.db import update_all_domains_status, update_disk_backing_ch
     get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown, remove_media
 from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.db import update_table_field
-from engine.services.db.domains import update_domain_status
+from engine.services.db.domains import update_domain_status, update_domain_parents
 from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
     update_hypervisor_failed_connection, update_db_hyp_info
 from engine.services.lib.functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str, \
@@ -147,10 +147,13 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
 
                 list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
                 if id_domain is not False:
+                    update_domain_parents(id_domain)
                     update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
                 ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
             if id_domain is not False:
+                #update parents if have
+                update_domain_parents(id_domain)
                 update_domain_status('CreatingDomain', id_domain, None,
                                      detail='new disk created, now go to creating desktop and testing if desktop start')
         else:
@@ -235,6 +238,8 @@ def launch_action_create_template_disk(action, hostname, user, port):
                                           new_template=True,
                                           list_backing_chain_template=backing_chain_template)
 
+                # disk created, update parents and status
+                update_domain_parents(id_domain)
                 update_domain_status(status='TemplateDiskCreated',
                                      id_domain=id_domain,
                                      hyp_id=False,

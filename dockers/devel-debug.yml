@@ -67,7 +67,7 @@ services:
         
     isard-app:
         restart: always
-        image: isard/app:1.0.0
+        image: isard/app:1.0.1b
         build:
             context: .
             dockerfile: dockers/app_devel/Dockerfile
@@ -78,7 +78,7 @@ services:
         volumes:
             ##### - only devel - ############################
             - "/opt/isard_devel/src:/isard"
-            - "/opt/ipython_profile_default:/root/.ipython/profile_default"
+            #- "/opt/ipython_profile_default:/root/.ipython/profile_default"
             #################################################
             - "sshkeys:/root/.ssh"
             - "/opt/isard/certs:/certs"
