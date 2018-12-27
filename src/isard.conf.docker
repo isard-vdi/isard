@@ -1,5 +1,5 @@
 [RETHINKDB]
-HOST:			rethinkdb
+HOST:			isard-database
 PORT:			28015
 DBNAME:			isard
 
