@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2018-12-27
+
+### Fixed
+- Wait for the hypervisor before starting engine. Fixes some restart cases that may fail [#20](https://github.com/isard-vdi/isard/issues/20)
+
 ## [1.0.0] - 2018-12-22 | Anayet
 This is the stable release of IsardVDI.
 
