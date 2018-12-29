@@ -1,79 +1,58 @@
 version: '2'
 services:
-    isard-alpine-pandas:
-        image: isard/alpine-pandas:1.0.0
-# Will take long time to build
-#        build:
-#            context: .
-#            dockerfile: dockers/alpine-pandas/Dockerfile
     isard-database:
-        restart: always
-        image: rethinkdb
         hostname: isard-database
         volumes:
-            - "/opt/isard/src/database:/data"
+            - "/opt/isard/database:/data"
+        networks:
+            - isard_network
         ##### - only devel - ############################
         ports:
             - "8080:8080"
-        #################################################
         expose:
             - "28015"
-        networks:
-            main:
-                aliases:
-                - rethinkdb
+        #################################################
+        #aliases:
+        #    - rethinkdb
+        image: "rethinkdb"
+        restart: "no"
 
     isard-nginx:
-        restart: always
-        image: isard/nginx:1.0.1b
+        volumes:
+            - "/opt/isard/certs/default:/etc/nginx/external"
+            - "/opt/isard/logs/nginx:/var/log/nginx"
         build:
             context: .
             dockerfile: dockers/nginx/Dockerfile
         ports:
             - "80:80"
             - "443:443"
-        volumes:
-            - "/opt/isard/certs/default:/etc/nginx/external"
-        hostname: isard-nginx
-        links:
-            - "isard-app"
         networks:
-            main:
-                aliases:
-                - isard-nginx
+            - isard_network
+        image: isard/nginx:${TAG_DEVEL}
+        restart: "no"
+        depends_on:
+          - "isard-app"
 
     isard-hypervisor:
-        restart: always
-        image: isard/hypervisor:1.0.1b
-        build:
-            context: .
-            dockerfile: dockers/hypervisor/Dockerfile
-        hostname: isard-hypervisor
-        ports:
-            - "5900-5949:5900-5949"
-            - "55900-55949:55900-55949"
-        expose:
-            - "22"
-        privileged: true
         volumes:
             - "sshkeys:/root/.ssh"
             - "/opt/isard:/isard"
             - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
+        ports:
+            - "5900-5949:5900-5949"
+            - "55900-55949:55900-55949"
+        ################ only for devel ###############
+        expose:
+            - "22"
+        ###############################################
         networks:
-            main:
-                aliases:
-                - isard-hypervisor
-        command: /usr/bin/supervisord -c /etc/supervisord.conf
-        
+            - isard_network
+        image: "isard/hypervisor:${TAG_DEVEL}"
+        privileged: true
+        restart: "no"
+
     isard-app:
-        restart: always
-        image: isard/app:1.0.0
-        build:
-            context: .
-            dockerfile: dockers/app_devel/Dockerfile
-        links:
-            - "isard-database"
-            - "isard-hypervisor"
         hostname: isard-app
         volumes:
             ##### - only devel - ############################
@@ -83,21 +62,26 @@ services:
             - "sshkeys:/root/.ssh"
             - "/opt/isard/certs:/certs"
             - "/opt/isard/logs:/isard/logs"
+            - "/opt/isard/backups:/isard/backups"
+            - "/opt/isard/uploads:/isard/uploads"
             - "/opt/isard/database/wizard:/isard/install/wizard"
-
+        ########### - only devel #################
         expose:
             - "5000"
-        environment:
-            PYTHONUNBUFFERED: 0
+        ##########################################
         extra_hosts:
             - "isard-engine:127.0.0.1"
         networks:
-            main:
-                aliases:
-                - isard-app
-        command: /usr/bin/supervisord -c /etc/supervisord.conf
+            - isard_network
+        image: "isard/app_devel:${TAG_DEVEL}"
+        restart: "no"
+        depends_on:
+            - "isard-database"
+            - "isard-hypervisor"
 
-networks:
-    main:
 volumes:
     sshkeys:
+
+networks:
+    isard_network:
+        external: false
