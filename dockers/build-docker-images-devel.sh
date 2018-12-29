@@ -19,9 +19,9 @@ set -e
 # Array containing all the images to build
 images=(
 	#alpine-pandas
-	nginx
-	hypervisor
-	app
+	#nginx
+	#hypervisor
+	app_devel
 )
 
 # Build all the images and tag them correctly
