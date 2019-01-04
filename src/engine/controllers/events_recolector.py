@@ -14,6 +14,8 @@
 import sys
 import threading
 import time
+import queue
+import traceback
 
 import libvirt
 
@@ -25,7 +27,7 @@ from engine.services.db import update_domain_viewer_started_values, get_domain_h
 from engine.services.lib.functions import hostname_to_uri, get_tid
 from engine.services.log import *
 
-
+TIMEOUT_QUEUE_REGISTER_EVENTS = 1
 NUM_TRY_REGISTER_EVENTS = 5
 SLEEP_BETWEEN_TRY_REGISTER_EVENTS = 1.0
 
@@ -444,7 +446,6 @@ r_status = RethinkHypEvent()
 
 class ThreadHypEvents(threading.Thread):
     def __init__(self, name,
-                 dict_hyps,
                  register_graphics_events=True
                  ):
         threading.Thread.__init__(self)
@@ -452,10 +453,11 @@ class ThreadHypEvents(threading.Thread):
         self.stop = False
         self.stop_event_loop = [False]
         self.REGISTER_GRAPHICS_EVENTS = register_graphics_events
-        self.hyps = dict_hyps
+        self.hyps = {}
         # self.hostname = get_hyp_hostname_from_id(hyp_id)
         self.hyps_conn = dict()
         self.events_ids = dict()
+        self.q_event_register = queue.Queue()
 
     def run(self):
         # Close connection on exit (to test cleanup paths)
@@ -471,29 +473,33 @@ class ThreadHypEvents(threading.Thread):
 
         sys.exitfunc = exit
 
+        self.thread_event_loop = virEventLoopNativeStart(self.stop_event_loop)
+
         # self.r_status = RethinkHypEvent()
-
-        while True:
-            if len(self.hyps) == 0:
-                if self.stop:
-                    break
-                time.sleep(0.1)
-            else:
-                self.thread_event_loop = virEventLoopNativeStart(self.stop_event_loop)
-
-                for hyp_id, hostname in self.hyps.items():
+        while self.stop is not True:
+            try:
+                action = self.q_event_register.get(timeout=TIMEOUT_QUEUE_REGISTER_EVENTS)
+                if action['type'] in ['add_hyp_to_receive_events']:
+                    hyp_id = action['hyp_id']
                     self.add_hyp_to_receive_events(hyp_id)
+                elif action['type'] in ['del_hyp_to_receive_events']:
+                    hyp_id = action['hyp_id']
+                    self.del_hyp_to_receive_events(hyp_id)
+                elif action['type'] == 'stop_thread':
+                    self.stop = True
+                else:
+                    logs.status.error('type action {} not supported'.format(action['type']))
+            except queue.Empty:
+                pass
+            except Exception as e:
+                log.error('Exception in ThreadHypEvents main loop: {}'.format(e))
+                log.error('Action: {}'.format(pprint.pformat(action)))
+                log.error('Traceback: {}'.format(traceback.format_exc()))
+                return False
 
-                while self.stop is not True:
-                    time.sleep(0.1)
-
-                if self.stop is True:
-                    for hyp_id in list(self.hyps):
-                        self.del_hyp_to_receive_events(hyp_id)
-                    self.stop_event_loop[0] = True
-                    while self.thread_event_loop.is_alive():
-                        pass
-                break
+        self.stop_event_loop[0] = True
+        while self.thread_event_loop.is_alive():
+            pass
 
     def add_hyp_to_receive_events(self, hyp_id):
         d_hyp_parameters = get_hyp_hostname_user_port_from_id(hyp_id)
@@ -592,10 +598,10 @@ class ThreadHypEvents(threading.Thread):
         hyp_libvirt_conn.unregisterCloseCallback()
 
 
-def launch_thread_hyps_event(dict_hyps):
+def launch_thread_hyps_event():
     # t = threading.Thread(name= 'events',target=events_from_hyps, args=[list_hostnames])
 
-    t = ThreadHypEvents(name='hyps_events', dict_hyps=dict_hyps)
+    t = ThreadHypEvents(name='hyps_events')
     t.daemon = True
     t.start()
     return t

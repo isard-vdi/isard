@@ -35,6 +35,8 @@ from engine.services.threads.threads import launch_try_hyps, set_domains_coheren
     launch_long_operations_thread
 from engine.services.lib.functions import clean_intermediate_status
 
+WAIT_HYP_ONLINE = 2.0
+
 class ManagerHypervisors(object):
     """Main class that control and launch all threads.
     Main thread ThreadBackground is launched and control all threads
@@ -250,7 +252,7 @@ class ManagerHypervisors(object):
                 #launch thread events if is None
                 if self.manager.t_events is None:
                     logs.main.info('launching hypervisor events thread')
-                    self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
+                    self.manager.t_events = launch_thread_hyps_event()
                 # else:
                 #     #if new hypervisor has added then add hypervisor to receive events
                 #     logs.main.info('hypervisors added to thread events')
@@ -275,7 +277,7 @@ class ManagerHypervisors(object):
                                                                              self.manager.STATUS_POLLING_INTERVAL)
 
                     # ADD hyp to receive_events
-                    self.manager.t_events.add_hyp_to_receive_events(hyp_id)
+                    self.manager.t_events.q_event_register.put({'type': 'add_hyp_to_receive_events', 'hyp_id': hyp_id})
 
                     # self.manager.launch_threads(hyp_id)
                     # INFO TO DEVELOPER FALTA VERIFICAR QUE REALMENTE ESTÁN ARRANCADOS LOS THREADS??
@@ -311,6 +313,7 @@ class ManagerHypervisors(object):
                 # ONLY FOR DEBUG
                 logs.main.debug('##### THREADS ##################')
                 threads_running = get_threads_running()
+                #pprint.pprint(threads_running)
                 #self.manager.update_info_threads_engine()
 
                 # Threads that must be running always, with or withouth hypervisor:
@@ -350,7 +353,7 @@ class ManagerHypervisors(object):
 
                     #launch events thread
                     logs.main.debug('launching hypervisor events thread')
-                    self.manager.t_events = launch_thread_hyps_event({})
+                    self.manager.t_events = launch_thread_hyps_event()
 
                     logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
                     update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
@@ -394,7 +397,11 @@ class ManagerHypervisors(object):
                     pass
 
                 try:
-                    action = q.get(timeout=self.manager.TEST_HYP_FAIL_INTERVAL)
+                    if len(self.manager.t_workers) == 0:
+                        timeout_queue = WAIT_HYP_ONLINE
+                    else:
+                        timeout_queue = TEST_HYP_FAIL_INTERVAL
+                    action = q.get(timeout=timeout_queue)
                     if action['type'] == 'stop':
                         self.manager.quit = True
                         logs.main.info('engine end')
