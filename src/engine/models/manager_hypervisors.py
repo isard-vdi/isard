@@ -4,12 +4,11 @@
 # License: AGPLv3
 # coding=utf-8
 
-import pprint
-
 import queue
 import threading
 from datetime import datetime
 from time import sleep
+import pprint
 
 import rethinkdb as r
 
@@ -73,8 +72,12 @@ class ManagerHypervisors(object):
         self.t_downloads_changes = None
         self.quit = False
 
+        self.threads_info_main = {}
+        self.threads_info_hyps = {}
+        self.hypers_disk_operations_tested = []
+
         self.num_workers = 0
-        self.threads_started = False
+        self.threads_main_started = False
 
         self.STATUS_POLLING_INTERVAL = status_polling_interval
         self.TEST_HYP_FAIL_INTERVAL = test_hyp_fail_interval
@@ -89,13 +92,13 @@ class ManagerHypervisors(object):
         self.t_background.start()
 
     def check_actions_domains_enabled(self):
-        if self.num_workers > 0 and self.threads_started is True:
+        if self.num_workers > 0 and self.threads_main_started is True:
             return True
         else:
             return False
 
     def update_info_threads_engine(self):
-        d = {}
+        d_mains = {}
         alive=[]
         dead=[]
         not_defined=[]
@@ -107,19 +110,30 @@ class ManagerHypervisors(object):
                 #thread not defined
                 not_defined.append(name)
 
+        d_mains['alive']=alive
+        d_mains['dead']=dead
+        d_mains['not_defined']=not_defined
+        self.threads_info_main = d_mains.copy()
+
+        d_hyps = {}
+        alive=[]
+        dead=[]
+        not_defined=[]
         for name in ['workers','status','disk_operations','long_operations']:
             for hyp,t in self.__getattribute__('t_'+name).items():
                 try:
                     alive.append(name + '_' + hyp) if t.is_alive() else dead.append(name + '_' + hyp)
                 except:
                     not_defined.append(name)
-                    pass
 
-        d['alive']=alive
-        d['dead']=dead
-        d['not_defined']=not_defined
-        update_table_field('engine', 'engine', 'threads', d)
-        return alive,dead,not_defined
+        d_hyps['alive']=alive
+        d_hyps['dead']=dead
+        d_hyps['not_defined']=not_defined
+        self.threads_info_hyps = d_hyps.copy()
+        update_table_field('engine', 'engine', 'threads_info_main', d_mains)
+        update_table_field('engine', 'engine', 'threads_info_hyps', d_hyps)
+
+        return True
 
     def stop_threads(self):
         # events and broom
@@ -182,26 +196,27 @@ class ManagerHypervisors(object):
 
             self.manager.hypers_disk_operations = get_hypers_disk_operations()
 
-            test_hypers_disk_operations(self.manager.hypers_disk_operations)
+            self.manager.hypers_disk_operations_tested = test_hypers_disk_operations(self.manager.hypers_disk_operations)
 
-            for hyp_disk_operations in self.manager.hypers_disk_operations:
+            for hyp_disk_operations in self.manager.hypers_disk_operations_tested:
                 hyp_long_operations = hyp_disk_operations
                 d = get_hyp_hostname_user_port_from_id(hyp_disk_operations)
 
-                self.manager.t_disk_operations[hyp_disk_operations], \
-                self.manager.q_disk_operations[hyp_disk_operations] = launch_disk_operations_thread(
-                    hyp_id=hyp_disk_operations,
-                    hostname=d['hostname'],
-                    user=d['user'],
-                    port=d['port']
-                )
-                self.manager.t_long_operations[hyp_long_operations], \
-                self.manager.q_long_operations[hyp_long_operations] = launch_long_operations_thread(
-                    hyp_id=hyp_long_operations,
-                    hostname=d['hostname'],
-                    user=d['user'],
-                    port=d['port']
-                )
+                if hyp_disk_operations not in self.manager.t_disk_operations.keys():
+                    self.manager.t_disk_operations[hyp_disk_operations], \
+                    self.manager.q_disk_operations[hyp_disk_operations] = launch_disk_operations_thread(
+                        hyp_id=hyp_disk_operations,
+                        hostname=d['hostname'],
+                        user=d['user'],
+                        port=d['port']
+                    )
+                    self.manager.t_long_operations[hyp_long_operations], \
+                    self.manager.q_long_operations[hyp_long_operations] = launch_long_operations_thread(
+                        hyp_id=hyp_long_operations,
+                        hostname=d['hostname'],
+                        user=d['user'],
+                        port=d['port']
+                    )
 
         def test_hyps_and_start_threads(self):
             """If status of hypervisor is Error or Offline and are enabled,
@@ -211,9 +226,8 @@ class ManagerHypervisors(object):
             threads are running state is Online. Status sequence is:
             (Offline,Error) => ReadyToStart => StartingThreads => (Online,Error)"""
 
-            # DISK_OPERATIONS:
-            if len(self.manager.t_disk_operations) == 0:
-                self.launch_threads_disk_and_long_operations()
+            # DISK_OPERATIONS: launch threads if test disk operations passed and is not launched
+            self.launch_threads_disk_and_long_operations()
 
 
             l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
@@ -233,7 +247,7 @@ class ManagerHypervisors(object):
             if len(dict_hyps_ready) > 0:
                 logs.main.debug('hyps_ready_to_start: ' + pprint.pformat(dict_hyps_ready))
 
-                #launch thread events
+                #launch thread events if is None
                 if self.manager.t_events is None:
                     logs.main.info('launching hypervisor events thread')
                     self.manager.t_events = launch_thread_hyps_event(dict_hyps_ready)
@@ -269,26 +283,26 @@ class ManagerHypervisors(object):
                     update_hyp_status(hyp_id, 'Online')
                     pools.update(get_pools_from_hyp(hyp_id))
 
-                #if hypervisor no in pools defined in manager add it
+                #if hypervisor not in pools defined in manager add it
                 for id_pool in pools:
                     if id_pool not in self.manager.pools.keys():
                         self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager, len(dict_hyps_ready))
 
         def run(self):
             self.tid = get_tid()
-            logs.main.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+            logs.main.info('starting thread background: {} (TID {})'.format(self.name, self.tid))
             q = self.manager.q.background
             first_loop = True
 
             # if domains have intermedite states (updating, download_aborting...)
             # to Failed or Delete
-            clean_intermediate_states()
+            clean_intermediate_status()
 
             l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
-            while len(l_hyps_to_test) == 0:
-                logs.main.error('no hypervisor enable, waiting for one hypervisor')
-                sleep(0.5)
-                l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
+            # while len(l_hyps_to_test) == 0:
+            #     logs.main.error('no hypervisor enable, waiting for one hypervisor')
+            #     sleep(0.5)
+            #     l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
 
             while self.manager.quit is False:
                 ####################################################################
@@ -296,15 +310,23 @@ class ManagerHypervisors(object):
 
                 # ONLY FOR DEBUG
                 logs.main.debug('##### THREADS ##################')
-                theads_running = get_threads_running()
-                alive, dead, not_defined = self.manager.update_info_threads_engine()
+                threads_running = get_threads_running()
+                #self.manager.update_info_threads_engine()
 
-                # Threads that must be running always, with or withouth hypervisor
-                # changes_hyp, changes_domains, disk_operations and long_operations,
-                # downloads_changes, events, broom
+                # Threads that must be running always, with or withouth hypervisor:
+                # - changes_hyp
+                # - changes_domains
+                # - downloads_changes
+                # - broom
+                # - events
 
-                # TEST HYPS AND START THREADS FROM RETHINK
-                self.test_hyps_and_start_threads()
+                # Threads that depends on hypervisors availavility:
+                # - disk_operations
+                # - long_operations
+                # - for every hypervisor:
+                #     - worker
+                #     - status
+
 
                 # LAUNCH MAIN THREADS
                 if first_loop is True:
@@ -330,27 +352,46 @@ class ManagerHypervisors(object):
                     logs.main.debug('launching hypervisor events thread')
                     self.manager.t_events = launch_thread_hyps_event({})
 
-                    first_loop = False
-
                     logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
                     update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
 
                     while True:
                         #wait all
                         sleep(0.1)
-                        alive, dead, not_defined = self.manager.update_info_threads_engine()
-                        pprint.pprint({'alive':alive,
-                                       'dead':dead,
-                                       'not_defined':not_defined})
-                        #if thread events is None and len(dict_hyps ready) == 0, must recheck hypers
-                        if len(not_defined) > 0 and len(self.manager.dict_hyps_ready) == 0:
-                            sleep(3)
-                            self.test_hyps_and_start_threads()
-                        elif len(not_defined) == 0 and len(dead) == 0:
+                        self.manager.update_info_threads_engine()
+
+                        #if len(self.manager.threads_info_main['not_defined']) > 0 and len(self.manager.dict_hyps_ready) == 0:
+                        if len(self.manager.threads_info_main['not_defined']) > 0 or len(self.manager.threads_info_main['dead']) > 0:
+                            print('MAIN THREADS starting, wait a second extra')
+                            sleep(1)
+                            self.manager.update_info_threads_engine()
+                            pprint.pprint(self.manager.threads_info_main)
+                            #self.test_hyps_and_start_threads()
+                        if len(self.manager.threads_info_main['not_defined']) == 0 and len(self.manager.threads_info_main['dead']) == 0:
                             update_table_field('engine', 'engine', 'status_all_threads', 'Started')
-                            self.manager.num_workers = len(self.manager.t_workers)
-                            self.manager.threads_started = True
+                            self.manager.threads_main_started = True
                             break
+
+                # TEST HYPS AND START THREADS FOR HYPERVISORS
+                self.test_hyps_and_start_threads()
+                self.manager.num_workers = len(self.manager.t_workers)
+
+                # Test hypervisor disk operations
+                # Create Test disk in hypervisor disk operations
+                if first_loop is True:
+                    first_loop = False
+                    # virtio_test_disk_relative_path = 'admin/admin/admin/virtio_testdisk.qcow2'
+                    # ui.creating_test_disk(test_disk_relative_route=virtio_test_disk_relative_path)
+
+                self.manager.update_info_threads_engine()
+                if len(self.manager.threads_info_hyps['not_defined']) > 0:
+                    logs.main.error('something was wrong when launching threads for hypervisors, threads not defined')
+                    logs.main.error(pprint.pformat(self.manager.threads_info_hyps))
+                if len(self.manager.threads_info_hyps['dead']) > 0:
+                    logs.main.error('something was wrong when launching threads for hypervisors, threads are dead')
+                    logs.main.error(pprint.pformat(self.manager.threads_info_hyps))
+                if len(self.manager.threads_info_hyps['dead']) == 0 and len(self.manager.threads_info_hyps['not_defined']) == 0:
+                    pass
 
                 try:
                     action = q.get(timeout=self.manager.TEST_HYP_FAIL_INTERVAL)
@@ -451,12 +492,6 @@ class ManagerHypervisors(object):
             logs.changes.debug('^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^')
             ui = UiActions(self.manager)
 
-            # Test hypervisor disk operations
-            # Create Test disk in hypervisor disk operations
-            virtio_test_disk_relative_path = 'admin/admin/admin/virtio_testdisk.qcow2'
-            ui.creating_test_disk(test_disk_relative_route=virtio_test_disk_relative_path)
-
-
             self.r_conn = new_rethink_connection()
 
             cursor = r.table('domains').pluck('id', 'kind', 'status', 'detail').merge({'table': 'domains'}).changes().\
@@ -490,7 +525,6 @@ class ManagerHypervisors(object):
                 new_domain = False
                 new_status = False
                 old_status = False
-                import pprint
                 logs.changes.debug(pprint.pformat(c))
 
 
