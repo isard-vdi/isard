@@ -26,6 +26,9 @@ from engine.services.lib.functions import hostname_to_uri, get_tid
 from engine.services.log import *
 
 
+NUM_TRY_REGISTER_EVENTS = 5
+SLEEP_BETWEEN_TRY_REGISTER_EVENTS = 1.0
+
 # Reference: https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
 from pprint import pprint
 def virEventLoopNativeRun(stop):
@@ -61,6 +64,7 @@ def virEventLoopNativeStart(stop):
 ##########################################################################
 
 def domEventToString(event):
+    #from https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
     domEventStrings = ("Defined",
                        "Undefined",
                        "Started",
@@ -75,18 +79,26 @@ def domEventToString(event):
 
 
 def domDetailToString(event, detail):
-    domEventStrings = (
-        ("Added", "Updated"),
-        ("Removed",),
-        ("Booted", "Migrated", "Restored", "Snapshot", "Wakeup"),
-        ("Paused", "Migrated", "IOError", "Watchdog", "Restored", "Snapshot", "API error"),
-        ("Unpaused", "Migrated", "Snapshot"),
-        ("Shutdown", "Destroyed", "Crashed", "Migrated", "Saved", "Failed", "Snapshot"),
-        ("Finished",),
-        ("Memory", "Disk"),
-        ("Panicked",),
+    # from https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
+    DOM_EVENTS = (
+        ("Defined", ("Added", "Updated", "Renamed", "Snapshot")),
+        ("Undefined", ("Removed", "Renamed")),
+        ("Started", ("Booted", "Migrated", "Restored", "Snapshot", "Wakeup")),
+        ("Suspended", ("Paused", "Migrated", "IOError", "Watchdog", "Restored", "Snapshot", "API error", "Postcopy",
+                       "Postcopy failed")),
+        ("Resumed", ("Unpaused", "Migrated", "Snapshot", "Postcopy")),
+        ("Stopped", ("Shutdown", "Destroyed", "Crashed", "Migrated", "Saved", "Failed", "Snapshot", "Daemon")),
+        ("Shutdown", ("Finished", "On guest request", "On host request")),
+        ("PMSuspended", ("Memory", "Disk")),
+        ("Crashed", ("Panicked",)),
     )
-    return domEventStrings[event][detail]
+    try:
+        return DOM_EVENTS[event][1][detail]
+    except Exception as e:
+        logs.status.error(f'Detail not defined in DOM_EVENTS. index_event:{event}, index_detail{detail}')
+        logs.status.error(e)
+        return 'Detail undefined'
+
 
 
 def blockJobTypeToString(type):
@@ -501,8 +513,17 @@ class ThreadHypEvents(threading.Thread):
             logs.status.error(e)
 
         if conn_ok is True:
-            self.events_ids[hyp_id] = self.register_events(self.hyps_conn[hyp_id])
-            self.hyps[hyp_id] = hostname
+            for i in range(NUM_TRY_REGISTER_EVENTS):
+                #try 5
+                try:
+                    self.events_ids[hyp_id] = self.register_events(self.hyps_conn[hyp_id])
+                    self.hyps[hyp_id] = hostname
+                    break
+                except libvirt.libvirtError as e:
+                    logs.status.error(f'Error when register_events, wait {SLEEP_BETWEEN_TRY_REGISTER_EVENTS}, try {i+1} of {NUM_TRY_REGISTER_EVENTS}')
+                    logs.status.error(e)
+                time.sleep(SLEEP_BETWEEN_TRY_REGISTER_EVENTS)
+
 
     def del_hyp_to_receive_events(self, hyp_id):
         self.unregister_events(self.hyps_conn[hyp_id], self.events_ids[hyp_id])

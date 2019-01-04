@@ -82,12 +82,11 @@ def stop_threads():
 @api.route('/engine_restart', methods=['GET'])
 def engine_restart():
 
-
     app.m.stop_threads()
 
     while True:
-        alive, dead, not_defined = app.m.update_info_threads_engine()
-        if len(alive) == 0:
+        app.m.update_info_threads_engine()
+        if len(app.m.threads_info_main['alive']) == 0 and len(app.m.threads_info_hyps['alive']) == 0:
             action = {}
             action['type'] = 'stop'
             app.m.q.background.put(action)
