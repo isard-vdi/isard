@@ -158,7 +158,18 @@ function setViewerButtons(id,socket,offer){
 function startClientViewerSocket(socket){
     socket.on('domain_viewer', function (data) {
         var data = JSON.parse(data);
-        $("#hiddenpass-"+data["id"]).val('proves');
+        
+			th = document.createElement('th');
+			th.onclick = function () {
+				//~ this.parentElement.removeChild(this);
+				copyToClipboard('la password');
+			};
+            var ev = document.createEvent("MouseEvents");
+                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                th.dispatchEvent(ev);      
+
+        
+        //~ $("#btn-pwd-"+data["id"]).data('pwd')='1234';
         if(data['kind']=='url'){
             viewer=data['viewer']
             window.open(viewer.replace('<domain>',document.domain));            
@@ -205,15 +216,16 @@ function getOS() {
 }
 
 
-//~ function copyToClipboard(el) {
-  //~ var $temp = $("<input>");
-  //~ $("body").append($temp);
-  //~ id=$(el).data('id')
+function copyToClipboard(pwd) {
+  var $temp = $("<input>");
+  $("body").append($temp);
+  //~ pwd=$(el).data('pwd')
+  //~ console.log(pwd)
   //~ console.log($("#hiddenpass-"+id).text())
-  //~ $temp.val($("#hiddenpass-"+id).text()).select();
-  //~ document.execCommand("copy");
-  //~ $temp.remove();
-//~ }
+  $temp.val(pwd).select();
+  document.execCommand("copy");
+  $temp.remove();
+}
     
 //~ function getClientViewer(data,socket){
 				//~ if(detectXpiPlugin()){
