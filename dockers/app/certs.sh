@@ -6,7 +6,7 @@ then
 else
 	echo "$public_key not found, generating new ones."
 	cat /dev/zero | ssh-keygen -q -N ""
-	mv /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys 
+	cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys 
 
     #ssh-keyscan isard-hypervisor > /tmp/known_hosts
     #DIFF=$(diff /root/.ssh/know_hosts /tmp/known_hosts) 
