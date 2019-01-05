@@ -24,7 +24,7 @@ RUN apk add supervisor
 RUN mkdir -p /var/log/supervisor
 COPY dockers/app/supervisord.conf /etc/supervisord.conf
 
+EXPOSE 5000
+
 COPY dockers/app/certs.sh /
-CMD /usr/bin/supervisord -c /etc/supervisord.conf
-#CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-#CMD ["sh", "/init.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
