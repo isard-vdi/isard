@@ -21,7 +21,7 @@ services:
 
     isard-nginx:
         restart: always
-        image: isard/nginx:1.0.0
+        image: isard/nginx:1.0
         build:
             context: .
             dockerfile: dockers/nginx/Dockerfile
@@ -41,7 +41,7 @@ services:
                 
     isard-hypervisor:
         restart: always
-        image: isard/hypervisor:1.0.0
+        image: isard/hypervisor:1.0
         build:
             context: .
             dockerfile: dockers/hypervisor/Dockerfile
@@ -64,7 +64,7 @@ services:
         
     isard-app:
         restart: always
-        image: isard/app:1.0.0
+        image: isard/app:1.0
         build:
             context: .
             dockerfile: dockers/app/Dockerfile
@@ -73,6 +73,7 @@ services:
             - "isard-hypervisor"
         hostname: isard-app
         volumes:
+            - "/home/darta/jvinolas/isard/src:/isard"
             - "sshkeys:/root/.ssh"
             - "/opt/isard/certs:/certs"
             - "/opt/isard/logs:/isard/logs"
