@@ -7,7 +7,7 @@ RUN apk add qemu-system-x86_64 libvirt netcat-openbsd libvirt-daemon dbus polkit
 RUN ln -s /usr/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
 RUN apk add openssh curl bash
 RUN ssh-keygen -A
-COPY reset-hyper.sh /
+ADD dockers/hypervisor/reset-hyper.sh /
 RUN chmod 744 reset-hyper.sh
 
 RUN echo "root:isard" |chpasswd

@@ -15,7 +15,7 @@ services:
         target: /etc/pki/libvirt-spice
         read_only: false
     ports:
-      - "2022:22"
+      - "22:22"
       - "5900-5949:5900-5949"
       - "55900-55949:55900-55949"
     image: isard/hypervisor:1.0
