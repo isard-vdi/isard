@@ -352,7 +352,7 @@ $(document).ready(function() {
 function actionsDomainDetail(){
     
 	$('.btn-edit').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             //~ console.log(pk)
 			setHardwareOptions('#modalEditDesktop');
             setHardwareDomainDefaults('#modalEditDesktop',pk);
@@ -367,7 +367,7 @@ function actionsDomainDetail(){
 	});
 
 	$('.btn-xml').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalEditXmlForm")[0].reset();
 			$('#modalEditXml').modal({
 				backdrop: 'static',
@@ -380,12 +380,50 @@ function actionsDomainDetail(){
                 success: function(data)
                 {
                     var data = JSON.parse(data);
-                    $('#xml').val(data);
+                    $('#modalEditXmlForm #xml').val(data);
                 }				
             });
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
 	});
+    
+	$('.btn-events').on('click', function () {
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
+            $("#modalShowInfoForm")[0].reset();
+			$('#modalShowInfo').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalShowInfoForm #id').val(pk);
+            $.ajax({
+                type: "GET",
+                url:"/admin/domains/events/" + pk,
+                success: function(data)
+                {
+                    var data = JSON.parse(data);
+                    $('#modalShowInfoForm #xml').val(JSON.stringify(data, undefined, 4));
+                }				
+            });
+	});
+	
+	$('.btn-messages').on('click', function () {
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
+            $("#modalShowInfoForm")[0].reset();
+			$('#modalShowInfo').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalShowInfoForm #id').val(pk);
+            $.ajax({
+                type: "GET",
+                url:"/admin/domains/messages/" + pk,
+                success: function(data)
+                {
+                    //~ var data = JSON.parse(data);
+                    $('#modalShowInfoForm #xml').val(JSON.stringify(data, undefined, 4));
+                }				
+            });
+	});	    
 
     if(url=="Desktops"){
 
@@ -401,7 +439,7 @@ function actionsDomainDetail(){
                     type: 'error'
                 });
             }else{	
-                var pk=$(this).closest("div").attr("data-pk");
+                var pk=$(this).closest("[data-pk]").attr("data-pk");
                 setDefaultsTemplate(pk);
                 setHardwareOptions('#modalTemplateDesktop');
                 setHardwareDomainDefaults('#modalTemplateDesktop',pk);
@@ -413,8 +451,8 @@ function actionsDomainDetail(){
         });
 
         $('.btn-delete').on('click', function () {
-                    var pk=$(this).closest("div").attr("data-pk");
-                    var name=$(this).closest("div").attr("data-name");
+                    var pk=$(this).closest("[data-pk]").attr("data-pk");
+                    var name=$(this).closest("[data-pk]").attr("data-name");
                     new PNotify({
                             title: 'Confirmation Needed',
                                 text: "Are you sure you want to delete virtual machine: "+name+"?",

@@ -80,44 +80,25 @@ def admin_domains_xml(id):
 @login_required
 @isAdmin
 def admin_domains_events(id):
-    # ~ if request.method == 'POST':
-        # ~ res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
-        # ~ if res:
-            # ~ return json.dumps(res), 200,  {'ContentType': 'application/json'}
-        # ~ else:
-            # ~ return json.dumps(res), 500,  {'ContentType': 'application/json'}
     return json.dumps(app.isardapi.get_domain_last_events(id)), 200, {'ContentType': 'application/json'}
 
 @app.route('/admin/domains/messages/<id>', methods=['GET'])
 @login_required
 @isAdmin
 def admin_domains_messages(id):
-    # ~ if request.method == 'POST':
-        # ~ res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
-        # ~ if res:
-            # ~ return json.dumps(res), 200,  {'ContentType': 'application/json'}
-        # ~ else:
-            # ~ return json.dumps(res), 500,  {'ContentType': 'application/json'}
     return json.dumps(app.isardapi.get_domain_last_messages(id)), 200, {'ContentType': 'application/json'}    
 
 
 
-'''
-VIRT BUILDER TESTS (IMPORT NEW BUILDERS?)
-'''
-@app.route('/admin/domains/virtrebuild')
-@login_required
-@isAdmin
-def admin_domains_get_builders():
-    #~ import subprocess
-    #~ command_output=subprocess.getoutput(['virt-builder --list'])
-    #~ blist=[]
-    #~ for l in command_output.split('\n'):
-            #~ blist.append({'dwn':False,'id':l[0:24].strip(),'arch':l[25:35].strip(),'name':l[36:].strip()})
-    #~ app.adminapi.cmd_virtbuilder('cirros-0.3.1','/isard/cirros.qcow2','1')
-    app.adminapi.update_virtbuilder()
-    app.adminapi.update_virtinstall()
-    #~ images=app.adminapi.get_admin_table('domains_virt_builder')
-    return json.dumps(''), 200, {'ContentType': 'application/json'}
+# ~ '''
+# ~ VIRT BUILDER TESTS (IMPORT NEW BUILDERS?)
+# ~ '''
+# ~ @app.route('/admin/domains/virtrebuild')
+# ~ @login_required
+# ~ @isAdmin
+# ~ def admin_domains_get_builders():
+    # ~ app.adminapi.update_virtbuilder()
+    # ~ app.adminapi.update_virtinstall()
+    # ~ return json.dumps(''), 200, {'ContentType': 'application/json'}
 
 
