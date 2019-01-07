@@ -1,0 +1,26 @@
+version: "3.2"
+services:
+  isard-hypervisor:
+    volumes:
+      - type: volume
+        source: sshkeys
+        target: /root/.ssh
+        read_only: false
+      - type: bind
+        source: /opt/isard
+        target: /isard
+        read_only: false
+      - type: bind
+        source: /opt/isard/certs/default
+        target: /etc/pki/libvirt-spice
+        read_only: false
+    ports:
+      - "2022:22"
+      - "5900-5949:5900-5949"
+      - "55900-55949:55900-55949"
+    image: isard/hypervisor:1.0
+    privileged: true
+    restart: always
+        
+volumes:
+  sshkeys:
