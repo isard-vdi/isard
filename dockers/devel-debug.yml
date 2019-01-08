@@ -25,7 +25,7 @@ services:
 
     isard-nginx:
         restart: always
-        image: isard/nginx:1.0.1b
+        image: isard/nginx:1.1
         build:
             context: .
             dockerfile: dockers/nginx/Dockerfile
@@ -44,7 +44,7 @@ services:
 
     isard-hypervisor:
         restart: always
-        image: isard/hypervisor:1.0.1b
+        image: isard/hypervisor:1.1
         build:
             context: .
             dockerfile: dockers/hypervisor/Dockerfile
@@ -67,7 +67,7 @@ services:
         
     isard-app:
         restart: always
-        image: isard/app:1.0.0
+        image: isard/app:1.1
         build:
             context: .
             dockerfile: dockers/app_devel/Dockerfile
