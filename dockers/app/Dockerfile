@@ -27,4 +27,5 @@ COPY dockers/app/supervisord.conf /etc/supervisord.conf
 EXPOSE 5000
 
 COPY dockers/app/certs.sh /
+COPY dockers/app/add-hypervisor.sh /
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
