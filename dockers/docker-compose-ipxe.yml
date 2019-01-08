@@ -1,0 +1,165 @@
+version: "3.2"
+services:
+  isard-database:
+    volumes:
+      - type: bind
+        source: /opt/isard/database
+        target: /data
+        read_only: false
+    networks:
+      - isard_network
+    image: rethinkdb
+    restart: always
+
+  isard-nginx:
+    volumes:
+      - type: bind
+        source: /opt/isard/certs/default
+        target: /etc/nginx/external
+        read_only: false
+      - type: bind
+        source: /opt/isard/logs/nginx
+        target: /var/log/nginx
+        read_only: false
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    networks:
+      - isard_network
+    image: isard/nginx:1.1
+    restart: always
+  isard-hypervisor:
+    volumes:
+      - type: volume
+
+        source: sshkeys
+        target: /root/.ssh
+        read_only: false
+      - type: bind
+        source: /opt/isard
+        target: /isard
+        read_only: false
+      - type: bind
+        source: /opt/isard/certs/default
+        target: /etc/pki/libvirt-spice
+        read_only: false
+    ports:
+      - "5900-5949:5900-5949"
+      - "55900-55949:55900-55949"
+    networks:
+      - isard_network
+    image: isard/hypervisor:1.1
+    privileged: true
+    restart: always
+        
+  isard-app:
+    volumes:
+      - type: volume
+        source: sshkeys
+        target: /root/.ssh
+        read_only: false
+      - type: bind
+        source: /opt/isard/certs
+        target: /certs
+        read_only: false
+      - type: bind
+        source: /opt/isard/logs
+        target: /isard/logs
+        read_only: false
+      - type: bind
+        source: /opt/isard/database/wizard
+        target: /isard/install/wizard
+        read_only: false
+      - type: bind
+        source: /opt/isard/backups
+        target: /isard/backups
+        read_only: false
+      - type: bind
+        source: /opt/isard/uploads
+        target: /isard/uploads
+        read_only: false
+    extra_hosts:
+      - "isard-engine:127.0.0.1"
+    networks:
+      - isard_network
+    image: isard/app:1.1
+    restart: always
+    depends_on:
+      - isard-database
+      - isard-hypervisor
+      - isard-nginx
+
+  isard-ipxe:
+    volumes:
+      - type: bind
+        source: ./nfs/images
+        target: /data
+        read_only: true
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: host
+    networks:
+      - isard_network
+    image: isard/ipxe:1.0
+    restart: always
+
+  isard-dhcp:
+    volumes:
+      - type: volume
+        source: dhcp_leases
+        target: /var/lib/dhcp
+        read_only: false
+      - type: bind
+        source: ./dhcp/dhcpd.conf
+        target: /etc/dhcpd
+        read_only: true
+    ports:
+      - target: 67
+        published: 67
+        protocol: tcp
+        mode: host
+      - target: 67
+        published: 67
+        protocol: udp
+        mode: host
+    network_mode: host
+    image: isard/dhcp:1.1
+    restart: always
+    depends_on:
+      - isard-tftp
+
+  isard-tftp:
+    volumes:
+      - type: bind
+        source: ./tftp/images
+        target: /var/tftpboot
+        read_only: true
+    ports:
+      - target: 69
+        published: 69
+        protocol: tcp
+        mode: host
+      - target: 69
+        published: 69
+        protocol: udp
+        mode: host
+    image: isard/tftp:1.1
+    restart: always
+    depends_on:
+      - isard-ipxe
+
+volumes:
+  sshkeys:
+  dhcp_leases:
+
+networks:
+  isard_network:
+    external: false
