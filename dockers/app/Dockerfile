@@ -1,7 +1,7 @@
 FROM isard/alpine-pandas:latest
 MAINTAINER isard <info@isard.com>
 
-RUN apk add --no-cache bash yarn py3-libvirt py3-paramiko py3-lxml py3-xmltodict py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-flask-login py3-netaddr py3-requests curl openssh-client
+RUN apk add --no-cache bash yarn py3-libvirt py3-paramiko py3-lxml py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-netaddr py3-requests curl openssh-client
 
 RUN mkdir /isard
 ADD ./src /isard
