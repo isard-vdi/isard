@@ -98,7 +98,7 @@ services:
   isard-ipxe:
     volumes:
       - type: bind
-        source: ./nfs/images
+        source: /opt/isard/ipxe/images
         target: /data
         read_only: true
     ports:
@@ -113,12 +113,12 @@ services:
 
   isard-dhcp:
     volumes:
-      - type: volume
-        source: dhcp_leases
+      - type: bind
+        source: /opt/isard/ipxe/dhcp_leases
         target: /var/lib/dhcp
         read_only: false
       - type: bind
-        source: ./dhcp/dhcpd.conf
+        source: /opt/isard/ipxe/conf/dhcpd.conf
         target: /etc/dhcpd
         read_only: true
     ports:
@@ -139,7 +139,7 @@ services:
   isard-tftp:
     volumes:
       - type: bind
-        source: ./tftp/images
+        source: /opt/isard/ipxe/images
         target: /var/tftpboot
         read_only: true
     ports:
@@ -155,6 +155,28 @@ services:
     restart: always
     depends_on:
       - isard-ipxe
+
+  isard-nfs
+    volumes:
+      - type: bind
+        source: /opt/isard/ipxe/images
+        target: /nfs/images
+        read_only: true
+    ports:
+      - target: 2049
+        published: 2049
+        protocol: tcp
+        mode: host
+      - target: 111
+        published: 111
+        protocol: udp
+        mode: host
+    image: isard/nfs:1.1
+    privileged: true
+    restart: always
+    depends_on:
+      - isard-ipxe
+
 
 volumes:
   sshkeys:
