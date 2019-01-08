@@ -61,7 +61,7 @@ POLLING_INTERVAL_BACKGROUND = rconfig['intervals']['background_polling']
 POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig['intervals']['transitional_states_polling']
 GRAFANA = grafana
 
-TRANSITIONAL_STATUS = ('Starting', 'Stopping')
+TRANSITIONAL_STATUS = ('Starting', 'Stopping', 'Deleting')
 
 # CONFIG_DICT = {k: {l[0]:l[1] for l in c.items(k)} for k in c.sections()}
 
