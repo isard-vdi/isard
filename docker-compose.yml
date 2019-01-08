@@ -32,7 +32,7 @@ services:
         mode: host
     networks:
       - isard_network
-    image: isard/nginx:1.0
+    image: isard/nginx:1.1
     restart: always
 
   isard-hypervisor:
@@ -54,7 +54,7 @@ services:
       - "55900-55949:55900-55949"
     networks:
       - isard_network
-    image: isard/hypervisor:1.0
+    image: isard/hypervisor:1.1
     privileged: true
     restart: always
         
@@ -88,7 +88,7 @@ services:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
-    image: isard/app:1.0
+    image: isard/app:1.1
     restart: always
     depends_on:
       - isard-database
