@@ -62,8 +62,8 @@ def launch_disk_operations_thread(hyp_id, hostname, user='root', port=22):
                                                  hyp_id=hyp_id,
                                                  hostname=hostname,
                                                  queue_actions=queue_disk_operation,
-                                                 user='root',
-                                                 port=22)
+                                                 user=user,
+                                                 port=port)
     thread_disk_operation.daemon = True
     thread_disk_operation.start()
     return thread_disk_operation, queue_disk_operation
@@ -78,8 +78,8 @@ def launch_long_operations_thread(hyp_id, hostname, user='root', port=22):
                                                  hyp_id=hyp_id,
                                                  hostname=hostname,
                                                  queue_actions=queue_long_operation,
-                                                 user='root',
-                                                 port=22)
+                                                 user=user,
+                                                 port=port)
     thread_long_operation.daemon = True
     thread_long_operation.start()
     return thread_long_operation, queue_long_operation
