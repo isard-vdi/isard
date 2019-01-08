@@ -60,10 +60,6 @@ services:
         
   isard-app:
     volumes:
-      - type: bind
-        source: /home/darta/jvinolas/isard/src
-        target: /isard
-        read_only: false
       - type: volume
         source: sshkeys
         target: /root/.ssh
