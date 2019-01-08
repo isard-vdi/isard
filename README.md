@@ -42,7 +42,7 @@ It will create a template from that desktop as it was now. You can create as man
 
 In Updates menu you will have access to different resources you can download from our IsardVDI updates server.
 
-![Main admin screen](docs/images/main.png?raw=true "Main admin")
+![Main admin screen](https://isardvdi.readthedocs.io/en/latest/images/main.png)
 
 ## Documentation
 
