@@ -5,97 +5,6 @@
 * License: AGPLv3
 */
 
-//~ function chooseViewer(data,socket){
-	//~ os=getOS()
-	//~ new PNotify({
-		//~ title: 'Choose display connection',
-		//~ text: 'Open in browser (html5) or download remote-viewer file.',
-		//~ icon: 'glyphicon glyphicon-question-sign',
-		//~ hide: false,
-		//~ delay: 3000,
-		//~ confirm: {
-			//~ confirm: true,
-			//~ buttons: [
-				//~ {
-					//~ text: 'SPICE BROWSER',
-					//~ addClass: 'btn-primary',
-					//~ click: function(notice){
-						//~ notice.update({
-							//~ title: 'You choosed spice browser viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
-							//~ confirm: {
-								//~ confirm: false
-							//~ },
-							//~ buttons: {
-								//~ closer: true,
-								//~ sticker: false
-							//~ }
-						//~ });                                            
-						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'spice-html5','os':os});
-					//~ }
-				//~ },
-				//~ {
-					//~ text: 'SPICE CLIENT',
-					//~ addClass: 'btn-primary',
-					//~ click: function(notice){
-						//~ notice.update({
-							//~ title: 'You choosed spice client viewer', text: 'File will be downloaded. Open it with spice remote-viewer.', icon: true, type: 'info', hide: true,
-							//~ confirm: {
-								//~ confirm: false
-							//~ },
-							//~ buttons: {
-								//~ closer: true,
-								//~ sticker: false
-							//~ }
-						//~ });                                            
-						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'spice-client','os':os});
-					//~ }
-				//~ },				
-				//~ {
-					//~ text: 'VNC BROWSER',
-					//~ addClass: 'btn-primary',
-					//~ click: function(notice){
-						//~ notice.update({
-							//~ title: 'You choosed VNC browser viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
-							//~ confirm: {
-								//~ confirm: false
-							//~ },
-							//~ buttons: {
-								//~ closer: true,
-								//~ sticker: false
-							//~ }
-						//~ });                                            
-						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'vnc-html5','os':os});
-					//~ }
-				//~ },
-				//~ {
-					//~ text: 'VNC CLIENT',
-					//~ addClass: 'btn-primary',
-					//~ click: function(notice){
-						//~ notice.update({
-							//~ title: 'You choosed VNC client viewer', text: 'File will be downloaded. Open it with VNC client app.', icon: true, type: 'info', hide: true,
-							//~ confirm: {
-								//~ confirm: false
-							//~ },
-							//~ buttons: {
-								//~ closer: true,
-								//~ sticker: false
-							//~ }
-						//~ });                                            
-						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'vnc-client','os':os});
-					//~ }
-				//~ },	
-			//~ ]
-		//~ },
-		//~ buttons: {
-			//~ closer: false,
-			//~ sticker: false
-		//~ },
-		//~ history: {
-			//~ history: false
-		//~ }
-	//~ });                        
-//~ }
-
 function setViewerButtons(id,socket,offer){
     offer=[
              {
@@ -158,7 +67,7 @@ function setViewerButtons(id,socket,offer){
 function startClientViewerSocket(socket){
     socket.on('domain_viewer', function (data) {
         var data = JSON.parse(data);
-        $("#hiddenpass-"+data["id"]).val('proves');
+       
         if(data['kind']=='url'){
             viewer=data['viewer']
             window.open(viewer.replace('<domain>',document.domain));            
@@ -203,17 +112,6 @@ function getOS() {
 
       return os;
 }
-
-
-//~ function copyToClipboard(el) {
-  //~ var $temp = $("<input>");
-  //~ $("body").append($temp);
-  //~ id=$(el).data('id')
-  //~ console.log($("#hiddenpass-"+id).text())
-  //~ $temp.val($("#hiddenpass-"+id).text()).select();
-  //~ document.execCommand("copy");
-  //~ $temp.remove();
-//~ }
     
 //~ function getClientViewer(data,socket){
 				//~ if(detectXpiPlugin()){
@@ -371,4 +269,93 @@ function getOS() {
 		//~ embed.connect();
 	//~ }
   
-
+//~ function chooseViewer(data,socket){
+	//~ os=getOS()
+	//~ new PNotify({
+		//~ title: 'Choose display connection',
+		//~ text: 'Open in browser (html5) or download remote-viewer file.',
+		//~ icon: 'glyphicon glyphicon-question-sign',
+		//~ hide: false,
+		//~ delay: 3000,
+		//~ confirm: {
+			//~ confirm: true,
+			//~ buttons: [
+				//~ {
+					//~ text: 'SPICE BROWSER',
+					//~ addClass: 'btn-primary',
+					//~ click: function(notice){
+						//~ notice.update({
+							//~ title: 'You choosed spice browser viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
+							//~ confirm: {
+								//~ confirm: false
+							//~ },
+							//~ buttons: {
+								//~ closer: true,
+								//~ sticker: false
+							//~ }
+						//~ });                                            
+						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'spice-html5','os':os});
+					//~ }
+				//~ },
+				//~ {
+					//~ text: 'SPICE CLIENT',
+					//~ addClass: 'btn-primary',
+					//~ click: function(notice){
+						//~ notice.update({
+							//~ title: 'You choosed spice client viewer', text: 'File will be downloaded. Open it with spice remote-viewer.', icon: true, type: 'info', hide: true,
+							//~ confirm: {
+								//~ confirm: false
+							//~ },
+							//~ buttons: {
+								//~ closer: true,
+								//~ sticker: false
+							//~ }
+						//~ });                                            
+						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'spice-client','os':os});
+					//~ }
+				//~ },				
+				//~ {
+					//~ text: 'VNC BROWSER',
+					//~ addClass: 'btn-primary',
+					//~ click: function(notice){
+						//~ notice.update({
+							//~ title: 'You choosed VNC browser viewer', text: 'Viewer will be opened in new window.\n Please allow popups!', icon: true, type: 'info', hide: true,
+							//~ confirm: {
+								//~ confirm: false
+							//~ },
+							//~ buttons: {
+								//~ closer: true,
+								//~ sticker: false
+							//~ }
+						//~ });                                            
+						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'vnc-html5','os':os});
+					//~ }
+				//~ },
+				//~ {
+					//~ text: 'VNC CLIENT',
+					//~ addClass: 'btn-primary',
+					//~ click: function(notice){
+						//~ notice.update({
+							//~ title: 'You choosed VNC client viewer', text: 'File will be downloaded. Open it with VNC client app.', icon: true, type: 'info', hide: true,
+							//~ confirm: {
+								//~ confirm: false
+							//~ },
+							//~ buttons: {
+								//~ closer: true,
+								//~ sticker: false
+							//~ }
+						//~ });                                            
+						//~ socket.emit('domain_viewer',{'pk':data['id'],'kind':'vnc-client','os':os});
+					//~ }
+				//~ },	
+			//~ ]
+		//~ },
+		//~ buttons: {
+			//~ closer: false,
+			//~ sticker: false
+		//~ },
+		//~ history: {
+			//~ history: false
+		//~ }
+	//~ });                        
+//~ }

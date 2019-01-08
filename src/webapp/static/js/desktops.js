@@ -335,7 +335,7 @@ $(document).ready(function() {
 
 function actionsDesktopDetail(){
 	$('.btn-edit').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
             setHardwareDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
@@ -363,7 +363,7 @@ function actionsDesktopDetail(){
                 type: 'error'
             });
 		}else{	
-			var pk=$(this).closest("div").attr("data-pk");
+			var pk=$(this).closest("[data-pk]").attr("data-pk");
             
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
@@ -382,8 +382,8 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-delete').on('click', function () {
-				var pk=$(this).closest("div").attr("data-pk");
-				var name=$(this).closest("div").attr("data-name");
+				var pk=$(this).closest("[data-pk]").attr("data-pk");
+				var name=$(this).closest("[data-pk]").attr("data-name");
 				new PNotify({
 						title: 'Confirmation Needed',
 							text: "Are you sure you want to delete virtual machine: "+name+"?",
@@ -407,7 +407,7 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-xml').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
 			$('#modalEditXml').modal({
 				backdrop: 'static',
@@ -428,7 +428,7 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-events').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
 			$('#modalShowInfo').modal({
 				backdrop: 'static',
@@ -449,7 +449,7 @@ function actionsDesktopDetail(){
 	});
 	
 	$('.btn-messages').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
 			$('#modalShowInfo').modal({
 				backdrop: 'static',
