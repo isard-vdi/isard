@@ -1,7 +1,7 @@
-FROM isard/alpine-pandas:1.0.0
+FROM isard/alpine-pandas:latest
 MAINTAINER isard <info@isard.com>
 
-RUN apk add --no-cache git yarn py3-libvirt py3-paramiko py3-lxml py3-xmltodict py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-flask-login py3-netaddr py3-requests curl
+RUN apk add --no-cache bash yarn py3-libvirt py3-paramiko py3-lxml py3-xmltodict py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-flask-login py3-netaddr py3-requests curl openssh-client
 
 RUN mkdir /isard
 ADD ./src /isard
@@ -16,11 +16,7 @@ RUN echo "Host isard-hypervisor \
 	StrictHostKeyChecking no" >/root/.ssh/config
 RUN chmod 600 /root/.ssh/config
 
-RUN apk add --update bash
-RUN apk add yarn
-RUN apk add openssh-client
-
-RUN apk add supervisor
+RUN apk add --no-cache supervisor
 RUN mkdir -p /var/log/supervisor
 COPY dockers/app/supervisord.conf /etc/supervisord.conf
 
@@ -28,4 +24,5 @@ EXPOSE 5000
 
 COPY dockers/app/certs.sh /
 COPY dockers/app/add-hypervisor.sh /
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

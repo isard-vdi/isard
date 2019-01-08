@@ -62,3 +62,6 @@ Go to [IsardVDI Project website](http://www.isardvdi.com/)
 
 ### Support/Contact
 Please send us an email to info@isardvdi.com if you have any questions or fill in an issue.
+
+### Social Networks
+Twitter: @isard_vdi
