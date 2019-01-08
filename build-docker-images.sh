@@ -14,11 +14,11 @@ PATCH=$1
 set -e
 
 # Checkout to the specified version tag
-#git checkout $1 > /dev/null
+git checkout $1 > /dev/null
 
 # Array containing all the images to build
 images=(
-#	alpine-pandas
+	alpine-pandas
 	nginx
 	hypervisor
 	app
