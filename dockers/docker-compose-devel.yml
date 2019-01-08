@@ -8,6 +8,17 @@ services:
         read_only: false
     networks:
       - isard_network
+    ##### - only devel - ############################
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host
+      - target: 28015
+        published: 28015
+        protocol: tcp
+        mode: host
+    #################################################
     image: rethinkdb
     restart: always
 
@@ -32,7 +43,8 @@ services:
         mode: host
     networks:
       - isard_network
-    image: isard/nginx:1.1
+    image: "isard/nginx:${$PROVA}"
+    command: echo ${PROVA}
     restart: always
 
   isard-hypervisor:
@@ -54,7 +66,7 @@ services:
       - "55900-55949:55900-55949"
     networks:
       - isard_network
-    image: isard/hypervisor:1.1
+    image: "isard/hypervisor:${TAG_DEVEL}"
     privileged: true
     restart: always
         
@@ -84,11 +96,15 @@ services:
         source: /opt/isard/uploads
         target: /isard/uploads
         read_only: false
+      ##### - only devel - ############################
+      - "/opt/isard_devel/src:/isard"
+      - "/opt/ipython_profile_default:/root/.ipython/profile_default"
+      #################################################
     extra_hosts:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
-    image: isard/app:1.1
+    image: "isard/app_devel:${TAG_DEVEL}"
     restart: always
     depends_on:
       - isard-database
