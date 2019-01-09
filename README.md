@@ -1,5 +1,7 @@
 # Isard**VDI**
 
+<img align="right" src="src/webapp/static/img/isard.png" alt="IsardVDI Logo" width="150px;">
+
 [![](https://img.shields.io/github/release/isard-vdi/isard.svg)](https://github.com/isard-vdi/isard/releases) [![](https://img.shields.io/badge/docker--compose-ready-blue.svg)](https://github.com/isard-vdi/isard/blob/master/docker-compose.yml) [![](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://isardvdi.readthedocs.io/en/latest/) [![](https://img.shields.io/badge/license-AGPL%20v3.0-brightgreen.svg)](https://github.com/isard-vdi/isard/blob/master/LICENSE)
 
 Open Source KVM Virtual Desktops based on KVM Linux and dockers. 
