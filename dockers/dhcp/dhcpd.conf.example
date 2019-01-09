@@ -1,0 +1,40 @@
+#
+# dhcpd.conf
+#
+
+# General configuration
+default-lease-time 86400;
+max-lease-time 259200;
+option routers <ROUTER IP>;
+option subnet-mask <NETWORK MASK>;
+option broadcast-address <BROADCAST IP>;
+option domain-name-servers <DNS 1>, <DNS 2>;
+option domain-name "<BASE DOMAIN>";
+authoritative;
+
+# PXE Config
+allow booting;
+allow bootp;
+option client-arch code 93 = unsigned integer 16;
+if exists client-arch {
+  if option client-arch = 00:00 {
+    filename "bin/undionly.kpxe";
+  } elsif option client-arch = 00:06 {
+    filename "bin-i386-efi/ipxe.efi";
+  } elsif option client-arch = 00:07 {
+    filename "bin-x86_64-efi/ipxe.efi";
+  } elsif option client-arch = 00:09 {
+    filename "bin-x86_64-efi/ipxe.efi";
+  } elsif option client-arch = 00:0a {
+    filename "bin-arm32-efi/ipxe.efi";
+  } elsif option client-arch = 00:0b {
+    filename "bin-arm64-efi/ipxe.efi";
+  }
+}
+option tftp-server-name "<ISARD DOMAIN NAME>";
+next-server "<ISARD DOMAIN NAME>"
+
+# Subnets
+subnet <NETWORK IP> netmask <NETWORK MASK> {
+  range <FIRST LEASE IP> <LAST LEASE IP>;
+}
