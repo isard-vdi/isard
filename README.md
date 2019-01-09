@@ -66,6 +66,6 @@ Go to [IsardVDI Project website](http://www.isardvdi.com/)
 Please send us an email to info@isardvdi.com if you have any questions or fill in an issue.
 
 ### Social Networks
+Mastodon: [@isard@fosstodon.org](https://fosstodon.org/@isard)  
 Twitter: [@isard_vdi](https://twitter.com/isard_vdi)
-Mastodon: [@isard@fosstodon.org](https://fosstodon.org/@isard)
 
