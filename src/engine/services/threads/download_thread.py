@@ -11,6 +11,7 @@ from os.path import dirname
 import os
 import subprocess
 import rethinkdb as r
+from time import sleep
 
 from engine.config import CONFIG_DICT
 from engine.services.db.db import new_rethink_connection, remove_media
@@ -24,22 +25,27 @@ from engine.services.lib.qcow import get_host_disk_operations_from_path, get_pat
 from engine.services.lib.functions import get_tid
 
 URL_DOWNLOAD_INSECURE_SSL = True
+TIMEOUT_WAITING_HYPERVISOR_TO_DOWNLOAD = 10
 
 class DownloadThread(threading.Thread, object):
-    def __init__(self, hyp_hostname, url, path, table, id_down, dict_header, finalished_threads):
+    def __init__(self, url, path, path_selected, table, id_down, dict_header, finalished_threads,manager,pool_id,type_path_selected):
         threading.Thread.__init__(self)
         self.name = '_'.join([table, id_down])
         self.table = table
         self.path = path
+        self.path_selected = path_selected
         self.id = id_down
         self.url = url
         self.dict_header = dict_header
         self.stop = False
-        d = get_hyp_hostname_user_port_from_id(hyp_hostname)
-        self.hostname = d['hostname']
-        self.user = d['user']
-        self.port = d['port']
         self.finalished_threads = finalished_threads
+
+        self.manager =  manager
+        self.hostname = None
+        self.user = None
+        self.port = None
+        self.pool_id = pool_id
+        self.type_path_selected = type_path_selected
 
     def run(self):
 
@@ -58,6 +64,35 @@ class DownloadThread(threading.Thread, object):
         #
         # hyp_to_disk_create = get_host_disk_operations_from_path(path_selected, pool=self.pool,
         #                                                                 type_path=type_path_selected)
+
+        # hypervisor to launch download command
+        # wait to threads disk_operations are alive
+        time_elapsed = 0
+        path_selected = self.path_selected
+        while True:
+            if len(self.manager.t_disk_operations) > 0:
+
+                hyp_to_disk_create = get_host_disk_operations_from_path(path_selected,
+                                                                        pool=self.pool_id,
+                                                                        type_path=self.type_path_selected)
+                if self.manager.t_disk_operations.get(hyp_to_disk_create,False) is not False:
+                    if self.manager.t_disk_operations[hyp_to_disk_create].is_alive():
+                        d = get_hyp_hostname_user_port_from_id(hyp_to_disk_create)
+                        self.hostname = d['hostname']
+                        self.user = d['user']
+                        self.port = d['port']
+                        break
+            sleep(0.2)
+            time_elapsed += 0.2
+            if time_elapsed > TIMEOUT_WAITING_HYPERVISOR_TO_DOWNLOAD:
+                logs.downloads.info(f'Timeout ({TIMEOUT_WAITING_HYPERVISOR_TO_DOWNLOAD} sec) waiting hypervisor online to download {url_base}')
+                if self.table == 'domains':
+                    update_domain_status('DownloadFailed', self.id, detail="downloaded disk")
+                else:
+                    update_status_table(self.table, 'DownloadFailed', self.id)
+                self.finalished_threads.append(self.path)
+                return False
+
         header_template = "--header '{header_key}: {header_value}' "
         headers = ''
 
@@ -291,12 +326,6 @@ class DownloadChangesThread(threading.Thread):
         if len(subdir_url) > 0:
             url_base = url_base + '/' + subdir_url
 
-
-        # hypervisor to launch download command
-        hyp_to_disk_create = get_host_disk_operations_from_path(path_selected,
-                                                                pool=pool_id,
-                                                                type_path=type_path_selected)
-
         if dict_changes.get('url-web',False) is not False:
             url = dict_changes['url-web']
 
@@ -322,13 +351,16 @@ class DownloadChangesThread(threading.Thread):
 
         # launching download threads
         if new_file_path not in self.download_threads:
-            self.download_threads[new_file_path] = DownloadThread(hyp_to_disk_create,
-                                                                  url,
+            self.download_threads[new_file_path] = DownloadThread(url,
                                                                   new_file_path,
+                                                                  path_selected,
                                                                   table,
                                                                   id_down,
                                                                   header_dict,
-                                                                  self.finalished_threads)
+                                                                  self.finalished_threads,
+                                                                  self.manager,
+                                                                  pool_id,
+                                                                  type_path_selected)
             self.download_threads[new_file_path].daemon = True
             self.download_threads[new_file_path].start()
 

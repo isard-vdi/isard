@@ -21,7 +21,7 @@ images=(
 	#alpine-pandas
 	#nginx
 	#hypervisor
-	app_devel
+	app-devel
 )
 
 # Build all the images and tag them correctly

@@ -27,6 +27,8 @@ import os, time
     # ~ sys.exit(0)
 
 config_exists=False
+first_loop = True
+fail_first_loop = False
 while not config_exists:
     try:
         rcfg = configparser.ConfigParser()
@@ -34,11 +36,18 @@ while not config_exists:
         RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
         RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
         RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
+        if fail_first_loop:
+            print('ENGINE STARTING, isard.conf accesed')
         config_exists=True
     except:
-        print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+        if first_loop is True:
+            print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+            first_loop = False
+            fail_first_loop = True
         time.sleep(1)
 
+first_loop = True
+fail_first_loop = False
 table_exists=False
 while not table_exists:
     try:
@@ -47,8 +56,13 @@ while not table_exists:
             grafana= rconfig['grafana']
             rconfig = rconfig['engine']
         table_exists=True
+        if fail_first_loop:
+            print('ENGINE STARTING, database is online')
     except:
-        print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+        if first_loop is True:
+            print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+            first_loop = False
+            fail_first_loop = True
         time.sleep(1)
 #print(rconfig)
 
