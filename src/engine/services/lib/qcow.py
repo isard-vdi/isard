@@ -506,6 +506,7 @@ def test_hypers_disk_operations(hyps_disk_operations):
         d_hyp = get_hyp_hostname_user_port_from_id(hyp_id)
         cmds1 = list()
         for pool_id in get_pools_from_hyp(hyp_id):
+            # test write permissions in root dir of all paths defined in pool
             paths = {k: [l['path'] for l in d] for k, d in get_pool(pool_id)['paths'].items()}
             for k, p in paths.items():
                 for path in p:

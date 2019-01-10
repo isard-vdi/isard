@@ -73,7 +73,7 @@ services:
             - "isard-engine:127.0.0.1"
         networks:
             - isard_network
-        image: "isard/app_devel:${TAG_DEVEL}"
+        image: "isard/app-devel:${TAG_DEVEL}"
         restart: "no"
         depends_on:
             - "isard-database"
