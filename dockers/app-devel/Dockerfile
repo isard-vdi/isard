@@ -1,7 +1,8 @@
 FROM isard/alpine-pandas:latest
 MAINTAINER isard <info@isard.com>
 
-RUN apk add --no-cache git yarn py3-libvirt py3-paramiko py3-lxml py3-xmltodict py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-flask-login py3-netaddr py3-requests curl
+RUN apk add --no-cache git bash yarn py3-libvirt py3-paramiko py3-lxml py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-netaddr py3-requests curl openssh-client
+RUN apk add --no-cache git
 
 ######## only devel ########
 #RUN mkdir /isard
@@ -9,7 +10,7 @@ RUN apk add --no-cache git yarn py3-libvirt py3-paramiko py3-lxml py3-xmltodict 
 ############################
 
 ######## only devel ########
-COPY dockers/app_devel/requirements.pip3 /requirements.pip3
+COPY dockers/app-devel/requirements.pip3 /requirements.pip3
 ############################
 
 RUN pip3 install --no-cache-dir -r requirements.pip3
@@ -37,7 +38,7 @@ RUN apk add supervisor
 RUN mkdir -p /var/log/supervisor
 
 ######## only devel ########
-COPY dockers/app_devel/supervisord.conf /etc/supervisord.conf
+COPY dockers/app-devel/supervisord.conf /etc/supervisord.conf
 ############################
 
 COPY dockers/app/certs.sh /

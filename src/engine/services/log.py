@@ -36,6 +36,7 @@ LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
 # logger = log.getLogger()
 # logger.setLevel(LOG_LEVEL_NUM)
 # log.Formatter(fmt=LOG_FORMAT,datefmt=LOG_DATE_FORMAT)
+print(f'Engine log level: {LOG_LEVEL} ({LOG_LEVEL_NUM})')
 
 # log.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
 log.basicConfig(filename=LOG_DIR + '/' + LOG_FILE,

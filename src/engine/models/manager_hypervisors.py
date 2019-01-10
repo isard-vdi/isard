@@ -348,7 +348,7 @@ class ManagerHypervisors(object):
                     logs.main.debug('Launching Download Changes Thread')
                     self.manager.t_downloads_changes = launch_thread_download_changes(self.manager)
 
-                    #launch brrom thread
+                    #launch brom thread
                     self.manager.t_broom = launch_thread_broom(self.manager)
 
                     #launch events thread
