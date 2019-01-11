@@ -173,13 +173,21 @@ services:
   isard-nfs:
     volumes:
       - type: bind
-        source: /opt/isard/ipxe/images
-        target: /nfs/images
-        read_only: true
+        source: /opt/isard/ipxe/nfs
+        target: /nfs
+        read_only: false
     ports:
       - target: 2049
         published: 2049
         protocol: tcp
+        mode: host
+      - target: 111
+        published: 111
+        protocol: tcp
+        mode: host
+      - target: 2049
+        published: 2049
+        protocol: udp
         mode: host
       - target: 111
         published: 111
