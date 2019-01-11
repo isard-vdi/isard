@@ -7,7 +7,15 @@ function print_title() {
 }
 
 function main() {
+	# Create the out directories
+	print_title "Creating the out directories"
 	original_dir=$(pwd)
+
+	mkdir -p out/i386
+	mkdir out/x86_64
+	mkdir out/arm32
+	mkdir out/arm64
+
 
 	# Read the configuration 
 	# https://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
@@ -56,11 +64,21 @@ function main() {
 
 	# Compile the DHCP script
 	print_title "Compiling iPXE"
-	make bin/undionly.kpxe EMBED=./chain.ipxe TRUST=../../cert.pem
+	make bin-i386-pcbios/undionly.kpxe EMBED=./chain.ipxe TRUST=../../cert.pem
+	make bin-i386-efi/ipxe.efi EMBED=./chain.ipxe TRUST=../../cert.pem
+	make bin-x86_64-pcbios/undionly.kpxe EMBED=./chain.ipxe TRUST=../../cert.pem
+	make bin-x86_64-efi/ipxe.efi EMBED=./chain.ipxe TRUST=../../cert.pem
+	make bin-arm32-efi/ipxe.efi EMBED=./chain.ipxe TRUST=../../cert.pem
+	make bin-arm64-efi/ipxe.efi EMBED=./chain.ipxe TRUST=../../cert.pem
 
 	# Copy the generated files to the original directory
 	print_title "Copying the generated files"
-	cp bin/undionly.kpxe $original_dir
+	cp bin-i386-pcbios/undionly.kpxe $original_dir/out/i386
+	cp bin-i386-efi/ipxe.efi $original_dir/out/i386
+	cp bin-x86_64-pcbios/undionly.kpxe $original_dir/out/x86_64
+	cp bin-x86_64-efi/ipxe.efi $original_dir/out/x86_64
+	cp bin-arm32-efi/ipxe.efi $original_dir/out/arm32
+	cp bin-arm64-efi/ipxe.efi $original_dir/out/arm64
 
 	# Move back to the original_dir
 	cd $original_dir
