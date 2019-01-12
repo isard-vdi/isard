@@ -48,45 +48,45 @@ class isard():
 
     def update_table_status(self,user,table,data,remote_addr):
             item = table[:-1].capitalize()
-            # ~ with app.app_context():
-                # ~ dom = r.table('domains').get('pk').pluck('status','name')          
+            with app.app_context():
+                dom = r.table('domains').get(data['pk']).pluck('status','name')          
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
-                        if data['status'] in ['Downloading']:
+                        if dom['status'] in ['Downloading']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':item+' aborting success','text':item+' '+data['name']+' will be aborted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' aborting success','text':item+' '+dom['name']+' will be aborted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
-                                return json.dumps({'title':item+' aborting error','text':item+' '+data['name']+' can\'t be aborted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' aborting error','text':item+' '+data['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Stopping':
-                        if data['status'] in ['Downloading']:
+                        if dom['status'] in ['Downloading']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':item+' stopping success','text':item+' '+data['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' stopping success','text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
-                                return json.dumps({'title':item+' stopping error','text':item+' '+data['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' stopping error','text':item+' '+data['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Deleting':
-                        if data['status'] in ['Stopped','Failed']:
+                        if dom['status'] in ['Stopped','Failed']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':item+' deleting success','text':item+' '+data['name']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
-                                return json.dumps({'title':item+' deleting error','text':item+' '+data['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' deleting error','text':item+' '+data['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Starting':
-                        if data['status'] in ['Stopped','Failed']:
+                        if dom['status'] in ['Stopped','Failed']:
                             if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
-                                return json.dumps({'title':'Quota exceeded','text':item+' '+data['name']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                                return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
                             self.auto_interface_set(user,data['pk'],remote_addr)
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':item+' starting success','text':item+' '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' starting success','text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
-                                return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                                return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' starting error','text':item+' '+data['name']+' can\'t be started while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                 return json.dumps({'title':'Method not allowed','text':'That action is not allowed!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
                 log.error('Error updating status for '+data['pk']+': '+str(e))
