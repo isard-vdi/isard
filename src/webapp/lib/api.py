@@ -49,7 +49,7 @@ class isard():
     def update_table_status(self,user,table,data,remote_addr):
             item = table[:-1].capitalize()
             with app.app_context():
-                dom = r.table('domains').get(data['pk']).pluck('status','name')          
+                dom = r.table('domains').get(data['pk']).pluck('status','name').run(db.conn)          
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
@@ -89,8 +89,8 @@ class isard():
                             return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                 return json.dumps({'title':'Method not allowed','text':'That action is not allowed!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
-                log.error('Error updating status for '+data['pk']+': '+str(e))
-                return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                log.error('Error updating status for '+dom['name']+': '+str(e))
+                return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
     def auto_interface_set(self,user,id, remote_addr):
         with app.app_context():
