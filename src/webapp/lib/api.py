@@ -183,7 +183,7 @@ class isard():
             data=r.table('virt_install').run(db.conn)
             return self.f.table_values_bstrap(data)
     '''     
-	STATUS
+    STATUS
     '''
     def get_domain_last_messages(self, id):
         with app.app_context():
@@ -193,9 +193,9 @@ class isard():
         with app.app_context():
             return r.table('hypervisors_events').get_all(id, index='domain').order_by(r.desc('when')).limit(10).run(db.conn)
 
-	'''
-	USER
-	'''
+    '''
+    USER
+    '''
     def get_user(self, user):
         with app.app_context():
             user=self.f.flatten_dict(r.table('users').get(user).run(db.conn))
