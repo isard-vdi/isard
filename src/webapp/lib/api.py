@@ -61,7 +61,7 @@ class isard():
                         else:
                             return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Stopping':
-                        if dom['status'] in ['Downloading']:
+                        if dom['status'] in ['Started']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                                 return json.dumps({'title':item+' stopping success','text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
