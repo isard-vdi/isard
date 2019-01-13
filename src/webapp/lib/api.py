@@ -37,69 +37,60 @@ class isard():
 
     #~ GENERIC
     def check(self,dict,action):
-        #~ These are the actions:
-        #~ {u'skipped': 0, u'deleted': 1, u'unchanged': 0, u'errors': 0, u'replaced': 0, u'inserted': 0}
+        '''
+        These are the actions:
+        {u'skipped': 0, u'deleted': 1, u'unchanged': 0, u'errors': 0, u'replaced': 0, u'inserted': 0}
+        '''
         if dict[action]: 
             return True
         if not dict['errors']: return True
         return False
 
-    #~ def update_desktop_status(self,user,data,remote_addr):
-            #~ try:
-                #~ if data['name']=='status':
-                    #~ if data['value']=='Stopping':
-                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            #~ return json.dumps({'title':'Desktop stopping success','text':'Desktop '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
-                        #~ else:
-                            #~ return json.dumps({'title':'Desktop stopping error','text':'Desktop '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                    #~ if data['value']=='Deleting':
-                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            #~ return json.dumps({'title':'Desktop deleting success','text':'Desktop '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
-                        #~ else:
-                            #~ return json.dumps({'title':'Desktop deleting error','text':'Desktop '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                    #~ if data['value']=='Starting':
-                        #~ if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
-                            #~ return json.dumps({'title':'Quota exceeded','text':'Desktop '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
-                        #~ self.auto_interface_set(user,data['pk'],remote_addr)
-                        #~ if app.isardapi.update_table_value('domains', data['pk'], data['name'], data['value']):
-                            #~ return json.dumps({'title':'Desktop starting success','text':'Desktop '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
-                        #~ else:
-                            #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                #~ return json.dumps({'title':'Method not allowd','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-            #~ except Exception as e:
-                #~ print('Error updating desktop status for domain '+data['pk']+': '+str(e))
-                #~ return json.dumps({'title':'Desktop starting error','text':'Desktop '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-
     def update_table_status(self,user,table,data,remote_addr):
             item = table[:-1].capitalize()
+            with app.app_context():
+                dom = r.table('domains').get(data['pk']).pluck('status','name').run(db.conn)          
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
-                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':item+' aborting success','text':item+' '+data['pk']+' will be aborted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}                        
+                        if dom['status'] in ['Downloading']:
+                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                                return json.dumps({'title':item+' aborting success','text':item+' '+dom['name']+' will be aborted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                            else:
+                                return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Stopping':
-                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':item+' stopping success','text':item+' '+data['pk']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if dom['status'] in ['Started']:
+                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                                return json.dumps({'title':item+' stopping success','text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                            else:
+                                return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' stopping error','text':item+' '+data['pk']+' can\'t be stopped now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Deleting':
-                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':item+' deleting success','text':item+' '+data['pk']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if dom['status'] in ['Stopped','Failed']:
+                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                                return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                            else:
+                                return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' deleting error','text':item+' '+data['pk']+' can\'t be deleted now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Starting':
-                        if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
-                            return json.dumps({'title':'Quota exceeded','text':item+' '+data['pk']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
-                        self.auto_interface_set(user,data['pk'],remote_addr)
-                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                            return json.dumps({'title':item+' starting success','text':item+' '+data['pk']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                        if dom['status'] in ['Stopped','Failed']:
+                            if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
+                                return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
+                            self.auto_interface_set(user,data['pk'],remote_addr)
+                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                                return json.dumps({'title':item+' starting success','text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                            else:
+                                return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                return json.dumps({'title':'Method not allowd','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                return json.dumps({'title':'Method not allowed','text':'That action is not allowed!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
-                log.error('Error updating status for '+data['pk']+': '+str(e))
-                return json.dumps({'title':item+' starting error','text':item+' '+data['pk']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-
+                log.error('Error updating status for '+dom['name']+': '+str(e))
+                return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
     def auto_interface_set(self,user,id, remote_addr):
         with app.app_context():
@@ -170,7 +161,6 @@ class isard():
                 return False
                 
     def show_disposable(self,client_ip):
-        # ~ return False
         disposables_config=self.config['disposable_desktops']
         if disposables_config['active']:
             with app.app_context():
@@ -183,8 +173,7 @@ class isard():
     '''
         MEDIA
     '''
-    def get_user_media(self, user): #, filterdict=False):
-        #~ if not filterdict: filterdict={'kind': 'desktop'}
+    def get_user_media(self, user):
         with app.app_context():
             media=list(r.table('media').get_all(user, index='user').run(db.conn))
         return media    
@@ -193,25 +182,9 @@ class isard():
         with app.app_context():
             data=r.table('virt_install').run(db.conn)
             return self.f.table_values_bstrap(data)
-            #~ if pluck and not id:
-                #~ if order:
-                    #~ data=r.table(table).order_by(order).pluck(pluck).run(db.conn)
-                    #~ return self.f.table_values_bstrap(data) if flatten else list(data)
-                #~ else:
-                    #~ data=r.table(table).pluck(pluck).run(db.conn)
-                    #~ return self.f.table_values_bstrap(data) if flatten else list(data)
-            #~ if pluck and id:
-                #~ data=r.table(table).get(id).pluck(pluck).run(db.conn)
-                #~ return self.f.flatten_dict(data) if flatten else data
-            #~ if order:
-                #~ data=r.table(table).order_by(order).run(db.conn)
-                #~ return self.f.table_values_bstrap(data) if flatten else list(data)
-            #~ else:
-                #~ data=r.table(table).run(db.conn)
-                #~ return self.f.table_values_bstrap(data) if flatten else list(data)
-
-        
-#~ STATUS
+    '''     
+    STATUS
+    '''
     def get_domain_last_messages(self, id):
         with app.app_context():
             return r.table('domains_status').get_all(id, index='name').order_by(r.desc('when')).pluck('when',{'status':['state','state_reason']}).limit(10).run(db.conn)
@@ -220,7 +193,9 @@ class isard():
         with app.app_context():
             return r.table('hypervisors_events').get_all(id, index='domain').order_by(r.desc('when')).limit(10).run(db.conn)
 
-
+    '''
+    USER
+    '''
     def get_user(self, user):
         with app.app_context():
             user=self.f.flatten_dict(r.table('users').get(user).run(db.conn))
@@ -230,7 +205,6 @@ class isard():
     def get_user_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
-            # ~ domains=self.f.table_values_bstrap(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml').run(db.conn))
             domains=list(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml','history_domain','allowed').run(db.conn))
         return domains
 
@@ -246,8 +220,6 @@ class isard():
             domains=self.f.table_values_bstrap(r.table('domains').get_all(category, index='category').filter(filterdict).without('xml').run(db.conn))
         return domains
         
-        
-        
     def get_group_users(self, group,pluck=''):
         with app.app_context():
             users=list(r.table('users').get_all(group, index='group').order_by('username').pluck(pluck).run(db.conn))
@@ -256,7 +228,6 @@ class isard():
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
         with app.app_context():
-            
             domain = r.table('domains').get(id).without('xml','history_domain','progress').run(db.conn)
         try:
             if flatten:
@@ -265,17 +236,14 @@ class isard():
                     domain['hardware-memory']=self.human_size(domain['hardware-memory'] * 1000)
                     if 'disks_info' in domain:
                         for i,dict in enumerate(domain['disks_info']):
-                            #~ print(dict)
                             for key in dict.keys():
                                 if 'size' in key:
                                     domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
             else:
-                # This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields
+                ''' This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields '''
                 if human_size:
                     domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
                     if 'disks_info' in domain:
-                        #~ import pprint
-                        #~ pprint.pprint(domain['disks_info'])
                         for i,dict in enumerate(domain['disks_info']):
                             for key in dict.keys():
                                 if 'size' in key:
@@ -284,8 +252,6 @@ class isard():
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             log.error(exc_type, fname, exc_tb.tb_lineno)
-            log.error('DomainsStatusThread error:'+str(e))                  
-            log.error('get_domain: '+str(e))
         return domain   
 
     def get_domain_media(self,id):
@@ -298,7 +264,7 @@ class isard():
                     iso=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
                     media['isos'].append(iso)
                 except:
-                    # Media does not exist
+                    ''' Media does not exist '''
                     None
         if 'floppies' in domain_cd and domain_cd['floppies'] is not []:
             for m in domain_cd['floppies']:
@@ -306,12 +272,12 @@ class isard():
                     fd=r.table('media').get(m['id']).pluck('id','name').run(db.conn)
                     media['floppies'].append(fd)
                 except:
-                    # media does not exist
+                    ''' Media does not exist '''
                     None
         return media
                         
     def user_hardware_quota(self, user, human_size=False, flatten=True):
-        #~ Should verify something???
+        ''' Should verify something??? '''
         with app.app_context():
             domain = r.table('users').get(user).run(db.conn)
         try:
@@ -324,7 +290,7 @@ class isard():
                             if 'size' in key:
                                 domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
             else:
-                # This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields
+                ''' This is not used and will do nothing as we should implement a recursive function to look for all the nested 'size' fields '''
                 if human_size:
                     domain['hardware']['memory']=self.human_size(domain['hardware']['memory'] * 1000)
                     for i,dict in enumerate(domain['disks_info']):
@@ -332,9 +298,9 @@ class isard():
                             if 'size' in key:
                                 domain['disks_info'][i][key]=self.human_size(domain['disks_info'][i][key])
         except Exception as e:
-            log.error('get_domain: '+str(e))
-        #~ import pprint
-        #~ pprint.pprint(domain)
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            log.error(exc_type, fname, exc_tb.tb_lineno)
         return domain 
         
     def get_backing_ids(self,id):
@@ -347,8 +313,9 @@ class isard():
                 try:
                     idchain.append(list(r.table("domains").filter(lambda disks: disks['hardware']['disks'][0]['file']==f).pluck('id','name').run(db.conn))[0])
                 except Exception as e:
-                    log.error('get_backing_ids:'+str(e))
-                    #~ print(e)
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    log.error(exc_type, fname, exc_tb.tb_lineno)
                     break
         return idchain
 
