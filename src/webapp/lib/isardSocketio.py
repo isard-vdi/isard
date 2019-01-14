@@ -544,6 +544,27 @@ def socketio_hyper_domains_stop(data):
                         info,
                         namespace='/sio_admins', 
                         room='hyper')
+
+@socketio.on('hyperpool_edit', namespace='/sio_admins')
+def socketio_hyperpool_edit(form_data):
+    if current_user.role == 'admin': 
+        data=app.isardapi.f.unflatten_dict(form_data)
+        res=app.adminapi.update_table_dict('hypervisors_pools','default',{'viewer':{'domain':data['viewer']['domain']}})
+
+        if res is True:
+            info=json.dumps({'result':True,'title':'Edit hypervisor pool','text':'Hypervisor pool '+'default'+' has been edited.','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'Edit hypervisor pool','text':'Hypervisor pool'+'default'+' can\'t be edited now.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        info,
+                        namespace='/sio_admins', 
+                        room='hyper')
+    else:
+        info=json.dumps({'result':False,'title':'Hypervisor pool edit error','text':'Hypervisor pool should have at least one capability!','icon':'warning','type':'error'})        
+        socketio.emit('result',
+                        info,
+                        namespace='/sio_admins', 
+                        room='hyper') 
                         
 '''
 USERS
