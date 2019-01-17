@@ -140,12 +140,11 @@ class Upgrade(object):
                                     [],
                                     ['engine']):  
                     ##### CONVERSION FIELDS
-                    url=""
                     d['engine']['grafana']={"active": False ,
                                             "carbon_port": 2004 ,
-                                            "host": "isard-grafana",
-                                            "url": url,
-                                            "web_port": 80}
+                                            "interval": 5,
+                                            "hostname": "isard-grafana",
+                                            "url": url}
                     r.table(table).update(d).run()
             except Exception as e:
                 log.error('Could not update table '+table+' conversion fields for db version '+version+'!')
