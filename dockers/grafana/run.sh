@@ -50,4 +50,11 @@ else:
   printf "$script" | PYTHONPATH=$GRAPHITE_ROOT/webapp django-admin.py shell --settings=graphite.settings
 fi
 
+## GRAFANA
+if [ ! -f /grafana/data/grafana.db ]; then
+  echo "Creating default config for grafana"
+  cp -R /grafana/data_init/* /grafana/data/
+fi
+
 exec supervisord -c /etc/supervisord.conf
+

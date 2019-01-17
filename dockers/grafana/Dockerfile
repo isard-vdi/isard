@@ -65,6 +65,7 @@ VOLUME ["/opt/graphite/conf", "/opt/graphite/storage"]
 
 COPY dockers/grafana/run.sh /run.sh
 COPY dockers/grafana/etc/ /etc/
+COPY dockers/grafana/data/ /grafana/data_init/
 COPY dockers/grafana/conf/ /opt/graphite/conf.example/
 
 # Enable tiny init
