@@ -14,7 +14,6 @@ $(document).ready(function() {
                 if(value){$('#'+key).iCheck('check');}
             }else{
                 $('#'+key).val(value).prop('disabled',true);
-                console.log(key+' - '+value)
             }
            
         });
