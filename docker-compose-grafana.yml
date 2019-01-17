@@ -101,14 +101,14 @@ services:
         source: /opt/isard/grafana/grafana/data
         target: /grafana/data
         read_only: false
-#      - type: bind
-#        source: /opt/isard/grafana/graphite/storage
-#        target: /opt/graphite/storage
-#        read_only: false
-#      - type: bind
-#        source: /opt/isard/grafana/graphite/conf
-#        target: /opt/graphite/conf
-#        read_only: false
+      #~ - type: bind
+        #~ source: /opt/isard/grafana/graphite/storage
+        #~ target: /opt/graphite/storage
+        #~ read_only: false
+      #~ - type: bind
+        #~ source: /opt/isard/grafana/graphite/conf
+        #~ target: /opt/graphite/conf
+        #~ read_only: false
     ports:
       - target: 3000
         published: 3000
