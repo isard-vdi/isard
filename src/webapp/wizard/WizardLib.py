@@ -388,7 +388,8 @@ class Wizard():
 
     def update_hypervisor_viewer(self,remote_addr):
         try:
-            if r.table('hypervisors').update({'viewer_hostname':remote_addr}).run() is not None:
+            r.table('config').get(1).update({'engine':{'grafana':{'url':'http://'+str(remote_addr)}}}).run()
+            if r.table('hypervisors').get('isard-hypervisor').update({'viewer_hostname':remote_addr}).run() is not None:
                 return True
             return False
         except:
