@@ -115,18 +115,18 @@
 
 							<div class="x_content">
 								<div class="item form-group">
-									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-url">Server host<span class="required">*</span>
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-url">Grafana url<span class="required">*</span>
 									</label>
 									<div class="col-md-6 col-sm-6 col-xs-12">
-										<input id="engine-grafana-url" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="engine-grafana-url" placeholder="grafana.domain.com" required="required" type="text">
+										<input id="engine-grafana-url" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="engine-grafana-url" placeholder="http://... or https://..." required="required" type="text">
 									</div>
 								</div>
 
 								<div class="item form-group">
-									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-web_port">Web port <span class="required">*</span>
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-hostname">Carbon host <span class="required">*</span>
 									</label>
 									<div class="col-md-6 col-sm-6 col-xs-12">
-										<input id="engine-grafana-web_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-web_port" placeholder="Web port number" required="required" type="text">
+										<input id="engine-grafana-hostname" class="form-control col-md-7 col-xs-12" name="engine-grafana-hostname" placeholder="ip/dns" required="required" type="text">
 									</div>
 								</div>
 								<div class="item form-group">
@@ -134,6 +134,13 @@
 									</label>
 									<div class="col-md-6 col-sm-6 col-xs-12">
 										<input id="engine-grafana-carbon_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-carbon_port" placeholder="Carbon port number" required="required" type="text">
+									</div>
+								</div>
+								<div class="item form-group">
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-interval">Update seconds <span class="required">*</span>
+									</label>
+									<div class="col-md-6 col-sm-6 col-xs-12">
+										<input id="engine-grafana-interval" class="form-control col-md-7 col-xs-12" name="engine-grafana-interval" placeholder="Seconds between updates" required="required" type="text">
 									</div>
 								</div>
 							</div>
