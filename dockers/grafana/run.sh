@@ -54,6 +54,7 @@ fi
 if [ ! -f /grafana/data/grafana.db ]; then
   echo "Creating default config for grafana"
   cp -R /grafana/data_init/* /grafana/data/
+  chown -R grafana:grafana /grafana
 fi
 
 exec supervisord -c /etc/supervisord.conf
