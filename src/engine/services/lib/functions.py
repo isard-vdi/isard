@@ -1075,3 +1075,14 @@ def clean_intermediate_status():
     [update_domain_status('Failed', d['id'],
                           detail='change status from {} when isard engine restart'.format(d['status'])) for d in
      all_domains if d['status'] in status_to_failed]
+
+
+def flatten_dict(d):
+    def items():
+        for key, value in list(d.items()):
+            if isinstance(value, dict):
+                for subkey, subvalue in list(flatten_dict(value).items()):
+                    yield key + "." + subkey, subvalue
+            else:
+                yield key, value
+    return dict(items())
