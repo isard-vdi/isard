@@ -54,7 +54,6 @@ RUN set -ex \
 
 ADD dockers/grafana/grafana-defaults.ini /grafana/conf/defaults.ini
 
-
 EXPOSE 8080
 EXPOSE 3000
 EXPOSE 2003

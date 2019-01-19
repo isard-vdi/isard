@@ -1,7 +1,7 @@
 #!/bin/bash
 
+mkdir -p /opt/graphite/storage/{ceres,lists,log/webapp,rrd,whisper}
 cd /opt/graphite
-
 if [ ! -f /opt/graphite/conf/local_settings.py ]; then
   echo "Creating default config for graphite-web..."
   cp /opt/graphite/conf.example/local_settings.py /opt/graphite/conf/local_settings.py
