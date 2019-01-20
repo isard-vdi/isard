@@ -3,18 +3,9 @@ services:
   isard-grafana:
     container_name: isard-grafana
     volumes:
-      - type: bind
-        source: /opt/isard/grafana/grafana/data
-        target: /grafana/data
-        read_only: false
-      - type: bind
-        source: /opt/isard/grafana/graphite/storage
-        target: /opt/graphite/storage
-        read_only: false
-      - type: bind
-        source: /opt/isard/grafana/graphite/conf
-        target: /opt/graphite/conf
-        read_only: false
+      - "/opt/isard/grafana/grafana/data:/grafana/data"
+      - "/opt/isard/grafana/graphite/storage:/opt/graphite/storage"
+      - "/opt/isard/grafana/graphite/conf:/opt/graphite/conf"
     ports:
       - target: 3000
         published: 3000
