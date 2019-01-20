@@ -3,13 +3,8 @@ MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache bash yarn py3-libvirt py3-paramiko py3-lxml py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-netaddr py3-requests curl openssh-client
 
-RUN mkdir /isard
-ADD ./src /isard
-
 COPY dockers/app/requirements.pip3 /requirements.pip3
 RUN pip3 install --no-cache-dir -r requirements.pip3
-
-RUN mv /isard/isard.conf.docker /isard/isard.conf
 
 RUN mkdir -p /root/.ssh
 RUN echo "Host isard-hypervisor \
@@ -24,5 +19,9 @@ EXPOSE 5000
 
 COPY dockers/app/certs.sh /
 COPY dockers/app/add-hypervisor.sh /
+
+RUN mkdir /isard
+ADD ./src /isard
+RUN mv /isard/isard.conf.docker /isard/isard.conf
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
