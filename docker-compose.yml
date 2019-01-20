@@ -1,6 +1,7 @@
-version: "3.2"
+version: "3.5"
 services:
   isard-database:
+    container_name: isard-database
     volumes:
       - type: bind
         source: /opt/isard/database
@@ -10,8 +11,11 @@ services:
       - isard_network
     image: rethinkdb
     restart: always
+    logging:
+        driver: none
 
   isard-nginx:
+    container_name: isard-nginx
     volumes:
       - type: bind
         source: /opt/isard/certs/default
@@ -36,6 +40,7 @@ services:
     restart: always
 
   isard-hypervisor:
+    container_name: isard-hypervisor
     volumes:
       - type: volume
         source: sshkeys
@@ -59,6 +64,7 @@ services:
     restart: always
         
   isard-app:
+    container_name: isard-app
     volumes:
       - type: volume
         source: sshkeys
@@ -101,3 +107,4 @@ volumes:
 networks:
   isard_network:
     external: false
+    name: isard_network
