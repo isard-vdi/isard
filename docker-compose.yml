@@ -3,10 +3,7 @@ services:
   isard-database:
     container_name: isard-database
     volumes:
-      - type: bind
-        source: /opt/isard/database
-        target: /data
-        read_only: false
+      - "/opt/isard/database:/data"
     networks:
       - isard_network
     image: rethinkdb
@@ -17,14 +14,8 @@ services:
   isard-nginx:
     container_name: isard-nginx
     volumes:
-      - type: bind
-        source: /opt/isard/certs/default
-        target: /etc/nginx/external
-        read_only: false
-      - type: bind
-        source: /opt/isard/logs/nginx
-        target: /var/log/nginx
-        read_only: false
+      - "/opt/isard/certs/default:/etc/nginx/external"
+      - "/opt/isard/logs/nginx:/var/log/nginx"
     ports:
       - target: 80
         published: 80
@@ -42,18 +33,9 @@ services:
   isard-hypervisor:
     container_name: isard-hypervisor
     volumes:
-      - type: volume
-        source: sshkeys
-        target: /root/.ssh
-        read_only: false
-      - type: bind
-        source: /opt/isard
-        target: /isard
-        read_only: false
-      - type: bind
-        source: /opt/isard/certs/default
-        target: /etc/pki/libvirt-spice
-        read_only: false
+      - "sshkeys:/root/.ssh"
+      - "/opt/isard:/isard"
+      - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
     ports:
       - "5900-5949:5900-5949"
       - "55900-55949:55900-55949"
@@ -66,30 +48,12 @@ services:
   isard-app:
     container_name: isard-app
     volumes:
-      - type: volume
-        source: sshkeys
-        target: /root/.ssh
-        read_only: false
-      - type: bind
-        source: /opt/isard/certs
-        target: /certs
-        read_only: false
-      - type: bind
-        source: /opt/isard/logs
-        target: /isard/logs
-        read_only: false
-      - type: bind
-        source: /opt/isard/database/wizard
-        target: /isard/install/wizard
-        read_only: false
-      - type: bind
-        source: /opt/isard/backups
-        target: /isard/backups
-        read_only: false
-      - type: bind
-        source: /opt/isard/uploads
-        target: /isard/uploads
-        read_only: false
+      - "sshkeys:/root/.ssh"
+      - "/opt/isard/certs:/certs"
+      - "/opt/isard/logs:/isard/logs"
+      - "/opt/isard/database/wizard:/isard/install/wizard"
+      - "/opt/isard/backups:/isard/backups"
+      - "/opt/isard/uploads:/isard/uploads"
     extra_hosts:
       - "isard-engine:127.0.0.1"
     networks:
