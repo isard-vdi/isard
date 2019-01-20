@@ -7,9 +7,16 @@ Open Source KVM Virtual Desktops based on KVM Linux and dockers.
 
 ## Quick Start
 
-Start containers with **docker-compose up -d**
+Pull images and bring it up:
+
+```
+docker-compose pull
+docker-compose up -d
+```
 
 Connect to **https://<ip|domain>** and follow wizard.
+
+NOTE: All data will be created in your host /opt/isard folder
 
 ### Desktops
 
