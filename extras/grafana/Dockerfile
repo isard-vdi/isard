@@ -52,7 +52,7 @@ RUN set -ex \
  && grafana-cli plugins update-all \
  && rm -rf /tmp/setup
 
-ADD dockers/grafana/grafana-defaults.ini /grafana/conf/defaults.ini
+ADD grafana-defaults.ini /grafana/conf/defaults.ini
 
 EXPOSE 8080
 EXPOSE 3000
@@ -62,10 +62,10 @@ EXPOSE 7002
 
 VOLUME ["/opt/graphite/conf", "/opt/graphite/storage"]
 
-COPY dockers/grafana/run.sh /run.sh
-COPY dockers/grafana/etc/ /etc/
-COPY dockers/grafana/data/ /grafana/data_init/
-COPY dockers/grafana/conf/ /opt/graphite/conf.example/
+COPY run.sh /run.sh
+COPY etc/ /etc/
+COPY data/ /grafana/data_init/
+COPY conf/ /opt/graphite/conf.example/
 
 # Enable tiny init
 ENTRYPOINT ["/sbin/tini", "--"]
