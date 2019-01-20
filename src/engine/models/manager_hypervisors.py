@@ -34,6 +34,7 @@ from engine.services.threads.threads import launch_try_hyps, set_domains_coheren
     launch_disk_operations_thread, \
     launch_long_operations_thread
 from engine.services.lib.functions import clean_intermediate_status
+from engine.services.threads.grafana_thread import GrafanaThread,launch_grafana_thread
 
 WAIT_HYP_ONLINE = 2.0
 
@@ -72,6 +73,7 @@ class ManagerHypervisors(object):
         self.t_broom = None
         self.t_background = None
         self.t_downloads_changes = None
+        self.t_grafana = None
         self.quit = False
 
         self.threads_info_main = {}
@@ -354,6 +356,10 @@ class ManagerHypervisors(object):
                     #launch events thread
                     logs.main.debug('launching hypervisor events thread')
                     self.manager.t_events = launch_thread_hyps_event()
+
+                    #launch grafana thread
+                    logs.main.debug('launching grafana thread')
+                    self.manager.t_grafana = launch_grafana_thread(self.manager.t_status)
 
                     logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
                     update_table_field('engine', 'engine', 'status_all_threads', 'Starting')

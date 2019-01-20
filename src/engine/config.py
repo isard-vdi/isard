@@ -53,7 +53,7 @@ while not table_exists:
     try:
         with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
             rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)
-            grafana= rconfig['grafana']
+            grafana= rconfig['engine']['grafana']
             rconfig = rconfig['engine']
         table_exists=True
         if fail_first_loop:

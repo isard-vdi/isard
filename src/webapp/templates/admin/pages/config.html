@@ -87,6 +87,79 @@
                 </div>
             </div>
         </div>
+        
+		<div class="col-md-6 col-sm-6 col-xs-12">
+			<div class="x_panel">
+				<div class="x_title">
+					<h2><i class="fa fa-area-chart"></i> Grafana <small></small></h2>
+					<ul class="nav navbar-right panel_toolbox">
+						<li><a class="btn-edit" data-panel="engine-grafana"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
+					</ul>
+					<div class="clearfix"></div>
+				</div>
+				<div class="x_content">
+
+					<form id="formGrafana" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
+						<div class="x_panel">
+							<div class="x_title">
+								<h2>Grafana<small></small></h2>
+								<label class="control-label navbar-right" for="engine-grafana-active"> Active
+								</label>
+								<div class="checkbox pull-right">
+									<label>
+										<input id="engine-grafana-active" name="engine-grafana-active" type="checkbox" class="flat">
+									</label>
+								</div>
+								<div class="clearfix"></div>
+							</div>
+
+							<div class="x_content">
+								<div class="item form-group">
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-url">Grafana url<span class="required">*</span>
+									</label>
+									<div class="col-md-6 col-sm-6 col-xs-12">
+										<input id="engine-grafana-url" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="engine-grafana-url" placeholder="http://... or https://..." required="required" type="text">
+									</div>
+								</div>
+
+								<div class="item form-group">
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-hostname">Carbon host <span class="required">*</span>
+									</label>
+									<div class="col-md-6 col-sm-6 col-xs-12">
+										<input id="engine-grafana-hostname" class="form-control col-md-7 col-xs-12" name="engine-grafana-hostname" placeholder="ip/dns" required="required" type="text">
+									</div>
+								</div>
+								<div class="item form-group">
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-carbon_port">Carbon port <span class="required">*</span>
+									</label>
+									<div class="col-md-6 col-sm-6 col-xs-12">
+										<input id="engine-grafana-carbon_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-carbon_port" placeholder="Carbon port number" required="required" type="text">
+									</div>
+								</div>
+								<div class="item form-group">
+									<label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-interval">Update seconds <span class="required">*</span>
+									</label>
+									<div class="col-md-6 col-sm-6 col-xs-12">
+										<input id="engine-grafana-interval" class="form-control col-md-7 col-xs-12" name="engine-grafana-interval" placeholder="Seconds between updates" required="required" type="text">
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="form-group footer-engine-grafana" style="display:none">
+							<div class="col-md-6 col-md-offset-3">
+								<button type="button" class="btn btn-secondary btn-cancel" data-panel="engine-grafana">Cancel</button>
+								<button id="send" type="submit" class="btn btn-success">Update</button>
+							</div>
+						</div>
+
+					</form>
+				</div>
+			</div>
+
+		</div>
+	</div>
+
 <!--
         <div class="col-md-6 col-sm-6 col-xs-12">
             <div class="x_panel">
@@ -325,103 +398,13 @@ ENGINE
                     </div>
 -->
 
-<!--
+<!-- Start grafana -->
                     <div class="row">
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                            <div class="x_panel">
-                                <div class="x_title">
-                                    <h2>STATISTICS<small></small></h2>
-                                    <ul class="nav navbar-right panel_toolbox">
-                                        <li><a class="btn-edit" data-panel="engine-ssh"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
-                                    </ul>
-                                    <div class="clearfix"></div>
-                                </div>
 
-                                <div class="x_content">
-
-                               <div class="form-group footer-engine-ssh" style="display:none">
-                                    <div class="col-md-6 col-md-offset-3">
-                                        <button type="button" class="btn btn-secondary btn-cancel" data-panel="auth">Cancel</button>
-                                        <button id="send" type="submit" class="btn btn-success">Update</button>
-                                    </div>
-                                </div>
-
-                                </form>
-                            </div>
-                        </div>
                         </div>
 
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                            <div class="x_panel">
-                                <div class="x_title">
-                                    <h2><i class="fa fa-area-chart"></i> Grafana <small></small></h2>
-                                    <ul class="nav navbar-right panel_toolbox">
-                                        <li><a class="btn-edit" data-panel="engine-grafana"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
-                                    </ul>
-                                    <div class="clearfix"></div>
-                                </div>
-                                <div class="x_content">
-
-                                    <form id="formGrafana" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
-                                        <div class="x_panel">
-                                            <div class="x_title">
-                                                <h2>Grafana<small></small></h2>
-                                                <label class="control-label navbar-right" for="engine-grafana-active"> Active
-                                                </label>
-                                                <div class="checkbox pull-right">
-                                                    <label>
-                                                        <input id="engine-grafana-active" name="engine-grafana-active" type="checkbox" class="flat">
-                                                    </label>
-                                                </div>
-                                                <div class="clearfix"></div>
-                                            </div>
-
-                                            <div class="x_content">
-                                                <div class="item form-group">
-                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-url">Server url<span class="required">*</span>
-                                                    </label>
-                                                    <div class="col-md-6 col-sm-6 col-xs-12">
-                                                        <input id="engine-grafana-url" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="engine-grafana-url" placeholder="grafana.domain.com" required="required" type="text">
-                                                    </div>
-                                                </div>
-
-                                                <div class="item form-group">
-                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-web_port">Web port <span class="required">*</span>
-                                                    </label>
-                                                    <div class="col-md-6 col-sm-6 col-xs-12">
-                                                        <input id="engine-grafana-web_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-web_port" placeholder="Web port number" required="required" type="text">
-                                                    </div>
-                                                </div>
-                                                <div class="item form-group">
-                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-carbon_port">Carbon port <span class="required">*</span>
-                                                    </label>
-                                                    <div class="col-md-6 col-sm-6 col-xs-12">
-                                                        <input id="engine-grafana-carbon_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-carbon_port" placeholder="Carbon port number" required="required" type="text">
-                                                    </div>
-                                                </div>
-                                                <div class="item form-group">
-                                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="engine-grafana-graphite_port">Graphite port <span class="required">*</span>
-                                                    </label>
-                                                    <div class="col-md-6 col-sm-6 col-xs-12">
-                                                        <input id="engine-grafana-graphite_port" class="form-control col-md-7 col-xs-12" name="engine-grafana-graphite_port" placeholder="Graphite port number" required="required" type="text">
-                                                    </div>
-                                                </div>
-                                                <button id="btn-checkport" type="button" class="btn btn-checkport" onclick="checkPort(event);">Check Port</button>
-                                            </div>
-                                        </div>
-
-                                        <div class="form-group footer-engine-grafana" style="display:none">
-                                            <div class="col-md-6 col-md-offset-3">
-                                                <button type="button" class="btn btn-secondary btn-cancel" data-panel="engine-grafana">Cancel</button>
-                                                <button id="send" type="submit" class="btn btn-success">Update</button>
-                                            </div>
-                                        </div>
-
-                                    </form>
-                                </div>
-                            </div>
-
-                        </div>
                     </div>
 
                     </div>
@@ -430,7 +413,7 @@ ENGINE
 
         </div>
     </div>
--->
+<!-- End grafana-->
 
             </div>
         </div>

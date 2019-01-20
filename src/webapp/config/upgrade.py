@@ -17,7 +17,7 @@ from ..lib.load_config import load_config
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 5
+release_version = 6
 tables=['config','hypervisors','hypervisors_pools','domains','media']
 
 
@@ -78,9 +78,6 @@ class Upgrade(object):
         table='config'
         d=r.table(table).get(1).run()     
         log.info('UPGRADING '+table+' TABLE TO VERSION '+str(version))
-        if version == 5:
-            d['engine']['log']['log_level'] = 'WARNING'
-            r.table(table).update(d).run()
         if version == 1:
             
             ''' CONVERSION FIELDS PRE CHECKS '''
@@ -126,10 +123,62 @@ class Upgrade(object):
             except Exception as e:
                 log.error('Could not update table '+table+' remove fields for db version '+version+'!')
                 log.error('Error detail: '+str(e))
+
+        if version == 5:
+            d['engine']['log']['log_level'] = 'WARNING'
+            r.table(table).update(d).run()                
+
+        if version == 6:
+            
+            ''' CONVERSION FIELDS PRE CHECKS '''
+            try:
+                url=d['engine']['grafana']['url']
+            except:
+                url=""
+            try:
+                if not self.check_done( d,
+                                    [],
+                                    ['engine']):  
+                    ##### CONVERSION FIELDS
+                    d['engine']['grafana']={"active": False ,
+                                            "carbon_port": 2004 ,
+                                            "interval": 5,
+                                            "hostname": "isard-grafana",
+                                            "url": url}
+                    r.table(table).update(d).run()
+            except Exception as e:
+                log.error('Could not update table '+table+' conversion fields for db version '+version+'!')
+                log.error('Error detail: '+str(e))
                 
+            # ~ ''' NEW FIELDS PRE CHECKS '''   
+            # ~ try:
+                # ~ if not self.check_done( d,
+                                    # ~ ['resources','voucher_access',['engine','api','token']],
+                                    # ~ []):                                      
+                    # ~ ##### NEW FIELDS
+                    # ~ self.add_keys(table, [   
+                                            # ~ {'resources':  {    'code':False,
+                                                                # ~ 'url':'http://www.isardvdi.com:5050'}},
+                                            # ~ {'voucher_access':{'active':False}},
+                                            # ~ {'engine':{'api':{  "token": "fosdem", 
+                                                                # ~ "url": 'http://isard-engine', 
+                                                                # ~ "web_port": 5555}}}])
+            # ~ except Exception as e:
+                # ~ log.error('Could not update table '+table+' new fields for db version '+version+'!')
+                # ~ log.error('Error detail: '+str(e))
+                
+            ''' REMOVE FIELDS PRE CHECKS '''   
+            try:
+                if not self.check_done( d,
+                                    [],
+                                    ['grafana']):   
+                    #### REMOVE FIELDS
+                    self.del_keys(table,['grafana'])
+            except Exception as e:
+                log.error('Could not update table '+table+' remove fields for db version '+version+'!')
+                log.error('Error detail: '+str(e))
         return True
-
-
+        
     '''
     HYPERVISORS TABLE UPGRADES
     '''
