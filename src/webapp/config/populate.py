@@ -15,7 +15,9 @@ from ..lib.load_config import load_config
 from ..lib.admin_api import Certificates
 
 class Populate(object):
-    def __init__(self):
+    def __init__(self,dreg):
+        self.register_code=dreg['resources']['code']
+        self.register_url=dreg['resources']['url']
         self.cfg=load_config()
         try:
             self.conn = r.connect( self.cfg['RETHINKDB_HOST'],self.cfg['RETHINKDB_PORT'],self.cfg['RETHINKDB_DB']).repl()
@@ -119,8 +121,8 @@ class Populate(object):
                                                                             }},
                                                         'grafana':{'active':False,'url':'','hostname':'isard-grafana','carbon_port':2004,"interval": 5},
                                                         'version':0,
-                                                        'resources': {'code':False,
-                                                                    'url':'http://www.isardvdi.com:5050'}
+                                                        'resources': {'code':self.register_code,
+                                                                    'url':self.register_url}
                                                        }], conflict='update').run())
                 log.info("Table config populated with defaults.")
                 return True
