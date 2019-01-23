@@ -53,7 +53,7 @@ while not table_exists:
     try:
         with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
             rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)
-            grafana= rconfig['engine']['grafana']
+            #grafana= rconfig['engine']['grafana']
             rconfig = rconfig['engine']
         table_exists=True
         if fail_first_loop:
@@ -73,7 +73,7 @@ TIME_BETWEEN_POLLING = rconfig['intervals']['time_between_polling']
 TEST_HYP_FAIL_INTERVAL = rconfig['intervals']['test_hyp_fail']
 POLLING_INTERVAL_BACKGROUND = rconfig['intervals']['background_polling']
 POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig['intervals']['transitional_states_polling']
-GRAFANA = grafana
+#GRAFANA = grafana
 
 TRANSITIONAL_STATUS = ('Starting', 'Stopping', 'Deleting')
 

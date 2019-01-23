@@ -12,7 +12,7 @@ from engine.services.db.db import update_table_field
 api = Blueprint('api', __name__)
 
 app = current_app
-from . import evaluate
+#from . import evaluate
 
 def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
@@ -102,6 +102,24 @@ def engine_restart():
             app.m = ManagerHypervisors()
             break
     return jsonify({'engine_restart':True}), 200
+
+
+@api.route('/engine/status')
+def engine_status():
+    '''all main threads are running'''
+    pass
+
+
+@api.route('/pool/<string:id_pool>/status')
+def pool_status(id_pool):
+    '''hypervisors ready to start and create disks'''
+    pass
+
+@api.route('/grafana/reload')
+def grafana_reload():
+    '''changes in grafana parameters'''
+    pass
+
 
 @api.route('/engine_info', methods=['GET'])
 def engine_info():

@@ -27,6 +27,8 @@ services:
       - isard_network
     image: isard/nginx:1.1
     restart: "no"
+    depends_on:
+      - isard-app
 
   isard-hypervisor:
     container_name: isard-hypervisor
@@ -75,7 +77,6 @@ services:
     depends_on:
       - isard-database
       - isard-hypervisor
-      - isard-nginx
       - isard-grafana
 
   isard-grafana:

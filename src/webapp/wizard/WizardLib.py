@@ -283,8 +283,8 @@ class Wizard():
                 ## Maybe ask for a backup?
                 ## No invasive
                 p.check_integrity(commit=True)
-                if self.register_isard_updates(): 
-                    self.insert_updates_demo()
+                # if self.register_isard_updates():
+                #     self.insert_updates_demo()
                 return True
             else:
                 return False
@@ -407,6 +407,8 @@ class Wizard():
         try:
             conn.request("HEAD", "/")
             conn.close()
+            if self.register_isard_updates():
+                self.insert_updates_demo()
             return True
         except Exception as e:
             conn.close()
