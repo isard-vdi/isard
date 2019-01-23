@@ -17,18 +17,14 @@ services:
       - "/opt/isard/certs/default:/etc/nginx/external"
       - "/opt/isard/logs/nginx:/var/log/nginx"
     ports:
-      - target: 80
-        published: 80
-        protocol: tcp
-        mode: host
-      - target: 443
-        published: 443
-        protocol: tcp
-        mode: host
+      - "80:80"
+      - "443:443"
     networks:
       - isard_network
     image: isard/nginx:1.1
     restart: always
+    depends_on:
+      - isard-app
 
   isard-hypervisor:
     container_name: isard-hypervisor
@@ -63,7 +59,6 @@ services:
     depends_on:
       - isard-database
       - isard-hypervisor
-      - isard-nginx
 
 volumes:
   sshkeys:
