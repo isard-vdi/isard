@@ -141,10 +141,10 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 
 // VmlinuzHandler is the handler that serves the vmlinuz file for the boot
 func VmlinuzHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "/data/vmlinuz")
+	http.ServeFile(w, r, "images/vmlinuz"+r.FormValue("arch"))
 }
 
 // InitrdHandler is the handler that serves the initrd file for the boot
 func InitrdHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "/data/initrd")
+	http.ServeFile(w, r, "images/initrd"+r.FormValue("arch"))
 }
