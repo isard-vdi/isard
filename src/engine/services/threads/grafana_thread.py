@@ -68,38 +68,41 @@ class GrafanaThread(threading.Thread):
                     if self.t_status[id_hyp].status_obj.hyp_obj.connected is True:
                         if id_hyp not in hyps_online:
                             hyps_online.append(id_hyp)
+                    check_hyp = True
                 except:
                     logs.main.error(f'hypervisor {id_hyp} problem checking if is connected')
+                    check_hyp = False
 
-            #send static values of hypervisors
-            if elapsed >= SEND_STATIC_VALUES_INTERVAL:
-                d_hyps_info = dict()
+            if len(hyps_online) > 0 and check_hyp is True:
+                #send static values of hypervisors
+                if elapsed >= SEND_STATIC_VALUES_INTERVAL:
+                    d_hyps_info = dict()
+                    for i, id_hyp in enumerate(hyps_online):
+                        d_hyps_info[f'hyp-info-{i}'] = self.t_status[id_hyp].status_obj.hyp_obj.info
+                    # ~ self.send(d_hyps_info)
+                    elapsed = 0
+
+                #send stats
+                dict_to_send = dict()
+                j=0
                 for i, id_hyp in enumerate(hyps_online):
-                    d_hyps_info[f'hyp-info-{i}'] = self.t_status[id_hyp].status_obj.hyp_obj.info
-                # ~ self.send(d_hyps_info)
-                elapsed = 0
-
-            #send stats
-            dict_to_send = dict()
-            j=0
-            for i, id_hyp in enumerate(hyps_online):
-                if id_hyp in self.t_status.keys():
-                    #stats_hyp = self.t_status[id_hyp].status_obj.hyp_obj.stats_hyp
-                    stats_hyp_now = self.t_status[id_hyp].status_obj.hyp_obj.stats_hyp_now
-                    #stats_domains = self.t_status[id_hyp].status_obj.hyp_obj.stats_domains
-                    if len(stats_hyp_now) > 0:
-                        dict_to_send[f'hypers.'+id_hyp] = {'stats':stats_hyp_now,'info':d_hyps_info['hyp-info-'+str(i)],'domains':{}}
-                        stats_domains_now = self.t_status[id_hyp].status_obj.hyp_obj.stats_domains_now
-                    # ~ for id_domain,d_stats in stats_domains_now.items():
-                    # ~ if len(stats_hyp_now) > 0:
+                    if id_hyp in self.t_status.keys():
+                        #stats_hyp = self.t_status[id_hyp].status_obj.hyp_obj.stats_hyp
+                        stats_hyp_now = self.t_status[id_hyp].status_obj.hyp_obj.stats_hyp_now
+                        #stats_domains = self.t_status[id_hyp].status_obj.hyp_obj.stats_domains
+                        if len(stats_hyp_now) > 0:
+                            dict_to_send[f'hypers.'+id_hyp] = {'stats':stats_hyp_now,'info':d_hyps_info['hyp-info-'+str(i)],'domains':{}}
+                            stats_domains_now = self.t_status[id_hyp].status_obj.hyp_obj.stats_domains_now
                         # ~ for id_domain,d_stats in stats_domains_now.items():
-                            # ~ dict_to_send[f'domain-stats-{j}'] = {'domain-id':{id_domain:1},'last': d_stats,}
-                        dict_to_send[f'hypers.'+id_hyp]['domains']=stats_domains_now #{x:0 for x in stats_domains_now}
-                            # ~ print(stats_domains_now)
-                            # ~ j+=1
-            
-            if len(dict_to_send) > 0:
-                self.send(dict_to_send)
+                        # ~ if len(stats_hyp_now) > 0:
+                            # ~ for id_domain,d_stats in stats_domains_now.items():
+                                # ~ dict_to_send[f'domain-stats-{j}'] = {'domain-id':{id_domain:1},'last': d_stats,}
+                            dict_to_send[f'hypers.'+id_hyp]['domains']=stats_domains_now #{x:0 for x in stats_domains_now}
+                                # ~ print(stats_domains_now)
+                                # ~ j+=1
+
+                if len(dict_to_send) > 0:
+                    self.send(dict_to_send)
 
 
 
