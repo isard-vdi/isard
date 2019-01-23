@@ -397,11 +397,23 @@ class Wizard():
             
     def valid_server(self,server=False):
         if server is False: 
-            if self.url is not False:
-                wlog.warning('self.url='+str(self.url))
-                server=self.url.split('//')[1]
-            else:
-                server='isardvdi.com'
+            server='isardvdi.com'
+        import http.client as httplib
+        conn = httplib.HTTPConnection(server, timeout=5)
+        try:
+            conn.request("HEAD", "/")
+            conn.close()
+            return True
+        except Exception as e:
+            conn.close()
+            return False        
+
+    def callfor_updates_demo(self):
+        if self.url is not False:
+            wlog.warning('self.url='+str(self.url))
+            server=self.url.split('//')[1]
+        else:
+            server='isardvdi.com'
         import http.client as httplib
         conn = httplib.HTTPConnection(server, timeout=5)
         try:
@@ -412,8 +424,7 @@ class Wizard():
             return True
         except Exception as e:
             conn.close()
-            return False        
-
+            return False  
         
     def create_isard_database(self):
         from ..config.populate import Populate
@@ -421,6 +432,7 @@ class Wizard():
         if p.database():
             # ~ p.defaults()
             p.check_integrity(commit=True)
+            self.callfor_updates_demo()
             return True
         return False
         
@@ -431,7 +443,7 @@ class Wizard():
             res  = {'yarn':self.valid_js(),
                     'config':True,
                     'config_stx':True,
-                    'internet':self.valid_server('isardvdi.com'),
+                    'internet': True #self.valid_server('isardvdi.com'),
                     'rethinkdb':self.valid_rethinkdb(),
                     'isard_db':self.valid_isard_database(),
                     'passwd':self.valid_password(),
@@ -442,7 +454,7 @@ class Wizard():
             res =  {'yarn':self.valid_js(),
                     'config':self.valid_config_file(),
                     'config_stx':self.valid_config_syntax(),
-                    'internet':self.valid_server('isardvdi.com'),
+                    'internet': True #self.valid_server('isardvdi.com'),
                     'rethinkdb':self.valid_rethinkdb(),
                     'isard_db':self.valid_isard_database(),
                     'passwd':self.valid_password(),
@@ -578,7 +590,7 @@ class Wizard():
                     if step is '5':
                         return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False)                        
                     if step is '6':
-                        return json.dumps(self.valid_server()) 
+                        return json.dumps(self.valid_server('isardvdi.com')) 
                                                                                                                     
             @self.wapp.route('/content', methods=['POST'])
             def wizard_content():
@@ -617,7 +629,7 @@ class Wizard():
                             return html[5]['ko']
                         return html[5]['ok']  
                     if step == '6':
-                        if not self.valid_server():
+                        if not self.valid_server('isardvdi.com'):
                             return html[6]['noservice']
                         if self.is_registered() is False:
                             return html[6]['noregister']
