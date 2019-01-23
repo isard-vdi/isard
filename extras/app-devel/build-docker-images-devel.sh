@@ -18,9 +18,7 @@ set -e
 
 # Array containing all the images to build
 images=(
-	#alpine-pandas
-	#nginx
-	#hypervisor
+	#grafana
 	app-devel
 )
 
@@ -29,6 +27,6 @@ for image in "${images[@]}"; do
 	echo -e "\n\n\n"
 	echo "Building $image"
 	echo -e "\n\n\n"
-	docker build -f=dockers/$image/Dockerfile -t isard/$image:latest  -t isard/$image:$MAJOR -t isard/$image:$MINOR -t isard/$image:$PATCH .
+	docker build -f=extras/$image/Dockerfile -t isard/$image:latest  -t isard/$image:$MAJOR -t isard/$image:$MINOR -t isard/$image:$PATCH .
 done
 

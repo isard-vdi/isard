@@ -193,10 +193,16 @@ class DownloadThread(threading.Thread, object):
                         logs.downloads.debug(self.url)
                         logs.downloads.debug(line)
                         d_progress = dict(zip(keys,values))
-                        d_progress['total_percent'] = int(float(d_progress['total_percent']))
-                        d_progress['received_percent'] = int(float(d_progress['received_percent']))
-                        update_download_percent(d_progress, self.table, self.id)
-                        line = p.stderr.read(60).decode('utf8')
+                        try:
+                            d_progress['total_percent'] = int(float(d_progress['total_percent']))
+                            d_progress['received_percent'] = int(float(d_progress['received_percent']))
+                            if d_progress['received_percent'] > 1:
+                                pass
+                        except:
+                            d_progress['total_percent'] = 0
+                            d_progress['received_percent'] = 0
+                            update_download_percent(d_progress, self.table, self.id)
+                            line = p.stderr.read(60).decode('utf8')
 
                 else:
                     line = line + c
