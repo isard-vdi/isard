@@ -13,3 +13,6 @@
 
 # Ignore the configuration file
 config.yml
+
+# Ignore dependencies
+.go
