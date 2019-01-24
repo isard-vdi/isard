@@ -123,7 +123,7 @@ services:
     image: isard/ipxe:1.0
     restart: always
     depends_on:
-      - isard-database
+      - isard-app
 
   isard-dhcp:
     volumes:
