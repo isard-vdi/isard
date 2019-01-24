@@ -5,12 +5,12 @@ FROM alpine:3.8
 # Install all the required packages
 RUN apk add --update --no-cache nfs-utils
 RUN mkdir -p /nfs/images
-ADD exports /etc/
+COPY dockers/nfs/exports /etc/
 
 # Expose the required ports
 EXPOSE 111:111/udp 2049:2049/tcp
 
-ADD entrypoint.sh /
+COPY dockers/nfs/entrypoint.sh /
 RUN chmod 777 /entrypoint.sh
 
 # Run the service

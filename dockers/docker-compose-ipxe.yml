@@ -34,10 +34,10 @@ services:
       - isard_network
     image: isard/nginx:1.1
     restart: always
+
   isard-hypervisor:
     volumes:
       - type: volume
-
         source: sshkeys
         target: /root/.ssh
         read_only: false
@@ -99,7 +99,19 @@ services:
     volumes:
       - type: bind
         source: /opt/isard/ipxe/images
-        target: /data
+        target: /data/images
+        read_only: true
+      - type: bind
+        source: /opt/isard/logs
+        target: /data/logs
+        read_only: false
+      - type: bind
+        source: /opt/isard/ipxe/conf/ipxe
+        target: /data/config
+        read_only: false
+      - type: bind
+        source: /opt/isard/certs/default
+        target: /data/certs
         read_only: true
     ports:
       - target: 3000
@@ -110,6 +122,8 @@ services:
       - isard_network
     image: isard/ipxe:1.0
     restart: always
+    depends_on:
+      - isard-database
 
   isard-dhcp:
     volumes:
@@ -118,7 +132,7 @@ services:
         target: /var/lib/dhcp
         read_only: false
       - type: bind
-        source: /opt/isard/ipxe/conf/dhcpd.conf
+        source: /opt/isard/ipxe/conf/dhcpd
         target: /etc/dhcpd
         read_only: true
     ports:
@@ -156,7 +170,7 @@ services:
     depends_on:
       - isard-ipxe
 
-  isard-nfs
+  isard-nfs:
     volumes:
       - type: bind
         source: /opt/isard/ipxe/images

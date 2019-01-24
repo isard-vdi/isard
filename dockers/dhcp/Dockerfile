@@ -11,4 +11,4 @@ RUN touch /var/lib/dhcp/dhcpd.leases
 EXPOSE 67:67/udp
 
 # Run the service
-CMD [ "/usr/sbin/dhcpd",  "-4", "-d", "--no-pid", "-cf", "/etc/dhcpd/dhcpd.conf" ]
+CMD [ "sh", "-c", "touch /var/lib/dhcp/dhcpd.leases && /usr/sbin/dhcpd -4 -d --no-pid -cf /etc/dhcpd/dhcpd.conf" ]

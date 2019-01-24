@@ -37,6 +37,9 @@ images=(
 	nginx
 	hypervisor
 	app
+	dhcp
+	tftp
+	nfs
 )
 
 # Build all the images and tag them correctly
