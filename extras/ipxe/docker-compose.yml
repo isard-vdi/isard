@@ -9,7 +9,7 @@ services:
     networks:
       - isard_network
     image: rethinkdb
-    restart: always
+    restart: unless-stopped
 
   isard-nginx:
     volumes:
@@ -33,7 +33,7 @@ services:
     networks:
       - isard_network
     image: isard/nginx:1.1
-    restart: always
+    restart: unless-stopped
 
   isard-hypervisor:
     volumes:
@@ -56,7 +56,7 @@ services:
       - isard_network
     image: isard/hypervisor:1.1
     privileged: true
-    restart: always
+    restart: unless-stopped
         
   isard-app:
     volumes:
@@ -89,7 +89,7 @@ services:
     networks:
       - isard_network
     image: isard/app:1.1
-    restart: always
+    restart: unless-stopped
     depends_on:
       - isard-database
       - isard-hypervisor
@@ -121,7 +121,7 @@ services:
     networks:
       - isard_network
     image: isard/ipxe:1.0
-    restart: always
+    restart: unless-stopped
     depends_on:
       - isard-app
 
@@ -146,7 +146,7 @@ services:
         mode: host
     network_mode: host
     image: isard/dhcp:1.1
-    restart: always
+    restart: unless-stopped
     depends_on:
       - isard-tftp
 
@@ -166,7 +166,7 @@ services:
         protocol: udp
         mode: host
     image: isard/tftp:1.1
-    restart: always
+    restart: unless-stopped
     depends_on:
       - isard-ipxe
 
@@ -195,7 +195,7 @@ services:
         mode: host
     image: isard/nfs:1.1
     privileged: true
-    restart: always
+    restart: unless-stopped
     depends_on:
       - isard-ipxe
 
