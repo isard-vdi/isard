@@ -75,6 +75,7 @@ class DownloadThread(threading.Thread, object):
                 hyp_to_disk_create = get_host_disk_operations_from_path(path_selected,
                                                                         pool=self.pool_id,
                                                                         type_path=self.type_path_selected)
+                logs.downloads.debug(f'Thread download started to url: {url} in hypervisor: {hyp_to_disk_create}')
                 if self.manager.t_disk_operations.get(hyp_to_disk_create,False) is not False:
                     if self.manager.t_disk_operations[hyp_to_disk_create].is_alive():
                         d = get_hyp_hostname_user_port_from_id(hyp_to_disk_create)
@@ -355,8 +356,9 @@ class DownloadChangesThread(threading.Thread):
             d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
             update_domain_dict_create_dict(id_down, d_update_domain)
 
-        # launching download threads
         if new_file_path not in self.download_threads:
+            # launching download threads
+            logs.downloads.debug(f'ready tu start DownloadThread --> url:{url} , path:{new_file_path}')
             self.download_threads[new_file_path] = DownloadThread(url,
                                                                   new_file_path,
                                                                   path_selected,
@@ -371,7 +373,7 @@ class DownloadChangesThread(threading.Thread):
             self.download_threads[new_file_path].start()
 
         else:
-            logs.downloads.info('download thread launched to this path: {}'.format(new_file_path))
+            logs.downloads.error('download thread launched previously to this path: {}'.format(new_file_path))
 
     def run(self):
         self.tid = get_tid()
