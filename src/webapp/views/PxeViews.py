@@ -21,7 +21,7 @@ import time,json
 class usrTokens():
     def __init__(self):
         self.tokens={}
-        self.valid_seconds = 60 # Between client accesses to api
+        self.valid_seconds = 300 # Between client accesses to api
 
     def tkns(self):
         return self.tokens
@@ -74,6 +74,12 @@ class usrTokens():
                     return status
                 elif d['status'] in ['Started']:
                     return d['status']
+
+                else:
+                    err = "domain in unknown status: " + d['status']
+                    log.debug(err)
+                    return err
+
         return False
 
     def viewer(self,tkn,id,remote_addr):
@@ -120,6 +126,10 @@ def pxe_start():
                 return json.dumps({"code":2,"msg":"Get domain message for failed..."}), 500, {'ContentType': 'application/json'}
             if res == 'Starting':
                 return json.dumps({"code":1,"msg":"Engine seems to be down. Contact administrator."}), 500, {'ContentType': 'application/json'}
+
+            if str(res).startswith('domain in unknown status: '):
+                return json.dumps({"code": 2, "msg": res}), 500, {'ContentType': 'application/json'}
+
         return json.dumps({"code":1,"msg":"Unknown error. Domain status is: "+str(res)}), 500, {'ContentType': 'application/json'}
 
 @app.route('/pxe/viewer', methods=['GET'])
