@@ -25,13 +25,13 @@ func Check() error {
 
 	_, err = http.Get(config.BaseURL)
 	if err != nil {
-		// Check that the error is because a self signed certificate
-		if strings.Split(err.Error(), ": ")[1] == "x509" {
-			err = nil
-		}
-
 		IsValid = false
+
+		// Check that the error is because a self signed certificate
+		if strings.Split(err.Error(), ": ")[1] != "x509" {
+			return fmt.Errorf("error checking the certificate: %v", err)
+		}
 	}
 
-	return err
+	return nil
 }
