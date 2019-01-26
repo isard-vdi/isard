@@ -5,9 +5,9 @@
 
 #!flask/bin/python
 # coding=utf-8
-from flask import render_template, redirect, request, flash, url_for
+from flask import render_template, redirect, request, flash, url_for, Response
 from webapp import app
-from flask_login import login_required, login_user, logout_user, current_user
+from flask_login import login_required, login_user, logout_user
 
 from ..auth.authentication import *   
 from ..lib.log import *    
@@ -86,7 +86,21 @@ class usrTokens():
         if not self.valid(tkn):
             return False   
         data={"pk":id,"kind":"file"}
-        return isardviewer.get_viewer(data,self.tokens[tkn]['usr'],remote_addr)
+
+        # this little hack is needed since the get_viewer function is going to access the the role and the id using attribute notation
+        class current_user: pass
+        current_user.id = self.tokens[tkn]['usr']
+
+        if current_user.id == "admin":
+            current_user.role = 'admin'
+
+        else:
+            current_user.role = False
+
+        viewer = isardviewer.get_viewer(data, current_user,remote_addr)
+        return Response( viewer['content'],
+            mimetype="application/x-virt-viewer",
+            headers={"Content-Disposition":"attachment;filename=console.vv"})
         # SPICE {'kind':'file','ext':'vv','mime':'application/x-virt-viewer','content':'vv data file'}
         # PC VNC 'vnc','text/plain'
         
@@ -141,5 +155,5 @@ def pxe_viewer():
     if res is False:
         return json.dumps({"code":0,"msg":"Token expired or not user domain"}), 403, {'ContentType': 'application/json'}
     else:
-        return json.dumps(res), 200, {'ContentType': 'application/json'}
+        return res
         
