@@ -587,18 +587,29 @@ def socketio_user_add(form_data):
 @socketio.on('user_edit', namespace='/sio_admins')
 def socketio_user_edit(form_data):
     if current_user.role == 'admin': 
-        # ~ create_dict=app.isardapi.f.unflatten_dict(form_data)
-        # ~ print(create_dict)
         res=app.adminapi.user_edit(form_data)
         if res is True:
-            data=json.dumps({'result':True,'title':'New user','text':'User '+form_data['name']+' has been created...','icon':'success','type':'success'})
+            data=json.dumps({'result':True,'title':'User edit','text':'User '+form_data['name']+' has been updated...','icon':'success','type':'success'})
         else:
-            data=json.dumps({'result':False,'title':'New user','text':'User '+form_data['name']+' can\'t be created. Maybe it already exists!','icon':'warning','type':'error'})
+            data=json.dumps({'result':False,'title':'User edit','text':'User '+form_data['name']+' can\'t be updated!','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/sio_admins', 
                         room='users')
 
+@socketio.on('user_passwd', namespace='/sio_admins')
+def socketio_user_passwd(form_data):
+    if current_user.role == 'admin': 
+        res=app.adminapi.user_passwd(form_data)
+        if res is True:
+            data=json.dumps({'result':True,'title':'User edit','text':'User '+form_data['name']+' has been updated...','icon':'success','type':'success'})
+        else:
+            data=json.dumps({'result':False,'title':'User edit','text':'User '+form_data['name']+' can\'t be updated!','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/sio_admins', 
+                        room='users')
+                        
 @socketio.on('user_delete', namespace='/sio_admins')
 def socketio_user_delete(form_data):
     if current_user.role == 'admin': 
