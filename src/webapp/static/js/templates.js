@@ -301,7 +301,7 @@ function actionsTmplDetail(){
                             history: {
                                 history: false
                             },
-                            stack: stack_center
+                            addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
                             api.ajax('/template/togglekind','POST',{'pk':pk}).done(function(data) {
                                 //~ console.log('data received:'+data);
@@ -330,7 +330,7 @@ function actionsTmplDetail(){
                             history: {
                                 history: false
                             },
-                            stack: stack_center
+                            addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
                             api.ajax('/domains/removable','POST',{'id':pk}).done(function(data) {
                                 console.log('data received:'+data);

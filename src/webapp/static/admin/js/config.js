@@ -94,7 +94,7 @@ $(document).ready(function() {
 							confirm: {confirm: true},
 							buttons: {closer: false,sticker: false},
 							history: {history: false},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             api.ajax('/admin/backup','POST',{}).done(function(data) {
                             });  
@@ -160,7 +160,7 @@ $(document).ready(function() {
 							confirm: {confirm: true},
 							buttons: {closer: false,sticker: false},
 							history: {history: false},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             api.ajax('/admin/backup_remove','POST',{'pk':data['id'],}).done(function(data) {
                             });  
@@ -176,7 +176,7 @@ $(document).ready(function() {
 							confirm: {confirm: true},
 							buttons: {closer: false,sticker: false},
 							history: {history: false},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             api.ajax('/admin/restore','POST',{'pk':data['id'],}).done(function(data) {
                             });  
@@ -259,7 +259,7 @@ $(document).ready(function() {
 												confirm: {confirm: true},
 												buttons: {closer: false,sticker: false},
 												history: {history: false},
-												stack: stack_center
+												addclass: 'pnotify-center'
 											}).get().on('pnotify.confirm', function() {
 												api.ajax('/admin/restore/'+table,'POST',{'data':data,}).done(function(data1) {
 													api.ajax('/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':table}).done(function(data2) {
@@ -301,7 +301,7 @@ $(document).ready(function() {
 														history: {
 															history: false
 														},
-														stack: stack_center
+														addclass: 'pnotify-center'
 													}).get().on('pnotify.confirm', function() {
 														//~ api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
 															//~ $('#mactions option[value="none"]').prop("selected",true);
@@ -359,7 +359,7 @@ $(document).ready(function() {
 							confirm: {confirm: true},
 							buttons: {closer: false,sticker: false},
 							history: {history: false},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
                             });  
@@ -549,7 +549,7 @@ $(document).ready(function() {
 							//~ confirm: {confirm: true},
 							//~ buttons: {closer: false,sticker: false},
 							//~ history: {history: false},
-							//~ stack: stack_center
+							//~ addclass: 'pnotify-center'
 						//~ }).get().on('pnotify.confirm', function() {
                             //~ api.ajax('/admin/delete','POST',{'pk':data['id'],'table':'disposables'}).done(function(data) {
                             //~ });  
