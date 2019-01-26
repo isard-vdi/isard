@@ -59,21 +59,18 @@ $(document).ready(function() {
         }
     }); 
 
-    //~ $("#modalEditUser #send").on('click', function(e){
-        //~ var form = $('#modalEditUserForm');
-        //~ data=quota2dict($('#modalEditUserForm').serializeObject());
-        //~ console.log(data)
-        //~ form.parsley().validate();
-        //~ if (form.parsley().isValid()){
-            
-            //~ data=quota2dict($('#modalEditUserForm').serializeObject());
-            //~ delete data['password2']
-            //~ data['id']=data['username']=$('#modalEditUserForm #id').val();
-            //~ console.log(data)
-            //~ socket.emit('user_edit',data)
-        //~ }
-    //~ }); 
-    
+    $("#modalPasswdUser #send").on('click', function(e){
+        var form = $('#modalPasswdUserForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()){
+            data={}
+            data['id']=data['username']=$('#modalPasswdUserForm #id').val();
+            data['name']=$('#modalPasswdUserForm #name').val();
+            data['password']=$('#modalPasswdUserForm #password').val();
+            socket.emit('user_passwd',data)
+        }
+    }); 
+        
     $("#modalDeleteUser #send").on('click', function(e){
         var form = $('#modalDeleteUserForm');
         data=$('#modalDeleteUserForm').serializeObject();
@@ -345,6 +342,24 @@ function actionsUserDetail(){
             //~ modal_edit_desktop_datatables(pk);
 	});
 
+	$('.btn-passwd').on('click', function () {
+            //~ setQuotaOptions('#edit-users-quota');
+            var closest=$(this).closest("div");
+            var pk=closest.attr("data-pk");
+            var name=closest.attr("data-name");
+            //~ var user=closest.attr("data-user");
+            $("#modalPasswdUserForm")[0].reset();
+			$('#modalPasswdUser').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            $('#modalPasswdUserForm #name').val(name);
+            $('#modalPasswdUserForm #id').val(pk);
+             //~ $('#hardware-block').hide();
+            //~ $('#modalEdit').parsley();
+            //~ modal_edit_desktop_datatables(pk);
+	});
+    
 	$('.btn-delete').on('click', function () {
             //~ setQuotaOptions('#edit-users-quota');
             var pk=$(this).closest("div").attr("data-pk");
