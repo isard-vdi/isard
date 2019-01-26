@@ -75,7 +75,7 @@ class DownloadThread(threading.Thread, object):
                 hyp_to_disk_create = get_host_disk_operations_from_path(path_selected,
                                                                         pool=self.pool_id,
                                                                         type_path=self.type_path_selected)
-                logs.downloads.debug(f'Thread download started to url: {url} in hypervisor: {hyp_to_disk_create}')
+                logs.downloads.debug(f'Thread download started to in hypervisor: {hyp_to_disk_create}')
                 if self.manager.t_disk_operations.get(hyp_to_disk_create,False) is not False:
                     if self.manager.t_disk_operations[hyp_to_disk_create].is_alive():
                         d = get_hyp_hostname_user_port_from_id(hyp_to_disk_create)
@@ -189,7 +189,6 @@ class DownloadThread(threading.Thread, object):
                     break
                 if c == '\r':
                     if len(line) > 60:
-                        logs.downloads.debug(line)
                         values = line.split()
                         logs.downloads.debug(self.url)
                         logs.downloads.debug(line)
@@ -202,8 +201,8 @@ class DownloadThread(threading.Thread, object):
                         except:
                             d_progress['total_percent'] = 0
                             d_progress['received_percent'] = 0
-                            update_download_percent(d_progress, self.table, self.id)
-                            line = p.stderr.read(60).decode('utf8')
+                        update_download_percent(d_progress, self.table, self.id)
+                        line = p.stderr.read(60).decode('utf8')
 
                 else:
                     line = line + c
@@ -440,6 +439,56 @@ class DownloadChangesThread(threading.Thread):
                     elif c['old_val']['status'] == 'Downloading' and c['new_val']['status'] == 'DownloadAborting':
                         self.abort_download(c['new_val'])
 
+KEYS = ['total_percent',
+        'total',
+        'received_percent',
+        'received',
+        'xferd_percent',
+        'xferd',
+        'speed_download_average',
+        'speed_upload_average',
+        'time_total',
+        'time_spent',
+        'time_left',
+        'speed_current']
+
+class CurlRunning():
+    def __init__(self,subprocess_object):
+        self.p = subprocess_object
+        self.stop = False
+
+    def stop_local_curl(self):
+        pass
+
+    def update_stats(self):
+        line = ''
+        while True:
+            c = p.stderr.read(1).decode('utf8')
+            if not c:
+                break
+            if c == '\r':
+                if len(line) > 60:
+                    values = line.split()
+                    #logs.downloads.debug(line)
+                    print(line)
+                    d_progress = dict(zip(KEYS, values))
+                    try:
+                        d_progress['total_percent'] = int(float(d_progress['total_percent']))
+                        d_progress['received_percent'] = int(float(d_progress['received_percent']))
+                        if d_progress['received_percent'] > 1:
+                            pass
+                    except:
+                        d_progress['total_percent'] = 0
+                        d_progress['received_percent'] = 0
+                    #update_download_percent(d_progress, self.table, self.id)
+                    #line = p.stderr.read(60).decode('utf8')
+                pprint(d_progress)
+                line = ''
+
+            else:
+                line = line + c
+
+        #rc = p.poll()
 
 def launch_thread_download_changes(manager):
     t = DownloadChangesThread(manager)
