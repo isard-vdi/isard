@@ -20,7 +20,7 @@ services:
       - "55900-55949:55900-55949"
     image: isard/hypervisor:1.0
     privileged: true
-    restart: always
+    restart: unless-stopped
         
 volumes:
   sshkeys:
