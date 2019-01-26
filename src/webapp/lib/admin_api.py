@@ -221,7 +221,7 @@ class isardAdmin():
         # ~ d': 'prova', 'password': 'prova', 'name': 'prova', 
         # ~ 'quota': {'hardware': {'vcpus': 1, 'memory': 1000}, 
         # ~ 'domains': {'templates': 1, 'running': 1, 'isos': 1, 'desktops': 1}}}
-        p = Password()
+        # ~ p = Password()
         #### Removed kind. Kind cannot be modified, so the update will 
         #### not interfere with this field
         usr = {'active': True,
@@ -240,6 +240,11 @@ class isardAdmin():
         user['quota']['domains']={**qdomains, **user['quota']['domains']}
         return self.check(r.table('users').update(user).run(db.conn),'replaced')
 
+    def user_passwd(self,user):
+        p = Password()
+        usr = {'password': p.encrypt(user['password'])}
+        return self.check(r.table('users').update(usr).run(db.conn),'replaced')
+        
     def user_toggle_active(self,id):
         with app.app_context():
             is_active = not r.table('users').get(id).pluck('active').run(db.conn)['active'] 
