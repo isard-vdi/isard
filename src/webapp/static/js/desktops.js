@@ -199,7 +199,7 @@ $(document).ready(function() {
 							history: {
 								history: false
 							},
-							stack: stack_center
+                            addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
 						}).on('pnotify.cancel', function() {
@@ -283,15 +283,17 @@ $(document).ready(function() {
     
     socket.on('result', function (data) {
         var data = JSON.parse(data);
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
+        if(data.title){
+            new PNotify({
+                    title: data.title,
+                    text: data.text,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-'+data.icon,
+                    opacity: 1,
+                    type: data.type
+            });
+        };
     });
 
     socket.on('add_form_result', function (data) {
@@ -399,7 +401,7 @@ function actionsDesktopDetail(){
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {

@@ -149,11 +149,8 @@ class isardAdmin():
             return r.table(table).insert(dict, conflict='update').run(db.conn)
                                         
     def update_table_dict(self, table, id, dict):
-        # ~ with app.app_context():
-            # ~ print(table)
-            # ~ print(id)
-            # ~ print(dict)
-        return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
+        with app.app_context():
+            return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
             
     '''
     USERS

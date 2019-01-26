@@ -777,6 +777,14 @@ def socketio_domains_update(data):
                     namespace='/sio_users', 
                     room='user_'+current_user.username)
 
+@socketio.on('domain_update', namespace='/sio_admins')
+def socketio_admin_domains_update(data):
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+    socketio.emit('result',
+                    app.isardapi.update_table_status(current_user.username, 'domains', data,remote_addr),
+                    namespace='/sio_admins', 
+                    room='domains')
+                    
 @socketio.on('domain_edit', namespace='/sio_admins')
 def socketio_admins_domain_edit(form_data):
     #~ Check if user has quota and rights to do it

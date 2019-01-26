@@ -136,7 +136,7 @@ $(document).ready(function() {
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('media_update',{'pk':data.id,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {
@@ -161,7 +161,7 @@ $(document).ready(function() {
                                 history: {
                                     history: false
                                 },
-                                stack: stack_center
+                                addclass: 'pnotify-center'
                             }).get().on('pnotify.confirm', function() {
                                 socket.emit('media_update',{'pk':data.id,'name':'status','value':'DownloadAborting'})
                             }).on('pnotify.cancel', function() {
