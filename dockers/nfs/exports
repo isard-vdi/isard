@@ -1,2 +1,0 @@
-/nfs/images 0.0.0.0/0.0.0.0(rw,mountpoint,async,wdelay,no_root_squash,no_subtree_check,sec=sys,ro,secure,no_root_squash,no_all_squash,fsid=11)
-

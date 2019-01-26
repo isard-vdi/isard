@@ -102,22 +102,17 @@ services:
         target: /data/images
         read_only: true
       - type: bind
-        source: /opt/isard/logs
-        target: /data/logs
+        source: /opt/isard/logs/ipxe.log
+        target: /data/isard-ipxe.log
         read_only: false
       - type: bind
-        source: /opt/isard/ipxe/conf/ipxe
-        target: /data/config
+        source: /opt/isard/ipxe/conf/ipxe/config.yml
+        target: /data/config.yml
         read_only: false
       - type: bind
         source: /opt/isard/certs/default
         target: /data/certs
         read_only: true
-    ports:
-      - target: 3000
-        published: 3000
-        protocol: tcp
-        mode: host
     networks:
       - isard_network
     image: isard/ipxe:1.0
@@ -166,35 +161,6 @@ services:
         protocol: udp
         mode: host
     image: isard/tftp:1.1
-    restart: unless-stopped
-    depends_on:
-      - isard-ipxe
-
-  isard-nfs:
-    volumes:
-      - type: bind
-        source: /opt/isard/ipxe/nfs
-        target: /nfs
-        read_only: false
-    ports:
-      - target: 2049
-        published: 2049
-        protocol: tcp
-        mode: host
-      - target: 111
-        published: 111
-        protocol: tcp
-        mode: host
-      - target: 2049
-        published: 2049
-        protocol: udp
-        mode: host
-      - target: 111
-        published: 111
-        protocol: udp
-        mode: host
-    image: isard/nfs:1.1
-    privileged: true
     restart: unless-stopped
     depends_on:
       - isard-ipxe
