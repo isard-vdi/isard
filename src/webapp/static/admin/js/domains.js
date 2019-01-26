@@ -142,7 +142,7 @@ $(document).ready(function() {
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
 							api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
                                 $('#mactions option[value="none"]').prop("selected",true);
@@ -215,34 +215,36 @@ $(document).ready(function() {
 							type: 'error'
 						});
 				}else{
-					api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
-					});  
+                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'})
+					//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
+					//~ });  
 				}          
                 break;
             case 'btn-stop':
-				new PNotify({
-						title: 'Unplug desktop warning!',
-							text: "It is NOT RECOMMENDED to continue and turn off desktop "+ name+".\n \
-								   Please, properly shut down desktop from inside viewer \n\n \
-								   Turn off desktop? "+ name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							stack: stack_center
-						}).get().on('pnotify.confirm', function() {
-							api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
-                			}); 
-						}).on('pnotify.cancel', function() {
-				});	
+                socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
+				//~ new PNotify({
+						//~ title: 'Unplug desktop warning!',
+							//~ text: "It is NOT RECOMMENDED to continue and turn off desktop "+ name+".\n \
+								   //~ Please, properly shut down desktop from inside viewer \n\n \
+								   //~ Turn off desktop? "+ name+"?",
+							//~ hide: false,
+							//~ opacity: 0.9,
+							//~ confirm: {
+								//~ confirm: true
+							//~ },
+							//~ buttons: {
+								//~ closer: false,
+								//~ sticker: false
+							//~ },
+							//~ history: {
+								//~ history: false
+							//~ },
+							//~ addclass: 'pnotify-center'
+						//~ }).get().on('pnotify.confirm', function() {
+							//~ api.ajax('/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
+                			//~ }); 
+						//~ }).on('pnotify.cancel', function() {
+				//~ });	
                 break;
             case 'btn-display':
                 getClientViewer(data,socket);
@@ -468,7 +470,7 @@ function actionsDomainDetail(){
                                 history: {
                                     history: false
                                 },
-                                stack: stack_center
+                                addclass: 'pnotify-center'
                             }).get().on('pnotify.confirm', function() {
                                 api.ajax('/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
                                     //Should return something about the result...

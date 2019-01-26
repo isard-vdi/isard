@@ -396,7 +396,7 @@ function actionsUserDetail(){
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('user_toggle',{'pk':pk,'name':name})
 						}).on('pnotify.cancel', function() {
@@ -484,7 +484,7 @@ function populate_users_table(){
 							confirm: {confirm: true},
 							buttons: {closer: false,sticker: false},
 							history: {history: false},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             api.ajax('/admin/users/nonexists','POST',{'commit':true}).done(function(data) {
                                             $("#modalOldUsers").modal('hide');

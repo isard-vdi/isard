@@ -63,7 +63,7 @@ class isard():
                     if data['value']=='Stopping':
                         if dom['status'] in ['Started']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':item+' stopping success','text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                                return json.dumps({'title':False,'text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
                                 return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
@@ -82,7 +82,7 @@ class isard():
                                 return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
                             self.auto_interface_set(user,data['pk'],remote_addr)
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':item+' starting success','text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                                return json.dumps({'title':False,'text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
                                 return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
