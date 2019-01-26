@@ -7,7 +7,7 @@ services:
     networks:
       - isard_network
     image: rethinkdb
-    restart: always
+    restart: unless-stopped
     logging:
         driver: none
 
@@ -22,7 +22,7 @@ services:
     networks:
       - isard_network
     image: isard/nginx:1.1
-    restart: always
+    restart: unless-stopped
     depends_on:
       - isard-app
 
@@ -39,7 +39,7 @@ services:
       - isard_network
     image: isard/hypervisor:1.1
     privileged: true
-    restart: always
+    restart: unless-stopped
         
   isard-app:
     container_name: isard-app
@@ -55,7 +55,7 @@ services:
     networks:
       - isard_network
     image: isard/app:1.1
-    restart: always
+    restart: unless-stopped
     depends_on:
       - isard-database
       - isard-hypervisor

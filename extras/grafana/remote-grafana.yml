@@ -37,5 +37,5 @@ services:
         protocol: tcp
         mode: host        
     image: isard/grafana:1.1
-    restart: always
+    restart: unless-stopped
 
