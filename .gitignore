@@ -58,6 +58,4 @@ csv/
 #Wizard disable
 install/.wizard
 
-devel.yml
-build-devel-images.sh
 known_hosts

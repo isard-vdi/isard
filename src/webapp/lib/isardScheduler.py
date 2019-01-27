@@ -8,7 +8,7 @@
 from decimal import Decimal
 import random, queue
 from threading import Thread
-import time
+import time, pytz
 from webapp import app
 import rethinkdb as r
 #~ from flask import current_app
@@ -43,7 +43,7 @@ class isardScheduler():
                                          # ~ port=app.config['RETHINKDB_PORT'],
                                          # ~ auth_key=app.config['RETHINKDB_AUTH'])
 #>>>>>>> fe171dc30ddd8a2dabafa7b2085cbb60e6432c35
-        self.scheduler = BackgroundScheduler()
+        self.scheduler = BackgroundScheduler(timezone=pytz.timezone('UTC'))
         self.scheduler.add_jobstore('rethinkdb',self.rStore, database='isard', table='scheduler_jobs',host=app.config['RETHINKDB_HOST'],
                          port=app.config['RETHINKDB_PORT'],
                          auth_key=app.config['RETHINKDB_AUTH'])
