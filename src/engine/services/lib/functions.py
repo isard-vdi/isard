@@ -1066,7 +1066,8 @@ def engine_restart():
     return True
 
 def clean_intermediate_status():
-    status_to_delete = ['DownloadAborting']
+    #status_to_delete = ['DownloadAborting']
+    status_to_delete = []
     status_to_failed = ['Updating']
 
     all_domains = get_all_domains_with_id_and_status()

@@ -382,3 +382,20 @@ def remove_media(id):
     result = rtable.get(id).delete().run(r_conn)
     close_rethink_connection(r_conn)
     return result
+
+def get_media_with_status(status):
+    """
+    get media with status
+    :param status
+    :return: list id_domains
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('media')
+    try:
+        results = rtable.get_all(status, index='status').pluck('id').run(r_conn)
+        close_rethink_connection(r_conn)
+    except:
+        # if results is None:
+        close_rethink_connection(r_conn)
+        return []
+    return [d['id'] for d in results]

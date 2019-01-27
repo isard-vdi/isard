@@ -197,22 +197,22 @@ def get_domain_hyp_started_and_status_and_detail(id_domain):
 #     return results
 
 
-# def get_domains_with_status(status):
-#     """
-#     NOT USED
-#     :param status:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('domains')
-#     try:
-#         results = rtable.get_all(status, index='status').pluck('id').run(r_conn)
-#         close_rethink_connection(r_conn)
-#     except:
-#         # if results is None:
-#         close_rethink_connection(r_conn)
-#         return []
-#     return [d['id'] for d in results]
+def get_domains_with_status(status):
+    """
+    get domain with status
+    :param status
+    :return: list id_domains
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    try:
+        results = rtable.get_all(status, index='status').pluck('id').run(r_conn)
+        close_rethink_connection(r_conn)
+    except:
+        # if results is None:
+        close_rethink_connection(r_conn)
+        return []
+    return [d['id'] for d in results]
 
 
 def get_domains_with_transitional_status(list_status=TRANSITIONAL_STATUS):
