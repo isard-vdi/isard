@@ -351,7 +351,16 @@ def verify_output_cmds1_template_from_domain(cmds_done, path_domain_disk, path_t
         log.debug('cmd: {}, out: {}, err: {}'.format(d['cmd'], d['out'], d['err']))
         error_severity = 'Hard'
     elif error_severity != 'Hard':
-        df_bytes = int(d['out'].splitlines()[-1].split()[3]) * 1024
+        try:
+            df_bytes = int(d['out'].splitlines()[-1].split()[3]) * 1024
+        except:
+            #if mount point is too large df split output in two lines
+            try:
+                df_bytes = int(d['out'].splitlines()[-1].split()[2]) * 1024
+            except:
+                log.info('When try to know disk free space previous to create template output is not standard')
+                log.debug('cmd: {}, out: {}, err: {}'.format(d['cmd'], d['out'], d['err']))
+                df_bytes = 999999999
         log.debug('disk free for create template from domain {}: {}'.format(id_domain, size_format(df_bytes)))
 
     d = [a for a in cmds_done if a['title'] == 'size_template_disk'][0]
