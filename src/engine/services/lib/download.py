@@ -7,7 +7,7 @@ def test_url_for_download(url,url_download_insecure_ssl=True,
     to download media, domains..."""
     try:
         response = requests.head(url,
-                                 allow_redirects=False,
+                                 allow_redirects=True,
                                  verify=url_download_insecure_ssl,
                                  timeout=timeout_time_limit,
                                  headers=dict_header)
