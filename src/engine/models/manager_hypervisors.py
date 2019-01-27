@@ -297,6 +297,9 @@ class ManagerHypervisors(object):
             logs.main.info('starting thread background: {} (TID {})'.format(self.name, self.tid))
             q = self.manager.q.background
             first_loop = True
+            pool_id = 'default'
+            #can't launch downloads if download changes thread is not ready and hyps are not online
+            update_table_field('hypervisors_pools', pool_id, 'download_changes', 'Stopped')
 
             # if domains have intermedite states (updating, download_aborting...)
             # to Failed or Delete
