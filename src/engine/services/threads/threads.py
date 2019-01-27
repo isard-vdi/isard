@@ -108,7 +108,21 @@ def launch_action_delete_disk(action, hostname, user, port):
     if len([k['err'] for k in array_out_err if len(k['err']) == 1]):
         log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
 
-def launch_delete_media(action,hostname,user,port):
+def launch_killall_curl(hostname,user,port):
+    ssh_commands = ['killall curl']
+    try:
+        array_out_err = execute_commands(hostname,
+                                     ssh_commands=ssh_commands,
+                                     user=user,
+                                     port=port)
+        out = array_out_err[0]['out']
+        err = array_out_err[0]['err']
+        logs.downloads.info(f'kill al curl process in hypervisor {hostname}: {out} {err}')
+        return True
+    except Exception as e:
+        logs.downloads.error(f'Kill all curl process in hypervisor {hostname} fail: {e}')
+
+def launch_delete_media(action,hostname,user,port,final_status='Deleted'):
     array_out_err = execute_commands(hostname,
                                      ssh_commands=action['ssh_commands'],
                                      user=user,
@@ -121,7 +135,10 @@ def launch_delete_media(action,hostname,user,port):
         return False
     # ls of the file after deleted failed, has deleted ok
     elif len(array_out_err[2]['err']) > 0:
-        update_status_media_from_path(path, 'Deleted')
+        if final_status == 'DownloadFailed':
+            update_status_media_from_path(path, final_status)
+        else:
+            update_status_media_from_path(path, 'Deleted')
         return True
     else:
         log.error('failed deleting media {}'.format(id_media))
