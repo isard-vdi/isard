@@ -742,6 +742,9 @@ class UiActions(object):
             id_template = domain['create_dict']['origin']
             template = get_domain(id_template)
             xml_from = template['xml']
+            parents_chain = template['parents'] + domain['parents']
+            update_table_field('domains', id_domain, 'parents', parents_chain)
+
 
         elif xml_from_virt_install is True:
             xml_from = domain['xml_virt_install']
@@ -750,6 +753,7 @@ class UiActions(object):
             return False
 
         update_table_field('domains', id_domain, 'xml', xml_from)
+
 
         xml_raw = update_xml_from_dict_domain(id_domain)
         if xml_raw is False:
