@@ -1,16 +1,16 @@
-version: "3.5"
+version: "3.2"
 services:
   isard-database:
     container_name: isard-database
     volumes:
       - "/opt/isard/database:/data"
       - "/etc/localtime:/etc/localtime:ro"
+    ports:
+      - "8080:8080"        
     networks:
       - isard_network
     image: rethinkdb
     restart: unless-stopped
-    logging:
-        driver: none
 
   isard-nginx:
     container_name: isard-nginx
@@ -48,12 +48,14 @@ services:
     container_name: isard-app
     volumes:
       - "sshkeys:/root/.ssh"
+      - "../../src:/isard"
       - "/opt/isard/certs:/certs"
       - "/opt/isard/logs:/isard/logs"
       - "/opt/isard/database/wizard:/isard/install/wizard"
       - "/opt/isard/backups:/isard/backups"
       - "/opt/isard/uploads:/isard/uploads"
-      - "/etc/localtime:/etc/localtime:ro"
+    environtment:
+      - TZ="${TZ}"
     extra_hosts:
       - "isard-engine:127.0.0.1"
     networks:
@@ -63,11 +65,10 @@ services:
     depends_on:
       - isard-database
       - isard-hypervisor
-
+      
 volumes:
   sshkeys:
 
 networks:
   isard_network:
     external: false
-    name: isard_network

@@ -365,7 +365,7 @@ class ConfigThread(threading.Thread):
     def run(self):
         with app.app_context():
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
-                r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).union(
+                r.table('scheduler_jobs').has_fields('name').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).union(
                 r.table('disposables').merge({'table':'disposables'}).changes(include_initial=False)).run(db.conn):
                 if self.stop==True: break
                 try:

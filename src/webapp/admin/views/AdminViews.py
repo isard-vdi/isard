@@ -132,7 +132,8 @@ def admin_config_update():
             dict['disposable_desktops'].pop('id',None)
             dict['disposable_desktops']['active']=False if 'active' not in dict['disposable_desktops'] else True
         if app.adminapi.update_table_dict('config',1,dict):
-            return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+            # ~ return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+            return render_template('admin/pages/config.html',nav="Config")
     return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
 
 @app.route('/admin/disposable/add', methods=['POST'])
