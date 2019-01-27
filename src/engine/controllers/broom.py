@@ -37,8 +37,9 @@ class ThreadBroom(threading.Thread):
                 interval += 0.1
                 if self.stop is True:
                     break
-            if self.manager.check_actions_domains_enabled():
+            if self.manager.check_actions_domains_enabled() is False:
                 continue
+
 
             l = get_domains_with_transitional_status()
 
