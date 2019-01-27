@@ -153,7 +153,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             # ahora ya se puede llamar a starting paused
             if id_domain is not False:
                 #update parents if have
-                update_domain_parents(id_domain)
+                #update_domain_parents(id_domain)
                 update_domain_status('CreatingDomain', id_domain, None,
                                      detail='new disk created, now go to creating desktop and testing if desktop start')
         else:
