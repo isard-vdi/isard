@@ -107,12 +107,12 @@ CONFIG_DICT = {
 'TIMEOUTS':rconfig['timeouts'],
 
 'REMOTEOPERATIONS':{
-'host_remote_disk_operatinos': 'vdesktop1.escoladeltreball.org',
-'default_group_dir': '/vimet/groups/a'
+'host_remote_disk_operatinos': 'localhost',
+'default_group_dir': '/opt/isard/groups/'
 },
 'FERRARY':{
 'prefix': '__f_',
-'dir_to_ferrary_disks': '/vimet/groups/ferrary'
+'dir_to_ferrary_disks': '/opt/isard/groups/ferrary'
 }
 }
 
