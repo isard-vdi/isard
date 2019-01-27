@@ -375,6 +375,13 @@ class Wizard():
         dict=load_config()['DEFAULT_HYPERVISORS']    
         valid_engine=self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')
         if valid_engine:
+            try:
+                status = r.db('isard').table('hypervisors_pools').get('default').pluck('download_changes').run()['download_changes']
+                if status != 'Started': return False
+            except Exception as e:
+                print(e)
+                return False
+        if valid_engine:
             if 'isard-hypervisor' in dict.keys():
                 url='http://isard-engine'
                 web_port=5555
@@ -382,6 +389,7 @@ class Wizard():
                 url='http://localhost'
                 web_port=5555                
             r.db('isard').table('config').get(1).update({'engine':{'api':{'url':url,'web_port':web_port,'token':'fosdem'}}}).run()
+            self.callfor_updates_demo()
         return valid_engine
 
     def valid_hypervisor(self,remote_addr=False):
@@ -389,7 +397,6 @@ class Wizard():
             if r.db('isard').table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
                 # ~ if remote_addr is not False:
                     # ~ self.update_hypervisor_viewer(remote_addr)
-                self.callfor_updates_demo()
                 return True
             return False
         except:
@@ -499,12 +506,12 @@ class Wizard():
         # ~ else:
             # ~ errors.append({'stepnum':4,'iserror':False})
             
-        if not res['engine']: 
+        if not res['hyper']: 
             errors.append({'stepnum':4,'iserror':True})
         else:
             errors.append({'stepnum':4,'iserror':False})
             
-        if not res['hyper']: 
+        if not res['engine']: 
             errors.append({'stepnum':5,'iserror':True})
         else:
             errors.append({'stepnum':5,'iserror':False})
@@ -598,10 +605,10 @@ class Wizard():
                     # ~ if step is '4':
                         # ~ return json.dumps(self.valid_server('isardvdi.com'))
                     if step is '4':
-                        return json.dumps(self.valid_engine())
-                    if step is '5':
                         # ~ return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False) 
-                        return json.dumps(self.valid_hypervisor())                
+                        return json.dumps(self.valid_hypervisor())                         
+                    if step is '5':
+                        return json.dumps(self.valid_engine())               
                     if step is '6':
                         return json.dumps(self.valid_server('isardvdi.com')) 
                                                                                                                     
@@ -634,13 +641,13 @@ class Wizard():
                             # ~ return html[4]['ko']
                         # ~ return html[4]['ok']                                              
                     if step == '4':
+                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
+                            return html[5]['ko']
+                        return html[5]['ok']                          
+                    if step == '5':
                         if not self.valid_engine():
                             return html[4]['ko']
                         return html[4]['ok']  
-                    if step == '5':
-                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
-                            return html[5]['ko']
-                        return html[5]['ok']  
                     if step == '6':
                         if not self.valid_server('isardvdi.com'):
                             return html[6]['noservice']
