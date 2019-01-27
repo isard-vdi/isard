@@ -49,7 +49,7 @@ class isard():
     def update_table_status(self,user,table,data,remote_addr):
             item = table[:-1].capitalize()
             with app.app_context():
-                dom = r.table('domains').get(data['pk']).pluck('status','name').run(db.conn)          
+                dom = r.table(table).get(data['pk']).pluck('status','name').run(db.conn)          
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
@@ -182,6 +182,7 @@ class isard():
         with app.app_context():
             data=r.table('virt_install').run(db.conn)
             return self.f.table_values_bstrap(data)
+    
     '''     
     STATUS
     '''

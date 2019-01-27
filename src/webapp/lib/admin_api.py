@@ -672,6 +672,17 @@ class isardAdmin():
                     (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
                 ).run(conn))
         # ~ return list(r.table("domains").filter({'create_dict':{'hardware':{'isos':id}}).pluck('id').run(db.conn))                    
+
+    def delete_media(self,id):
+        with app.app_context():
+            return r.table('domains').filter(
+                lambda dom: 
+                        (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                    ).run(conn))
+            
+            # ~ hardware - isos [ {path}, ... ]
+            # ~ return self.f.table_values_bstrap(data)  
+
        
     def remove_backup_db(self,id):
         with app.app_context():
