@@ -162,6 +162,8 @@ class ManagerHypervisors(object):
 
         self.q_disk_operations
 
+        #self.t_downloads_changes.stop = True
+
 
 
         # changes
@@ -327,6 +329,7 @@ class ManagerHypervisors(object):
                 # - downloads_changes
                 # - broom
                 # - events
+                # - grafana
 
                 # Threads that depends on hypervisors availavility:
                 # - disk_operations

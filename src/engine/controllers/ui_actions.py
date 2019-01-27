@@ -742,7 +742,7 @@ class UiActions(object):
             id_template = domain['create_dict']['origin']
             template = get_domain(id_template)
             xml_from = template['xml']
-            parents_chain = template['parents'] + domain['parents']
+            parents_chain = template.get('parents',[]) + domain.get('parents',[])
             update_table_field('domains', id_domain, 'parents', parents_chain)
 
 
@@ -846,7 +846,7 @@ class UiActions(object):
         old_path_disk = dict_domain_template['hardware']['disks'][0]['file']
         old_path_dir = extract_dir_path(old_path_disk)
 
-        DEFAULT_GROUP_DIR = CONFIG_DICT['REMOTEOPERATIONS']['default_group_dir']
+        #DEFAULT_GROUP_DIR = CONFIG_DICT['REMOTEOPERATIONS']['default_group_dir']
 
         if path_to_disk_dir is None:
             path_to_disk_dir = DEFAULT_GROUP_DIR + '/' + \

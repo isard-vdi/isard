@@ -103,10 +103,14 @@ def engine_restart():
             break
     return jsonify({'engine_restart':True}), 200
 
+@api.route('/grafana/restart', methods=['GET'])
+def grafana_restart():
+    app.m.t_grafana.restart_send_config = True
 
 @api.route('/engine/status')
 def engine_status():
     '''all main threads are running'''
+
     pass
 
 
