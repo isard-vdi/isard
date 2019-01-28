@@ -1,12 +1,13 @@
 package menus
 
 import (
+	"io/ioutil"
 	"log"
 	"text/template"
 
-	"github.com/GeertJohan/go.rice"
-
 	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
+
+	rice "github.com/GeertJohan/go.rice"
 )
 
 type menuTemplateData struct {
@@ -35,4 +36,18 @@ func parseTemplate(tmplName string) *template.Template {
 	}
 
 	return tmpl
+}
+
+func parseBootTemplate(arch string) (*template.Template, error) {
+	b, err := ioutil.ReadFile("images/" + arch + "/netboot.ipxe")
+	if err != nil {
+		return nil, err
+	}
+
+	tmpl, err := template.New("boot-" + arch).Parse(string(b))
+	if err != nil {
+		return nil, err
+	}
+
+	return tmpl, nil
 }

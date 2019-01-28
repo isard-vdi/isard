@@ -41,7 +41,6 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := login.Call(WebRequest, username, password)
 	if err != nil {
 		if err.Error() == "HTTP Code: 401" {
-			w.WriteHeader(http.StatusUnauthorized)
 			LoginHandler(w, r)
 			return
 		}
@@ -92,6 +91,7 @@ func VMListHandler(w http.ResponseWriter, r *http.Request) {
 
 // StartHandler is the handler that starts the selected VM
 func StartHandler(w http.ResponseWriter, r *http.Request) {
+	arch := r.FormValue("arch")
 	token := r.FormValue("tkn")
 	vmID := r.FormValue("id")
 
@@ -129,7 +129,7 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	menu, err := menus.GenerateBoot(token, vmID)
+	menu, err := menus.GenerateBoot(arch, token, vmID)
 	if err != nil {
 		log.Printf("error generating the boot menu: %v", err)
 	}
@@ -141,10 +141,10 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 
 // VmlinuzHandler is the handler that serves the vmlinuz file for the boot
 func VmlinuzHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "images/vmlinuz"+r.FormValue("arch"))
+	http.ServeFile(w, r, "images/"+r.FormValue("arch")+"/vmlinuz")
 }
 
 // InitrdHandler is the handler that serves the initrd file for the boot
 func InitrdHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "images/initrd"+r.FormValue("arch"))
+	http.ServeFile(w, r, "images/"+r.FormValue("arch")+"/initrd")
 }

@@ -45,5 +45,6 @@ func (c *Config) ReadConfig() error {
 	}
 
 	err = yaml.Unmarshal(yamlFile, c)
+
 	return err
 }

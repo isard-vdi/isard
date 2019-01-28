@@ -97,17 +97,18 @@ item reboot Reboot -->
 item poweroff Poweroff -->
 choose target && goto ${target}
 :_nefix_KDE_Neon_5
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_KDE_Neon_5
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_KDE_Neon_5&arch=${buildarch:uristring}
 :_nefix_Debian_9
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Debian_9
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Debian_9&arch=${buildarch:uristring}
 :_nefix_Arch_Linux
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Arch_Linux
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Arch_Linux&arch=${buildarch:uristring}
 :bootFromDisk
 sanboot --no-describe --drive 0x80
 :reboot
 reboot
 :poweroff
-poweroff`,
+poweroff
+`,
 	},
 }
 
