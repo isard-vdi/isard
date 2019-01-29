@@ -398,7 +398,7 @@ function actionsUserDetail(){
 				keyboard: false
 			}).modal('show');
             // GENERATE DOMAINS_TREE
-            
+            api.ajax('/admin/user/delete','POST',{'pk':pk}).done(function(user) {console.log('done')})
             $('#domains_tree input:checkbox').iCheck('check');
     });
     

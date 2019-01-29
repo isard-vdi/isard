@@ -31,6 +31,9 @@ db.init_app(app)
 
 from ..auth.authentication import Password
 
+from collections import defaultdict
+
+
 class isardAdmin():
     def __init__(self):
         self.f=flatten()
@@ -301,7 +304,40 @@ class isardAdmin():
                 'templates':user_templates,
                 'risky_templates':risky_templates,
                 'others_domains':others_domains}
-                    
+
+
+    def attach(self,branch, trunk):
+        '''
+        Insert a branch of directories on its trunk.
+        '''
+        parts = branch.split('/', 1)
+        if len(parts) == 1:  # branch is a file
+            trunk[FILE_MARKER].append(parts[0])
+        else:
+            node, others = parts
+            if node not in trunk:
+                trunk[node] = defaultdict(dict, ((FILE_MARKER, []),))
+            attach(others, trunk[node])
+            
+    def user_delete_templates(self,user_id='admin'):
+        user_templates = list(r.table("domains").get_all(r.args(['base','public_template','user_template']),index='kind').filter({'user':user_id}).pluck('id','name','user','parents',{'create_dict':{'origin'}}).run(db.conn))
+        derivated=[] 
+        for t in user_templates:
+            derivated.append(list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').pluck('id','name','user','parents',{'create_dict':{'origin'}}).merge(lambda domain:
+                {
+                    "derivates": r.table('domains').filter(lambda derivates: derivates['parents'].contains(t)).count()
+                    # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                }
+            ).run(db.conn)))      
+        main_dict = defaultdict(dict, (('<files>', []),))
+        print(derivated)
+        for p in derivated:
+            self.attach(p['parents'], main_dict)
+        print(main_dict)
+        return True
+        
+        
+        
     def rcg_add(self,dict):
         table=dict['table']
         dict.pop('table',None)
