@@ -11,6 +11,9 @@ import (
 type Config struct {
 	BaseURL string `yaml:"base_url"`
 
+	// BuildsURL is the URL of the Isard Builder from which Isard iPXE is going to download all the images and compile the iPXE binaries
+	BuildsURL string `yaml:"builds_url"`
+
 	// TLS Certificates
 	CACert string `yaml:"ca_cert"`
 }
@@ -18,8 +21,9 @@ type Config struct {
 // createInitialConfig creates the configuration file and populates it with the default values
 func createInitialConfig() error {
 	c := &Config{
-		BaseURL: "https://isard.domain.com",
-		CACert:  "./certs/ca.pem",
+		BaseURL:   "https://isard.domain.com",
+		BuildsURL: "https://builds.isardvdi.com",
+		CACert:    "./certs/ca.pem",
 	}
 
 	d, err := yaml.Marshal(c)
@@ -45,5 +49,6 @@ func (c *Config) ReadConfig() error {
 	}
 
 	err = yaml.Unmarshal(yamlFile, c)
+
 	return err
 }

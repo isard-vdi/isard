@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
 )
 
 type testWebRequest struct{}

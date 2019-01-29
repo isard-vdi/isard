@@ -3,9 +3,9 @@ package menus
 import (
 	"bytes"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
-	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard-ipxe/pkg/mocks"
 )
 
 // GenerateList generates an iPXE menu with the VM list

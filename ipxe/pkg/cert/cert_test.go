@@ -76,7 +76,7 @@ func TestCheck(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		expectedErr := "Get https://ufhwuifhwuiehfweuihwirhwefw.efwef.wefuiowehfiweuhfweuifhweui: dial tcp: lookup ufhwuifhwuiehfweuihwirhwefw.efwef.wefuiowehfiweuhfweuifhweui: no such host"
+		expectedErr := "error checking the certificate: Get https://ufhwuifhwuiehfweuihwirhwefw.efwef.wefuiowehfiweuhfweuifhweui: dial tcp: lookup ufhwuifhwuiehfweuihwirhwefw.efwef.wefuiowehfiweuhfweuifhweui: no such host"
 
 		err = cert.Check()
 		if err.Error() != expectedErr {

@@ -1,4 +1,0 @@
-#!ipxe
-kernel {{.BaseURL}}/pxe/boot/vmlinuz?arch=${buildarch:uristring} tkn={{.Token}} id={{.VMID}} initrd={{.BaseURL}}/pxe/boot/initrd?arch=${buildarch:uristring}
-initrd {{.BaseURL}}/pxe/boot/initrd?arch=${buildarch:uristring}
-boot

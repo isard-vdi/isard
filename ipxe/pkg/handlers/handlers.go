@@ -7,14 +7,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/start"
-
-	"github.com/isard-vdi/isard-ipxe/pkg/client/login"
-
-	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
-	"github.com/isard-vdi/isard-ipxe/pkg/client/request"
-
+	"github.com/isard-vdi/isard-ipxe/pkg/api/login"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/request"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/start"
 	"github.com/isard-vdi/isard-ipxe/pkg/menus"
+	"github.com/isard-vdi/isard-ipxe/pkg/mocks"
 )
 
 // WebRequest is the struct that is going to use to call the API
@@ -41,7 +38,6 @@ func AuthHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := login.Call(WebRequest, username, password)
 	if err != nil {
 		if err.Error() == "HTTP Code: 401" {
-			w.WriteHeader(http.StatusUnauthorized)
 			LoginHandler(w, r)
 			return
 		}
@@ -92,6 +88,7 @@ func VMListHandler(w http.ResponseWriter, r *http.Request) {
 
 // StartHandler is the handler that starts the selected VM
 func StartHandler(w http.ResponseWriter, r *http.Request) {
+	arch := r.FormValue("arch")
 	token := r.FormValue("tkn")
 	vmID := r.FormValue("id")
 
@@ -129,7 +126,7 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	menu, err := menus.GenerateBoot(token, vmID)
+	menu, err := menus.GenerateBoot(arch, token, vmID)
 	if err != nil {
 		log.Printf("error generating the boot menu: %v", err)
 	}
@@ -141,10 +138,10 @@ func StartHandler(w http.ResponseWriter, r *http.Request) {
 
 // VmlinuzHandler is the handler that serves the vmlinuz file for the boot
 func VmlinuzHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "images/vmlinuz"+r.FormValue("arch"))
+	http.ServeFile(w, r, "images/"+r.FormValue("arch")+"/vmlinuz")
 }
 
 // InitrdHandler is the handler that serves the initrd file for the boot
 func InitrdHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "images/initrd"+r.FormValue("arch"))
+	http.ServeFile(w, r, "images/"+r.FormValue("arch")+"/initrd")
 }

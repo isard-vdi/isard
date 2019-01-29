@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 )
@@ -58,14 +59,17 @@ func finishTest(workOnTmp bool) error {
 }
 
 func TestReadConfig(t *testing.T) {
+	rand.Seed(time.Now().UTC().UnixNano())
+
 	t.Run("reads the configuration successfully", func(t *testing.T) {
 		if err := prepareTest(true); err != nil {
 			t.Fatalf("error preparing the test: %v", err)
 		}
 
 		expectedConfig := &config.Config{
-			BaseURL: "https://isard.domain.com",
-			CACert:  "./certs/ca.pem",
+			BaseURL:   "https://isard.domain.com",
+			BuildsURL: "https://builds.isardvdi.com",
+			CACert:    "./certs/ca.pem",
 		}
 
 		config := &config.Config{}

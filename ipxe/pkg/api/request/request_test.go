@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/request"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/request"
 )
 
 func prepareCerts() error {

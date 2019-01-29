@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
-	"github.com/isard-vdi/isard-ipxe/pkg/client/request"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/request"
 	"github.com/isard-vdi/isard-ipxe/pkg/handlers"
 )
 
@@ -218,8 +219,8 @@ chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${pas
 
 		handlers.AuthHandler(w, r)
 
-		if w.Code != http.StatusUnauthorized {
-			t.Errorf("expecting %d, but got %d", http.StatusUnauthorized, w.Code)
+		if w.Code != http.StatusOK {
+			t.Errorf("expecting %d, but got %d", http.StatusOK, w.Code)
 		}
 
 		if !bytes.Equal(w.Body.Bytes(), expected) {
@@ -335,17 +336,18 @@ item reboot Reboot -->
 item poweroff Poweroff -->
 choose target && goto ${target}
 :_nefix_KDE_Neon_5
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_KDE_Neon_5
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_KDE_Neon_5&arch=${buildarch:uristring}
 :_nefix_Debian_9
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Debian_9
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Debian_9&arch=${buildarch:uristring}
 :_nefix_Arch_Linux
-chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Arch_Linux
+chain https://isard.domain.com/pxe/boot/start?tkn=${tkn:uristring}&id=_nefix_Arch_Linux&arch=${buildarch:uristring}
 :bootFromDisk
 sanboot --no-describe --drive 0x80
 :reboot
 reboot
 :poweroff
-poweroff`)
+poweroff
+`)
 
 		handlers.VMListHandler(w, r)
 
@@ -524,9 +526,23 @@ func (testWebRequestStart) Post(url string, body io.Reader) ([]byte, int, error)
 
 func TestStartHandler(t *testing.T) {
 	t.Run("should work as expected", func(t *testing.T) {
+		if err := os.MkdirAll("images/i386", 0755); err != nil {
+			t.Fatalf("error preparing the test: error creating the directories: %v", err)
+		}
+
+		netboot := []byte(`#!ipxe
+kernel {{.BaseURL}}/pxe/boot/vmlinuz?arch=${buildarch:uristring} base_url={{.BaseURL}} tkn={{.Token}} id={{.VMID}} init=/nix/store/x056i5cpbk8fyavvlcbzrr7aw8b97gz4-nixos-system-nixos-19.03pre166366.22b7449aacb/init loglevel=4
+initrd {{.BaseURL}}/pxe/boot/initrd?arch=${buildarch:uristring}
+boot
+`)
+
+		if err := ioutil.WriteFile("images/i386/netboot.ipxe", netboot, 0644); err != nil {
+			t.Fatalf("error preparing the test: error creating the file: %v", err)
+		}
+
 		handlers.WebRequest = testWebRequestStart{}
 
-		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=TpnYVH0-OsVrA050YufAi0rPAm_r3aNPcmdhQ69jrMk&id=_nefix_KDE_Neon_5", nil)
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=TpnYVH0-OsVrA050YufAi0rPAm_r3aNPcmdhQ69jrMk&id=_nefix_KDE_Neon_5&arch=i386", nil)
 		if err != nil {
 			t.Fatalf("error preparing the test: %v", err)
 		}
@@ -534,9 +550,10 @@ func TestStartHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		expected := []byte(`#!ipxe
-kernel https://isard.domain.com/pxe/vmlinuz tkn=TpnYVH0-OsVrA050YufAi0rPAm_r3aNPcmdhQ69jrMk id=_nefix_KDE_Neon_5 initrd=https://isard.domain.com/pxe/initrd
-initrd https://isard.domain.com/pxe/initrd
-boot`)
+kernel https://isard.domain.com/pxe/boot/vmlinuz?arch=${buildarch:uristring} base_url=https://isard.domain.com tkn=TpnYVH0-OsVrA050YufAi0rPAm_r3aNPcmdhQ69jrMk id=_nefix_KDE_Neon_5 init=/nix/store/x056i5cpbk8fyavvlcbzrr7aw8b97gz4-nixos-system-nixos-19.03pre166366.22b7449aacb/init loglevel=4
+initrd https://isard.domain.com/pxe/boot/initrd?arch=${buildarch:uristring}
+boot
+`)
 
 		handlers.StartHandler(w, r)
 
@@ -551,12 +568,16 @@ boot`)
 		if err := os.Remove("config.yml"); err != nil {
 			t.Fatalf("error finishing the test: %v", err)
 		}
+
+		if err := os.RemoveAll("images"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
 	})
 
 	t.Run("should return a login menu", func(t *testing.T) {
 		handlers.WebRequest = testWebRequestStart{}
 
-		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=invalidtoken&id=_nefix_KDE_Neon_5", nil)
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=invalidtoken&id=_nefix_KDE_Neon_5&arch=i386", nil)
 		if err != nil {
 			t.Fatalf("error preparing the test: %v", err)
 		}
@@ -587,7 +608,7 @@ chain https://isard.domain.com/pxe/boot/auth?usr=${username:uristring}&pwd=${pas
 	t.Run("should return a VM error menu", func(t *testing.T) {
 		handlers.WebRequest = testWebRequestStart{}
 
-		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=vmerror&id=_nefix_KDE_Neon_5", nil)
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=vmerror&id=_nefix_KDE_Neon_5&arch=i386", nil)
 		if err != nil {
 			t.Fatalf("error preparing the test: %v", err)
 		}
@@ -617,7 +638,7 @@ chain https://isard.domain.com/pxe/boot/`)
 	t.Run("should return an error menu", func(t *testing.T) {
 		handlers.WebRequest = testWebRequestStart{}
 
-		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=error&id=_nefix_KDE_Neon_5", nil)
+		r, err := http.NewRequest("GET", "/pxe/boot/start?tkn=error&id=_nefix_KDE_Neon_5&arch=i386", nil)
 		if err != nil {
 			t.Fatalf("error preparing the test: %v", err)
 		}

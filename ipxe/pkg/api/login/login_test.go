@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/login"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/login"
 )
 
 type loginBody struct {
