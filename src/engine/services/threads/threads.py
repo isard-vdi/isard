@@ -256,7 +256,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
                                           list_backing_chain_template=backing_chain_template)
 
                 # disk created, update parents and status
-                update_domain_parents(id_domain)
+                #update_domain_parents(id_domain)
                 update_domain_status(status='TemplateDiskCreated',
                                      id_domain=id_domain,
                                      hyp_id=False,
