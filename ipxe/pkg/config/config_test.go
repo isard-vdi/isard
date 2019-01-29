@@ -67,8 +67,9 @@ func TestReadConfig(t *testing.T) {
 		}
 
 		expectedConfig := &config.Config{
-			BaseURL: "https://isard.domain.com",
-			CACert:  "./certs/ca.pem",
+			BaseURL:   "https://isard.domain.com",
+			BuildsURL: "https://builds.isardvdi.com",
+			CACert:    "./certs/ca.pem",
 		}
 
 		config := &config.Config{}

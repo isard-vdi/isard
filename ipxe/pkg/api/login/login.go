@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/api/mocks"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard-ipxe/pkg/mocks"
 )
 
 type body struct {

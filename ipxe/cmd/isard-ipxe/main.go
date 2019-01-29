@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/cert"
+	"github.com/isard-vdi/isard-ipxe/pkg/downloads"
 	"github.com/isard-vdi/isard-ipxe/pkg/handlers"
 )
 
@@ -56,6 +57,16 @@ func main() {
 	// Check the certificate
 	err = cert.Check()
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Download all the images
+	if err := downloads.CreateImagesDirectories(); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Downloading images... Please be patient")
+	if err := downloads.DownloadImages(); err != nil {
 		log.Fatal(err)
 	}
 
