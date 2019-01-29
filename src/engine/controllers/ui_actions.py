@@ -20,7 +20,7 @@ from engine.services.db import update_domain_viewer_started_values, update_table
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
     update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop, \
-    get_dict_from_item_in_table, update_domain_dict_create_dict
+    get_dict_from_item_in_table, update_domain_dict_create_dict, update_origin_and_parents_to_new_template
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
@@ -420,6 +420,14 @@ class UiActions(object):
                 return False
             remove_disk_template_created_list_in_domain(id_domain)
             remove_dict_new_template_from_domain(id_domain)
+            if 'parents' in domain_dict.keys():
+                domain_parents_chain_update = domain_dict['parents'].copy()
+            else:
+                domain_parents_chain_update = []
+
+            domain_parents_chain_update.append(template_id)
+            update_table_field('domains', id_domain, 'parents', domain_parents_chain_update)
+            update_origin_and_parents_to_new_template(id_domain,template_id)
             # update_table_field('domains', template_id, 'xml', xml_parsed, merge_dict=False)
             update_domain_status(status='Stopped',
                                  id_domain=template_id,
@@ -743,6 +751,12 @@ class UiActions(object):
             template = get_domain(id_template)
             xml_from = template['xml']
             parents_chain = template.get('parents',[]) + domain.get('parents',[])
+            #when creating template from domain, the domain would be inserted as a parent while template is creating
+            # parent_chain never can't have id_domain as parent
+            if id_domain in parents_chain:
+                for i in range(parents_chain.count('a')):
+                    parents_chain.remove(id_domain)
+
             update_table_field('domains', id_domain, 'parents', parents_chain)
 
 
