@@ -85,6 +85,8 @@ class ThreadBroom(threading.Thread):
                 domain_id = d['id']
                 status = d['status']
                 hyp_started = d['hyp_started']
+                if hyp_started is bool:
+                    continue
                 if len(hyp_started) == 0:
                     continue
                 # TODO bug sometimes hyp_started not in hyps_domain_started keys... why?

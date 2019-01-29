@@ -335,6 +335,13 @@ def remove_disk_template_created_list_in_domain(id_domain):
     close_rethink_connection(r_conn)
     return results
 
+def update_origin_and_parents_to_new_template(id_domain,template_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    new_create_dict_origin = {'create_dict':{'origin':template_id}}
+    results = rtable.get(id_domain).update(new_create_dict_origin).run(r_conn)
+    close_rethink_connection(r_conn)
+    return results
 
 def remove_dict_new_template_from_domain(id_domain):
     r_conn = new_rethink_connection()
