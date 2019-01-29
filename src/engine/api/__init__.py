@@ -124,6 +124,11 @@ def grafana_reload():
     '''changes in grafana parameters'''
     pass
 
+@api.route('/engine/events/stop')
+def stop_thread_event():
+    app.m.t_events.stop = True
+    app.t_events.q_event_register.put({'type': 'del_hyp_to_receive_events', 'hyp_id': ''})
+
 
 @api.route('/engine_info', methods=['GET'])
 def engine_info():
