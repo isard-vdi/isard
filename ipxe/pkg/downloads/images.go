@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 	"github.com/isard-vdi/isard-ipxe/pkg/crypt"
@@ -113,5 +114,5 @@ func DownloadImages() error {
 		}
 	}
 
-	return nil
+	return ioutil.WriteFile(filepath.Join("images", ".downladed"), []byte(time.Now().String()), 0644)
 }

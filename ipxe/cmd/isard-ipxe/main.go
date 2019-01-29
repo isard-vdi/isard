@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/cert"
 	"github.com/isard-vdi/isard-ipxe/pkg/downloads"
@@ -65,11 +66,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Println("Downloading images... Please be patient")
-	if err := downloads.DownloadImages(); err != nil {
-		log.Fatal(err)
+	if _, err := os.Stat(filepath.Join("images", ".downloaded")); err != nil {
+		if os.IsNotExist(err) {
+			log.Println("Downloading images... Please be patient")
+			if err := downloads.DownloadImages(); err != nil {
+				log.Println(err)
+			}
+		} else {
+			log.Fatalf("error reading the downloads check file: %v", err)
+		}
 	}
-
 	// Start the server
 	log.Println("Starting to listen at port :3000")
 	if err := http.ListenAndServe(":3000", mux); err != nil {
