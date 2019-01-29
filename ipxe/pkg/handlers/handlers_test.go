@@ -13,8 +13,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
-	"github.com/isard-vdi/isard-ipxe/pkg/client/request"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/request"
 	"github.com/isard-vdi/isard-ipxe/pkg/handlers"
 )
 

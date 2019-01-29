@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/start"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/start"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/login"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/login"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
-	"github.com/isard-vdi/isard-ipxe/pkg/client/request"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/mocks"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/request"
 
 	"github.com/isard-vdi/isard-ipxe/pkg/menus"
 )

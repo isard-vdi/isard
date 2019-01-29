@@ -3,8 +3,8 @@ package menus
 import (
 	"bytes"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
-	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/mocks"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 )
 

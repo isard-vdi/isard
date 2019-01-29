@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/mocks"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/mocks"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
 )
 

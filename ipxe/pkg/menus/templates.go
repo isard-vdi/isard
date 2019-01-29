@@ -5,7 +5,7 @@ import (
 	"log"
 	"text/template"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/client/list"
+	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
 
 	rice "github.com/GeertJohan/go.rice"
 )
