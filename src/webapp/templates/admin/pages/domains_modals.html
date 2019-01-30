@@ -347,24 +347,23 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 <div class="row">
-                  <div id="modalInstall" class="x_panel" style="background-color:#efeff5;">
-                     <p style="font-size: 18px;margin-bottom:0px;"> Select OS template</p>
-                     <div id="datatables-install-error-status"></div>
-                     <input  id="install" name="install" type="hidden" required>
-                     <table id="modal_delete_templates" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                     <p style="font-size: 18px;margin-bottom:0px;"> All this desktops and templates will be deleted!</p><br>
+                     All them depend on the template you are about to delete so they must be deleted also.<br>
+                     THIS OPERATION CAN'T BE UNDONE!
+                </div>
+                <div class="row">
+                     <table id="modal_delete_templates">
                         <thead>
                            <tr>
                               <th>Kind</th>
                               <th>User</th>
                               <th>Status</th>
-                              <th>Accessed</th>
                               <th>Name</th>
                            </tr>
                         </thead>
                         <tbody>
                         </tbody>
                      </table>
-                </div>
                </div>
             </div>
                   <!-- Modal Footer -->
@@ -373,7 +372,7 @@
                     <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
                  </ul>
                  <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-error">Delete All</button></li>
+                    <li><button id="send" type="button" class="btn btn-warning">Delete All</button></li>
                  </ul>
             </div>
         </div>
