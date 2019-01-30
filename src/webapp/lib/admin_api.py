@@ -285,7 +285,10 @@ class isardAdmin():
 
     def template_delete_list(self,id):
         with app.app_context():
-            return list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn))
+            # ~ print(id)
+            # ~ print(list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn)))
+            dom_id=r.table('domains').get(id).pluck('id','name','kind','user','status','parents').run(db.conn)
+            return list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn)).append(dom_id)
             
 
                 

@@ -34,7 +34,49 @@ if(url!="Desktops"){
 
 $(document).ready(function() {
 
-        $template_domain = $(".template-detail-domain");
+    $template_domain = $(".template-detail-domain");
+
+    $("#modalDeleteTemplate #send").on('click', function(e){
+        var form = $('#modalDeleteTemplate #modalAdd');
+        ids=[]
+
+        if(modal_delete_templates.rows('.active').data().length){
+            $.each(modal_delete_templates.rows('.active').data(),function(key, value){
+                names+=value['name']+'\n';
+                ids.push(value['id']);
+            });
+            var text = "You are about to delete all this bases, templates and desktops:\n\n "+names
+        }else{ 
+            $.each(modal_delete_templates.rows({filter: 'applied'}).data(),function(key, value){
+                ids.push(value['id']);
+            });
+            var text = "You are about to delete "+modal_delete_templates.rows({filter: 'applied'}).data().length+" bases, templates and desktops!\n Can't be undone!"
+        }
+            new PNotify({
+                    title: 'Warning!',
+                        text: text,
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center'
+                    }).get().on('pnotify.confirm', function() {
+                        //~ api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                            //~ $('#mactions option[value="none"]').prop("selected",true);
+                        //~ }); 
+                    }).on('pnotify.cancel', function() {
+                        //~ $('#mactions option[value="none"]').prop("selected",true);
+            });
+    });  
+
 
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
@@ -491,6 +533,7 @@ function actionsDomainDetail(){
             }).modal('show');
             delete_templates(pk);
         });
+        
     }
 }
 
@@ -624,18 +667,11 @@ function delete_templates(id){
                 { "data": "name"},
 				],
 			 "order": [[0, 'asc']],	
-             "pageLength": 10,	 
+             "pageLength": 10,	
+             "destroy" : true 
 	} );  
     
-    $("#modalDeleteTemplates #send").on('click', function(e){
-            var form = $('#modalDeleteTemplates #modalAdd');
-            form.parsley().validate();
-            
-            if (form.parsley().isValid()){
-                    socket.emit('domain_media_add',data)
-            }        
-        });    
-
+  
 }
 
 // MODAL EDIT DESKTOP
