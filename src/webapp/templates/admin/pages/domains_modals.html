@@ -327,3 +327,55 @@
         </div>
     </div>
 </div>
+
+
+<div class="modal fade" id="modalDeleteTemplate" tabindex="-1" role="dialog" 
+   aria-labelledby="modalDeleteTemplate" aria-hidden="true" >
+    <div class="modal-dialog modal-lg" >
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+               <button type="button" class="close" 
+                  data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+               </button>
+               <h4 class="modal-title" id="myModalLabel">
+                  <i class="fa fa-warning" style="color:red"></i>   Delete template and derivates
+               </h4>
+            </div>
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <div class="row">
+                  <div id="modalInstall" class="x_panel" style="background-color:#efeff5;">
+                     <p style="font-size: 18px;margin-bottom:0px;"> Select OS template</p>
+                     <div id="datatables-install-error-status"></div>
+                     <input  id="install" name="install" type="hidden" required>
+                     <table id="modal_delete_templates" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                        <thead>
+                           <tr>
+                              <th>Kind</th>
+                              <th>User</th>
+                              <th>Status</th>
+                              <th>Accessed</th>
+                              <th>Name</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                     </table>
+                </div>
+               </div>
+            </div>
+                  <!-- Modal Footer -->
+            <div class="modal-footer">
+                 <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                 </ul>
+                 <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-error">Delete All</button></li>
+                 </ul>
+            </div>
+        </div>
+    </div>
+</div>

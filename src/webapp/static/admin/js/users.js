@@ -389,18 +389,18 @@ function actionsUserDetail(){
             //~ modal_edit_desktop_datatables(pk);
 	});
 
-	$('.btn-delete').on('click', function () {
-            // setQuotaOptions('#edit-users-quota');
-            var pk=$(this).closest("div").attr("data-pk");
-            //~ $("#modalDeleteUserForm")[0].reset();
-			$('#modalDeleteUserTree').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            // GENERATE DOMAINS_TREE
-            api.ajax('/admin/user/delete','POST',{'pk':pk}).done(function(user) {console.log('done')})
-            $('#domains_tree input:checkbox').iCheck('check');
-    });
+	//~ $('.btn-delete').on('click', function () {
+            //~ // setQuotaOptions('#edit-users-quota');
+            //~ var pk=$(this).closest("div").attr("data-pk");
+            //~ // $("#modalDeleteUserForm")[0].reset();
+			//~ $('#modalDeleteUserTree').modal({
+				//~ backdrop: 'static',
+				//~ keyboard: false
+			//~ }).modal('show');
+            //~ // GENERATE DOMAINS_TREE
+            //~ api.ajax('/admin/user/delete','POST',{'pk':pk}).done(function(user) {console.log('done')})
+            //~ $('#domains_tree input:checkbox').iCheck('check');
+    //~ });
     
 //~ <div id="domains_tree">
                     //~ <ul>
@@ -418,36 +418,36 @@ function actionsUserDetail(){
 
     
     
-	//~ $('.btn-delete').on('click', function () {
-            //~ // setQuotaOptions('#edit-users-quota');
-            //~ var pk=$(this).closest("div").attr("data-pk");
-            //~ $("#modalDeleteUserForm")[0].reset();
-			//~ $('#modalDeleteUser').modal({
-				//~ backdrop: 'static',
-				//~ keyboard: false
-			//~ }).modal('show');
-            //~ // setModalUser()
-            //~ // setQuotaTableDefaults('#edit-users-quota','users',pk)
-            //~ api.ajax('/admin/user/delete','POST',{'pk':pk}).done(function(user) {
-                //~ $('.user-desktops').text(user.desktops.length);
-                //~ $('.user-templates').text(user.templates.length);
-                //~ $('.user-templates-ok').text(user.templates.length-user.risky_templates.length);
-                //~ $('.user-templates-ko').text(user.risky_templates.length);
-                //~ $('.user-templates-ko-count').text(user.others_domains);
-                //~ // $('#modalEditForm #name').val(user.name);
-                //~ // $('#modalEditForm #id').val(user.id);
-                //~ // $('#modalEditForm #mail').val(user.mail);
-                //~ // $('#modalEditForm #role option:selected').prop("selected", false);
-                //~ // $('#modalEditForm #role option[value="'+user.role+'"]').prop("selected",true);
-                //~ // $('#modalEditForm #category option:selected').prop("selected", false);
-                //~ // $('#modalEditForm #category option[value="'+user.category+'"]').prop("selected",true);
-                //~ // $('#modalEditForm #group option:selected').prop("selected", false);
-                //~ // $('#modalEditForm #group option[value="'+user.group+'"]').prop("selected",true);                
-            //~ });
-             //~ // $('#hardware-block').hide();
-            //~ // $('#modalEdit').parsley();
-            //~ // modal_edit_desktop_datatables(pk);
-	//~ });
+	$('.btn-delete').on('click', function () {
+            // setQuotaOptions('#edit-users-quota');
+            var pk=$(this).closest("div").attr("data-pk");
+            $("#modalDeleteUserForm")[0].reset();
+			$('#modalDeleteUser').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+            // setModalUser()
+            // setQuotaTableDefaults('#edit-users-quota','users',pk)
+            api.ajax('/admin/user/delete','POST',{'pk':pk}).done(function(user) {
+                $('.user-desktops').text(user.desktops.length);
+                $('.user-templates').text(user.templates.length);
+                $('.user-templates-ok').text(user.templates.length-user.risky_templates.length);
+                $('.user-templates-ko').text(user.risky_templates.length);
+                $('.user-templates-ko-count').text(user.others_domains);
+                // $('#modalEditForm #name').val(user.name);
+                // $('#modalEditForm #id').val(user.id);
+                // $('#modalEditForm #mail').val(user.mail);
+                // $('#modalEditForm #role option:selected').prop("selected", false);
+                // $('#modalEditForm #role option[value="'+user.role+'"]').prop("selected",true);
+                // $('#modalEditForm #category option:selected').prop("selected", false);
+                // $('#modalEditForm #category option[value="'+user.category+'"]').prop("selected",true);
+                // $('#modalEditForm #group option:selected').prop("selected", false);
+                // $('#modalEditForm #group option[value="'+user.group+'"]').prop("selected",true);                
+            });
+             // $('#hardware-block').hide();
+            // $('#modalEdit').parsley();
+            // modal_edit_desktop_datatables(pk);
+	});
 
 
 		$('.btn-active').on('click', function () {

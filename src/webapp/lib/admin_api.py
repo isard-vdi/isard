@@ -283,6 +283,12 @@ class isardAdmin():
                     }
                 ).run(db.conn))
 
+    def template_delete_list(self,id):
+        with app.app_context():
+            return list(r.table('domains').pluck('id','name','kind','user','status','accessed').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn))
+            
+
+                
     def user_delete_checks(self,user_id):
         with app.app_context():
             # User desktops can be deleted, ok?
@@ -304,39 +310,6 @@ class isardAdmin():
                 'templates':user_templates,
                 'risky_templates':risky_templates,
                 'others_domains':others_domains}
-
-
-    def attach(self,branch, trunk):
-        '''
-        Insert a branch of directories on its trunk.
-        '''
-        parts = branch.split('/', 1)
-        if len(parts) == 1:  # branch is a file
-            trunk[FILE_MARKER].append(parts[0])
-        else:
-            node, others = parts
-            if node not in trunk:
-                trunk[node] = defaultdict(dict, ((FILE_MARKER, []),))
-            attach(others, trunk[node])
-            
-    def user_delete_templates(self,user_id='admin'):
-        user_templates = list(r.table("domains").get_all(r.args(['base','public_template','user_template']),index='kind').filter({'user':user_id}).pluck('id','name','user','parents',{'create_dict':{'origin'}}).run(db.conn))
-        derivated=[] 
-        for t in user_templates:
-            derivated.append(list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').pluck('id','name','user','parents',{'create_dict':{'origin'}}).merge(lambda domain:
-                {
-                    "derivates": r.table('domains').filter(lambda derivates: derivates['parents'].contains(t)).count()
-                    # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
-                }
-            ).run(db.conn)))      
-        main_dict = defaultdict(dict, (('<files>', []),))
-        print(derivated)
-        for p in derivated:
-            self.attach(p['parents'], main_dict)
-        print(main_dict)
-        return True
-        
-        
         
     def rcg_add(self,dict):
         table=dict['table']
@@ -426,8 +399,8 @@ class isardAdmin():
             else:
                 domains= [ {'id':d['id'],'origin':(d['create_dict']['origin'] if 'create_dict' in d and 'origin' in d['create_dict'] else None)}
                             for d in list(r.table('domains').get_all(username, index='user').pluck('id','user',{'create_dict':{'origin'}}).run(db.conn)) ] 
-            import pprint
-            pprint.pprint(domains)
+            # ~ import pprint
+            # ~ pprint.pprint(domains)
             return self.domain_recursive_count(id,domains)-1
 
     def domains_update(self, create_dict):
@@ -455,9 +428,6 @@ class isardAdmin():
         # ~ pprint.pprint(hierarchy)
         return count
 
-
-
-    
     def domains_stop(self,hyp_id=False,without_viewer=True):
         with app.app_context():
             try:
@@ -1326,7 +1296,31 @@ class Certificates(object):
         
         
         
-        
+'''
+TREE
+'''
+class Tree(object):
+    def __init__(self, data, children=None, parent=None):
+        self.data = data
+        self.children = children or []
+        self.parent = parent
+
+    def add_child(self, data):
+        new_child = Tree(data, parent=self)
+        self.children.append(new_child)
+        return new_child
+
+    def is_root(self):
+        return self.parent is None
+
+    def is_leaf(self):
+        return not self.children
+
+    def __str__(self):
+        if self.is_leaf():
+            return str(self.data)
+        return '{data} [{children}]'.format(data=self.data, children=', '.join(map(str, self.children)))
+      
         
         
         
