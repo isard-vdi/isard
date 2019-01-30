@@ -39,7 +39,6 @@ images=(
 	app
 	dhcp
 	tftp
-	nfs
 )
 
 # Build all the images and tag them correctly
