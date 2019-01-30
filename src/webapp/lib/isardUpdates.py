@@ -9,7 +9,7 @@ db.init_app(app)
         
 class Updates(object):
     def __init__(self):
-        self.working=True
+        # ~ self.working=True
         self.updateFromConfig()
         self.updateFromWeb()
         
@@ -19,8 +19,8 @@ class Updates(object):
         self.kinds=['media','domains','builders','virt_install','virt_builder','videos','viewers']
         for k in self.kinds:
             self.web[k]=self.getKind(kind=k)
-            if self.web[k] is False:
-                self.working=False
+            # ~ if self.web[k] is False:
+                # ~ self.working=False
         
     def updateFromConfig(self):
         with app.app_context():
@@ -39,12 +39,13 @@ class Updates(object):
         
     def is_registered(self):
         if self.is_conected():
-            if self.working:
-                return self.code 
-            else:
+            return self.code
+            # ~ if self.working:
+                # ~ return self.code 
+            # ~ else:
                 # we have an invalid code. (changes in web database?)
-                with app.app_context():
-                    r.table('config').get(1).update({'resources':{'code':False}}).run(db.conn)
+                # ~ with app.app_context():
+                    # ~ r.table('config').get(1).update({'resources':{'code':False}}).run(db.conn)
         return False
 
     def register(self):
@@ -53,6 +54,7 @@ class Updates(object):
             if req.status_code==200:
                 with app.app_context():
                     r.table('config').get(1).update({'resources':{'code':req.json()}}).run(db.conn)
+                    self.code=req.json()
                     self.updateFromConfig()
                     self.updateFromWeb()
                     return True

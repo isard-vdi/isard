@@ -54,8 +54,6 @@ services:
       - "/opt/isard/database/wizard:/isard/install/wizard"
       - "/opt/isard/backups:/isard/backups"
       - "/opt/isard/uploads:/isard/uploads"
-    environtment:
-      - TZ="${TZ}"
     extra_hosts:
       - "isard-engine:127.0.0.1"
     networks:
