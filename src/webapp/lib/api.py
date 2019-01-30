@@ -69,7 +69,7 @@ class isard():
                         else:
                             return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Deleting':
-                        if dom['status'] in ['Stopped','Failed']:
+                        if dom['status'] in ['Stopped','Failed','DownloadFailed']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                                 return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
