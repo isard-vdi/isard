@@ -485,16 +485,16 @@ function addDesktopDetailPannel ( d ) {
 }
 
 function setDesktopDetailButtonsStatus(id,status){
-          if(status=='Stopped'){
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
-          }else{
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          }
-          if(status=='Failed'){
-              $('#actions-'+id+' .btn-edit').prop('disabled', false);
-              $('#actions-'+id+' .btn-delete').prop('disabled', false);
-          }
-           
+    
+    if(status=='Stopped'){
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+    }else{
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+    }
+    if(status=='Failed'){
+      $('#actions-'+id+' .btn-edit').prop('disabled', false);
+    }
+    $('#actions-'+id+' .btn-delete').prop('disabled', false);
 }
 	
 function icon(name){
