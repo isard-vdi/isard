@@ -288,7 +288,9 @@ class isardAdmin():
             # ~ print(id)
             # ~ print(list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn)))
             dom_id=r.table('domains').get(id).pluck('id','name','kind','user','status','parents').run(db.conn)
-            return list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn)).append(dom_id)
+            doms = list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn))
+            # ~ doms.append(dom_id)
+            return [dom_id]+doms
             
 
                 

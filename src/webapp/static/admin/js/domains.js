@@ -564,11 +564,11 @@ function addDomainDetailPannel ( d ) {
 }
 
 function setDomainDetailButtonsStatus(id,status){
-          if(status=='Stopped'){
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
-          }else{
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          }
+          //~ if(status=='Stopped'){
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+          //~ }else{
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+          //~ }
 }
 	
 function icon(data){
@@ -666,7 +666,7 @@ function delete_templates(id){
                 { "data": "status"},
                 { "data": "name"},
 				],
-			 "order": [[0, 'asc']],	
+			 //~ "order": [[0, 'asc']],	
              "pageLength": 10,	
              "destroy" : true 
 	} );  
