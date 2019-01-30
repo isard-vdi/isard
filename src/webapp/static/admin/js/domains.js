@@ -489,7 +489,7 @@ function actionsDomainDetail(){
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
-            modal_delete_templates(pk);
+            delete_templates(pk);
         });
     }
 }
@@ -597,13 +597,7 @@ function renderAction(data){
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
-function modal_delete_templates(id){
-    $('#modal_delete_templates thead th').each( function () {
-        var title = $(this).text();
-        if(title=='Name'){
-            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
-        }
-    } );
+function delete_templates(id){
     
     var pk=$(this).closest("[data-pk]").attr("data-pk");
 	modal_delete_templates = $('#modal_delete_templates').DataTable({
@@ -627,7 +621,6 @@ function modal_delete_templates(id){
 				{ "data": "kind"},
                 { "data": "user"},
                 { "data": "status"},
-                { "data": "accessed"},
                 { "data": "name"},
 				],
 			 "order": [[0, 'asc']],	
