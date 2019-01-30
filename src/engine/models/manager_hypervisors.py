@@ -455,9 +455,7 @@ class ManagerHypervisors(object):
                                                   'hostname',
                                                   'hypervisors_pools',
                                                   'port',
-                                                  'user',
-                                                  'viewer_hostname',
-                                                  'viewer_nat_hostname').merge({'table': 'hypervisors'}).changes().\
+                                                  'user').merge({'table': 'hypervisors'}).changes().\
                     union(r.table('engine').pluck('threads', 'status_all_threads').merge({'table': 'engine'}).changes())\
                     .run(self.r_conn):
 
