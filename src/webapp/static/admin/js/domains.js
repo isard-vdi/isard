@@ -482,6 +482,15 @@ function actionsDomainDetail(){
     }else{
         $('.btn-delete').remove()
         $('.btn-template').remove()
+
+		$('.btn-delete-template').on('click', function () {	
+						$("#modalDeleteTemplate #modalAdd")[0].reset();
+						$('#modalDeleteTemplate').modal({
+							backdrop: 'static',
+							keyboard: false
+						}).modal('show');
+						modal_delete_templates();
+        });
     }
 }
 
@@ -588,6 +597,51 @@ function renderAction(data){
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
+function modal_delete_templates(){
+    $('#modal_delete_templates thead th').each( function () {
+        var title = $(this).text();
+        if(title=='Name'){
+            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+    } );
+    
+	modal_delete_templates = $('#modal_add_install').DataTable({
+			"ajax": {
+				"url": "/admin/domains/todelete",
+				"dataSrc": ""
+			},
+            "scrollY":        "125px",
+            "scrollCollapse": true,
+            "paging":         false,
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                "zeroRecords":    "No matching templates found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                "infoFiltered":   "(filtered from _MAX_ total templates)"
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				{ "data": "kind"},
+                { "data": "user"},
+                { "data": "name"},
+                { "data": "accessed"},
+				],
+			 "order": [[0, 'asc']],	
+             "pageLength": 10,	 
+	} );  
+    
+    $("#modalDeleteTemplates #send").on('click', function(e){
+            var form = $('#modalDeleteTemplates #modalAdd');
+            form.parsley().validate();
+            
+            if (form.parsley().isValid()){
+                    socket.emit('domain_media_add',data)
+            }        
+        });    
+
+}
 
 // MODAL EDIT DESKTOP
 function modal_edit_desktop_datatables(id){
