@@ -88,6 +88,18 @@ def admin_domains_events(id):
 def admin_domains_messages(id):
     return json.dumps(app.isardapi.get_domain_last_messages(id)), 200, {'ContentType': 'application/json'}    
 
+@app.route('/admin/domains/todelete/<id>', methods=['POST','GET'])
+@login_required
+@isAdmin
+def admin_domains_todelete(id):
+    if request.method == 'POST':
+        None
+        # ~ res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
+        # ~ if res:
+            # ~ return json.dumps(res), 200,  {'ContentType': 'application/json'}
+        # ~ else:
+            # ~ return json.dumps(res), 500,  {'ContentType': 'application/json'}
+    return json.dumps(app.adminapi.template_delete_list(request.get_json(force=True))), 200, {'ContentType': 'application/json'}
 
 
 # ~ '''

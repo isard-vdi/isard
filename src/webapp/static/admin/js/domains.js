@@ -191,7 +191,7 @@ $(document).ready(function() {
                     //~ setDomainGenealogy(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                     if(url!="Desktops"){
-                        setDomainDerivates(row.data().id);
+                        //~ setDomainDerivates(row.data().id);
                     }
                 }
             }            
@@ -428,7 +428,7 @@ function actionsDomainDetail(){
 	});	    
 
     if(url=="Desktops"){
-
+        $('.btn-delete-template').remove()
         $('.btn-template').on('click', function () {
             if($('.quota-templates .perc').text() >=100){
                 new PNotify({
@@ -484,12 +484,12 @@ function actionsDomainDetail(){
         $('.btn-template').remove()
 
 		$('.btn-delete-template').on('click', function () {	
-						$("#modalDeleteTemplate #modalAdd")[0].reset();
-						$('#modalDeleteTemplate').modal({
-							backdrop: 'static',
-							keyboard: false
-						}).modal('show');
-						modal_delete_templates();
+            var pk = $(this).closest("[data-pk]").attr("data-pk")
+            $('#modalDeleteTemplate').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            modal_delete_templates(pk);
         });
     }
 }
@@ -597,7 +597,7 @@ function renderAction(data){
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
-function modal_delete_templates(){
+function modal_delete_templates(id){
     $('#modal_delete_templates thead th').each( function () {
         var title = $(this).text();
         if(title=='Name'){
@@ -605,9 +605,10 @@ function modal_delete_templates(){
         }
     } );
     
-	modal_delete_templates = $('#modal_add_install').DataTable({
+    var pk=$(this).closest("[data-pk]").attr("data-pk");
+	modal_delete_templates = $('#modal_delete_templates').DataTable({
 			"ajax": {
-				"url": "/admin/domains/todelete",
+				"url": "/admin/domains/todelete/"+id,
 				"dataSrc": ""
 			},
             "scrollY":        "125px",
@@ -625,8 +626,9 @@ function modal_delete_templates(){
 			"columns": [
 				{ "data": "kind"},
                 { "data": "user"},
-                { "data": "name"},
+                { "data": "status"},
                 { "data": "accessed"},
+                { "data": "name"},
 				],
 			 "order": [[0, 'asc']],	
              "pageLength": 10,	 

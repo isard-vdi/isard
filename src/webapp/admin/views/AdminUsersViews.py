@@ -74,7 +74,6 @@ def admin_user_delete(doit=False):
         args = request.get_json(force=True)
     except:
         args = request.form.to_dict()
-    print(app.adminapi.user_delete_templates(args['pk']))
     return json.dumps(app.adminapi.user_delete_checks(args['pk']))
         
 @app.route('/admin/users/update', methods=['POST'])
