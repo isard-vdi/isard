@@ -98,7 +98,7 @@ $(document).ready(function() {
                             {
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {                                
-                                if(full.status == 'Available' || full.status == "FailedDownload"){
+                                if(full.status == 'Available' || full.status == "DownloadFailed"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
                                 if(full.status == 'Downloading'){
