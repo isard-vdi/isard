@@ -32,7 +32,7 @@ if exists client-arch {
   }
 }
 option tftp-server-name "<ISARD DOMAIN NAME>";
-next-server "<ISARD DOMAIN NAME>"
+next-server <ISARD DOMAIN NAME>;
 
 # Subnets
 subnet <NETWORK IP> netmask <NETWORK MASK> {
