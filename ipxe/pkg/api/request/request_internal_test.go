@@ -18,7 +18,8 @@ func prepareCerts() error {
 
 	cmd1 := exec.Command("openssl", "genrsa", "-des3", "-passout", "pass:qwerty", "-out", "certs/ca.key", "512")
 	cmd2 := exec.Command("openssl", "rsa", "-passin", "pass:qwerty", "-in", "certs/ca.key", "-out", "certs/ca.key")
-	cmd3 := exec.Command("openssl", "req", "-x509", "-new", "-nodes", "-key", "certs/ca.key", "-sha256", "-days", "1", "-out", "certs/ca.pem", "-subj", "/CN=isard.domain.com")
+	// The file is written to cert/server-cert.pem to avoid having to create a configuration file
+	cmd3 := exec.Command("openssl", "req", "-x509", "-new", "-nodes", "-key", "certs/ca.key", "-sha256", "-days", "1", "-out", "certs/server-cert.pem", "-subj", "/CN=isard.domain.com")
 
 	if err := cmd1.Run(); err != nil {
 		return err
@@ -41,7 +42,7 @@ func TestCreateClient(t *testing.T) {
 			t.Fatalf("error creating the certificates: %v", err)
 		}
 
-		caCert, err := ioutil.ReadFile("certs/ca.pem")
+		caCert, err := ioutil.ReadFile("certs/server-cert.pem")
 		if err != nil {
 			t.Fatalf("error preparing the test: %v", err)
 		}
@@ -102,7 +103,7 @@ func TestCreateClient(t *testing.T) {
 
 	t.Run("there was an error reading the CA certificate", func(t *testing.T) {
 		var expectedRsp *http.Client
-		expectedErr := "open ./certs/ca.pem: no such file or directory"
+		expectedErr := "open ./certs/server-cert.pem: no such file or directory"
 
 		client, err := createClient()
 		if err.Error() != expectedErr {

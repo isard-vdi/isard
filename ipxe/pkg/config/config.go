@@ -23,7 +23,7 @@ func createInitialConfig() error {
 	c := &Config{
 		BaseURL:   "https://isard.domain.com",
 		BuildsURL: "https://builds.isardvdi.com",
-		CACert:    "./certs/ca.pem",
+		CACert:    "./certs/server-cert.pem",
 	}
 
 	d, err := yaml.Marshal(c)

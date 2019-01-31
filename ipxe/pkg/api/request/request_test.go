@@ -20,7 +20,8 @@ func prepareCerts() error {
 
 	cmd1 := exec.Command("openssl", "genrsa", "-des3", "-passout", "pass:qwerty", "-out", "certs/ca.key", "512")
 	cmd2 := exec.Command("openssl", "rsa", "-passin", "pass:qwerty", "-in", "certs/ca.key", "-out", "certs/ca.key")
-	cmd3 := exec.Command("openssl", "req", "-x509", "-new", "-nodes", "-key", "certs/ca.key", "-sha256", "-days", "1", "-out", "certs/ca.pem", "-subj", "/CN=isard.domain.com")
+	// The file is written to cert/server-cert.pem to avoid having to create a configuration file
+	cmd3 := exec.Command("openssl", "req", "-x509", "-new", "-nodes", "-key", "certs/ca.key", "-sha256", "-days", "1", "-out", "certs/server-cert.pem", "-subj", "/CN=isard.domain.com")
 
 	if err := cmd1.Run(); err != nil {
 		return err
@@ -77,7 +78,7 @@ func TestGet(t *testing.T) {
 
 		var expectedRsp []byte = nil
 		expectedCode := 0
-		expectedErr := "open ./certs/ca.pem: no such file or directory"
+		expectedErr := "open ./certs/server-cert.pem: no such file or directory"
 
 		rsp, code, err := request.Get("https://isard.domain.com")
 		if err.Error() != expectedErr {
@@ -169,7 +170,7 @@ func TestPost(t *testing.T) {
 
 		var expectedRsp []byte = nil
 		expectedCode := 0
-		expectedErr := "open ./certs/ca.pem: no such file or directory"
+		expectedErr := "open ./certs/server-cert.pem: no such file or directory"
 
 		rsp, code, err := request.Post("https://isard.domain.com", bytes.NewReader([]byte("{}")))
 		if err.Error() != expectedErr {

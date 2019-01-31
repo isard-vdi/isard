@@ -29,6 +29,7 @@ func createClient() (*http.Client, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		rootCAs := x509.NewCertPool()
 		rootCAs.AppendCertsFromPEM(caCert)
 
