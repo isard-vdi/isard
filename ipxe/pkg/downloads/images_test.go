@@ -41,8 +41,7 @@ func TestCreateImagesDirectories(t *testing.T) {
 			t.Fatalf("error preparing the test %v", err)
 		}
 
-		err = os.Chdir("/")
-		if err != nil {
+		if err = os.Chdir("/"); err != nil {
 			t.Fatalf("error preparing the test %v", err)
 		}
 
@@ -122,8 +121,7 @@ caa5991958576cadc3da74c38c9fbdf78ae103d2def3065a318da6498044ec8b *netboot.ipxe`)
 			t.Fatalf("error preparing the test %v", err)
 		}
 
-		err = os.Chdir("/")
-		if err != nil {
+		if err = os.Chdir("/"); err != nil {
 			t.Fatalf("error preparing the test %v", err)
 		}
 
