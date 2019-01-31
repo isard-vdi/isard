@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 
@@ -46,6 +47,17 @@ func (c *Config) ReadConfig() error {
 	yamlFile, err := ioutil.ReadFile("config.yml")
 	if err != nil {
 		return err
+	}
+
+	if bytes.Equal(yamlFile, []byte{}) {
+		if err = createInitialConfig(); err != nil {
+			return err
+		}
+
+		yamlFile, err = ioutil.ReadFile("config.yml")
+		if err != nil {
+			return err
+		}
 	}
 
 	err = yaml.Unmarshal(yamlFile, c)

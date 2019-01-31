@@ -167,4 +167,29 @@ func TestReadConfig(t *testing.T) {
 			t.Fatalf("error finishing the test: %v", err)
 		}
 	})
+
+	t.Run("if the file is empty, write the configuration ", func(t *testing.T) {
+		if err := ioutil.WriteFile("config.yml", []byte{}, 0644); err != nil {
+			t.Fatalf("error preparing the test")
+		}
+
+		expectedConfig := &config.Config{
+			BaseURL:   "https://isard.domain.com",
+			BuildsURL: "https://builds.isardvdi.com",
+			CACert:    "./certs/server-cert.pem",
+		}
+
+		config := &config.Config{}
+		if err := config.ReadConfig(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		if !reflect.DeepEqual(config, expectedConfig) {
+			t.Errorf("expecting %s, but got %s", expectedConfig, config)
+		}
+
+		if err := os.Remove("config.yml"); err != nil {
+			t.Fatalf("error finishing the test: %v", err)
+		}
+	})
 }
