@@ -8,6 +8,7 @@ import (
 
 	"github.com/isard-vdi/isard-ipxe/pkg/cert"
 	"github.com/isard-vdi/isard-ipxe/pkg/config"
+
 	yaml "gopkg.in/yaml.v2"
 )
 
