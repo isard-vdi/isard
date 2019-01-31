@@ -29,6 +29,9 @@ FROM alpine:3.8
 # Copy the compiled binary from the build stage
 COPY --from=build /go/src/github.com/isard-vdi/isard-ipxe/isard-ipxe /app/isard-ipxe
 
+# Install the CA certificates
+RUN apk add --update --no-cache ca-certificates
+
 # Move to the correct directory
 WORKDIR /data
 
