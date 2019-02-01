@@ -1,0 +1,2 @@
+#!ipxe
+chain {{.BaseURL}}/pxe/boot/list?tkn={{.Token}}&usr={{.Username}}

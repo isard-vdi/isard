@@ -1,0 +1,4 @@
+#!ipxe
+echo The VM start has failed: {{.Err}}
+prompt Press any key to go back
+chain {{.BaseURL}}/pxe/boot/

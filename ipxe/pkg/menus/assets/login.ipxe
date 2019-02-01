@@ -1,0 +1,5 @@
+#!ipxe
+set username
+set password
+login
+chain {{.BaseURL}}/pxe/boot/auth?usr=${username:uristring}&pwd=${password:uristring}

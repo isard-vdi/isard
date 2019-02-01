@@ -1,0 +1,4 @@
+#!ipxe
+echo There was an error {{.Err}}. If this error persists, contact your IsardVDI administrator.
+prompt Press any key to try again
+reboot
