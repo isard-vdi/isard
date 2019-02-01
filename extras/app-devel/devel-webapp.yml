@@ -1,4 +1,4 @@
-version: "3.2"
+version: "3.5"
 services:
   isard-database:
     container_name: isard-database
@@ -70,3 +70,5 @@ volumes:
 networks:
   isard_network:
     external: false
+    name: isard_network
+

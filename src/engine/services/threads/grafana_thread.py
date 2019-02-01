@@ -46,12 +46,12 @@ class GrafanaThread(threading.Thread):
                 return False
             else:
                 self.host_grafana = dict_grafana["hostname"]
-                self.port = dict_grafana["carbon_port"]
-                self.send_static_values_interval = dict_grafana.get('send_static_values_interval',
-                                                                    SEND_STATIC_VALUES_INTERVAL)
-                self.send_to_grafana_interval = dict_grafana.get('interval',
-                                                                 SEND_TO_GRAFANA_INTERVAL)
-
+                self.port = int(dict_grafana["carbon_port"])
+                self.send_static_values_interval = int(dict_grafana.get('send_static_values_interval',
+                                                                    SEND_STATIC_VALUES_INTERVAL))
+                self.send_to_grafana_interval = int(dict_grafana.get('interval',
+                                                                 SEND_TO_GRAFANA_INTERVAL))
+                self.active = True
                 return True
         except Exception as e:
             logs.main.error(f'grafana config error: {e}')
