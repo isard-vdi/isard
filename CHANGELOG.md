@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0-rc1] - 2019-02-03
+
+This is the first release candidate for the 1.1.0 version. The changelog is going to be updated after the release (approximately in a week [2019-02-10]). Check the [pull request](https://github.com/isard-vdi/isard/pull/94) for more information.
+
 ## [1.0.1] - 2018-12-27
 
 ### Fixed
