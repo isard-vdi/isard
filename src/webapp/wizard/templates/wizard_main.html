@@ -91,7 +91,7 @@
         border-radius: 4px;
 		background: #60c7c1;
 		text-decoration: none;
-		transition: all 0.4s;
+		transition: all 0.1s;
         line-height: normal;
         border: none;
     }
@@ -103,6 +103,7 @@
 		display: inline-block;
 		margin: 100px auto;
 	}
+  
 </style>
 
   </head>
@@ -115,7 +116,8 @@
           <h2>installation wizard</h2>
         </div>
         <div style="float:right;" class="demoNavLinks">
-          <a href="https://github.com/isard-vdi/isard-docker" class="btn">Github</a>
+          <a href="https://isardvdi.readthedocs.io/en/latest/" class="btn"  target="_blank">Documentation</a>
+          <a href="https://github.com/isard-vdi/isard-docker" class="btn"  target="_blank">Github</a>
         </div>
         <div style="clear:both;"></div>
       </div>
@@ -159,15 +161,15 @@
                 <li><a href="#step-4">
                       <label class="stepNumber">4</label>
                       <span class="stepDesc">
-                         Engine<br />
-                         <small>Backend engine</small>
+                         Hypervisor<br />
+                         <small>Available hypervisors</small>
                       </span>                   
                   </a></li>
                 <li><a href="#step-5">
                       <label class="stepNumber">5</label>
                       <span class="stepDesc">
-                         Hypervisor<br />
-                         <small>Available hypervisors</small>
+                         Engine<br />
+                         <small>Backend engine</small>                          
                       </span>                   
                   </a></li>
                 <li><a href="#step-6">
@@ -201,11 +203,11 @@
               </div>
 -->
               <div id="step-4" style="height:370px">
-                  <h2 class="StepTitle">Step 4 Engine</h2>   
+                  <h2 class="StepTitle">Step 4 Hypervisor</h2>   
                    <!-- step content -->                         
               </div>
               <div id="step-5" style="height:370px">
-                  <h2 class="StepTitle">Step 5 Hypervisors</h2>   
+                  <h2 class="StepTitle">Step 5 Engine</h2>   
                    <!-- step content -->                         
               </div>              
               <div id="step-6" style="height:370px">
@@ -276,7 +278,7 @@
                        <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Register app
+                    </i> <i class="fa fa-lock"> </i> Update password
                 </h4>
             </div>
 
@@ -361,6 +363,9 @@ $(document).ready(function(){
     
             //~ $('#registerModal').dialog('open');
 
+    $("#passwdModal").on("shown.bs.modal", function() {
+        $(this).find("#password1").focus()
+    });
 
     $('#wizard').smartWizard({
         contentURL:'/content',
@@ -457,33 +462,44 @@ $(document).ready(function(){
 });
 </script>
 <script>
-        function createDB(){
-               $('#populate-div').hide();
-               $('#populating-div').show();
-
-               result=$.ajax({
-                    type: "POST",
-                    url: "/create_db",
-                    timeout: 60000,
-                    async: false
-                }).responseText;
-                //~ if(result=='true'){$('#populate').hide();}
-                $('#wizard').smartWizard('goToStep', 2);
-        }  
-
-        function createCONFIG(cfg){
-               //~ $('#populate-div').hide();
-               //~ $('#populating-div').show();
-               result=$.ajax({
-                    type: "POST",
-                    url: "/create_config",
-                    data: JSON.stringify(cfg),
-                    async: false
-                }).responseText;
-                //~ if(result=='true'){$('#populate').hide();}
-                $('#wizard').smartWizard('goToStep', 1);
-        } 
+    // STEP 2 DATABASE
+    function createDB()
+    {
+        promise = changeDiv().then(waitForDB());
+    }
+    function changeDiv()
+    {
+        d = new $.Deferred();
+        $('#populate-div').hide();
+        $('#populating-div').show();
+        return d.promise()
+    }
+    function waitForDB()
+    {
+        d = new $.Deferred();
+        result=$.ajax({
+            type: "POST",
+            url: "/create_db",
+            timeout: 60000,
+            async: true
+        }).responseText;
+        //~ if(result=='true'){$('#populate').hide();}
+        $('#wizard').smartWizard('goToStep', 2);        
+        return d.promise()
+    }
+    
+    // STEP 1 CONFIG
+    function createCONFIG(cfg){
+           result=$.ajax({
+                type: "POST",
+                url: "/create_config",
+                data: JSON.stringify(cfg),
+                async: false
+            }).responseText;
+            $('#wizard').smartWizard('goToStep', 1);
+    } 
 	
+    // STEP 4 HYPERVISOR
 	function updateHypervisor(){
 		response= $.ajax({
                     type: "POST",

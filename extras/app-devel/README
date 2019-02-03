@@ -1,0 +1,83 @@
+The local isard repo must be in the path:
+
+    ln -s /your_isard_repo_dev_path /opt/isard_devel/
+
+The version of devel for tag in image:
+
+    echo "TAG=1.0" > /opt/isard_devel/.env
+    echo "TAG_DEVEL=1.1" >> /opt/isard_devel/.env
+
+Activate debug level creating a file in src:
+
+    touch src/LOG_LEVEL_DEBUG
+
+You need to create a symbolic link in root of isard local repo to debug and run.
+
+    ln -s extras/app-devel/devel-debug.yml devel-debug.yml
+
+And then run create devel image and run docker-compose:
+
+    bash extras/app-devel/build-docker-images-devel.sh
+    docker-compose -f devel-debug.yml up
+
+
+And then if you want to debug with ipython:
+
+    sudo docker exec -it isard-beto_isard-app_1 ipython3
+
+ipython profile history is saved out of container in:
+
+    /opt/ipython_profile_default
+
+
+Old configuration to run engine if have problems with running threads:
+
+    #command=sh -c "sleep 15 && python3 run_engine.py 1>/isard/logs/engine.log 2>/isard/logs/engine-error.log"
+
+
+Useful commands to devel:
+
+    # stop all daemons
+    docker stop $(docker ps -a -q)
+
+    # destroy containers (down)
+    sudo docker-compose -f devel-debug.yml down
+
+    # list all containers
+    sudo docker container list --all
+
+    # list all images
+    sudo docker images
+
+    # rm docker image
+    sudo docker image rm isard/app-devel:latest
+
+    # show logs
+    sudo docker container logs isard-hypervisor
+
+    # prune all
+    sudo docker system prune --all --force --volumes
+
+    # delete all /opt/isard (virtual disks, databases, logs...)
+    sudo docker system prune --all --force --volumes
+
+
+# DEBUG wigh PyCharm
+
+run webapp in another terminal:
+
+    sudo docker exec -it isard-app python3 run_webapp.py
+
+To debug in Pycharm:
+
+'''
+1. Define python interpreter
+--- docker-compose with docker-compose file: devel-debug.yml
+
+2. Debug with python interpreter:
+--- name: docker-devel
+--- python interpreter: remote python 3.X from docker-compose
+--- script path: /home/beto/dev/isard-beto/src/run_engine.py
+--- working directory: /your_devel_path/src
+--- path mappings: /your_devel_path/src=/isard
+'''

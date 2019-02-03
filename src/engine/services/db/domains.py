@@ -41,6 +41,25 @@ def update_domain_force_hyp(id_domain, hyp_id=None):
     close_rethink_connection(r_conn)
     return results
 
+def update_domain_parents(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    d = rtable.get(id_domain).pluck({'create_dict': 'origin'}, 'parents').run(r_conn)
+
+    if 'parents' not in d.keys():
+        parents_with_new_origin = []
+    elif type(d['parents']) is not list:
+        parents_with_new_origin = []
+    else:
+        parents_with_new_origin = d['parents'].copy()
+
+    if 'origin' in d['create_dict'].keys():
+        parents_with_new_origin.append(d['create_dict']['origin'])
+        results = rtable.get_all(id_domain, index='id').update({'parents': parents_with_new_origin}).run(r_conn)
+
+    close_rethink_connection(r_conn)
+    return results
+
 
 def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=False):
     r_conn = new_rethink_connection()
@@ -56,7 +75,7 @@ def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=
 
 
     if hyp_id is None:
-        # print('ojojojo')
+        # print('ojojojo')rtable.get(id_domain)
         results = rtable.get_all(id_domain, index='id').update({
             'status': status,
             'hyp_started': '',
@@ -178,22 +197,22 @@ def get_domain_hyp_started_and_status_and_detail(id_domain):
 #     return results
 
 
-# def get_domains_with_status(status):
-#     """
-#     NOT USED
-#     :param status:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('domains')
-#     try:
-#         results = rtable.get_all(status, index='status').pluck('id').run(r_conn)
-#         close_rethink_connection(r_conn)
-#     except:
-#         # if results is None:
-#         close_rethink_connection(r_conn)
-#         return []
-#     return [d['id'] for d in results]
+def get_domains_with_status(status):
+    """
+    get domain with status
+    :param status
+    :return: list id_domains
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    try:
+        results = rtable.get_all(status, index='status').pluck('id').run(r_conn)
+        close_rethink_connection(r_conn)
+    except:
+        # if results is None:
+        close_rethink_connection(r_conn)
+        return []
+    return [d['id'] for d in results]
 
 
 def get_domains_with_transitional_status(list_status=TRANSITIONAL_STATUS):
@@ -316,6 +335,13 @@ def remove_disk_template_created_list_in_domain(id_domain):
     close_rethink_connection(r_conn)
     return results
 
+def update_origin_and_parents_to_new_template(id_domain,template_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    new_create_dict_origin = {'create_dict':{'origin':template_id}}
+    results = rtable.get(id_domain).update(new_create_dict_origin).run(r_conn)
+    close_rethink_connection(r_conn)
+    return results
 
 def remove_dict_new_template_from_domain(id_domain):
     r_conn = new_rethink_connection()

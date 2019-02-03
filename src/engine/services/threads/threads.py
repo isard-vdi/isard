@@ -16,7 +16,7 @@ from engine.services.db import update_all_domains_status, update_disk_backing_ch
     get_domains_started_in_hyp, update_domains_started_in_hyp_to_unknown, remove_media
 from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.db import update_table_field
-from engine.services.db.domains import update_domain_status
+from engine.services.db.domains import update_domain_status, update_domain_parents
 from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
     update_hypervisor_failed_connection, update_db_hyp_info
 from engine.services.lib.functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str, \
@@ -62,8 +62,8 @@ def launch_disk_operations_thread(hyp_id, hostname, user='root', port=22):
                                                  hyp_id=hyp_id,
                                                  hostname=hostname,
                                                  queue_actions=queue_disk_operation,
-                                                 user='root',
-                                                 port=22)
+                                                 user=user,
+                                                 port=port)
     thread_disk_operation.daemon = True
     thread_disk_operation.start()
     return thread_disk_operation, queue_disk_operation
@@ -78,8 +78,8 @@ def launch_long_operations_thread(hyp_id, hostname, user='root', port=22):
                                                  hyp_id=hyp_id,
                                                  hostname=hostname,
                                                  queue_actions=queue_long_operation,
-                                                 user='root',
-                                                 port=22)
+                                                 user=user,
+                                                 port=port)
     thread_long_operation.daemon = True
     thread_long_operation.start()
     return thread_long_operation, queue_long_operation
@@ -108,7 +108,21 @@ def launch_action_delete_disk(action, hostname, user, port):
     if len([k['err'] for k in array_out_err if len(k['err']) == 1]):
         log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
 
-def launch_delete_media(action,hostname,user,port):
+def launch_killall_curl(hostname,user,port):
+    ssh_commands = ['killall curl']
+    try:
+        array_out_err = execute_commands(hostname,
+                                     ssh_commands=ssh_commands,
+                                     user=user,
+                                     port=port)
+        out = array_out_err[0]['out']
+        err = array_out_err[0]['err']
+        logs.downloads.info(f'kill al curl process in hypervisor {hostname}: {out} {err}')
+        return True
+    except Exception as e:
+        logs.downloads.error(f'Kill all curl process in hypervisor {hostname} fail: {e}')
+
+def launch_delete_media(action,hostname,user,port,final_status='Deleted'):
     array_out_err = execute_commands(hostname,
                                      ssh_commands=action['ssh_commands'],
                                      user=user,
@@ -121,7 +135,10 @@ def launch_delete_media(action,hostname,user,port):
         return False
     # ls of the file after deleted failed, has deleted ok
     elif len(array_out_err[2]['err']) > 0:
-        update_status_media_from_path(path, 'Deleted')
+        if final_status == 'DownloadFailed':
+            update_status_media_from_path(path, final_status)
+        else:
+            update_status_media_from_path(path, 'Deleted')
         return True
     else:
         log.error('failed deleting media {}'.format(id_media))
@@ -147,10 +164,13 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
 
                 list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
                 if id_domain is not False:
+                    update_domain_parents(id_domain)
                     update_disk_backing_chain(id_domain, index_disk, disk_path, list_backing_chain)
                 ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
             if id_domain is not False:
+                #update parents if have
+                #update_domain_parents(id_domain)
                 update_domain_status('CreatingDomain', id_domain, None,
                                      detail='new disk created, now go to creating desktop and testing if desktop start')
         else:
@@ -235,6 +255,8 @@ def launch_action_create_template_disk(action, hostname, user, port):
                                           new_template=True,
                                           list_backing_chain_template=backing_chain_template)
 
+                # disk created, update parents and status
+                #update_domain_parents(id_domain)
                 update_domain_status(status='TemplateDiskCreated',
                                      id_domain=id_domain,
                                      hyp_id=False,

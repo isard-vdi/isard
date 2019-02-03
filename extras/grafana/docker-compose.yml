@@ -1,0 +1,26 @@
+version: "3.5"
+services:
+  isard-grafana:
+    container_name: isard-grafana
+    volumes:
+      - "/opt/isard/grafana/grafana/data:/grafana/data"
+      - "/opt/isard/grafana/graphite/storage:/opt/graphite/storage"
+      - "/opt/isard/grafana/graphite/conf:/opt/graphite/conf"
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: host
+    networks:
+      - isard_network
+    image: isard/grafana:1.1
+    restart: unless-stopped
+    logging:
+        driver: none
+    #~ depends_on:
+      #~ - isard-app
+      
+networks:
+  isard_network:
+    external: false
+    name: isard_network

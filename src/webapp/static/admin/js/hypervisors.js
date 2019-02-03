@@ -364,7 +364,7 @@ function actionsHyperDetail(){
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('hyper_toggle',{'pk':pk,'name':name})
 						}).on('pnotify.cancel', function() {
@@ -389,7 +389,7 @@ function actionsHyperDetail(){
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('hyper_delete',{'pk':pk,'name':name})
 						}).on('pnotify.cancel', function() {
@@ -414,7 +414,7 @@ function actionsHyperDetail(){
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':false})
 						}).on('pnotify.cancel', function() {
@@ -439,7 +439,7 @@ function actionsHyperDetail(){
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':true})
 						}).on('pnotify.cancel', function() {

@@ -66,8 +66,8 @@ def domains_hadware():
 @login_required
 @ownsid
 def alloweds_table(table):
-    if table in ['domains','media']:
-        return json.dumps(app.isardapi.get_alloweds_select2(app.adminapi.get_admin_table(table, pluck=['allowed'], id=request.get_json(force=True)['pk'], flatten=False)['allowed']))
+    # ~ if table in ['domains','media']:
+    return json.dumps(app.isardapi.get_alloweds_select2(app.adminapi.get_admin_table(table, pluck=['allowed'], id=request.get_json(force=True)['pk'], flatten=False)['allowed']))
 
 
 # Gets all list of roles, categories, groups and users from a 2+ chars term

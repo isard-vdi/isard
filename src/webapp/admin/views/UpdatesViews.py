@@ -44,6 +44,14 @@ def admin_updates_register():
             log.error('Error registering client: '+str(e))
             #~ return False
     return redirect(url_for('admin_updates'))
+
+@app.route('/admin/updates_reload', methods=['POST'])
+@login_required
+@isAdmin
+def admin_updates_reload():
+    if request.method == 'POST':
+        u.reload_updates()
+    return redirect(url_for('admin_updates'))
             
 @app.route('/admin/updates/<kind>', methods=['GET'])
 @login_required

@@ -101,7 +101,7 @@ $(document).ready(function() {
                                     return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
                                 }
                                 //~ }else{
-                                    if(full.status == 'Available' || full.status == "FailedDownload"){
+                                    if(full.status == 'Available' || full.status == "DownloadFailed"){
                                         return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                     }
                                     if(full.status == 'Downloading'){
@@ -140,7 +140,7 @@ $(document).ready(function() {
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('media_update',{'pk':data.id,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {
@@ -165,7 +165,7 @@ $(document).ready(function() {
                                 history: {
                                     history: false
                                 },
-                                stack: stack_center
+                                addclass: 'pnotify-center'
                             }).get().on('pnotify.confirm', function() {
                                 socket.emit('media_update',{'pk':data.id,'name':'status','value':'DownloadAborting'})
                             }).on('pnotify.cancel', function() {

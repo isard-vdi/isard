@@ -55,7 +55,6 @@ if app.debug:
 else:
     log.info('Debug mode: {}'.format(app.debug))
 
-
 '''
 Scheduler
 '''
@@ -92,10 +91,6 @@ def send_bower(path):
 def send_font_linux(path):
     return send_from_directory(os.path.join(app.root_path, 'bower_components/font-linux/assets'), path)
     
-#~ @app.route('/socket.io')
-#~ def send_socketio(path):
-    #~ return send_from_directory(os.path.join(app.root_path, 'bower_components/socket.io-client/lib/socket.js'), path)
-    
 @app.route('/isard_dist/<path:path>')
 def send_isardist(path):
     return send_from_directory(os.path.join(app.root_path, 'isard_dist'), path)
@@ -115,27 +110,22 @@ def internal_error(error):
 '''
 Import all views
 '''
-#~ if app.config['wizard']==1:
-    #~ from .views import WizardViews
-#~ else:
-if True:
-    from .views import LoginViews
-    from .views import DesktopViews
-    from .views import TemplateViews
-    from .views import MediaViews
-    from .views import AllowedsViews
-    #from .views import ClassroomViews
-    from .views import ProfileViews
-    from .views import AboutViews
+from .views import LoginViews
+from .views import DesktopViews
+from .views import TemplateViews
+from .views import MediaViews
+from .views import AllowedsViews
+from .views import ProfileViews
+from .views import AboutViews
 
-    from .admin.views import AdminViews
-    from .admin.views import AdminUsersViews
-    from .admin.views import AdminDomainsViews
-    from .admin.views import AdminMediaViews
-    from .admin.views import AdminHypersViews
-    #from .admin.views import ClassroomViews
-    from .admin.views import AdminGraphsViews
-    from .admin.views import UpdatesViews
+from .admin.views import AdminViews
+from .admin.views import AdminUsersViews
+from .admin.views import AdminDomainsViews
+from .admin.views import AdminMediaViews
+from .admin.views import AdminHypersViews
+from .admin.views import AdminGraphsViews
+from .admin.views import UpdatesViews
+
 
 
 

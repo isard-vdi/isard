@@ -27,6 +27,8 @@ import os, time
     # ~ sys.exit(0)
 
 config_exists=False
+first_loop = True
+fail_first_loop = False
 while not config_exists:
     try:
         rcfg = configparser.ConfigParser()
@@ -34,21 +36,33 @@ while not config_exists:
         RETHINK_HOST = rcfg.get('RETHINKDB', 'HOST')
         RETHINK_PORT = rcfg.get('RETHINKDB', 'PORT')
         RETHINK_DB   = rcfg.get('RETHINKDB', 'DBNAME')
+        if fail_first_loop:
+            print('ENGINE STARTING, isard.conf accesed')
         config_exists=True
     except:
-        print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+        if first_loop is True:
+            print('ENGINE START PENDING: Missing isard.conf file. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+            first_loop = False
+            fail_first_loop = True
         time.sleep(1)
 
+first_loop = True
+fail_first_loop = False
 table_exists=False
 while not table_exists:
     try:
         with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
             rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)
-            grafana= rconfig['grafana']
+            #grafana= rconfig['engine']['grafana']
             rconfig = rconfig['engine']
         table_exists=True
+        if fail_first_loop:
+            print('ENGINE STARTING, database is online')
     except:
-        print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+        if first_loop is True:
+            print('ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers.')
+            first_loop = False
+            fail_first_loop = True
         time.sleep(1)
 #print(rconfig)
 
@@ -59,9 +73,9 @@ TIME_BETWEEN_POLLING = rconfig['intervals']['time_between_polling']
 TEST_HYP_FAIL_INTERVAL = rconfig['intervals']['test_hyp_fail']
 POLLING_INTERVAL_BACKGROUND = rconfig['intervals']['background_polling']
 POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig['intervals']['transitional_states_polling']
-GRAFANA = grafana
+#GRAFANA = grafana
 
-TRANSITIONAL_STATUS = ('Starting', 'Stopping')
+TRANSITIONAL_STATUS = ('Starting', 'Stopping', 'Deleting')
 
 # CONFIG_DICT = {k: {l[0]:l[1] for l in c.items(k)} for k in c.sections()}
 
@@ -93,12 +107,12 @@ CONFIG_DICT = {
 'TIMEOUTS':rconfig['timeouts'],
 
 'REMOTEOPERATIONS':{
-'host_remote_disk_operatinos': 'vdesktop1.escoladeltreball.org',
-'default_group_dir': '/vimet/groups/a'
+'host_remote_disk_operatinos': 'localhost',
+'default_group_dir': '/opt/isard/groups/'
 },
 'FERRARY':{
 'prefix': '__f_',
-'dir_to_ferrary_disks': '/vimet/groups/ferrary'
+'dir_to_ferrary_disks': '/opt/isard/groups/ferrary'
 }
 }
 
