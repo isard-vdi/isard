@@ -9,7 +9,10 @@ db.init_app(app)
         
 class Updates(object):
     def __init__(self):
-        self.working=True
+        # ~ self.working=True
+        self.reload_updates()
+        
+    def reload_updates(self):
         self.updateFromConfig()
         self.updateFromWeb()
         
@@ -17,10 +20,17 @@ class Updates(object):
         
         self.web={}
         self.kinds=['media','domains','builders','virt_install','virt_builder','videos','viewers']
+        failed=0
         for k in self.kinds:
             self.web[k]=self.getKind(kind=k)
-            if self.web[k] is False:
-                self.working=False
+            if self.web[k]==500:
+                # The id is no longer in updates server.
+                # We better reset it
+                with app.app_context():
+                    r.table('config').get(1).update({'resources':{'code':False}}).run(db.conn)
+                    self.code=False
+        # ~ if len(self.kinds)==failed:
+            # ~ self.working=False
         
     def updateFromConfig(self):
         with app.app_context():
@@ -39,12 +49,13 @@ class Updates(object):
         
     def is_registered(self):
         if self.is_conected():
-            if self.working:
-                return self.code 
-            else:
+            return self.code
+            # ~ if self.working:
+                # ~ return self.code 
+            # ~ else:
                 # we have an invalid code. (changes in web database?)
-                with app.app_context():
-                    r.table('config').get(1).update({'resources':{'code':False}}).run(db.conn)
+                # ~ with app.app_context():
+                    # ~ r.table('config').get(1).update({'resources':{'code':False}}).run(db.conn)
         return False
 
     def register(self):
@@ -53,6 +64,7 @@ class Updates(object):
             if req.status_code==200:
                 with app.app_context():
                     r.table('config').get(1).update({'resources':{'code':req.json()}}).run(db.conn)
+                    self.code=req.json()
                     self.updateFromConfig()
                     self.updateFromWeb()
                     return True
@@ -66,7 +78,8 @@ class Updates(object):
         if kind == 'viewers':
             return self.web[kind]
         web=self.web[kind]
-        dbb=list(r.table(kind).run(db.conn))
+        with app.app_context():
+            dbb=list(r.table(kind).run(db.conn))
         result=[]
         for w in web:
             dict={}
@@ -109,12 +122,14 @@ class Updates(object):
         w=web[0].copy()
         
         if kind == 'domains' or kind == 'media':
-            dbb=r.table(kind).get('_'+username+'_'+w['id']).run(db.conn)
+            with app.app_context():
+                dbb=r.table(kind).get('_'+username+'_'+w['id']).run(db.conn)
             if dbb is None:
                 w['id']='_'+username+'_'+w['id']
                 return w
         else:
-            dbb=r.table(kind).get(w['id']).run(db.conn)
+            with app.app_context():
+                dbb=r.table(kind).get(w['id']).run(db.conn)
             if dbb is None:
                 return w
         return False
@@ -122,10 +137,12 @@ class Updates(object):
         
     def getKind(self,kind='builders'):
         try:
-            req= requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False, timeout=3)
+            req = requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False, timeout=3)
             if req.status_code==200:
                 return req.json()
                 #~ return True
+            elif req.status_code==500:
+                return 500
             else:
                 print('Error response code: '+str(req.status_code)+'\nDetail: '+req.json())
         except Exception as e:
@@ -191,7 +208,8 @@ class Updates(object):
         missing_resources={'videos':[]}
         
         dom_videos=domain['create_dict']['hardware']['videos']
-        sys_videos=list(r.table('videos').pluck('id').run(db.conn))
+        with app.app_context():
+            sys_videos=list(r.table('videos').pluck('id').run(db.conn))
         sys_videos=[sv['id'] for sv in sys_videos]
         for v in dom_videos:
             if v not in sys_videos:

@@ -199,7 +199,7 @@ $(document).ready(function() {
 							history: {
 								history: false
 							},
-							stack: stack_center
+                            addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
 						}).on('pnotify.cancel', function() {
@@ -283,15 +283,17 @@ $(document).ready(function() {
     
     socket.on('result', function (data) {
         var data = JSON.parse(data);
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
+        if(data.title){
+            new PNotify({
+                    title: data.title,
+                    text: data.text,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-'+data.icon,
+                    opacity: 1,
+                    type: data.type
+            });
+        };
     });
 
     socket.on('add_form_result', function (data) {
@@ -335,7 +337,7 @@ $(document).ready(function() {
 
 function actionsDesktopDetail(){
 	$('.btn-edit').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
             setHardwareDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
@@ -363,7 +365,7 @@ function actionsDesktopDetail(){
                 type: 'error'
             });
 		}else{	
-			var pk=$(this).closest("div").attr("data-pk");
+			var pk=$(this).closest("[data-pk]").attr("data-pk");
             
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
@@ -382,8 +384,8 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-delete').on('click', function () {
-				var pk=$(this).closest("div").attr("data-pk");
-				var name=$(this).closest("div").attr("data-name");
+				var pk=$(this).closest("[data-pk]").attr("data-pk");
+				var name=$(this).closest("[data-pk]").attr("data-name");
 				new PNotify({
 						title: 'Confirmation Needed',
 							text: "Are you sure you want to delete virtual machine: "+name+"?",
@@ -399,7 +401,7 @@ function actionsDesktopDetail(){
 							history: {
 								history: false
 							},
-							stack: stack_center
+							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
                             socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
 						}).on('pnotify.cancel', function() {
@@ -407,7 +409,7 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-xml').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
 			$('#modalEditXml').modal({
 				backdrop: 'static',
@@ -428,7 +430,7 @@ function actionsDesktopDetail(){
 	});
 
 	$('.btn-events').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
 			$('#modalShowInfo').modal({
 				backdrop: 'static',
@@ -449,7 +451,7 @@ function actionsDesktopDetail(){
 	});
 	
 	$('.btn-messages').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
 			$('#modalShowInfo').modal({
 				backdrop: 'static',
@@ -483,16 +485,16 @@ function addDesktopDetailPannel ( d ) {
 }
 
 function setDesktopDetailButtonsStatus(id,status){
-          if(status=='Stopped'){
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
-          }else{
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          }
-          if(status!='Started'){
-              $('#actions-'+id+' .btn-edit').prop('disabled', false);
-              $('#actions-'+id+' .btn-delete').prop('disabled', false);
-          }
-           
+    
+    if(status=='Stopped'){
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+    }else{
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+    }
+    if(status=='Failed'){
+      $('#actions-'+id+' .btn-edit').prop('disabled', false);
+    }
+    $('#actions-'+id+' .btn-delete').prop('disabled', false);
 }
 	
 function icon(name){

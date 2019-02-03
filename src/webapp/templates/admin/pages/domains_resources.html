@@ -2,9 +2,6 @@
 {% extends "base.html" %}
 {% block css %}
     <!-- Ion.RangeSlider -->
-<!--
-    <link href="/vendors/normalize-css/normalize.css" rel="stylesheet">
--->
     <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
     <link href="/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
         <!-- Switchery -->
@@ -167,13 +164,9 @@
     </div>
 </div>
 
-<!--
-<div class="clearfix"></div>
--->
 
-</div>
-
-    {% include '/admin/pages/domains_resources_modals.html' %}
+{% include '/admin/pages/domains_resources_modals.html' %}
+{% include '/snippets/alloweds_form.html' %}
     
 {% endblock %}
 
@@ -188,11 +181,6 @@
     <script src="/static/js/restful.js"></script>
     <!-- Spice viewer -->
     <script src="/static/js/viewer.js"></script> 
-    <!-- Domains sse & hardware subtables -->
-<!--
-    <script src="/static/admin/js/domains.js"></script>
--->
+
     <script src="/static/admin/js/domains_resources.js"></script>
 {% endblock %}
-
-{% include '/snippets/alloweds_form.html' %}

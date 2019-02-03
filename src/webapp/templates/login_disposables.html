@@ -87,10 +87,6 @@
 		  {% if messages %}
 			{% for category, message in messages %}
 				<script type="text/javascript">
-				var stack_center = {"dir1": "down", "dir2": "right", "firstpos1": 25, "firstpos2": ($(window).width() / 2) - (Number(PNotify.prototype.options.width.replace(/\D/g, '')) / 2)};
-				$(window).resize(function(){
-					stack_center.firstpos2 = ($(window).width() / 2) - (Number(PNotify.prototype.options.width.replace(/\D/g, '')) / 2);
-				});
   				new PNotify({
 					title: "{{ nav }}",
 					text: "{{ message }}",
@@ -98,7 +94,7 @@
 					//~ icon: 'fa fa-alert-sign',
 					opacity: 1,
 					type: "error",
-					stack: stack_center
+					addclass: "pnotify-center"
 				});
 				</script>			
 			{% endfor %}

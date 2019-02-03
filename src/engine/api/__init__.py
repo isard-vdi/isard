@@ -12,7 +12,7 @@ from engine.services.db.db import update_table_field
 api = Blueprint('api', __name__)
 
 app = current_app
-from . import evaluate
+#from . import evaluate
 
 def shutdown_server():
     func = request.environ.get('werkzeug.server.shutdown')
@@ -82,12 +82,11 @@ def stop_threads():
 @api.route('/engine_restart', methods=['GET'])
 def engine_restart():
 
-
     app.m.stop_threads()
 
     while True:
-        alive, dead, not_defined = app.m.update_info_threads_engine()
-        if len(alive) == 0:
+        app.m.update_info_threads_engine()
+        if len(app.m.threads_info_main['alive']) == 0 and len(app.m.threads_info_hyps['alive']) == 0:
             action = {}
             action['type'] = 'stop'
             app.m.q.background.put(action)
@@ -103,6 +102,33 @@ def engine_restart():
             app.m = ManagerHypervisors()
             break
     return jsonify({'engine_restart':True}), 200
+
+@api.route('/grafana/restart', methods=['GET'])
+def grafana_restart():
+    app.m.t_grafana.restart_send_config = True
+
+@api.route('/engine/status')
+def engine_status():
+    '''all main threads are running'''
+
+    pass
+
+
+@api.route('/pool/<string:id_pool>/status')
+def pool_status(id_pool):
+    '''hypervisors ready to start and create disks'''
+    pass
+
+@api.route('/grafana/reload')
+def grafana_reload():
+    '''changes in grafana parameters'''
+    pass
+
+@api.route('/engine/events/stop')
+def stop_thread_event():
+    app.m.t_events.stop = True
+    app.t_events.q_event_register.put({'type': 'del_hyp_to_receive_events', 'hyp_id': ''})
+
 
 @api.route('/engine_info', methods=['GET'])
 def engine_info():

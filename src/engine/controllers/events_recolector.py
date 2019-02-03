@@ -14,6 +14,8 @@
 import sys
 import threading
 import time
+import queue
+import traceback
 
 import libvirt
 
@@ -25,6 +27,9 @@ from engine.services.db import update_domain_viewer_started_values, get_domain_h
 from engine.services.lib.functions import hostname_to_uri, get_tid
 from engine.services.log import *
 
+TIMEOUT_QUEUE_REGISTER_EVENTS = 1
+NUM_TRY_REGISTER_EVENTS = 5
+SLEEP_BETWEEN_TRY_REGISTER_EVENTS = 1.0
 
 # Reference: https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
 from pprint import pprint
@@ -61,6 +66,7 @@ def virEventLoopNativeStart(stop):
 ##########################################################################
 
 def domEventToString(event):
+    #from https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
     domEventStrings = ("Defined",
                        "Undefined",
                        "Started",
@@ -75,18 +81,26 @@ def domEventToString(event):
 
 
 def domDetailToString(event, detail):
-    domEventStrings = (
-        ("Added", "Updated"),
-        ("Removed",),
-        ("Booted", "Migrated", "Restored", "Snapshot", "Wakeup"),
-        ("Paused", "Migrated", "IOError", "Watchdog", "Restored", "Snapshot", "API error"),
-        ("Unpaused", "Migrated", "Snapshot"),
-        ("Shutdown", "Destroyed", "Crashed", "Migrated", "Saved", "Failed", "Snapshot"),
-        ("Finished",),
-        ("Memory", "Disk"),
-        ("Panicked",),
+    # from https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
+    DOM_EVENTS = (
+        ("Defined", ("Added", "Updated", "Renamed", "Snapshot")),
+        ("Undefined", ("Removed", "Renamed")),
+        ("Started", ("Booted", "Migrated", "Restored", "Snapshot", "Wakeup")),
+        ("Suspended", ("Paused", "Migrated", "IOError", "Watchdog", "Restored", "Snapshot", "API error", "Postcopy",
+                       "Postcopy failed")),
+        ("Resumed", ("Unpaused", "Migrated", "Snapshot", "Postcopy")),
+        ("Stopped", ("Shutdown", "Destroyed", "Crashed", "Migrated", "Saved", "Failed", "Snapshot", "Daemon")),
+        ("Shutdown", ("Finished", "On guest request", "On host request")),
+        ("PMSuspended", ("Memory", "Disk")),
+        ("Crashed", ("Panicked",)),
     )
-    return domEventStrings[event][detail]
+    try:
+        return DOM_EVENTS[event][1][detail]
+    except Exception as e:
+        logs.status.error(f'Detail not defined in DOM_EVENTS. index_event:{event}, index_detail{detail}')
+        logs.status.error(e)
+        return 'Detail undefined'
+
 
 
 def blockJobTypeToString(type):
@@ -432,7 +446,6 @@ r_status = RethinkHypEvent()
 
 class ThreadHypEvents(threading.Thread):
     def __init__(self, name,
-                 dict_hyps,
                  register_graphics_events=True
                  ):
         threading.Thread.__init__(self)
@@ -440,10 +453,11 @@ class ThreadHypEvents(threading.Thread):
         self.stop = False
         self.stop_event_loop = [False]
         self.REGISTER_GRAPHICS_EVENTS = register_graphics_events
-        self.hyps = dict_hyps
+        self.hyps = {}
         # self.hostname = get_hyp_hostname_from_id(hyp_id)
         self.hyps_conn = dict()
         self.events_ids = dict()
+        self.q_event_register = queue.Queue()
 
     def run(self):
         # Close connection on exit (to test cleanup paths)
@@ -459,29 +473,33 @@ class ThreadHypEvents(threading.Thread):
 
         sys.exitfunc = exit
 
+        self.thread_event_loop = virEventLoopNativeStart(self.stop_event_loop)
+
         # self.r_status = RethinkHypEvent()
-
-        while True:
-            if len(self.hyps) == 0:
-                if self.stop:
-                    break
-                time.sleep(0.1)
-            else:
-                self.thread_event_loop = virEventLoopNativeStart(self.stop_event_loop)
-
-                for hyp_id, hostname in self.hyps.items():
+        while self.stop is not True:
+            try:
+                action = self.q_event_register.get(timeout=TIMEOUT_QUEUE_REGISTER_EVENTS)
+                if action['type'] in ['add_hyp_to_receive_events']:
+                    hyp_id = action['hyp_id']
                     self.add_hyp_to_receive_events(hyp_id)
+                elif action['type'] in ['del_hyp_to_receive_events']:
+                    hyp_id = action['hyp_id']
+                    self.del_hyp_to_receive_events(hyp_id)
+                elif action['type'] == 'stop_thread':
+                    self.stop = True
+                else:
+                    logs.status.error('type action {} not supported'.format(action['type']))
+            except queue.Empty:
+                pass
+            except Exception as e:
+                log.error('Exception in ThreadHypEvents main loop: {}'.format(e))
+                log.error('Action: {}'.format(pprint.pformat(action)))
+                log.error('Traceback: {}'.format(traceback.format_exc()))
+                return False
 
-                while self.stop is not True:
-                    time.sleep(0.1)
-
-                if self.stop is True:
-                    for hyp_id in list(self.hyps):
-                        self.del_hyp_to_receive_events(hyp_id)
-                    self.stop_event_loop[0] = True
-                    while self.thread_event_loop.is_alive():
-                        pass
-                break
+        self.stop_event_loop[0] = True
+        while self.thread_event_loop.is_alive():
+            pass
 
     def add_hyp_to_receive_events(self, hyp_id):
         d_hyp_parameters = get_hyp_hostname_user_port_from_id(hyp_id)
@@ -501,8 +519,17 @@ class ThreadHypEvents(threading.Thread):
             logs.status.error(e)
 
         if conn_ok is True:
-            self.events_ids[hyp_id] = self.register_events(self.hyps_conn[hyp_id])
-            self.hyps[hyp_id] = hostname
+            for i in range(NUM_TRY_REGISTER_EVENTS):
+                #try 5
+                try:
+                    self.events_ids[hyp_id] = self.register_events(self.hyps_conn[hyp_id])
+                    self.hyps[hyp_id] = hostname
+                    break
+                except libvirt.libvirtError as e:
+                    logs.status.error(f'Error when register_events, wait {SLEEP_BETWEEN_TRY_REGISTER_EVENTS}, try {i+1} of {NUM_TRY_REGISTER_EVENTS}')
+                    logs.status.error(e)
+                time.sleep(SLEEP_BETWEEN_TRY_REGISTER_EVENTS)
+
 
     def del_hyp_to_receive_events(self, hyp_id):
         self.unregister_events(self.hyps_conn[hyp_id], self.events_ids[hyp_id])
@@ -571,10 +598,10 @@ class ThreadHypEvents(threading.Thread):
         hyp_libvirt_conn.unregisterCloseCallback()
 
 
-def launch_thread_hyps_event(dict_hyps):
+def launch_thread_hyps_event():
     # t = threading.Thread(name= 'events',target=events_from_hyps, args=[list_hostnames])
 
-    t = ThreadHypEvents(name='hyps_events', dict_hyps=dict_hyps)
+    t = ThreadHypEvents(name='hyps_events')
     t.daemon = True
     t.start()
     return t

@@ -57,3 +57,5 @@ csv/
 
 #Wizard disable
 install/.wizard
+
+known_hosts

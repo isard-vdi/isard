@@ -641,7 +641,7 @@
             
             <!-- Modal Body -->
             <div class="modal-body">
-              <form id="modalEdit" class="form-horizontal form-label-left" action="{{ url_for('hypervisors_pools_get') }}" method="POST" novalidate>
+              <form id="modalEditViewerForm" class="form-horizontal form-label-left" novalidate>
                       <div class="x_panel">
                              <div class="x_title">
                                 <h2>Viewer<small></small></h2>
@@ -652,6 +652,7 @@
                                 <div class="clearfix"></div>
                              </div>
                              <div class="x_content"> 
+<!--
                             <div class="item form-group">
                                 <label>Mode:</label>
                                 <select class="form-control" id="viewer-defaultMode" name="viewer-defaultMode">
@@ -659,6 +660,7 @@
                                 <option value="Insecure" >Insecure</option>
                                 </select>
                             </div>  
+-->
                              <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-domain">Domain
                                 </label>
@@ -666,6 +668,7 @@
                                    <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="viewer-domain" placeholder="domain.com" type="text">
                                 </div>
                              </div>
+<!--
                              <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-certificate">Certificate
                                 </label>
@@ -673,6 +676,7 @@
                                    <textarea id="viewer-certificate" name="viewer-certificate" placeholder="Paste it from BEGIN to END included." class="form-control col-md-7 col-xs-12"></textarea>
                                 </div>
                              </div>
+-->
                         </div>
                       </div>
 

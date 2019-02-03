@@ -1,7 +1,6 @@
-FROM alpine:latest
+FROM alpine:3.8
 MAINTAINER isard <info@isard.com>
 
-RUN echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 RUN apk update
 RUN apk add --no-cache python3 && \
     python3 -m ensurepip && \

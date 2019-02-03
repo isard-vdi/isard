@@ -17,3 +17,7 @@
         visibility: hidden;
       }
     }
+
+.pnotify-center {
+   right: calc(50% - 150px) !important;
+}

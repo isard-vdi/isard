@@ -221,7 +221,7 @@ $(document).ready(function() {
             $('.btn-viewer-pool-edit').on('click', function(){
                 pk=$(this).attr("data-pk");
                 //~ setHardwareDomainDefaults('#modalEditDesktop',pk);
-                $("#modalEditViewer #modalEdit")[0].reset();
+                $("#modalEditViewer #modalEditViewerForm")[0].reset();
                 $('#modalEditViewer').modal({
                     backdrop: 'static',
                     keyboard: false
@@ -230,6 +230,17 @@ $(document).ready(function() {
                 //~ $('#modalEdit').parsley();
                 //~ modal_edit_desktop_datatables(pk);               
             });
+            
+            $("#modalEditViewer #send").on('click', function(e){
+                var form = $('#modalEditViewer #modalEditViewerForm');
+                form.parsley().validate();
+                if (form.parsley().isValid()){
+                        data=$('#modalEditViewer #modalEditViewerForm').serializeObject();
+                        console.log(data)
+                        socket.emit('hyperpool_edit',data)
+                }
+            });
+                    
         }
     } );
 

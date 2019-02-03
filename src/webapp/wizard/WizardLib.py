@@ -50,7 +50,7 @@ class Wizard():
     def __init__(self):
         self.register_isard=False
         self.code=False
-        self.url=False
+        self.url='http://www.isardvdi.com:5050'
         
         self.doWizard=True if self.first_start() else False
         if self.doWizard: # WIZARD WAS FORCED BY DELETING install/x.wizard file
@@ -131,7 +131,7 @@ class Wizard():
                     missing_resources=self.get_missing_resources(dom,'admin')
                     for k,v in missing_resources.items():
                         for resource in v:
-                            r.table(k).insert(v).run()
+                            r.db('isard').table(k).insert(v).run()
                     self.insert_update('domains',[dom])
                     wlog.info('New download: '+u)
 
@@ -140,7 +140,7 @@ class Wizard():
         for vi in virt_installs:
             for u in updates:
                 if u == vi['id']:
-                    r.table('virt_install').insert(vi).run()
+                    r.db('isard').table('virt_install').insert(vi).run()
                     wlog.info('New virt_install: '+u)                    
         # Useful default media with drivers for Microsfot
         #~ medias=self.get_updates_new_kind('media','admin')
@@ -174,11 +174,11 @@ class Wizard():
                     # ~ d['percentage']=0
                     d['status']='DownloadStarting'                    
                     d['path']=userpath+d['url-isard']
-        r.table(kind).insert(data).run()
+        r.db('isard').table(kind).insert(data).run()
             
     def get_updates_new_kind(self,kind,username):
         web=self.get_updates_kind(kind=kind)
-        dbb=list(r.table(kind).run())
+        dbb=list(r.db('isard').table(kind).run())
         result=[]
         for w in web:
             found=False
@@ -212,7 +212,7 @@ class Wizard():
         missing_resources={'videos':[]}
         
         dom_videos=domain['create_dict']['hardware']['videos']
-        sys_videos=list(r.table('videos').pluck('id').run())
+        sys_videos=list(r.db('isard').table('videos').pluck('id').run())
         sys_videos=[sv['id'] for sv in sys_videos]
         for v in dom_videos:
             if v not in sys_videos:
@@ -223,8 +223,9 @@ class Wizard():
         return missing_resources
 
     def is_registered(self):
-        if not self.code is False: return True
-        return False
+        if self.code is False:
+            return False
+        return True
         
     def render_updates(self,dict):
         html='<div style="overflow-y: auto; height:360px"><h4><ul>'
@@ -276,50 +277,57 @@ class Wizard():
 
     def valid_isard_database(self):        
         try:
-            if 'isard' in r.db_list().run(): 
-                from ..config.populate import Populate
-                p=Populate() 
+            resources=r.db('isard').table('config').get(1).pluck('resources').run()['resources']
+            self.code=resources['code']
+            self.url=resources['url']
+            # ~ if 'isard' in r.db_list().run(): 
+                # ~ from ..config.populate import Populate
+                # ~ dict=self.register_isard_updates()
+                # ~ p=Populate(dict) 
                 ## Ideally we should inform user that some tables will be deleted and others created.
                 ## Maybe ask for a backup?
                 ## No invasive
-                p.check_integrity(commit=True)
-                if self.register_isard_updates(): 
-                    self.insert_updates_demo()
-                return True
-            else:
-                return False
+                # ~ p.check_integrity(commit=True)
+                # if self.register_isard_updates():
+                #     self.insert_updates_demo()
+                # ~ return True
+            # ~ else:
+                # ~ return False
+            return True
         except Exception as e:
             wlog.error(str(e))
             return False
 
     def register_isard_updates(self):
+        dict={'resources':{'url':self.url,'code':self.code}}
         if not self.register_isard:
-            return False
+            return dict
         else:
             # USER WANTS TO REGISTER ISARD
-            try:
-                cfg=r.table('config').get(1).pluck('resources').run()
-            except Exception as e:
-                return False
-            if 'resources' in cfg.keys():
-                self.url=cfg['resources']['url']
-                self.code=cfg['resources']['code']
+            # ~ try:
+                # ~ cfg=r.table('config').get(1).pluck('resources').run()
+            # ~ except Exception as e:
+                # ~ return False
+            # ~ if 'resources' in cfg.keys():
+                # ~ self.url=cfg['resources']['url']
+                # ~ self.code=cfg['resources']['code']
             if self.code is False:
-                if self.url is False: self.url='http://www.isardvdi.com:5050'
+                # ~ if self.url is False: self.url='http://www.isardvdi.com:5050'
                 try:
                     req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False, timeout=3)
                     if req.status_code==200:
                         self.code=req.json()
-                        r.table('config').get(1).update({'resources':{'url':self.url,'code':req.json()}}).run()
+                        # ~ r.table('config').get(1).update({'resources':{'url':self.url,'code':req.json()}}).run()
+                        dict={'resources':{'url':self.url,'code':self.code}}
                         wlog.warning('Isard app registered')
-                        return True
+                        return dict
                     else:
                         wlog.info('Isard app registering error response code: '+str(req.status_code)+'\nDetail: '+r.json())
-                        return False
+                        return dict
                 except Exception as e:
                     wlog.warning("Error contacting.\n"+str(e))
-                    return False
-        return True
+                    return dict
+        return dict
                         
     def valid_password(self):
         try:
@@ -367,6 +375,13 @@ class Wizard():
         dict=load_config()['DEFAULT_HYPERVISORS']    
         valid_engine=self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')
         if valid_engine:
+            try:
+                status = r.db('isard').table('hypervisors_pools').get('default').pluck('download_changes').run()['download_changes']
+                if status != 'Started': return False
+            except Exception as e:
+                print(e)
+                return False
+        if valid_engine:
             if 'isard-hypervisor' in dict.keys():
                 url='http://isard-engine'
                 web_port=5555
@@ -374,11 +389,12 @@ class Wizard():
                 url='http://localhost'
                 web_port=5555                
             r.db('isard').table('config').get(1).update({'engine':{'api':{'url':url,'web_port':web_port,'token':'fosdem'}}}).run()
+            self.callfor_updates_demo()
         return valid_engine
 
     def valid_hypervisor(self,remote_addr=False):
         try:
-            if r.table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
+            if r.db('isard').table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
                 # ~ if remote_addr is not False:
                     # ~ self.update_hypervisor_viewer(remote_addr)
                 return True
@@ -388,19 +404,16 @@ class Wizard():
 
     def update_hypervisor_viewer(self,remote_addr):
         try:
-            if r.table('hypervisors').update({'viewer_hostname':remote_addr}).run() is not None:
+            r.db('isard').table('config').get(1).update({'engine':{'grafana':{'url':'http://'+str(remote_addr)}}}).run()
+            if r.db('isard').table('hypervisors').get('isard-hypervisor').update({'viewer_hostname':remote_addr}).run() is not None:
                 return True
             return False
-        except:
+        except Exception as e:
             return False
             
     def valid_server(self,server=False):
         if server is False: 
-            if self.url is not False:
-                wlog.warning('self.url='+str(self.url))
-                server=self.url.split('//')[1]
-            else:
-                server='isardvdi.com'
+            server='isardvdi.com'
         import http.client as httplib
         conn = httplib.HTTPConnection(server, timeout=5)
         try:
@@ -411,13 +424,34 @@ class Wizard():
             conn.close()
             return False        
 
+    def callfor_updates_demo(self):
+        # ~ if self.url is not False:
+            # ~ wlog.warning('self.url='+str(self.url))
+        server=self.url.split('//')[1]
+        # ~ else:
+            # ~ server='isardvdi.com'
+        if not self.valid_server(server): return False
+        # ~ import http.client as httplib
+        # ~ conn = httplib.HTTPConnection(server, timeout=5)
+        try:
+            # ~ conn.request("HEAD", "/")
+            # ~ conn.close()
+            # ~ if self.register_isard_updates():
+            self.insert_updates_demo()
+            return True
+        except Exception as e:
+            # ~ conn.close()
+            wlog.warning('Could not register.')
+            return False  
         
     def create_isard_database(self):
         from ..config.populate import Populate
-        p=Populate()
+        dict=self.register_isard_updates()
+        p=Populate(dict)
         if p.database():
             # ~ p.defaults()
             p.check_integrity(commit=True)
+            
             return True
         return False
         
@@ -428,7 +462,7 @@ class Wizard():
             res  = {'yarn':self.valid_js(),
                     'config':True,
                     'config_stx':True,
-                    'internet':self.valid_server('isardvdi.com'),
+                    'internet': True, #self.valid_server('isardvdi.com'),
                     'rethinkdb':self.valid_rethinkdb(),
                     'isard_db':self.valid_isard_database(),
                     'passwd':self.valid_password(),
@@ -439,7 +473,7 @@ class Wizard():
             res =  {'yarn':self.valid_js(),
                     'config':self.valid_config_file(),
                     'config_stx':self.valid_config_syntax(),
-                    'internet':self.valid_server('isardvdi.com'),
+                    'internet': True, #self.valid_server('isardvdi.com'),
                     'rethinkdb':self.valid_rethinkdb(),
                     'isard_db':self.valid_isard_database(),
                     'passwd':self.valid_password(),
@@ -472,12 +506,12 @@ class Wizard():
         # ~ else:
             # ~ errors.append({'stepnum':4,'iserror':False})
             
-        if not res['engine']: 
+        if not res['hyper']: 
             errors.append({'stepnum':4,'iserror':True})
         else:
             errors.append({'stepnum':4,'iserror':False})
             
-        if not res['hyper']: 
+        if not res['engine']: 
             errors.append({'stepnum':5,'iserror':True})
         else:
             errors.append({'stepnum':5,'iserror':False})
@@ -571,11 +605,12 @@ class Wizard():
                     # ~ if step is '4':
                         # ~ return json.dumps(self.valid_server('isardvdi.com'))
                     if step is '4':
-                        return json.dumps(self.valid_engine())
+                        # ~ return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False) 
+                        return json.dumps(self.valid_hypervisor())                         
                     if step is '5':
-                        return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False)                        
+                        return json.dumps(self.valid_engine())               
                     if step is '6':
-                        return json.dumps(self.valid_server()) 
+                        return json.dumps(self.valid_server('isardvdi.com')) 
                                                                                                                     
             @self.wapp.route('/content', methods=['POST'])
             def wizard_content():
@@ -606,15 +641,15 @@ class Wizard():
                             # ~ return html[4]['ko']
                         # ~ return html[4]['ok']                                              
                     if step == '4':
+                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
+                            return html[5]['ko']
+                        return html[5]['ok']                          
+                    if step == '5':
                         if not self.valid_engine():
                             return html[4]['ko']
                         return html[4]['ok']  
-                    if step == '5':
-                        if not (self.valid_hypervisor() if self.valid_isard_database() else False):
-                            return html[5]['ko']
-                        return html[5]['ok']  
                     if step == '6':
-                        if not self.valid_server():
+                        if not self.valid_server('isardvdi.com'):
                             return html[6]['noservice']
                         if self.is_registered() is False:
                             return html[6]['noregister']
