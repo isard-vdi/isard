@@ -34,6 +34,7 @@ fi
 images=(
 	#alpine-pandas
 	#grafana
+	#ipxe
 	nginx
 	hypervisor
 	app

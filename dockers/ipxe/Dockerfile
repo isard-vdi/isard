@@ -11,7 +11,7 @@
 FROM golang:1.11 as build
 
 # Copy Isard iPXE
-COPY . /go/src/github.com/isard-vdi/isard/src/ipxe
+COPY ./src/ipxe /go/src/github.com/isard-vdi/isard/src/ipxe
 
 # Move to the correct directory
 WORKDIR /go/src/github.com/isard-vdi/isard/src/ipxe
