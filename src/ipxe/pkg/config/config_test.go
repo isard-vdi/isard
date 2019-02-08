@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
 )
 
 func TestReadConfig(t *testing.T) {

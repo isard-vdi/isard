@@ -27,7 +27,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/downloads"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/downloads"
 )
 
 func TestCreateImagesDirectories(t *testing.T) {

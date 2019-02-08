@@ -28,7 +28,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/api/request"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/request"
 )
 
 func prepareCerts() error {

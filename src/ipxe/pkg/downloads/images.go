@@ -29,8 +29,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
-	"github.com/isard-vdi/isard-ipxe/pkg/crypt"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/crypt"
 )
 
 // architectures contains all the architectures supported by Isard iPXE

@@ -23,7 +23,7 @@ import (
 	"log"
 	"text/template"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/list"
 
 	rice "github.com/GeertJohan/go.rice"
 )

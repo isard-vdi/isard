@@ -21,7 +21,7 @@ package menus
 import (
 	"bytes"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
 )
 
 // GenerateLogin generates a login iPXE menu

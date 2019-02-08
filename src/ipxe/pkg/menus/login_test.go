@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/menus"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/menus"
 )
 
 func TestGenerateLogin(t *testing.T) {

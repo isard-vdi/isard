@@ -25,11 +25,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/api/login"
-	"github.com/isard-vdi/isard-ipxe/pkg/api/request"
-	"github.com/isard-vdi/isard-ipxe/pkg/api/start"
-	"github.com/isard-vdi/isard-ipxe/pkg/menus"
-	"github.com/isard-vdi/isard-ipxe/pkg/mocks"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/login"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/request"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/start"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/menus"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/mocks"
 )
 
 // WebRequest is the struct that is going to use to call the API

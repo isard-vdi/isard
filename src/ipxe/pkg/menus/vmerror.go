@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
 )
 
 // GenerateVMError generates an iPXE menu with an error

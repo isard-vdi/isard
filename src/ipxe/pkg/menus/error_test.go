@@ -21,7 +21,7 @@ package menus_test
 import (
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/menus"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/menus"
 )
 
 func TestGenerateError(t *testing.T) {

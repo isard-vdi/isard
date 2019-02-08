@@ -25,9 +25,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/cert"
-	"github.com/isard-vdi/isard-ipxe/pkg/downloads"
-	"github.com/isard-vdi/isard-ipxe/pkg/handlers"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/cert"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/downloads"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/handlers"
 )
 
 type logWriter struct {

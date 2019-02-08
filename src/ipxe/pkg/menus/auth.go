@@ -21,7 +21,7 @@ package menus
 import (
 	"bytes"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
 )
 
 // GenerateAuth returns the menu that needs to be generated after a correct call at the AuthHandler

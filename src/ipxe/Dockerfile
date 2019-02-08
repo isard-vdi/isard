@@ -1,6 +1,6 @@
 #
 # IsardVDI - Isard iPXE
-# https://github.com/isard-vdi/isard-ipxe
+# https://github.com/isard-vdi/isard/src/ipxe
 #
 
 #
@@ -11,10 +11,10 @@
 FROM golang:1.11 as build
 
 # Copy Isard iPXE
-COPY . /go/src/github.com/isard-vdi/isard-ipxe
+COPY . /go/src/github.com/isard-vdi/isard/src/ipxe
 
 # Move to the correct directory
-WORKDIR /go/src/github.com/isard-vdi/isard-ipxe
+WORKDIR /go/src/github.com/isard-vdi/isard/src/ipxe
 
 # Compile the binary
 RUN make build
@@ -27,7 +27,7 @@ RUN make build
 FROM alpine:3.8
 
 # Copy the compiled binary from the build stage
-COPY --from=build /go/src/github.com/isard-vdi/isard-ipxe/isard-ipxe /app/isard-ipxe
+COPY --from=build /go/src/github.com/isard-vdi/isard/src/ipxe/isard-ipxe /app/isard-ipxe
 
 # Install the CA certificates
 RUN apk add --update --no-cache ca-certificates

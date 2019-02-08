@@ -28,7 +28,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/api/start"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/start"
 )
 
 type startBody struct {

@@ -1,4 +1,4 @@
-module github.com/isard-vdi/isard-ipxe
+module github.com/isard-vdi/isard/src/ipxe
 
 require (
 	github.com/GeertJohan/go.rice v0.0.0-20170420135705-c02ca9a983da

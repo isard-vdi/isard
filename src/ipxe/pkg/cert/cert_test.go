@@ -24,8 +24,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/cert"
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/cert"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
 
 	yaml "gopkg.in/yaml.v2"
 )

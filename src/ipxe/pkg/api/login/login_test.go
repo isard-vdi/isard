@@ -29,7 +29,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/api/login"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/login"
 )
 
 type loginBody struct {

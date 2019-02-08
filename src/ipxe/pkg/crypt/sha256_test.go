@@ -23,7 +23,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/crypt"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/crypt"
 )
 
 func TestGetSHA256(t *testing.T) {

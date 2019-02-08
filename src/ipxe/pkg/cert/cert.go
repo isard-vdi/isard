@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
 )
 
 // IsValid states if the server has already trusted CA or not. If it does, there's no need of the cert

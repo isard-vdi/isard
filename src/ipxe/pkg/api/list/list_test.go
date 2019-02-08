@@ -28,7 +28,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/api/list"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/api/list"
 )
 
 type testWebRequest struct{}

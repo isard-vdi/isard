@@ -27,8 +27,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/cert"
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/cert"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
 )
 
 // createClient creates the client that is going to be used when calling the API for both GET and POST

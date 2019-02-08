@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/isard-vdi/isard-ipxe/pkg/config"
-	"github.com/isard-vdi/isard-ipxe/pkg/mocks"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/config"
+	"github.com/isard-vdi/isard/src/ipxe/pkg/mocks"
 )
 
 // VMList is the complete response of the API
