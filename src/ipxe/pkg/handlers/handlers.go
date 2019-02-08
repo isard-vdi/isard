@@ -92,10 +92,9 @@ func VMListHandler(w http.ResponseWriter, r *http.Request) {
 	menu, err := menus.GenerateList(WebRequest, token, username)
 	if err != nil {
 		if err.Error() == "HTTP Code: 403" {
-			w.WriteHeader(http.StatusForbidden)
+			LoginHandler(w, r)
+			return
 
-		} else {
-			log.Printf("error generating the VM list menu: %v", err)
 		}
 	}
 
