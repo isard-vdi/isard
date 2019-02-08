@@ -115,7 +115,7 @@ services:
         read_only: true
     networks:
       - isard_network
-    image: isard/ipxe:1.0
+    image: isard/ipxe:1.1
     restart: unless-stopped
     depends_on:
       - isard-app
