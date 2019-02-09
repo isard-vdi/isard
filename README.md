@@ -14,6 +14,7 @@ Open Source KVM Virtual Desktops based on KVM Linux and dockers.
 Pull images and bring it up:
 
 ```
+wget https://raw.githubusercontent.com/isard-vdi/isard/master/docker-compose.yml
 docker-compose pull
 docker-compose up -d
 ```
