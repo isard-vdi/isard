@@ -58,8 +58,8 @@ else:
 '''
 Scheduler
 '''
-# ~ from .lib.isardScheduler import isardScheduler
-# ~ app.scheduler=isardScheduler()
+from .lib.isardScheduler import isardScheduler
+app.scheduler=isardScheduler()
 
 '''
 Authentication types
