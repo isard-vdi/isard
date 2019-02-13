@@ -39,19 +39,26 @@ $(document).ready(function() {
     $("#modalDeleteTemplate #send").on('click', function(e){
         var form = $('#modalDeleteTemplate #modalAdd');
         ids=[]
+        names=''
+        //~ if(modal_delete_templates.rows('.active').data().length){
+            //~ $.each(modal_delete_templates.rows('.active').data(),function(key, value){
+                //~ names+=value['name']+'\n';
+                //~ ids.push(value['id']);
+            //~ });
+            //~ var text = "You are about to delete all this bases, templates and desktops:\n\n "+names
+        //~ }else{ 
+            //~ $.each(modal_delete_templates.rows({filter: 'applied'}).data(),function(key, value){
+                //~ ids.push(value['id']);
+            //~ });
+            //~ var text = "You are about to delete "+modal_delete_templates.rows({filter: 'applied'}).data().length+" bases, templates and desktops!\n Can't be undone!"
+        //~ }
 
-        if(modal_delete_templates.rows('.active').data().length){
-            $.each(modal_delete_templates.rows('.active').data(),function(key, value){
-                names+=value['name']+'\n';
+            $.each(modal_delete_templates.rows().data(),function(key, value){
+                names+=value['name']+', ';
                 ids.push(value['id']);
             });
-            var text = "You are about to delete all this bases, templates and desktops:\n\n "+names
-        }else{ 
-            $.each(modal_delete_templates.rows({filter: 'applied'}).data(),function(key, value){
-                ids.push(value['id']);
-            });
-            var text = "You are about to delete "+modal_delete_templates.rows({filter: 'applied'}).data().length+" bases, templates and desktops!\n Can't be undone!"
-        }
+            var text = "You are about to delete all this bases, templates and desktops:\n "+names
+                    
             new PNotify({
                     title: 'Warning!',
                         text: text,
@@ -69,11 +76,33 @@ $(document).ready(function() {
                         },
                         addclass: 'pnotify-center'
                     }).get().on('pnotify.confirm', function() {
-                        //~ api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
-                            //~ $('#mactions option[value="none"]').prop("selected",true);
-                        //~ }); 
+                        id=$('#modalDeleteTemplate #id').val();
+                        api.ajax('/admin/domains/todelete','POST',{'id':id,'ids':ids}).done(function(data) {
+                            if(data){
+                                new PNotify({
+                                        title: "Deleting",
+                                        text: "Deleting all templates and desktops",
+                                        hide: true,
+                                        delay: 4000,
+                                        icon: 'fa fa-success',
+                                        opacity: 1,
+                                        type: 'success'
+                                });                                
+                            }else{
+                                new PNotify({
+                                        title: "Error deleting",
+                                        text: "Unable to delete templates and desktops",
+                                        hide: true,
+                                        delay: 4000,
+                                        icon: 'fa fa-warning',
+                                        opacity: 1,
+                                        type: 'error'
+                                });                                
+                            }
+                            $("#modalDeleteTemplate").modal('hide');
+                        }); 
                     }).on('pnotify.cancel', function() {
-                        //~ $('#mactions option[value="none"]').prop("selected",true);
+                        $("#modalDeleteTemplate").modal('hide');
             });
     });  
 
@@ -641,8 +670,8 @@ function renderAction(data){
 }	
 
 function delete_templates(id){
-    
-    var pk=$(this).closest("[data-pk]").attr("data-pk");
+    //~ var pk=$(this).closest("[data-pk]").attr("data-pk");
+    $('#modalDeleteTemplate #id').val(id);
 	modal_delete_templates = $('#modal_delete_templates').DataTable({
 			"ajax": {
 				"url": "/admin/domains/todelete/"+id,
