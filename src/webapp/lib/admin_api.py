@@ -449,6 +449,41 @@ class isardAdmin():
                     
             except:
                 return False
+
+    def domains_mdelete(self,dict):
+        '''We got domains again just to be sure they have not changed during the modal'''
+        newdict = self.template_delete_list(dict['id'])
+        newids = [d['id'] for d in newdict]
+        if set(dict['ids']) == set(newids):
+            maintenance=[d['id'] for d in newdict if d['status'] != 'Started']
+            res=r.table('domains').get_all(r.args(maintenance)).update({'status':'Maintenance'}).run(db.conn)            
+            
+            # Stopping domains
+            started=[d['id'] for d in newdict if d['status'] == 'Started']
+            res=r.table('domains').get_all(r.args(started)).update({'status':'Stopping'}).run(db.conn)
+            
+            # Wait a bit for domains to be stopped...
+            for i in range(0,3):
+                time.sleep(1)
+                if r.table('domains').get_all(r.args(started)).filter({'status':'Stopping'}).pluck('status').run(db.conn) is None:
+                    r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
+                    break
+                else:
+                    r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
+                    
+                    
+            # Deleting
+            # ~ tmpls = [d for d in newdict if d['kind'] != 'desktop']
+            # ~ desktops = [d for d in newdict if d['kind'] == 'desktop']
+            
+            # ~ r.table('domains').get_all(r.args(desktops)).update({'status':'Deleting'}).run(db.conn) 
+            # ~ time.sleep(1)
+            # ~ r.table('domains').get_all(r.args(tmpls)).update({'status':'Deleting'}).run(db.conn) 
+            r.table('domains').get_all(r.args(newids)).update({'status':'Stopped'}).run(db.conn) 
+            r.table('domains').get_all(r.args(newids)).update({'status':'Deleting'}).run(db.conn) 
+            return True
+        return False
+        
                 
     def get_admin_templates(self,term):
         with app.app_context():
