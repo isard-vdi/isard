@@ -70,17 +70,28 @@ $(document).ready(function() {
             socket.emit('user_passwd',data)
         }
     }); 
-        
-    $("#modalDeleteUser #send").on('click', function(e){
-        var form = $('#modalDeleteUserForm');
-        data=$('#modalDeleteUserForm').serializeObject();
-        form.parsley().validate();
-        if (form.parsley().isValid()){
+
+    $("#modalDeleteUserTree #send").on('click', function(e){
+        //~ var form = $('#modalDeleteUserForm');
+        //~ data=$('#modalDeleteUserForm').serializeObject();
+        //~ form.parsley().validate();
+        //~ if (form.parsley().isValid()){
             
-            data=quota2dict($('#modalDeleteUserForm').serializeObject());
-            socket.emit('user_delete',data)
-        }
+            //~ data=quota2dict($('#modalDeleteUserForm').serializeObject());
+            //~ socket.emit('user_delete',data)
+        //~ }
     }); 
+            
+    //~ $("#modalDeleteUser #send").on('click', function(e){
+        //~ var form = $('#modalDeleteUserForm');
+        //~ data=$('#modalDeleteUserForm').serializeObject();
+        //~ form.parsley().validate();
+        //~ if (form.parsley().isValid()){
+            
+            //~ data=quota2dict($('#modalDeleteUserForm').serializeObject());
+            //~ socket.emit('user_delete',data)
+        //~ }
+    //~ }); 
 
        document.getElementById('csv').addEventListener('change', readFile, false);
        var filecontents=''
@@ -157,7 +168,25 @@ $(document).ready(function() {
     $("#bulk-group").on('change', function(e){
         setQuotaTableDefaults('#bulkusers-quota','groups',$(this).val())
     });
-        
+
+            //~ $("input").click(function () {
+                //~ console.log('in')
+                //~ if($(this).prop("checked")){
+                    //~ $(this).next('ul').find('input:checkbox').prop('checked', $(this).prop("checked")).prop('disabled',true);
+                //~ }else{
+                    //~ $(this).next('ul').find('input:checkbox').prop('checked', $(this).prop("checked")).prop('disabled',true);
+                //~ }
+            //~ });
+
+    //~ $('#domains_tree input:checkbox').attr('disabled',true);
+     $('#domains_tree input:checkbox').on('ifChecked', function(event){
+         console.log('ifchecked')
+        $(this).closest('div').next('ul').find('input:checkbox').iCheck('check').attr('disabled',true) //.prop('disabled',true);
+     });
+     $('#domains_tree input:checkbox').on('ifUnchecked', function(event){
+         console.log('ifunchecked')
+          $(this).closest('div').next('ul').find('input:checkbox').iCheck('uncheck').attr('disabled',false)
+     });        
             
     table=$('#users').DataTable( {
         "ajax": {
@@ -359,36 +388,65 @@ function actionsUserDetail(){
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
 	});
+
+	//~ $('.btn-delete').on('click', function () {
+            //~ // setQuotaOptions('#edit-users-quota');
+            //~ var pk=$(this).closest("div").attr("data-pk");
+            //~ // $("#modalDeleteUserForm")[0].reset();
+			//~ $('#modalDeleteUserTree').modal({
+				//~ backdrop: 'static',
+				//~ keyboard: false
+			//~ }).modal('show');
+            //~ // GENERATE DOMAINS_TREE
+            //~ api.ajax('/admin/user/delete','POST',{'pk':pk}).done(function(user) {console.log('done')})
+            //~ $('#domains_tree input:checkbox').iCheck('check');
+    //~ });
+    
+//~ <div id="domains_tree">
+                    //~ <ul>
+                        //~ <li>
+                            //~ <input type="checkbox" />
+                            //~ Root
+                            //~ <ul>
+                                //~ <li>
+                                    //~ <input type="checkbox" />
+                                    //~ Child 1
+                                    //~ <ul>
+                                        //~ <li>
+                                            //~ <input type="checkbox
+    
+
+    
     
 	$('.btn-delete').on('click', function () {
-            //~ setQuotaOptions('#edit-users-quota');
+            // setQuotaOptions('#edit-users-quota');
             var pk=$(this).closest("div").attr("data-pk");
             $("#modalDeleteUserForm")[0].reset();
 			$('#modalDeleteUser').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            //~ setModalUser()
-            //~ setQuotaTableDefaults('#edit-users-quota','users',pk)
+            // setModalUser()
+            // setQuotaTableDefaults('#edit-users-quota','users',pk)
             api.ajax('/admin/user/delete','POST',{'pk':pk}).done(function(user) {
                 $('.user-desktops').text(user.desktops.length);
                 $('.user-templates').text(user.templates.length);
                 $('.user-templates-ok').text(user.templates.length-user.risky_templates.length);
                 $('.user-templates-ko').text(user.risky_templates.length);
                 $('.user-templates-ko-count').text(user.others_domains);
-                //~ $('#modalEditForm #name').val(user.name);
-                //~ $('#modalEditForm #id').val(user.id);
-                //~ $('#modalEditForm #mail').val(user.mail);
-                //~ $('#modalEditForm #role option:selected').prop("selected", false);
-                //~ $('#modalEditForm #role option[value="'+user.role+'"]').prop("selected",true);
-                //~ $('#modalEditForm #category option:selected').prop("selected", false);
-                //~ $('#modalEditForm #category option[value="'+user.category+'"]').prop("selected",true);
-                //~ $('#modalEditForm #group option:selected').prop("selected", false);
-                //~ $('#modalEditForm #group option[value="'+user.group+'"]').prop("selected",true);                
+                // $('#modalEditForm #name').val(user.name);
+                // $('#modalEditForm #id').val(user.id);
+                // $('#modalEditForm #mail').val(user.mail);
+                // $('#modalEditForm #role option:selected').prop("selected", false);
+                // $('#modalEditForm #role option[value="'+user.role+'"]').prop("selected",true);
+                // $('#modalEditForm #category option:selected').prop("selected", false);
+                // $('#modalEditForm #category option[value="'+user.category+'"]').prop("selected",true);
+                // $('#modalEditForm #group option:selected').prop("selected", false);
+                // $('#modalEditForm #group option[value="'+user.group+'"]').prop("selected",true);                
             });
-             //~ $('#hardware-block').hide();
-            //~ $('#modalEdit').parsley();
-            //~ modal_edit_desktop_datatables(pk);
+             // $('#hardware-block').hide();
+            // $('#modalEdit').parsley();
+            // modal_edit_desktop_datatables(pk);
 	});
 
 

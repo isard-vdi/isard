@@ -9,6 +9,7 @@ socket=null
 user={}
 $(document).ready(function() {
     user['role']=$('#user-data').data("role");
+    $('.btn-delete-template').remove()
     modal_add_desktops = $('#modal_add_desktops').DataTable()
 	initalize_modal_all_desktops_events()
     
