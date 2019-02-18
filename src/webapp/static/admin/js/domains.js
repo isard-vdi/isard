@@ -34,7 +34,78 @@ if(url!="Desktops"){
 
 $(document).ready(function() {
 
-        $template_domain = $(".template-detail-domain");
+    $template_domain = $(".template-detail-domain");
+
+    $("#modalDeleteTemplate #send").on('click', function(e){
+        var form = $('#modalDeleteTemplate #modalAdd');
+        ids=[]
+        names=''
+        //~ if(modal_delete_templates.rows('.active').data().length){
+            //~ $.each(modal_delete_templates.rows('.active').data(),function(key, value){
+                //~ names+=value['name']+'\n';
+                //~ ids.push(value['id']);
+            //~ });
+            //~ var text = "You are about to delete all this bases, templates and desktops:\n\n "+names
+        //~ }else{ 
+            //~ $.each(modal_delete_templates.rows({filter: 'applied'}).data(),function(key, value){
+                //~ ids.push(value['id']);
+            //~ });
+            //~ var text = "You are about to delete "+modal_delete_templates.rows({filter: 'applied'}).data().length+" bases, templates and desktops!\n Can't be undone!"
+        //~ }
+
+            $.each(modal_delete_templates.rows().data(),function(key, value){
+                names+=value['name']+', ';
+                ids.push(value['id']);
+            });
+            var text = "You are about to delete all this bases, templates and desktops:\n "+names
+                    
+            new PNotify({
+                    title: 'Warning!',
+                        text: text,
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center'
+                    }).get().on('pnotify.confirm', function() {
+                        id=$('#modalDeleteTemplate #id').val();
+                        api.ajax('/admin/domains/todelete','POST',{'id':id,'ids':ids}).done(function(data) {
+                            if(data){
+                                new PNotify({
+                                        title: "Deleting",
+                                        text: "Deleting all templates and desktops",
+                                        hide: true,
+                                        delay: 4000,
+                                        icon: 'fa fa-success',
+                                        opacity: 1,
+                                        type: 'success'
+                                });                                
+                            }else{
+                                new PNotify({
+                                        title: "Error deleting",
+                                        text: "Unable to delete templates and desktops",
+                                        hide: true,
+                                        delay: 4000,
+                                        icon: 'fa fa-warning',
+                                        opacity: 1,
+                                        type: 'error'
+                                });                                
+                            }
+                            $("#modalDeleteTemplate").modal('hide');
+                        }); 
+                    }).on('pnotify.cancel', function() {
+                        $("#modalDeleteTemplate").modal('hide');
+            });
+    });  
+
 
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
@@ -191,7 +262,7 @@ $(document).ready(function() {
                     //~ setDomainGenealogy(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                     if(url!="Desktops"){
-                        setDomainDerivates(row.data().id);
+                        //~ setDomainDerivates(row.data().id);
                     }
                 }
             }            
@@ -428,7 +499,7 @@ function actionsDomainDetail(){
 	});	    
 
     if(url=="Desktops"){
-
+        $('.btn-delete-template').remove()
         $('.btn-template').on('click', function () {
             if($('.quota-templates .perc').text() >=100){
                 new PNotify({
@@ -482,6 +553,16 @@ function actionsDomainDetail(){
     }else{
         $('.btn-delete').remove()
         $('.btn-template').remove()
+
+		$('.btn-delete-template').on('click', function () {	
+            var pk = $(this).closest("[data-pk]").attr("data-pk")
+            $('#modalDeleteTemplate').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            delete_templates(pk);
+        });
+        
     }
 }
 
@@ -512,11 +593,11 @@ function addDomainDetailPannel ( d ) {
 }
 
 function setDomainDetailButtonsStatus(id,status){
-          if(status=='Stopped'){
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
-          }else{
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          }
+          //~ if(status=='Stopped'){
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+          //~ }else{
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+          //~ }
 }
 	
 function icon(data){
@@ -588,6 +669,39 @@ function renderAction(data){
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
+function delete_templates(id){
+    //~ var pk=$(this).closest("[data-pk]").attr("data-pk");
+    $('#modalDeleteTemplate #id').val(id);
+	modal_delete_templates = $('#modal_delete_templates').DataTable({
+			"ajax": {
+				"url": "/admin/domains/todelete/"+id,
+				"dataSrc": ""
+			},
+            "scrollY":        "125px",
+            "scrollCollapse": true,
+            "paging":         false,
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                "zeroRecords":    "No matching templates found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                "infoFiltered":   "(filtered from _MAX_ total templates)"
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				{ "data": "kind"},
+                { "data": "user"},
+                { "data": "status"},
+                { "data": "name"},
+				],
+			 //~ "order": [[0, 'asc']],	
+             "pageLength": 10,	
+             "destroy" : true 
+	} );  
+    
+  
+}
 
 // MODAL EDIT DESKTOP
 function modal_edit_desktop_datatables(id){
