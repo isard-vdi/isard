@@ -38,7 +38,8 @@ class HypWorkerThread(threading.Thread):
         self.hostname = host
         self.h = hyp(self.hostname, user=user, port=port)
         self.h.get_hyp_info()
-        if self.h.info['virtualization_bios_enabled'] is True:
+        ''' DO NOT CHECK FOR VIRTUALIZATION '''
+        if True: #self.h.info['virtualization_bios_enabled'] is True:
             update_db_hyp_info(self.hyp_id, self.h.info)
             hyp_id = self.hyp_id
 
@@ -250,19 +251,19 @@ class HypWorkerThread(threading.Thread):
                                 logs.workers.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
                                 self.active = False
                                 break
-        else:
-            update_hyp_status(self.hyp_id, 'Error','bios vmx or svm virtualization capabilities not activated')
-            update_table_field('hypervisors',self.hyp_id,'enabled',False)
-            logs.workers.error('hypervisor {} disabled: bios vmx or svm virtualization capabilities not activated')
-            #restart when engine is started (not starting)
-            timeout = 10
-            i = 0.0
-            while i < timeout:
-                if get_engine()['status_all_threads'] == 'Started':
-                    engine_restart()
-                    break
-                else:
-                    i + 0.2
-                    sleep(0.2)
+        # ~ else:
+            # ~ update_hyp_status(self.hyp_id, 'Error','bios vmx or svm virtualization capabilities not activated')
+            # ~ update_table_field('hypervisors',self.hyp_id,'enabled',False)
+            # ~ logs.workers.error('hypervisor {} disabled: bios vmx or svm virtualization capabilities not activated')
+            # ~ #restart when engine is started (not starting)
+            # ~ timeout = 10
+            # ~ i = 0.0
+            # ~ while i < timeout:
+                # ~ if get_engine()['status_all_threads'] == 'Started':
+                    # ~ engine_restart()
+                    # ~ break
+                # ~ else:
+                    # ~ i + 0.2
+                    # ~ sleep(0.2)
 
 

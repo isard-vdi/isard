@@ -973,8 +973,7 @@ html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Hypervisors</h2>
                           <hr><br><br>
                           <div class="row">
                             <div class="col-md-12">
-                                <p>Please check that engine is running.</p>
-                                <p> It can be started with: <b>python3 run_engine.py</b>
+                                <p>Please check that You have virtualization: <a href="https://isardvdi.readthedocs.io/en/latest/install/install/#requirements" target="_blank">Documentation</a>.</p>
                             </div>
                           </div>                          
                        </div><!--end container-->
