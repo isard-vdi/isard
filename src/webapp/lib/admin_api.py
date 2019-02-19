@@ -673,24 +673,24 @@ class isardAdmin():
         domids=[d['id'] for d in self.media_delete_list(id)]
         with app.app_context():
             r.table('domains').get_all(r.args(domids)).update(
-                lambda dom: { "create_dict": { "hardware": "isos": dom['create_dict']['hardware']['isos'].ne(id) }}
+                lambda dom: { "create_dict": { "hardware": {"isos": dom['create_dict']['hardware']['isos'].ne(id) }}}
             ).run(db.conn)
         return True
             
             
-    def media_domains_used():
-        return list(r.table('domains').filter(
-                lambda dom: 
-                    (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
-                ).run(conn))
+    # ~ def media_domains_used():
+        # ~ return list(r.table('domains').filter(
+                # ~ lambda dom: 
+                    # ~ (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                # ~ ).run(conn))
         # ~ return list(r.table("domains").filter({'create_dict':{'hardware':{'isos':id}}).pluck('id').run(db.conn))                    
 
-    def delete_media(self,id):
-        with app.app_context():
-            return r.table('domains').filter(
-                lambda dom: 
-                        (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
-                    ).run(conn))
+    # ~ def delete_media(self,id):
+        # ~ with app.app_context():
+            # ~ return r.table('domains').filter(
+                # ~ lambda dom: 
+                        # ~ (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                    # ~ ).run(conn))
             
             # ~ hardware - isos [ {path}, ... ]
             # ~ return self.f.table_values_bstrap(data)  
