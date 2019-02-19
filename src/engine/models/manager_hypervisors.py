@@ -613,10 +613,10 @@ class ManagerHypervisors(object):
                     if new_status == "CreatingDomainFromBuilder":
                         ui.creating_and_test_xml_start(domain_id,
                                                        creating_from_create_dict=True,
-                                                       xml_from_virt_install=True)
+                                                       xml_from_virt_install=True,ssl=True)
                     if new_status == "CreatingDomain":
                         ui.creating_and_test_xml_start(domain_id,
-                                                       creating_from_create_dict=True)
+                                                       creating_from_create_dict=True,ssl=True)
 
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
@@ -627,7 +627,7 @@ class ManagerHypervisors(object):
 
                 if (old_status == 'Stopped' and new_status == "Updating") or \
                         (old_status == 'Downloaded' and new_status == "Updating"):
-                    ui.updating_from_create_dict(domain_id)
+                    ui.updating_from_create_dict(domain_id,ssl=True)
 
                 if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
                     logs.changes.debug('disk deleted, mow remove domain form database')
