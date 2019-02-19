@@ -665,7 +665,19 @@ class isardAdmin():
             return False
         return False
 
+    def media_delete_list(self,id):
+        with app.app_context():
+            return list(r.table('domains').filter( lambda dom: dom['create_dict']['hardware']['isos'].contains( lambda media: media['id'].eq('_admin_virtio-win-0.1.141'))).pluck('id','name').run(db.conn))
 
+    def media_delete(self,id):
+        domids=[d['id'] for d in self.media_delete_list(id)]
+        with app.app_context():
+            r.table('domains').get_all(r.args(domids)).update(
+                lambda dom: { "create_dict": { "hardware": "isos": dom['create_dict']['hardware']['isos'].ne(id) }}
+            ).run(db.conn)
+        return True
+            
+            
     def media_domains_used():
         return list(r.table('domains').filter(
                 lambda dom: 
@@ -695,7 +707,7 @@ class isardAdmin():
         with app.app_context():
             r.table('backups').get(id).delete().run(db.conn)
            
-           
+
     '''
     BACKUP & RESTORE
     '''
