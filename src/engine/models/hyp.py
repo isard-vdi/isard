@@ -29,7 +29,7 @@ from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
 from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain
 from engine.services.log import *
 from engine.config import *
-
+from engine.services.lib.functions import exec_remote_cmd
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = 4 #int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
@@ -222,7 +222,29 @@ class hyp(object):
 
             # set_hyp_status(self.hostname,status_code)
 
+    def get_kvm_mod(self):
+        try:
+            d = exec_remote_cmd('lsmod |grep kvm',self.hostname,username=self.user,port=self.port)
+            if len(d['err']) > 0:
+                log.error('error {} returned from command: lsmod |grep kvm'.format(d['err'].decode('utf-8')))
+            else:
+                s = d['out'].decode('utf-8')
+                if s.find('kvm_intel') >= 0:
+                    self.info['kvm_module'] = 'intel'
+                elif s.find('kvm_amd') >= 0:
+                    self.info['kvm_module'] = 'amd'
+                elif s.find('kvm') >= 0:
+                    self.info['kvm_module'] = 'bios_disabled'
+                    log.error('No kvm module kvm_amd or kvm_intel activated. You must review your BIOS')
+                    log.error('Hardware acceleration is supported, but disabled in the BIOS settings')
+                else:
+                    self.info['kvm_module'] = False
+                    log.error('No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities')
+            return True
 
+        except Exception as e:
+            log.error('Exception while executing remote command in hypervisor to list kvm modules: {}'.format(e))
+            return False
 
     def get_hyp_info(self):
 
@@ -281,12 +303,12 @@ class hyp(object):
         # intel virtualization => cpu feature vmx
         #   amd virtualization => cpu feature svm
         if tree.xpath('/capabilities/host/cpu/feature[@name="vmx"]'):
-            self.info['virtualization_bios_enabled'] = True
+            self.info['virtualization_capabilities'] = 'vmx'
         elif tree.xpath('/capabilities/host/cpu/feature[@name="svm"]'):
-            self.info['virtualization_bios_enabled'] = True
+            self.info['virtualization_capabilities'] = 'svm'
         else:
-            self.info['virtualization_bios_enabled'] = False
-            log.error('HYPERVISOR {} have bios vmx or svm virtualization capabilities activated??'.format(self.hostname))
+            self.info['virtualization_capabilities'] = False
+
 
     def define_and_start_paused_xml(self, xml_text):
         # todo alberto: faltan todas las excepciones, y mensajes de log,
