@@ -502,7 +502,7 @@ class DomainXML(object):
             cpu.append(fallback)
 
         elif cpu_host_model == 'host-passthrough':
-            cpu = etree.parse(StringIO("cpu mode='{}' > </cpu>".format(cpu_host_model))).getroot()
+            cpu = etree.parse(StringIO("<cpu mode='{}' > </cpu>".format(cpu_host_model))).getroot()
             cpu.append(fallback)
 
         elif cpu_host_model in CPU_MODEL_NAMES:

@@ -85,7 +85,7 @@ class Wizard():
                 if not self.valid_isard_database():
                     wlog.error('Database isard not found!')
                     wlog.error('If you need to recreate isard database you should activate wizard again:')
-                    wlog.error('   REMOVE install/.wizard file  (rm install/.wizard) and start isard again')
+                    wlog.error('   REMOVE /opt/isard/database/wizard/wizard-disabled file  (rm /opt/isard/database/wizard/wizard-disabled) and start isard again')
                     exit(1)
 
     def run_server(self):
@@ -374,6 +374,13 @@ class Wizard():
         from ..lib.load_config import load_config
         dict=load_config()['DEFAULT_HYPERVISORS']    
         valid_engine=self.valid_server('isard-engine:5555' if 'isard-hypervisor' in dict.keys() else 'localhost:5555')
+        # ~ if valid_engine:
+            # ~ try:
+                # ~ status = r.db('isard').table('hypervisors_pools').get('default').pluck('download_changes').run()['download_changes']
+                # ~ if status != 'Started': return False
+            # ~ except Exception as e:
+                # ~ print(e)
+                # ~ return False
         if valid_engine:
             if 'isard-hypervisor' in dict.keys():
                 url='http://isard-engine'
@@ -382,11 +389,12 @@ class Wizard():
                 url='http://localhost'
                 web_port=5555                
             r.db('isard').table('config').get(1).update({'engine':{'api':{'url':url,'web_port':web_port,'token':'fosdem'}}}).run()
+            
         return valid_engine
 
     def valid_hypervisor(self,remote_addr=False):
         try:
-            if r.db('isard').table('hypervisors').filter({'status':'Online'}).pluck('status').run() is not None:
+            if len(r.db('isard').table('hypervisors').filter({'status':'Online'}).pluck('status').run()) !=0:
                 # ~ if remote_addr is not False:
                     # ~ self.update_hypervisor_viewer(remote_addr)
                 self.callfor_updates_demo()
@@ -395,6 +403,12 @@ class Wizard():
         except:
             return False
 
+    def hypervisor_detail(self,remote_addr=False):
+        try:
+            return r.db('isard').table('hypervisors').get('isard-hypervisor').pluck('detail').run()['detail']
+        except:
+            return ''
+            
     def update_hypervisor_viewer(self,remote_addr):
         try:
             r.db('isard').table('config').get(1).update({'engine':{'grafana':{'url':'http://'+str(remote_addr)}}}).run()
@@ -498,17 +512,19 @@ class Wizard():
             # ~ errors.append({'stepnum':4,'iserror':True})
         # ~ else:
             # ~ errors.append({'stepnum':4,'iserror':False})
-            
+
         if not res['engine']: 
             errors.append({'stepnum':4,'iserror':True})
         else:
             errors.append({'stepnum':4,'iserror':False})
+        return errors
             
         if not res['hyper']: 
             errors.append({'stepnum':5,'iserror':True})
         else:
             errors.append({'stepnum':5,'iserror':False})
-        return errors
+            
+
     
     def wizard_routes(self):
             # Static
@@ -598,10 +614,10 @@ class Wizard():
                     # ~ if step is '4':
                         # ~ return json.dumps(self.valid_server('isardvdi.com'))
                     if step is '4':
-                        return json.dumps(self.valid_engine())
+                        return json.dumps(self.valid_engine())                         
                     if step is '5':
                         # ~ return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False) 
-                        return json.dumps(self.valid_hypervisor())                
+                        return json.dumps(self.valid_hypervisor())                                       
                     if step is '6':
                         return json.dumps(self.valid_server('isardvdi.com')) 
                                                                                                                     
@@ -632,15 +648,15 @@ class Wizard():
                     # ~ if step == '4':
                         # ~ if not self.valid_server('isardvdi.com'):
                             # ~ return html[4]['ko']
-                        # ~ return html[4]['ok']                                              
+                        # ~ return html[4]['ok']                      
                     if step == '4':
                         if not self.valid_engine():
                             return html[4]['ko']
-                        return html[4]['ok']  
+                        return html[4]['ok']                                                  
                     if step == '5':
                         if not (self.valid_hypervisor() if self.valid_isard_database() else False):
-                            return html[5]['ko']
-                        return html[5]['ok']  
+                            return html[5]['ko'] % (self.hypervisor_detail())
+                        return html[5]['ok']                          
                     if step == '6':
                         if not self.valid_server('isardvdi.com'):
                             return html[6]['noservice']
@@ -925,8 +941,8 @@ html[4]={'ok':'''   <h2 class="StepTitle">Step 4. Isard Engine</h2>
                           <hr><br><br>
                           <div class="row">
                             <div class="col-md-12">
-                                <p>Please check that engine is running.</p>
-                                <p> It can be started with: <b>python3 run_engine.py</b>
+                                <p>Something went wrong while initializing backend engine.</p>
+                                <p>Restart installation with docker-compose down && docker-compose up</p>
                             </div>
                           </div>                          
                        </div><!--end container-->
@@ -953,7 +969,7 @@ html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Hypervisors</h2>
                                 <div class="text-center"><i class="fa fa-times fa-4x" aria-hidden="true" style="color:red"></i></div>
                              </div>
                              <div class="col-md-10">
-                                <h3 style="color:darkred">Can't contact any hypervisor.</h3>
+                                <h3 style="color:darkred">Can't contact any hypervisor with virtualization available.</h3>
                              </div>                             
                           </div><!--end row-->
                           <hr><br><br>
@@ -966,8 +982,8 @@ html[5]={'ok':'''   <h2 class="StepTitle">Step 5. Hypervisors</h2>
                           <hr><br><br>
                           <div class="row">
                             <div class="col-md-12">
-                                <p>Please check that engine is running.</p>
-                                <p> It can be started with: <b>python3 run_engine.py</b>
+                                <p>%s</p>
+                                <p>Please check that You have virtualization: <a href="https://isardvdi.readthedocs.io/en/latest/install/install/#requirements" target="_blank">Documentation</a>.</p>
                             </div>
                           </div>                          
                        </div><!--end container-->

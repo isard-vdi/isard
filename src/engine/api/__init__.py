@@ -103,10 +103,14 @@ def engine_restart():
             break
     return jsonify({'engine_restart':True}), 200
 
+@api.route('/grafana/restart', methods=['GET'])
+def grafana_restart():
+    app.m.t_grafana.restart_send_config = True
 
 @api.route('/engine/status')
 def engine_status():
     '''all main threads are running'''
+
     pass
 
 
@@ -119,6 +123,11 @@ def pool_status(id_pool):
 def grafana_reload():
     '''changes in grafana parameters'''
     pass
+
+@api.route('/engine/events/stop')
+def stop_thread_event():
+    app.m.t_events.stop = True
+    app.t_events.q_event_register.put({'type': 'del_hyp_to_receive_events', 'hyp_id': ''})
 
 
 @api.route('/engine_info', methods=['GET'])

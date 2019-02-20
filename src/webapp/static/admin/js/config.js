@@ -198,7 +198,9 @@ $(document).ready(function() {
                             $("#backup-tables").append('<option value="">Choose..</option>');
                             $.each(data.data,function(key, value) 
                             {
-                                $("#backup-tables").append('<option value=' + key + '>' + key+'('+value+')' + '</option>');
+                                if(value>0){
+                                    $("#backup-tables").append('<option value=' + key + '><strong>' + key+'</strong> ('+value+' items)' + '</option>');
+                                }
                             });
                             $('#backup-id').val(data['id'])
                             $('#modalBackupInfo').modal({
@@ -271,46 +273,51 @@ $(document).ready(function() {
 									});	                                                        
 								}); 
 								
-								$('.btn-bulk-restore').on('click', function(e) {
-									names=''
-									ids=[]
-									if(backup_table_detail.rows('.active').data().length){
-										$.each(backup_table_detail.rows('.active').data(),function(key, value){
-											names+=value['name']+'\n';
-											ids.push(value['id']);
-										});
-										var text = "You are about to restore these desktops:\n\n "+names
-									}else{ 
-										$.each(backup_table_detail.rows({filter: 'applied'}).data(),function(key, value){
-											ids.push(value['id']);
-										});
-										var text = "You are about to restore "+backup_table_detail.rows({filter: 'applied'}).data().length+". All the desktops in list!"
-									}
-											new PNotify({
-													title: 'Warning!',
-														text: text,
-														hide: false,
-														opacity: 0.9,
-														confirm: {
-															confirm: true
-														},
-														buttons: {
-															closer: false,
-															sticker: false
-														},
-														history: {
-															history: false
-														},
-														addclass: 'pnotify-center'
-													}).get().on('pnotify.confirm', function() {
-														//~ api.ajax('/admin/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
-															//~ $('#mactions option[value="none"]').prop("selected",true);
-														//~ }); 
-													}).on('pnotify.cancel', function() {
-														//~ $('#mactions option[value="none"]').prop("selected",true);
-											});                                                        
+                                // Api call to /admin/restore does not send correct data.
+                                // New function should be done at AdminViews.py
+								//~ $('.btn-bulk-restore').on('click', function(e) {
+									//~ names=''
+									//~ ids=[]
+									//~ if(backup_table_detail.rows('.active').data().length){
+										//~ $.each(backup_table_detail.rows('.active').data(),function(key, value){
+											//~ names+=value['name']+'\n';
+											//~ ids.push(value['id']);
+										//~ });
+										//~ var text = "You are about to restore these desktops:\n\n "+names
+									//~ }else{ 
+										//~ $.each(backup_table_detail.rows({filter: 'applied'}).data(),function(key, value){
+											//~ ids.push(value['id']);
+										//~ });
+										//~ var text = "You are about to restore "+backup_table_detail.rows({filter: 'applied'}).data().length+". All the desktops in list!"
+									//~ }
+                                            //~ table=$('#backup-tables').val()
+											//~ new PNotify({
+													//~ title: 'Warning!',
+														//~ text: text,
+														//~ hide: false,
+														//~ opacity: 0.9,
+														//~ confirm: {
+															//~ confirm: true
+														//~ },
+														//~ buttons: {
+															//~ closer: false,
+															//~ sticker: false
+														//~ },
+														//~ history: {
+															//~ history: false
+														//~ },
+														//~ addclass: 'pnotify-center'
+													//~ }).get().on('pnotify.confirm', function() {
+                                                        //~ api.ajax('/admin/restore/'+table,'POST',{'data':data,}).done(function(data1) {
+                                                            //~ api.ajax('/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':table}).done(function(data2) {
+                                                                //~ data['new_backup_data']=false
+                                                                //~ dtUpdateInsert(backup_table_detail,data,false);
+                                                            //~ });
+                                                        //~ });                                                        
+													//~ }).on('pnotify.cancel', function() {
+											//~ });                                                        
 									
-								});                                
+								//~ });                                
 				
 				
 			});

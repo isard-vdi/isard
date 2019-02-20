@@ -37,8 +37,9 @@ class ThreadBroom(threading.Thread):
                 interval += 0.1
                 if self.stop is True:
                     break
-            if self.manager.check_actions_domains_enabled():
+            if self.manager.check_actions_domains_enabled() is False:
                 continue
+
 
             l = get_domains_with_transitional_status()
 
@@ -84,6 +85,8 @@ class ThreadBroom(threading.Thread):
                 domain_id = d['id']
                 status = d['status']
                 hyp_started = d['hyp_started']
+                if hyp_started is bool:
+                    continue
                 if len(hyp_started) == 0:
                     continue
                 # TODO bug sometimes hyp_started not in hyps_domain_started keys... why?
