@@ -4,15 +4,11 @@ services:
     container_name: isard-database
     volumes:
       - "/opt/isard/database:/data"
+      - "/etc/localtime:/etc/localtime:ro"
+    ports:
+      - "8080:8080"        
     networks:
       - isard_network
-    ##### - only devel - ############################
-    ports:
-      - "8080:8080"
-      - "28015:28015"
-    expose:
-      - "28015"
-    #################################################
     image: rethinkdb
     restart: unless-stopped
 
@@ -21,13 +17,14 @@ services:
     volumes:
       - "/opt/isard/certs/default:/etc/nginx/external"
       - "/opt/isard/logs/nginx:/var/log/nginx"
+      - "/etc/localtime:/etc/localtime:ro"
     ports:
       - "80:80"
       - "443:443"
     networks:
       - isard_network
     image: isard/nginx:1.1
-    restart: "no"
+    restart: unless-stopped
     depends_on:
       - isard-app
 
@@ -37,6 +34,7 @@ services:
       - "sshkeys:/root/.ssh"
       - "/opt/isard:/isard"
       - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
+      - "/etc/localtime:/etc/localtime:ro"
     ports:
       - "5900-5949:5900-5949"
       - "55900-55949:55900-55949"
@@ -44,61 +42,33 @@ services:
       - isard_network
     image: isard/hypervisor:1.1
     privileged: true
-    ################ only for devel ###############
-    expose:
-      - "22"
-    ###############################################
-    restart: "no"
-
+    restart: unless-stopped
+        
   isard-app:
     container_name: isard-app
     volumes:
       - "sshkeys:/root/.ssh"
+      - "../../src:/isard"
       - "/opt/isard/certs:/certs"
       - "/opt/isard/logs:/isard/logs"
       - "/opt/isard/database/wizard:/isard/install/wizard"
       - "/opt/isard/backups:/isard/backups"
       - "/opt/isard/uploads:/isard/uploads"
-
-      ##### - only devel - ############################
-      - "/opt/isard_devel/src:/isard"
-      - "/opt/ipython_profile_default:/root/.ipython/profile_default"
-      #################################################
-
-    ########### - only devel #################
-    expose:
-      - "5000"
-    ##########################################
     extra_hosts:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
-    image: "isard/app-devel:${TAG_DEVEL}"
-    restart: "no"
+    image: isard/app:1.1
+    restart: unless-stopped
     depends_on:
       - isard-database
       - isard-hypervisor
-      - isard-grafana
-
-  isard-grafana:
-    container_name: isard-grafana
-    volumes:
-      - "/opt/isard/grafana/grafana/data:/grafana/data"
-      - "/opt/isard/grafana/graphite/storage:/opt/graphite/storage"
-      - "/opt/isard/grafana/graphite/conf:/opt/graphite/conf"
-    ports:
-      - 3000:3000
-    networks:
-      - isard_network
-    image: isard/grafana:1.1
-    restart: "no"
-    logging:
-        driver: none
-
+      
 volumes:
   sshkeys:
 
 networks:
   isard_network:
     external: false
-    #name: isard_network
+    name: isard_network
+

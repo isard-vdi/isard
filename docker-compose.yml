@@ -4,6 +4,7 @@ services:
     container_name: isard-database
     volumes:
       - "/opt/isard/database:/data"
+      - "/etc/localtime:/etc/localtime:ro"
     networks:
       - isard_network
     image: rethinkdb
@@ -16,6 +17,7 @@ services:
     volumes:
       - "/opt/isard/certs/default:/etc/nginx/external"
       - "/opt/isard/logs/nginx:/var/log/nginx"
+      - "/etc/localtime:/etc/localtime:ro"
     ports:
       - "80:80"
       - "443:443"
@@ -32,9 +34,10 @@ services:
       - "sshkeys:/root/.ssh"
       - "/opt/isard:/isard"
       - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
+      - "/etc/localtime:/etc/localtime:ro"
     ports:
-      - "5900-5949:5900-5949"
-      - "55900-55949:55900-55949"
+      - "5900-5999:5900-5999"
+      - "55900-55999:55900-55999"
     networks:
       - isard_network
     image: isard/hypervisor:1.1
@@ -50,6 +53,7 @@ services:
       - "/opt/isard/database/wizard:/isard/install/wizard"
       - "/opt/isard/backups:/isard/backups"
       - "/opt/isard/uploads:/isard/uploads"
+      - "/etc/localtime:/etc/localtime:ro"
     extra_hosts:
       - "isard-engine:127.0.0.1"
     networks:

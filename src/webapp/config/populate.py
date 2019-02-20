@@ -669,6 +669,7 @@ class Populate(object):
                                                       },
                                             'viewer':viewer,
                                             'interfaces': [],
+                                            'cpu_host_model': 'host-passthrough',
                                             'allowed': {
                                                           'roles': [],
                                                           'categories': [],

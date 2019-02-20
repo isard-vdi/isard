@@ -20,13 +20,14 @@ from engine.services.db import update_domain_viewer_started_values, update_table
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
     update_domain_status, get_domain_force_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop, \
-    get_dict_from_item_in_table, update_domain_dict_create_dict
+    get_dict_from_item_in_table, update_domain_dict_create_dict, update_origin_and_parents_to_new_template
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
     get_host_disk_operations_from_path, create_cmd_disk_from_scratch
 from engine.services.log import *
 
+DEFAULT_HOST_MODE = 'host-passthrough'
 
 class UiActions(object):
     def __init__(self, manager):
@@ -49,7 +50,7 @@ class UiActions(object):
 
         id_domain = id
         pool_id = get_pool_from_domain(id_domain)
-        cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model','host-model')
+        cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model',DEFAULT_HOST_MODE)
 
         # TODO: Read the cpu_host_model value from hypervisor_pool database
         try:
@@ -81,6 +82,12 @@ class UiActions(object):
                 # if start_after_created is True:
                 #     dict_action['start_after_created'] = True
                 #else:
+
+                if LOG_LEVEL == 'DEBUG':
+                    print(f'%%%% DOMAIN CREATING:{id_domain} -- XML TO START PAUSED IN HYPERVISOR {next_hyp} %%%%')
+                    print(xml)
+                    update_table_field('domains', id_domain, 'xml_to_start', xml)
+                    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
 
                 self.manager.q.workers[next_hyp].put(
                     dict_action)
@@ -131,6 +138,12 @@ class UiActions(object):
                 #                      hyp_id=next_hyp,
                 #                      detail='desktop starting paused in pool {} on hypervisor {}'.format(pool_id,
                 #                                                                                          next_hyp))
+
+                if LOG_LEVEL == 'DEBUG':
+                    print(f'%%%% DOMAIN: {id_domain} -- XML TO START IN HYPERVISOR: {next_hyp} %%%%')
+                    print(xml)
+                    update_table_field('domains',id_domain,'xml_to_start',xml)
+                    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
 
                 self.manager.q.workers[next_hyp].put({'type': 'start_domain', 'xml': xml, 'id_domain': id_domain})
             else:
@@ -420,6 +433,14 @@ class UiActions(object):
                 return False
             remove_disk_template_created_list_in_domain(id_domain)
             remove_dict_new_template_from_domain(id_domain)
+            if 'parents' in domain_dict.keys():
+                domain_parents_chain_update = domain_dict['parents'].copy()
+            else:
+                domain_parents_chain_update = []
+
+            domain_parents_chain_update.append(template_id)
+            update_table_field('domains', id_domain, 'parents', domain_parents_chain_update)
+            update_origin_and_parents_to_new_template(id_domain,template_id)
             # update_table_field('domains', template_id, 'xml', xml_parsed, merge_dict=False)
             update_domain_status(status='Stopped',
                                  id_domain=template_id,
@@ -670,7 +691,7 @@ class UiActions(object):
                     'Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(
                         e))
 
-    def updating_from_create_dict(self, id_domain):
+    def updating_from_create_dict(self, id_domain,ssl=True):
         try:
             populate_dict_hardware_from_create_dict(id_domain)
         except Exception as e:
@@ -706,7 +727,8 @@ class UiActions(object):
 
         kind = get_domain_kind(id_domain)
         if kind == 'desktop':
-            xml_to_test = recreate_xml_to_start(id_domain)
+            cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model', DEFAULT_HOST_MODE)
+            xml_to_test = recreate_xml_to_start(id_domain,ssl,cpu_host_model)
             self.start_paused_domain_from_xml(xml=xml_to_test, id_domain=id_domain, pool_id=pool_id)
         else:
             update_domain_status('Stopped', id_domain,
@@ -716,7 +738,7 @@ class UiActions(object):
 
     def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False,
                                     xml_from_virt_install=False,
-                                    xml_string=None):
+                                    xml_string=None,ssl=True):
         if creating_from_create_dict is True:
             try:
                 populate_dict_hardware_from_create_dict(id_domain)
@@ -742,6 +764,15 @@ class UiActions(object):
             id_template = domain['create_dict']['origin']
             template = get_domain(id_template)
             xml_from = template['xml']
+            parents_chain = template.get('parents',[]) + domain.get('parents',[])
+            #when creating template from domain, the domain would be inserted as a parent while template is creating
+            # parent_chain never can't have id_domain as parent
+            if id_domain in parents_chain:
+                for i in range(parents_chain.count('a')):
+                    parents_chain.remove(id_domain)
+
+            update_table_field('domains', id_domain, 'parents', parents_chain)
+
 
         elif xml_from_virt_install is True:
             xml_from = domain['xml_virt_install']
@@ -750,6 +781,7 @@ class UiActions(object):
             return False
 
         update_table_field('domains', id_domain, 'xml', xml_from)
+
 
         xml_raw = update_xml_from_dict_domain(id_domain)
         if xml_raw is False:
@@ -772,7 +804,8 @@ class UiActions(object):
         else:
             #change viewer password, remove selinux options and recreate network interfaces
             try:
-                xml = recreate_xml_to_start(id_domain)
+                cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model', DEFAULT_HOST_MODE)
+                xml = recreate_xml_to_start(id_domain,ssl,cpu_host_model)
             except Exception as e:
                 log.error('recreate_xml_to_start in domain {}'.format(id_domain))
                 log.error('Traceback: \n .{}'.format(traceback.format_exc()))
@@ -842,7 +875,7 @@ class UiActions(object):
         old_path_disk = dict_domain_template['hardware']['disks'][0]['file']
         old_path_dir = extract_dir_path(old_path_disk)
 
-        DEFAULT_GROUP_DIR = CONFIG_DICT['REMOTEOPERATIONS']['default_group_dir']
+        #DEFAULT_GROUP_DIR = CONFIG_DICT['REMOTEOPERATIONS']['default_group_dir']
 
         if path_to_disk_dir is None:
             path_to_disk_dir = DEFAULT_GROUP_DIR + '/' + \

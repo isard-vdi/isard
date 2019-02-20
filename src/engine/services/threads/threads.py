@@ -108,7 +108,21 @@ def launch_action_delete_disk(action, hostname, user, port):
     if len([k['err'] for k in array_out_err if len(k['err']) == 1]):
         log.debug('all operations deleting  disk {} for domain {} runned ok'.format(disk_path, id_domain))
 
-def launch_delete_media(action,hostname,user,port):
+def launch_killall_curl(hostname,user,port):
+    ssh_commands = ['killall curl']
+    try:
+        array_out_err = execute_commands(hostname,
+                                     ssh_commands=ssh_commands,
+                                     user=user,
+                                     port=port)
+        out = array_out_err[0]['out']
+        err = array_out_err[0]['err']
+        logs.downloads.info(f'kill al curl process in hypervisor {hostname}: {out} {err}')
+        return True
+    except Exception as e:
+        logs.downloads.error(f'Kill all curl process in hypervisor {hostname} fail: {e}')
+
+def launch_delete_media(action,hostname,user,port,final_status='Deleted'):
     array_out_err = execute_commands(hostname,
                                      ssh_commands=action['ssh_commands'],
                                      user=user,
@@ -121,7 +135,10 @@ def launch_delete_media(action,hostname,user,port):
         return False
     # ls of the file after deleted failed, has deleted ok
     elif len(array_out_err[2]['err']) > 0:
-        update_status_media_from_path(path, 'Deleted')
+        if final_status == 'DownloadFailed':
+            update_status_media_from_path(path, final_status)
+        else:
+            update_status_media_from_path(path, 'Deleted')
         return True
     else:
         log.error('failed deleting media {}'.format(id_media))
@@ -153,7 +170,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             # ahora ya se puede llamar a starting paused
             if id_domain is not False:
                 #update parents if have
-                update_domain_parents(id_domain)
+                #update_domain_parents(id_domain)
                 update_domain_status('CreatingDomain', id_domain, None,
                                      detail='new disk created, now go to creating desktop and testing if desktop start')
         else:
@@ -239,7 +256,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
                                           list_backing_chain_template=backing_chain_template)
 
                 # disk created, update parents and status
-                update_domain_parents(id_domain)
+                #update_domain_parents(id_domain)
                 update_domain_status(status='TemplateDiskCreated',
                                      id_domain=id_domain,
                                      hyp_id=False,
@@ -306,8 +323,8 @@ def launch_try_hyps(dict_hyps, enabled_thread=True):
             if threads_try[hyp_id].is_alive() is True:
                 pass
             threads_try[hyp_id].join(timeout=TIMEOUT_TRY_HYP)
-            hyps[hyp_id] = threads_try[hyp_id].hyp_obj
         try:
+            hyps[hyp_id] = threads_try[hyp_id].hyp_obj
             return_state[hyp_id]['reason'] = hyps[hyp_id].fail_connected_reason
         except Exception as e:
             log.error('try hypervisor fail - reason: {}'.format(e))
@@ -374,9 +391,19 @@ def try_hyp_connection(hyp_id, hostname, port, user):
 
     update_hypervisor_failed_connection(hyp_id, reason)
     if hyp_obj.connected is True:
-        ok = True
-        log.debug('hypervisor {} ready'.format(hyp_id))
-        update_hyp_status(hyp_id, 'ReadyToStart')
+        log.debug('hypervisor {} libvirt connection ready'.format(hyp_id))
+        hyp_obj.get_kvm_mod()
+        hyp_obj.get_hyp_info()
+        update_db_hyp_info(hyp_id,hyp_obj.info)
+        if hyp_obj.info['kvm_module'] == 'intel' or  hyp_obj.info['kvm_module'] == 'amd':
+            ok = True
+            update_hyp_status(hyp_id, 'ReadyToStart')
+        else:
+            ok = False
+            log.error('hypervisor {} has not virtualization support (VT-x for Intel processors and AMD-V for AMD processors). '.format(hyp_id))
+            update_hyp_status(hyp_id, 'Error', detail="KVM requires that the virtual machine host's processor has virtualization " +
+                                                      "support (named VT-x for Intel processors and AMD-V for AMD processors). " +
+                                                      "Check CPU capabilities and enable virtualization support in your BIOS.")
         hyp_obj.disconnect()
     else:
         ok = False

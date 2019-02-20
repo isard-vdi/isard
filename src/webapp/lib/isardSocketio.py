@@ -186,8 +186,8 @@ class MediaThread(threading.Thread):
 
     def run(self):
         with app.app_context():
-            for c in r.table('domains').get_all(r.args(['Downloading','Downloaded']),index='status').pluck('id','name','description','icon','progress','status','user').merge({'table':'domains'}).changes(include_initial=False).union(
-                    r.table('media').get_all(r.args(['DownloadStarting','Downloading','Downloaded']),index='status').merge({'table':'media'}).changes(include_initial=False)).run(db.conn):
+            for c in r.table('domains').get_all(r.args(['Downloaded', 'DownloadFailed','DownloadStarting', 'Downloading', 'DownloadAborting','ResetDownloading']),index='status').pluck('id','name','description','icon','progress','status','user').merge({'table':'domains'}).changes(include_initial=False).union(
+                    r.table('media').get_all(r.args(['Deleting', 'Deleted', 'Downloaded', 'DownloadFailed', 'DownloadStarting', 'Downloading', 'Download', 'DownloadAborting','ResetDownloading']),index='status').merge({'table':'media'}).changes(include_initial=False)).run(db.conn):
                 if self.stop==True: break
                 try:
                     if c['new_val'] is None:
@@ -365,7 +365,7 @@ class ConfigThread(threading.Thread):
     def run(self):
         with app.app_context():
             for c in r.table('backups').merge({'table':'backups'}).changes(include_initial=False).union(
-                r.table('scheduler_jobs').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).union(
+                r.table('scheduler_jobs').has_fields('name').without('job_state').merge({'table':'scheduler_jobs'}).changes(include_initial=False)).union(
                 r.table('disposables').merge({'table':'disposables'}).changes(include_initial=False)).run(db.conn):
                 if self.stop==True: break
                 try:
