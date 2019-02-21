@@ -295,7 +295,7 @@ class Wizard():
                 # ~ return False
             return True
         except Exception as e:
-            wlog.error(str(e))
+            #~ wlog.error(str(e))
             return False
 
     def register_isard_updates(self):
@@ -394,13 +394,14 @@ class Wizard():
 
     def valid_hypervisor(self,remote_addr=False):
         try:
-            if len(r.db('isard').table('hypervisors').filter({'status':'Online'}).pluck('status').run()) !=0:
+            if len(list(r.db('isard').table('hypervisors').filter({'status':'Online'}).pluck('status').run())) > 0:
                 # ~ if remote_addr is not False:
                     # ~ self.update_hypervisor_viewer(remote_addr)
                 self.callfor_updates_demo()
                 return True
             return False
-        except:
+        except Exception as e:
+            wlog.error(e)
             return False
 
     def hypervisor_detail(self,remote_addr=False):
@@ -662,7 +663,11 @@ class Wizard():
                             return html[6]['noservice']
                         if self.is_registered() is False:
                             return html[6]['noregister']
-                        return html[6]['ok'] % (self.render_updates(self.get_updates_list()))
+                        try:
+                            updates=self.render_updates(self.get_updates_list())
+                            return html[6]['ok'] % (updates)
+                        except:
+                            return html[6]['noregister']
 
 
 '''
