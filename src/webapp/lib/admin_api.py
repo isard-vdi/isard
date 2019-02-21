@@ -715,13 +715,51 @@ class isardAdmin():
             return False
         return False
 
+    def media_delete_list(self,id):
+        with app.app_context():
+            return list(r.table('domains').filter( lambda dom: dom['create_dict']['hardware']['isos'].contains( lambda media: media['id'].eq(id))).pluck('id','name','kind','status', { "create_dict": { "hardware": {"isos"}}}).run(db.conn))
 
-    def media_domains_used():
-        return list(r.table('domains').filter(
-                lambda dom: 
-                    (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
-                ).run(conn))
+    def media_delete(self,id):
+        ## Needs optimization by directly doing operation in nested array of dicts in reql
+        domains=self.media_delete_list(id)
+        # ~ domids=[d['id'] for d in domains]
+        for dom in domains:
+            if dom['status'] == 'Started': continue
+            dom['create_dict']['hardware']['isos'][:]= [iso for iso in dom['create_dict']['hardware']['isos'] if iso.get('id') != id]
+            domid=dom['id']
+            dom.pop('id',None)
+            dom.pop('name',None)
+            dom.pop('kind',None)
+            dom.pop('status',None)
+            with app.app_context():
+                r.table('domains').get(domid).update(dom).run(db.conn)
+        return True
+        
+        # ~ domids=[d['id'] for d in self.media_delete_list(id)]
+        # ~ with app.app_context():
+            # ~ r.table('domains').get_all(r.args(domids)).update(
+                # ~ lambda dom: { "create_dict": { "hardware": {"isos": dom['create_dict']['hardware']['isos'].ne(id) }}}
+            # ~ ).run(db.conn)
+        # ~ return True
+            
+            
+    # ~ def media_domains_used():
+        # ~ return list(r.table('domains').filter(
+                # ~ lambda dom: 
+                    # ~ (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                # ~ ).run(conn))
         # ~ return list(r.table("domains").filter({'create_dict':{'hardware':{'isos':id}}).pluck('id').run(db.conn))                    
+
+    # ~ def delete_media(self,id):
+        # ~ with app.app_context():
+            # ~ return r.table('domains').filter(
+                # ~ lambda dom: 
+                        # ~ (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                    # ~ ).run(conn))
+            
+            # ~ hardware - isos [ {path}, ... ]
+            # ~ return self.f.table_values_bstrap(data)  
+
        
     def remove_backup_db(self,id):
         with app.app_context():
@@ -734,7 +772,7 @@ class isardAdmin():
         with app.app_context():
             r.table('backups').get(id).delete().run(db.conn)
            
-           
+
     '''
     BACKUP & RESTORE
     '''
