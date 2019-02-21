@@ -23,7 +23,7 @@ def media():
 @login_required
 def media_get():
 	data=app.isardapi.get_all_alloweds_table('media',current_user.username, pluck=False)
-	data=[d for d in data if d['status']=='Downloaded' ]
+	# ~ data=[d for d in data if d['status']=='Downloaded' ]
 	return json.dumps(data), 200, {'ContentType': 'application/json'}
 
 @app.route('/domain/media', methods=["POST"])
