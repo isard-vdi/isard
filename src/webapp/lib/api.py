@@ -49,7 +49,7 @@ class isard():
     def update_table_status(self,user,table,data,remote_addr):
             item = table[:-1].capitalize()
             with app.app_context():
-                dom = r.table('domains').get(data['pk']).pluck('status','name').run(db.conn)          
+                dom = r.table(table).get(data['pk']).pluck('status','name').run(db.conn)          
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
@@ -69,13 +69,24 @@ class isard():
                         else:
                             return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Deleting':
-                        if dom['status'] in ['Stopped','Failed','DownloadFailed']:
+                        if table=='media':
+                            ''' WE SHOULD CHECK THAT DOMAINS ARE STOPPED '''
+                            app.adminapi.media_delete(data['pk'])                        
+                            # ~ if dom['status'] in ['Stopped','Failed']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                                 return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
                                 return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            # ~ else:
+                                # ~ return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
-                            return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            if dom['status'] in ['Stopped','Failed']:
+                                if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                                    return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                                else:
+                                    return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                            else:
+                                return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Starting':
                         if dom['status'] in ['Stopped','Failed']:
                             if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
@@ -182,6 +193,7 @@ class isard():
         with app.app_context():
             data=r.table('virt_install').run(db.conn)
             return self.f.table_values_bstrap(data)
+    
     '''     
     STATUS
     '''
