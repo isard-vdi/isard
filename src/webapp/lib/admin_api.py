@@ -717,15 +717,24 @@ class isardAdmin():
 
     def media_delete_list(self,id):
         with app.app_context():
-            return list(r.table('domains').filter( lambda dom: dom['create_dict']['hardware']['isos'].contains( lambda media: media['id'].eq('_admin_virtio-win-0.1.141'))).pluck('id','name').run(db.conn))
+            return list(r.table('domains').filter( lambda dom: dom['create_dict']['hardware']['isos'].contains( lambda media: media['id'].eq(id))).pluck('id','name').run(db.conn))
 
     def media_delete(self,id):
-        domids=[d['id'] for d in self.media_delete_list(id)]
-        with app.app_context():
-            r.table('domains').get_all(r.args(domids)).update(
-                lambda dom: { "create_dict": { "hardware": {"isos": dom['create_dict']['hardware']['isos'].ne(id) }}}
-            ).run(db.conn)
+        ## Needs optimization by directly doing operation in nested array of dicts in reql
+        domids=[d['id'] for d in media_delete_list(id)]
+        for domid in domids:
+            dom=r.table('domains').get(domid).pluck({ "create_dict": { "hardware": {"isos"}}}).run(db.conn)
+            pprint.pprint(dom)
+            dom['create_dict']['hardware']['isos'][:]= [iso for iso in dom['create_dict']['hardware']['isos'] if iso.get('id') != id]
+            r.table('domains').get(domid).update(dom).run(db.conn)
         return True
+        
+        # ~ domids=[d['id'] for d in self.media_delete_list(id)]
+        # ~ with app.app_context():
+            # ~ r.table('domains').get_all(r.args(domids)).update(
+                # ~ lambda dom: { "create_dict": { "hardware": {"isos": dom['create_dict']['hardware']['isos'].ne(id) }}}
+            # ~ ).run(db.conn)
+        # ~ return True
             
             
     # ~ def media_domains_used():
