@@ -717,16 +717,22 @@ class isardAdmin():
 
     def media_delete_list(self,id):
         with app.app_context():
-            return list(r.table('domains').filter( lambda dom: dom['create_dict']['hardware']['isos'].contains( lambda media: media['id'].eq(id))).pluck('id','name').run(db.conn))
+            return list(r.table('domains').filter( lambda dom: dom['create_dict']['hardware']['isos'].contains( lambda media: media['id'].eq(id))).pluck('id','name','kind','status', { "create_dict": { "hardware": {"isos"}}}).run(db.conn))
 
     def media_delete(self,id):
         ## Needs optimization by directly doing operation in nested array of dicts in reql
-        domids=[d['id'] for d in media_delete_list(id)]
-        for domid in domids:
-            dom=r.table('domains').get(domid).pluck({ "create_dict": { "hardware": {"isos"}}}).run(db.conn)
-            pprint.pprint(dom)
+        domains=self.media_delete_list(id)
+        # ~ domids=[d['id'] for d in domains]
+        for dom in domains:
+            if dom['status'] == 'Started': continue
             dom['create_dict']['hardware']['isos'][:]= [iso for iso in dom['create_dict']['hardware']['isos'] if iso.get('id') != id]
-            r.table('domains').get(domid).update(dom).run(db.conn)
+            domid=dom['id']
+            dom.pop('id',None)
+            dom.pop('name',None)
+            dom.pop('kind',None)
+            dom.pop('status',None)
+            with app.app_context():
+                r.table('domains').get(domid).update(dom).run(db.conn)
         return True
         
         # ~ domids=[d['id'] for d in self.media_delete_list(id)]
