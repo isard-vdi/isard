@@ -267,8 +267,7 @@ class UiActions(object):
         dict_domain = get_domain(id_domain)
 
         if dict_domain['kind'] != 'desktop' and force is False:
-            log.error('{} is a template, disks can not be deleted')
-            return -1
+            log.info('{} is a template, disks will be deleted')
 
         if len(dict_domain['hardware']['disks']) > 0:
             index_disk = 0
