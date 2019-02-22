@@ -17,6 +17,7 @@ from datetime import datetime
 from io import StringIO
 from collections import deque
 from statistics import mean
+import time
 
 import libvirt
 import paramiko
@@ -48,7 +49,7 @@ HYP_STATUS_ERROR_NOT_RESOLVES_HOSTNAME = -7
 HYP_STATUS_ERROR_WHEN_CLOSE_CONNEXION = -1
 HYP_STATUS_NOT_ALIVE = -10
 
-
+MAX_GET_KVM_RETRIES = 3
 
 class hyp(object):
     """
@@ -223,28 +224,34 @@ class hyp(object):
             # set_hyp_status(self.hostname,status_code)
 
     def get_kvm_mod(self):
-        try:
-            d = exec_remote_cmd('lsmod |grep kvm',self.hostname,username=self.user,port=self.port)
-            if len(d['err']) > 0:
-                log.error('error {} returned from command: lsmod |grep kvm'.format(d['err'].decode('utf-8')))
-            else:
-                s = d['out'].decode('utf-8')
-                if s.find('kvm_intel') >= 0:
-                    self.info['kvm_module'] = 'intel'
-                elif s.find('kvm_amd') >= 0:
-                    self.info['kvm_module'] = 'amd'
-                elif s.find('kvm') >= 0:
-                    self.info['kvm_module'] = 'bios_disabled'
-                    log.error('No kvm module kvm_amd or kvm_intel activated. You must review your BIOS')
-                    log.error('Hardware acceleration is supported, but disabled in the BIOS settings')
+        for i in range(MAX_GET_KVM_RETRIES):
+            try:
+                d = exec_remote_cmd('lsmod |grep kvm',self.hostname,username=self.user,port=self.port)
+                if len(d['err']) > 0:
+                    log.error('error {} returned from command: lsmod |grep kvm'.format(d['err'].decode('utf-8')))
                 else:
-                    self.info['kvm_module'] = False
-                    log.error('No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities')
-            return True
+                    s = d['out'].decode('utf-8')
+                    if s.find('kvm_intel') >= 0:
+                        self.info['kvm_module'] = 'intel'
+                    elif s.find('kvm_amd') >= 0:
+                        self.info['kvm_module'] = 'amd'
+                    elif s.find('kvm') >= 0:
+                        self.info['kvm_module'] = 'bios_disabled'
+                        log.error('No kvm module kvm_amd or kvm_intel activated. You must review your BIOS')
+                        log.error('Hardware acceleration is supported, but disabled in the BIOS settings')
+                    else:
+                        self.info['kvm_module'] = False
+                        log.error('No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities')
+                return True
 
-        except Exception as e:
-            log.error('Exception while executing remote command in hypervisor to list kvm modules: {}'.format(e))
-            return False
+            except Exception as e:
+                log.error('Exception while executing remote command in hypervisor to list kvm modules: {}'.format(e))
+                log.error(f'Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second.')
+            time.sleep(1)
+
+        self.info['kvm_module'] = False
+        log.error(f'remote ssh command in hypervisor {hostname} fail with {MAX_GET_KVM_RETRIES} retries')
+        return False
 
     def get_hyp_info(self):
 
