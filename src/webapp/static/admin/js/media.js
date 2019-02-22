@@ -68,12 +68,12 @@ $(document).ready(function() {
                 //~ "width": "10px",
                 //~ "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				//~ },
-            { "data": "icon"},
+            { "data": "icon", "width": "10px"},
             { "data": "name"},
-            { "data": "user"},
-            { "data": null},
-                {"data": null,
-                 'defaultContent': ''},  
+            { "data": null, "width": "10px"},
+            { "data": "status", "width": "10px"},                
+            { "data": null,"width": "150px", "className": "text-center"},
+            {"data": null, 'defaultContent': '',"width": "80px"},  
         ],
         "columnDefs": [ 
 							{
@@ -87,10 +87,16 @@ $(document).ready(function() {
 							  return renderName(full);
 							}},
 							{
+							"targets": 2,
+							"render": function ( data, type, full, meta ) {
+                                if(!('username' in full)){return full.user;}
+							  return full.username;
+							}},
+							{
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
 							  return full.status;
-							}},                            
+							}},                         
                             {
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
@@ -102,19 +108,24 @@ $(document).ready(function() {
 							}},
                             {
 							"targets": 5,
-							"render": function ( data, type, full, meta ) {                                
-                                if(full.status == 'Available' || full.status == "DownloadFailed"){
-                                       return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
-                                                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                 }
-                                if(full.status == 'Downloading'){
-                                    return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
-                                }
+							"render": function ( data, type, full, meta ) { 
                                 if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
+                                    return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
+                                }
+                                //~ }else{
+                                    if(full.status == 'Available' || full.status == "DownloadFailed"){
+                                        return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
+                                                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                    }
+                                    if(full.status == 'Downloading'){
+                                        return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                                    }
+                                    if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                        return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
                                                 <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
                                                 <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                } 
+                                    //~ } 
+                                }
                                 //~ return full.status;                                 
                                 }}],
         "initComplete": function() {
