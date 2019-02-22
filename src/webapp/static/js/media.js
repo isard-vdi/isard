@@ -103,7 +103,7 @@ $(document).ready(function() {
                             {
 							"targets": 5,
 							"render": function ( data, type, full, meta ) { 
-                                if(user != full.user && (full.status == 'Downloaded' || full.status == 'Stopped')){
+                                if(user != full.username && (full.status == 'Downloaded' || full.status == 'Stopped')){
                                     return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
                                 }
                                 //~ }else{
