@@ -461,15 +461,15 @@ class isardAdmin():
             # Stopping domains
             started=[d['id'] for d in newdict if d['status'] == 'Started']
             res=r.table('domains').get_all(r.args(started)).update({'status':'Stopping'}).run(db.conn)
-            
-            # Wait a bit for domains to be stopped...
-            for i in range(0,3):
-                time.sleep(1)
-                if r.table('domains').get_all(r.args(started)).filter({'status':'Stopping'}).pluck('status').run(db.conn) is None:
-                    r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
-                    break
-                else:
-                    r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
+            if res['replaced'] > 0:
+                # Wait a bit for domains to be stopped...
+                for i in range(0,5):
+                    time.sleep(.5)
+                    if r.table('domains').get_all(r.args(started)).filter({'status':'Stopping'}).pluck('status').run(db.conn) is None:
+                        r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
+                        break
+                    else:
+                        r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
                     
                     
             # Deleting
