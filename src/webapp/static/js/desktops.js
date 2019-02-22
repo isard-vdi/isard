@@ -302,6 +302,8 @@ $(document).ready(function() {
         if(data.result){
             $("#modalAdd")[0].reset();
             $("#modalAddDesktop").modal('hide');
+            $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
+            $("#modalTemplateDesktop").modal('hide');            
         }
         new PNotify({
                 title: data.title,

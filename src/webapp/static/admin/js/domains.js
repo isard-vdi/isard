@@ -37,6 +37,25 @@ $(document).ready(function() {
     $template_domain = $(".template-detail-domain");
 
     var stopping_timer=null
+
+    $("#modalTemplateDesktop #send").on('click', function(e){
+            var form = $('#modalTemplateDesktopForm');
+
+            form.parsley().validate();
+
+            if (form.parsley().isValid()){
+                desktop_id=$('#modalTemplateDesktopForm #id').val();
+                if (desktop_id !=''){
+                    data=$('#modalTemplateDesktopForm').serializeObject();
+                    data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
+                    data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
+                    socket.emit('domain_template_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                }
+            }
+        });
         
     $("#modalDeleteTemplate #send").on('click', function(e){
         //~ var form = $('#modalDeleteTemplate #modalAdd');
@@ -405,6 +424,8 @@ $(document).ready(function() {
             $("#modalAddFromBuilder").modal('hide');
             $("#modalAddFromMedia #modalAdd")[0].reset();
             $("#modalAddFromMedia").modal('hide');   
+            $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
+            $("#modalTemplateDesktop").modal('hide');             
             //~ $('body').removeClass('modal-open');
             //~ $('.modal-backdrop').remove();
         }
@@ -519,29 +540,59 @@ function actionsDomainDetail(){
 
     if(url=="Desktops"){
         $('.btn-delete-template').remove()
-        $('.btn-template').on('click', function () {
-            if($('.quota-templates .perc').text() >=100){
-                new PNotify({
-                    title: "Quota for creating templates full.",
-                    text: "Can't create another template, quota full.",
-                    hide: true,
-                    delay: 3000,
-                    icon: 'fa fa-alert-sign',
-                    opacity: 1,
-                    type: 'error'
-                });
-            }else{	
-                var pk=$(this).closest("[data-pk]").attr("data-pk");
-                setDefaultsTemplate(pk);
-                setHardwareOptions('#modalTemplateDesktop');
-                setHardwareDomainDefaults('#modalTemplateDesktop',pk);
-                $('#modalTemplateDesktop').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                }).modal('show');
-            }
-        });
+        //~ $('.btn-template').on('click', function () {
+            //~ if($('.quota-templates .perc').text() >=100){
+                //~ new PNotify({
+                    //~ title: "Quota for creating templates full.",
+                    //~ text: "Can't create another template, quota full.",
+                    //~ hide: true,
+                    //~ delay: 3000,
+                    //~ icon: 'fa fa-alert-sign',
+                    //~ opacity: 1,
+                    //~ type: 'error'
+                //~ });
+            //~ }else{	
+                //~ var pk=$(this).closest("[data-pk]").attr("data-pk");
+                //~ setDefaultsTemplate(pk);
+                //~ setHardwareOptions('#modalTemplateDesktop');
+                //~ setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+                //~ $('#modalTemplateDesktop').modal({
+                    //~ backdrop: 'static',
+                    //~ keyboard: false
+                //~ }).modal('show');
+            //~ }
+        //~ });
 
+	$('.btn-template').on('click', function () {
+		if($('.quota-templates .perc').text() >=100){
+            new PNotify({
+                title: "Quota for creating templates full.",
+                text: "Can't create another template, quota full.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: 'error'
+            });
+		}else{	
+			var pk=$(this).closest("[data-pk]").attr("data-pk");
+            
+			setDefaultsTemplate(pk);
+			setHardwareOptions('#modalTemplateDesktop');
+			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+            
+			$('#modalTemplateDesktop').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+
+            setDomainMediaDefaults('#modalTemplateDesktop',pk);
+            setMedia_add('#modalTemplateDesktop #media-block')  
+            
+            setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
+        }
+	});
+    
         $('.btn-delete').on('click', function () {
                     var pk=$(this).closest("[data-pk]").attr("data-pk");
                     var name=$(this).closest("[data-pk]").attr("data-name");
