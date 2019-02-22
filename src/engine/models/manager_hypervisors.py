@@ -621,8 +621,10 @@ class ManagerHypervisors(object):
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
 
-                if old_status == 'Stopped' and new_status == "Deleting" or \
-                        old_status == 'Downloaded' and new_status == "Deleting":
+                if old_status != 'Started' and new_status == "Deleting":
+                    # or \
+                    #     old_status == 'Failed' and new_status == "Deleting" or \
+                    #     old_status == 'Downloaded' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
 
                 if (old_status == 'Stopped' and new_status == "Updating") or \
@@ -635,7 +637,7 @@ class ManagerHypervisors(object):
                     if get_domain(domain_id) is None:
                         logs.changes.info('domain {} deleted from database'.format(domain_id))
                     else:
-                        update_domain_status('Failed', id_domain,
+                        update_domain_status('Failed', domain_id,
                                              detail='domain {} can not be deleted from database'.format(domain_id))
 
                 if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
