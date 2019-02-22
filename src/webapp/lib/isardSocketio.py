@@ -889,7 +889,23 @@ def socketio_domains_viewer(data):
                         msg,
                         namespace='/sio_users', 
                         room='user_'+current_user.username)     
-    
+
+@socketio.on('domain_viewer', namespace='/sio_admins')
+def socketio_admin_domains_viewer(data):
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+    viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
+    if viewer_data:
+        socketio.emit('domain_viewer',
+                        json.dumps(viewer_data),
+                        namespace='/sio_admins', 
+                        room='user_'+current_user.username)          
+        
+    else:
+        msg=json.dumps({'result':True,'title':'Viewer','text':'Viewer could not be opened. Try again.','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        msg,
+                        namespace='/sio_users', 
+                        room='user_'+current_user.username)   
 
 @socketio.on('disposable_viewer', namespace='/sio_disposables')
 def socketio_disposables_viewer(data):

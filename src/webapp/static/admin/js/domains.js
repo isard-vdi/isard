@@ -139,8 +139,9 @@ $(document).ready(function() {
 							//~ }},
 							{
 							"targets": 4,
+                            "width": "100px",
 							"render": function ( data, type, full, meta ) {
-							  return renderAction(full);
+							  return renderAction(full)+renderDisplay(full);
 							}},
 							{
 							"targets": 5,
@@ -318,8 +319,37 @@ $(document).ready(function() {
 				//~ });	
                 break;
             case 'btn-display':
-                getClientViewer(data,socket);
+				new PNotify({
+						title: 'Connect to user viewer!',
+							text: "By connecting to desktop "+ name+" you will disconnect and gain access to that user current desktop.\n\n \
+								   Please, think twice before doing this as it could be illegal depending on your relation with the user. \n\n ",
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							addclass: 'pnotify-center'
+						}).get().on('pnotify.confirm', function() {
+                            setViewerButtons(data['id'],socket);
+
+                            $('#modalOpenViewer').modal({
+                                backdrop: 'static',
+                                keyboard: false
+                            }).modal('show');
+						}).on('pnotify.cancel', function() {
+				});	            
+                
                 break;
+            case 'btn-alloweds':
+                modalAllowedsFormShow('domains',data)
+                break;                 
         }
     });	
 
@@ -613,9 +643,8 @@ function icon(data){
     
 function renderDisplay(data){
         if(data.status=='Stopping' || data.status =='Started'){
-            return ' <div class="display"> \
-					<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
-					<i class="fa fa-desktop"></i> Show</button></div>';
+            return '<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
+					<i class="fa fa-desktop"></i> Show</button>';
         }
         return ''
 }
@@ -652,7 +681,7 @@ function renderAction(data){
             if(url=='Desktops'){
                 return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
             }else{
-                return '<i class="fa fa-play"></i>';
+                return '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>';
             }
         }
         if(status=='Started'){
@@ -663,10 +692,10 @@ function renderAction(data){
             }
         } 
 
-        if(status=='Disabled'){
+        if(status=='Disabled' || status =='Manteinance'){
                 return '<i class="fa fa-times fa-2x"></i>';
         }         
-        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
+        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';        
 }	
 
 function delete_templates(id){
