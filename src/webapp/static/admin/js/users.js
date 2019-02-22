@@ -26,6 +26,16 @@ $(document).ready(function() {
         setModalUser();
 	});
 
+	$('#btn-download-bulkusers').on('click', function () {
+        var viewerFile = new Blob(["username,name,mail,password\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t\nauser,Another User,auser@domain.com,a1sera1ser"], {type: "text/csv"});
+        var a = document.createElement('a');
+            a.download = 'bulk-users-template.csv';
+            a.href = window.URL.createObjectURL(viewerFile);
+        var ev = document.createEvent("MouseEvents");
+            ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+            a.dispatchEvent(ev);  
+	});
+    
 	$('.btn-old-users').on('click', function () {
         $('#modalOldUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         populate_users_table()
