@@ -7,7 +7,7 @@
 
 var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
-if(url!="Desktops"){kind='template';}else{kind='desktop';}
+if(url!="Desktops"){kind='template';}else{$('#global_actions').css('display','block');kind='desktop';}
 
 columns= [
 				{
