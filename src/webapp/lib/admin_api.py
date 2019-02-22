@@ -724,13 +724,15 @@ class isardAdmin():
         domains=self.media_delete_list(id)
         # ~ domids=[d['id'] for d in domains]
         for dom in domains:
-            if dom['status'] == 'Started': continue
-            dom['create_dict']['hardware']['isos'][:]= [iso for iso in dom['create_dict']['hardware']['isos'] if iso.get('id') != id]
             domid=dom['id']
+            if dom['status'] == 'Started': continue
+            if dom['status'] != 'Stopped':
+                r.table('domains').get(domid).update({'status':'Stopped'}).run(db.conn)
+            dom['create_dict']['hardware']['isos'][:]= [iso for iso in dom['create_dict']['hardware']['isos'] if iso.get('id') != id]
             dom.pop('id',None)
             dom.pop('name',None)
             dom.pop('kind',None)
-            dom.pop('status',None)
+            dom['status']='Updating'
             with app.app_context():
                 r.table('domains').get(domid).update(dom).run(db.conn)
         return True

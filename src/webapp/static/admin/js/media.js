@@ -86,8 +86,13 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
 							  return renderName(full);
 							}},
-                            {
+							{
 							"targets": 3,
+							"render": function ( data, type, full, meta ) {
+							  return full.status;
+							}},                            
+                            {
+							"targets": 4,
 							"render": function ( data, type, full, meta ) {
                                 if(full.status == 'Downloading'){
                                     return renderProgress(full);
@@ -96,11 +101,12 @@ $(document).ready(function() {
                                 return ''
 							}},
                             {
-							"targets": 4,
+							"targets": 5,
 							"render": function ( data, type, full, meta ) {                                
                                 if(full.status == 'Available' || full.status == "DownloadFailed"){
-                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-                                }
+                                       return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
+                                                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                 }
                                 if(full.status == 'Downloading'){
                                     return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                                 }
@@ -109,7 +115,7 @@ $(document).ready(function() {
                                                 <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
                                                 <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                                 } 
-                                return full.status;                                 
+                                //~ return full.status;                                 
                                 }}],
         "initComplete": function() {
                                 //~ $('.progress .progress-bar').progressbar();
