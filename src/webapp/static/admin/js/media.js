@@ -109,9 +109,9 @@ $(document).ready(function() {
                             {
 							"targets": 5,
 							"render": function ( data, type, full, meta ) { 
-                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
-                                }
+                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                    //~ return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
+                                //~ }
                                 //~ }else{
                                     if(full.status == 'Available' || full.status == "DownloadFailed"){
                                         return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
