@@ -23,7 +23,7 @@ services:
       - "443:443"
     networks:
       - isard_network
-    image: isard/nginx:1.1
+    image: isard/nginx:1.1.0-rc1
     restart: unless-stopped
     depends_on:
       - isard-app
@@ -40,7 +40,7 @@ services:
       - "55900-55999:55900-55999"
     networks:
       - isard_network
-    image: isard/hypervisor:1.1
+    image: isard/hypervisor:1.1.0-rc1
     privileged: true
     restart: unless-stopped
         
@@ -58,7 +58,7 @@ services:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
-    image: isard/app:1.1
+    image: isard/app:1.1.0-rc1
     restart: unless-stopped
     depends_on:
       - isard-database
