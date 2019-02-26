@@ -104,7 +104,7 @@ class ThreadBroom(threading.Thread):
                             if domain_id in hyps_domain_started[hyp_started]['active_domains']:
                                 logs.broom.debug('DOMAIN: {} ACTIVE IN HYPERVISOR: {}'.format(domain_id, hyp_started))
                                 state_libvirt = hyps_domain_started[hyp_started]['hyp'].domains[domain_id].state()
-                                state_str, cuase = state_and_cause_to_str(state_libvirt[0], state_libvirt[1])
+                                state_str, cause = state_and_cause_to_str(state_libvirt[0], state_libvirt[1])
                                 status = dict_domain_libvirt_state_to_isard_state(state_str)
                                 logs.broom.debug(
                                         'DOMAIN: {} ACTIVE IN HYPERVISOR: {} WITH STATUS: {}'.format(domain_id,

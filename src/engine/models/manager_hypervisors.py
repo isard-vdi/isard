@@ -96,7 +96,7 @@ class ManagerHypervisors(object):
         self.t_background.start()
 
     def check_actions_domains_enabled(self):
-        if self.num_workers > 0 and self.threads_main_started is True:
+        if len(self.t_workers) > 0 and self.threads_main_started is True:
             return True
         else:
             return False
