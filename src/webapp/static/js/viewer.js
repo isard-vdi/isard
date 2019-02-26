@@ -70,7 +70,7 @@ function startClientViewerSocket(socket){
        
         if(data['kind']=='url'){
             viewer=data['viewer']
-            window.open(viewer.replace('<domain>',document.domain));            
+            window.open(viewer.replace('<domain>',document.domain)); //, '_blank', 'toolbar=0,location=0,menubar=0');            
             
         }        
          if(data['kind']=='file'){
@@ -81,7 +81,7 @@ function startClientViewerSocket(socket){
             var ev = document.createEvent("MouseEvents");
                 ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
                 a.dispatchEvent(ev);              
-                    }
+        }
     });
 }    
     

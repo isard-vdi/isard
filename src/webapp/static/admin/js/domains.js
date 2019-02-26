@@ -7,7 +7,7 @@
 
 var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
-if(url!="Desktops"){kind='template';}else{kind='desktop';}
+if(url!="Desktops"){kind='template';}else{$('#global_actions').css('display','block');kind='desktop';}
 
 columns= [
 				{
@@ -34,7 +34,86 @@ if(url!="Desktops"){
 
 $(document).ready(function() {
 
-        $template_domain = $(".template-detail-domain");
+    $template_domain = $(".template-detail-domain");
+
+    var stopping_timer=null
+
+    $("#modalTemplateDesktop #send").on('click', function(e){
+            var form = $('#modalTemplateDesktopForm');
+
+            form.parsley().validate();
+
+            if (form.parsley().isValid()){
+                desktop_id=$('#modalTemplateDesktopForm #id').val();
+                if (desktop_id !=''){
+                    data=$('#modalTemplateDesktopForm').serializeObject();
+                    data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
+                    data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
+                    socket.emit('domain_template_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                }
+            }
+        });
+        
+    $("#modalDeleteTemplate #send").on('click', function(e){
+        //~ var form = $('#modalDeleteTemplate #modalAdd');
+        ids=[]
+        names=''
+        
+        $.each(modal_delete_templates.rows().data(),function(key, value){
+            names+=value['name']+', ';
+            ids.push(value['id']);            
+            if(value['status']=='Started'){
+                socket.emit('domain_update',{'pk':value['id'],'name':'status','value':'Stopping'})
+            }
+        });
+        
+        stopping_timer = setInterval( function () {
+            modal_delete_templates.ajax.reload(null,false);   
+            console.log('Updating...')
+            status_start=0
+            $.each(modal_delete_templates.rows().data(),function(key, value){
+                if(value['status']=='Started' || value['status']=='Stopping'){
+                    status_start=status_start+1;
+                }
+            });
+            if(status_start==0){
+                clearInterval(stopping_timer);
+                stopping_timer=null;
+
+                id=$('#modalDeleteTemplate #id').val();
+                api.ajax('/admin/domains/todelete','POST',{'id':id,'ids':ids}).done(function(data) {
+                    if(data){
+                        new PNotify({
+                                title: "Deleting",
+                                text: "Deleting all templates and desktops",
+                                hide: true,
+                                delay: 4000,
+                                icon: 'fa fa-success',
+                                opacity: 1,
+                                type: 'success'
+                        });                                
+                    }else{
+                        new PNotify({
+                                title: "Error deleting",
+                                text: "Unable to delete templates and desktops",
+                                hide: true,
+                                delay: 4000,
+                                icon: 'fa fa-warning',
+                                opacity: 1,
+                                type: 'error'
+                        });                                
+                    }
+                    $("#modalDeleteTemplate").modal('hide');                
+                });
+            }
+        }, 1000 );
+        
+             
+    });
+
 
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
@@ -68,8 +147,9 @@ $(document).ready(function() {
 							//~ }},
 							{
 							"targets": 4,
+                            "width": "100px",
 							"render": function ( data, type, full, meta ) {
-							  return renderAction(full);
+							  return renderAction(full)+renderDisplay(full);
 							}},
 							{
 							"targets": 5,
@@ -191,7 +271,7 @@ $(document).ready(function() {
                     //~ setDomainGenealogy(row.data().id);
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                     if(url!="Desktops"){
-                        setDomainDerivates(row.data().id);
+                        //~ setDomainDerivates(row.data().id);
                     }
                 }
             }            
@@ -247,8 +327,37 @@ $(document).ready(function() {
 				//~ });	
                 break;
             case 'btn-display':
-                getClientViewer(data,socket);
+				new PNotify({
+						title: 'Connect to user viewer!',
+							text: "By connecting to desktop "+ name+" you will disconnect and gain access to that user current desktop.\n\n \
+								   Please, think twice before doing this as it could be illegal depending on your relation with the user. \n\n ",
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							addclass: 'pnotify-center'
+						}).get().on('pnotify.confirm', function() {
+                            setViewerButtons(data['id'],socket);
+
+                            $('#modalOpenViewer').modal({
+                                backdrop: 'static',
+                                keyboard: false
+                            }).modal('show');
+						}).on('pnotify.cancel', function() {
+				});	            
+                
                 break;
+            case 'btn-alloweds':
+                modalAllowedsFormShow('domains',data)
+                break;                 
         }
     });	
 
@@ -315,6 +424,8 @@ $(document).ready(function() {
             $("#modalAddFromBuilder").modal('hide');
             $("#modalAddFromMedia #modalAdd")[0].reset();
             $("#modalAddFromMedia").modal('hide');   
+            $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
+            $("#modalTemplateDesktop").modal('hide');             
             //~ $('body').removeClass('modal-open');
             //~ $('.modal-backdrop').remove();
         }
@@ -428,30 +539,60 @@ function actionsDomainDetail(){
 	});	    
 
     if(url=="Desktops"){
+        $('.btn-delete-template').remove()
+        //~ $('.btn-template').on('click', function () {
+            //~ if($('.quota-templates .perc').text() >=100){
+                //~ new PNotify({
+                    //~ title: "Quota for creating templates full.",
+                    //~ text: "Can't create another template, quota full.",
+                    //~ hide: true,
+                    //~ delay: 3000,
+                    //~ icon: 'fa fa-alert-sign',
+                    //~ opacity: 1,
+                    //~ type: 'error'
+                //~ });
+            //~ }else{	
+                //~ var pk=$(this).closest("[data-pk]").attr("data-pk");
+                //~ setDefaultsTemplate(pk);
+                //~ setHardwareOptions('#modalTemplateDesktop');
+                //~ setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+                //~ $('#modalTemplateDesktop').modal({
+                    //~ backdrop: 'static',
+                    //~ keyboard: false
+                //~ }).modal('show');
+            //~ }
+        //~ });
 
-        $('.btn-template').on('click', function () {
-            if($('.quota-templates .perc').text() >=100){
-                new PNotify({
-                    title: "Quota for creating templates full.",
-                    text: "Can't create another template, quota full.",
-                    hide: true,
-                    delay: 3000,
-                    icon: 'fa fa-alert-sign',
-                    opacity: 1,
-                    type: 'error'
-                });
-            }else{	
-                var pk=$(this).closest("[data-pk]").attr("data-pk");
-                setDefaultsTemplate(pk);
-                setHardwareOptions('#modalTemplateDesktop');
-                setHardwareDomainDefaults('#modalTemplateDesktop',pk);
-                $('#modalTemplateDesktop').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                }).modal('show');
-            }
-        });
+	$('.btn-template').on('click', function () {
+		if($('.quota-templates .perc').text() >=100){
+            new PNotify({
+                title: "Quota for creating templates full.",
+                text: "Can't create another template, quota full.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: 'error'
+            });
+		}else{	
+			var pk=$(this).closest("[data-pk]").attr("data-pk");
+            
+			setDefaultsTemplate(pk);
+			setHardwareOptions('#modalTemplateDesktop');
+			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+            
+			$('#modalTemplateDesktop').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
 
+            setDomainMediaDefaults('#modalTemplateDesktop',pk);
+            setMedia_add('#modalTemplateDesktop #media-block')  
+            
+            setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
+        }
+	});
+    
         $('.btn-delete').on('click', function () {
                     var pk=$(this).closest("[data-pk]").attr("data-pk");
                     var name=$(this).closest("[data-pk]").attr("data-name");
@@ -482,6 +623,16 @@ function actionsDomainDetail(){
     }else{
         $('.btn-delete').remove()
         $('.btn-template').remove()
+
+		$('.btn-delete-template').on('click', function () {	
+            var pk = $(this).closest("[data-pk]").attr("data-pk")
+            $('#modalDeleteTemplate').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            delete_templates(pk);
+        });
+        
     }
 }
 
@@ -512,11 +663,11 @@ function addDomainDetailPannel ( d ) {
 }
 
 function setDomainDetailButtonsStatus(id,status){
-          if(status=='Stopped'){
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
-          }else{
-                $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          }
+          //~ if(status=='Stopped'){
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+          //~ }else{
+                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+          //~ }
 }
 	
 function icon(data){
@@ -532,9 +683,8 @@ function icon(data){
     
 function renderDisplay(data){
         if(data.status=='Stopping' || data.status =='Started'){
-            return ' <div class="display"> \
-					<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
-					<i class="fa fa-desktop"></i> Show</button></div>';
+            return '<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
+					<i class="fa fa-desktop"></i> Show</button>';
         }
         return ''
 }
@@ -571,7 +721,7 @@ function renderAction(data){
             if(url=='Desktops'){
                 return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
             }else{
-                return '<i class="fa fa-play"></i>';
+                return '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>';
             }
         }
         if(status=='Started'){
@@ -582,12 +732,45 @@ function renderAction(data){
             }
         } 
 
-        if(status=='Disabled'){
+        if(status=='Disabled' || status =='Manteinance'){
                 return '<i class="fa fa-times fa-2x"></i>';
         }         
-        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
+        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';        
 }	
 
+function delete_templates(id){
+    //~ var pk=$(this).closest("[data-pk]").attr("data-pk");
+    $('#modalDeleteTemplate #id').val(id);
+	modal_delete_templates = $('#modal_delete_templates').DataTable({
+			"ajax": {
+				"url": "/admin/domains/todelete/"+id,
+				"dataSrc": ""
+			},
+            "scrollY":        "125px",
+            "scrollCollapse": true,
+            "paging":         false,
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                "zeroRecords":    "No matching templates found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                "infoFiltered":   "(filtered from _MAX_ total templates)"
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+				{ "data": "kind"},
+                { "data": "user"},
+                { "data": "status"},
+                { "data": "name"},
+				],
+			 //~ "order": [[0, 'asc']],	
+             "pageLength": 10,	
+             "destroy" : true 
+	} );  
+    
+  
+}
 
 // MODAL EDIT DESKTOP
 function modal_edit_desktop_datatables(id){

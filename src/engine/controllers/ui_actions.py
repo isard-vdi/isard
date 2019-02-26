@@ -27,6 +27,7 @@ from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_del
     get_host_disk_operations_from_path, create_cmd_disk_from_scratch
 from engine.services.log import *
 
+DEFAULT_HOST_MODE = 'host-passthrough'
 
 class UiActions(object):
     def __init__(self, manager):
@@ -49,7 +50,7 @@ class UiActions(object):
 
         id_domain = id
         pool_id = get_pool_from_domain(id_domain)
-        cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model','host-model')
+        cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model',DEFAULT_HOST_MODE)
 
         # TODO: Read the cpu_host_model value from hypervisor_pool database
         try:
@@ -81,6 +82,12 @@ class UiActions(object):
                 # if start_after_created is True:
                 #     dict_action['start_after_created'] = True
                 #else:
+
+                if LOG_LEVEL == 'DEBUG':
+                    print(f'%%%% DOMAIN CREATING:{id_domain} -- XML TO START PAUSED IN HYPERVISOR {next_hyp} %%%%')
+                    print(xml)
+                    update_table_field('domains', id_domain, 'xml_to_start', xml)
+                    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
 
                 self.manager.q.workers[next_hyp].put(
                     dict_action)
@@ -131,6 +138,12 @@ class UiActions(object):
                 #                      hyp_id=next_hyp,
                 #                      detail='desktop starting paused in pool {} on hypervisor {}'.format(pool_id,
                 #                                                                                          next_hyp))
+
+                if LOG_LEVEL == 'DEBUG':
+                    print(f'%%%% DOMAIN: {id_domain} -- XML TO START IN HYPERVISOR: {next_hyp} %%%%')
+                    print(xml)
+                    update_table_field('domains',id_domain,'xml_to_start',xml)
+                    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
 
                 self.manager.q.workers[next_hyp].put({'type': 'start_domain', 'xml': xml, 'id_domain': id_domain})
             else:
@@ -254,8 +267,7 @@ class UiActions(object):
         dict_domain = get_domain(id_domain)
 
         if dict_domain['kind'] != 'desktop' and force is False:
-            log.error('{} is a template, disks can not be deleted')
-            return -1
+            log.info('{} is a template, disks will be deleted')
 
         if len(dict_domain['hardware']['disks']) > 0:
             index_disk = 0
@@ -678,7 +690,7 @@ class UiActions(object):
                     'Creating disk operation failed when insert action in queue for disk operations. Exception: {}'.format(
                         e))
 
-    def updating_from_create_dict(self, id_domain):
+    def updating_from_create_dict(self, id_domain,ssl=True):
         try:
             populate_dict_hardware_from_create_dict(id_domain)
         except Exception as e:
@@ -714,7 +726,8 @@ class UiActions(object):
 
         kind = get_domain_kind(id_domain)
         if kind == 'desktop':
-            xml_to_test = recreate_xml_to_start(id_domain)
+            cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model', DEFAULT_HOST_MODE)
+            xml_to_test = recreate_xml_to_start(id_domain,ssl,cpu_host_model)
             self.start_paused_domain_from_xml(xml=xml_to_test, id_domain=id_domain, pool_id=pool_id)
         else:
             update_domain_status('Stopped', id_domain,
@@ -724,7 +737,7 @@ class UiActions(object):
 
     def creating_and_test_xml_start(self, id_domain, creating_from_create_dict=False,
                                     xml_from_virt_install=False,
-                                    xml_string=None):
+                                    xml_string=None,ssl=True):
         if creating_from_create_dict is True:
             try:
                 populate_dict_hardware_from_create_dict(id_domain)
@@ -790,7 +803,8 @@ class UiActions(object):
         else:
             #change viewer password, remove selinux options and recreate network interfaces
             try:
-                xml = recreate_xml_to_start(id_domain)
+                cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model', DEFAULT_HOST_MODE)
+                xml = recreate_xml_to_start(id_domain,ssl,cpu_host_model)
             except Exception as e:
                 log.error('recreate_xml_to_start in domain {}'.format(id_domain))
                 log.error('Traceback: \n .{}'.format(traceback.format_exc()))

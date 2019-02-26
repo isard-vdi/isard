@@ -17,6 +17,7 @@ from datetime import datetime
 from io import StringIO
 from collections import deque
 from statistics import mean
+import time
 
 import libvirt
 import paramiko
@@ -29,7 +30,8 @@ from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
 from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain
 from engine.services.log import *
 from engine.config import *
-
+from engine.services.lib.functions import exec_remote_cmd
+from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = 4 #int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
@@ -48,7 +50,7 @@ HYP_STATUS_ERROR_NOT_RESOLVES_HOSTNAME = -7
 HYP_STATUS_ERROR_WHEN_CLOSE_CONNEXION = -1
 HYP_STATUS_NOT_ALIVE = -10
 
-
+MAX_GET_KVM_RETRIES = 3
 
 class hyp(object):
     """
@@ -58,7 +60,7 @@ class hyp(object):
 
         # dictionary of domains
         # self.id = 0
-        self.domains = {}
+        self.domains = []
         if (type(port) == int) and port > 1 and port < pow(2, 16):
             self.port = port
         else:
@@ -222,7 +224,35 @@ class hyp(object):
 
             # set_hyp_status(self.hostname,status_code)
 
+    def get_kvm_mod(self):
+        for i in range(MAX_GET_KVM_RETRIES):
+            try:
+                d = exec_remote_cmd('lsmod |grep kvm',self.hostname,username=self.user,port=self.port)
+                if len(d['err']) > 0:
+                    log.error('error {} returned from command: lsmod |grep kvm'.format(d['err'].decode('utf-8')))
+                else:
+                    s = d['out'].decode('utf-8')
+                    if s.find('kvm_intel') >= 0:
+                        self.info['kvm_module'] = 'intel'
+                    elif s.find('kvm_amd') >= 0:
+                        self.info['kvm_module'] = 'amd'
+                    elif s.find('kvm') >= 0:
+                        self.info['kvm_module'] = 'bios_disabled'
+                        log.error('No kvm module kvm_amd or kvm_intel activated. You must review your BIOS')
+                        log.error('Hardware acceleration is supported, but disabled in the BIOS settings')
+                    else:
+                        self.info['kvm_module'] = False
+                        log.error('No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities')
+                return True
 
+            except Exception as e:
+                log.error('Exception while executing remote command in hypervisor to list kvm modules: {}'.format(e))
+                log.error(f'Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second.')
+            time.sleep(1)
+
+        self.info['kvm_module'] = False
+        log.error(f'remote ssh command in hypervisor {hostname} fail with {MAX_GET_KVM_RETRIES} retries')
+        return False
 
     def get_hyp_info(self):
 
@@ -281,12 +311,12 @@ class hyp(object):
         # intel virtualization => cpu feature vmx
         #   amd virtualization => cpu feature svm
         if tree.xpath('/capabilities/host/cpu/feature[@name="vmx"]'):
-            self.info['virtualization_bios_enabled'] = True
+            self.info['virtualization_capabilities'] = 'vmx'
         elif tree.xpath('/capabilities/host/cpu/feature[@name="svm"]'):
-            self.info['virtualization_bios_enabled'] = True
+            self.info['virtualization_capabilities'] = 'svm'
         else:
-            self.info['virtualization_bios_enabled'] = False
-            log.error('HYPERVISOR {} have bios vmx or svm virtualization capabilities activated??'.format(self.hostname))
+            self.info['virtualization_capabilities'] = False
+
 
     def define_and_start_paused_xml(self, xml_text):
         # todo alberto: faltan todas las excepciones, y mensajes de log,
@@ -842,12 +872,50 @@ class hyp(object):
         if raw_stats is False:
             return False
 
+        domains_with_stats = list(raw_stats['domains'].keys())
+        #broom action: domains that are started or stopped in stats that have errors in database
+        self.update_domains_started_and_stopped(domains_with_stats)
+
         self.process_hypervisor_stats(raw_stats)
 
         if len(self.stats_hyp_now) > 0:
             self.send_stats()
 
         return True
+
+    def update_domains_started_and_stopped(self,domains_with_stats):
+        if self.id_hyp_rethink is None:
+            try:
+                self.id_hyp_rethink = get_id_hyp_from_uri(hostname_to_uri(self.hostname, user=self.user, port=self.port))
+            except Exception as e:
+                log.error('error when hypervisor have not rethink id. {}'.format(e))
+                return False
+        l_all_domains = get_domains_with_status_in_list(list_status=['Started', 'Stopped', 'Failed'])
+        for d in l_all_domains:
+            if d['id'] in domains_with_stats:
+                if d['status'] == 'Started':
+                    #if status started check if has the same hypervisor
+                    if d['hyp_started'] != self.id_hyp_rethink:
+                        log.error(f"Domain {d['id']} started in hypervisor ({self.id_hyp_rethink}) but database says that is started in {d['hyp_started']} !! ")
+                        update_domain_status(status='Started',
+                                             id_domain='_admin_downloaded_tetros',
+                                             detail=f'Started in other hypervisor!! {self.id_hyp_rethink}. Updated by status thread',
+                                             hyp_id=self.id_hyp_rethink)
+                else:
+                    #if status is Stopped or Failed update, the domain is started
+                    log.info('Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread')
+                    update_domain_status(status='Started',
+                                         id_domain='_admin_downloaded_tetros',
+                                         detail=f'Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread',
+                                         hyp_id=self.id_hyp_rethink)
+
+            elif d['hyp_started'] == self.id_hyp_rethink:
+                #Domain is started in this hypervisor in database, but is stopped
+                if d['status'] == 'Started':
+                    update_domain_status(status='Stopped',
+                                         id_domain='_admin_downloaded_tetros',
+                                         detail=f'Domain is stopped in {self.id_hyp_rethink} but in database was Started, updated by status thread',
+                                         )
 
     def send_stats(self):
         #hypervisors

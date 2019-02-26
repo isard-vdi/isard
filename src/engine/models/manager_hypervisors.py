@@ -96,7 +96,7 @@ class ManagerHypervisors(object):
         self.t_background.start()
 
     def check_actions_domains_enabled(self):
-        if self.num_workers > 0 and self.threads_main_started is True:
+        if len(self.t_workers) > 0 and self.threads_main_started is True:
             return True
         else:
             return False
@@ -613,21 +613,23 @@ class ManagerHypervisors(object):
                     if new_status == "CreatingDomainFromBuilder":
                         ui.creating_and_test_xml_start(domain_id,
                                                        creating_from_create_dict=True,
-                                                       xml_from_virt_install=True)
+                                                       xml_from_virt_install=True,ssl=True)
                     if new_status == "CreatingDomain":
                         ui.creating_and_test_xml_start(domain_id,
-                                                       creating_from_create_dict=True)
+                                                       creating_from_create_dict=True,ssl=True)
 
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
 
-                if old_status == 'Stopped' and new_status == "Deleting" or \
-                        old_status == 'Downloaded' and new_status == "Deleting":
+                if old_status != 'Started' and new_status == "Deleting":
+                    # or \
+                    #     old_status == 'Failed' and new_status == "Deleting" or \
+                    #     old_status == 'Downloaded' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
 
                 if (old_status == 'Stopped' and new_status == "Updating") or \
                         (old_status == 'Downloaded' and new_status == "Updating"):
-                    ui.updating_from_create_dict(domain_id)
+                    ui.updating_from_create_dict(domain_id,ssl=True)
 
                 if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
                     logs.changes.debug('disk deleted, mow remove domain form database')
@@ -635,7 +637,7 @@ class ManagerHypervisors(object):
                     if get_domain(domain_id) is None:
                         logs.changes.info('domain {} deleted from database'.format(domain_id))
                     else:
-                        update_domain_status('Failed', id_domain,
+                        update_domain_status('Failed', domain_id,
                                              detail='domain {} can not be deleted from database'.format(domain_id))
 
                 if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":

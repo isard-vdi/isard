@@ -161,15 +161,15 @@
                 <li><a href="#step-4">
                       <label class="stepNumber">4</label>
                       <span class="stepDesc">
-                         Hypervisor<br />
-                         <small>Available hypervisors</small>
+                         Engine<br />
+                         <small>Backend engine</small>                          
                       </span>                   
                   </a></li>
                 <li><a href="#step-5">
                       <label class="stepNumber">5</label>
                       <span class="stepDesc">
-                         Engine<br />
-                         <small>Backend engine</small>                          
+                         Hypervisor<br />
+                         <small>Available hypervisors</small>
                       </span>                   
                   </a></li>
                 <li><a href="#step-6">
@@ -203,13 +203,13 @@
               </div>
 -->
               <div id="step-4" style="height:370px">
-                  <h2 class="StepTitle">Step 4 Hypervisor</h2>   
+                  <h2 class="StepTitle">Step 4 Engine</h2>   
                    <!-- step content -->                         
-              </div>
+              </div> 
               <div id="step-5" style="height:370px">
-                  <h2 class="StepTitle">Step 5 Engine</h2>   
+                  <h2 class="StepTitle">Step 5 Hypervisor</h2>   
                    <!-- step content -->                         
-              </div>              
+              </div>             
               <div id="step-6" style="height:370px">
                   <h2 class="StepTitle">Step 6 Updates</h2>   
                    <!-- step content -->                         
@@ -357,6 +357,7 @@ function skipInternet(){
 }
 function skipHypervisor(){
     skip_hypervisor=true;
+    $('#wizard').smartWizard('goToStep', 6);
 }
 $(document).ready(function(){
     // Smart Wizard  
@@ -396,8 +397,7 @@ $(document).ready(function(){
     
     function leaveAStepCallback(obj, context){
         //~ alert("Leaving step " + context.fromStep + " to go to step " + context.toStep);
-
-	if(context.fromStep==4){updateHypervisor();}
+        if(context.fromStep==5){updateHypervisor();}
 
         //~ if(context.fromStep==4 && skip_internet){setError(4); return true;}
         if(context.fromStep==5 && skip_hypervisor){setError(5); return true;}
