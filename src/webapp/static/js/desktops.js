@@ -9,6 +9,7 @@ socket=null
 user={}
 $(document).ready(function() {
     user['role']=$('#user-data').data("role");
+    $('.btn-delete-template').remove()
     modal_add_desktops = $('#modal_add_desktops').DataTable()
 	initalize_modal_all_desktops_events()
     
@@ -301,6 +302,8 @@ $(document).ready(function() {
         if(data.result){
             $("#modalAdd")[0].reset();
             $("#modalAddDesktop").modal('hide');
+            $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
+            $("#modalTemplateDesktop").modal('hide');            
         }
         new PNotify({
                 title: data.title,

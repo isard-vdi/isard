@@ -18,7 +18,9 @@
                     <h2>Media list <small>Your media in system</small></h2>
                         <ul class="nav navbar-right panel_toolbox">
                             <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-globe"></i>  Upload from URL</span></a>
+<!--
                             <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a>
+-->
                            </li>
                         </ul>
                     <div class="clearfix"></div>
@@ -31,12 +33,10 @@
 						  <tr>
 							 <th></th>
 							 <th>Name</th>
-<!--
-							 <th>Status</th>
--->
-							 <th>User</th>
+							 <th>Owner</th>
+							 <th>Status</th>                             
 							 <th>Progress</th>
-                             <th>Status</th>
+                             <th>Actions</th>
 						  </tr>
 					   </thead>
 					   <tbody>
@@ -47,7 +47,7 @@
 <!--
               </div>
 -->
-              {% include 'admin/pages/media_modals.html' %}
+          {% include 'admin/pages/media_modals.html' %}
 	      {% include '/snippets/alloweds_form.html' %}
           </div>
         </div>

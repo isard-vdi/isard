@@ -188,18 +188,18 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             log.error(
                 'disk from domain {} not found, or permission denied or access to data problems'.format(id_domain))
             log.error('ERROR: {}'.format(array_out_err[0]['err']))
-            update_domain_status('Failed', id_domain, detail='delete disk operation failed, disk not found: {}'.format(
+            update_domain_status('DiskDeleted', id_domain, detail='delete disk operation failed, disk not found: {}'.format(
                 array_out_err[0]['err']))
         elif len(array_out_err[1]['err']) > 0:
             log.error('disk from domain {} found, but erase command fail'.format(id_domain))
             log.error('ERROR: {}'.format(array_out_err[0]['err']))
-            update_domain_status('Failed', id_domain, detail='delete disk command failed')
+            update_domain_status('DiskDeleted', id_domain, detail='delete disk command failed')
         elif len(array_out_err[2]['out']) > 0:
             log.error(
                 'disk from domain {} found, erase command not failed with error message, but disk is in directory.'.format(
                     id_domain))
             log.error('ERROR: {}'.format(array_out_err[0]['out']))
-            update_domain_status('Failed', id_domain,
+            update_domain_status('DiskDeleted', id_domain,
                                  detail='delete disk operation failed, disk in directory can not erase')
         else:
             log.info('disk {} from domain {} erased'.format(disk_path, id_domain))
@@ -207,7 +207,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             update_domain_status('DiskDeleted', id_domain, detail='delete disk operation run ok')
 
 
-def launch_action_create_template_disk(action, hostname, user, port):
+def  launch_action_create_template_disk(action, hostname, user, port):
     path_template_disk = action['path_template_disk']
     path_domain_disk = action['path_domain_disk']
     id_domain = action['id_domain']
@@ -323,8 +323,8 @@ def launch_try_hyps(dict_hyps, enabled_thread=True):
             if threads_try[hyp_id].is_alive() is True:
                 pass
             threads_try[hyp_id].join(timeout=TIMEOUT_TRY_HYP)
-            hyps[hyp_id] = threads_try[hyp_id].hyp_obj
         try:
+            hyps[hyp_id] = threads_try[hyp_id].hyp_obj
             return_state[hyp_id]['reason'] = hyps[hyp_id].fail_connected_reason
         except Exception as e:
             log.error('try hypervisor fail - reason: {}'.format(e))
@@ -391,9 +391,19 @@ def try_hyp_connection(hyp_id, hostname, port, user):
 
     update_hypervisor_failed_connection(hyp_id, reason)
     if hyp_obj.connected is True:
-        ok = True
-        log.debug('hypervisor {} ready'.format(hyp_id))
-        update_hyp_status(hyp_id, 'ReadyToStart')
+        log.debug('hypervisor {} libvirt connection ready'.format(hyp_id))
+        hyp_obj.get_kvm_mod()
+        hyp_obj.get_hyp_info()
+        update_db_hyp_info(hyp_id,hyp_obj.info)
+        if hyp_obj.info['kvm_module'] == 'intel' or  hyp_obj.info['kvm_module'] == 'amd':
+            ok = True
+            update_hyp_status(hyp_id, 'ReadyToStart')
+        else:
+            ok = False
+            log.error('hypervisor {} has not virtualization support (VT-x for Intel processors and AMD-V for AMD processors). '.format(hyp_id))
+            update_hyp_status(hyp_id, 'Error', detail="KVM requires that the virtual machine host's processor has virtualization " +
+                                                      "support (named VT-x for Intel processors and AMD-V for AMD processors). " +
+                                                      "Check CPU capabilities and enable virtualization support in your BIOS.")
         hyp_obj.disconnect()
     else:
         ok = False

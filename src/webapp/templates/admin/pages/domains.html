@@ -25,35 +25,38 @@
        <div class="col-md-12 col-sm-12 col-xs-12">
           <div class="x_panel">
              <div class="x_title">
-                        <h2>List of domains in system <small></small></h2>
-                        <ul class="nav navbar-right panel_toolbox">
-                        <li><div class="item form-group pull-right">
-                           <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">Global actions: </label>
-                           <div class="col-md-5 col-sm-5 col-xs-12">
-							   <select class="form-control" id="mactions" name="mactions" >
-                                  <option value="none">Select action</option>
-                                  <option value="toggle">Toggle status</option>
-                                  <option value="stop_noviewer">Stop no viewers</option>
-                                  <option value="force_stopped">Force Stopped</option>
-                                  <option value="force_failed">Force Failed</option>
-                                  <option value="delete">Delete</option>
-							   </select>
-                              </div>
+                <h2>List of domains in system <small></small></h2>
+                <ul class="nav navbar-right panel_toolbox">
+                    
+                    <li><div class="item form-group pull-right">
+                            <div id="global_actions" style="display:none">
+                               <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">Global actions: </label>
+                               <div class="col-md-5 col-sm-5 col-xs-12">
+                                   <select class="form-control" id="mactions" name="mactions" >
+                                      <option value="none">Select action</option>
+                                      <option value="toggle">Toggle status</option>
+                                      <option value="stop_noviewer">Stop no viewers</option>
+                                      <option value="force_stopped">Force Stopped</option>
+                                      <option value="force_failed">Force Failed</option>
+                                      <option value="delete">Delete</option>
+                                   </select>
+                                </div>
+                            </div>
                         </div>
-                        </li>
-                        <li>
-                            <a class="btn btn-app add-new-media" style="background-color:#F5FFDC;">
-                              <i class="fa fa-circle-o"></i> New from ISO
-                            </a>
-                        </li>
-<!--
-                        <li>
-                            <a class="btn btn-app add-new-virtbuilder"  style="background-color:#F5FFDC;">
-                              <i class="fa fa-wrench"></i> New From Builder
-                            </a>
-                         </li>
--->
-                        </ul>
+                    </li>
+                    <li>
+                        <a class="btn btn-app add-new-media" style="background-color:#F5FFDC;">
+                          <i class="fa fa-circle-o"></i> New from ISO
+                        </a>
+                    </li>
+    <!--
+                    <li>
+                        <a class="btn btn-app add-new-virtbuilder"  style="background-color:#F5FFDC;">
+                          <i class="fa fa-wrench"></i> New From Builder
+                        </a>
+                     </li>
+    -->
+                </ul>
              <div class="clearfix"></div>
         </div>
         <div class="x_content">
@@ -109,6 +112,8 @@
     {% include '/admin/pages/domains_modals.html' %}
     {% include '/pages/desktops_modals.html' %}
     {% include '/pages/desktops_detail.html' %}
+    {% include '/pages/desktops_viewers.html' %}
+    {% include '/snippets/alloweds_form.html' %}
     </div>
 </div>
 

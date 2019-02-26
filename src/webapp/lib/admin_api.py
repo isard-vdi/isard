@@ -31,6 +31,9 @@ db.init_app(app)
 
 from ..auth.authentication import Password
 
+from collections import defaultdict
+
+
 class isardAdmin():
     def __init__(self):
         self.f=flatten()
@@ -280,6 +283,17 @@ class isardAdmin():
                     }
                 ).run(db.conn))
 
+    def template_delete_list(self,id):
+        with app.app_context():
+            # ~ print(id)
+            # ~ print(list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn)))
+            dom_id=r.table('domains').get(id).pluck('id','name','kind','user','status','parents').run(db.conn)
+            doms = list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn))
+            # ~ doms.append(dom_id)
+            return [dom_id]+doms
+            
+
+                
     def user_delete_checks(self,user_id):
         with app.app_context():
             # User desktops can be deleted, ok?
@@ -301,7 +315,7 @@ class isardAdmin():
                 'templates':user_templates,
                 'risky_templates':risky_templates,
                 'others_domains':others_domains}
-                    
+        
     def rcg_add(self,dict):
         table=dict['table']
         dict.pop('table',None)
@@ -334,26 +348,30 @@ class isardAdmin():
                 if not id:
                     return list(r.table("domains").get_all(r.args(['public_template','user_template']),index='kind').without('xml','history_domain').merge(lambda domain:
                         {
-                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                            "derivates": r.table('domains').filter(lambda derivates: derivates['parents'].contains(domain['id'])).count()
+                            # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
                     return list(r.table("domains").get(id).without('xml','history_domain').merge(lambda domain:
                         {
-                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                            "derivates": r.table('domains').filter(lambda derivates: derivates['parents'].contains(domain['id'])).count()
+                            # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
             elif kind == 'base':
                 if not id:
                     return list(r.table("domains").get_all(kind,index='kind').without('xml','history_domain').merge(lambda domain:
                         {
-                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                            "derivates": r.table('domains').filter(lambda derivates: derivates['parents'].contains(domain['id'])).count()
+                            # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))
                 if id:
                     return list(r.table("domains").get(id).without('xml','history_domain').merge(lambda domain:
                         {
-                            "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
+                            "derivates": r.table('domains').filter(lambda derivates: derivates['parents'].contains(domain['id'])).count()
+                            # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
                         }
                     ).run(db.conn))                
             else:
@@ -386,8 +404,8 @@ class isardAdmin():
             else:
                 domains= [ {'id':d['id'],'origin':(d['create_dict']['origin'] if 'create_dict' in d and 'origin' in d['create_dict'] else None)}
                             for d in list(r.table('domains').get_all(username, index='user').pluck('id','user',{'create_dict':{'origin'}}).run(db.conn)) ] 
-            import pprint
-            pprint.pprint(domains)
+            # ~ import pprint
+            # ~ pprint.pprint(domains)
             return self.domain_recursive_count(id,domains)-1
 
     def domains_update(self, create_dict):
@@ -415,9 +433,6 @@ class isardAdmin():
         # ~ pprint.pprint(hierarchy)
         return count
 
-
-
-    
     def domains_stop(self,hyp_id=False,without_viewer=True):
         with app.app_context():
             try:
@@ -434,6 +449,41 @@ class isardAdmin():
                     
             except:
                 return False
+
+    def domains_mdelete(self,dict):
+        '''We got domains again just to be sure they have not changed during the modal'''
+        newdict = self.template_delete_list(dict['id'])
+        newids = [d['id'] for d in newdict]
+        if set(dict['ids']) == set(newids):
+            maintenance=[d['id'] for d in newdict if d['status'] != 'Started']
+            res=r.table('domains').get_all(r.args(maintenance)).update({'status':'Maintenance'}).run(db.conn)            
+            
+            # Stopping domains
+            started=[d['id'] for d in newdict if d['status'] == 'Started']
+            res=r.table('domains').get_all(r.args(started)).update({'status':'Stopping'}).run(db.conn)
+            if res['replaced'] > 0:
+                # Wait a bit for domains to be stopped...
+                for i in range(0,5):
+                    time.sleep(.5)
+                    if r.table('domains').get_all(r.args(started)).filter({'status':'Stopping'}).pluck('status').run(db.conn) is None:
+                        r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
+                        break
+                    else:
+                        r.table('domains').get_all(r.args(started)).filter({'status':'Stopped'}).update({'status':'Maintenance'}).run(db.conn) 
+                    
+                    
+            # Deleting
+            # ~ tmpls = [d for d in newdict if d['kind'] != 'desktop']
+            # ~ desktops = [d for d in newdict if d['kind'] == 'desktop']
+            
+            # ~ r.table('domains').get_all(r.args(desktops)).update({'status':'Deleting'}).run(db.conn) 
+            # ~ time.sleep(1)
+            # ~ r.table('domains').get_all(r.args(tmpls)).update({'status':'Deleting'}).run(db.conn) 
+            r.table('domains').get_all(r.args(newids)).update({'status':'Stopped'}).run(db.conn) 
+            r.table('domains').get_all(r.args(newids)).update({'status':'Deleting'}).run(db.conn) 
+            return True
+        return False
+        
                 
     def get_admin_templates(self,term):
         with app.app_context():
@@ -665,13 +715,53 @@ class isardAdmin():
             return False
         return False
 
+    def media_delete_list(self,id):
+        with app.app_context():
+            return list(r.table('domains').filter( lambda dom: dom['create_dict']['hardware']['isos'].contains( lambda media: media['id'].eq(id))).pluck('id','name','kind','status', { "create_dict": { "hardware": {"isos"}}}).run(db.conn))
 
-    def media_domains_used():
-        return list(r.table('domains').filter(
-                lambda dom: 
-                    (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
-                ).run(conn))
+    def media_delete(self,id):
+        ## Needs optimization by directly doing operation in nested array of dicts in reql
+        domains=self.media_delete_list(id)
+        # ~ domids=[d['id'] for d in domains]
+        for dom in domains:
+            domid=dom['id']
+            if dom['status'] == 'Started': continue
+            if dom['status'] != 'Stopped':
+                r.table('domains').get(domid).update({'status':'Stopped'}).run(db.conn)
+            dom['create_dict']['hardware']['isos'][:]= [iso for iso in dom['create_dict']['hardware']['isos'] if iso.get('id') != id]
+            dom.pop('id',None)
+            dom.pop('name',None)
+            dom.pop('kind',None)
+            dom['status']='Updating'
+            with app.app_context():
+                r.table('domains').get(domid).update(dom).run(db.conn)
+        return True
+        
+        # ~ domids=[d['id'] for d in self.media_delete_list(id)]
+        # ~ with app.app_context():
+            # ~ r.table('domains').get_all(r.args(domids)).update(
+                # ~ lambda dom: { "create_dict": { "hardware": {"isos": dom['create_dict']['hardware']['isos'].ne(id) }}}
+            # ~ ).run(db.conn)
+        # ~ return True
+            
+            
+    # ~ def media_domains_used():
+        # ~ return list(r.table('domains').filter(
+                # ~ lambda dom: 
+                    # ~ (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                # ~ ).run(conn))
         # ~ return list(r.table("domains").filter({'create_dict':{'hardware':{'isos':id}}).pluck('id').run(db.conn))                    
+
+    # ~ def delete_media(self,id):
+        # ~ with app.app_context():
+            # ~ return r.table('domains').filter(
+                # ~ lambda dom: 
+                        # ~ (r.args(dom['create_dict']['hardware']['isos'])['id'].eq(id) | r.args(dom['create_dict']['hardware']['floppies'])['id'].eq(id))
+                    # ~ ).run(conn))
+            
+            # ~ hardware - isos [ {path}, ... ]
+            # ~ return self.f.table_values_bstrap(data)  
+
        
     def remove_backup_db(self,id):
         with app.app_context():
@@ -684,7 +774,7 @@ class isardAdmin():
         with app.app_context():
             r.table('backups').get(id).delete().run(db.conn)
            
-           
+
     '''
     BACKUP & RESTORE
     '''
@@ -1286,7 +1376,31 @@ class Certificates(object):
         
         
         
-        
+'''
+TREE
+'''
+class Tree(object):
+    def __init__(self, data, children=None, parent=None):
+        self.data = data
+        self.children = children or []
+        self.parent = parent
+
+    def add_child(self, data):
+        new_child = Tree(data, parent=self)
+        self.children.append(new_child)
+        return new_child
+
+    def is_root(self):
+        return self.parent is None
+
+    def is_leaf(self):
+        return not self.children
+
+    def __str__(self):
+        if self.is_leaf():
+            return str(self.data)
+        return '{data} [{children}]'.format(data=self.data, children=', '.join(map(str, self.children)))
+      
         
         
         
@@ -1381,8 +1495,64 @@ class Certificates(object):
 
 
 
-        
-        
+'''
+TREE
+'''   
+# ~ from collections import defaultdict     
+# ~ class tree(object):
+    # ~ def __init__(self,id):
+        # ~ with 
+            
+            
+
+
+# ~ input_ = '''dir/file
+# ~ dir/dir2/file2
+# ~ dir/file3
+# ~ dir2/alpha/beta/gamma/delta
+# ~ dir2/alpha/beta/gamma/delta/
+# ~ dir3/file4
+# ~ dir3/file5'''
+
+# ~ FILE_MARKER = '<files>'
+
+    # ~ def attach(branch, trunk):
+        # ~ '''
+        # ~ Insert a branch of directories on its trunk.
+        # ~ '''
+        # ~ parts = branch.split('/', 1)
+        # ~ if len(parts) == 1:  # branch is a file
+            # ~ trunk[FILE_MARKER].append(parts[0])
+        # ~ else:
+            # ~ node, others = parts
+            # ~ if node not in trunk:
+                # ~ trunk[node] = defaultdict(dict, ((FILE_MARKER, []),))
+            # ~ attach(others, trunk[node])
+
+    # ~ def prettify(d, indent=0):
+        # ~ '''
+        # ~ Print the file tree structure with proper indentation.
+        # ~ '''
+        # ~ for key, value in d.iteritems():
+            # ~ if key == FILE_MARKER:
+                # ~ if value:
+                    # ~ print '  ' * indent + str(value)
+            # ~ else:
+                # ~ print '  ' * indent + str(key)
+                # ~ if isinstance(value, dict):
+                    # ~ prettify(value, indent+1)
+                # ~ else:
+                    # ~ print '  ' * (indent+1) + str(value)
+
+
+
+# ~ main_dict = defaultdict(dict, ((FILE_MARKER, []),))
+# ~ for line in input_.split('\n'):
+    # ~ attach(line, main_dict)
+
+# ~ prettify(main_dict) 
+
+       
 '''
 FLATTEN AND UNFLATTEN DICTS
 '''        
