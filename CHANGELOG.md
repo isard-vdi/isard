@@ -2,9 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0-rc1] - 2019-02-03
+## [1.1.0] - 2019-02-26 | Canigó
 
-This is the first release candidate for the 1.1.0 version. The changelog is going to be updated after the release (approximately in a week [2019-02-10]). Check the [pull request](https://github.com/isard-vdi/isard/pull/94) for more information.
+### Added
+- Support under VMWare [#98](https://github.com/isard-vdi/isard/issues/98)
+- Support on AMD cpu [#98](https://github.com/isard-vdi/isard/issues/98)
+- Permissions on templates and bases in admin mode [#118](https://github.com/isard-vdi/isard/issues/118)
+- Delete templates and bases with all the derived desktops and templates (admin mode) [#114](https://github.com/isard-vdi/isard/issues/114)
+- Complete domain chain in domain dictionary [#78](https://github.com/isard-vdi/isard/issues/78)
+- Delete media will delete the media in all domains [#111](https://github.com/isard-vdi/isard/issues/111)
+
+### Changed
+- Force host-passthrough cpu mode in domains for better compatibility [#101](https://github.com/isard-vdi/isard/issues/101)
+- Swapped wizard steps hypervisor and engine as makes more sense to check first the engine. [#81](https://github.com/isard-vdi/isard/issues/81)
+- Domain status engine detection now done using stats thread. Not relaying only in libvirt events. [#120](https://github.com/isard-vdi/isard/issues/120)
+
+### Fixed
+- On physical host reboot the hypervisor docker gets online again. [#119](https://github.com/isard-vdi/isard/issues/119)
+- Media status correctly shown in web interface. [#110](https://github.com/isard-vdi/isard/issues/110)
+- Post installation updates register now works. [#109](https://github.com/isard-vdi/isard/issues/109)
+- Admin base and template modals not shown. [#112](https://github.com/isard-vdi/isard/issues/112)
+- Restart download when failed [#91](https://github.com/isard-vdi/isard/issues/91)
+- Delete process is now more atomic and will delete domain from database even if there are problems during disk delete. [#117](https://github.com/isard-vdi/isard/issues/117)
+
+### Removed
+- Windows install checkbox on creating domain. Not needed anymore. [#115](https://github.com/isard-vdi/isard/issues/115)
+- Global actions removed from templates and bases as are not needed there. [#116](https://github.com/isard-vdi/isard/issues/116)
 
 ## [1.0.1] - 2018-12-27
 
