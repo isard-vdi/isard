@@ -1,5 +1,20 @@
 #!/bin/bash
 
+echo "Checking for isard-hypervisor ssh..."
+
+i=0
+while ! nc -z isard-hypervisor 22; do   
+  sleep 0.5
+  ((i++))
+  if [[ "$i" == '25' ]]; then
+    break
+  fi  
+  echo "Checking for isard-hypervisor shh"
+done
+
+echo "Adding isard-hypervisor keys"
+ssh-keyscan -T 10 isard-hypervisor > /root/.ssh/known_hosts
+
 # Remove all isard-hypervisor lines from known_hosts
 sed -i '/isard-hypervisor/d' /root/.ssh/known_hosts
 
