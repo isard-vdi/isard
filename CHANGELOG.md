@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2019-02-26
+
+### Added
+- Support under VMWare
+- Support on AMD cpu
+- Permissions on templates and bases in admin mode
+- Delete templates and bases with all the derived desktops and templates (admin mode)
+- Complete domain chain in domain dictionary
+- Delete media will delete the media in all domains
+
+### Changed
+- Force host-passthrough cpu mode in domains for better compatibility
+- Swapped wizard steps hypervisor and engine as makes more sense to check first the engine.
+- Domain status engine detection now done using stats thread. Not relaying only in libvirt events.
+
+### Fixed
+- On physical host reboot the hypervisor docker gets online again.
+- Media status correctly shown in web interface.
+- Post installation updates register now works.
+- Admin base and template modals not shown.
+- Restart download when failed
+- Delete process is now more atomic and will delete domain from database even if there are problems during disk delete.
+
+### Removed
+- Windows install checkbox on creating domain. Not needed anymore.
+- Global actions removed from templates and bases as are not needed there
+
+
 ## [1.0.1] - 2018-12-27
 
 ### Fixed
