@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2019-02-26
+## [1.1.0] - 2019-02-26 | Canigó
 
 ### Added
 - Support under VMWare [#98](https://github.com/isard-vdi/isard/issues/98)
