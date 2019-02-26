@@ -31,6 +31,7 @@ from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, upd
 from engine.services.log import *
 from engine.config import *
 from engine.services.lib.functions import exec_remote_cmd
+from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = 4 #int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
@@ -59,7 +60,7 @@ class hyp(object):
 
         # dictionary of domains
         # self.id = 0
-        self.domains = {}
+        self.domains = []
         if (type(port) == int) and port > 1 and port < pow(2, 16):
             self.port = port
         else:
@@ -871,12 +872,50 @@ class hyp(object):
         if raw_stats is False:
             return False
 
+        domains_with_stats = list(raw_stats['domains'].keys())
+        #broom action: domains that are started or stopped in stats that have errors in database
+        self.update_domains_started_and_stopped(domains_with_stats)
+
         self.process_hypervisor_stats(raw_stats)
 
         if len(self.stats_hyp_now) > 0:
             self.send_stats()
 
         return True
+
+    def update_domains_started_and_stopped(self,domains_with_stats):
+        if self.id_hyp_rethink is None:
+            try:
+                self.id_hyp_rethink = get_id_hyp_from_uri(hostname_to_uri(self.hostname, user=self.user, port=self.port))
+            except Exception as e:
+                log.error('error when hypervisor have not rethink id. {}'.format(e))
+                return False
+        l_all_domains = get_domains_with_status_in_list(list_status=['Started', 'Stopped', 'Failed'])
+        for d in l_all_domains:
+            if d['id'] in domains_with_stats:
+                if d['status'] == 'Started':
+                    #if status started check if has the same hypervisor
+                    if d['hyp_started'] != self.id_hyp_rethink:
+                        log.error(f"Domain {d['id']} started in hypervisor ({self.id_hyp_rethink}) but database says that is started in {d['hyp_started']} !! ")
+                        update_domain_status(status='Started',
+                                             id_domain='_admin_downloaded_tetros',
+                                             detail=f'Started in other hypervisor!! {self.id_hyp_rethink}. Updated by status thread',
+                                             hyp_id=self.id_hyp_rethink)
+                else:
+                    #if status is Stopped or Failed update, the domain is started
+                    log.info('Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread')
+                    update_domain_status(status='Started',
+                                         id_domain='_admin_downloaded_tetros',
+                                         detail=f'Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread',
+                                         hyp_id=self.id_hyp_rethink)
+
+            elif d['hyp_started'] == self.id_hyp_rethink:
+                #Domain is started in this hypervisor in database, but is stopped
+                if d['status'] == 'Started':
+                    update_domain_status(status='Stopped',
+                                         id_domain='_admin_downloaded_tetros',
+                                         detail=f'Domain is stopped in {self.id_hyp_rethink} but in database was Started, updated by status thread',
+                                         )
 
     def send_stats(self):
         #hypervisors
