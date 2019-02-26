@@ -29,7 +29,6 @@ All notable changes to this project will be documented in this file.
 - Windows install checkbox on creating domain. Not needed anymore. [#115](https://github.com/isard-vdi/isard/issues/115)
 - Global actions removed from templates and bases as are not needed there. [#116](https://github.com/isard-vdi/isard/issues/116)
 
-
 ## [1.0.1] - 2018-12-27
 
 ### Fixed
