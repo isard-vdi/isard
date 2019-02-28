@@ -82,7 +82,7 @@
                         </div>
 
                         <div class="x_panel" id="users-quota" style="padding: 5px;">
-                            <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
+                            <p style="font-size: 18px;margin-bottom:0px;">Hardware quotas</p>
                             {% include '/snippets/quota_edit.html' %}
                         </div>
 
@@ -661,6 +661,48 @@
                         </div>
                     </div>
 
+					<div class="x_panel" id="desktops_panel" style="padding: 5px;">
+						<p style="font-size: 18px;margin-bottom:0px;">Pre create desktops</p>
+<!--
+						<div class="row">
+-->
+							<label class="control-label" for="desktops">Desktops list to be created
+							</label>
+							<select id="desktops" name="desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+							</select>
+<!--
+						</div>
+-->
+					</div>
+
+					<div class="x_panel" id="ephimeral_panel" style="padding: 5px;">
+						<p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
+						<div class="row">
+<!--
+							<div class="col-md-9 col-xs-12">
+-->
+								<label for="ephimeral-minutes">Minutes</label>
+								<input id="ephimeral-minutes" name="ephimeral-minutes" />
+<!--
+							</div>
+-->
+
+<!--
+                            <div class="item form-group">
+-->
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="ephimeral-action" name="ephimeral-action" class="form-control" required>
+										<option value="Stopping">Stop</option>
+										<option value="StoppingAndDeleting">Delete</option>
+                                    </select>
+                                </div>
+<!--
+                            </div>							
+-->
+						</div>
+					</div>
+											
                     <div class="x_panel" id="roles-quota" style="padding: 5px;">
                         <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
                         {% include '/snippets/quota_edit.html' %}

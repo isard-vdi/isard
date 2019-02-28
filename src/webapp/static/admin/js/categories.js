@@ -24,7 +24,14 @@ $(document).ready(function() {
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
             { "data": "name", className: "xe-name" },
-            { "data": "description", className: "xe-description"}
+            { "data": "description", className: "xe-description"},
+			{
+			"className":      'details-control',
+			"orderable":      false,
+			"data":           null,
+			"width": "10px",
+			"defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+			}
         ]
     } );
 
@@ -53,6 +60,44 @@ $(document).ready(function() {
 			}).modal('show');
             $('#modalAddCategoryForm')[0].reset();
             //~ setModalAddUser();
+            
+		 $('#modalAddCategoryForm #desktops').select2({
+			minimumInputLength: 2,
+			multiple: true,
+			ajax: {
+				type: "POST",
+				url: '/admin/table/domains/post',
+				dataType: 'json',
+				contentType: "application/json",
+				delay: 250,
+				data: function (params) {
+					return  JSON.stringify({
+						term: params.term,
+						pluck: ['id','name']
+					});
+				},
+				processResults: function (data) {
+					return {
+						results: $.map(data, function (item, i) {
+							return {
+								text: item.name,
+								id: item.id
+							}
+						})
+					};
+				}
+			},
+		});   
+		
+				$("#modalAddCategoryForm #ephimeral-minutes").ionRangeSlider({
+						  type: "single",
+						  min: 0,
+						  max: 3600,
+                          step:5,
+						  grid: true,
+						  disable: false
+						  }).data("ionRangeSlider").update();
+		          
 	});    
 
     $("#modalAddCategory #send").on('click', function(e){
