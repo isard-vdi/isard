@@ -530,7 +530,7 @@ function renderUsersDetailPannel ( d ) {
                     $("."+key+' option[value="local"]').prop("selected",true);
             });
                 
-        });
+        });       
     }
 
 function populate_users_table(){
