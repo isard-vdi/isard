@@ -1024,7 +1024,11 @@ class isard():
     def new_domain_from_tmpl(self, user, create_dict):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
+            ephimeral_cat=r.table('categories').get(userObj['category']).pluck('ephimeral').run(db.conn)
+            ephimeral_group=r.table('groups').get(userObj['group']).pluck('ephimeral').run(db.conn)
+            ephimeral = ephimeral_group if 'ephimeral' in ephimeral_group.keys() else  ephimeral_cat
             dom=app.isardapi.get_domain(create_dict['template'])
+            
         parent_disk=dom['hardware-disks'][0]['file']
 
         parsed_name = self.parse_string(create_dict['name'])
@@ -1055,6 +1059,8 @@ class isard():
                               'categories': False,
                               'groups': False,
                               'users': False}}
+        if 'ephimeral' in ephimeral.keys():
+            new_domain['ephimeral']=ephimeral['ephimeral']
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 

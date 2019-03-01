@@ -47,7 +47,7 @@ class DomainsThread(threading.Thread):
                     else:
                         if not c['new_val']['id'].startswith('_'): continue
                         data=c['new_val'] 
-                        data['accessed']=time.time()
+                        # ~ data['accessed']=time.time()
                           
                         ## Disposables on login
                         if data['user']=='disposable':

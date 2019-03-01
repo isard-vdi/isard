@@ -244,10 +244,11 @@ $(document).ready(function() {
     });
 
    
-    
+    countdown ={}
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
         if(data.status =='Started' && table.row('#'+data.id).data().status != 'Started'){
+            
             if('preferred' in data['options']['viewers'] && data['options']['viewers']['preferred']){
                 socket.emit('domain_viewer',{'pk':data.id,'kind':data['options']['viewers']['preferred'],'os':getOS()});
             }else{
@@ -256,14 +257,23 @@ $(document).ready(function() {
                         backdrop: 'static',
                         keyboard: false
                     }).modal('show');
-        }
-
+            }
+            data.name='Will be stopped '+moment.unix(data.accessed+data.ephimeral.minutes*60).fromNow()
+            countdown[data.id]=setInterval(function(){
+                if(data.accessed+data.ephimeral.minutes*60 < moment().unix()){clearInterval(countdown[data.id]);}
+                data.name='Will be stopped '+moment.unix(data.accessed+data.ephimeral.minutes*60).fromNow()
+                dtUpdateInsert(table,data,false);
+                },10000);
+            //~ console.log(countdown[data.id])
+            //~ html=moment.unix(data.accessed+data.ephimeral.minutes*60);
+        }else{
+            clearInterval(countdown[data.id])
+            countdown[data.id]=null
         }
         
         //~ if(claimed==false){
 
         //~ }
-            
         dtUpdateInsert(table,data,false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
@@ -569,6 +579,18 @@ function renderAction(data){
 		//~ return '';
 //~ }
 
+//~ function renderEphimeral(data){ 
+            
+            //~ perc = data.ephimeral.minutes
+            //~ time_remaining=
+            //~ return data.ephimeral.minutes+''+data.accessed'<div class="progress"> \
+                  //~ <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+                  //~ aria-valuemin="0" aria-valuemax="'+data.ephimeral.minutes+'" style="width:'+perc+'%"> \
+                    //~ Time remaining:'+perc+'%  \
+                  //~ </div> \
+                //~ </<div> '
+//~ }
+
 function renderMedia(data){
         html=''
         if('isos' in data.create_dict.hardware){
@@ -585,7 +607,7 @@ function renderMedia(data){
             $.each(data.create_dict.hardware.storage,function(key, value){
                 html+='<i class="fa fa-hdd-o fa-2x" title="'+value.name+'"></i> ';
             });
-        }                
+        }    
         return html;
 }
 

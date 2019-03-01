@@ -91,8 +91,8 @@ $(document).ready(function() {
 		
 				$("#modalAddCategoryForm #ephimeral-minutes").ionRangeSlider({
 						  type: "single",
-						  min: 0,
-						  max: 3600,
+						  min: 5,
+						  max: 120,
                           step:5,
 						  grid: true,
 						  disable: false
