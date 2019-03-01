@@ -61,42 +61,43 @@ $(document).ready(function() {
             $('#modalAddCategoryForm')[0].reset();
             //~ setModalAddUser();
             
-		 $('#modalAddCategoryForm #desktops').select2({
-			minimumInputLength: 2,
-			multiple: true,
-			ajax: {
-				type: "POST",
-				url: '/admin/table/domains/post',
-				dataType: 'json',
-				contentType: "application/json",
-				delay: 250,
-				data: function (params) {
-					return  JSON.stringify({
-						term: params.term,
-						pluck: ['id','name']
-					});
-				},
-				processResults: function (data) {
-					return {
-						results: $.map(data, function (item, i) {
-							return {
-								text: item.name,
-								id: item.id
-							}
-						})
-					};
-				}
-			},
-		});   
+             $('#modalAddCategoryForm #desktops').select2({
+                minimumInputLength: 2,
+                multiple: true,
+                ajax: {
+                    type: "POST",
+                    url: '/admin/table/domains/post',
+                    dataType: 'json',
+                    contentType: "application/json",
+                    delay: 250,
+                    data: function (params) {
+                        return  JSON.stringify({
+                            term: params.term,
+                            pluck: ['id','name'],
+                            kind: 'template'
+                        });
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item, i) {
+                                return {
+                                    text: item.name,
+                                    id: item.id
+                                }
+                            })
+                        };
+                    }
+                },
+            });   
 		
-				$("#modalAddCategoryForm #ephimeral-minutes").ionRangeSlider({
-						  type: "single",
-						  min: 5,
-						  max: 120,
-                          step:5,
-						  grid: true,
-						  disable: false
-						  }).data("ionRangeSlider").update();
+        $("#modalAddCategoryForm #ephimeral-minutes").ionRangeSlider({
+                  type: "single",
+                  min: 5,
+                  max: 120,
+                  step:5,
+                  grid: true,
+                  disable: false
+                  }).data("ionRangeSlider").update();
 		          
 	});    
 

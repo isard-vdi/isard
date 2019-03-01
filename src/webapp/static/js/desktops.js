@@ -258,14 +258,16 @@ $(document).ready(function() {
                         keyboard: false
                     }).modal('show');
             }
-            data.name='Will be stopped '+moment.unix(data.accessed+data.ephimeral.minutes*60).fromNow()
-            countdown[data.id]=setInterval(function(){
-                if(data.accessed+data.ephimeral.minutes*60 < moment().unix()){clearInterval(countdown[data.id]);}
+            if('ephimeral' in data){
                 data.name='Will be stopped '+moment.unix(data.accessed+data.ephimeral.minutes*60).fromNow()
-                dtUpdateInsert(table,data,false);
-                },10000);
-            //~ console.log(countdown[data.id])
-            //~ html=moment.unix(data.accessed+data.ephimeral.minutes*60);
+                countdown[data.id]=setInterval(function(){
+                    if(data.accessed+data.ephimeral.minutes*60 < moment().unix()){clearInterval(countdown[data.id]);}
+                    data.name='Will be stopped '+moment.unix(data.accessed+data.ephimeral.minutes*60).fromNow()
+                    dtUpdateInsert(table,data,false);
+                    },10000);
+                //~ console.log(countdown[data.id])
+                //~ html=moment.unix(data.accessed+data.ephimeral.minutes*60);
+            }
         }else{
             clearInterval(countdown[data.id])
             countdown[data.id]=null
