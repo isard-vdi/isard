@@ -128,7 +128,6 @@ $(document).ready(function() {
                 }
                 delete data['ephimeral-enabled'];
                 delete data['auto-desktops-enabled'];
-                console.log(data)
                 data['table']='categories';
                 socket.emit('role_category_group_add',data)  
             }

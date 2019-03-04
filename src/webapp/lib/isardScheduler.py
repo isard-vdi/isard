@@ -79,7 +79,6 @@ class isardScheduler():
             r.table('domains').get_all('Started',index='status').filter({'viewer':{'client_since':False}}).update({'status':'Stopping'}).run(db.conn)
 
     def check_ephimeral_status():
-        log.error('in ephimeral')
         with app.app_context():
             domains=r.table('domains').get_all('Started',index='status').has_fields('ephimeral').pluck('id','ephimeral','history_domain').run(db.conn)
             t=time.time()

@@ -23,6 +23,8 @@ def login():
             au=auth()
             user=au.check(request.form['user'],request.form['password'])
             if user:
+                if user.auto is not False:
+                    app.isardapi.new_domains_auto_user(user.username,user.auto)
                 login_user(user)
                 flash('Logged in successfully.','success')
                 if user.is_admin:
