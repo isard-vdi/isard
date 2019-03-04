@@ -43,6 +43,7 @@ class User(UserMixin):
         self.path = dict['category']+'/'+dict['group']+'/'+dict['id']+'/'
         self.mail = dict['mail']
         self.quota = dict['quota']
+        self.auto = dict['auto'] if 'auto' in dict.keys() else False
         self.is_admin=True if self.role=='admin' else False
         self.active = dict['active']
 

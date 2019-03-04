@@ -54,20 +54,19 @@ $(document).ready(function() {
             $('#modalAddGroupForm')[0].reset();
             //~ setModalAddUser();
 
-             $('#modalAddGroupForm #desktops').select2({
+             $('#modalAddGroupForm #auto-desktops').select2({
                 minimumInputLength: 2,
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/admin/table/domains/post',
+                    url: '/admin/getAllTemplates',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
                     data: function (params) {
                         return  JSON.stringify({
                             term: params.term,
-                            pluck: ['id','name'],
-                            kind: 'template'
+                            pluck: ['id','name']
                         });
                     },
                     processResults: function (data) {
@@ -82,8 +81,7 @@ $(document).ready(function() {
                     }
                 },
             });   
-
-
+		
         $("#modalAddGroupForm #ephimeral-minutes").ionRangeSlider({
                   type: "single",
                   min: 5,
@@ -91,7 +89,23 @@ $(document).ready(function() {
                   step:5,
                   grid: true,
                   disable: false
-                  }).data("ionRangeSlider").update();            
+                  }).data("ionRangeSlider").update();
+                  
+        $("#modalAddGroupForm #ephimeral-enabled").on('ifChecked', function(event){
+                console.log('checked')
+				  $("#modalAddGroupForm #ephimeral-data").show();
+		});
+        $("#modalAddGroupForm #ephimeral-enabled").on('ifUnchecked', function(event){
+				  $("#modalAddGroupForm #ephimeral-data").hide();
+		});        
+
+        $("#modalAddGroupForm #auto-desktops-enabled").on('ifChecked', function(event){
+                console.log('checked')
+				  $("#modalAddGroupForm #auto-desktops-data").show();
+		});
+        $("#modalAddGroupForm #auto-desktops-enabled").on('ifUnchecked', function(event){
+				  $("#modalAddGroupForm #auto-desktops-data").hide();
+		});            
 	});    
 
 
@@ -101,6 +115,12 @@ $(document).ready(function() {
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalAddGroupForm').serializeObject();
+                if(!data['ephimeral-enabled']){
+                    delete data['ephimeral-minutes'];
+                    delete data['ephimeral-action'];
+                }
+                delete data['ephimeral-enabled'];
+                delete data['auto-desktops-enabled'];                
                 data['table']='groups';
                 socket.emit('role_category_group_add',data)  
             }
