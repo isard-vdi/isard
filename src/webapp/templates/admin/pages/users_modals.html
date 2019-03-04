@@ -779,24 +779,54 @@
                         </div>
                     </div>
 
-					<div class="x_panel" id="desktops_panel" style="padding: 5px;">
-						<p style="font-size: 18px;margin-bottom:0px;">Pre create desktops</p>
-							<label class="control-label" for="desktops">Desktops list to be created at user login
+					<div class="x_panel" id="desktops_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Auto desktops creation</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="auto-desktops-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        <div class="row" id="auto-desktops-data" style="display:none">
+							<label class="control-label" for="auto-desktops">Desktops list to be created at user login
 							</label>
-							<select id="desktops" name="desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+							<select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
 							</select>
+                        </div>
 					</div>
-                    
-					<div class="x_panel" id="ephimeral_panel" style="padding: 5px;">
-						<p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
-						<div class="row">
+
+					<div class="x_panel" id="ephimeral_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="ephimeral-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        
+                        
+						<div class="row" id="ephimeral-data" style="display:none">
 							<div class="col-md-9 col-xs-12">
 								<label for="ephimeral-minutes">Minutes</label>
-								<input id="ephimeral-minutes" name="ephimeral-minutes" />
+								<input id="ephimeral-minutes" name="ephimeral-minutes"></input>
 							</div>
 
                             <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
-                                <select id="ephimeral-action" name="ephimeral-action" class="form-control" required>
+                                <select id="ephimeral-action" name="ephimeral-action" class="form-control">
                                     <option value="Stopping">Stop</option>
                                     <option value="StoppingAndDeleting">Delete</option>
                                 </select>
