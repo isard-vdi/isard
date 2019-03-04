@@ -259,12 +259,17 @@ $(document).ready(function() {
                     }).modal('show');
             }
             if('ephimeral' in data){
-                data.name='Will be stopped '+moment.unix(data.accessed+data.ephimeral.minutes*60).fromNow()
+                //~ console.log(mom)
+                //~ data.description='TIME REMAINING: '+moment(moment()).to(moment.unix(data.ephimeral.finish)).format("hh:mm:ss")
+                //~ console.log(Math.floor(data.ephimeral.finish / 1000)-Math.floor(Date.now() / 1000))
+                //~ data.description="REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+ ' seconds'
                 countdown[data.id]=setInterval(function(){
-                    if(data.accessed+data.ephimeral.minutes*60 < moment().unix()){clearInterval(countdown[data.id]);}
-                    data.name='Will be stopped '+moment.unix(data.accessed+data.ephimeral.minutes*60).fromNow()
+                    if(data.finish < moment().unix()){clearInterval(countdown[data.id]);}
+                    data.description="<b style='color:red'>REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+' seconds</b>'
+                    //~ moment().diff(moment.unix(data.ephimeral.finish),"seconds")
+                    
                     dtUpdateInsert(table,data,false);
-                    },10000);
+                    },1000);
                 //~ console.log(countdown[data.id])
                 //~ html=moment.unix(data.accessed+data.ephimeral.minutes*60);
             }

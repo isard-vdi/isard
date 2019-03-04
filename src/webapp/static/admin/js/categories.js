@@ -30,7 +30,8 @@ $(document).ready(function() {
 			"orderable":      false,
 			"data":           null,
 			"width": "10px",
-			"defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+            "defaultContent": ''
+			//~ "defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
 			}
         ]
     } );
@@ -61,20 +62,19 @@ $(document).ready(function() {
             $('#modalAddCategoryForm')[0].reset();
             //~ setModalAddUser();
             
-             $('#modalAddCategoryForm #desktops').select2({
+             $('#modalAddCategoryForm #auto-desktops').select2({
                 minimumInputLength: 2,
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/admin/table/domains/post',
+                    url: '/admin/getAllTemplates',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
                     data: function (params) {
                         return  JSON.stringify({
                             term: params.term,
-                            pluck: ['id','name'],
-                            kind: 'template'
+                            pluck: ['id','name']
                         });
                     },
                     processResults: function (data) {
@@ -98,7 +98,22 @@ $(document).ready(function() {
                   grid: true,
                   disable: false
                   }).data("ionRangeSlider").update();
-		          
+                  
+        $("#modalAddCategoryForm #ephimeral-enabled").on('ifChecked', function(event){
+                console.log('checked')
+				  $("#modalAddCategoryForm #ephimeral-data").show();
+		});
+        $("#modalAddCategoryForm #ephimeral-enabled").on('ifUnchecked', function(event){
+				  $("#modalAddCategoryForm #ephimeral-data").hide();
+		});        
+
+        $("#modalAddCategoryForm #auto-desktops-enabled").on('ifChecked', function(event){
+                console.log('checked')
+				  $("#modalAddCategoryForm #auto-desktops-data").show();
+		});
+        $("#modalAddCategoryForm #auto-desktops-enabled").on('ifUnchecked', function(event){
+				  $("#modalAddCategoryForm #auto-desktops-data").hide();
+		}); 		          
 	});    
 
     $("#modalAddCategory #send").on('click', function(e){
@@ -107,6 +122,13 @@ $(document).ready(function() {
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalAddCategoryForm').serializeObject();
+                if(!data['ephimeral-enabled']){
+                    delete data['ephimeral-minutes'];
+                    delete data['ephimeral-action'];
+                }
+                delete data['ephimeral-enabled'];
+                delete data['auto-desktops-enabled'];
+                console.log(data)
                 data['table']='categories';
                 socket.emit('role_category_group_add',data)  
             }

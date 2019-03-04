@@ -49,40 +49,40 @@ class DomainsThread(threading.Thread):
                         data=c['new_val'] 
                         # ~ data['accessed']=time.time()
                           
-                        ## Disposables on login
-                        if data['user']=='disposable':
-                            # ~ print('im a disposable: '+data['id'])
-                            event='desktop_data'
-                            socketio.emit(event, 
-                                            json.dumps(app.isardapi.f.flatten_dict(data)), 
-                                            namespace='/sio_admins', 
-                                            room='domains')   
+                        ''' Disposables on login '''
+                        # ~ if data['user']=='disposable':
+                            # ~ # print('im a disposable: '+data['id'])
+                            # ~ event='desktop_data'
+                            # ~ socketio.emit(event, 
+                                            # ~ json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                            # ~ namespace='/sio_admins', 
+                                            # ~ room='domains')   
                                                                        
-                            ip=data['name'].replace('_','.')
-                            # ~ try:
-                                # ~ ip=data['viewer']['client_addr']
-                            # ~ except Exception as e:
-                                # ~ # print(data['id']+' is disposable but has no viewer client addr')
-                                # ~ continue
-                            # ~ if ip:
-                                # ~ print('EMITTED DISPOSABLE DATA')
-                            # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
-                            # ~ if 'viewer' in c['new_val']:
-                                # ~ print(c['new_val'])
-                            if data['status']=='Started' and c['old_val']['status']!='Started': # and data['detail']=='':
-                                # ~ if starteddict=={}:
-                                    # ~ starteddict=data
-                                    # ~ starteddict['detail']='hander'
-                                # ~ else:
-                                    # ~ import pprint
-                                    # ~ pprint.pprint( dict(set(starteddict) ^ set(data)))
-                                # ~ print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
-                                socketio.emit('disposable_data', 
-                                                    json.dumps(app.isardapi.f.flatten_dict({'id':data['id'],'status':data['status']})), 
-                                                    namespace='/sio_disposables', 
-                                                    room='disposable_'+ip)                                        
-                            continue
-                        ## End disposables
+                            # ~ ip=data['name'].replace('_','.')
+                            # ~ # try:
+                                # ~ # ip=data['viewer']['client_addr']
+                            # ~ # except Exception as e:
+                                # ~ # # print(data['id']+' is disposable but has no viewer client addr')
+                                # ~ # continue
+                            # ~ # if ip:
+                                # ~ # print('EMITTED DISPOSABLE DATA')
+                            # ~ # print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
+                            # ~ # if 'viewer' in c['new_val']:
+                                # ~ # print(c['new_val'])
+                            # ~ if data['status']=='Started' and c['old_val']['status']!='Started': # and data['detail']=='':
+                                # ~ # if starteddict=={}:
+                                    # ~ # starteddict=data
+                                    # ~ # starteddict['detail']='hander'
+                                # ~ # else:
+                                    # ~ # import pprint
+                                    # ~ # pprint.pprint( dict(set(starteddict) ^ set(data)))
+                                # ~ # print('old: '+c['old_val']['status']+' new: '+c['new_val']['status'])
+                                # ~ socketio.emit('disposable_data', 
+                                                    # ~ json.dumps(app.isardapi.f.flatten_dict({'id':data['id'],'status':data['status']})), 
+                                                    # ~ namespace='/sio_disposables', 
+                                                    # ~ room='disposable_'+ip)                                        
+                            # ~ continue
+                        ''' End disposables '''
                         
                         if data['kind']=='desktop':
                             event='desktop_data'

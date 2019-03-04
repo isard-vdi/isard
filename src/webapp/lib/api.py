@@ -49,7 +49,7 @@ class isard():
     def update_table_status(self,user,table,data,remote_addr):
             item = table[:-1].capitalize()
             with app.app_context():
-                dom = r.table(table).get(data['pk']).pluck('status','name').run(db.conn)          
+                dom = r.table(table).get(data['pk']).pluck('status','name','ephimeral').run(db.conn)          
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
@@ -92,6 +92,19 @@ class isard():
                             if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
                                 return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
                             self.auto_interface_set(user,data['pk'],remote_addr)
+                            if 'ephimeral' in dom.keys():
+                                # ~ try:
+                                    trigger=list(r.table('scheduler_jobs').filter({'action':'check_ephimeral_status'}).run(db.conn))[0]
+                                    ci=trigger['next_run_time']
+                                    i=1
+                                    t=time.time()
+                                    while t+int(dom['ephimeral']['minutes'])*60 < ci:
+                                        ci=trigger['next_run_time']+int(trigger['minute'])*60*i
+                                        i=i+1
+                                    dom['ephimeral']['finish']=trigger['next_run_time']+int(trigger['minute'])*60*i+1
+                                    r.table(table).get(data['pk']).update({'ephimeral': dom['ephimeral']}).run(db.conn)
+                                # ~ except Exception as e:
+                                    # ~ log.error('Exception in ephimeral time range set: '+str(e))
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                                 return json.dumps({'title':False,'text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
@@ -101,6 +114,9 @@ class isard():
                 return json.dumps({'title':'Method not allowed','text':'That action is not allowed!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
                 log.error('Error updating status for '+dom['name']+': '+str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                log.error(exc_type, fname, exc_tb.tb_lineno)                
                 return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
     def auto_interface_set(self,user,id, remote_addr):

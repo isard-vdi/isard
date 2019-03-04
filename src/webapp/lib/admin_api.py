@@ -455,6 +455,9 @@ class isardAdmin():
         newdict = self.template_delete_list(dict['id'])
         newids = [d['id'] for d in newdict]
         if set(dict['ids']) == set(newids):
+            '''This is the only needed if it works StoppingAndDeleting'''
+            # ~ r.table('domains').get_all(r.args(newids)).update({'status':'StoppingAndDeleting'}).run(db.conn) 
+            
             maintenance=[d['id'] for d in newdict if d['status'] != 'Started']
             res=r.table('domains').get_all(r.args(maintenance)).update({'status':'Maintenance'}).run(db.conn)            
             

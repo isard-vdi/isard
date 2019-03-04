@@ -72,6 +72,11 @@ def admin_table_post(table):
         if 'kind' not in data.keys():
             data['kind']=False
         # ~ else:
+            # ~ if data['kind']=='template':
+                # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
+                # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
+                # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
+        # ~ else:
             # ~ if data['kind']='not_desktops':
                 # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=)
         #~ if 'order' not in data.keys():
