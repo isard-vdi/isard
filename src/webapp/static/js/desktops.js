@@ -92,7 +92,7 @@ $(document).ready(function() {
 							{
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
-							  return renderStatus(full);
+							  return renderStatus(full,table);
 							}},
                             {
 							"targets": 5,
@@ -258,29 +258,15 @@ $(document).ready(function() {
                         keyboard: false
                     }).modal('show');
             }
-            if('ephimeral' in data){
-                //~ console.log(mom)
-                //~ data.description='TIME REMAINING: '+moment(moment()).to(moment.unix(data.ephimeral.finish)).format("hh:mm:ss")
-                //~ console.log(Math.floor(data.ephimeral.finish / 1000)-Math.floor(Date.now() / 1000))
-                //~ data.description="REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+ ' seconds'
-                countdown[data.id]=setInterval(function(){
-                    if(data.finish < moment().unix()){clearInterval(countdown[data.id]);}
-                    data.description="<b style='color:red'>REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+' seconds</b>'
-                    //~ moment().diff(moment.unix(data.ephimeral.finish),"seconds")
-                    
-                    dtUpdateInsert(table,data,false);
-                    },1000);
-                //~ console.log(countdown[data.id])
-                //~ html=moment.unix(data.accessed+data.ephimeral.minutes*60);
-            }
         }else{
-            clearInterval(countdown[data.id])
-            countdown[data.id]=null
+            //~ if('ephimeral' in data && !countdown[data.id]){
+                clearInterval(countdown[data.id])
+                countdown[data.id]=null
+            //~ }
         }
         
-        //~ if(claimed==false){
 
-        //~ }
+
         dtUpdateInsert(table,data,false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
@@ -559,7 +545,15 @@ function renderIcon1x(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon1x(data.icon)+'</span>'
 }
 
-function renderStatus(data){
+function renderStatus(data,table){
+        if(data.status =='Started' && 'ephimeral' in data && !countdown[data.id]){
+                countdown[data.id]=setInterval(function(){
+                    if(data.finish < moment().unix()){clearInterval(countdown[data.id]);}
+                    data.description="<b style='color:red'>REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+' seconds</b>'
+                    dtUpdateInsert(table,data,false);
+                    },1000);
+        }
+    
 		return data.status;
 }
 	
