@@ -69,9 +69,19 @@ def admin_table_post(table):
         data=request.get_json(force=True)
         if 'pluck' not in data.keys():
             data['pluck']=False
+        if 'kind' not in data.keys():
+            data['kind']=False
+        # ~ else:
+            # ~ if data['kind']=='template':
+                # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
+                # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
+                # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
+        # ~ else:
+            # ~ if data['kind']='not_desktops':
+                # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=)
         #~ if 'order' not in data.keys():
             #~ data['order']=False
-        result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'])
+        result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
 
