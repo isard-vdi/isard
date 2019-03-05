@@ -221,6 +221,16 @@ class isardAdmin():
                         'templates_disk_max': 99999999,
                         'isos_disk_max': 99999999}
             user['quota']['domains']={**qdomains, **user['quota']['domains']}
+
+            '''Pre defined desktops'''
+            with app.app_context():
+                desktops_cat=r.table('categories').get(user['category']).pluck('auto').run(db.conn)
+                desktops_group=r.table('groups').get(user['group']).pluck('auto').run(db.conn)
+            desktops = desktops_group if 'auto' in desktops_group.keys() else desktops_cat        
+
+            if 'auto' in desktops.keys():
+                user['auto']=desktops['auto'] 
+            
             
             final_users.append(user)          
         return self.check(r.table('users').insert(final_users).run(db.conn),'inserted')
