@@ -26,8 +26,8 @@ def login():
                 login_user(user)
                 flash('Logged in successfully.','success')
                 if user.is_admin:
-                        return redirect(url_for('admin'))
-                return redirect(url_for('desktops'))
+                    return render_template('admin/pages/hypervisors.html', title="Hypervisors", header="Hypervisors", nav="Hypervisors")
+                return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
             else:
                 flash('Username not found or incorrect password.','warning')
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
@@ -39,7 +39,7 @@ def index():
     try:
         if current_user.is_authenticated:
             if current_user.is_admin:
-               return redirect(url_for('admin'))
+               return render_template('admin/pages/hypervisors.html', title="Hypervisors", header="Hypervisors", nav="Hypervisors")
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -54,7 +54,9 @@ def index():
 def logout():
     logout_ram_user(current_user.username)
     logout_user()
-    return redirect(url_for('index'))
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+    disposables=app.isardapi.show_disposable(remote_addr)
+    return render_template('login_disposables.html', disposables=disposables if disposables else '')
     
 #~ @app.route('/autologin_secret/<secret>/<user>',methods=['GET'])
 #~ def autologin(secret,user):
