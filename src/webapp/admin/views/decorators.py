@@ -14,5 +14,5 @@ def isAdmin(fn):
         if current_user.is_admin:
             return fn(*args, **kwargs)
         logout_user()
-        return redirect(url_for('index'))
+        return render_template('login_disposables.html', disposables='')
     return decorated_view
