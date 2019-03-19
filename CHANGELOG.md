@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2019-03-19
+
+### Fixed
+- Bug with user password update from admin that updated all the user passwords at the same time.
+- Bug when acessing IsardVDI from an https port different from 443.
+
 ## [1.1.0] - 2019-02-26 | Canigó
 
 ### Added

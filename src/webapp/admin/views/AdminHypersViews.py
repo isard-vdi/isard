@@ -30,8 +30,8 @@ HYPERVISORS
 @login_required
 @isAdmin
 def admin_hypervisors():
-    hypers=app.adminapi.hypervisors_get()
-    return render_template('admin/pages/hypervisors.html', title="Hypervisors", header="Hypervisors", nav="Hypervisors",hyp=hypers)
+    # ~ hypers=app.adminapi.hypervisors_get()
+    return render_template('admin/pages/hypervisors.html', title="Hypervisors", header="Hypervisors", nav="Hypervisors")
 
 @app.route('/admin/hypervisors/json')
 @app.route('/admin/hypervisors/json/<id>')
@@ -57,7 +57,7 @@ def hypervisors_pools_get():
         create_dict['interfaces']=[create_dict['interfaces']]
         if res is True:
             flash('Hypervisor pool '+create_dict['id']+' added to the system.','success')
-            return redirect(url_for('admin_hypervisors'))
+            return render_template('admin/pages/hypervisors.html', title="Hypervisors", header="Hypervisors", nav="Hypervisors")
         else:
             flash('Could not create hypervisor pool. Maybe you have one with the same name?','danger')
             return render_template('pages/hypervisors.html',  nav="Hypervisors")

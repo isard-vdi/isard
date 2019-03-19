@@ -30,7 +30,7 @@ LANDING ADMIN PAGE
 @login_required
 @isAdmin
 def admin():
-    return redirect(url_for('admin_hypervisors'))
+    return render_template('admin/pages/hypervisors.html', title="Hypervisors", header="Hypervisors", nav="Hypervisors")
  
 @app.route('/admin/table/<table>/get')
 @login_required
