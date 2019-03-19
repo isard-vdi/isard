@@ -243,7 +243,7 @@ class isardAdmin():
     def user_passwd(self,user):
         p = Password()
         usr = {'password': p.encrypt(user['password'])}
-        return self.check(r.table('users').update(usr).run(db.conn),'replaced')
+        return self.check(r.table('users').get(user['id']).update(usr).run(db.conn),'replaced')
         
     def user_toggle_active(self,id):
         with app.app_context():
