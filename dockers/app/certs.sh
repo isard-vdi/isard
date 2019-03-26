@@ -31,7 +31,7 @@ done
 
 if [[ "$i" -ne '25' ]]; then
   echo "Adding isard-hypervisor keys"
-  ssh-keyscan -T 10 isard-hypervisor > /root/.ssh/known_hosts
+  ssh-keyscan -T 10 isard-hypervisor >> /root/.ssh/known_hosts
 else
   echo "Assuming that there is no isard-hypervisor available"
 fi 
