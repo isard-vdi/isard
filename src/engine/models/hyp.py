@@ -61,10 +61,12 @@ class hyp(object):
         # dictionary of domains
         # self.id = 0
         self.domains = []
+        port=int(port)
         if (type(port) == int) and port > 1 and port < pow(2, 16):
             self.port = port
         else:
             self.port = 22
+        log.error('El port es: '+str(self.port))
         self.try_ssh_autologin = try_ssh_autologin
         self.user = user
         self.hostname = address

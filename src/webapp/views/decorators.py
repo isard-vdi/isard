@@ -29,12 +29,12 @@ def ownsid(fn):
             
         if id.startswith('_'+current_user.id+'_'):
             return fn(*args, **kwargs)
-        return redirect(url_for('index'))
+        return render_template('login_disposables.html', disposables='')
     return decorated_view
 
 def checkRole(fn):
     @wraps(fn)
     def decorated_view(*args, **kwargs):
-        if current_user.role == 'user': return redirect(url_for('desktops'))
+        if current_user.role == 'user': return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
         return fn(*args, **kwargs)
     return decorated_view
