@@ -30,7 +30,7 @@ fi
 
 #Copy new host key to authorized_keys (so isard-hypervisor can get it also)
 cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
-
+    
 # Now scan for isard-hypervisor for 10 seconds (should be more than enough)
 echo "Scanning isard-hypervisor key..."
 ssh-keyscan -T 10 isard-hypervisor > /root/.ssh/known_hosts

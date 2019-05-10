@@ -1,4 +1,4 @@
-version: "3.2"
+version: "3.5"
 services:
   isard-hypervisor:
     volumes:
@@ -18,7 +18,7 @@ services:
       - "2022:22"
       - "5900-5949:5900-5949"
       - "55900-55949:55900-55949"
-    image: isard/hypervisor:1.0
+    image: isard/hypervisor:1
     privileged: true
     restart: unless-stopped
         
