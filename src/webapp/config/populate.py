@@ -419,26 +419,28 @@ class Populate(object):
             if not r.table_list().contains('graphics').run():
                 log.info("Table graphics not found, creating and populating default network...")
                 r.table_create('graphics', primary_key="id").run()
-                self.result(r.table('graphics').insert([{'id': 'default',
+                self.result(r.table('graphics').insert([
+                                                        {'id': 'default',
                                                          'name': 'Default',
-                                                         'description': 'Spice viewer',
-                                                         'type':'spice',
+                                                         'description': 'Spice viewer with compression and vlc',
                                                          'allowed': {
                                                              'roles': [],
                                                              'categories': [],
                                                              'groups': [],
                                                              'users': []},
-                                                         },
-                                                        {'id': 'vnc',
-                                                         'name': 'VNC',
-                                                         'description': 'Not functional',
-                                                         'type':'vnc',
-                                                         'allowed': {
-                                                             'roles': ['admin'],
-                                                             'categories': False,
-                                                             'groups': False,
-                                                             'users': False}
-                                                         }]).run())
+                                                         'types': {'spice': {
+                                                                            'options': {
+                                                                                'image': {'compression': 'auto_glz'},
+                                                                                'jpeg': {'compression': 'always'},
+                                                                                'playback': {'compression': 'off'},
+                                                                                'streaming': {'mode': 'all'},
+                                                                                'zlib': {'compression': 'always'}},
+                                                                            },
+                                                                   'vlc':{
+                                                                       'options':{}}
+                                                                  },
+                                                         }
+                                                        ]).run())
             return True
 
     '''

@@ -19,7 +19,7 @@ from pprint import pprint
 from lxml import etree
 
 from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware
-from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values
+from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values, get_graphics_types
 from engine.services.db.downloads import get_media
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
@@ -145,6 +145,7 @@ class DomainXML(object):
         self.index_disks['virtio'] = 0
         self.index_disks['ide'] = 0
         self.index_disks['sata'] = 0
+        self.d_graphics_types = None
 
     # def update_xml(self,**kwargs):
     #     if kwargs.__contains__('vcpus'):
@@ -557,19 +558,35 @@ class DomainXML(object):
         vlc = etree.parse(StringIO(vlc_string_xml)).getroot()
         self.add_to_domain(xpath_same, vlc, xpath_next, xpath_previous)
 
-    def set_video_compression(self,video_compression=DEFAULT_SPICE_VIDEO_COMPRESSION):
+    def set_spice_video_options(self,id_graphics='default'):
         xpath_spice = '/domain/devices/graphics[@type="spice"]'
-        xpath_image_compression = '/domain/devices/graphics[@type="spice"]/image'
 
-        if not self.tree.xpath(xpath_spice):
-            self.add_spice_graphics_if_not_exist(video_compression=video_compression)
+        self.d_graphics_types = get_graphics_types(id_graphics)
+
+        if self.d_graphics_types is None:
+            d_spice_options = {
+                'image': {'compression': 'auto_glz'},
+                'jpeg': {'compression': 'always'},
+                'playback': {'compression': 'off'},
+                'streaming': {'mode': 'all'},
+                'zlib': {'compression': 'always'},
+            }
         else:
-            if not self.tree.xpath(xpath_image_compression):
-                self.remove_branch(xpath_spice)
-                self.add_spice_graphics_if_not_exist(video_compression=video_compression)
+            d_spice_options = self.d_graphics_types['spice']['options']
 
-        self.tree.xpath(xpath_image_compression)[0].set('compression', video_compression)
+        # add spice graphics if not exists
+        if not self.tree.xpath(xpath_spice):
+            self.add_spice_graphics_if_not_exist()
 
+        # remove all options in spice
+        tree_spice = self.tree.xpath(xpath_spice)[0]
+        for i in tree_spice.getchildren():
+            tree_spice.remove(i)
+
+        # add all options in spice
+        for p,v in d_spice_options.items():
+            element = etree.Element(p, **v)
+            tree_spice.insert(-1,element)
 
     def add_spice_graphics_if_not_exist(self,video_compression=None):
         xpath_spice = '/domain/devices/graphics[@type="spice"]'
@@ -1107,7 +1124,7 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
 
     # spice video compression
     #x.add_spice_graphics_if_not_exist()
-    x.set_video_compression()
+    x.set_spice_video_options()
 
     # spice password
     if ssl is True:
