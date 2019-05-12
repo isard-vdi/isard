@@ -557,6 +557,20 @@ class DomainXML(object):
         vlc = etree.parse(StringIO(vlc_string_xml)).getroot()
         self.add_to_domain(xpath_same, vlc, xpath_next, xpath_previous)
 
+    def set_video_compression(self,video_compression=DEFAULT_SPICE_VIDEO_COMPRESSION):
+        xpath_spice = '/domain/devices/graphics[@type="spice"]'
+        xpath_image_compression = '/domain/devices/graphics[@type="spice"]/image'
+
+        if not self.tree.xpath(xpath_spice):
+            self.add_spice_graphics_if_not_exist(video_compression=video_compression)
+        else:
+            if not self.tree.xpath(xpath_image_compression):
+                self.remove_branch(xpath_spice)
+                self.add_spice_graphics_if_not_exist(video_compression=video_compression)
+
+        self.tree.xpath(xpath_image_compression)[0].set('compression', video_compression)
+
+
     def add_spice_graphics_if_not_exist(self,video_compression=None):
         xpath_spice = '/domain/devices/graphics[@type="spice"]'
 
@@ -1091,10 +1105,11 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     if dict_domain.get('not_change_cpu_section',False) is False:
         x.set_cpu_host_model(cpu_host_model)
 
+    # spice video compression
+    #x.add_spice_graphics_if_not_exist()
+    x.set_video_compression()
 
     # spice password
-    x.add_spice_graphics_if_not_exist()
-
     if ssl is True:
         #recreate random password in x.viewer_passwd
         x.reset_viewer_passwd()
