@@ -528,9 +528,6 @@ class DomainXML(object):
         xpath_next = '/domain/clock'
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
-    def set_graphics_type(self, type_graphics):
-        self.tree.xpath('/domain/devices/graphics')[0].set('type', type_graphics)
-
     def set_video_type(self, type_video):
         self.tree.xpath('/domain/devices/video/model')[0].set('type', type_video)
 
@@ -974,7 +971,6 @@ def update_xml_from_dict_domain(id_domain, xml=None):
                             model_type=d_interface['model'])
 
     v.set_vcpu(hw['vcpus'])
-    v.set_graphics_type(hw['graphics']['type'])
     v.set_video_type(hw['video']['type'])
     # INFO TO DEVELOPER, falta hacer un v.set_network_id (para ver contra que red hace bridge o se conecta
     # INFO TO DEVELOPER, falta hacer un v.set_netowk_type (para seleccionar si quiere virtio o realtek por ejemplo)
@@ -1091,9 +1087,10 @@ def create_dict_graphics_from_id(id, pool_id):
         log.error('{} not defined as id in graphics table, value default is used'.format(id))
         dict_graph = get_dict_from_item_in_table('graphics', 'default')
 
-    type = dict_graph['type']
+    # deprectaed
+    #type = dict_graph['type']
     d = {}
-    d['type'] = type
+    #d['type'] = type
     pool = get_dict_from_item_in_table('hypervisors_pools', pool_id)
 
     if pool['viewer']['defaultMode'] == 'Insecure':
