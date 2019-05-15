@@ -19,7 +19,7 @@ from pprint import pprint
 from lxml import etree
 
 from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware
-from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values
+from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values, get_graphics_types
 from engine.services.db.downloads import get_media
 from engine.services.lib.functions import randomMAC
 from engine.services.log import *
@@ -145,6 +145,7 @@ class DomainXML(object):
         self.index_disks['virtio'] = 0
         self.index_disks['ide'] = 0
         self.index_disks['sata'] = 0
+        self.d_graphics_types = None
 
     # def update_xml(self,**kwargs):
     #     if kwargs.__contains__('vcpus'):
@@ -527,9 +528,6 @@ class DomainXML(object):
         xpath_next = '/domain/clock'
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
-    def set_graphics_type(self, type_graphics):
-        self.tree.xpath('/domain/devices/graphics')[0].set('type', type_graphics)
-
     def set_video_type(self, type_video):
         self.tree.xpath('/domain/devices/video/model')[0].set('type', type_video)
 
@@ -556,6 +554,36 @@ class DomainXML(object):
                            "    </graphics>"
         vlc = etree.parse(StringIO(vlc_string_xml)).getroot()
         self.add_to_domain(xpath_same, vlc, xpath_next, xpath_previous)
+
+    def set_spice_video_options(self,id_graphics='default'):
+        xpath_spice = '/domain/devices/graphics[@type="spice"]'
+
+        self.d_graphics_types = get_graphics_types(id_graphics)
+
+        if self.d_graphics_types is None:
+            d_spice_options = {
+                'image': {'compression': 'auto_glz'},
+                'jpeg': {'compression': 'always'},
+                'playback': {'compression': 'off'},
+                'streaming': {'mode': 'all'},
+                'zlib': {'compression': 'always'},
+            }
+        else:
+            d_spice_options = self.d_graphics_types['spice']['options']
+
+        # add spice graphics if not exists
+        if not self.tree.xpath(xpath_spice):
+            self.add_spice_graphics_if_not_exist()
+
+        # remove all options in spice
+        tree_spice = self.tree.xpath(xpath_spice)[0]
+        for i in tree_spice.getchildren():
+            tree_spice.remove(i)
+
+        # add all options in spice
+        for p,v in d_spice_options.items():
+            element = etree.Element(p, **v)
+            tree_spice.insert(-1,element)
 
     def add_spice_graphics_if_not_exist(self,video_compression=None):
         xpath_spice = '/domain/devices/graphics[@type="spice"]'
@@ -943,7 +971,6 @@ def update_xml_from_dict_domain(id_domain, xml=None):
                             model_type=d_interface['model'])
 
     v.set_vcpu(hw['vcpus'])
-    v.set_graphics_type(hw['graphics']['type'])
     v.set_video_type(hw['video']['type'])
     # INFO TO DEVELOPER, falta hacer un v.set_network_id (para ver contra que red hace bridge o se conecta
     # INFO TO DEVELOPER, falta hacer un v.set_netowk_type (para seleccionar si quiere virtio o realtek por ejemplo)
@@ -1060,9 +1087,10 @@ def create_dict_graphics_from_id(id, pool_id):
         log.error('{} not defined as id in graphics table, value default is used'.format(id))
         dict_graph = get_dict_from_item_in_table('graphics', 'default')
 
-    type = dict_graph['type']
+    # deprectaed
+    #type = dict_graph['type']
     d = {}
-    d['type'] = type
+    #d['type'] = type
     pool = get_dict_from_item_in_table('hypervisors_pools', pool_id)
 
     if pool['viewer']['defaultMode'] == 'Insecure':
@@ -1091,10 +1119,11 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     if dict_domain.get('not_change_cpu_section',False) is False:
         x.set_cpu_host_model(cpu_host_model)
 
+    # spice video compression
+    #x.add_spice_graphics_if_not_exist()
+    x.set_spice_video_options()
 
     # spice password
-    x.add_spice_graphics_if_not_exist()
-
     if ssl is True:
         #recreate random password in x.viewer_passwd
         x.reset_viewer_passwd()
