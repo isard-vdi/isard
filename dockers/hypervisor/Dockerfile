@@ -4,7 +4,12 @@ MAINTAINER isard <info@isard.com>
 RUN pip3 uninstall pandas pytz python-dateutil six -y
 
 RUN apk --no-cache add qemu-system-x86_64 libvirt netcat-openbsd libvirt-daemon dbus polkit qemu-img
-RUN ln -s /usr/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
+RUN apk --no-cache add alsa-utils alsa-lib qemu-audio-alsa
+ADD dockers/hypervisor/asoundrc /root/.asoundrc
+ADD dockers/hypervisor/qemu-kvm /usr/bin/qemu-kvm
+RUN chmod +x /usr/bin/qemu-kvm
+#RUN ln -s /usr/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
+
 RUN apk add openssh curl bash
 RUN ssh-keygen -A
 ADD dockers/hypervisor/reset-hyper.sh /
