@@ -17,8 +17,8 @@ from ..lib.load_config import load_config
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 6
-tables=['config','hypervisors','hypervisors_pools','domains','media']
+release_version = 7
+tables=['config','hypervisors','hypervisors_pools','domains','media','graphics']
 
 
 class Upgrade(object):
@@ -400,7 +400,36 @@ class Upgrade(object):
                 # ~ except Exception as e:
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
                     # ~ log.error('Error detail: '+str(e))                    
-         
+        if version == 7:
+            for d in data:
+                id = d['id']
+                d.pop('id', None)
+
+                ''' CONVERSION FIELDS PRE CHECKS '''
+                # ~ try:
+                # ~ if not self.check_done( d,
+                # ~ [],
+                # ~ []):
+                ##### CONVERSION FIELDS
+                # ~ cfg['field']={}
+                # ~ r.table(table).update(cfg).run()
+                # ~ except Exception as e:
+                # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
+                # ~ log.error('Error detail: '+str(e))
+
+                ''' NEW FIELDS PRE CHECKS '''
+                try:
+                    if not self.check_done(d,
+                                           ['preferences'],
+                                           []):
+                        ##### NEW FIELDS
+                        self.add_keys(table,
+                                      [{'options': {'viewers': {'id_graphics': 'default'}}}],
+                                      id=id)
+                except Exception as e:
+                    log.error('Could not update table ' + table + ' add fields for db version ' + version + '!')
+                    log.error('Error detail: ' + str(e))
+
         return True
 
     '''
@@ -453,6 +482,40 @@ class Upgrade(object):
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+version+'!')
                     # ~ log.error('Error detail: '+str(e))                    
          
+        return True
+
+    '''
+    DOMAINS TABLE GRAPHICS
+    '''
+    def graphics(self,version):
+        table='graphics'
+        log.info('UPGRADING '+table+' VERSION '+str(version))
+        #~ data=list(r.table(table).run())
+        if version == 7:
+            r.table(table).delete().run()
+            r.table('graphics').insert([
+                {'id': 'default',
+                 'name': 'Default',
+                 'description': 'Spice viewer with compression and vlc',
+                 'allowed': {
+                     'roles': [],
+                     'categories': [],
+                     'groups': [],
+                     'users': []},
+                 'types': {'spice': {
+                     'options': {
+                         'image': {'compression': 'auto_glz'},
+                         'jpeg': {'compression': 'always'},
+                         'playback': {'compression': 'off'},
+                         'streaming': {'mode': 'all'},
+                         'zlib': {'compression': 'always'}},
+                 },
+                     'vlc': {
+                         'options': {}}
+                 },
+                 }
+            ]).run()
+
         return True
         
     '''
