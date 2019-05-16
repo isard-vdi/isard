@@ -1,27 +1,49 @@
-FROM isard/alpine-pandas:latest
+FROM alpine:3.9
 MAINTAINER isard <info@isard.com>
 
-RUN apk add --no-cache bash yarn py3-libvirt py3-paramiko py3-lxml py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-netaddr py3-requests curl openssh-client
+RUN apk add --no-cache \
+	yarn \
+	py3-libvirt \
+	py3-paramiko \
+	py3-lxml \
+	py3-pexpect \
+	py3-openssl \
+	py3-bcrypt \
+	py3-gevent \
+	py3-flask \
+	py3-netaddr \
+	py3-requests \
+	curl \
+	openssh-client \
+	supervisor
+
+RUN apk add --no-cache --virtual .build_deps \
+	build-base \
+	python3-dev \
+	libffi-dev \
+	openssl-dev 
+RUN pip3 install pandas
+RUN apk del .build_deps
 
 COPY dockers/app/requirements.pip3 /requirements.pip3
 RUN pip3 install --no-cache-dir -r requirements.pip3
 
-RUN mkdir -p /root/.ssh
+# Create the required directories
+RUN mkdir -p /var/log/supervisor /isard /root/.ssh
+
+# Configure SSH
 RUN echo "Host isard-hypervisor \
 	StrictHostKeyChecking no" >/root/.ssh/config
 RUN chmod 600 /root/.ssh/config
 
-RUN apk add --no-cache supervisor
-RUN mkdir -p /var/log/supervisor
+# Copy the isard source
+COPY ./src /isard
+RUN mv /isard/isard.conf.docker /isard/isard.conf
+
+COPY dockers/app/certs.sh /
+COPY dockers/app/add-hypervisor.sh /
 COPY dockers/app/supervisord.conf /etc/supervisord.conf
 
 EXPOSE 5000
 
-COPY dockers/app/certs.sh /
-COPY dockers/app/add-hypervisor.sh /
-
-RUN mkdir /isard
-ADD ./src /isard
-RUN mv /isard/isard.conf.docker /isard/isard.conf
-
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+CMD [ "/usr/bin/supervisord", "-c", "/etc/supervisord.conf" ]
