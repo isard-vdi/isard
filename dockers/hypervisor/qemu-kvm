@@ -1,3 +1,0 @@
-#!/bin/sh  
-QEMU_AUDIO_DRV=alsa /usr/bin/qemu-system-x86_64 $@
-

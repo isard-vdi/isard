@@ -7,11 +7,7 @@ RUN apk update
 RUN apk upgrade --available
 
 RUN apk --no-cache add qemu-system-x86_64 libvirt netcat-openbsd libvirt-daemon dbus polkit qemu-img
-RUN apk --no-cache add alsa-utils alsa-lib qemu-audio-alsa
-ADD dockers/hypervisor/asoundrc /root/.asoundrc
-ADD dockers/hypervisor/qemu-kvm /usr/bin/qemu-kvm
-RUN chmod +x /usr/bin/qemu-kvm
-#RUN ln -s /usr/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
+RUN ln -s /usr/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
 
 RUN apk add openssh curl bash
 RUN ssh-keygen -A
