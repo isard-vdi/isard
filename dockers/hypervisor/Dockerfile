@@ -2,6 +2,9 @@ FROM isard/alpine-pandas:1.0.0
 MAINTAINER isard <info@isard.com>
 
 RUN pip3 uninstall pandas pytz python-dateutil six -y
+RUN sed -i -e 's/v3\.8/v3.9/g' /etc/apk/repositories
+RUN apk update
+RUN apk upgrade --available
 
 RUN apk --no-cache add qemu-system-x86_64 libvirt netcat-openbsd libvirt-daemon dbus polkit qemu-img
 RUN apk --no-cache add alsa-utils alsa-lib qemu-audio-alsa
