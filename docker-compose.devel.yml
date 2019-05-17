@@ -1,0 +1,23 @@
+version: "3.5"
+services:
+  isard-database:
+    container_name: isard-database-devel
+    ports:
+      - "8080:8080"      
+      - "28015:28015"
+
+  isard-nginx:
+    container_name: isard-nginx-devel
+
+  isard-hypervisor:
+    container_name: isard-hypervisor-devel
+    ports:
+      - "2022:22"
+        
+  isard-app:
+    container_name: isard-app-devel
+    ports:
+      - "5000:5000"       
+      - "5555:5555"
+    build:
+      target: development

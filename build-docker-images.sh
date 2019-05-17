@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check that the version number was provided
 if [ -z "$1" ]; then
@@ -32,7 +32,6 @@ fi
 
 # Array containing all the images to build
 images=(
-	#alpine-pandas
 	#grafana
 	nginx
 	hypervisor

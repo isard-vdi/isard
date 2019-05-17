@@ -9,8 +9,6 @@ services:
       - isard_network
     image: rethinkdb
     restart: unless-stopped
-    logging:
-        driver: none
 
   isard-nginx:
     container_name: isard-nginx
@@ -23,7 +21,10 @@ services:
       - "443:443"
     networks:
       - isard_network
-    image: isard/nginx:1
+    image: isard/nginx:${TAG}
+    build:
+      context: .
+      dockerfile: dockers/nginx/Dockerfile    
     restart: unless-stopped
     depends_on:
       - isard-app
@@ -40,7 +41,10 @@ services:
       - "55900-55999:55900-55999"
     networks:
       - isard_network
-    image: isard/hypervisor:1
+    image: isard/hypervisor:${TAG}
+    build:
+      context: .
+      dockerfile: dockers/hypervisor/Dockerfile    
     privileged: true
     restart: unless-stopped
         
@@ -58,7 +62,11 @@ services:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
-    image: isard/app:1
+    image: isard/app:${TAG}
+    build:
+      context: .
+      dockerfile: dockers/app/Dockerfile
+      target: production
     restart: unless-stopped
     depends_on:
       - isard-database
