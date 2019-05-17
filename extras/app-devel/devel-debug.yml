@@ -26,7 +26,7 @@ services:
       - "443:443"
     networks:
       - isard_network
-    image: isard/nginx:1.1
+    image: isard/nginx:1
     restart: "no"
     depends_on:
       - isard-app
@@ -42,7 +42,7 @@ services:
       - "55900-55949:55900-55949"
     networks:
       - isard_network
-    image: isard/hypervisor:1.1
+    image: isard/hypervisor:1
     privileged: true
     ################ only for devel ###############
     expose:
@@ -90,7 +90,7 @@ services:
       - 3000:3000
     networks:
       - isard_network
-    image: isard/grafana:1.1
+    image: isard/grafana:1
     restart: "no"
     logging:
         driver: none

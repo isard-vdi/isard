@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check that the version number was provided
 if [ -z "$1" ]; then
