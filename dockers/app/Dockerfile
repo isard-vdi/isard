@@ -1,4 +1,4 @@
-FROM isard/alpine-pandas:latest
+FROM isard/alpine-pandas:latest as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache bash yarn py3-libvirt py3-paramiko py3-lxml py3-pexpect py3-openssl py3-bcrypt py3-gevent py3-flask py3-netaddr py3-requests curl openssh-client
@@ -23,5 +23,11 @@ COPY dockers/app/add-hypervisor.sh /
 RUN mkdir /isard
 ADD ./src /isard
 RUN mv /isard/isard.conf.docker /isard/isard.conf
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+
+FROM production as development
+RUN pip3 install ipython pytest
+RUN apk add --update bash vim openssh
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
