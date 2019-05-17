@@ -32,10 +32,10 @@ RUN sed -i \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' /etc/ssh/sshd_config
 
 # Libvirt configuration and certs
-RUN echo "listen_tls = 0 \
+RUN echo -e "listen_tls = 0\n \
     listen_tcp = 1" >> /etc/libvirt/libvirtd.conf
-RUN echo 'spice_listen = "0.0.0.0" \
-    spice_tls = 1 \
+RUN echo -e 'spice_listen = "0.0.0.0"\n \
+    spice_tls = 1\n \
     spice_tls_x509_cert_dir = "/etc/pki/libvirt-spice"' >> /etc/libvirt/qemu.conf
 
 # Create the required directories

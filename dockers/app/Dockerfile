@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.8
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache \
@@ -32,7 +32,7 @@ RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN mkdir -p /var/log/supervisor /isard /root/.ssh
 
 # Configure SSH
-RUN echo "Host isard-hypervisor \
+RUN echo -e "Host isard-hypervisor\n \
 	StrictHostKeyChecking no" >/root/.ssh/config
 RUN chmod 600 /root/.ssh/config
 
