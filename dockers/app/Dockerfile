@@ -1,4 +1,4 @@
-FROM alpine:3.8
+FROM alpine:3.8 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache \
@@ -46,4 +46,10 @@ COPY dockers/app/supervisord.conf /etc/supervisord.conf
 
 EXPOSE 5000
 
-CMD [ "/usr/bin/supervisord", "-c", "/etc/supervisord.conf" ]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+
+FROM production as development
+RUN pip3 install ipython pytest
+RUN apk add --update bash vim openssh bash
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
