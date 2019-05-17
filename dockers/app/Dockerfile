@@ -22,7 +22,7 @@ RUN apk add --no-cache --virtual .build_deps \
 	python3-dev \
 	libffi-dev \
 	openssl-dev 
-RUN pip3 install pandas
+RUN pip3 install --no-cache-dir pandas
 RUN apk del .build_deps
 
 COPY dockers/app/requirements.pip3 /requirements.pip3
@@ -49,7 +49,7 @@ EXPOSE 5000
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 
 FROM production as development
-RUN pip3 install ipython pytest
-RUN apk add --update bash vim openssh bash
+RUN pip3 install --no-cache-dir ipython pytest
+RUN apk add --no-cache --update bash vim openssh bash
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

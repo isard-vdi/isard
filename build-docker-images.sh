@@ -32,7 +32,6 @@ fi
 
 # Array containing all the images to build
 images=(
-	#alpine-pandas
 	#grafana
 	nginx
 	hypervisor
