@@ -25,6 +25,7 @@ logs/*
 .idea/
 webapp/.idea/
 engine/.idea/
+.vscode
 
 #pytest
 .pytest_cache

@@ -5,7 +5,7 @@ then
     exit 1
 fi
 
-/bin/rm -v /etc/ssh/ssh_host_*
+rm -v /etc/ssh/ssh_host_*
 ssh-keygen -f /etc/ssh/ssh_host_rsa_key -N '' -t rsa
 ssh-keygen -f /etc/ssh/ssh_host_dsa_key -N '' -t dsa
 echo "root:$PASSWORD" |chpasswd
