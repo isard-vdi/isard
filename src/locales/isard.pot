@@ -1,0 +1,609 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <ldoss01@elpuig.xeill.net>, 2019.
+# SECOND AUTHOR <dzafrar01@elpuig.xeill.net>, 2019.
+# THIRD AUTHOR <cberdung01@elpuig.xeill.net>, 2019.
+# FOURTH AUTHOR <amartor01@elpuig.xeill.net>, 2019.
+
+msgid ""
+msgstr ""
+
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2019-05-24 12:00+GMT+2\n"
+"PO-Revision-Date: 2019-05-29 11:15+GMT+2\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: pygettext.py 1.5\n"
+
+
+#Las cadenas a traducir estan ordenadas alfabeticamentes.
+
+#+---------- A ------------+
+
+#: alloweds.html:
+msgid "Allows"
+msgstr ""
+
+#: about.html:
+msgid "Admin login"
+msgstr ""	
+
+#: desktops.html:
+msgid "Action"
+msgstr ""
+
+#: desktops.html:
+msgid "Add new"
+msgstr ""
+
+#: desktops_modals.html:
+msgid "Add new desktop"
+msgstr ""
+
+#: login_disposables.html:
+msgid "©2016 All Rights Reserved. Privacy and Terms"
+msgstr ""
+
+#: media.html:
+msgid "Actions"
+msgstr ""
+
+#: media.html:
+msgid "Add new"
+msgstr ""
+
+#: media_modals.html:
+msgid "Adjust OS template Hardware"
+msgstr ""
+
+#: sidebar.html:
+msgid "About"
+msgstr ""
+
+#: sidebar.html:
+msgid "Administrator"
+msgstr ""
+
+#: sidebar.html:
+msgid "Android:"
+msgstr ""
+
+#: user_profile.html:
+msgid "Activity report"
+msgstr ""
+
+#: user_profile.html:
+msgid "Authentication:"
+msgstr ""
+
+#: voucher_validation.html:
+msgid "Account activated"
+msgstr ""
+
+#+---------- B ------------+
+
+#: alloweds_add.html:
+msgid "By default ONLY YOUR USER will have access"
+msgstr ""
+
+#: domain_derivates.html:
+msgid "Bulk edit"
+msgstr ""
+
+#: sidebar.html:
+msgid "Bases"
+msgstr ""
+
+#+---------- C ------------+
+
+#: alloweds_form.html:
+msgid "Close"
+msgstr ""
+
+#: alloweds_form.html:
+msgid "Cancel"
+msgstr ""
+
+#: about.html:
+msgid "Contact IsardVDI"
+msgstr ""
+
+#: base.html:
+msgid "Connection lost"
+msgstr ""
+
+#: domain_derivates.html:
+msgid "Category"
+msgstr ""
+
+#: login_disposables.html:
+msgid "Choose a desktop.."
+msgstr ""
+
+#: media_modals.html:
+msgid "Cancel"
+msgstr ""
+
+#: media_modals.html:
+msgid "Choose.."
+msgstr ""
+
+#: media_modals.html:
+msgid "Close"
+msgstr ""
+
+#: media_modals.html:
+msgid "Create desktop"
+msgstr ""
+
+#: media_modals.html:
+msgid "Create desktop from media"
+msgstr ""
+
+#: user_profile.html:
+msgid "Cancel"
+msgstr ""
+
+#: user_profile.html:
+msgid "Category:"
+msgstr ""
+
+#: user_profile.html:
+msgid "Change"
+msgstr ""
+
+#: user_profile.html:
+msgid "Change password"
+msgstr ""
+
+#: user_profile.html:
+msgid "Close"
+msgstr ""
+
+#: user_profile.html:
+msgid "Confirm Password"
+msgstr ""
+
+#+---------- D ------------+
+
+#: about.html:
+msgid "Documentation"
+msgstr ""
+
+#: domain_derivates.html:
+msgid "Derivates"
+msgstr ""
+
+#: domain_derivates.html:
+msgid "Domain derivates"
+msgstr ""
+
+#: domain_genealogy.html:
+msgid "Domain genealogy tree"
+msgstr ""
+
+#: domain_genealogy.html:
+msgid "Disk"
+msgstr ""
+
+#: header.html:
+msgid "Desktops"
+msgstr ""
+
+#: header.html:
+msgid "desktops of"
+msgstr ""
+
+#: header.html:
+msgid "Desktops running"
+msgstr ""
+
+#: media_modals.html:
+msgid "Default"
+msgstr ""
+
+#: media_modals.html:
+msgid "Description"
+msgstr ""
+
+#: media_modals.html:
+msgid "Desktop name and description"
+msgstr ""
+
+#: sidebar.html:
+msgid "Desktops"
+msgstr ""
+
+#: sidebar.html:
+msgid "Domains"
+msgstr ""
+
+#+---------- E ------------+
+
+#: about.html:
+msgid "Enter the simulated user"
+msgstr ""
+
+#: alloweds_form.html:
+msgid "Edit permissions"
+msgstr ""
+
+#: user_profile.html:
+msgid "email:"
+msgstr ""
+
+#+---------- F ------------+
+
+#: media_modals.html:
+msgid "Floppy"
+msgstr ""
+
+#+---------- G ------------+
+
+#: alloweds_add.html:
+msgid "Groups"
+msgstr ""
+
+#: domain_graphs.html:
+msgid "Graphs"
+msgstr ""
+
+#: domain_derivates.html:
+msgid "Group"
+msgstr ""
+
+#: domain_genealogy.html:
+msgid "Genealogy"
+msgstr ""
+
+#: sidebar.html:
+msgid "General"
+msgstr ""
+
+#: user_profile.html:
+msgid "Group:"
+msgstr ""
+
+#+---------- H ------------+
+
+#: media_modals.html:
+msgid "Hypervisor Pool"
+msgstr ""
+
+#: sidebar.html:
+msgid "Hypervisors"
+msgstr ""
+
+#+---------- I ------------+
+
+#: about.html:
+msgid "ISARD"
+msgstr ""
+
+#: about.html:
+msgid "isard.vdi@gmail.com"
+msgstr ""
+
+#: alloweds.html:
+msgid "Items"
+msgstr ""
+
+#: footer.html:
+msgid "Isard VDI - Virtual desktops"
+msgstr ""
+
+#: header.html:
+msgid "in your quota."
+msgstr ""
+
+#: header.html:
+msgid "Isos"
+msgstr ""
+
+#: header.html:
+msgid "ISO files of"
+msgstr ""
+
+#: login_disposables.html:
+msgid "Isard"
+msgstr ""
+
+#: login_disposables.html:
+msgid "Isard Login"
+msgstr ""
+
+#: login_disposables.html:
+msgid "Isard VDI"
+msgstr ""
+
+#: media_modals.html:
+msgid "ISO CD/DVD"
+msgstr ""
+
+#: templates.html:
+msgid "icon"
+msgstr ""
+
+#+---------- J ------------+
+#+---------- K ------------+
+
+#: domain_derivates.html:
+msgid "Kind"
+msgstr ""
+
+#: templates.html:
+msgid "kind"
+msgstr ""
+
+#+---------- L ------------+
+
+#: about.html:
+msgid "License:"
+msgstr ""
+
+#: header.html:
+msgid "Logout"
+msgstr ""
+
+#: login_disposables.html:
+msgid "Login"
+msgstr ""
+
+#: templates.html:
+msgid "List of templates"
+msgstr ""
+
+#: voucher_validation.html:
+msgid "Login | Isard"
+msgstr ""
+
+#+---------- M ------------+
+
+#: media.html:
+msgid "Media files"
+msgstr ""
+
+#: media.html:
+msgid "Media list"
+msgstr ""
+
+#: sidebar.html:
+msgid "Media"
+msgstr ""
+
+#+---------- N ------------+
+
+#: domain_derivates.html:
+msgid "Name"
+msgstr ""
+
+#: media.html:
+msgid "Name"
+msgstr ""
+
+#: media_modals.html:
+msgid "Name"
+msgstr ""
+
+#: templates.html:
+msgid "name"
+msgstr ""
+
+#: user_profile.html:
+msgid "New Password"
+msgstr ""
+
+#+---------- Ñ ------------+
+#+---------- O ------------+
+
+#: about.html:
+msgid "Open an issue"
+msgstr ""
+
+#: alloweds.html:
+msgid "Only these are allowed"
+msgstr ""
+
+#: alloweds_add.html:
+msgid "Categories"
+msgstr ""
+
+#: domain_genealogy.html:
+msgid "Order"
+msgstr ""
+
+#: media.html:
+msgid "Owner"
+msgstr ""
+
+#: voucher_validation.html:
+msgid "Oooops!"
+msgstr ""
+
+#+---------- P ------------+
+
+#: about.html:
+msgid "Password"
+msgstr ""
+
+#: media.html:
+msgid "Progress"
+msgstr ""
+
+#: page_404.html:
+msgid "Page not found!"
+msgstr ""
+
+#: templates_detail.html:
+msgid "Private/Public"
+msgstr ""
+
+#+---------- Q ------------+
+#+---------- R ------------+
+
+#: alloweds_add.html:
+msgid "Roles"
+msgstr ""
+
+#: header.html:
+msgid "running desktops of"
+msgstr ""
+
+#: sidebar.html:
+msgid "Resources"
+msgstr ""
+
+#: user_profile.html:
+msgid "Reset"
+msgstr ""
+
+#: user_profile.html:
+msgid "Role:"
+msgstr ""
+
+#+---------- S ------------+
+
+#: about.html:
+msgid "Source Code"
+msgstr ""
+
+#: about.html:
+msgid "success"
+msgstr ""
+
+#: alloweds_add.html:
+msgid "Set roles"
+msgstr ""
+
+#: alloweds_add.html:
+msgid "Set categories"
+msgstr ""
+
+#: alloweds_add.html:
+msgid "Set groups"
+msgstr ""
+
+#: alloweds_add.html:
+msgid "Set users"
+msgstr ""
+
+#: desktops.html:
+msgid "Status"
+msgstr ""
+
+#: media_modals.html:
+msgid "Start download"
+msgstr ""
+
+#: media_modals.html:
+msgid "Selected ISO/Floppy to boot from"
+msgstr ""
+
+#: media_modals.html:
+msgid "Select OS template"
+msgstr ""
+
+#: templates.html:
+msgid "Shares"
+msgstr ""
+
+#: templates.html:
+msgid "status"
+msgstr ""
+
+#: user_profile.html:
+msgid "Settings 1"
+msgstr ""
+
+#: user_profile.html:
+msgid "Settings 2"
+msgstr ""
+
+#+---------- T ------------+
+
+#: alloweds.html:
+msgid "Type"
+msgstr ""
+
+#: header.html:
+msgid "Templates"
+msgstr ""
+
+#: header.html:
+msgid "templates of"
+msgstr ""
+
+#: media_modals.html:
+msgid "Type"
+msgstr ""
+
+#: templates.html:
+msgid "Templates"
+msgstr ""
+
+#: voucher_validation.html:
+msgid " This link is not valid anymore. Please go to voucher registration again:"
+msgstr ""
+
+#+---------- U ------------+
+
+#: alloweds_add.html:
+msgid "Users"
+msgstr ""
+
+#: alloweds_form.html:
+msgid "Update permissions"
+msgstr ""
+
+#: domain_derivates.html:
+msgid "User"
+msgstr ""
+
+#: media.html:
+msgid "Upload and manage your isos"
+msgstr ""
+
+#: media_modals.html:
+msgid "Upload Media"
+msgstr ""
+
+#: media_modals.html:
+msgid "URL"
+msgstr ""
+
+#: user_profile.html:
+msgid "User Activity Report"
+msgstr ""
+
+#: user_profile.html:
+msgid "User Profile"
+msgstr ""
+
+#: user_profile.html:
+msgid "User Report"
+msgstr ""
+
+#+---------- V ------------+
+
+#: media_modals.html:
+msgid "Vers"
+msgstr ""
+
+#+---------- W ------------+
+#+---------- X ------------+
+#+---------- Y ------------+
+
+#: header.html:
+msgid "You have"
+msgstr ""
+
+#: media.html:
+msgid "Your media in system"
+msgstr ""
+
+#: voucher_validation.html:
+msgid " You should receive an email with your demo user and password."
+msgstr ""
+
+#+---------- Z ------------+

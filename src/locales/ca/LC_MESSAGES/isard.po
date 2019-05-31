@@ -1,0 +1,573 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <ldoss01@elpuig.xeill.net>, 2019.
+# SECOND AUTHOR <dzafrar01@elpuig.xeill.net>, 2019.
+# THIRD AUTHOR <cberdung01@elpuig.xeill.net>, 2019.
+# FOURTH AUTHOR <amartor01@elpuig.xeill.net>, 2019.
+
+msgid ""
+msgstr ""
+
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2019-05-24 12:00+GMT+2\n"
+"PO-Revision-Date: 2019-05-29 11:15+GMT+2\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: pygettext.py 1.5\n"
+
+
+#Les cadenes a tradüir estan ordenades alfabeticament.
+
+#+---------- A ------------+
+
+#: alloweds.html:
+msgid "Allows"
+msgstr "Permet"
+
+#: about.html:
+msgid "Admin login"
+msgstr "Inici de sessió d'administrador"	
+
+#: desktops.html:
+msgid "Action"
+msgstr "Acció"
+
+#: desktops_modals.html:
+msgid "Add new desktop"
+msgstr "Afegir un escriptori nou"
+
+#: login_disposables.html:
+msgid "©2016 All Rights Reserved. Privacy and Terms"
+msgstr "©2016 Tots els Drets Reservats. Privacitat i Condisions"
+
+#: media.html:
+msgid "Actions"
+msgstr "Accions"
+
+#: media.html:
+msgid "Add new"
+msgstr "Afegir nou"
+
+#: media_modals.html:
+msgid "Adjust OS template Hardware"
+msgstr "Ajusteu la plantilla del maquinari del sistema operatiu"
+
+#: sidebar.html:
+msgid "About"
+msgstr "Sobre"
+
+#: sidebar.html:
+msgid "Administrator"
+msgstr "Administrador"
+
+#: sidebar.html:
+msgid "Android:"
+msgstr "Android:"
+
+#: user_profile.html:
+msgid "Activity report"
+msgstr "Informe d'activitats"
+
+#: user_profile.html:
+msgid "Authentication:"
+msgstr "Autenticació"
+
+#: voucher_validation.html:
+msgid "Account activated"
+msgstr "Compte activat"
+
+#+---------- B ------------+
+
+#: alloweds_add.html:
+msgid "By default ONLY YOUR USER will have access"
+msgstr "Per defecte NOMÉS EL TEU USUARI tindrà accés"
+
+#: domain_derivates.html:
+msgid "Bulk edit"
+msgstr "Edició massiva"
+
+#: sidebar.html:
+msgid "Bases"
+msgstr "Bases"
+
+#+---------- C ------------+
+
+#: alloweds_form.html:
+msgid "Close"
+msgstr "Tancar"
+
+#: alloweds_form.html:
+msgid "Cancel"
+msgstr "Cancel·lar"
+
+#: about.html:
+msgid "Contact IsardVDI"
+msgstr "Contactar a IsardVDI"
+
+#: base.html:
+msgid "Connection lost"
+msgstr "Conexió perduda"
+
+#: domain_derivates.html:
+msgid "Category"
+msgstr "Categoria"
+
+#: login_disposables.html:
+msgid "Choose a desktop.."
+msgstr "Selecciona un escriptori.."
+
+#: media_modals.html:
+msgid "Choose.."
+msgstr "Tria.."
+
+#: media_modals.html:
+msgid "Create desktop"
+msgstr "Crear escriptori"
+
+#: media_modals.html:
+msgid "Create desktop from media"
+msgstr "Crear escriptori desde media"
+
+#: user_profile.html:
+msgid "Category:"
+msgstr "Categoría"
+
+#: user_profile.html:
+msgid "Change"
+msgstr "Canviar"
+
+#: user_profile.html:
+msgid "Change password"
+msgstr "Canviar contrasenya"
+
+#: user_profile.html:
+#msgid "Close"
+#msgstr "Tancar"
+
+#: user_profile.html:
+msgid "Confirm Password"
+msgstr "Confirmar contrasenya"
+
+#+---------- D ------------+
+
+#: about.html:
+msgid "Documentation"
+msgstr "Documentació"
+
+#: domain_derivates.html:
+msgid "Derivates"
+msgstr "Derivats"
+
+#: domain_derivates.html:
+msgid "Domain derivates"
+msgstr "Derivats del domini"
+
+#: domain_genealogy.html:
+msgid "Domain genealogy tree"
+msgstr "Arbre genealògic del domini"
+
+#: domain_genealogy.html:
+msgid "Disk"
+msgstr "Disc"
+
+#: header.html:
+msgid "desktops of"
+msgstr "Escriptoris de"
+
+#: header.html:
+msgid "Desktops running"
+msgstr "Escriptoris executant-se"
+
+#: media_modals.html:
+msgid "Default"
+msgstr "Per defecte"
+
+#: media_modals.html:
+msgid "Description"
+msgstr "Descripció"
+
+#: media_modals.html:
+msgid "Desktop name and description"
+msgstr "Nom d'escriptori i descripció"
+
+#: sidebar.html:
+msgid "Desktops"
+msgstr "Escriptoris"
+
+#: sidebar.html:
+msgid "Domains"
+msgstr "Dominis"
+
+#+---------- E ------------+
+
+#: about.html:
+msgid "Enter the simulated user"
+msgstr "Introdueix l'usuari simulat"
+
+#: alloweds_form.html:
+msgid "Edit permissions"
+msgstr "Editar permisos"
+
+#: user_profile.html:
+msgid "email:"
+msgstr "e-mail"
+
+#+---------- F ------------+
+
+#: media_modals.html:
+msgid "Floppy"
+msgstr "Disquet"
+
+#+---------- G ------------+
+
+#: alloweds_add.html:
+msgid "Groups"
+msgstr "Grups"
+
+#: domain_graphs.html:
+msgid "Graphs"
+msgstr "Gràfics"
+
+#: domain_derivates.html:
+msgid "Group"
+msgstr "Grup"
+
+#: domain_genealogy.html:
+msgid "Genealogy"
+msgstr "Genealògic"
+
+#: sidebar.html:
+msgid "General"
+msgstr "General"
+
+#: user_profile.html:
+msgid "Group:"
+msgstr "Grup"
+
+#+---------- H ------------+
+
+#: media_modals.html:
+msgid "Hypervisor Pool"
+msgstr "Grup d'Hipervisors"
+
+#: sidebar.html:
+msgid "Hypervisors"
+msgstr "Hipervisors"
+
+#+---------- I ------------+
+
+#: about.html:
+msgid "ISARD"
+msgstr "ISARD"
+
+#: about.html:
+msgid "isard.vdi@gmail.com"
+msgstr "isard.vdi@gmail.com"
+
+#: alloweds.html:
+msgid "Items"
+msgstr "Objetes"
+
+#: footer.html:
+msgid "Isard VDI - Virtual desktops"
+msgstr "Isard VDI - Escritoriptoris virtuals"
+
+#: header.html:
+msgid "in your quota."
+msgstr "en la teva quota."
+
+#: header.html:
+msgid "Isos"
+msgstr "Isos"
+
+#: header.html:
+msgid "ISO files of"
+msgstr "Fichers ISO de"
+
+#: login_disposables.html:
+msgid "Isard"
+msgstr "Isard"
+
+#: login_disposables.html:
+msgid "Isard Login"
+msgstr "Inici de sedsión de Isard"
+
+#: login_disposables.html:
+msgid "Isard VDI"
+msgstr "Isard VDI"
+
+#: media_modals.html:
+msgid "ISO CD/DVD"
+msgstr "ISO CD/DVD"
+
+#: templates.html:
+msgid "icon"
+msgstr "icona"
+
+#+---------- J ------------+
+#+---------- K ------------+
+
+#: domain_derivates.html:
+msgid "Kind"
+msgstr "Tipus"
+
+#: templates.html:
+msgid "kind"
+msgstr "tipus"
+
+#+---------- L ------------+
+
+#: about.html:
+msgid "License:"
+msgstr "Llicència"
+
+#: header.html:
+msgid "Logout"
+msgstr "Tanca sessió"
+
+#: login_disposables.html:
+msgid "Login"
+msgstr "Inicia sessión"
+
+#: templates.html:
+msgid "List of templates"
+msgstr "Llista de plantilles"
+
+#: voucher_validation.html:
+msgid "Login | Isard"
+msgstr "Inicia sessió | Isard"
+
+#+---------- M ------------+
+
+#: media.html:
+msgid "Media files"
+msgstr "Fichers media"
+
+#: media.html:
+msgid "Media list"
+msgstr "Llista de media"
+
+#: sidebar.html:
+msgid "Media"
+msgstr "Media"
+
+#+---------- N ------------+
+
+#: media_modals.html:
+msgid "Name"
+msgstr "Nom"
+
+#: templates.html:
+msgid "name"
+msgstr "nom"
+
+#: user_profile.html:
+msgid "New Password"
+msgstr "Nova contrasenya"
+
+#+---------- Ñ ------------+
+#+---------- O ------------+
+
+#: about.html:
+msgid "Open an issue"
+msgstr "Informar d'un error"
+
+#: alloweds.html:
+msgid "Only these are allowed"
+msgstr "Només aquests estan permessos"
+
+#: alloweds_add.html:
+msgid "Categories"
+msgstr "Categories"
+
+#: domain_genealogy.html:
+msgid "Order"
+msgstr "Encàrrec"
+
+#: media.html:
+msgid "Owner"
+msgstr "Propietari"
+
+#: voucher_validation.html:
+msgid "Oooops!"
+msgstr "Vaya!"
+
+#+---------- P ------------+
+
+#: about.html:
+msgid "Password"
+msgstr "Contrasenya"
+
+#: media.html:
+msgid "Progress"
+msgstr "Progrés"
+
+#: page_404.html:
+msgid "Page not found!"
+msgstr "Pàgina no trobada!"
+
+#: templates_detail.html:
+msgid "Private/Public"
+msgstr "Privat/Públic"
+
+#+---------- Q ------------+
+#+---------- R ------------+
+
+#: alloweds_add.html:
+msgid "Roles"
+msgstr "Rols"
+
+#: header.html:
+msgid "running desktops of"
+msgstr "executant escriptoris de"
+
+#: sidebar.html:
+msgid "Resources"
+msgstr "Recursos"
+
+#: user_profile.html:
+msgid "Reset"
+msgstr "Restablir"
+
+#: user_profile.html:
+msgid "Role:"
+msgstr "Rol:"
+
+#+---------- S ------------+
+
+#: about.html:
+msgid "Source Code"
+msgstr "Codi font"
+
+#: about.html:
+msgid "success"
+msgstr "aconseguit"
+
+#: alloweds_add.html:
+msgid "Set roles"
+msgstr "Establir rols"
+
+#: alloweds_add.html:
+msgid "Set categories"
+msgstr "Establir categoríes"
+
+#: alloweds_add.html:
+msgid "Set groups"
+msgstr "Establir grups"
+
+#: alloweds_add.html:
+msgid "Set users"
+msgstr "Establir usuaris"
+
+#: desktops.html:
+msgid "Status"
+msgstr "Estat"
+
+#: media_modals.html:
+msgid "Start download"
+msgstr "Començar descàrrega"
+
+#: media_modals.html:
+msgid "Selected ISO/Floppy to boot from"
+msgstr "ISO/Disquet seleccionat per a bootear de"
+
+#: media_modals.html:
+msgid "Select OS template"
+msgstr "Selecciona una plantilla d'un sistema operatiu"
+
+#: templates.html:
+msgid "Shares"
+msgstr "Compartits"
+
+#: templates.html:
+msgid "status"
+msgstr "estat"
+
+#: user_profile.html:
+msgid "Settings 1"
+msgstr "Opcions 1"
+
+#: user_profile.html:
+msgid "Settings 2"
+msgstr "Opcions 2"
+
+#+---------- T ------------+
+
+#: header.html:
+msgid "templates of"
+msgstr "plantilles de"
+
+#: media_modals.html:
+msgid "Type"
+msgstr "Tipus"
+
+#: templates.html:
+msgid "Templates"
+msgstr "Plantilles"
+
+#: voucher_validation.html:
+msgid " This link is not valid anymore. Please go to voucher registration again:"
+msgstr " Aquest link ya no es vàlid mai més. Si us plau realitza el ticket de registre una altra vegada."
+
+#+---------- U ------------+
+
+#: alloweds_add.html:
+msgid "Users"
+msgstr "Usuaris"
+
+#: alloweds_form.html:
+msgid "Update permissions"
+msgstr "Actualitzar permisos"
+
+#: domain_derivates.html:
+msgid "User"
+msgstr "Usuari"
+
+#: media.html:
+msgid "Upload and manage your isos"
+msgstr "Pujar y modificar les teves isos"
+
+#: media_modals.html:
+msgid "Upload Media"
+msgstr "Pujar Media"
+
+#: media_modals.html:
+msgid "URL"
+msgstr "URL"
+
+#: user_profile.html:
+msgid "User Activity Report"
+msgstr "Report de l'Activitat del Usuari"
+
+#: user_profile.html:
+msgid "User Profile"
+msgstr "Perfil d'Usuari'"
+
+#: user_profile.html:
+msgid "User Report"
+msgstr "Report d'Usuari"
+
+#+---------- V ------------+
+
+#: media_modals.html:
+msgid "Vers"
+msgstr "Vers."
+
+#+---------- W ------------+
+#+---------- X ------------+
+#+---------- Y ------------+
+
+#: header.html:
+msgid "You have"
+msgstr "Tu tens"
+
+#: media.html:
+msgid "Your media in system"
+msgstr "La teva media en el sistema"
+
+#: voucher_validation.html:
+msgid "You should receive an email with your demo user and password."
+msgstr "Hauries d'haver rebut un e-mail amb la teva demo d'usuari i contrasenya."
+
+#+---------- Z ------------+
