@@ -142,10 +142,6 @@ msgid "Change password"
 msgstr "Canviar contrasenya"
 
 #: user_profile.html:
-#msgid "Close"
-#msgstr "Tancar"
-
-#: user_profile.html:
 msgid "Confirm Password"
 msgstr "Confirmar contrasenya"
 
