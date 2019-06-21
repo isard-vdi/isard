@@ -18,7 +18,7 @@ then
     USER=root
 fi
 
-apk add sshpass
+apk add --no-cache sshpass
 if [ -f /NEWHYPER ]
 then
     rm /NEWHYPER

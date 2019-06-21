@@ -77,7 +77,15 @@ class isardScheduler():
     def stop_domains_without_viewer():
         with app.app_context():
             r.table('domains').get_all('Started',index='status').filter({'viewer':{'client_since':False}}).update({'status':'Stopping'}).run(db.conn)
-          
+
+    def check_ephimeral_status():
+        with app.app_context():
+            domains=r.table('domains').get_all('Started',index='status').has_fields('ephimeral').pluck('id','ephimeral','history_domain').run(db.conn)
+            t=time.time()
+            for d in domains:
+                if d['history_domain'][0]['when']+int(d['ephimeral']['minutes'])*60 < t:
+                    r.table('domains').get(d['id']).update({'status':d['ephimeral']['action']}).run(db.conn)
+                      
     def delete_old_stats(reduce_interval=300,delete_interval=86400): # 24h
         with app.app_context():
             # domains_status

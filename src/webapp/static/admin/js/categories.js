@@ -24,7 +24,15 @@ $(document).ready(function() {
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
             { "data": "name", className: "xe-name" },
-            { "data": "description", className: "xe-description"}
+            { "data": "description", className: "xe-description"},
+			{
+			"className":      'details-control',
+			"orderable":      false,
+			"data":           null,
+			"width": "10px",
+            "defaultContent": ''
+			//~ "defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+			}
         ]
     } );
 
@@ -53,6 +61,59 @@ $(document).ready(function() {
 			}).modal('show');
             $('#modalAddCategoryForm')[0].reset();
             //~ setModalAddUser();
+            
+             $('#modalAddCategoryForm #auto-desktops').select2({
+                minimumInputLength: 2,
+                multiple: true,
+                ajax: {
+                    type: "POST",
+                    url: '/admin/getAllTemplates',
+                    dataType: 'json',
+                    contentType: "application/json",
+                    delay: 250,
+                    data: function (params) {
+                        return  JSON.stringify({
+                            term: params.term,
+                            pluck: ['id','name']
+                        });
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item, i) {
+                                return {
+                                    text: item.name,
+                                    id: item.id
+                                }
+                            })
+                        };
+                    }
+                },
+            });   
+		
+        $("#modalAddCategoryForm #ephimeral-minutes").ionRangeSlider({
+                  type: "single",
+                  min: 5,
+                  max: 120,
+                  step:5,
+                  grid: true,
+                  disable: false
+                  }).data("ionRangeSlider").update();
+                  
+        $("#modalAddCategoryForm #ephimeral-enabled").on('ifChecked', function(event){
+                console.log('checked')
+				  $("#modalAddCategoryForm #ephimeral-data").show();
+		});
+        $("#modalAddCategoryForm #ephimeral-enabled").on('ifUnchecked', function(event){
+				  $("#modalAddCategoryForm #ephimeral-data").hide();
+		});        
+
+        $("#modalAddCategoryForm #auto-desktops-enabled").on('ifChecked', function(event){
+                console.log('checked')
+				  $("#modalAddCategoryForm #auto-desktops-data").show();
+		});
+        $("#modalAddCategoryForm #auto-desktops-enabled").on('ifUnchecked', function(event){
+				  $("#modalAddCategoryForm #auto-desktops-data").hide();
+		}); 		          
 	});    
 
     $("#modalAddCategory #send").on('click', function(e){
@@ -61,6 +122,12 @@ $(document).ready(function() {
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalAddCategoryForm').serializeObject();
+                if(!data['ephimeral-enabled']){
+                    delete data['ephimeral-minutes'];
+                    delete data['ephimeral-action'];
+                }
+                delete data['ephimeral-enabled'];
+                delete data['auto-desktops-enabled'];
                 data['table']='categories';
                 socket.emit('role_category_group_add',data)  
             }

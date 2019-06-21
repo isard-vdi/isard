@@ -609,7 +609,7 @@ def update_domain_history_status(domain_id, new_status, when, history_domain, de
 
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
-    results = rtable.get(domain_id).update({'history_domain': list_history_domain}).run(r_conn)
+    results = rtable.get(domain_id).update({'history_domain': list_history_domain,'accessed':int(when)}).run(r_conn)
 
     close_rethink_connection(r_conn)
     return results

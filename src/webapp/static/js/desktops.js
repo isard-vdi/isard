@@ -92,7 +92,7 @@ $(document).ready(function() {
 							{
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
-							  return renderStatus(full);
+							  return renderStatus(full,table);
 							}},
                             {
 							"targets": 5,
@@ -244,10 +244,11 @@ $(document).ready(function() {
     });
 
    
-    
+    countdown ={}
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
         if(data.status =='Started' && table.row('#'+data.id).data().status != 'Started'){
+            
             if('preferred' in data['options']['viewers'] && data['options']['viewers']['preferred']){
                 socket.emit('domain_viewer',{'pk':data.id,'kind':data['options']['viewers']['preferred'],'os':getOS()});
             }else{
@@ -256,14 +257,16 @@ $(document).ready(function() {
                         backdrop: 'static',
                         keyboard: false
                     }).modal('show');
-        }
-
+            }
+        }else{
+            //~ if('ephimeral' in data && !countdown[data.id]){
+                clearInterval(countdown[data.id])
+                countdown[data.id]=null
+            //~ }
         }
         
-        //~ if(claimed==false){
 
-        //~ }
-            
+
         dtUpdateInsert(table,data,false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
@@ -542,7 +545,15 @@ function renderIcon1x(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon1x(data.icon)+'</span>'
 }
 
-function renderStatus(data){
+function renderStatus(data,table){
+        if(data.status =='Started' && 'ephimeral' in data && !countdown[data.id]){
+                countdown[data.id]=setInterval(function(){
+                    if(data.finish < moment().unix()){clearInterval(countdown[data.id]);}
+                    data.description="<b style='color:red'>REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+' seconds</b>'
+                    dtUpdateInsert(table,data,false);
+                    },1000);
+        }
+    
 		return data.status;
 }
 	
@@ -569,6 +580,18 @@ function renderAction(data){
 		//~ return '';
 //~ }
 
+//~ function renderEphimeral(data){ 
+            
+            //~ perc = data.ephimeral.minutes
+            //~ time_remaining=
+            //~ return data.ephimeral.minutes+''+data.accessed'<div class="progress"> \
+                  //~ <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+                  //~ aria-valuemin="0" aria-valuemax="'+data.ephimeral.minutes+'" style="width:'+perc+'%"> \
+                    //~ Time remaining:'+perc+'%  \
+                  //~ </div> \
+                //~ </<div> '
+//~ }
+
 function renderMedia(data){
         html=''
         if('isos' in data.create_dict.hardware){
@@ -585,7 +608,7 @@ function renderMedia(data){
             $.each(data.create_dict.hardware.storage,function(key, value){
                 html+='<i class="fa fa-hdd-o fa-2x" title="'+value.name+'"></i> ';
             });
-        }                
+        }    
         return html;
 }
 

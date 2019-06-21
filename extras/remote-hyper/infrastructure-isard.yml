@@ -5,12 +5,12 @@ services:
     volumes:
       - "/opt/isard/database:/data"
       - "/etc/localtime:/etc/localtime:ro"
-    ports:
-      - "8080:8080"        
     networks:
       - isard_network
     image: rethinkdb
     restart: unless-stopped
+    logging:
+        driver: none
 
   isard-nginx:
     container_name: isard-nginx
@@ -23,47 +23,30 @@ services:
       - "443:443"
     networks:
       - isard_network
-    image: isard/nginx:1.1
+    image: isard/nginx:1
     restart: unless-stopped
     depends_on:
       - isard-app
 
-  isard-hypervisor:
-    container_name: isard-hypervisor
-    volumes:
-      - "sshkeys:/root/.ssh"
-      - "/opt/isard:/isard"
-      - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
-      - "/etc/localtime:/etc/localtime:ro"
-    ports:
-      - "5900-5949:5900-5949"
-      - "55900-55949:55900-55949"
-    networks:
-      - isard_network
-    image: isard/hypervisor:1.1
-    privileged: true
-    restart: unless-stopped
-        
   isard-app:
     container_name: isard-app
     volumes:
       - "sshkeys:/root/.ssh"
-      - "../../src:/isard"
       - "/opt/isard/certs:/certs"
       - "/opt/isard/logs:/isard/logs"
       - "/opt/isard/database/wizard:/isard/install/wizard"
       - "/opt/isard/backups:/isard/backups"
       - "/opt/isard/uploads:/isard/uploads"
+      - "/etc/localtime:/etc/localtime:ro"
     extra_hosts:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
-    image: isard/app:1.1
+    image: isard/app:1
     restart: unless-stopped
     depends_on:
       - isard-database
-      - isard-hypervisor
-      
+
 volumes:
   sshkeys:
 
@@ -71,4 +54,3 @@ networks:
   isard_network:
     external: false
     name: isard_network
-

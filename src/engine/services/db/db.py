@@ -399,3 +399,20 @@ def get_media_with_status(status):
         close_rethink_connection(r_conn)
         return []
     return [d['id'] for d in results]
+
+def get_graphics_types(id_graphics='default'):
+    """
+    get spice graphics options like compression, audio...
+    :param id_graphics:
+    :return:
+    """
+    r_conn = new_rethink_connection()
+    rtable = r.table('graphics')
+    try:
+        types = rtable.get(id_graphics).pluck('types').run(r_conn)
+        d_types = types['types']
+    except:
+        d_types = None
+    close_rethink_connection(r_conn)
+
+    return d_types

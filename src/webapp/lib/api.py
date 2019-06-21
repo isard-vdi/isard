@@ -49,7 +49,7 @@ class isard():
     def update_table_status(self,user,table,data,remote_addr):
             item = table[:-1].capitalize()
             with app.app_context():
-                dom = r.table(table).get(data['pk']).pluck('status','name').run(db.conn)          
+                dom = r.table(table).get(data['pk']).pluck('status','name','ephimeral').run(db.conn)          
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
@@ -92,6 +92,20 @@ class isard():
                             if float(app.isardapi.get_user_quotas(current_user.username)['rqp']) >= 100:
                                 return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started because you have exceeded quota','icon':'warning','type':'warning'}), 500, {'ContentType':'application/json'}
                             self.auto_interface_set(user,data['pk'],remote_addr)
+                            if 'ephimeral' in dom.keys():
+                                try:
+                                    trigger=list(r.table('scheduler_jobs').filter({'action':'check_ephimeral_status'}).run(db.conn))[0]
+                                    ci=trigger['next_run_time']
+                                    i=1
+                                    t=time.time()
+                                    while ci < t+int(dom['ephimeral']['minutes'])*60:
+                                        ci=trigger['next_run_time']+int(trigger['minute'])*60*i
+                                        i=i+1
+                                    dom['ephimeral']['finish']=trigger['next_run_time']+int(trigger['minute'])*60*(i-1)
+                                    r.table(table).get(data['pk']).update({'ephimeral': dom['ephimeral']}).run(db.conn)
+                                except Exception as e:
+                                    r.table(table).get(data['pk']).replace(r.row.without('ephimeral')).run(db.conn)
+                                    log.error('Exception in ephimeral time range set: '+str(e))
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                                 return json.dumps({'title':False,'text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
                             else:
@@ -101,6 +115,9 @@ class isard():
                 return json.dumps({'title':'Method not allowed','text':'That action is not allowed!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
             except Exception as e:
                 log.error('Error updating status for '+dom['name']+': '+str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                log.error(exc_type, fname, exc_tb.tb_lineno)                
                 return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
 
     def auto_interface_set(self,user,id, remote_addr):
@@ -1020,11 +1037,30 @@ class isard():
         #~ with app.app_context():
             #~ return self.check(r.table('domains').get(original_domain['id']).update({"create_dict": create_dict, "status": "CreatingTemplate"}).run(db.conn),'replaced')
 
+    def new_domains_auto_user(self,user,auto_templates):
+        with app.app_context():
+            usr_dsk=r.table('domains').get_all(user, index='user').filter({'kind':'desktop'}).run(db.conn)
+            usr_dsk_list=[d['id'] for d in usr_dsk]
+        for t in auto_templates['desktops']:
+            if '_'+user+'_'+t.split("_",2)[2] in usr_dsk_list: continue
+            with app.app_context():
+                tmpl=r.table('domains').get(t).run(db.conn)    
+                tmpl['create_dict']['template']=tmpl['id']
+                tmpl['create_dict']['name']=tmpl['name']
+                tmpl['create_dict']['description']=tmpl['description']
+                tmpl['create_dict']['hypervisors_pools']=tmpl['hypervisors_pools']
+                        
+            self.new_domain_from_tmpl(user, tmpl['create_dict'])
 
     def new_domain_from_tmpl(self, user, create_dict):
         with app.app_context():
             userObj=r.table('users').get(user).pluck('id','category','group').run(db.conn)
-            dom=app.isardapi.get_domain(create_dict['template'])
+            ephimeral_cat=r.table('categories').get(userObj['category']).pluck('ephimeral').run(db.conn)
+            ephimeral_group=r.table('groups').get(userObj['group']).pluck('ephimeral').run(db.conn)
+        ephimeral = ephimeral_group if 'ephimeral' in ephimeral_group.keys() else  ephimeral_cat
+        
+        dom=app.isardapi.get_domain(create_dict['template'])
+            
         parent_disk=dom['hardware-disks'][0]['file']
 
         parsed_name = self.parse_string(create_dict['name'])
@@ -1055,6 +1091,8 @@ class isard():
                               'categories': False,
                               'groups': False,
                               'users': False}}
+        if 'ephimeral' in ephimeral.keys():
+            new_domain['ephimeral']=ephimeral['ephimeral']
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 

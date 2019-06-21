@@ -80,26 +80,26 @@ class isardViewer():
                 return {'host':hostname,
                         'name': domain['name'],
                         'port': port,
-                        'wsport': "5" + port,
+                        'wsport': "5" + str(port),
                         'tlsport': tlsport,
                         'ca':viewer['certificate'],
                         'domain':viewer['domain'],
                         'host-subject':viewer['host-subject'],
                         'passwd':domain['viewer']['passwd'],
-                        'uri': 'https://<domain>/wsviewer/spice'+selfsigned+'/?host='+hostname+'&port=5'+port+'&passwd='+domain['viewer']['passwd']+'&protocol=wss',
+                        'uri': 'https://<domain>/wsviewer/spice'+selfsigned+'/?host='+hostname+'&port=5'+str(port)+'&passwd='+domain['viewer']['passwd']+'&protocol=wss',
                         'viewers_options': domain['options']['viewers']['spice'] if 'spice' in domain['options']['viewers'].keys() else False}
             if viewer['defaultMode'] == "Insecure" and domain['viewer']['port_spice'] is not False:
                 port=self.get_viewer_port(domain['hyp_started'],domain['viewer']['port_spice'],remote_addr)
                 return {'host':hostname,
                         'name': domain['name'],
                         'port': port,
-                        'wsport': "5" + port,
+                        'wsport': "5" + str(port),
                         'tlsport':False,
                         'ca':False,
                         'domain':False,
                         'host-subject':False,
                         'passwd':domain['viewer']['passwd'],
-                        'uri': 'http://<domain>/wsviewer/spice/?host='+hostname+'&port=5'+port+'&passwd='+domain['viewer']['passwd']+'&protocol=ws',
+                        'uri': 'http://<domain>/wsviewer/spice/?host='+hostname+'&port=5'+str(port)+'&passwd='+domain['viewer']['passwd']+'&protocol=ws',
                         'options':domain['options']['viewers']['spice'] if 'spice' in domain['options']['viewers'].keys() else False}
             log.error('No available Spice Viewer for domain '+id+' exception:'+str(e))
             return False
@@ -121,23 +121,23 @@ class isardViewer():
                 return {'host':hostname,
                         'name': domain['name'],
                         'port': port,
-                        'wsport': "5" + port,
+                        'wsport': "5" + str(port),
                         'ca':viewer['certificate'],
                         'domain':viewer['domain'],
                         'host-subject':viewer['host-subject'],
                         'passwd': domain['viewer']['passwd'],
-                        'uri': 'https://<domain>/wsviewer/novnclite'+selfsigned+'/?host='+hostname+'&port=5'+port+'&password='+domain['viewer']['passwd'],
+                        'uri': 'https://<domain>/wsviewer/novnclite'+selfsigned+'/?host='+hostname+'&port=5'+str(port)+'&password='+domain['viewer']['passwd'],
                         'options': domain['options']['viewers']['vnc'] if 'vnc' in domain['options']['viewers'].keys() else False}
             if viewer['defaultMode'] == "Insecure" and domain['viewer']['port_spice'] is not False:
                 return {'host':hostname,
                         'name': domain['name'],
                         'port': port,
-                        'wsport': "5" + port,
+                        'wsport': "5" + str(port),
                         'ca':viewer['certificate'],
                         'domain':viewer['domain'],
                         'host-subject':viewer['host-subject'],
                         'passwd': domain['viewer']['passwd'],
-                        'uri': 'http://<domain>/wsviewer/novnclite/?host='+hostname+'&port=5'+port+'&password='+domain['viewer']['passwd'],
+                        'uri': 'http://<domain>/wsviewer/novnclite/?host='+hostname+'&port=5'+str(port)+'&password='+domain['viewer']['passwd'],
                         'options': domain['options']['viewers']['vnc'] if 'vnc' in domain['options']['viewers'].keys() else False}                
             log.error('No available VNC Viewer for domain '+id+' exception:'+str(e))
             return False
