@@ -21,7 +21,7 @@ services:
       - "443:443"
     networks:
       - isard_network
-    image: isard/nginx:${TAG}
+    image: isard/nginx:${TAG:-latest}
     build:
       context: .
       dockerfile: dockers/nginx/Dockerfile    
@@ -41,7 +41,7 @@ services:
       - "55900-55999:55900-55999"
     networks:
       - isard_network
-    image: isard/hypervisor:${TAG}
+    image: isard/hypervisor:${TAG:-latest}
     build:
       context: .
       dockerfile: dockers/hypervisor/Dockerfile    
@@ -62,7 +62,7 @@ services:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
-    image: isard/app:${TAG}
+    image: isard/app:${TAG:-latest}
     build:
       context: .
       dockerfile: dockers/app/Dockerfile
