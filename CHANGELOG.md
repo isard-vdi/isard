@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2019-07-06
+
+### Fixed
+
+- Removed last access from the user profile page [#67](https://github.com/isard-vdi/isard/issues/67)
+- Hide the delete user button until it works [#171](https://github.com/isard-vdi/isard/issues/171)
+- Don't depend only on environment variables for the Docker Compose Isard version [#175](https://github.com/isard-vdi/isard/pull/175)
+
 ## [1.2.0] - 2019-06-21 | La Pedriza
 
 ### Added
