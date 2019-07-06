@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2019-07-06
+
+### Fixed
+
+- Removed last access from the user profile page [#67](https://github.com/isard-vdi/isard/issues/67)
+- Hide the delete user button until it works [#171](https://github.com/isard-vdi/isard/issues/171)
+- Don't depend only on environment variables for the Docker Compose Isard version [#175](https://github.com/isard-vdi/isard/pull/175)
+
+## [1.2.0] - 2019-06-21 | La Pedriza
+
+### Added
+- Create desktops automatically when a user from a specific category / group logs in [#134](https://github.com/isard-vdi/isard/issues/134)
+- Ephimeral desktops for a specific category / group [#133](https://github.com/isard-vdi/isard/issues/133)
+- New Docker and Docker Compose developing system [#160](https://github.com/isard-vdi/isard/issues/160)
+- Set predefined desktops when adding users in bulk [#138](https://github.com/isard-vdi/isard/issues/138)
+
+### Changed
+
+- Improved the XML definitions to boost the video performance [#157](https://github.com/isard-vdi/isard/issues/157)
+
+### Fixed
+- Add minimum template name length [#136](https://github.com/isard-vdi/isard/issues/136)
+- Fix hypervisor port variable type when updating an hypervisor [#137](https://github.com/isard-vdi/isard/issues/137)
+- Fix VNC port variable type when updating it [#139](https://github.com/isard-vdi/isard/issues/139)
+- Remote hyper port 22 restriction [#149](https://github.com/isard-vdi/isard/issues/149)
+- In some cases, the SSH keys weren't copied to the hypervisor [#155](https://github.com/isard-vdi/isard/issues/155)
+
 ## [1.1.1] - 2019-03-19
 
 ### Fixed
