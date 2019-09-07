@@ -71,10 +71,11 @@ type GuacamoleHTTPTunnelServlet struct {
 }
 
 // NewGuacamoleHTTPTunnelServlet Construct funtion
-func NewGuacamoleHTTPTunnelServlet(doConnect DoConnectInterface) (ret GuacamoleHTTPTunnelServlet) {
-	ret.tunnels = NewGuacamoleHTTPTunnelMap()
-	ret.doConnect = doConnect
-	return
+func NewGuacamoleHTTPTunnelServlet(doConnect DoConnectInterface) *GuacamoleHTTPTunnelServlet {
+	return &GuacamoleHTTPTunnelServlet{
+		tunnels:   NewGuacamoleHTTPTunnelMap(),
+		doConnect: doConnect,
+	}
 }
 
 /**

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/jakecoffman/guac"
+	"github.com/jakecoffman/guac/cmd/guac/secret"
 	logger "github.com/sirupsen/logrus"
 	"net/http"
 )
@@ -12,10 +13,23 @@ func main() {
 
 	servlet := NewServletHandleStruct(DemoDoConnect)
 
-	myHandler := http.NewServeMux()
-	myHandler.Handle(servlet.GetEnterPath(), &servlet)
-	myHandler.Handle("/", http.FileServer(http.Dir(".")))
+	fs := http.FileServer(http.Dir("."))
 
+	myHandler := http.NewServeMux()
+	myHandler.HandleFunc("/tunnel", func(w http.ResponseWriter, r *http.Request) {
+		logger.Println("1--", r.Method, r.URL)
+		servlet.ServeHTTP(w, r)
+	})
+	myHandler.HandleFunc("/tunnel/", func(w http.ResponseWriter, r *http.Request) {
+		logger.Println("2--", r.Method, r.URL)
+		servlet.ServeHTTP(w, r)
+	})
+	myHandler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		logger.Println(r.Method, r.URL)
+		fs.ServeHTTP(w, r)
+	})
+
+	logger.Println("Serving on https://127.0.0.1:4567")
 	// init server
 	s := &http.Server{
 		Addr:           ":4567",
@@ -124,13 +138,12 @@ const enterPath = "/tunnel"
 
 // ServletHandleStruct servlet
 type ServletHandleStruct struct {
-	guac.GuacamoleHTTPTunnelServlet
+	*guac.GuacamoleHTTPTunnelServlet
 }
 
 // NewServletHandleStruct servlet
-func NewServletHandleStruct(doConnect guac.DoConnectInterface) (ret ServletHandleStruct) {
-	ret.GuacamoleHTTPTunnelServlet = guac.NewGuacamoleHTTPTunnelServlet(doConnect)
-	return
+func NewServletHandleStruct(doConnect guac.DoConnectInterface) *ServletHandleStruct {
+	return &ServletHandleStruct{guac.NewGuacamoleHTTPTunnelServlet(doConnect)}
 }
 
 // GetEnterPath for http enter
@@ -140,15 +153,9 @@ func (opt *ServletHandleStruct) GetEnterPath() string {
 
 // ServeHTTP override
 func (opt *ServletHandleStruct) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != enterPath || r.Method != "GET" && r.Method != "POST" {
-		http.NotFound(w, r)
-		return
-	}
 	var err error
 	response := SwapResponse(w)
 	request := SwapRequest(r)
-
-	response.SetHeader("Access-Control-Allow-Origin", "*")
 
 	switch r.Method {
 	case "GET":
@@ -168,12 +175,11 @@ func DemoDoConnect(request guac.HTTPServletRequestInterface) (ret guac.Guacamole
 	config := guac.NewGuacamoleConfiguration()
 	infomation := guac.NewGuacamoleClientInformation()
 
-	config.SetProtocol("rdp")
-	config.SetParameter("hostname", "10.246.64.205")
-	config.SetParameter("port", "3389")
-	config.SetParameter("username", "admin")
-	config.SetParameter("security", "nla")
-	config.SetParameter("ignore-cert", "true")
+	config.SetProtocol("ssh")
+	config.SetParameter("port", "22")
+	config.SetParameter("hostname", secret.Host)
+	config.SetParameter("username", secret.Username)
+	config.SetParameter("password", secret.Password)
 
 	// view
 	infomation.SetOptimalScreenHeight(600)
