@@ -14,7 +14,7 @@ func main() {
 
 	myHandler := http.NewServeMux()
 	myHandler.Handle(servlet.GetEnterPath(), &servlet)
-	myHandler.Handle("/", http.FileServer(http.Dir("./")))
+	myHandler.Handle("/", http.FileServer(http.Dir(".")))
 
 	// init server
 	s := &http.Server{
@@ -168,13 +168,12 @@ func DemoDoConnect(request guac.HTTPServletRequestInterface) (ret guac.Guacamole
 	config := guac.NewGuacamoleConfiguration()
 	infomation := guac.NewGuacamoleClientInformation()
 
-	// guac
-	config.SetProtocol("vnc")
-	config.SetParameter("color-depth", "8")
-	config.SetParameter("cursor", "remote")
-	// vm
-	config.SetParameter("hostname", "127.0.0.1")
-	config.SetParameter("port", "5902")
+	config.SetProtocol("rdp")
+	config.SetParameter("hostname", "10.246.64.205")
+	config.SetParameter("port", "3389")
+	config.SetParameter("username", "admin")
+	config.SetParameter("security", "nla")
+	config.SetParameter("ignore-cert", "true")
 
 	// view
 	infomation.SetOptimalScreenHeight(600)

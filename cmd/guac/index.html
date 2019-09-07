@@ -1,15 +1,228 @@
-<!doctype html>
-<html>
-    <head>
-        <title> Demo </title>
-    <body>
-        <div id="app"
-        actionurl="tunnel"
-        vm="17ece7e2-43bc-cbb0-a4ce-a28cc31c9045"
-        hash="6d6ba3f3034a811864b7d71032ab642d1cbc4b7745217397e758f604475a886c"
-        open="onload"
-        view_only=""
-        alive=""
-        ></div>
-    <script type="text/javascript" src="index.bundle.js"></script></body>
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <title>Guacamole Tutorial</title>
+    <meta charset="UTF-8">
+    <style>
+        html, body {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            font-size: 16pt;
+            font-family: "Arial", sans-serif;
+        }
+
+        #app {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+        }
+
+        article {
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+
+        nav {
+            display: flex;
+        }
+
+        .flex-1 {
+            flex-grow: 1;
+        }
+
+        button {
+            border: 1px solid black;
+            border-radius: 0;
+            margin: 1rem;
+            padding: 1rem;
+            font-size: 12pt;
+        }
+
+        button:active {
+            background: black;
+            color: white;
+        }
+
+        .nowrap {
+            white-space: nowrap;
+        }
+
+        #status {
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .recording {
+            color: red;
+        }
+
+        .playing {
+            color: white;
+        }
+
+        .record {
+            height: 25px;
+            width: 25px;
+            background-color: red;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script type="text/javascript" src="all.min.js"></script>
+<div id="app">
+    <article>
+        <section class="flex-1">
+            <div v-html="slides[currentSlide].text"/>
+        </section>
+        <button v-if="!recording && !playing" @click="record()">Record</button>
+        <button v-else @click="stop()">Stop Record</button>
+        <button v-if="!recording && !playing && tape.length" @click="play()">Playback</button>
+        <button v-if="playing" @click="playing = false">Stop Playback</button>
+        <nav>
+            <button @click="prev()" class="nowrap">< Previous</button>
+            <span class="flex-1"></span>
+            <button @click="next()" class="nowrap">Next ></button>
+        </nav>
+    </article>
+    <div id="display" onresize="resize()"></div>
+    <div id="status" v-if="recording || playing" :class="{recording, playing}">
+        <span v-if="recording" class="record"></span><span v-else>▶️</span> {{ recording ? 'Recording' : 'Playing' }}
+    </div>
+</div>
+<script>
+  const sleep = (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
+  };
+
+  const app = new Vue({
+    el: '#app',
+    data: {
+      guac: null,
+      keyboard: null,
+      mouse: null,
+      recording: false,
+      playing: false,
+      lastEvent: null,
+      tape: [],
+      currentSlide: 0,
+      slides: [{
+        text: `<h2>Windows 10 Tutorial</h2>
+<p>Welcome to the Windows 10 tutorial! Click next to go to the next slide.</p>`
+      },{
+        text: `<h2>You did it!</h2>
+<p>This concludes the Windows 10 lab</p>`
+      }]
+    },
+    methods: {
+      async play() {
+        this.playing = true;
+
+        // disable during playback
+        this.mouse.onmousemove = () => {};
+        // stop playback on click or keyboard input
+        this.mouse.onmousedown = this.mouse.onmouseup = () => this.stop();
+        this.keyboard.onkeydown = this.keyboard.onkeyup = () => this.stop();
+
+        for (const event of this.tape) {
+          await sleep(event.time);
+
+          if (!this.playing) {
+            return;
+          }
+
+          if (event.type === 'keyboard') {
+            this.guac.sendKeyEvent(event.data[0], event.data[1])
+          } else if (event.type === 'mouse') {
+            this.guac.sendMouseState(event.data)
+          }
+        }
+
+        this.playing = false;
+      },
+      record() {
+        this.lastEvent = new Date().getTime();
+        this.tape = [];
+        this.keyboard.onkeydown = keysym => {
+          const now = new Date().getTime();
+
+          this.tape.push({type: 'keyboard', time: now - this.lastEvent, data: [1, keysym]});
+          this.guac.sendKeyEvent(1, keysym);
+
+          this.lastEvent = new Date().getTime();
+        };
+        this.keyboard.onkeyup = keysym => {
+          const now = new Date().getTime();
+
+          this.tape.push({type: 'keyboard', time: now - this.lastEvent, data: [0, keysym]});
+          this.guac.sendKeyEvent(0, keysym);
+
+          this.lastEvent = new Date().getTime();
+        };
+        this.mouse.onmousedown = this.mouse.onmouseup = this.mouse.onmousemove = mouseState => {
+          const now = new Date().getTime();
+
+          this.tape.push({type: 'mouse', time: now - this.lastEvent, data: Object.assign({}, mouseState)});
+          this.guac.sendMouseState(mouseState);
+
+          this.lastEvent = new Date().getTime();
+        };
+        this.recording = true
+      },
+      stop() {
+        this.keyboard.onkeydown = keysym => {
+          this.guac.sendKeyEvent(1, keysym);
+        };
+        this.keyboard.onkeyup = keysym => {
+          this.guac.sendKeyEvent(0, keysym);
+        };
+        this.mouse.onmousedown = this.mouse.onmouseup = this.mouse.onmousemove = mouseState => {
+          this.guac.sendMouseState(mouseState);
+        };
+        this.recording = false;
+        this.playing = false;
+      },
+      next() {
+        if (this.currentSlide === this.slides.length - 1) {
+          return
+        }
+        this.currentSlide++
+      },
+      prev() {
+        if (this.currentSlide === 0) {
+          return
+        }
+        this.currentSlide--
+      },
+      resize() {
+        console.log('resize')
+      }
+    },
+    mounted() {
+      const display = document.getElementById("display");
+      this.guac = new Guacamole.Client(new Guacamole.HTTPTunnel("tunnel"));
+      display.appendChild(this.guac.getDisplay().getElement());
+
+      this.guac.onerror = error => console.error(error);
+      this.guac.connect();
+      window.onunload = () => this.guac.disconnect();
+
+      this.mouse = new Guacamole.Mouse(this.guac.getDisplay().getElement());
+      this.keyboard = new Guacamole.Keyboard(document);
+      this.stop(); // installs the callbacks
+    }
+  })
+</script>
+</body>
 </html>
