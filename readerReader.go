@@ -6,18 +6,18 @@ import (
 	"strconv"
 )
 
-// ReaderGuacamoleReader A GuacamoleReader which wraps a standard io Reader,
+// readerReader A Reader which wraps a standard io Reader,
 // using that Reader as the Guacamole instruction stream.
-type ReaderGuacamoleReader struct {
+type readerReader struct {
 	input      *Stream
 	parseStart int
 	buffer     []byte
 	usedLength int
 }
 
-// NewReaderGuacamoleReader Construct function of ReaderGuacamoleReader
-func NewReaderGuacamoleReader(input *Stream) (ret GuacamoleReader) {
-	one := ReaderGuacamoleReader{}
+// NewReaderReader Construct function of readerReader
+func NewReaderReader(input *Stream) (ret Reader) {
+	one := readerReader{}
 	one.input = input
 	one.parseStart = 0
 	one.buffer = make([]byte, 0, 20480)
@@ -25,22 +25,22 @@ func NewReaderGuacamoleReader(input *Stream) (ret GuacamoleReader) {
 	return
 }
 
-// Available override GuacamoleReader.Available
-func (opt *ReaderGuacamoleReader) Available() (ok bool, err ExceptionInterface) {
+// Available override Reader.Available
+func (opt *readerReader) Available() (ok bool, err ExceptionInterface) {
 	ok = len(opt.buffer) > 0
 	if ok {
 		return
 	}
 	ok, e := opt.input.Available()
 	if e != nil {
-		err = GuacamoleServerException.Throw(e.Error())
+		err = ServerException.Throw(e.Error())
 		return
 	}
 	return
 }
 
-// Read override GuacamoleReader.Read
-func (opt *ReaderGuacamoleReader) Read() (instruction []byte, err ExceptionInterface) {
+// Read override Reader.Read
+func (opt *readerReader) Read() (instruction []byte, err ExceptionInterface) {
 
 mainLoop:
 	// While we're blocking, or input is available
@@ -92,14 +92,14 @@ mainLoop:
 				case ',':
 					// nothing
 				default:
-					err = GuacamoleServerException.Throw("Element terminator of instruction was not ';' nor ','")
+					err = ServerException.Throw("Element terminator of instruction was not ';' nor ','")
 					break mainLoop
 				}
 			default:
 				// Otherwise, parse error
 				fmt.Println(string(opt.buffer))
 				fmt.Println(string(opt.buffer[i]))
-				err = GuacamoleServerException.Throw("Non-numeric character in element length.")
+				err = ServerException.Throw("Non-numeric character in element length.")
 				break mainLoop
 			}
 
@@ -133,7 +133,7 @@ mainLoop:
 					err = GuacamoleConnectionClosedException.Throw("Connection to guacd is closed.", e.Error())
 				}
 			default:
-				err = GuacamoleServerException.Throw(e.Error())
+				err = ServerException.Throw(e.Error())
 			}
 			break mainLoop
 		}
@@ -142,8 +142,8 @@ mainLoop:
 	return
 }
 
-// ReadInstruction override GuacamoleReader.ReadInstruction
-func (opt *ReaderGuacamoleReader) ReadInstruction() (instruction GuacamoleInstruction, err ExceptionInterface) {
+// ReadInstruction override Reader.ReadInstruction
+func (opt *readerReader) ReadInstruction() (instruction Instruction, err ExceptionInterface) {
 
 	// Get instruction
 	instructionBuffer, err := opt.Read()
@@ -170,14 +170,14 @@ func (opt *ReaderGuacamoleReader) ReadInstruction() (instruction GuacamoleInstru
 		// read() is required to return a complete instruction. If it does
 		// not, this is a severe internal error.
 		if lengthEnd == -1 {
-			err = GuacamoleServerException.Throw("Read returned incomplete instruction.")
+			err = ServerException.Throw("Read returned incomplete instruction.")
 			return
 		}
 
 		// Parse length
 		length, e := strconv.Atoi(string(instructionBuffer[elementStart:lengthEnd]))
 		if e != nil {
-			err = GuacamoleServerException.Throw("Read returned wrong pattern instruction.", e.Error())
+			err = ServerException.Throw("Read returned wrong pattern instruction.", e.Error())
 			return
 		}
 
@@ -204,7 +204,7 @@ func (opt *ReaderGuacamoleReader) ReadInstruction() (instruction GuacamoleInstru
 
 	// Pull opcode off elements list
 	// Create instruction
-	instruction = NewGuacamoleInstruction(elements[0], elements[1:]...)
+	instruction = NewInstruction(elements[0], elements[1:]...)
 
 	// Return parsed instruction
 	return

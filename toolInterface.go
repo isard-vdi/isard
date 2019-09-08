@@ -36,10 +36,10 @@ type HTTPServletResponseInterface interface {
 	Close() error
 }
 
-// DoConnectInterface Tool interface for GuacamoleHTTPTunnelServlet
-type DoConnectInterface func(request HTTPServletRequestInterface) (GuacamoleTunnel, error)
+// DoConnectInterface Tool interface for HttpTunnelServlet
+type DoConnectInterface func(request HTTPServletRequestInterface) (Tunnel, error)
 
-// GetSocketInterface Tool interface for AbstractGuacamoleTunnel
+// GetSocketInterface Tool interface for BaseTunnel
 type GetSocketInterface interface {
-	GetSocket() GuacamoleSocket
+	GetSocket() Socket
 }

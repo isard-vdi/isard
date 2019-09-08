@@ -18,24 +18,19 @@ type ReentrantLock struct {
 	requir int32
 }
 
-// NewReentrantLock Construct function
-func NewReentrantLock() (ret ReentrantLock) {
-	return
-}
-
 // Lock override ReentrantLock.Lock
-func (opt *ReentrantLock) Lock() {
-	atomic.AddInt32(&opt.requir, 1)
-	opt.core.Lock()
+func (r *ReentrantLock) Lock() {
+	atomic.AddInt32(&r.requir, 1)
+	r.core.Lock()
 }
 
 // Unlock override ReentrantLock.Unlock
-func (opt *ReentrantLock) Unlock() {
-	atomic.AddInt32(&opt.requir, -1)
-	opt.core.Unlock()
+func (r *ReentrantLock) Unlock() {
+	atomic.AddInt32(&r.requir, -1)
+	r.core.Unlock()
 }
 
 // HasQueuedThreads override ReentrantLock.HasQueuedThreads
-func (opt *ReentrantLock) HasQueuedThreads() bool {
-	return atomic.LoadInt32(&opt.requir) > 1
+func (r *ReentrantLock) HasQueuedThreads() bool {
+	return atomic.LoadInt32(&r.requir) > 1
 }

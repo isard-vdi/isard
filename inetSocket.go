@@ -11,17 +11,17 @@ import (
 //  * timing out.
 const SocketTimeout = 15 * time.Second
 
-// InetGuacamoleSocket ==> GuacamoleSocket
+// InetSocket ==> Socket
 // * Provides abstract socket-like access to a Guacamole connection over a given
 // * hostname and port.
-type InetGuacamoleSocket struct {
-	reader GuacamoleReader
-	write  GuacamoleWriter
+type InetSocket struct {
+	reader Reader
+	write  Writer
 	sock   net.Conn
 }
 
-// NewInetGuacamoleSocket Construct & connect
-//  * Creates a new InetGuacamoleSocket which reads and writes instructions
+// NewInetSocket Construct & connect
+//  * Creates a new InetSocket which reads and writes instructions
 //  * to the Guacamole instruction stream of the Guacamole proxy server
 //  * running at the given hostname and port.
 //  *
@@ -29,7 +29,7 @@ type InetGuacamoleSocket struct {
 //  * @param port The port of the Guacamole proxy server to connect to.
 //  * @throws GuacamoleException If an error occurs while connecting to the
 //  *                            Guacamole proxy server.
-func NewInetGuacamoleSocket(hostname string, port int) (ret InetGuacamoleSocket, err ExceptionInterface) {
+func NewInetSocket(hostname string, port int) (ret InetSocket, err ExceptionInterface) {
 	// log.DebugF("Try connect %v:%v", hostname, port)
 
 	// Get address
@@ -49,35 +49,35 @@ func NewInetGuacamoleSocket(hostname string, port int) (ret InetGuacamoleSocket,
 	// On successful connect, retrieve I/O streams
 	stream := NewStream(sock, SocketTimeout)
 	ret.sock = sock
-	ret.reader = NewReaderGuacamoleReader(stream)
-	ret.write = NewWriterGuacamoleWriter(stream)
+	ret.reader = NewReaderReader(stream)
+	ret.write = NewWriterWriter(stream)
 	return
 }
 
-// Close Override GuacamoleSocket.Close
-func (opt *InetGuacamoleSocket) Close() (err ExceptionInterface) {
+// Close Override Socket.Close
+func (opt *InetSocket) Close() (err ExceptionInterface) {
 	// logger.debug("Closing socket to guacd.");
 	e := opt.sock.Close()
 	if e != nil {
-		err = GuacamoleServerException.Throw(e.Error())
+		err = ServerException.Throw(e.Error())
 	}
 	return
 }
 
-// GetReader Override GuacamoleSocket.GetReader
-func (opt *InetGuacamoleSocket) GetReader() (ret GuacamoleReader) {
+// GetReader Override Socket.GetReader
+func (opt *InetSocket) GetReader() (ret Reader) {
 	ret = opt.reader
 	return
 }
 
-// GetWriter Override GuacamoleSocket.GetWriter
-func (opt *InetGuacamoleSocket) GetWriter() (ret GuacamoleWriter) {
+// GetWriter Override Socket.GetWriter
+func (opt *InetSocket) GetWriter() (ret Writer) {
 	ret = opt.write
 	return
 }
 
-// IsOpen Override GuacamoleSocket.IsOpen
-func (opt *InetGuacamoleSocket) IsOpen() (ok bool) {
+// IsOpen Override Socket.IsOpen
+func (opt *InetSocket) IsOpen() (ok bool) {
 	_, e := opt.sock.Write([]byte{})
 	ok = e == nil
 	return

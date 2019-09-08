@@ -1,8 +1,8 @@
 package guac
 
-// GuacamoleReader Provides abstract and raw character read access
+// Reader Provides abstract and raw character read access
 // to a stream of Guacamole instructions.
-type GuacamoleReader interface {
+type Reader interface {
 
 	// Available function
 	//  * Returns whether instruction data is available for reading. Note that
@@ -37,5 +37,5 @@ type GuacamoleReader interface {
 	//  * @throws GuacamoleException If an error occurs while reading from the
 	//  *                            stream, or if the instruction cannot be
 	//  *                            parsed.
-	ReadInstruction() (ret GuacamoleInstruction, err ExceptionInterface)
+	ReadInstruction() (ret Instruction, err ExceptionInterface)
 }

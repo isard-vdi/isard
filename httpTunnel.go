@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-/*GuacamoleHTTPTunnel ==> DelegatingGuacamoleTunnel
- * Tracks the last time a particular GuacamoleTunnel was accessed. This
+/*HttpTunnel ==> DelegatingTunnel
+ * Tracks the last time a particular Tunnel was accessed. This
  * information is not necessary for tunnels associated with WebSocket
  * connections, as each WebSocket connection has its own read thread which
  * continuously checks the state of the tunnel and which will automatically
@@ -14,24 +14,24 @@ import (
  * multiple requests, tracking of activity on the tunnel must be performed
  * independently of the HTTP requests.
  */
-type GuacamoleHTTPTunnel struct {
-	DelegatingGuacamoleTunnel
+type HttpTunnel struct {
+	DelegatingTunnel
 	/**
 	 * The last time this tunnel was accessed.
 	 */
 	lastAccessedTime time.Time
 }
 
-/*NewGuacamoleHTTPTunnel *
- * Creates a new GuacamoleHTTPTunnel which wraps the given tunnel.
- * Absolutely all function calls on this new GuacamoleHTTPTunnel will be
- * delegated to the underlying GuacamoleTunnel.
+/*NewHttpTunnel *
+ * Creates a new HttpTunnel which wraps the given tunnel.
+ * Absolutely all function calls on this new HttpTunnel will be
+ * delegated to the underlying Tunnel.
  *
  * @param wrappedTunnel
- *     The GuacamoleTunnel to wrap within this GuacamoleHTTPTunnel.
+ *     The Tunnel to wrap within this HttpTunnel.
  */
-func NewGuacamoleHTTPTunnel(wrappedTunnel GuacamoleTunnel) (ret GuacamoleHTTPTunnel) {
-	ret.DelegatingGuacamoleTunnel = NewDelegatingGuacamoleTunnel(wrappedTunnel)
+func NewHttpTunnel(wrappedTunnel Tunnel) (ret HttpTunnel) {
+	ret.DelegatingTunnel = NewDelegatingTunnel(wrappedTunnel)
 	ret.Access()
 	return
 }
@@ -39,7 +39,7 @@ func NewGuacamoleHTTPTunnel(wrappedTunnel GuacamoleTunnel) (ret GuacamoleHTTPTun
 /*Access *
  * Updates this tunnel, marking it as recently accessed.
  */
-func (opt *GuacamoleHTTPTunnel) Access() {
+func (opt *HttpTunnel) Access() {
 	opt.lastAccessedTime = time.Now()
 }
 
@@ -51,6 +51,6 @@ func (opt *GuacamoleHTTPTunnel) Access() {
  * @return
  *     The time this tunnel was last accessed.
  */
-func (opt *GuacamoleHTTPTunnel) GetLastAccessedTime() time.Time {
+func (opt *HttpTunnel) GetLastAccessedTime() time.Time {
 	return opt.lastAccessedTime
 }

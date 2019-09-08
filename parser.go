@@ -1,7 +1,7 @@
 package guac
 
 // In java
-// public class GuacamoleParser implements Iterator<GuacamoleInstruction>
+// public class Parser implements Iterator<Instruction>
 // But not use it as Iterator, More like more parser
 // So discard Iterator keep method
 
@@ -9,74 +9,74 @@ const (
 	/*INSTRUCTION_MAX_LENGTH *
 	 * The maximum number of characters per instruction.
 	 */
-	INSTRUCTION_MAX_LENGTH = 8192
+	InstructionMaxLength = 8192
 
 	/*INSTRUCTION_MAX_DIGITS *
 	 * The maximum number of digits to allow per length prefix.
 	 */
-	INSTRUCTION_MAX_DIGITS = 5
+	InstructionMaxDigits = 5
 
 	/*INSTRUCTION_MAX_ELEMENTS *
 	 * The maximum number of elements per instruction, including the opcode.
 	 */
-	INSTRUCTION_MAX_ELEMENTS = 64
+	InstructionMaxElements = 64
 )
 
-// GuacamoleParserState All possible states of the instruction parser.
-type GuacamoleParserState int
+// ParserState All possible states of the instruction parser.
+type ParserState int
 
 const (
 	/*PARSING_LENGTH *
 	 * The parser is currently waiting for data to complete the length prefix
 	 * of the current element of the instruction.
 	 */
-	PARSING_LENGTH GuacamoleParserState = iota
+	ParsingLength ParserState = iota
 
 	/*PARSING_CONTENT *
 	 * The parser has finished reading the length prefix and is currently
 	 * waiting for data to complete the content of the instruction.
 	 */
-	PARSING_CONTENT
+	ParsingContent
 
-	/*COMPLETE *
+	/*Complete *
 	 * The instruction has been fully parsed.
 	 */
-	COMPLETE
+	Complete
 
-	/*ERROR *
+	/*Error *
 	 * The instruction cannot be parsed because of a protocol error.
 	 */
-	ERROR
+	Error
 )
 
-func (state GuacamoleParserState) String() (ret string) {
+func (state ParserState) String() (ret string) {
 	switch state {
-	case PARSING_LENGTH:
+	case ParsingLength:
 		ret = "PARSING_LENGTH"
-	case PARSING_CONTENT:
+	case ParsingContent:
 		ret = "PARSING_CONTENT"
-	case COMPLETE:
-		ret = "COMPLETE"
-	case ERROR:
-		ret = "ERROR"
+	case Complete:
+		ret = "Complete"
+	case Error:
+		ret = "Error"
 	}
 	return
 }
 
-// GuacamoleParser *
+// Parser *
 //  * Parser for the Guacamole protocol. Arbitrary instruction data is appended,
 //  * and instructions are returned as a result. Invalid instructions result in
 //  * exceptions.
-type GuacamoleParser struct {
+type Parser struct {
 	/**
 	 * The latest parsed instruction, if any.
 	 */
-	parsedInstruction GuacamoleInstruction
+	parsedInstruction Instruction
 
 	/**
 	 * The parse state of the instruction.
 	 */
-	state GuacamoleParserState
+	state ParserState
 
 	/**
 	 * The length of the current element, if known.
@@ -95,16 +95,16 @@ type GuacamoleParser struct {
 	elements []string
 }
 
-func NewGuacamoleParser() (ret GuacamoleParser) {
+func NewGuacamoleParser() (ret Parser) {
 	ret.init()
 	return
 }
 
-func (opt *GuacamoleParser) init() {
-	opt.parsedInstruction = NewGuacamoleInstruction("")
-	opt.state = PARSING_LENGTH
+func (opt *Parser) init() {
+	opt.parsedInstruction = NewInstruction("")
+	opt.state = ParsingLength
 	opt.elementLength = 0
-	opt.elements = make([]string, 0, INSTRUCTION_MAX_ELEMENTS)
+	opt.elements = make([]string, 0, InstructionMaxElements)
 }
 
 // Append *
@@ -115,18 +115,18 @@ func (opt *GuacamoleParser) init() {
 // *         have already been parsed and must be read via next() before
 // *         more data can be appended.
 // * @throws GuacamoleException If an error occurs while parsing the new data.
-func (opt *GuacamoleParser) Append(chunk []byte, offset, length int) (charsParsed int, err ExceptionInterface) {
+func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, err ExceptionInterface) {
 	charsParsed = 0
 
 	// Do not exceed maximum number of elements
-	if len(opt.elements) >= INSTRUCTION_MAX_ELEMENTS && opt.state != COMPLETE {
-		opt.state = ERROR
-		err = GuacamoleServerException.Throw("Instruction contains too many elements.")
+	if len(opt.elements) >= InstructionMaxElements && opt.state != Complete {
+		opt.state = Error
+		err = ServerException.Throw("Instruction contains too many elements.")
 		return
 	}
 
 	// Parse element length
-	if opt.state == PARSING_LENGTH {
+	if opt.state == ParsingLength {
 
 		parsedLength := opt.elementLength
 
@@ -142,20 +142,20 @@ func (opt *GuacamoleParser) Append(chunk []byte, offset, length int) (charsParse
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 				parsedLength = parsedLength*10 + int(c-'0')
 			case '.':
-				opt.state = PARSING_CONTENT
+				opt.state = ParsingContent
 				break loop
 			default:
-				opt.state = ERROR
-				err = GuacamoleServerException.Throw("Non-numeric character in element length.")
+				opt.state = Error
+				err = ServerException.Throw("Non-numeric character in element length.")
 				return
 			}
 
 		}
 
 		// If too long, parse error
-		if parsedLength > INSTRUCTION_MAX_LENGTH {
-			opt.state = ERROR
-			err = GuacamoleServerException.Throw("Instruction exceeds maximum length.")
+		if parsedLength > InstructionMaxLength {
+			opt.state = Error
+			err = ServerException.Throw("Instruction exceeds maximum length.")
 			return
 		}
 
@@ -165,7 +165,7 @@ func (opt *GuacamoleParser) Append(chunk []byte, offset, length int) (charsParse
 	} // end parse length
 
 	// Parse element content, if available
-	if opt.state == PARSING_CONTENT && charsParsed+opt.elementLength+1 <= length {
+	if opt.state == ParsingContent && charsParsed+opt.elementLength+1 <= length {
 
 		// Read element
 		element := string(chunk[offset+charsParsed : offset+charsParsed+opt.elementLength])
@@ -183,14 +183,14 @@ func (opt *GuacamoleParser) Append(chunk []byte, offset, length int) (charsParse
 		// If semicolon, store end-of-instruction
 		switch terminator {
 		case ';':
-			opt.state = COMPLETE
-			opt.parsedInstruction = NewGuacamoleInstruction(opt.elements[0], opt.elements[1:]...)
+			opt.state = Complete
+			opt.parsedInstruction = NewInstruction(opt.elements[0], opt.elements[1:]...)
 		case ',':
-			opt.state = PARSING_LENGTH
+			opt.state = ParsingLength
 
 		default:
-			opt.state = ERROR
-			err = GuacamoleServerException.Throw("Element terminator of instruction was not ';' nor ','")
+			opt.state = Error
+			err = ServerException.Throw("Element terminator of instruction was not ';' nor ','")
 			return
 		}
 
@@ -207,20 +207,20 @@ func (opt *GuacamoleParser) Append(chunk []byte, offset, length int) (charsParse
 // *         have already been parsed and must be read via next() before
 // *         more data can be appended.
 // * @throws GuacamoleException If an error occurs while parsing the new data.
-func (opt *GuacamoleParser) AppendAll(chunk []byte) (charsParsed int, err ExceptionInterface) {
+func (opt *Parser) AppendAll(chunk []byte) (charsParsed int, err ExceptionInterface) {
 	return opt.Append(chunk, 0, len(chunk))
 }
 
 // HasNext Check One complete
-func (opt *GuacamoleParser) HasNext() bool {
-	return opt.state == COMPLETE
+func (opt *Parser) HasNext() bool {
+	return opt.state == Complete
 }
 
 // Next Fetch data from parser
-func (opt *GuacamoleParser) Next() (ret GuacamoleInstruction, ok bool) {
+func (opt *Parser) Next() (ret Instruction, ok bool) {
 
 	// No instruction to return if not yet complete
-	if opt.state != COMPLETE {
+	if opt.state != Complete {
 		return
 	}
 
@@ -236,5 +236,5 @@ func (opt *GuacamoleParser) Next() (ret GuacamoleInstruction, ok bool) {
 
 //@Override
 //public void remove() {
-//    throw new UnsupportedOperationException("GuacamoleParser does not support remove().");
+//    throw new UnsupportedOperationException("Parser does not support remove().");
 //}

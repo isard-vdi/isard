@@ -1,9 +1,9 @@
 package guac
 
-// GuacamoleClientInformation *
+// ClientInfo *
 //  * An abstract representation of Guacamole client information, including all
 //  * information required by the Guacamole protocol during the preamble.
-type GuacamoleClientInformation struct {
+type ClientInfo struct {
 	/**
 	 * The optimal screen width requested by the client, in pixels.
 	 */
@@ -36,7 +36,7 @@ type GuacamoleClientInformation struct {
 }
 
 // NewGuacamoleClientInformation Construct function
-func NewGuacamoleClientInformation() (ret GuacamoleClientInformation) {
+func NewGuacamoleClientInformation() (ret ClientInfo) {
 	ret.optimalScreenWidth = 1024
 	ret.optimalScreenHeight = 768
 	ret.optimalResolution = 96
@@ -48,27 +48,27 @@ func NewGuacamoleClientInformation() (ret GuacamoleClientInformation) {
 
 // GetOptimalScreenWidth Returns the optimal screen width requested by the client, in pixels.
 // @return The optimal screen width requested by the client, in pixels.
-func (opt *GuacamoleClientInformation) GetOptimalScreenWidth() int {
+func (opt *ClientInfo) GetOptimalScreenWidth() int {
 	return opt.optimalScreenWidth
 }
 
 // SetOptimalScreenWidth Sets the client's optimal screen width.
 // * @param optimalScreenWidth The optimal screen width of the client.
-func (opt *GuacamoleClientInformation) SetOptimalScreenWidth(optimalScreenWidth int) {
+func (opt *ClientInfo) SetOptimalScreenWidth(optimalScreenWidth int) {
 	opt.optimalScreenWidth = optimalScreenWidth
 }
 
 // GetOptimalScreenHeight *
 // * Returns the optimal screen height requested by the client, in pixels.
 // * @return The optimal screen height requested by the client, in pixels.
-func (opt *GuacamoleClientInformation) GetOptimalScreenHeight() int {
+func (opt *ClientInfo) GetOptimalScreenHeight() int {
 	return opt.optimalScreenHeight
 }
 
 // SetOptimalScreenHeight *
 //      * Sets the client's optimal screen height.
 //      * @param optimalScreenHeight The optimal screen height of the client.
-func (opt *GuacamoleClientInformation) SetOptimalScreenHeight(optimalScreenHeight int) {
+func (opt *ClientInfo) SetOptimalScreenHeight(optimalScreenHeight int) {
 	opt.optimalScreenHeight = optimalScreenHeight
 }
 
@@ -77,7 +77,7 @@ func (opt *GuacamoleClientInformation) SetOptimalScreenHeight(optimalScreenHeigh
 //  * used, in DPI.
 //  *
 //  * @return The optimal screen resolution.
-func (opt *GuacamoleClientInformation) GetOptimalResolution() int {
+func (opt *ClientInfo) GetOptimalResolution() int {
 	return opt.optimalResolution
 }
 
@@ -86,7 +86,7 @@ func (opt *GuacamoleClientInformation) GetOptimalResolution() int {
 //  * used, in DPI.
 //  *
 //  * @param optimalResolution The optimal screen resolution in DPI.
-func (opt *GuacamoleClientInformation) SetOptimalResolution(optimalResolution int) {
+func (opt *ClientInfo) SetOptimalResolution(optimalResolution int) {
 	opt.optimalResolution = optimalResolution
 }
 
@@ -96,7 +96,7 @@ func (opt *GuacamoleClientInformation) SetOptimalResolution(optimalResolution in
 //  * modified.
 //  *
 //  * @return The set of audio mimetypes supported by the client.
-func (opt *GuacamoleClientInformation) GetAudioMimetypes() []string {
+func (opt *ClientInfo) GetAudioMimetypes() []string {
 	return opt.audioMimetypes
 }
 
@@ -106,7 +106,7 @@ func (opt *GuacamoleClientInformation) GetAudioMimetypes() []string {
 //  * modified.
 //  *
 //  * @return The set of video mimetypes supported by the client.
-func (opt *GuacamoleClientInformation) GetVideoMimetypes() []string {
+func (opt *ClientInfo) GetVideoMimetypes() []string {
 	return opt.videoMimetypes
 }
 
@@ -117,6 +117,6 @@ func (opt *GuacamoleClientInformation) GetVideoMimetypes() []string {
 //  *
 //  * @return
 //  *     The set of image mimetypes supported by the client.
-func (opt *GuacamoleClientInformation) GetImageMimetypes() []string {
+func (opt *ClientInfo) GetImageMimetypes() []string {
 	return opt.imageMimetypes
 }

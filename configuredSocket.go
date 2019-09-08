@@ -1,25 +1,25 @@
 package guac
 
-// Move FailoverGuacamoleSocket from protocol folder to here
+// Move FailoverSocket from protocol folder to here
 // Avoid cross depends
 
 import (
 	"fmt"
 )
 
-// ConfiguredGuacamoleSocket ==> GuacamoleSocket
-type ConfiguredGuacamoleSocket struct {
+// ConfiguredSocket ==> Socket
+type ConfiguredSocket struct {
 
 	/**
 	 * The wrapped socket.
 	 */
-	socket GuacamoleSocket
+	socket Socket
 
 	/**
 	 * The configuration to use when performing the Guacamole protocol
 	 * handshake.
 	 */
-	config GuacamoleConfiguration
+	config Config
 
 	/**
 	 * The unique identifier associated with this connection, as determined
@@ -39,7 +39,7 @@ type ConfiguredGuacamoleSocket struct {
 * @throws GuacamoleException If an error occurs while reading, or if
 *                            the expected instruction is not read.
  */
-func (opt *ConfiguredGuacamoleSocket) expect(reader GuacamoleReader, opcode string) (instruction GuacamoleInstruction, err ExceptionInterface) {
+func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction Instruction, err ExceptionInterface) {
 
 	// Wait for an instruction
 	instruction, err = reader.ReadInstruction()
@@ -48,48 +48,48 @@ func (opt *ConfiguredGuacamoleSocket) expect(reader GuacamoleReader, opcode stri
 	}
 
 	if len(instruction.GetOpcode()) == 0 {
-		err = GuacamoleServerException.Throw("End of stream while waiting for \"" + opcode + "\".")
+		err = ServerException.Throw("End of stream while waiting for \"" + opcode + "\".")
 		return
 	}
 
 	// Ensure instruction has expected opcode
 	if instruction.GetOpcode() != opcode {
-		err = GuacamoleServerException.Throw("Expected \"" + opcode + "\" instruction but instead received \"" + instruction.GetOpcode() + "\".")
+		err = ServerException.Throw("Expected \"" + opcode + "\" instruction but instead received \"" + instruction.GetOpcode() + "\".")
 		return
 	}
 	return
 }
 
 /*NewConfiguredGuacamoleSocket2 *
-* Creates a new ConfiguredGuacamoleSocket which uses the given
-* GuacamoleConfiguration to complete the initial protocol handshake over
-* the given GuacamoleSocket. A default GuacamoleClientInformation object
+* Creates a new ConfiguredSocket which uses the given
+* Config to complete the initial protocol handshake over
+* the given Socket. A default ClientInfo object
 * is used to provide basic client information.
 *
-* @param socket The GuacamoleSocket to wrap.
-* @param config The GuacamoleConfiguration to use to complete the initial
+* @param socket The Socket to wrap.
+* @param config The Config to use to complete the initial
 *               protocol handshake.
 * @throws GuacamoleException If an error occurs while completing the
 *                            initial protocol handshake.
  */
-func NewConfiguredGuacamoleSocket2(socket GuacamoleSocket, config GuacamoleConfiguration) (ConfiguredGuacamoleSocket, ExceptionInterface) {
-	return NewConfiguredGuacamoleSocket3(socket, config, NewGuacamoleClientInformation())
+func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSocket, ExceptionInterface) {
+	return NewConfiguredSocket3(socket, config, NewGuacamoleClientInformation())
 }
 
-/*NewConfiguredGuacamoleSocket3 *
-* Creates a new ConfiguredGuacamoleSocket which uses the given
-* GuacamoleConfiguration and GuacamoleClientInformation to complete the
-* initial protocol handshake over the given GuacamoleSocket.
+/*NewConfiguredSocket3 *
+* Creates a new ConfiguredSocket which uses the given
+* Config and ClientInfo to complete the
+* initial protocol handshake over the given Socket.
 *
-* @param socket The GuacamoleSocket to wrap.
-* @param config The GuacamoleConfiguration to use to complete the initial
+* @param socket The Socket to wrap.
+* @param config The Config to use to complete the initial
 *               protocol handshake.
-* @param info The GuacamoleClientInformation to use to complete the initial
+* @param info The ClientInfo to use to complete the initial
 *             protocol handshake.
 * @throws GuacamoleException If an error occurs while completing the
 *                            initial protocol handshake.
  */
-func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfiguration, info GuacamoleClientInformation) (one ConfiguredGuacamoleSocket, err ExceptionInterface) {
+func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one ConfiguredSocket, err ExceptionInterface) {
 
 	one.socket = socket
 	one.config = config
@@ -105,7 +105,7 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 	}
 
 	// Send requested protocol or connection ID
-	err = writer.WriteInstruction(NewGuacamoleInstruction("select", selectArg))
+	err = writer.WriteInstruction(NewInstruction("select", selectArg))
 	if err != nil {
 		return
 	}
@@ -134,7 +134,7 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 	}
 
 	// Send size
-	err = writer.WriteInstruction(NewGuacamoleInstruction("size",
+	err = writer.WriteInstruction(NewInstruction("size",
 		fmt.Sprintf("%v", info.GetOptimalScreenWidth()),
 		fmt.Sprintf("%v", info.GetOptimalScreenHeight()),
 		fmt.Sprintf("%v", info.GetOptimalResolution())),
@@ -146,7 +146,7 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 
 	// Send supported audio formats
 	err = writer.WriteInstruction(
-		NewGuacamoleInstruction(
+		NewInstruction(
 			"audio",
 			info.GetAudioMimetypes()...,
 		))
@@ -156,7 +156,7 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 
 	// Send supported video formats
 	err = writer.WriteInstruction(
-		NewGuacamoleInstruction(
+		NewInstruction(
 			"video",
 			info.GetVideoMimetypes()...,
 		))
@@ -166,7 +166,7 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 
 	// Send supported image formats
 	err = writer.WriteInstruction(
-		NewGuacamoleInstruction(
+		NewInstruction(
 			"image",
 			info.GetImageMimetypes()...,
 		))
@@ -175,7 +175,7 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 	}
 
 	// Send args
-	err = writer.WriteInstruction(NewGuacamoleInstruction("connect", argValueS...))
+	err = writer.WriteInstruction(NewInstruction("connect", argValueS...))
 	if err != nil {
 		return
 	}
@@ -188,7 +188,7 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 
 	readyArgs := ready.GetArgs()
 	if len(readyArgs) == 0 {
-		err = GuacamoleServerException.Throw("No connection ID received")
+		err = ServerException.Throw("No connection ID received")
 		return
 	}
 
@@ -199,43 +199,43 @@ func NewConfiguredGuacamoleSocket3(socket GuacamoleSocket, config GuacamoleConfi
 }
 
 /*GetConfiguration *
-* Returns the GuacamoleConfiguration used to configure this
-* ConfiguredGuacamoleSocket.
+* Returns the Config used to configure this
+* ConfiguredSocket.
 *
-* @return The GuacamoleConfiguration used to configure this
-*         ConfiguredGuacamoleSocket.
+* @return The Config used to configure this
+*         ConfiguredSocket.
  */
-func (opt *ConfiguredGuacamoleSocket) GetConfiguration() GuacamoleConfiguration {
+func (opt *ConfiguredSocket) GetConfiguration() Config {
 	return opt.config
 }
 
 /*GetConnectionID *
 * Returns the unique ID associated with the Guacamole connection
-* negotiated by this ConfiguredGuacamoleSocket. The ID is provided by
+* negotiated by this ConfiguredSocket. The ID is provided by
 * the "ready" instruction returned by the Guacamole proxy.
 *
 * @return The ID of the negotiated Guacamole connection.
  */
-func (opt *ConfiguredGuacamoleSocket) GetConnectionID() string {
+func (opt *ConfiguredSocket) GetConnectionID() string {
 	return opt.id
 }
 
-// GetWriter override GuacamoleSocket.GetWriter
-func (opt *ConfiguredGuacamoleSocket) GetWriter() GuacamoleWriter {
+// GetWriter override Socket.GetWriter
+func (opt *ConfiguredSocket) GetWriter() Writer {
 	return opt.socket.GetWriter()
 }
 
-// GetReader override GuacamoleSocket.GetReader
-func (opt *ConfiguredGuacamoleSocket) GetReader() GuacamoleReader {
+// GetReader override Socket.GetReader
+func (opt *ConfiguredSocket) GetReader() Reader {
 	return opt.socket.GetReader()
 }
 
-// Close override GuacamoleSocket.Close
-func (opt *ConfiguredGuacamoleSocket) Close() (err ExceptionInterface) {
+// Close override Socket.Close
+func (opt *ConfiguredSocket) Close() (err ExceptionInterface) {
 	return opt.socket.Close()
 }
 
-// IsOpen override GuacamoleSocket.IsOpen
-func (opt *ConfiguredGuacamoleSocket) IsOpen() bool {
+// IsOpen override Socket.IsOpen
+func (opt *ConfiguredSocket) IsOpen() bool {
 	return opt.socket.IsOpen()
 }

@@ -1,10 +1,10 @@
 package guac
 
-// GuacamoleFilter *
+// Filter *
 //  * Interface which provides for the filtering of individual instructions. Each
 //  * filtered instruction may be allowed through untouched, modified, replaced,
 //  * dropped, or explicitly denied.
-type GuacamoleFilter interface {
+type Filter interface {
 
 	/**
 	 * Applies the filter to the given instruction, returning the original
@@ -19,5 +19,5 @@ type GuacamoleFilter interface {
 	 *                            or if the instruction must be explicitly
 	 *                            denied.
 	 */
-	Filter(instruction GuacamoleInstruction) (ret GuacamoleInstruction, err ExceptionInterface)
+	Filter(instruction Instruction) (ret Instruction, err ExceptionInterface)
 }

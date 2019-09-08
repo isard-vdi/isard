@@ -1,6 +1,6 @@
 package guac
 
-// Move FailoverGuacamoleSocket from protocol folder to here
+// Move FailoverSocket from protocol folder to here
 // Avoid cross depends
 
 import (
@@ -18,31 +18,31 @@ const (
 	InstructionQueueLimit int = 2048
 )
 
-// FailoverGuacamoleSocket ==> GuacamoleSocket
-//  * GuacamoleSocket which intercepts errors received early in the Guacamole
+// FailoverSocket ==> Socket
+//  * Socket which intercepts errors received early in the Guacamole
 //  * session. Upstream errors which are intercepted early enough result in
-//  * exceptions thrown immediately within the FailoverGuacamoleSocket's
+//  * exceptions thrown immediately within the FailoverSocket's
 //  * constructor, allowing a different socket to be substituted prior to
 //  * fulfilling the connection.
-type FailoverGuacamoleSocket struct {
+type FailoverSocket struct {
 	/**
 	 * The wrapped socket being used.
 	 */
-	socket GuacamoleSocket
+	socket Socket
 
 	/**
-	 * Queue of all instructions read while this FailoverGuacamoleSocket was
+	 * Queue of all instructions read while this FailoverSocket was
 	 * being constructed.
 	 */
-	instructionQueue []GuacamoleInstruction
+	instructionQueue []Instruction
 
 	/**
-	 * GuacamoleReader which reads instructions from the queue populated when
-	 * the FailoverGuacamoleSocket was constructed. Once the queue has been
+	 * Reader which reads instructions from the queue populated when
+	 * the FailoverSocket was constructed. Once the queue has been
 	 * emptied, reads are delegated directly to the reader of the wrapped
 	 * socket.
 	 */
-	queuedReader GuacamoleReader
+	queuedReader Reader
 }
 
 /**
@@ -56,7 +56,7 @@ type FailoverGuacamoleSocket struct {
 *     If the "error" instruction represents an error from the upstream
 *     remote desktop.
  */
-func handleUpstreamErrors(instruction GuacamoleInstruction) (err ExceptionInterface) {
+func handleUpstreamErrors(instruction Instruction) (err ExceptionInterface) {
 	// Ignore error instructions which are missing the status code
 	args := instruction.GetArgs()
 	if len(args) < 2 {
@@ -73,41 +73,41 @@ func handleUpstreamErrors(instruction GuacamoleInstruction) (err ExceptionInterf
 	}
 
 	status := FromGuacamoleStatusCode(statusCode)
-	if status == Undifined {
+	if status == Undefined {
 		// logger.debug("Received \"error\" instruction with unknown/invalid status code: {}", statusCode);
 		return
 	}
 
 	switch status {
-	case UPSTREAM_ERROR:
+	case UpstreamError:
 		err = GuacamoleUpstreamException.Throw(args[0])
 
-	case UPSTREAM_NOT_FOUND:
+	case UpstreamNotFound:
 		err = GuacamoleUpstreamNotFoundException.Throw(args[0])
 
 	// Upstream did not respond
-	case UPSTREAM_TIMEOUT:
+	case UpstreamTimeout:
 		err = GuacamoleUpstreamTimeoutException.Throw(args[0])
 
 	// Upstream is refusing the connection
-	case UPSTREAM_UNAVAILABLE:
+	case UpstreamUnavailable:
 		err = GuacamoleUpstreamUnavailableException.Throw(args[0])
 	}
 	return
 }
 
-/*NewFailoverGuacamoleSocket *
-* Creates a new FailoverGuacamoleSocket which reads Guacamole instructions
+/*NewFailoverSocket *
+* Creates a new FailoverSocket which reads Guacamole instructions
 * from the given socket, searching for errors from the upstream remote
 * desktop. If an upstream error is encountered, it is thrown as a
 * GuacamoleUpstreamException. This constructor will block until an error
 * is encountered, or until the connection appears to have been successful.
-* Once the FailoverGuacamoleSocket has been created, all reads, writes,
+* Once the FailoverSocket has been created, all reads, writes,
 * etc. will be delegated to the provided socket.
 *
 * @param socket
-*     The GuacamoleSocket of the Guacamole connection this
-*     FailoverGuacamoleSocket should handle.
+*     The Socket of the Guacamole connection this
+*     FailoverSocket should handle.
 *
 * @throws GuacamoleException
 *     If an error occurs while reading data from the provided socket.
@@ -116,12 +116,12 @@ func handleUpstreamErrors(instruction GuacamoleInstruction) (err ExceptionInterf
 *     If the connection to guacd succeeded, but an error occurred while
 *     connecting to the remote desktop.
  */
-func NewFailoverGuacamoleSocket(socket GuacamoleSocket) (ret FailoverGuacamoleSocket, err ExceptionInterface) {
-	ret.instructionQueue = make([]GuacamoleInstruction, 0, 1)
+func NewFailoverSocket(socket Socket) (ret FailoverSocket, err ExceptionInterface) {
+	ret.instructionQueue = make([]Instruction, 0, 1)
 
 	var totalQueueSize int
 
-	var instruction GuacamoleInstruction
+	var instruction Instruction
 	reader := ret.socket.GetReader()
 
 	// Continuously read instructions, searching for errors
@@ -157,8 +157,8 @@ func NewFailoverGuacamoleSocket(socket GuacamoleSocket) (ret FailoverGuacamoleSo
 	ret.socket = socket
 
 	/**
-	 * GuacamoleReader which reads instructions from the queue populated when
-	 * the FailoverGuacamoleSocket was constructed. Once the queue has been
+	 * Reader which reads instructions from the queue populated when
+	 * the FailoverSocket was constructed. Once the queue has been
 	 * emptied, reads are delegated directly to the reader of the wrapped
 	 * socket.
 	 */
@@ -166,24 +166,24 @@ func NewFailoverGuacamoleSocket(socket GuacamoleSocket) (ret FailoverGuacamoleSo
 	return
 }
 
-// GetReader override GuacamoleSocket.GetReader
-func (opt *FailoverGuacamoleSocket) GetReader() GuacamoleReader {
+// GetReader override Socket.GetReader
+func (opt *FailoverSocket) GetReader() Reader {
 	return opt.queuedReader
 }
 
-// GetWriter override GuacamoleSocket.GetWriter
-func (opt *FailoverGuacamoleSocket) GetWriter() GuacamoleWriter {
+// GetWriter override Socket.GetWriter
+func (opt *FailoverSocket) GetWriter() Writer {
 	return opt.socket.GetWriter()
 }
 
-// Close override GuacamoleSocket.Close
-func (opt *FailoverGuacamoleSocket) Close() (err ExceptionInterface) {
+// Close override Socket.Close
+func (opt *FailoverSocket) Close() (err ExceptionInterface) {
 	err = opt.socket.Close()
 	return
 }
 
-// IsOpen override GuacamoleSocket.IsOpen
-func (opt *FailoverGuacamoleSocket) IsOpen() bool {
+// IsOpen override Socket.IsOpen
+func (opt *FailoverSocket) IsOpen() bool {
 	return opt.socket.IsOpen()
 }
 
@@ -192,17 +192,17 @@ func (opt *FailoverGuacamoleSocket) IsOpen() bool {
 ///////////////////////////////////////////////////////////////////
 
 type lambdaQueuedReader struct {
-	core *FailoverGuacamoleSocket
+	core *FailoverSocket
 }
 
-func newLambdaQueuedReader(core *FailoverGuacamoleSocket) (ret GuacamoleReader) {
+func newLambdaQueuedReader(core *FailoverSocket) (ret Reader) {
 	one := lambdaQueuedReader{}
 	one.core = core
 	ret = &one
 	return
 }
 
-// Available override GuacamoleReader.Available
+// Available override Reader.Available
 func (opt *lambdaQueuedReader) Available() (ok bool, err ExceptionInterface) {
 	ok = len(opt.core.instructionQueue) > 0
 	if ok {
@@ -211,11 +211,11 @@ func (opt *lambdaQueuedReader) Available() (ok bool, err ExceptionInterface) {
 	return opt.core.GetReader().Available()
 }
 
-// Read override GuacamoleReader.Read
+// Read override Reader.Read
 func (opt *lambdaQueuedReader) Read() (ret []byte, err ExceptionInterface) {
 
 	// Read instructions from queue before finally delegating to
-	// underlying reader (received when FailoverGuacamoleSocket was
+	// underlying reader (received when FailoverSocket was
 	// being constructed)
 	if len(opt.core.instructionQueue) > 0 {
 		instruction := opt.core.instructionQueue[0]
@@ -227,12 +227,12 @@ func (opt *lambdaQueuedReader) Read() (ret []byte, err ExceptionInterface) {
 	return opt.core.socket.GetReader().Read()
 }
 
-// ReadInstruction override GuacamoleSocket.ReadInstruction
-func (opt *lambdaQueuedReader) ReadInstruction() (ret GuacamoleInstruction,
+// ReadInstruction override Socket.ReadInstruction
+func (opt *lambdaQueuedReader) ReadInstruction() (ret Instruction,
 	err ExceptionInterface) {
 
 	// Read instructions from queue before finally delegating to
-	// underlying reader (received when FailoverGuacamoleSocket was
+	// underlying reader (received when FailoverSocket was
 	// being constructed)
 	if len(opt.core.instructionQueue) > 0 {
 		ret = opt.core.instructionQueue[0]

@@ -16,21 +16,12 @@ func main() {
 	fs := http.FileServer(http.Dir("."))
 
 	myHandler := http.NewServeMux()
-	myHandler.HandleFunc("/tunnel", func(w http.ResponseWriter, r *http.Request) {
-		logger.Println("1--", r.Method, r.URL)
-		servlet.ServeHTTP(w, r)
-	})
-	myHandler.HandleFunc("/tunnel/", func(w http.ResponseWriter, r *http.Request) {
-		logger.Println("2--", r.Method, r.URL)
-		servlet.ServeHTTP(w, r)
-	})
-	myHandler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		logger.Println(r.Method, r.URL)
-		fs.ServeHTTP(w, r)
-	})
+	myHandler.Handle("/tunnel", servlet)
+	myHandler.Handle("/tunnel/", servlet)
+	myHandler.Handle("/", fs)
 
 	logger.Println("Serving on https://127.0.0.1:4567")
-	// init server
+
 	s := &http.Server{
 		Addr:           ":4567",
 		Handler:        myHandler,
@@ -45,9 +36,9 @@ func main() {
 }
 
 type BaseToHTTPServletResponseInterface struct {
-	core     http.ResponseWriter
-	commited bool
-	err      error
+	core      http.ResponseWriter
+	committed bool
+	err       error
 }
 
 // SwapResponse override
@@ -57,7 +48,7 @@ func SwapResponse(core http.ResponseWriter) guac.HTTPServletResponseInterface {
 
 // IsCommitted override
 func (opt *BaseToHTTPServletResponseInterface) IsCommitted() (bool, error) {
-	return opt.commited, opt.err
+	return opt.committed, opt.err
 }
 
 // AddHeader override
@@ -82,21 +73,21 @@ func (opt *BaseToHTTPServletResponseInterface) SetContentLength(length int) {
 
 // SendError override
 func (opt *BaseToHTTPServletResponseInterface) SendError(sc int) error {
-	opt.commited = true
+	opt.committed = true
 	opt.core.WriteHeader(sc)
 	return nil
 }
 
 // WriteString override
 func (opt *BaseToHTTPServletResponseInterface) WriteString(data string) error {
-	opt.commited = true
+	opt.committed = true
 	opt.core.Write([]byte(data))
 	return nil
 }
 
 // Write override
 func (opt *BaseToHTTPServletResponseInterface) Write(data []byte) error {
-	opt.commited = true
+	opt.committed = true
 	opt.core.Write(data)
 	return nil
 }
@@ -138,12 +129,12 @@ const enterPath = "/tunnel"
 
 // ServletHandleStruct servlet
 type ServletHandleStruct struct {
-	*guac.GuacamoleHTTPTunnelServlet
+	*guac.HttpTunnelServlet
 }
 
 // NewServletHandleStruct servlet
 func NewServletHandleStruct(doConnect guac.DoConnectInterface) *ServletHandleStruct {
-	return &ServletHandleStruct{guac.NewGuacamoleHTTPTunnelServlet(doConnect)}
+	return &ServletHandleStruct{guac.NewHTTPTunnelServlet(doConnect)}
 }
 
 // GetEnterPath for http enter
@@ -171,9 +162,9 @@ func (opt *ServletHandleStruct) ServeHTTP(w http.ResponseWriter, r *http.Request
 }
 
 // DemoDoConnect Demo & test code
-func DemoDoConnect(request guac.HTTPServletRequestInterface) (ret guac.GuacamoleTunnel, err error) {
+func DemoDoConnect(request guac.HTTPServletRequestInterface) (guac.Tunnel, error) {
 	config := guac.NewGuacamoleConfiguration()
-	infomation := guac.NewGuacamoleClientInformation()
+	info := guac.NewGuacamoleClientInformation()
 
 	config.SetProtocol("ssh")
 	config.SetParameter("port", "22")
@@ -182,21 +173,16 @@ func DemoDoConnect(request guac.HTTPServletRequestInterface) (ret guac.Guacamole
 	config.SetParameter("password", secret.Password)
 
 	// view
-	infomation.SetOptimalScreenHeight(600)
-	infomation.SetOptimalScreenWidth(800)
+	info.SetOptimalScreenHeight(600)
+	info.SetOptimalScreenWidth(800)
 
-	core, err := guac.NewInetGuacamoleSocket("127.0.0.1", 4822)
+	core, err := guac.NewInetSocket("127.0.0.1", 4822)
 	if err != nil {
-		return
+		return nil, err
 	}
-	socket, err := guac.NewConfiguredGuacamoleSocket3(
-		&core,
-		config,
-		infomation,
-	)
+	socket, err := guac.NewConfiguredSocket3(&core, config, info)
 	if err != nil {
-		return
+		return nil, err
 	}
-	ret = guac.NewSimpleGuacamoleTunnel(&socket)
-	return
+	return guac.NewSimpleTunnel(&socket), nil
 }

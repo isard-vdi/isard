@@ -16,13 +16,13 @@ import (
  */
 const TunnelTimeout = 15 * time.Second
 
-/*GuacamoleHTTPTunnelMap *
+/*HttpTunnelMap *
  * Map-style object which tracks in-use HTTP tunnels, automatically removing
  * and closing tunnels which have not been used recently. This class is
- * intended for use only within the GuacamoleHTTPTunnelServlet implementation,
+ * intended for use only within the HttpTunnelServlet implementation,
  * and has no real utility outside that implementation.
  */
-type GuacamoleHTTPTunnelMap struct {
+type HttpTunnelMap struct {
 	/**
 	 * Executor service which runs the periodic tunnel timeout task.
 	 */
@@ -37,18 +37,18 @@ type GuacamoleHTTPTunnelMap struct {
 	/**
 	 * Map of all tunnels that are using HTTP, indexed by tunnel UUID.
 	 */
-	tunnelMap     map[string]*GuacamoleHTTPTunnel
+	tunnelMap     map[string]*HttpTunnel
 	tunnelMapLock sync.RWMutex
 }
 
-/*NewGuacamoleHTTPTunnelMap *
- * Creates a new GuacamoleHTTPTunnelMap which automatically closes and
+/*NewHttpTunnelMap *
+ * Creates a new HttpTunnelMap which automatically closes and
  * removes HTTP tunnels which are no longer in use.
  */
-func NewGuacamoleHTTPTunnelMap() (ret GuacamoleHTTPTunnelMap) {
+func NewHttpTunnelMap() (ret HttpTunnelMap) {
 
 	ret.executor = make([]*time.Ticker, 0, 1)
-	ret.tunnelMap = make(map[string]*GuacamoleHTTPTunnel)
+	ret.tunnelMap = make(map[string]*HttpTunnel)
 
 	ret.tunnelTimeout = TunnelTimeout
 
@@ -56,7 +56,7 @@ func NewGuacamoleHTTPTunnelMap() (ret GuacamoleHTTPTunnelMap) {
 	return
 }
 
-func (opt *GuacamoleHTTPTunnelMap) startScheduled(count int32, timeout time.Duration) {
+func (opt *HttpTunnelMap) startScheduled(count int32, timeout time.Duration) {
 	for i := int32(len(opt.executor)); i < count; i++ {
 
 		tick := time.NewTicker(timeout)
@@ -66,7 +66,7 @@ func (opt *GuacamoleHTTPTunnelMap) startScheduled(count int32, timeout time.Dura
 	}
 }
 
-func (opt *GuacamoleHTTPTunnelMap) tunnelTimeoutTask(c <-chan time.Time) {
+func (opt *HttpTunnelMap) tunnelTimeoutTask(c <-chan time.Time) {
 	for {
 		_, ok := <-c
 		if !ok {
@@ -76,13 +76,13 @@ func (opt *GuacamoleHTTPTunnelMap) tunnelTimeoutTask(c <-chan time.Time) {
 	}
 }
 
-func (opt *GuacamoleHTTPTunnelMap) tunnelTimeoutTaskRun() {
+func (opt *HttpTunnelMap) tunnelTimeoutTaskRun() {
 	// timeLine = Now() - tunnelTimeout
 	timeLine := time.Now().Add(0 - opt.tunnelTimeout)
 
 	type pair struct {
 		uuid   string
-		tunnel *GuacamoleHTTPTunnel
+		tunnel *HttpTunnel
 	}
 	removeIDs := make([]pair, 0, 1)
 
@@ -111,19 +111,19 @@ func (opt *GuacamoleHTTPTunnelMap) tunnelTimeoutTaskRun() {
 }
 
 /*Get *
- * Returns the GuacamoleTunnel having the given UUID, wrapped within a
- * GuacamoleHTTPTunnel. If the no tunnel having the given UUID is
+ * Returns the Tunnel having the given UUID, wrapped within a
+ * HttpTunnel. If the no tunnel having the given UUID is
  * available, null is returned.
  *
  * @param uuid
  *     The UUID of the tunnel to retrieve.
  *
  * @return
- *     The GuacamoleTunnel having the given UUID, wrapped within a
- *     GuacamoleHTTPTunnel, if such a tunnel exists, or null if there is no
+ *     The Tunnel having the given UUID, wrapped within a
+ *     HttpTunnel, if such a tunnel exists, or null if there is no
  *     such tunnel.
  */
-func (opt *GuacamoleHTTPTunnelMap) Get(uuid string) (tunnel *GuacamoleHTTPTunnel, ok bool) {
+func (opt *HttpTunnelMap) Get(uuid string) (tunnel *HttpTunnel, ok bool) {
 
 	// Update the last access time
 	opt.tunnelMapLock.RLock()
@@ -143,36 +143,36 @@ func (opt *GuacamoleHTTPTunnelMap) Get(uuid string) (tunnel *GuacamoleHTTPTunnel
 
 /*Put *
  * Registers that a new connection has been established using HTTP via the
- * given GuacamoleTunnel.
+ * given Tunnel.
  *
  * @param uuid
  *     The UUID of the tunnel being added (registered).
  *
  * @param tunnel
- *     The GuacamoleTunnel being registered, its associated connection
+ *     The Tunnel being registered, its associated connection
  *     having just been established via HTTP.
  */
-func (opt *GuacamoleHTTPTunnelMap) Put(uuid string, tunnel GuacamoleTunnel) {
-	one := NewGuacamoleHTTPTunnel(tunnel)
+func (opt *HttpTunnelMap) Put(uuid string, tunnel Tunnel) {
+	one := NewHttpTunnel(tunnel)
 	opt.tunnelMapLock.Lock()
 	opt.tunnelMap[uuid] = &one
 	opt.tunnelMapLock.Unlock()
 }
 
 /*Remove *
- * Removes the GuacamoleTunnel having the given UUID, if such a tunnel
+ * Removes the Tunnel having the given UUID, if such a tunnel
  * exists. The original tunnel is returned wrapped within a
- * GuacamoleHTTPTunnel.
+ * HttpTunnel.
  *
  * @param uuid
  *     The UUID of the tunnel to remove (deregister).
  *
  * @return
- *     The GuacamoleTunnel having the given UUID, if such a tunnel exists,
- *     wrapped within a GuacamoleHTTPTunnel, or null if no such tunnel
+ *     The Tunnel having the given UUID, if such a tunnel exists,
+ *     wrapped within a HttpTunnel, or null if no such tunnel
  *     exists and no removal was performed.
  */
-func (opt *GuacamoleHTTPTunnelMap) Remove(uuid string) (*GuacamoleHTTPTunnel, bool) {
+func (opt *HttpTunnelMap) Remove(uuid string) (*HttpTunnel, bool) {
 
 	opt.tunnelMapLock.RLock()
 	v, ok := opt.tunnelMap[uuid]
@@ -190,7 +190,7 @@ func (opt *GuacamoleHTTPTunnelMap) Remove(uuid string) (*GuacamoleHTTPTunnel, bo
  * Shuts down this tunnel map, disallowing future tunnels from being
  * registered and reclaiming any resources.
  */
-func (opt *GuacamoleHTTPTunnelMap) Shutdown() {
+func (opt *HttpTunnelMap) Shutdown() {
 	for _, c := range opt.executor {
 		c.Stop()
 	}

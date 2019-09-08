@@ -9,44 +9,44 @@ import (
 /**
  * Logger for this class.
  */
-//private final Logger logger = LoggerFactory.getLogger(GuacamoleHTTPTunnelServlet.class);
+//private final Logger logger = LoggerFactory.getLogger(HttpTunnelServlet.class);
 
 const (
 	/*READ_PREFIX *
 	 * The prefix of the query string which denotes a tunnel read operation.
 	 */
-	READ_PREFIX string = "read:"
+	ReadPrefix string = "read:"
 
 	/*WRITE_PREFIX *
 	 * The prefix of the query string which denotes a tunnel write operation.
 	 */
-	WRITE_PREFIX string = "write:"
+	WritePrefix string = "write:"
 
 	/*READ_PREFIX_LENGTH *
 	 * The length of the read prefix, in characters.
 	 */
-	READ_PREFIX_LENGTH = len(READ_PREFIX)
+	ReadPrefixLength = len(ReadPrefix)
 
 	/*WRITE_PREFIX_LENGTH *
 	 * The length of the write prefix, in characters.
 	 */
-	WRITE_PREFIX_LENGTH = len(WRITE_PREFIX)
+	WritePrefixLength = len(WritePrefix)
 
 	/*UUID_LENGTH *
 	 * The length of every tunnel UUID, in characters.
 	 */
-	UUID_LENGTH = 36
+	UuidLength = 36
 )
 
-/*GuacamoleHTTPTunnelServlet ==> HttpServlet*
+/*HttpTunnelServlet ==> HttpServlet*
  * A HttpServlet implementing and abstracting the operations required by the
  * HTTP implementation of the JavaScript Guacamole client's tunnel.
  */
-type GuacamoleHTTPTunnelServlet struct {
+type HttpTunnelServlet struct {
 	/**
 	 * Map of absolutely all active tunnels using HTTP, indexed by tunnel UUID.
 	 */
-	tunnels GuacamoleHTTPTunnelMap
+	tunnels HttpTunnelMap
 
 	/**
 	 * Called whenever the JavaScript Guacamole client makes a connection
@@ -61,19 +61,19 @@ type GuacamoleHTTPTunnelServlet struct {
 	 *     can be read from this object.
 	 *
 	 * @return
-	 *     A newly constructed GuacamoleTunnel if successful, null otherwise.
+	 *     A newly constructed Tunnel if successful, null otherwise.
 	 *
 	 * @throws GuacamoleException
-	 *     If an error occurs while constructing the GuacamoleTunnel, or if the
+	 *     If an error occurs while constructing the Tunnel, or if the
 	 *     conditions required for connection are not met.
 	 */
 	doConnect DoConnectInterface
 }
 
-// NewGuacamoleHTTPTunnelServlet Construct funtion
-func NewGuacamoleHTTPTunnelServlet(doConnect DoConnectInterface) *GuacamoleHTTPTunnelServlet {
-	return &GuacamoleHTTPTunnelServlet{
-		tunnels:   NewGuacamoleHTTPTunnelMap(),
+// NewHTTPTunnelServlet Construct function
+func NewHTTPTunnelServlet(doConnect DoConnectInterface) *HttpTunnelServlet {
+	return &HttpTunnelServlet{
+		tunnels:   NewHttpTunnelMap(),
 		doConnect: doConnect,
 	}
 }
@@ -85,7 +85,7 @@ func NewGuacamoleHTTPTunnelServlet(doConnect DoConnectInterface) *GuacamoleHTTPT
  * @param tunnel
  *     The tunnel to register.
  */
-func (opt *GuacamoleHTTPTunnelServlet) registerTunnel(tunnel GuacamoleTunnel) {
+func (opt *HttpTunnelServlet) registerTunnel(tunnel Tunnel) {
 	opt.tunnels.Put(tunnel.GetUUID().String(), tunnel)
 	logger.Debugf("Registered tunnel \"%v\".", tunnel.GetUUID())
 }
@@ -97,7 +97,7 @@ func (opt *GuacamoleHTTPTunnelServlet) registerTunnel(tunnel GuacamoleTunnel) {
  * @param tunnel
  *     The tunnel to deregister.
  */
-func (opt *GuacamoleHTTPTunnelServlet) deregisterTunnel(tunnel GuacamoleTunnel) {
+func (opt *HttpTunnelServlet) deregisterTunnel(tunnel Tunnel) {
 	opt.tunnels.Remove(tunnel.GetUUID().String())
 	logger.Debugf("Deregistered tunnel \"%v\".", tunnel.GetUUID())
 }
@@ -116,7 +116,7 @@ func (opt *GuacamoleHTTPTunnelServlet) deregisterTunnel(tunnel GuacamoleTunnel) 
  *     If the requested tunnel does not exist because it has not yet been
  *     registered or it has been deregistered.
  */
-func (opt *GuacamoleHTTPTunnelServlet) getTunnel(tunnelUUID string) (ret GuacamoleTunnel,
+func (opt *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel,
 	err ExceptionInterface) {
 
 	// Pull tunnel from map
@@ -129,18 +129,18 @@ func (opt *GuacamoleHTTPTunnelServlet) getTunnel(tunnelUUID string) (ret Guacamo
 }
 
 //DoGet @Override
-func (opt *GuacamoleHTTPTunnelServlet) DoGet(request HTTPServletRequestInterface, response HTTPServletResponseInterface) error {
+func (opt *HttpTunnelServlet) DoGet(request HTTPServletRequestInterface, response HTTPServletResponseInterface) error {
 	return opt.HandleTunnelRequest(request, response)
 }
 
 //DoPost @Override
-func (opt *GuacamoleHTTPTunnelServlet) DoPost(request HTTPServletRequestInterface, response HTTPServletResponseInterface) error {
+func (opt *HttpTunnelServlet) DoPost(request HTTPServletRequestInterface, response HTTPServletResponseInterface) error {
 	return opt.HandleTunnelRequest(request, response)
 }
 
 /**
  * Sends an error on the given HTTP response using the information within
- * the given GuacamoleStatus.
+ * the given Status.
  *
  * @param response
  *     The HTTP response to use to send the error.
@@ -154,8 +154,8 @@ func (opt *GuacamoleHTTPTunnelServlet) DoPost(request HTTPServletRequestInterfac
  * @throws ServletException
  *     If an error prevents sending of the error code.
  */
-func (opt *GuacamoleHTTPTunnelServlet) sendError(response HTTPServletResponseInterface,
-	guacStatus GuacamoleStatus, message string) (err error) {
+func (opt *HttpTunnelServlet) sendError(response HTTPServletResponseInterface,
+	guacStatus Status, message string) (err error) {
 
 	committed, err := response.IsCommitted()
 	if err != nil {
@@ -188,9 +188,7 @@ func (opt *GuacamoleHTTPTunnelServlet) sendError(response HTTPServletResponseInt
  * @throws ServletException
  *     If an error occurs while servicing the request.
  */
-func (opt *GuacamoleHTTPTunnelServlet) HandleTunnelRequest(request HTTPServletRequestInterface,
-	response HTTPServletResponseInterface) (e error) {
-
+func (opt *HttpTunnelServlet) HandleTunnelRequest(request HTTPServletRequestInterface, response HTTPServletResponseInterface) (e error) {
 	err := opt.handleTunnelRequestCore(request, response)
 	if err == nil {
 		return
@@ -207,8 +205,7 @@ func (opt *GuacamoleHTTPTunnelServlet) HandleTunnelRequest(request HTTPServletRe
 	return
 }
 
-func (opt *GuacamoleHTTPTunnelServlet) handleTunnelRequestCore(request HTTPServletRequestInterface,
-	response HTTPServletResponseInterface) (err ExceptionInterface) {
+func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequestInterface, response HTTPServletResponseInterface) (err ExceptionInterface) {
 	query := request.GetQueryString()
 	if len(query) == 0 {
 		return GuacamoleClientException.Throw("No query string provided.")
@@ -235,18 +232,18 @@ func (opt *GuacamoleHTTPTunnelServlet) handleTunnelRequestCore(request HTTPServl
 		e = response.WriteString(tunnel.GetUUID().String())
 
 		if e != nil {
-			err = GuacamoleServerException.Throw(e.Error())
+			err = ServerException.Throw(e.Error())
 			return
 		}
 
-	} else if strings.HasPrefix(query, READ_PREFIX) {
+	} else if strings.HasPrefix(query, ReadPrefix) {
 		// If read operation, call doRead() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = opt.doRead(request, response, query[READ_PREFIX_LENGTH:READ_PREFIX_LENGTH+UUID_LENGTH])
-	} else if strings.HasPrefix(query, (WRITE_PREFIX)) {
+		err = opt.doRead(request, response, query[ReadPrefixLength:ReadPrefixLength+UuidLength])
+	} else if strings.HasPrefix(query, WritePrefix) {
 		// If write operation, call doWrite() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = opt.doWrite(request, response, query[WRITE_PREFIX_LENGTH:WRITE_PREFIX_LENGTH+UUID_LENGTH])
+		err = opt.doWrite(request, response, query[WritePrefixLength:WritePrefixLength+UuidLength])
 	} else {
 		// Otherwise, invalid operation
 		err = GuacamoleClientException.Throw("Invalid tunnel operation: " + query)
@@ -276,7 +273,7 @@ func (opt *GuacamoleHTTPTunnelServlet) handleTunnelRequestCore(request HTTPServl
  * @throws GuacamoleException
  *     If an error occurs while handling the read request.
  */
-func (opt *GuacamoleHTTPTunnelServlet) doRead(request HTTPServletRequestInterface,
+func (opt *HttpTunnelServlet) doRead(request HTTPServletRequestInterface,
 	response HTTPServletResponseInterface, tunnelUUID string) (err ExceptionInterface) {
 
 	// Get tunnel, ensure tunnel exists
@@ -304,14 +301,14 @@ func (opt *GuacamoleHTTPTunnelServlet) doRead(request HTTPServletRequestInterfac
 
 		// Deregister and close
 		opt.deregisterTunnel(tunnel)
-		tunnel.Close()
+		e = tunnel.Close()
 	}
 
 	return
 }
 
-func (opt *GuacamoleHTTPTunnelServlet) doReadCore1(response HTTPServletResponseInterface,
-	reader GuacamoleReader, tunnel GuacamoleTunnel) (e ExceptionInterface) {
+func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface,
+	reader Reader, tunnel Tunnel) (e ExceptionInterface) {
 	// Note that although we are sending text, Webkit browsers will
 	// buffer 1024 bytes before starting a normal stream if we use
 	// anything but application/octet-stream.
@@ -349,8 +346,8 @@ func (opt *GuacamoleHTTPTunnelServlet) doReadCore1(response HTTPServletResponseI
 	return
 }
 
-func (opt *GuacamoleHTTPTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
-	reader GuacamoleReader, tunnel GuacamoleTunnel) (err ExceptionInterface) {
+func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
+	reader Reader, tunnel Tunnel) (err ExceptionInterface) {
 	var ok bool
 	var message []byte
 	// Deregister tunnel and throw error if we reach EOF without
@@ -423,7 +420,7 @@ func (opt *GuacamoleHTTPTunnelServlet) doReadCore2(response HTTPServletResponseI
  * @throws GuacamoleException
  *     If an error occurs while handling the write request.
  */
-func (opt *GuacamoleHTTPTunnelServlet) doWrite(request HTTPServletRequestInterface,
+func (opt *HttpTunnelServlet) doWrite(request HTTPServletRequestInterface,
 	response HTTPServletResponseInterface, tunnelUUID string) (err ExceptionInterface) {
 	tunnel, err := opt.getTunnel(tunnelUUID)
 	if err != nil {
@@ -465,6 +462,6 @@ func (opt *GuacamoleHTTPTunnelServlet) doWrite(request HTTPServletRequestInterfa
 }
 
 // Destroy release
-func (opt *GuacamoleHTTPTunnelServlet) Destroy() {
+func (opt *HttpTunnelServlet) Destroy() {
 	opt.tunnels.Shutdown()
 }

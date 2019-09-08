@@ -1,47 +1,47 @@
 package guac
 
-// Move FilteredGuacamoleWriter from protocol folder to here
+// Move FilteredWriter from protocol folder to here
 // Avoid cross depends
 
-// FilteredGuacamoleWriter ==> GuacamoleWriter
-//  * GuacamoleWriter which applies a given GuacamoleFilter to observe or alter
+// FilteredWriter ==> Writer
+//  * Writer which applies a given Filter to observe or alter
 //  * all written instructions. Instructions may also be dropped or denied by
 //  * the filter.
-type FilteredGuacamoleWriter struct {
+type FilteredWriter struct {
 	/**
-	 * The wrapped GuacamoleWriter.
+	 * The wrapped Writer.
 	 */
-	writer GuacamoleWriter
+	writer Writer
 
 	/**
 	 * The filter to apply when writing instructions.
 	 */
-	filter GuacamoleFilter
+	filter Filter
 
 	/**
 	 * Parser for reading instructions prior to writing, such that they can be
 	 * passed on to the filter.
 	 */
-	parser GuacamoleParser
+	parser Parser
 }
 
-// NewFilteredGuacamoleWriter *
-// * Wraps the given GuacamoleWriter, applying the given filter to all written
+// NewFilteredWriter *
+// * Wraps the given Writer, applying the given filter to all written
 // * instructions. Future writes will only write instructions which pass
 // * the filter.
 // *
-// * @param writer The GuacamoleWriter to wrap.
+// * @param writer The Writer to wrap.
 // * @param filter The filter which dictates which instructions are written,
 // *               and how.
-func NewFilteredGuacamoleWriter(writer GuacamoleWriter, filter GuacamoleFilter) (ret FilteredGuacamoleWriter) {
+func NewFilteredWriter(writer Writer, filter Filter) (ret FilteredWriter) {
 	ret.writer = writer
 	ret.filter = filter
 	ret.parser = NewGuacamoleParser()
 	return
 }
 
-// Write override GuacamoleWriter.Write
-func (opt *FilteredGuacamoleWriter) Write(chunk []byte, offset, length int) (err ExceptionInterface) {
+// Write override Writer.Write
+func (opt *FilteredWriter) Write(chunk []byte, offset, length int) (err ExceptionInterface) {
 	for length > 0 {
 		var parsed int
 		for parsed, err = opt.parser.Append(chunk, offset, length); parsed > 0 && err == nil; parsed, err = opt.parser.Append(chunk, offset, length) {
@@ -52,7 +52,7 @@ func (opt *FilteredGuacamoleWriter) Write(chunk []byte, offset, length int) (err
 			return
 		}
 		if !opt.parser.HasNext() {
-			err = GuacamoleServerException.Throw("Filtered write() contained an incomplete instruction.")
+			err = ServerException.Throw("Filtered write() contained an incomplete instruction.")
 			return
 		}
 
@@ -66,13 +66,13 @@ func (opt *FilteredGuacamoleWriter) Write(chunk []byte, offset, length int) (err
 	return
 }
 
-// WriteAll override GuacamoleWriter.WriteAll
-func (opt *FilteredGuacamoleWriter) WriteAll(chunk []byte) (err ExceptionInterface) {
+// WriteAll override Writer.WriteAll
+func (opt *FilteredWriter) WriteAll(chunk []byte) (err ExceptionInterface) {
 	return opt.Write(chunk, 0, len(chunk))
 }
 
-// WriteInstruction override GuacamoleWriter.WriteInstruction
-func (opt *FilteredGuacamoleWriter) WriteInstruction(instruction GuacamoleInstruction) (err ExceptionInterface) {
+// WriteInstruction override Writer.WriteInstruction
+func (opt *FilteredWriter) WriteInstruction(instruction Instruction) (err ExceptionInterface) {
 
 	// Write instruction only if not dropped
 	filteredInstruction, err := opt.filter.Filter(instruction)

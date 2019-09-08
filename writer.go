@@ -1,8 +1,8 @@
 package guac
 
-// GuacamoleWriter Provides abstract and raw character write access
+// Writer Provides abstract and raw character write access
 // to a stream of Guacamole instructions.
-type GuacamoleWriter interface {
+type Writer interface {
 	// WriteEx function
 	//  * Writes a portion of the given array of characters to the Guacamole
 	//  * instruction stream. The portion must contain only complete Guacamole
@@ -32,5 +32,5 @@ type GuacamoleWriter interface {
 	//  * @param instruction The Guacamole instruction to write.
 	//  * @throws GuacamoleException If an error occurred while writing the
 	//  *                            instruction.
-	WriteInstruction(instruction GuacamoleInstruction) (err ExceptionInterface)
+	WriteInstruction(instruction Instruction) (err ExceptionInterface)
 }

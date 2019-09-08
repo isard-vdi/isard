@@ -9,18 +9,18 @@ type ExceptionKind int
 
 type ExceptionInterface interface {
 	Error() string
-	GetStatus() GuacamoleStatus
+	GetStatus() Status
 	GetMessage() string
 	Kind() ExceptionKind
 }
 
 type exceptionData struct {
 	err    error
-	status GuacamoleStatus
+	status Status
 	kind   ExceptionKind
 }
 
-func (opt *exceptionData) GetStatus() GuacamoleStatus {
+func (opt *exceptionData) GetStatus() Status {
 	return opt.status
 }
 
@@ -50,7 +50,7 @@ const (
 	GuacamoleResourceNotFoundException
 	GuacamoleSecurityException
 	GuacamoleServerBusyException
-	GuacamoleServerException
+	ServerException
 	GuacamoleSessionClosedException
 	GuacamoleSessionConflictException
 	GuacamoleSessionTimeoutException
@@ -62,53 +62,53 @@ const (
 	GuacamoleUpstreamUnavailableException
 )
 
-// Status convert ExceptionKind to GuacamoleStatus
-func (exception ExceptionKind) Status() (state GuacamoleStatus) {
+// Status convert ExceptionKind to Status
+func (exception ExceptionKind) Status() (state Status) {
 	switch exception {
 	case GuacamoleClientBadTypeException:
-		return CLIENT_BAD_TYPE
+		return ClientBadType
 	case GuacamoleClientException:
-		return CLIENT_BAD_REQUEST
+		return ClientBadRequest
 	case GuacamoleClientOverrunException:
-		return CLIENT_OVERRUN
+		return ClientOverrun
 	case GuacamoleClientTimeoutException:
-		return CLIENT_TIMEOUT
+		return ClientTimeout
 	case GuacamoleClientTooManyException:
-		return CLIENT_TOO_MANY
+		return ClientTooMany
 	case GuacamoleConnectionClosedException:
-		return SERVER_ERROR
+		return ServerError
 	case GuacamoleException:
-		return SERVER_ERROR
+		return ServerError
 	case GuacamoleResourceClosedException:
-		return RESOURCE_CLOSED
+		return ResourceClosed
 	case GuacamoleResourceConflictException:
-		return RESOURCE_CONFLICT
+		return ResourceConflict
 	case GuacamoleResourceNotFoundException:
-		return RESOURCE_NOT_FOUND
+		return ResourceNotFound
 	case GuacamoleSecurityException:
-		return CLIENT_FORBIDDEN
+		return ClientForbidden
 	case GuacamoleServerBusyException:
-		return SERVER_BUSY
-	case GuacamoleServerException:
-		return SERVER_ERROR
+		return ServerBusy
+	case ServerException:
+		return ServerError
 	case GuacamoleSessionClosedException:
-		return SESSION_CLOSED
+		return SessionClosed
 	case GuacamoleSessionConflictException:
-		return SESSION_CONFLICT
+		return SessionConflict
 	case GuacamoleSessionTimeoutException:
-		return SESSION_TIMEOUT
+		return SessionTimeout
 	case GuacamoleUnauthorizedException:
-		return CLIENT_UNAUTHORIZED
+		return ClientUnauthorized
 	case GuacamoleUnsupportedException:
-		return UNSUPPORTED
+		return Unsupported
 	case GuacamoleUpstreamException:
-		return UPSTREAM_ERROR
+		return UpstreamError
 	case GuacamoleUpstreamNotFoundException:
-		return UPSTREAM_NOT_FOUND
+		return UpstreamNotFound
 	case GuacamoleUpstreamTimeoutException:
-		return UPSTREAM_TIMEOUT
+		return UpstreamTimeout
 	case GuacamoleUpstreamUnavailableException:
-		return UPSTREAM_UNAVAILABLE
+		return UpstreamUnavailable
 	}
 	return
 }

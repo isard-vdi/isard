@@ -2,10 +2,10 @@ package guac
 
 const serialVersionUID = 1
 
-// GuacamoleConfiguration *
+// Config *
 //  * All information necessary to complete the initial protocol handshake of a
 //  * Guacamole session.
-type GuacamoleConfiguration struct {
+type Config struct {
 	/**
 	 * The ID of the connection being joined. If this value is present,
 	 * the protocol need not be specified.
@@ -24,7 +24,7 @@ type GuacamoleConfiguration struct {
 }
 
 // NewGuacamoleConfiguration Construct funtion
-func NewGuacamoleConfiguration() (ret GuacamoleConfiguration) {
+func NewGuacamoleConfiguration() (ret Config) {
 	ret.parameters = make(map[string]string)
 	return
 }
@@ -36,7 +36,7 @@ func NewGuacamoleConfiguration() (ret GuacamoleConfiguration) {
  * @return The ID of the connection being joined, or null if no connection
  *         is being joined.
  */
-func (opt *GuacamoleConfiguration) GetConnectionID() string {
+func (opt *Config) GetConnectionID() string {
 	return opt.connectionID
 }
 
@@ -47,7 +47,7 @@ func (opt *GuacamoleConfiguration) GetConnectionID() string {
  *
  * @param connectionID The ID of the connection being joined.
  */
-func (opt *GuacamoleConfiguration) SetConnectionID(connectionID string) {
+func (opt *Config) SetConnectionID(connectionID string) {
 	opt.connectionID = connectionID
 }
 
@@ -55,7 +55,7 @@ func (opt *GuacamoleConfiguration) SetConnectionID(connectionID string) {
  * Returns the name of the protocol to be used.
  * @return The name of the protocol to be used.
  */
-func (opt *GuacamoleConfiguration) GetProtocol() string {
+func (opt *Config) GetProtocol() string {
 	return opt.protocol
 }
 
@@ -63,7 +63,7 @@ func (opt *GuacamoleConfiguration) GetProtocol() string {
  * Sets the name of the protocol to be used.
  * @param protocol The name of the protocol to be used.
  */
-func (opt *GuacamoleConfiguration) SetProtocol(protocol string) {
+func (opt *Config) SetProtocol(protocol string) {
 	opt.protocol = protocol
 }
 
@@ -73,7 +73,7 @@ func (opt *GuacamoleConfiguration) SetProtocol(protocol string) {
  * @return The value of the parameter with the given name, or null if
  *         that parameter has not been set.
  */
-func (opt *GuacamoleConfiguration) GetParameter(name string) string {
+func (opt *Config) GetParameter(name string) string {
 	return opt.parameters[name]
 }
 
@@ -83,7 +83,7 @@ func (opt *GuacamoleConfiguration) GetParameter(name string) string {
  * @param name The name of the parameter to set the value for.
  * @param value The value to set for the parameter with the given name.
  */
-func (opt *GuacamoleConfiguration) SetParameter(name string, value string) {
+func (opt *Config) SetParameter(name string, value string) {
 	opt.parameters[name] = value
 }
 
@@ -92,18 +92,18 @@ func (opt *GuacamoleConfiguration) SetParameter(name string, value string) {
  *
  * @param name The name of the parameter to remove the value of.
  */
-func (opt *GuacamoleConfiguration) UnsetParameter(name string) {
+func (opt *Config) UnsetParameter(name string) {
 	delete(opt.parameters, name)
 }
 
 /*GetParameterNames *
  * Returns a set of all currently defined parameter names. Each name
  * corresponds to a parameter that has a value set on this
- * GuacamoleConfiguration via setParameter().
+ * Config via setParameter().
  *
  * @return A set of all currently defined parameter names.
  */
-func (opt *GuacamoleConfiguration) GetParameterNames() (ret []string) {
+func (opt *Config) GetParameterNames() (ret []string) {
 	ret = make([]string, 0, len(opt.parameters))
 	for k := range opt.parameters {
 		ret = append(ret, k)
@@ -120,7 +120,7 @@ func (opt *GuacamoleConfiguration) GetParameterNames() (ret []string) {
  *     A map which contains all parameter name/value pairs as key/value
  *     pairs.
  */
-func (opt *GuacamoleConfiguration) GetParameters() map[string]string {
+func (opt *Config) GetParameters() map[string]string {
 	return opt.parameters
 }
 
@@ -133,7 +133,7 @@ func (opt *GuacamoleConfiguration) GetParameters() map[string]string {
  *     A map which contains all parameter name/value pairs as key/value
  *     pairs.
  */
-func (opt *GuacamoleConfiguration) SetParameters(parameters map[string]string) {
+func (opt *Config) SetParameters(parameters map[string]string) {
 	opt.parameters = make(map[string]string)
 	for k, v := range parameters {
 		opt.SetParameter(k, v)
