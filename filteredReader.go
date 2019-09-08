@@ -30,12 +30,12 @@ func NewFilteredReader(reader Reader, filter Filter) *FilteredReader {
 }
 
 // Available override Reader.Available
-func (opt *FilteredReader) Available() (ok bool, err ExceptionInterface) {
+func (opt *FilteredReader) Available() (ok bool, err error) {
 	return opt.reader.Available()
 }
 
 // Read override Reader.Read
-func (opt *FilteredReader) Read() (ret []byte, err ExceptionInterface) {
+func (opt *FilteredReader) Read() (ret []byte, err error) {
 	filteredInstruction, err := opt.ReadInstruction()
 	if err != nil {
 		return
@@ -45,7 +45,7 @@ func (opt *FilteredReader) Read() (ret []byte, err ExceptionInterface) {
 }
 
 // ReadInstruction override Reader.ReadInstruction
-func (opt *FilteredReader) ReadInstruction() (ret Instruction, err ExceptionInterface) {
+func (opt *FilteredReader) ReadInstruction() (ret Instruction, err error) {
 	var filteredInstruction Instruction
 
 	for len(filteredInstruction.GetOpcode()) == 0 {

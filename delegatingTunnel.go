@@ -56,7 +56,7 @@ func (opt *DelegatingTunnel) HasQueuedWriterThreads() bool {
 }
 
 // Close override Tunnel.Close
-func (opt *DelegatingTunnel) Close() ExceptionInterface {
+func (opt *DelegatingTunnel) Close() error {
 	return opt.tunnel.Close()
 }
 

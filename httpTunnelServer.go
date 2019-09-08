@@ -63,7 +63,7 @@ type HttpTunnelServlet struct {
 	 * @return
 	 *     A newly constructed Tunnel if successful, null otherwise.
 	 *
-	 * @throws GuacamoleException
+	 * @throws ErrOther
 	 *     If an error occurs while constructing the Tunnel, or if the
 	 *     conditions required for connection are not met.
 	 */
@@ -112,18 +112,18 @@ func (opt *HttpTunnelServlet) deregisterTunnel(tunnel Tunnel) {
  * @return
  *     The tunnel corresponding to the given UUID.
  *
- * @throws GuacamoleException
+ * @throws ErrOther
  *     If the requested tunnel does not exist because it has not yet been
  *     registered or it has been deregistered.
  */
 func (opt *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel,
-	err ExceptionInterface) {
+	err error) {
 
 	// Pull tunnel from map
 	ret, ok := opt.tunnels.Get(tunnelUUID)
 
 	if !ok {
-		err = GuacamoleResourceNotFoundException.Throw("No such tunnel.")
+		err = ErrResourceNotFound.NewError("No such tunnel.")
 	}
 	return
 }
@@ -146,7 +146,7 @@ func (opt *HttpTunnelServlet) DoPost(request HTTPServletRequestInterface, respon
  *     The HTTP response to use to send the error.
  *
  * @param guacStatus
- *     The status to send
+ *     The Status to send
  *
  * @param message
  *     A human-readable message that can be presented to the user.
@@ -193,22 +193,23 @@ func (opt *HttpTunnelServlet) HandleTunnelRequest(request HTTPServletRequestInte
 	if err == nil {
 		return
 	}
-	switch err.Kind() {
-	case GuacamoleClientException:
-		logger.Warn("HTTP tunnel request rejected: ", err.GetMessage())
-		e = opt.sendError(response, err.GetStatus(), err.GetMessage())
+	guacErr := err.(*ErrGuac)
+	switch guacErr.Kind {
+	case ErrClient:
+		logger.Warn("HTTP tunnel request rejected: ", err.Error())
+		e = opt.sendError(response, guacErr.Status, err.Error())
 	default:
-		logger.Error("HTTP tunnel request failed: ", err.GetMessage())
+		logger.Error("HTTP tunnel request failed: ", err.Error())
 		logger.Debug("Internal error in HTTP tunnel.", err)
-		e = opt.sendError(response, err.GetStatus(), "Internal server error.")
+		e = opt.sendError(response, guacErr.Status, "Internal server error.")
 	}
 	return
 }
 
-func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequestInterface, response HTTPServletResponseInterface) (err ExceptionInterface) {
+func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequestInterface, response HTTPServletResponseInterface) (err error) {
 	query := request.GetQueryString()
 	if len(query) == 0 {
-		return GuacamoleClientException.Throw("No query string provided.")
+		return ErrClient.NewError("No query string provided.")
 	}
 	// If connect operation, call doConnect() and return tunnel UUID
 	// in response.
@@ -218,7 +219,7 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequest
 
 		// Failed to connect
 		if e != nil {
-			err = GuacamoleResourceNotFoundException.Throw("No tunnel created.", e.Error())
+			err = ErrResourceNotFound.NewError("No tunnel created.", e.Error())
 			return
 		}
 
@@ -232,7 +233,7 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequest
 		e = response.WriteString(tunnel.GetUUID().String())
 
 		if e != nil {
-			err = ServerException.Throw(e.Error())
+			err = ErrServer.NewError(e.Error())
 			return
 		}
 
@@ -246,7 +247,7 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequest
 		err = opt.doWrite(request, response, query[WritePrefixLength:WritePrefixLength+UuidLength])
 	} else {
 		// Otherwise, invalid operation
-		err = GuacamoleClientException.Throw("Invalid tunnel operation: " + query)
+		err = ErrClient.NewError("Invalid tunnel operation: " + query)
 	}
 
 	return
@@ -270,11 +271,11 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequest
  *     request. This tunnel must have been created by a previous call to
  *     doConnect().
  *
- * @throws GuacamoleException
+ * @throws ErrOther
  *     If an error occurs while handling the read request.
  */
 func (opt *HttpTunnelServlet) doRead(request HTTPServletRequestInterface,
-	response HTTPServletResponseInterface, tunnelUUID string) (err ExceptionInterface) {
+	response HTTPServletResponseInterface, tunnelUUID string) (err error) {
 
 	// Get tunnel, ensure tunnel exists
 	tunnel, err := opt.getTunnel(tunnelUUID)
@@ -285,7 +286,7 @@ func (opt *HttpTunnelServlet) doRead(request HTTPServletRequestInterface,
 	// Ensure tunnel is open
 	if !tunnel.IsOpen() {
 		opt.deregisterTunnel(tunnel)
-		err = GuacamoleResourceNotFoundException.Throw("Tunnel is closed.")
+		err = ErrResourceNotFound.NewError("Tunnel is closed.")
 		return
 	}
 
@@ -307,8 +308,7 @@ func (opt *HttpTunnelServlet) doRead(request HTTPServletRequestInterface,
 	return
 }
 
-func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface,
-	reader Reader, tunnel Tunnel) (e ExceptionInterface) {
+func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface, reader Reader, tunnel Tunnel) (e error) {
 	// Note that although we are sending text, Webkit browsers will
 	// buffer 1024 bytes before starting a normal stream if we use
 	// anything but application/octet-stream.
@@ -329,9 +329,9 @@ func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface,
 		return
 	}
 
-	switch err.Kind() {
+	switch err.(*ErrGuac).Kind {
 	// Send end-of-stream marker and close tunnel if connection is closed
-	case GuacamoleConnectionClosedException:
+	case ErrConnectionClosed:
 		// Deregister and close
 		opt.deregisterTunnel(tunnel)
 		tunnel.Close()
@@ -347,7 +347,7 @@ func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface,
 }
 
 func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
-	reader Reader, tunnel Tunnel) (err ExceptionInterface) {
+	reader Reader, tunnel Tunnel) (err error) {
 	var ok bool
 	var message []byte
 	// Deregister tunnel and throw error if we reach EOF without
@@ -363,7 +363,7 @@ func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
 		// Get message output bytes
 		e := response.Write(message)
 		if e != nil {
-			err = GuacamoleException.Throw(e.Error())
+			err = ErrOther.NewError(e.Error())
 			return
 		}
 
@@ -376,7 +376,7 @@ func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
 		if !ok {
 			e = response.FlushBuffer()
 			if e != nil {
-				err = GuacamoleException.Throw(e.Error())
+				err = ErrOther.NewError(e.Error())
 				return
 			}
 		}
@@ -417,11 +417,11 @@ func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
  *     request. This tunnel must have been created by a previous call to
  *     doConnect().
  *
- * @throws GuacamoleException
+ * @throws ErrOther
  *     If an error occurs while handling the write request.
  */
 func (opt *HttpTunnelServlet) doWrite(request HTTPServletRequestInterface,
-	response HTTPServletResponseInterface, tunnelUUID string) (err ExceptionInterface) {
+	response HTTPServletResponseInterface, tunnelUUID string) (err error) {
 	tunnel, err := opt.getTunnel(tunnelUUID)
 	if err != nil {
 		return

@@ -83,10 +83,10 @@ type Tunnel interface {
 	/**
 	 * Release all resources allocated to this Tunnel.
 	 *
-	 * @throws GuacamoleException if an error occurs while releasing
+	 * @throws ErrOther if an error occurs while releasing
 	 *                            resources.
 	 */
-	Close() ExceptionInterface
+	Close() error
 
 	/**
 	 * Returns whether this Tunnel is open, or has been closed.

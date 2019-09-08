@@ -26,9 +26,9 @@ type Socket interface {
 	 * Releases all resources in use by the connection represented by this
 	 * Socket.
 	 *
-	 * @throws GuacamoleException If an error occurs while releasing resources.
+	 * @throws ErrOther If an error occurs while releasing resources.
 	 */
-	Close() ExceptionInterface
+	Close() error
 
 	/**
 	 * Returns whether this Socket is open and can be used for reading

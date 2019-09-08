@@ -27,9 +27,9 @@ type InetSocket struct {
 //  *
 //  * @param hostname The hostname of the Guacamole proxy server to connect to.
 //  * @param port The port of the Guacamole proxy server to connect to.
-//  * @throws GuacamoleException If an error occurs while connecting to the
+//  * @throws ErrOther If an error occurs while connecting to the
 //  *                            Guacamole proxy server.
-func NewInetSocket(hostname string, port int) (ret InetSocket, err ExceptionInterface) {
+func NewInetSocket(hostname string, port int) (ret InetSocket, err error) {
 	// log.DebugF("Try connect %v:%v", hostname, port)
 
 	// Get address
@@ -41,7 +41,7 @@ func NewInetSocket(hostname string, port int) (ret InetSocket, err ExceptionInte
 
 	sock, e := net.DialTCP("tcp", nil, addr)
 	if e != nil {
-		err = GuacamoleUpstreamTimeoutException.Throw("Connection timed out.", e.Error())
+		err = ErrUpstreamTimeout.NewError("Connection timed out.", e.Error())
 		return
 	}
 
@@ -55,11 +55,11 @@ func NewInetSocket(hostname string, port int) (ret InetSocket, err ExceptionInte
 }
 
 // Close Override Socket.Close
-func (opt *InetSocket) Close() (err ExceptionInterface) {
+func (opt *InetSocket) Close() (err error) {
 	// logger.debug("Closing socket to guacd.");
 	e := opt.sock.Close()
 	if e != nil {
-		err = ServerException.Throw(e.Error())
+		err = ErrServer.NewError(e.Error())
 	}
 	return
 }

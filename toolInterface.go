@@ -9,7 +9,7 @@ type HTTPServletRequestInterface interface {
 
 // HTTPServletResponseInterface convert http response
 type HTTPServletResponseInterface interface {
-	// Returns a boolean indicating if the response has been committed. A committed response has already had its status code and headers written.
+	// Returns a boolean indicating if the response has been committed. A committed response has already had its Status code and headers written.
 	IsCommitted() (bool, error)
 
 	// Adds a response header with the given name and value. This method allows response headers to have multiple values.
@@ -23,7 +23,7 @@ type HTTPServletResponseInterface interface {
 
 	SetContentLength(length int)
 
-	// Sends an error response to the client using the specified status code and clearing the buffer.
+	// Sends an error response to the client using the specified Status code and clearing the buffer.
 	SendError(sc int) error
 
 	// Instread of getWriter().print

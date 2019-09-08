@@ -30,7 +30,7 @@ func NewSimpleTunnel(socket Socket) (ret Tunnel) {
 		uuid:   guid.NewV4(),
 		socket: socket,
 	}
-	one.BaseTunnel = NewAbstractTunnel(&one)
+	one.BaseTunnel = NewBaseTunnel(&one)
 	ret = &one
 	return
 }

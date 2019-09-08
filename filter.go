@@ -15,9 +15,9 @@ type Filter interface {
 	 * @return The original instruction, if the instruction is to be allowed,
 	 *         a modified version of the instruction, if the instruction is
 	 *         to be overridden, or null, if the instruction is to be dropped.
-	 * @throws GuacamoleException If an error occurs filtering the instruction,
+	 * @throws ErrOther If an error occurs filtering the instruction,
 	 *                            or if the instruction must be explicitly
 	 *                            denied.
 	 */
-	Filter(instruction Instruction) (ret Instruction, err ExceptionInterface)
+	Filter(instruction Instruction) (ret Instruction, err error)
 }

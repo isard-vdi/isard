@@ -114,14 +114,14 @@ func (opt *Parser) init() {
 // * @return The number of characters appended, or 0 if complete instructions
 // *         have already been parsed and must be read via next() before
 // *         more data can be appended.
-// * @throws GuacamoleException If an error occurs while parsing the new data.
-func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, err ExceptionInterface) {
+// * @throws ErrOther If an error occurs while parsing the new data.
+func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, err error) {
 	charsParsed = 0
 
 	// Do not exceed maximum number of elements
 	if len(opt.elements) >= InstructionMaxElements && opt.state != Complete {
 		opt.state = Error
-		err = ServerException.Throw("Instruction contains too many elements.")
+		err = ErrServer.NewError("Instruction contains too many elements.")
 		return
 	}
 
@@ -146,7 +146,7 @@ func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, er
 				break loop
 			default:
 				opt.state = Error
-				err = ServerException.Throw("Non-numeric character in element length.")
+				err = ErrServer.NewError("Non-numeric character in element length.")
 				return
 			}
 
@@ -155,7 +155,7 @@ func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, er
 		// If too long, parse error
 		if parsedLength > InstructionMaxLength {
 			opt.state = Error
-			err = ServerException.Throw("Instruction exceeds maximum length.")
+			err = ErrServer.NewError("Instruction exceeds maximum length.")
 			return
 		}
 
@@ -190,7 +190,7 @@ func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, er
 
 		default:
 			opt.state = Error
-			err = ServerException.Throw("Element terminator of instruction was not ';' nor ','")
+			err = ErrServer.NewError("Element terminator of instruction was not ';' nor ','")
 			return
 		}
 
@@ -206,8 +206,8 @@ func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, er
 // * @return The number of characters appended, or 0 if complete instructions
 // *         have already been parsed and must be read via next() before
 // *         more data can be appended.
-// * @throws GuacamoleException If an error occurs while parsing the new data.
-func (opt *Parser) AppendAll(chunk []byte) (charsParsed int, err ExceptionInterface) {
+// * @throws ErrOther If an error occurs while parsing the new data.
+func (opt *Parser) AppendAll(chunk []byte) (charsParsed int, err error) {
 	return opt.Append(chunk, 0, len(chunk))
 }
 

@@ -93,7 +93,7 @@ const (
 	/*CLIENT_UNAUTHORIZED *
 	 * Permission was denied to perform the operation, as the user is not yet
 	 * authorized (not yet logged in, for example). As HTTP 401 has implications
-	 * for HTTP-specific authorization schemes, this status continues to map to
+	 * for HTTP-specific authorization schemes, this Status continues to map to
 	 * HTTP 403 ("Forbidden"). To do otherwise would risk unintended effects.
 	 */
 	ClientUnauthorized
@@ -139,7 +139,7 @@ type statusData struct {
 	websocketCode int
 
 	/**
-	 * The Guacamole protocol status code.
+	 * The Guacamole protocol Status code.
 	 */
 	guacCode int
 }
@@ -243,7 +243,7 @@ func initGuacamoleStatusMap() (ret map[Status]statusData) {
 	/**
 	 * Permission was denied to perform the operation, as the user is not yet
 	 * authorized (not yet logged in, for example). As HTTP 401 has implications
-	 * for HTTP-specific authorization schemes, this status continues to map to
+	 * for HTTP-specific authorization schemes, this Status continues to map to
 	 * HTTP 403 ("Forbidden"). To do otherwise would risk unintended effects.
 	 */
 	ret[ClientUnauthorized] = newStatusData("CLIENT_UNAUTHORIZED", 403, 1008, 0x0301)
@@ -309,9 +309,9 @@ func (statue Status) GetWebSocketCode() int {
 }
 
 /*GetGuacamoleStatusCode *
- * Returns the corresponding Guacamole protocol status code.
+ * Returns the corresponding Guacamole protocol Status code.
  *
- * @return The corresponding Guacamole protocol status code.
+ * @return The corresponding Guacamole protocol Status code.
  */
 func (statue Status) GetGuacamoleStatusCode() int {
 	if v, ok := guacamoleStatusMap[statue]; ok {
@@ -322,26 +322,26 @@ func (statue Status) GetGuacamoleStatusCode() int {
 
 /*FromGuacamoleStatusCode *
  * Returns the Status corresponding to the given Guacamole
- * protocol status code. If no such Status is defined, null is
+ * protocol Status code. If no such Status is defined, null is
  * returned.
  *
  * @param code
- *     The Guacamole protocol status code to translate into a
+ *     The Guacamole protocol Status code to translate into a
  *     Status.
  *
  * @return
  *     The Status corresponding to the given Guacamole protocol
- *     status code, or null if no such Status is defined.
+ *     Status code, or null if no such Status is defined.
  */
 func FromGuacamoleStatusCode(code int) (ret Status) {
-	// Search for a Status having the given status code
+	// Search for a Status having the given Status code
 	for k, v := range guacamoleStatusMap {
 		if v.guacCode == code {
 			ret = k
 			return
 		}
 	}
-	// No such status found
+	// No such Status found
 	ret = Undefined
 	return
 

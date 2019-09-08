@@ -5,120 +5,95 @@ import (
 	"strings"
 )
 
-type ExceptionKind int
-
-type ExceptionInterface interface {
-	Error() string
-	GetStatus() Status
-	GetMessage() string
-	Kind() ExceptionKind
+type ErrGuac struct {
+	error
+	Status Status
+	Kind   ErrKind
 }
 
-type exceptionData struct {
-	err    error
-	status Status
-	kind   ExceptionKind
-}
+type ErrKind int
 
-func (opt *exceptionData) GetStatus() Status {
-	return opt.status
-}
-
-func (opt *exceptionData) GetMessage() string {
-	return opt.err.Error()
-}
-
-func (opt *exceptionData) Error() string {
-	return opt.err.Error()
-}
-
-func (opt *exceptionData) Kind() ExceptionKind {
-	return opt.kind
-}
-
-// Value of ExceptionKind
 const (
-	GuacamoleClientBadTypeException ExceptionKind = iota
-	GuacamoleClientException
-	GuacamoleClientOverrunException
-	GuacamoleClientTimeoutException
-	GuacamoleClientTooManyException
-	GuacamoleConnectionClosedException
-	GuacamoleException
-	GuacamoleResourceClosedException
-	GuacamoleResourceConflictException
-	GuacamoleResourceNotFoundException
-	GuacamoleSecurityException
-	GuacamoleServerBusyException
-	ServerException
-	GuacamoleSessionClosedException
-	GuacamoleSessionConflictException
-	GuacamoleSessionTimeoutException
-	GuacamoleUnauthorizedException
-	GuacamoleUnsupportedException
-	GuacamoleUpstreamException
-	GuacamoleUpstreamNotFoundException
-	GuacamoleUpstreamTimeoutException
-	GuacamoleUpstreamUnavailableException
+	ErrClientBadType ErrKind = iota
+	ErrClient
+	ErrClientOverrun
+	ErrClientTimeout
+	ErrClientTooMany
+	ErrConnectionClosed
+	ErrOther
+	ErrResourceClosed
+	ErrResourceConflict
+	ErrResourceNotFound
+	ErrSecurity
+	ErrServerBusy
+	ErrServer
+	ErrSessionClosed
+	ErrSessionConflict
+	ErrSessionTimeout
+	ErrUnauthorized
+	ErrUnsupported
+	ErrUpstream
+	ErrUpstreamNotFound
+	ErrUpstreamTimeout
+	ErrUpstreamUnavailable
 )
 
-// Status convert ExceptionKind to Status
-func (exception ExceptionKind) Status() (state Status) {
-	switch exception {
-	case GuacamoleClientBadTypeException:
+// Status convert ErrKind to Status
+func (e ErrKind) Status() (state Status) {
+	switch e {
+	case ErrClientBadType:
 		return ClientBadType
-	case GuacamoleClientException:
+	case ErrClient:
 		return ClientBadRequest
-	case GuacamoleClientOverrunException:
+	case ErrClientOverrun:
 		return ClientOverrun
-	case GuacamoleClientTimeoutException:
+	case ErrClientTimeout:
 		return ClientTimeout
-	case GuacamoleClientTooManyException:
+	case ErrClientTooMany:
 		return ClientTooMany
-	case GuacamoleConnectionClosedException:
+	case ErrConnectionClosed:
 		return ServerError
-	case GuacamoleException:
+	case ErrOther:
 		return ServerError
-	case GuacamoleResourceClosedException:
+	case ErrResourceClosed:
 		return ResourceClosed
-	case GuacamoleResourceConflictException:
+	case ErrResourceConflict:
 		return ResourceConflict
-	case GuacamoleResourceNotFoundException:
+	case ErrResourceNotFound:
 		return ResourceNotFound
-	case GuacamoleSecurityException:
+	case ErrSecurity:
 		return ClientForbidden
-	case GuacamoleServerBusyException:
+	case ErrServerBusy:
 		return ServerBusy
-	case ServerException:
+	case ErrServer:
 		return ServerError
-	case GuacamoleSessionClosedException:
+	case ErrSessionClosed:
 		return SessionClosed
-	case GuacamoleSessionConflictException:
+	case ErrSessionConflict:
 		return SessionConflict
-	case GuacamoleSessionTimeoutException:
+	case ErrSessionTimeout:
 		return SessionTimeout
-	case GuacamoleUnauthorizedException:
+	case ErrUnauthorized:
 		return ClientUnauthorized
-	case GuacamoleUnsupportedException:
+	case ErrUnsupported:
 		return Unsupported
-	case GuacamoleUpstreamException:
+	case ErrUpstream:
 		return UpstreamError
-	case GuacamoleUpstreamNotFoundException:
+	case ErrUpstreamNotFound:
 		return UpstreamNotFound
-	case GuacamoleUpstreamTimeoutException:
+	case ErrUpstreamTimeout:
 		return UpstreamTimeout
-	case GuacamoleUpstreamUnavailableException:
+	case ErrUpstreamUnavailable:
 		return UpstreamUnavailable
 	}
 	return
 }
 
-// Throw Build one ExceptionInterface by ExceptionKind
-func (exception ExceptionKind) Throw(args ...string) (err ExceptionInterface) {
-	err = &exceptionData{
-		err:    fmt.Errorf("%v", strings.Join(args, ", ")),
-		status: exception.Status(),
-		kind:   exception,
+// NewError creates a new error struct instance with Kind and included message
+func (e ErrKind) NewError(args ...string) error {
+	return &ErrGuac{
+		error:  fmt.Errorf("%v", strings.Join(args, ", ")),
+		Status: e.Status(),
+		Kind:   e,
 	}
-	return
 }

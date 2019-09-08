@@ -22,7 +22,7 @@ type SslSocket struct {
 //  *
 //  * @param hostname The hostname of the Guacamole proxy server to connect to.
 //  * @param port The port of the Guacamole proxy server to connect to.
-//  * @throws GuacamoleException If an error occurs while connecting to the
+//  * @throws ErrOther If an error occurs while connecting to the
 //  *                            Guacamole proxy server.
 func NewSslSocket(hostname string, port int) (ret SslSocket, err error) {
 	// log.DebugF("Connecting to guacd at {}:{} via SSL/TLS.", hostname, port)
@@ -37,7 +37,7 @@ func NewSslSocket(hostname string, port int) (ret SslSocket, err error) {
 			InsecureSkipVerify: true,
 		})
 	if err != nil {
-		// throw new GuacamoleUpstreamTimeoutException("Connection timed out.", e);
+		// throw new ErrUpstreamTimeout("Connection timed out.", e);
 		return
 	}
 
@@ -51,11 +51,11 @@ func NewSslSocket(hostname string, port int) (ret SslSocket, err error) {
 }
 
 // Close Override Socket.Close
-func (opt *SslSocket) Close() (err ExceptionInterface) {
+func (opt *SslSocket) Close() (err error) {
 	// logger.debug("Closing socket to guacd.");
 	e := opt.sock.Close()
 	if e != nil {
-		err = ServerException.Throw(e.Error())
+		err = ErrServer.NewError(e.Error())
 	}
 	return
 }

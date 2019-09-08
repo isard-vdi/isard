@@ -10,59 +10,59 @@ type BaseTunnel struct {
 	writerLock ReentrantLock
 }
 
-// NewAbstractTunnel Construct function
-func NewAbstractTunnel(core GetSocketInterface) (ret BaseTunnel) {
+// NewBaseTunnel Construct function
+func NewBaseTunnel(core GetSocketInterface) (ret BaseTunnel) {
 	ret.core = core
 	return
 }
 
 // AcquireReader override Tunnel.AcquireReader
-func (opt *BaseTunnel) AcquireReader() Reader {
-	opt.readerLock.Lock()
-	return opt.core.GetSocket().GetReader()
+func (t *BaseTunnel) AcquireReader() Reader {
+	t.readerLock.Lock()
+	return t.core.GetSocket().GetReader()
 }
 
 // ReleaseReader override Tunnel.ReleaseReader
-func (opt *BaseTunnel) ReleaseReader() {
-	opt.readerLock.Unlock()
+func (t *BaseTunnel) ReleaseReader() {
+	t.readerLock.Unlock()
 }
 
 // HasQueuedReaderThreads override Tunnel.HasQueuedReaderThreads
-func (opt *BaseTunnel) HasQueuedReaderThreads() bool {
-	return opt.readerLock.HasQueuedThreads()
+func (t *BaseTunnel) HasQueuedReaderThreads() bool {
+	return t.readerLock.HasQueuedThreads()
 }
 
 // AcquireWriter override Tunnel.AcquireWriter
-func (opt *BaseTunnel) AcquireWriter() Writer {
-	opt.writerLock.Lock()
-	return opt.core.GetSocket().GetWriter()
+func (t *BaseTunnel) AcquireWriter() Writer {
+	t.writerLock.Lock()
+	return t.core.GetSocket().GetWriter()
 }
 
 // ReleaseWriter override Tunnel.ReleaseWriter
-func (opt *BaseTunnel) ReleaseWriter() {
-	opt.writerLock.Unlock()
+func (t *BaseTunnel) ReleaseWriter() {
+	t.writerLock.Unlock()
 }
 
 // HasQueuedWriterThreads override Tunnel.HasQueuedWriterThreads
-func (opt *BaseTunnel) HasQueuedWriterThreads() bool {
-	return opt.writerLock.HasQueuedThreads()
+func (t *BaseTunnel) HasQueuedWriterThreads() bool {
+	return t.writerLock.HasQueuedThreads()
 }
 
 // Close override Tunnel.Close
-func (opt *BaseTunnel) Close() (err ExceptionInterface) {
-	one := opt.core.GetSocket()
+func (t *BaseTunnel) Close() (err error) {
+	one := t.core.GetSocket()
 
 	if one != nil {
 		err = one.Close()
 	} else {
-		err = GuacamoleConnectionClosedException.Throw("Closed")
+		err = ErrConnectionClosed.NewError("Closed")
 	}
 	return
 }
 
 // IsOpen override Tunnel.IsOpen
-func (opt *BaseTunnel) IsOpen() bool {
-	one := opt.core.GetSocket()
+func (t *BaseTunnel) IsOpen() bool {
+	one := t.core.GetSocket()
 	if one != nil {
 		return one.IsOpen()
 	}

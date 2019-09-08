@@ -41,7 +41,7 @@ func NewFilteredWriter(writer Writer, filter Filter) (ret FilteredWriter) {
 }
 
 // Write override Writer.Write
-func (opt *FilteredWriter) Write(chunk []byte, offset, length int) (err ExceptionInterface) {
+func (opt *FilteredWriter) Write(chunk []byte, offset, length int) (err error) {
 	for length > 0 {
 		var parsed int
 		for parsed, err = opt.parser.Append(chunk, offset, length); parsed > 0 && err == nil; parsed, err = opt.parser.Append(chunk, offset, length) {
@@ -52,7 +52,7 @@ func (opt *FilteredWriter) Write(chunk []byte, offset, length int) (err Exceptio
 			return
 		}
 		if !opt.parser.HasNext() {
-			err = ServerException.Throw("Filtered write() contained an incomplete instruction.")
+			err = ErrServer.NewError("Filtered write() contained an incomplete instruction.")
 			return
 		}
 
@@ -67,12 +67,12 @@ func (opt *FilteredWriter) Write(chunk []byte, offset, length int) (err Exceptio
 }
 
 // WriteAll override Writer.WriteAll
-func (opt *FilteredWriter) WriteAll(chunk []byte) (err ExceptionInterface) {
+func (opt *FilteredWriter) WriteAll(chunk []byte) (err error) {
 	return opt.Write(chunk, 0, len(chunk))
 }
 
 // WriteInstruction override Writer.WriteInstruction
-func (opt *FilteredWriter) WriteInstruction(instruction Instruction) (err ExceptionInterface) {
+func (opt *FilteredWriter) WriteInstruction(instruction Instruction) (err error) {
 
 	// Write instruction only if not dropped
 	filteredInstruction, err := opt.filter.Filter(instruction)

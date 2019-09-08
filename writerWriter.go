@@ -23,21 +23,21 @@ func NewWriterWriter(output *Stream) (ret Writer) {
 }
 
 // Write override Writer.Write
-func (opt *WriterWriter) Write(chunk []byte, off, l int) (err ExceptionInterface) {
+func (opt *WriterWriter) Write(chunk []byte, off, l int) (err error) {
 	if len(chunk) < off+l {
-		err = ServerException.Throw("Input buffer size smaller than required")
+		err = ErrServer.NewError("Input buffer size smaller than required")
 		return
 	}
 	e := opt.WriteAll(chunk[off : off+l])
 	if e != nil {
 		// Socket timeout will close so ...
-		err = GuacamoleConnectionClosedException.Throw("Connection to guacd is closed.", e.Error())
+		err = ErrConnectionClosed.NewError("Connection to guacd is closed.", e.Error())
 	}
 	return
 }
 
 // WriteAll override Writer.WriteAll
-func (opt *WriterWriter) WriteAll(chunk []byte) (err ExceptionInterface) {
+func (opt *WriterWriter) WriteAll(chunk []byte) (err error) {
 	_, e := opt.output.Write(chunk)
 	if e == nil {
 		return
@@ -46,17 +46,17 @@ func (opt *WriterWriter) WriteAll(chunk []byte) (err ExceptionInterface) {
 	case net.Error:
 		ex := e.(net.Error)
 		if ex.Timeout() {
-			err = GuacamoleUpstreamTimeoutException.Throw("Connection to guacd timed out.", e.Error())
+			err = ErrUpstreamTimeout.NewError("Connection to guacd timed out.", e.Error())
 		} else {
-			err = GuacamoleConnectionClosedException.Throw("Connection to guacd is closed.", e.Error())
+			err = ErrConnectionClosed.NewError("Connection to guacd is closed.", e.Error())
 		}
 	default:
-		err = ServerException.Throw(e.Error())
+		err = ErrServer.NewError(e.Error())
 	}
 	return
 }
 
 // WriteInstruction override Writer.WriteInstruction
-func (opt *WriterWriter) WriteInstruction(instruction Instruction) (err ExceptionInterface) {
+func (opt *WriterWriter) WriteInstruction(instruction Instruction) (err error) {
 	return opt.WriteAll([]byte(instruction.String()))
 }

@@ -67,7 +67,7 @@ func (opt *FilteredSocket) GetWriter() Writer {
 }
 
 // Close override Socket.Close
-func (opt *FilteredSocket) Close() ExceptionInterface {
+func (opt *FilteredSocket) Close() error {
 	return opt.socket.Close()
 
 }

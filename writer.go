@@ -11,9 +11,9 @@ type Writer interface {
 	//  * @param chunk An array of characters containing Guacamole instructions.
 	//  * @param off The start offset of the portion of the array to write.
 	//  * @param len The length of the portion of the array to write.
-	//  * @throws GuacamoleException If an error occurred while writing the
+	//  * @throws ErrOther If an error occurred while writing the
 	//  *                            portion of the array specified.
-	Write(chunk []byte, off, len int) (err ExceptionInterface)
+	Write(chunk []byte, off, len int) (err error)
 
 	// WriteAll
 	//  * Writes the entire given array of characters to the Guacamole instruction
@@ -21,16 +21,16 @@ type Writer interface {
 	//  *
 	//  * @param chunk An array of characters consisting only of complete
 	//  *              Guacamole instructions.
-	//  * @throws GuacamoleException If an error occurred while writing the
+	//  * @throws ErrOther If an error occurred while writing the
 	//  *                            the specified array.
-	WriteAll(chunk []byte) (err ExceptionInterface)
+	WriteAll(chunk []byte) (err error)
 
 	// WriteInstruction function
 	//  * Writes the given fully parsed instruction to the Guacamole instruction
 	//  * stream.
 	//  *
 	//  * @param instruction The Guacamole instruction to write.
-	//  * @throws GuacamoleException If an error occurred while writing the
+	//  * @throws ErrOther If an error occurred while writing the
 	//  *                            instruction.
-	WriteInstruction(instruction Instruction) (err ExceptionInterface)
+	WriteInstruction(instruction Instruction) (err error)
 }

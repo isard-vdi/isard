@@ -36,10 +36,10 @@ type ConfiguredSocket struct {
 * @param reader The reader to read instructions from.
 * @param opcode The opcode of the instruction we are expecting.
 * @return The instruction having the given opcode.
-* @throws GuacamoleException If an error occurs while reading, or if
+* @throws ErrOther If an error occurs while reading, or if
 *                            the expected instruction is not read.
  */
-func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction Instruction, err ExceptionInterface) {
+func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction Instruction, err error) {
 
 	// Wait for an instruction
 	instruction, err = reader.ReadInstruction()
@@ -48,13 +48,13 @@ func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction I
 	}
 
 	if len(instruction.GetOpcode()) == 0 {
-		err = ServerException.Throw("End of stream while waiting for \"" + opcode + "\".")
+		err = ErrServer.NewError("End of stream while waiting for \"" + opcode + "\".")
 		return
 	}
 
 	// Ensure instruction has expected opcode
 	if instruction.GetOpcode() != opcode {
-		err = ServerException.Throw("Expected \"" + opcode + "\" instruction but instead received \"" + instruction.GetOpcode() + "\".")
+		err = ErrServer.NewError("Expected \"" + opcode + "\" instruction but instead received \"" + instruction.GetOpcode() + "\".")
 		return
 	}
 	return
@@ -69,10 +69,10 @@ func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction I
 * @param socket The Socket to wrap.
 * @param config The Config to use to complete the initial
 *               protocol handshake.
-* @throws GuacamoleException If an error occurs while completing the
+* @throws ErrOther If an error occurs while completing the
 *                            initial protocol handshake.
  */
-func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSocket, ExceptionInterface) {
+func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSocket, error) {
 	return NewConfiguredSocket3(socket, config, NewGuacamoleClientInformation())
 }
 
@@ -86,10 +86,10 @@ func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSock
 *               protocol handshake.
 * @param info The ClientInfo to use to complete the initial
 *             protocol handshake.
-* @throws GuacamoleException If an error occurs while completing the
+* @throws ErrOther If an error occurs while completing the
 *                            initial protocol handshake.
  */
-func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one ConfiguredSocket, err ExceptionInterface) {
+func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one ConfiguredSocket, err error) {
 
 	one.socket = socket
 	one.config = config
@@ -188,7 +188,7 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 
 	readyArgs := ready.GetArgs()
 	if len(readyArgs) == 0 {
-		err = ServerException.Throw("No connection ID received")
+		err = ErrServer.NewError("No connection ID received")
 		return
 	}
 
@@ -231,7 +231,7 @@ func (opt *ConfiguredSocket) GetReader() Reader {
 }
 
 // Close override Socket.Close
-func (opt *ConfiguredSocket) Close() (err ExceptionInterface) {
+func (opt *ConfiguredSocket) Close() (err error) {
 	return opt.socket.Close()
 }
 

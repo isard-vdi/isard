@@ -12,9 +12,9 @@ type Reader interface {
 	//  *
 	//  * @return true if instruction data is available for reading, false
 	//  *         otherwise.
-	//  * @throws GuacamoleException If an error occurs while checking for
+	//  * @throws ErrOther If an error occurs while checking for
 	//  *                            available data.
-	Available() (ok bool, err ExceptionInterface)
+	Available() (ok bool, err error)
 
 	// Read function
 	//  * Reads at least one complete Guacamole instruction, returning a buffer
@@ -24,9 +24,9 @@ type Reader interface {
 	//  *
 	//  * @return A buffer containing at least one complete Guacamole instruction,
 	//  *         or null if no more instructions are available for reading.
-	//  * @throws GuacamoleException If an error occurs while reading from the
+	//  * @throws ErrOther If an error occurs while reading from the
 	//  *                            stream.
-	Read() (ret []byte, err ExceptionInterface)
+	Read() (ret []byte, err error)
 
 	// ReadInstruction function
 	//  * Reads exactly one complete Guacamole instruction and returns the fully
@@ -34,8 +34,8 @@ type Reader interface {
 	//  *
 	//  * @return The next complete instruction from the stream, fully parsed, or
 	//  *         null if no more instructions are available for reading.
-	//  * @throws GuacamoleException If an error occurs while reading from the
+	//  * @throws ErrOther If an error occurs while reading from the
 	//  *                            stream, or if the instruction cannot be
 	//  *                            parsed.
-	ReadInstruction() (ret Instruction, err ExceptionInterface)
+	ReadInstruction() (ret Instruction, err error)
 }

@@ -20,7 +20,7 @@ func main() {
 	myHandler.Handle("/tunnel/", servlet)
 	myHandler.Handle("/", fs)
 
-	logger.Println("Serving on https://127.0.0.1:4567")
+	logger.Println("Serving on http://127.0.0.1:4567")
 
 	s := &http.Server{
 		Addr:           ":4567",

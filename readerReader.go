@@ -26,21 +26,21 @@ func NewReaderReader(input *Stream) (ret Reader) {
 }
 
 // Available override Reader.Available
-func (opt *readerReader) Available() (ok bool, err ExceptionInterface) {
+func (opt *readerReader) Available() (ok bool, err error) {
 	ok = len(opt.buffer) > 0
 	if ok {
 		return
 	}
 	ok, e := opt.input.Available()
 	if e != nil {
-		err = ServerException.Throw(e.Error())
+		err = ErrServer.NewError(e.Error())
 		return
 	}
 	return
 }
 
 // Read override Reader.Read
-func (opt *readerReader) Read() (instruction []byte, err ExceptionInterface) {
+func (opt *readerReader) Read() (instruction []byte, err error) {
 
 mainLoop:
 	// While we're blocking, or input is available
@@ -92,14 +92,14 @@ mainLoop:
 				case ',':
 					// nothing
 				default:
-					err = ServerException.Throw("Element terminator of instruction was not ';' nor ','")
+					err = ErrServer.NewError("Element terminator of instruction was not ';' nor ','")
 					break mainLoop
 				}
 			default:
 				// Otherwise, parse error
 				fmt.Println(string(opt.buffer))
 				fmt.Println(string(opt.buffer[i]))
-				err = ServerException.Throw("Non-numeric character in element length.")
+				err = ErrServer.NewError("Non-numeric character in element length.")
 				break mainLoop
 			}
 
@@ -116,8 +116,8 @@ mainLoop:
 		stepBuffer, e := opt.input.Read()
 		if e != nil {
 			// Discard
-			// Time out throw GuacamoleUpstreamTimeoutException for
-			// Closed throw GuacamoleConnectionClosedException for
+			// Time out throw ErrUpstreamTimeout for
+			// Closed throw ErrConnectionClosed for
 			// Other socket err
 			// Here or use normal err instead
 
@@ -128,12 +128,12 @@ mainLoop:
 			case net.Error:
 				ex := e.(net.Error)
 				if ex.Timeout() {
-					err = GuacamoleUpstreamTimeoutException.Throw("Connection to guacd timed out.", e.Error())
+					err = ErrUpstreamTimeout.NewError("Connection to guacd timed out.", e.Error())
 				} else {
-					err = GuacamoleConnectionClosedException.Throw("Connection to guacd is closed.", e.Error())
+					err = ErrConnectionClosed.NewError("Connection to guacd is closed.", e.Error())
 				}
 			default:
-				err = ServerException.Throw(e.Error())
+				err = ErrServer.NewError(e.Error())
 			}
 			break mainLoop
 		}
@@ -143,7 +143,7 @@ mainLoop:
 }
 
 // ReadInstruction override Reader.ReadInstruction
-func (opt *readerReader) ReadInstruction() (instruction Instruction, err ExceptionInterface) {
+func (opt *readerReader) ReadInstruction() (instruction Instruction, err error) {
 
 	// Get instruction
 	instructionBuffer, err := opt.Read()
@@ -170,14 +170,14 @@ func (opt *readerReader) ReadInstruction() (instruction Instruction, err Excepti
 		// read() is required to return a complete instruction. If it does
 		// not, this is a severe internal error.
 		if lengthEnd == -1 {
-			err = ServerException.Throw("Read returned incomplete instruction.")
+			err = ErrServer.NewError("Read returned incomplete instruction.")
 			return
 		}
 
 		// Parse length
 		length, e := strconv.Atoi(string(instructionBuffer[elementStart:lengthEnd]))
 		if e != nil {
-			err = ServerException.Throw("Read returned wrong pattern instruction.", e.Error())
+			err = ErrServer.NewError("Read returned wrong pattern instruction.", e.Error())
 			return
 		}
 

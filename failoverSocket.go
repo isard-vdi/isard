@@ -52,46 +52,46 @@ type FailoverSocket struct {
 * @param instruction
 *     The "error" instruction to parse.
 *
-* @throws GuacamoleUpstreamException
+* @throws ErrUpstream
 *     If the "error" instruction represents an error from the upstream
 *     remote desktop.
  */
-func handleUpstreamErrors(instruction Instruction) (err ExceptionInterface) {
-	// Ignore error instructions which are missing the status code
+func handleUpstreamErrors(instruction Instruction) (err error) {
+	// Ignore error instructions which are missing the Status code
 	args := instruction.GetArgs()
 	if len(args) < 2 {
-		// logger.debug("Received \"error\" instruction without status code.");
+		// logger.debug("Received \"error\" instruction without Status code.");
 		return
 	}
 
-	// Parse the status code from the received error instruction
+	// Parse the Status code from the received error instruction
 	var statusCode int
 	statusCode, e := strconv.Atoi(args[1])
 	if e != nil {
-		// logger.debug("Received \"error\" instruction with non-numeric status code.", e);
+		// logger.debug("Received \"error\" instruction with non-numeric Status code.", e);
 		return
 	}
 
 	status := FromGuacamoleStatusCode(statusCode)
 	if status == Undefined {
-		// logger.debug("Received \"error\" instruction with unknown/invalid status code: {}", statusCode);
+		// logger.debug("Received \"error\" instruction with unknown/invalid Status code: {}", statusCode);
 		return
 	}
 
 	switch status {
 	case UpstreamError:
-		err = GuacamoleUpstreamException.Throw(args[0])
+		err = ErrUpstream.NewError(args[0])
 
 	case UpstreamNotFound:
-		err = GuacamoleUpstreamNotFoundException.Throw(args[0])
+		err = ErrUpstreamNotFound.NewError(args[0])
 
 	// Upstream did not respond
 	case UpstreamTimeout:
-		err = GuacamoleUpstreamTimeoutException.Throw(args[0])
+		err = ErrUpstreamTimeout.NewError(args[0])
 
 	// Upstream is refusing the connection
 	case UpstreamUnavailable:
-		err = GuacamoleUpstreamUnavailableException.Throw(args[0])
+		err = ErrUpstreamUnavailable.NewError(args[0])
 	}
 	return
 }
@@ -100,7 +100,7 @@ func handleUpstreamErrors(instruction Instruction) (err ExceptionInterface) {
 * Creates a new FailoverSocket which reads Guacamole instructions
 * from the given socket, searching for errors from the upstream remote
 * desktop. If an upstream error is encountered, it is thrown as a
-* GuacamoleUpstreamException. This constructor will block until an error
+* ErrUpstream. This constructor will block until an error
 * is encountered, or until the connection appears to have been successful.
 * Once the FailoverSocket has been created, all reads, writes,
 * etc. will be delegated to the provided socket.
@@ -109,14 +109,14 @@ func handleUpstreamErrors(instruction Instruction) (err ExceptionInterface) {
 *     The Socket of the Guacamole connection this
 *     FailoverSocket should handle.
 *
-* @throws GuacamoleException
+* @throws ErrOther
 *     If an error occurs while reading data from the provided socket.
 *
-* @throws GuacamoleUpstreamException
+* @throws ErrUpstream
 *     If the connection to guacd succeeded, but an error occurred while
 *     connecting to the remote desktop.
  */
-func NewFailoverSocket(socket Socket) (ret FailoverSocket, err ExceptionInterface) {
+func NewFailoverSocket(socket Socket) (ret FailoverSocket, err error) {
 	ret.instructionQueue = make([]Instruction, 0, 1)
 
 	var totalQueueSize int
@@ -177,7 +177,7 @@ func (opt *FailoverSocket) GetWriter() Writer {
 }
 
 // Close override Socket.Close
-func (opt *FailoverSocket) Close() (err ExceptionInterface) {
+func (opt *FailoverSocket) Close() (err error) {
 	err = opt.socket.Close()
 	return
 }
@@ -203,7 +203,7 @@ func newLambdaQueuedReader(core *FailoverSocket) (ret Reader) {
 }
 
 // Available override Reader.Available
-func (opt *lambdaQueuedReader) Available() (ok bool, err ExceptionInterface) {
+func (opt *lambdaQueuedReader) Available() (ok bool, err error) {
 	ok = len(opt.core.instructionQueue) > 0
 	if ok {
 		return
@@ -212,7 +212,7 @@ func (opt *lambdaQueuedReader) Available() (ok bool, err ExceptionInterface) {
 }
 
 // Read override Reader.Read
-func (opt *lambdaQueuedReader) Read() (ret []byte, err ExceptionInterface) {
+func (opt *lambdaQueuedReader) Read() (ret []byte, err error) {
 
 	// Read instructions from queue before finally delegating to
 	// underlying reader (received when FailoverSocket was
@@ -229,7 +229,7 @@ func (opt *lambdaQueuedReader) Read() (ret []byte, err ExceptionInterface) {
 
 // ReadInstruction override Socket.ReadInstruction
 func (opt *lambdaQueuedReader) ReadInstruction() (ret Instruction,
-	err ExceptionInterface) {
+	err error) {
 
 	// Read instructions from queue before finally delegating to
 	// underlying reader (received when FailoverSocket was
