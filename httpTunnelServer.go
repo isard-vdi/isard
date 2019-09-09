@@ -3,6 +3,7 @@ package guac
 import (
 	"fmt"
 	logger "github.com/sirupsen/logrus"
+	"net/http"
 	"strings"
 )
 
@@ -47,34 +48,14 @@ type HttpTunnelServlet struct {
 	 * Map of absolutely all active tunnels using HTTP, indexed by tunnel UUID.
 	 */
 	tunnels HttpTunnelMap
-
-	/**
-	 * Called whenever the JavaScript Guacamole client makes a connection
-	 * request via HTTP. It it up to the implementor of this function to define
-	 * what conditions must be met for a tunnel to be configured and returned
-	 * as a result of this connection request (whether some sort of credentials
-	 * must be specified, for example).
-	 *
-	 * @param request
-	 *     The HttpServletRequest associated with the connection request
-	 *     received. Any parameters specified along with the connection request
-	 *     can be read from this object.
-	 *
-	 * @return
-	 *     A newly constructed Tunnel if successful, null otherwise.
-	 *
-	 * @throws ErrOther
-	 *     If an error occurs while constructing the Tunnel, or if the
-	 *     conditions required for connection are not met.
-	 */
-	doConnect DoConnectInterface
+	connect func(*http.Request) (Tunnel, error)
 }
 
 // NewHTTPTunnelServlet Construct function
-func NewHTTPTunnelServlet(doConnect DoConnectInterface) *HttpTunnelServlet {
+func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTunnelServlet {
 	return &HttpTunnelServlet{
-		tunnels:   NewHttpTunnelMap(),
-		doConnect: doConnect,
+		tunnels: NewHttpTunnelMap(),
+		connect: connect,
 	}
 }
 
@@ -128,67 +109,14 @@ func (opt *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel,
 	return
 }
 
-//DoGet @Override
-func (opt *HttpTunnelServlet) DoGet(request HTTPServletRequestInterface, response HTTPServletResponseInterface) error {
-	return opt.HandleTunnelRequest(request, response)
+func (opt *HttpTunnelServlet) sendError(response http.ResponseWriter, guacStatus Status, message string) {
+	response.Header().Set("Guacamole-Status-Code", fmt.Sprintf("%v", guacStatus.GetGuacamoleStatusCode()))
+	response.Header().Set("Guacamole-Error-Message", message)
+	response.WriteHeader(guacStatus.GetHTTPStatusCode())
 }
 
-//DoPost @Override
-func (opt *HttpTunnelServlet) DoPost(request HTTPServletRequestInterface, response HTTPServletResponseInterface) error {
-	return opt.HandleTunnelRequest(request, response)
-}
-
-/**
- * Sends an error on the given HTTP response using the information within
- * the given Status.
- *
- * @param response
- *     The HTTP response to use to send the error.
- *
- * @param guacStatus
- *     The Status to send
- *
- * @param message
- *     A human-readable message that can be presented to the user.
- *
- * @throws ServletException
- *     If an error prevents sending of the error code.
- */
-func (opt *HttpTunnelServlet) sendError(response HTTPServletResponseInterface, guacStatus Status, message string) (err error) {
-
-	committed, err := response.IsCommitted()
-	if err != nil {
-		// If unable to send error at all due to I/O problems,
-		// rethrow as servlet exception
-		return
-	}
-
-	// If response not committed, send error code and message
-	if !committed {
-		response.AddHeader("Guacamole-Status-Code", fmt.Sprintf("%v", guacStatus.GetGuacamoleStatusCode()))
-		response.AddHeader("Guacamole-Error-Message", message)
-		err = response.SendError(guacStatus.GetHTTPStatusCode())
-	}
-	return
-}
-
-/*HandleTunnelRequest put it into GET/POST handle *
- * Dispatches every HTTP GET and POST request to the appropriate handler
- * function based on the query string.
- *
- * @param request
- *     The HttpServletRequest associated with the GET or POST request
- *     received.
- *
- * @param response
- *     The HttpServletResponse associated with the GET or POST request
- *     received.
- *
- * @throws ServletException
- *     If an error occurs while servicing the request.
- */
-func (opt *HttpTunnelServlet) HandleTunnelRequest(request HTTPServletRequestInterface, response HTTPServletResponseInterface) (e error) {
-	err := opt.handleTunnelRequestCore(request, response)
+func (opt *HttpTunnelServlet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := opt.handleTunnelRequestCore(w, r)
 	if err == nil {
 		return
 	}
@@ -196,25 +124,24 @@ func (opt *HttpTunnelServlet) HandleTunnelRequest(request HTTPServletRequestInte
 	switch guacErr.Kind {
 	case ErrClient:
 		logger.Warn("HTTP tunnel request rejected: ", err.Error())
-		e = opt.sendError(response, guacErr.Status, err.Error())
+		opt.sendError(w, guacErr.Status, err.Error())
 	default:
 		logger.Error("HTTP tunnel request failed: ", err.Error())
 		logger.Debug("Internal error in HTTP tunnel.", err)
-		e = opt.sendError(response, guacErr.Status, "Internal server error.")
+		opt.sendError(w, guacErr.Status, "Internal server error.")
 	}
 	return
 }
 
-func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequestInterface, response HTTPServletResponseInterface) (err error) {
-	query := request.GetQueryString()
+func (opt *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWriter, request *http.Request) (err error) {
+	query := request.URL.RawQuery
 	if len(query) == 0 {
 		return ErrClient.NewError("No query string provided.")
 	}
 	// If connect operation, call doConnect() and return tunnel UUID
 	// in response.
 	if query == "connect" {
-
-		tunnel, e := opt.doConnect(request)
+		tunnel, e := opt.connect(request)
 
 		// Failed to connect
 		if e != nil {
@@ -226,10 +153,10 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequest
 		opt.registerTunnel(tunnel)
 
 		// Ensure buggy browsers do not cache response
-		response.SetHeader("Cache-Control", "no-cache")
+		response.Header().Set("Cache-Control", "no-cache")
 
 		// Send UUID to client
-		e = response.WriteString(tunnel.GetUUID().String())
+		_, e = response.Write([]byte(tunnel.GetUUID().String()))
 
 		if e != nil {
 			err = ErrServer.NewError(e.Error())
@@ -239,11 +166,11 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequest
 	} else if strings.HasPrefix(query, ReadPrefix) {
 		// If read operation, call doRead() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = opt.doRead(request, response, query[ReadPrefixLength:ReadPrefixLength+UuidLength])
+		err = opt.doRead(response, request, query[ReadPrefixLength:ReadPrefixLength+UuidLength])
 	} else if strings.HasPrefix(query, WritePrefix) {
 		// If write operation, call doWrite() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = opt.doWrite(request, response, query[WritePrefixLength:WritePrefixLength+UuidLength])
+		err = opt.doWrite(response, request, query[WritePrefixLength:WritePrefixLength+UuidLength])
 	} else {
 		// Otherwise, invalid operation
 		err = ErrClient.NewError("Invalid tunnel operation: " + query)
@@ -273,8 +200,7 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(request HTTPServletRequest
  * @throws ErrOther
  *     If an error occurs while handling the read request.
  */
-func (opt *HttpTunnelServlet) doRead(request HTTPServletRequestInterface,
-	response HTTPServletResponseInterface, tunnelUUID string) (err error) {
+func (opt *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) (err error) {
 
 	// Get tunnel, ensure tunnel exists
 	tunnel, err := opt.getTunnel(tunnelUUID)
@@ -307,15 +233,17 @@ func (opt *HttpTunnelServlet) doRead(request HTTPServletRequestInterface,
 	return
 }
 
-func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface, reader Reader, tunnel Tunnel) (e error) {
+func (opt *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader Reader, tunnel Tunnel) (e error) {
 	// Note that although we are sending text, Webkit browsers will
 	// buffer 1024 bytes before starting a normal stream if we use
 	// anything but application/octet-stream.
-	response.SetContentType("application/octet-stream")
-	response.SetHeader("Cache-Control", "no-cache")
+	response.Header().Set("Content-Type", "application/octet-stream")
+	response.Header().Set("Cache-Control", "no-cache")
 
 	// response.Close() -->
-	defer response.FlushBuffer()
+	if v, ok := response.(http.Flusher); ok {
+		v.Flush()
+	}
 
 	// Get writer for response
 	// Writer out = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), "UTF-8"));
@@ -336,8 +264,10 @@ func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface,
 		tunnel.Close()
 
 		// End-of-instructions marker
-		response.WriteString("0.;")
-		response.FlushBuffer()
+		_, _ = response.Write([]byte("0.;"))
+		if v, ok := response.(http.Flusher); ok {
+			v.Flush()
+		}
 	default:
 		// Deregister and close
 		e = err
@@ -345,8 +275,7 @@ func (opt *HttpTunnelServlet) doReadCore1(response HTTPServletResponseInterface,
 	return
 }
 
-func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
-	reader Reader, tunnel Tunnel) (err error) {
+func (opt *HttpTunnelServlet) doReadCore2(response http.ResponseWriter, reader Reader, tunnel Tunnel) (err error) {
 	var ok bool
 	var message []byte
 	// Deregister tunnel and throw error if we reach EOF without
@@ -360,7 +289,7 @@ func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
 	for ; tunnel.IsOpen() && len(message) > 0 && err == nil; message, err = reader.Read() {
 
 		// Get message output bytes
-		e := response.Write(message)
+		_, e := response.Write(message)
 		if e != nil {
 			err = ErrOther.NewError(e.Error())
 			return
@@ -373,10 +302,8 @@ func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
 		}
 
 		if !ok {
-			e = response.FlushBuffer()
-			if e != nil {
-				err = ErrOther.NewError(e.Error())
-				return
+			if v, ok := response.(http.Flusher); ok {
+				v.Flush()
 			}
 		}
 
@@ -393,8 +320,12 @@ func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
 	}
 
 	// End-of-instructions marker
-	response.WriteString("0.;")
-	response.FlushBuffer()
+	if _, err = response.Write([]byte("0.;")); err != nil {
+		return err
+	}
+	if v, ok := response.(http.Flusher); ok {
+		v.Flush()
+	}
 	return nil
 }
 
@@ -419,8 +350,7 @@ func (opt *HttpTunnelServlet) doReadCore2(response HTTPServletResponseInterface,
  * @throws ErrOther
  *     If an error occurs while handling the write request.
  */
-func (opt *HttpTunnelServlet) doWrite(request HTTPServletRequestInterface,
-	response HTTPServletResponseInterface, tunnelUUID string) (err error) {
+func (opt *HttpTunnelServlet) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) (err error) {
 	tunnel, err := opt.getTunnel(tunnelUUID)
 	if err != nil {
 		return
@@ -430,9 +360,9 @@ func (opt *HttpTunnelServlet) doWrite(request HTTPServletRequestInterface,
 	// text/html, as such a content type would cause some browsers to
 	// attempt to parse the result, even though the JavaScript client
 	// does not explicitly request such parsing.
-	response.SetContentType("application/octet-stream")
-	response.SetHeader("Cache-Control", "no-cache")
-	response.SetContentLength(0)
+	response.Header().Set("Content-Type", "application/octet-stream")
+	response.Header().Set("Cache-Control", "no-cache")
+	response.Header().Set("Content-Length", "0")
 
 	writer := tunnel.AcquireWriter()
 	defer tunnel.ReleaseWriter()
@@ -440,7 +370,7 @@ func (opt *HttpTunnelServlet) doWrite(request HTTPServletRequestInterface,
 	var e error
 	length := 0
 	buffer := make([]byte, 1024, 1024)
-	for length, e = request.Read(buffer); tunnel.IsOpen() && length > 0; length, e = request.Read(buffer) {
+	for length, e = request.Body.Read(buffer); tunnel.IsOpen() && length > 0; length, e = request.Body.Read(buffer) {
 		err = writer.Write(buffer, 0, length)
 		if err != nil {
 			break

@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-// log instead of LoggerFactory
-
 /*TunnelTimeout *
  * The number of seconds to wait between tunnel accesses before timing out
  * Note that this will be enforced only within a factor of 2. If a tunnel
