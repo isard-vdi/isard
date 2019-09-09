@@ -13,7 +13,6 @@ const (
 	StepLength = 1024
 )
 
-// Stream interface
 type Stream struct {
 	lock    sync.RWMutex
 	conn    net.Conn

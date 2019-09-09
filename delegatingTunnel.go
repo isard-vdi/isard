@@ -1,6 +1,9 @@
 package guac
 
-import uuid "github.com/satori/go.uuid"
+import (
+	uuid "github.com/satori/go.uuid"
+	"io"
+)
 
 // DelegatingTunnel ==> Tunnel
 //  * Tunnel implementation which simply delegates all function calls to
@@ -41,7 +44,7 @@ func (opt *DelegatingTunnel) HasQueuedReaderThreads() bool {
 }
 
 // AcquireWriter override Tunnel.AcquireWriter
-func (opt *DelegatingTunnel) AcquireWriter() Writer {
+func (opt *DelegatingTunnel) AcquireWriter() io.Writer {
 	return opt.tunnel.AcquireWriter()
 }
 

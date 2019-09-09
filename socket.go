@@ -1,5 +1,7 @@
 package guac
 
+import "io"
+
 // Socket Provides abstract socket-like access to a Guacamole connection.
 type Socket interface {
 	/**
@@ -20,7 +22,7 @@ type Socket interface {
 	 * @return A Writer which can be used to write to the
 	 *         Guacamole instruction stream.
 	 */
-	GetWriter() Writer
+	GetWriter() io.Writer
 
 	/**
 	 * Releases all resources in use by the connection represented by this

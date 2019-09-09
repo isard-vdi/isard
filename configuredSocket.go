@@ -5,6 +5,7 @@ package guac
 
 import (
 	"fmt"
+	"io"
 )
 
 // ConfiguredSocket ==> Socket
@@ -65,12 +66,6 @@ func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction I
 * Config to complete the initial protocol handshake over
 * the given Socket. A default ClientInfo object
 * is used to provide basic client information.
-*
-* @param socket The Socket to wrap.
-* @param config The Config to use to complete the initial
-*               protocol handshake.
-* @throws ErrOther If an error occurs while completing the
-*                            initial protocol handshake.
  */
 func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSocket, error) {
 	return NewConfiguredSocket3(socket, config, NewGuacamoleClientInformation())
@@ -80,17 +75,8 @@ func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSock
 * Creates a new ConfiguredSocket which uses the given
 * Config and ClientInfo to complete the
 * initial protocol handshake over the given Socket.
-*
-* @param socket The Socket to wrap.
-* @param config The Config to use to complete the initial
-*               protocol handshake.
-* @param info The ClientInfo to use to complete the initial
-*             protocol handshake.
-* @throws ErrOther If an error occurs while completing the
-*                            initial protocol handshake.
  */
 func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one ConfiguredSocket, err error) {
-
 	one.socket = socket
 	one.config = config
 
@@ -105,7 +91,7 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 	}
 
 	// Send requested protocol or connection ID
-	err = writer.WriteInstruction(NewInstruction("select", selectArg))
+	_, err = WriteInstruction(writer, NewInstruction("select", selectArg))
 	if err != nil {
 		return
 	}
@@ -134,7 +120,7 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 	}
 
 	// Send size
-	err = writer.WriteInstruction(NewInstruction("size",
+	_, err = WriteInstruction(writer, NewInstruction("size",
 		fmt.Sprintf("%v", info.GetOptimalScreenWidth()),
 		fmt.Sprintf("%v", info.GetOptimalScreenHeight()),
 		fmt.Sprintf("%v", info.GetOptimalResolution())),
@@ -145,37 +131,25 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 	}
 
 	// Send supported audio formats
-	err = writer.WriteInstruction(
-		NewInstruction(
-			"audio",
-			info.GetAudioMimetypes()...,
-		))
+	_, err = WriteInstruction(writer, NewInstruction("audio", info.GetAudioMimetypes()...))
 	if err != nil {
 		return
 	}
 
 	// Send supported video formats
-	err = writer.WriteInstruction(
-		NewInstruction(
-			"video",
-			info.GetVideoMimetypes()...,
-		))
+	_, err = WriteInstruction(writer, NewInstruction("video", info.GetVideoMimetypes()...))
 	if err != nil {
 		return
 	}
 
 	// Send supported image formats
-	err = writer.WriteInstruction(
-		NewInstruction(
-			"image",
-			info.GetImageMimetypes()...,
-		))
+	_, err = WriteInstruction(writer, NewInstruction("image", info.GetImageMimetypes()...))
 	if err != nil {
 		return
 	}
 
 	// Send args
-	err = writer.WriteInstruction(NewInstruction("connect", argValueS...))
+	_, err = WriteInstruction(writer, NewInstruction("connect", argValueS...))
 	if err != nil {
 		return
 	}
@@ -221,7 +195,7 @@ func (opt *ConfiguredSocket) GetConnectionID() string {
 }
 
 // GetWriter override Socket.GetWriter
-func (opt *ConfiguredSocket) GetWriter() Writer {
+func (opt *ConfiguredSocket) GetWriter() io.Writer {
 	return opt.socket.GetWriter()
 }
 
@@ -238,4 +212,8 @@ func (opt *ConfiguredSocket) Close() (err error) {
 // IsOpen override Socket.IsOpen
 func (opt *ConfiguredSocket) IsOpen() bool {
 	return opt.socket.IsOpen()
+}
+
+func WriteInstruction(writer io.Writer, instruction Instruction) (int, error) {
+	return writer.Write([]byte(instruction.String()))
 }

@@ -3,6 +3,7 @@ package guac
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 )
 
@@ -11,7 +12,7 @@ import (
 // * hostname and port.
 type SslSocket struct {
 	reader Reader
-	write  Writer
+	write  io.Writer
 	sock   *tls.Conn
 }
 
@@ -46,7 +47,7 @@ func NewSslSocket(hostname string, port int) (ret SslSocket, err error) {
 	stream := NewStream(sock, SocketTimeout)
 	ret.sock = sock
 	ret.reader = NewReaderReader(stream)
-	ret.write = NewWriterWriter(stream)
+	ret.write = stream
 	return
 }
 
@@ -67,7 +68,7 @@ func (opt *SslSocket) GetReader() (ret Reader) {
 }
 
 // GetWriter Override Socket.GetWriter
-func (opt *SslSocket) GetWriter() (ret Writer) {
+func (opt *SslSocket) GetWriter() (ret io.Writer) {
 	ret = opt.write
 	return
 }

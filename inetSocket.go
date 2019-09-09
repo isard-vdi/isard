@@ -2,6 +2,7 @@ package guac
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"time"
 )
@@ -16,7 +17,7 @@ const SocketTimeout = 15 * time.Second
 // * hostname and port.
 type InetSocket struct {
 	reader Reader
-	write  Writer
+	write  io.Writer
 	sock   net.Conn
 }
 
@@ -50,7 +51,7 @@ func NewInetSocket(hostname string, port int) (ret InetSocket, err error) {
 	stream := NewStream(sock, SocketTimeout)
 	ret.sock = sock
 	ret.reader = NewReaderReader(stream)
-	ret.write = NewWriterWriter(stream)
+	ret.write = stream
 	return
 }
 
@@ -71,7 +72,7 @@ func (opt *InetSocket) GetReader() (ret Reader) {
 }
 
 // GetWriter Override Socket.GetWriter
-func (opt *InetSocket) GetWriter() (ret Writer) {
+func (opt *InetSocket) GetWriter() (ret io.Writer) {
 	ret = opt.write
 	return
 }

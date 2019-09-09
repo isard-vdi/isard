@@ -3,6 +3,7 @@ package guac
 import (
 	"fmt"
 	logger "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -66,8 +67,8 @@ func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTu
  * @param tunnel
  *     The tunnel to register.
  */
-func (opt *HttpTunnelServlet) registerTunnel(tunnel Tunnel) {
-	opt.tunnels.Put(tunnel.GetUUID().String(), tunnel)
+func (s *HttpTunnelServlet) registerTunnel(tunnel Tunnel) {
+	s.tunnels.Put(tunnel.GetUUID().String(), tunnel)
 	logger.Debugf("Registered tunnel \"%v\".", tunnel.GetUUID())
 }
 
@@ -78,30 +79,18 @@ func (opt *HttpTunnelServlet) registerTunnel(tunnel Tunnel) {
  * @param tunnel
  *     The tunnel to deregister.
  */
-func (opt *HttpTunnelServlet) deregisterTunnel(tunnel Tunnel) {
-	opt.tunnels.Remove(tunnel.GetUUID().String())
+func (s *HttpTunnelServlet) deregisterTunnel(tunnel Tunnel) {
+	s.tunnels.Remove(tunnel.GetUUID().String())
 	logger.Debugf("Deregistered tunnel \"%v\".", tunnel.GetUUID())
 }
 
 /**
  * Returns the tunnel with the given UUID, if it has been registered with
  * registerTunnel() and not yet deregistered with deregisterTunnel().
- *
- * @param tunnelUUID
- *     The UUID of registered tunnel.
- *
- * @return
- *     The tunnel corresponding to the given UUID.
- *
- * @throws ErrOther
- *     If the requested tunnel does not exist because it has not yet been
- *     registered or it has been deregistered.
  */
-func (opt *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel,
-	err error) {
-
-	// Pull tunnel from map
-	ret, ok := opt.tunnels.Get(tunnelUUID)
+func (s *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel, err error) {
+	var ok bool
+	ret, ok = s.tunnels.Get(tunnelUUID)
 
 	if !ok {
 		err = ErrResourceNotFound.NewError("No such tunnel.")
@@ -109,14 +98,14 @@ func (opt *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel,
 	return
 }
 
-func (opt *HttpTunnelServlet) sendError(response http.ResponseWriter, guacStatus Status, message string) {
+func (s *HttpTunnelServlet) sendError(response http.ResponseWriter, guacStatus Status, message string) {
 	response.Header().Set("Guacamole-Status-Code", fmt.Sprintf("%v", guacStatus.GetGuacamoleStatusCode()))
 	response.Header().Set("Guacamole-Error-Message", message)
 	response.WriteHeader(guacStatus.GetHTTPStatusCode())
 }
 
-func (opt *HttpTunnelServlet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := opt.handleTunnelRequestCore(w, r)
+func (s *HttpTunnelServlet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := s.handleTunnelRequestCore(w, r)
 	if err == nil {
 		return
 	}
@@ -124,16 +113,16 @@ func (opt *HttpTunnelServlet) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	switch guacErr.Kind {
 	case ErrClient:
 		logger.Warn("HTTP tunnel request rejected: ", err.Error())
-		opt.sendError(w, guacErr.Status, err.Error())
+		s.sendError(w, guacErr.Status, err.Error())
 	default:
 		logger.Error("HTTP tunnel request failed: ", err.Error())
 		logger.Debug("Internal error in HTTP tunnel.", err)
-		opt.sendError(w, guacErr.Status, "Internal server error.")
+		s.sendError(w, guacErr.Status, "Internal server error.")
 	}
 	return
 }
 
-func (opt *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWriter, request *http.Request) (err error) {
+func (s *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWriter, request *http.Request) (err error) {
 	query := request.URL.RawQuery
 	if len(query) == 0 {
 		return ErrClient.NewError("No query string provided.")
@@ -141,7 +130,7 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWrit
 	// If connect operation, call doConnect() and return tunnel UUID
 	// in response.
 	if query == "connect" {
-		tunnel, e := opt.connect(request)
+		tunnel, e := s.connect(request)
 
 		// Failed to connect
 		if e != nil {
@@ -150,7 +139,7 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWrit
 		}
 
 		// Register newly-created tunnel
-		opt.registerTunnel(tunnel)
+		s.registerTunnel(tunnel)
 
 		// Ensure buggy browsers do not cache response
 		response.Header().Set("Cache-Control", "no-cache")
@@ -166,11 +155,11 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWrit
 	} else if strings.HasPrefix(query, ReadPrefix) {
 		// If read operation, call doRead() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = opt.doRead(response, request, query[ReadPrefixLength:ReadPrefixLength+UuidLength])
+		err = s.doRead(response, request, query[ReadPrefixLength:ReadPrefixLength+UuidLength])
 	} else if strings.HasPrefix(query, WritePrefix) {
 		// If write operation, call doWrite() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = opt.doWrite(response, request, query[WritePrefixLength:WritePrefixLength+UuidLength])
+		err = s.doWrite(response, request, query[WritePrefixLength:WritePrefixLength+UuidLength])
 	} else {
 		// Otherwise, invalid operation
 		err = ErrClient.NewError("Invalid tunnel operation: " + query)
@@ -200,17 +189,17 @@ func (opt *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWrit
  * @throws ErrOther
  *     If an error occurs while handling the read request.
  */
-func (opt *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) (err error) {
+func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) (err error) {
 
 	// Get tunnel, ensure tunnel exists
-	tunnel, err := opt.getTunnel(tunnelUUID)
+	tunnel, err := s.getTunnel(tunnelUUID)
 	if err != nil {
 		return
 	}
 
 	// Ensure tunnel is open
 	if !tunnel.IsOpen() {
-		opt.deregisterTunnel(tunnel)
+		s.deregisterTunnel(tunnel)
 		err = ErrResourceNotFound.NewError("Tunnel is closed.")
 		return
 	}
@@ -218,7 +207,7 @@ func (opt *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http
 	reader := tunnel.AcquireReader()
 	defer tunnel.ReleaseReader()
 
-	e := opt.doReadCore1(response, reader, tunnel)
+	e := s.doReadCore1(response, reader, tunnel)
 
 	if e != nil {
 
@@ -226,14 +215,14 @@ func (opt *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http
 		logger.Debug("Error writing to servlet output stream", e)
 
 		// Deregister and close
-		opt.deregisterTunnel(tunnel)
+		s.deregisterTunnel(tunnel)
 		e = tunnel.Close()
 	}
 
 	return
 }
 
-func (opt *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader Reader, tunnel Tunnel) (e error) {
+func (s *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader Reader, tunnel Tunnel) (e error) {
 	// Note that although we are sending text, Webkit browsers will
 	// buffer 1024 bytes before starting a normal stream if we use
 	// anything but application/octet-stream.
@@ -249,7 +238,7 @@ func (opt *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader R
 	// Writer out = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), "UTF-8"));
 
 	// Stream data to response, ensuring output stream is closed
-	err := opt.doReadCore2(response, reader, tunnel)
+	err := s.doReadCore2(response, reader, tunnel)
 
 	if err == nil {
 		// success
@@ -260,7 +249,7 @@ func (opt *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader R
 	// Send end-of-stream marker and close tunnel if connection is closed
 	case ErrConnectionClosed:
 		// Deregister and close
-		opt.deregisterTunnel(tunnel)
+		s.deregisterTunnel(tunnel)
 		tunnel.Close()
 
 		// End-of-instructions marker
@@ -275,7 +264,7 @@ func (opt *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader R
 	return
 }
 
-func (opt *HttpTunnelServlet) doReadCore2(response http.ResponseWriter, reader Reader, tunnel Tunnel) (err error) {
+func (s *HttpTunnelServlet) doReadCore2(response http.ResponseWriter, reader Reader, tunnel Tunnel) (err error) {
 	var ok bool
 	var message []byte
 	// Deregister tunnel and throw error if we reach EOF without
@@ -315,7 +304,7 @@ func (opt *HttpTunnelServlet) doReadCore2(response http.ResponseWriter, reader R
 
 	// Close tunnel immediately upon EOF
 	if err != nil {
-		opt.deregisterTunnel(tunnel)
+		s.deregisterTunnel(tunnel)
 		tunnel.Close()
 	}
 
@@ -350,10 +339,10 @@ func (opt *HttpTunnelServlet) doReadCore2(response http.ResponseWriter, reader R
  * @throws ErrOther
  *     If an error occurs while handling the write request.
  */
-func (opt *HttpTunnelServlet) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) (err error) {
-	tunnel, err := opt.getTunnel(tunnelUUID)
+func (s *HttpTunnelServlet) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
+	tunnel, err := s.getTunnel(tunnelUUID)
 	if err != nil {
-		return
+		return err
 	}
 
 	// We still need to set the content type to avoid the default of
@@ -367,30 +356,17 @@ func (opt *HttpTunnelServlet) doWrite(response http.ResponseWriter, request *htt
 	writer := tunnel.AcquireWriter()
 	defer tunnel.ReleaseWriter()
 
-	var e error
-	length := 0
-	buffer := make([]byte, 1024, 1024)
-	for length, e = request.Body.Read(buffer); tunnel.IsOpen() && length > 0; length, e = request.Body.Read(buffer) {
-		err = writer.Write(buffer, 0, length)
-		if err != nil {
-			break
-		}
-	}
-	if e != nil {
-		// EOF
-		// No need to close Request stream
-		return nil
-	}
+	_, err = io.Copy(writer, request.Body)
 
 	if err != nil {
-		opt.deregisterTunnel(tunnel)
+		s.deregisterTunnel(tunnel)
 		tunnel.Close()
 	}
 
-	return
+	return err
 }
 
 // Destroy release
-func (opt *HttpTunnelServlet) Destroy() {
-	opt.tunnels.Shutdown()
+func (s *HttpTunnelServlet) Destroy() {
+	s.tunnels.Shutdown()
 }

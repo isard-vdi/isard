@@ -1,6 +1,7 @@
 package guac
 
 import (
+	"io"
 	"strconv"
 )
 
@@ -167,7 +168,7 @@ func (opt *FailoverSocket) GetReader() Reader {
 }
 
 // GetWriter override Socket.GetWriter
-func (opt *FailoverSocket) GetWriter() Writer {
+func (opt *FailoverSocket) GetWriter() io.Writer {
 	return opt.socket.GetWriter()
 }
 

@@ -1,6 +1,9 @@
 package guac
 
-import "github.com/satori/go.uuid"
+import (
+	"github.com/satori/go.uuid"
+	"io"
+)
 
 //  * The Guacamole protocol instruction opcode reserved for arbitrary
 //  * internal use by tunnel implementations. The value of this opcode is
@@ -15,7 +18,7 @@ type Tunnel interface {
 	AcquireReader() Reader
 	ReleaseReader()
 	HasQueuedReaderThreads() bool
-	AcquireWriter() Writer
+	AcquireWriter() io.Writer
 	ReleaseWriter()
 	HasQueuedWriterThreads() bool
 	GetUUID() uuid.UUID
@@ -40,9 +43,9 @@ type SimpleTunnel struct {
 }
 
 // NewSimpleTunnel Construct function
-func NewSimpleTunnel(core Socket) *SimpleTunnel {
+func NewSimpleTunnel(socket Socket) *SimpleTunnel {
 	return &SimpleTunnel{
-		socket: core,
+		socket: socket,
 		uuid:   uuid.NewV4(),
 	}
 }
@@ -64,7 +67,7 @@ func (t *SimpleTunnel) HasQueuedReaderThreads() bool {
 }
 
 // AcquireWriter override Tunnel.AcquireWriter
-func (t *SimpleTunnel) AcquireWriter() Writer {
+func (t *SimpleTunnel) AcquireWriter() io.Writer {
 	t.writerLock.Lock()
 	return t.socket.GetWriter()
 }
