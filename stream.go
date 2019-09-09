@@ -16,7 +16,7 @@ const (
 // Stream interface
 type Stream struct {
 	lock    sync.RWMutex
-	core    net.Conn
+	conn    net.Conn
 	timeout time.Duration
 	err     error
 }
@@ -24,45 +24,45 @@ type Stream struct {
 // NewStream Construct function
 func NewStream(conn net.Conn, timeout time.Duration) (ret *Stream) {
 	ret = &Stream{}
-	ret.core = conn
+	ret.conn = conn
 	ret.timeout = timeout
 	return
 }
 
-func (opt *Stream) errClose(err error) {
-	opt.lock.Lock()
-	defer opt.lock.Unlock()
-	if opt.core == nil {
+func (s *Stream) errClose(err error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if s.conn == nil {
 		return
 	}
-	opt.core.Close()
-	opt.core = nil
-	opt.err = err
+	_ = s.conn.Close()
+	s.conn = nil
+	s.err = err
 	logger.Debug("close socket")
 }
 
-func (opt *Stream) Write(data []byte) (n int, err error) {
-	if opt.err != nil {
-		err = opt.err
+func (s *Stream) Write(data []byte) (n int, err error) {
+	if s.err != nil {
+		err = s.err
 		return
 	}
-	if opt.core == nil {
+	if s.conn == nil {
 		err = net.ErrWriteToConnected
 		return
 	}
-	if opt.timeout > 0 {
-		if err = opt.core.SetWriteDeadline(time.Now().Add(opt.timeout)); err != nil {
-			opt.errClose(err)
+	if s.timeout > 0 {
+		if err = s.conn.SetWriteDeadline(time.Now().Add(s.timeout)); err != nil {
+			s.errClose(err)
 			return
 		}
 	}
 	try := 0
 	pos := 0
 	for pos < len(data) {
-		n, err = opt.core.Write(data[pos:])
+		n, err = s.conn.Write(data[pos:])
 		if err != nil {
 			if en, ok := err.(net.Error); !ok || !en.Temporary() || try >= 3 {
-				opt.errClose(err)
+				s.errClose(err)
 				return
 			}
 			try++
@@ -70,34 +70,32 @@ func (opt *Stream) Write(data []byte) (n int, err error) {
 		}
 		pos += n
 	}
-	if opt.timeout > 0 {
-		if err = opt.core.SetWriteDeadline(time.Time{}); err != nil {
-			opt.errClose(err)
+	if s.timeout > 0 {
+		if err = s.conn.SetWriteDeadline(time.Time{}); err != nil {
+			s.errClose(err)
 			return
 		}
 	}
 	return
 }
 
-func (opt *Stream) Read() (ret []byte, err error) {
-	var n int
-	if opt.err != nil {
-		err = opt.err
+func (s *Stream) Read(p []byte) (n int, err error) {
+	if s.err != nil {
+		err = s.err
 		return
 	}
-	if opt.core == nil {
+	if s.conn == nil {
 		err = net.ErrWriteToConnected
 		return
 	}
-	if opt.timeout > 0 {
-		if err = opt.core.SetReadDeadline(time.Now().Add(opt.timeout)); err != nil {
-			// opt.errClose(err)
+	if s.timeout > 0 {
+		if err = s.conn.SetReadDeadline(time.Now().Add(s.timeout)); err != nil {
+			// s.errClose(err)
 			return
 		}
 	}
-	tmp := make([]byte, StepLength, StepLength)
 	for try := 0; try < 3; try++ {
-		n, err = opt.core.Read(tmp)
+		n, err = s.conn.Read(p)
 		if err != nil {
 			ex, ok := err.(net.Error)
 			if ok && ex.Temporary() {
@@ -108,25 +106,24 @@ func (opt *Stream) Read() (ret []byte, err error) {
 		break
 	}
 
-	if opt.timeout > 0 {
-		if err = opt.core.SetReadDeadline(time.Time{}); err != nil {
-			// opt.errClose(err)
+	if s.timeout > 0 {
+		if err = s.conn.SetReadDeadline(time.Time{}); err != nil {
+			// s.errClose(err)
 			return
 		}
 	}
-	ret = tmp[0:n]
 	return
 }
 
 // Available stream check
-func (opt *Stream) Available() (bool, error) {
+func (s *Stream) Available() (bool, error) {
 	// ToDo here
 	// Check if temp buffer is not empty
 	return false, nil
 }
 
 // Close stream close
-func (opt *Stream) Close() (err error) {
-	opt.errClose(fmt.Errorf("Closed"))
+func (s *Stream) Close() (err error) {
+	s.errClose(fmt.Errorf("closed"))
 	return
 }

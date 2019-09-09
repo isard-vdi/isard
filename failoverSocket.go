@@ -1,13 +1,8 @@
 package guac
 
-// Move FailoverSocket from protocol folder to here
-// Avoid cross depends
-
 import (
 	"strconv"
 )
-
-// log instread of LoggerFactory
 
 const (
 	/*InstructionQueueLimit *

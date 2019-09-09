@@ -1,7 +1,6 @@
 package guac
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 )
@@ -41,6 +40,8 @@ func (opt *readerReader) Available() (ok bool, err error) {
 
 // Read override Reader.Read
 func (opt *readerReader) Read() (instruction []byte, err error) {
+	var n int
+	stepBuffer := make([]byte, StepLength)
 
 mainLoop:
 	// While we're blocking, or input is available
@@ -97,9 +98,7 @@ mainLoop:
 				}
 			default:
 				// Otherwise, parse error
-				fmt.Println(string(opt.buffer))
-				fmt.Println(string(opt.buffer[i]))
-				err = ErrServer.NewError("Non-numeric character in element length.")
+				err = ErrServer.NewError("Non-numeric character in element length:", string(readChar))
 				break mainLoop
 			}
 
@@ -113,8 +112,8 @@ mainLoop:
 		// buffer = buffer + stepBuffer[0:n]
 		// instead
 
-		stepBuffer, e := opt.input.Read()
-		if e != nil {
+		n, err = opt.input.Read(stepBuffer)
+		if err != nil {
 			// Discard
 			// Time out throw ErrUpstreamTimeout for
 			// Closed throw ErrConnectionClosed for
@@ -124,29 +123,30 @@ mainLoop:
 			// Inside opt.input.Read()
 			// Error occurs will close socket
 			// So ...
-			switch e.(type) {
+			switch err.(type) {
 			case net.Error:
-				ex := e.(net.Error)
+				ex := err.(net.Error)
 				if ex.Timeout() {
-					err = ErrUpstreamTimeout.NewError("Connection to guacd timed out.", e.Error())
+					err = ErrUpstreamTimeout.NewError("Connection to guacd timed out.", err.Error())
 				} else {
-					err = ErrConnectionClosed.NewError("Connection to guacd is closed.", e.Error())
+					err = ErrConnectionClosed.NewError("Connection to guacd is closed.", err.Error())
 				}
 			default:
-				err = ErrServer.NewError(e.Error())
+				err = ErrServer.NewError(err.Error())
 			}
 			break mainLoop
 		}
-		opt.buffer = append(opt.buffer, stepBuffer...)
+		opt.buffer = append(opt.buffer, stepBuffer[0:n]...)
 	}
 	return
 }
 
 // ReadInstruction override Reader.ReadInstruction
 func (opt *readerReader) ReadInstruction() (instruction Instruction, err error) {
+	var instructionBuffer []byte
 
 	// Get instruction
-	instructionBuffer, err := opt.Read()
+	instructionBuffer, err = opt.Read()
 
 	// If EOF, return EOF
 	if err != nil {

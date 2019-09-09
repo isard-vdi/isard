@@ -146,7 +146,7 @@ func (opt *Parser) Append(chunk []byte, offset, length int) (charsParsed int, er
 				break loop
 			default:
 				opt.state = Error
-				err = ErrServer.NewError("Non-numeric character in element length.")
+				err = ErrServer.NewError("Non-numeric character in element length:", string(c))
 				return
 			}
 
