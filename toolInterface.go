@@ -38,8 +38,3 @@ type HTTPServletResponseInterface interface {
 
 // DoConnectInterface Tool interface for HttpTunnelServlet
 type DoConnectInterface func(request HTTPServletRequestInterface) (Tunnel, error)
-
-// GetSocketInterface Tool interface for BaseTunnel
-type GetSocketInterface interface {
-	GetSocket() Socket
-}

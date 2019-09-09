@@ -154,8 +154,7 @@ func (opt *HttpTunnelServlet) DoPost(request HTTPServletRequestInterface, respon
  * @throws ServletException
  *     If an error prevents sending of the error code.
  */
-func (opt *HttpTunnelServlet) sendError(response HTTPServletResponseInterface,
-	guacStatus Status, message string) (err error) {
+func (opt *HttpTunnelServlet) sendError(response HTTPServletResponseInterface, guacStatus Status, message string) (err error) {
 
 	committed, err := response.IsCommitted()
 	if err != nil {

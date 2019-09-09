@@ -1,8 +1,7 @@
 package guac
 
-import uuid "github.com/satori/go.uuid"
+import "github.com/satori/go.uuid"
 
-//InternalDataOpcode const Global value
 //  * The Guacamole protocol instruction opcode reserved for arbitrary
 //  * internal use by tunnel implementations. The value of this opcode is
 //  * guaranteed to be the empty string (""). Tunnel implementations may use
@@ -11,87 +10,99 @@ import uuid "github.com/satori/go.uuid"
 //  * transmit the tunnel UUID.
 const InternalDataOpcode = ""
 
-// Tunnel Provides a unique identifier and synchronized access
-// to the Reader and Writer associated with a Socket.
+// Tunnel provides a unique identifier and synchronized access to the Reader and Writer associated with a Socket.
 type Tunnel interface {
-
-	/**
-	 * Acquires exclusive read access to the Guacamole instruction stream
-	 * and returns a Reader for reading from that stream.
-	 *
-	 * @return A Reader for reading from the Guacamole instruction
-	 *         stream.
-	 */
 	AcquireReader() Reader
-
-	/**
-	 * Relinquishes exclusive read access to the Guacamole instruction
-	 * stream. This function should be called whenever a thread finishes using
-	 * a Tunnel's Reader.
-	 */
 	ReleaseReader()
-
-	/**
-	 * Returns whether there are threads waiting for read access to the
-	 * Guacamole instruction stream.
-	 *
-	 * @return true if threads are waiting for read access the Guacamole
-	 *         instruction stream, false otherwise.
-	 */
 	HasQueuedReaderThreads() bool
-
-	/**
-	 * Acquires exclusive write access to the Guacamole instruction stream
-	 * and returns a Writer for writing to that stream.
-	 *
-	 * @return A Writer for writing to the Guacamole instruction
-	 *         stream.
-	 */
 	AcquireWriter() Writer
-
-	/**
-	 * Relinquishes exclusive write access to the Guacamole instruction
-	 * stream. This function should be called whenever a thread finishes using
-	 * a Tunnel's Writer.
-	 */
 	ReleaseWriter()
-
-	/**
-	 * Returns whether there are threads waiting for write access to the
-	 * Guacamole instruction stream.
-	 *
-	 * @return true if threads are waiting for write access the Guacamole
-	 *         instruction stream, false otherwise.
-	 */
 	HasQueuedWriterThreads() bool
-
-	/**
-	 * Returns the unique identifier associated with this Tunnel.
-	 *
-	 * @return The unique identifier associated with this Tunnel.
-	 */
 	GetUUID() uuid.UUID
-
-	/**
-	 * Returns the Socket used by this Tunnel for reading
-	 * and writing.
-	 *
-	 * @return The Socket used by this Tunnel.
-	 */
 	GetSocket() Socket
-
-	/**
-	 * Release all resources allocated to this Tunnel.
-	 *
-	 * @throws ErrOther if an error occurs while releasing
-	 *                            resources.
-	 */
 	Close() error
-
-	/**
-	 * Returns whether this Tunnel is open, or has been closed.
-	 *
-	 * @return true if this Tunnel is open, false if it is closed.
-	 */
 	IsOpen() bool
+}
+
+//  * Base Tunnel implementation which synchronizes access to the
+//  * underlying reader and writer with reentrant locks. Implementations need only
+//  * provide the tunnel's UUID and socket.
+type SimpleTunnel struct {
+	socket Socket
+	/**
+	 * The UUID associated with this tunnel. Every tunnel must have a
+	 * corresponding UUID such that tunnel read/write requests can be
+	 * directed to the proper tunnel.
+	 */
+	uuid       uuid.UUID
+	readerLock ReentrantLock
+	writerLock ReentrantLock
+}
+
+// NewSimpleTunnel Construct function
+func NewSimpleTunnel(core Socket) *SimpleTunnel {
+	return &SimpleTunnel{
+		socket: core,
+		uuid:   uuid.NewV4(),
+	}
+}
+
+// AcquireReader override Tunnel.AcquireReader
+func (t *SimpleTunnel) AcquireReader() Reader {
+	t.readerLock.Lock()
+	return t.socket.GetReader()
+}
+
+// ReleaseReader override Tunnel.ReleaseReader
+func (t *SimpleTunnel) ReleaseReader() {
+	t.readerLock.Unlock()
+}
+
+// HasQueuedReaderThreads override Tunnel.HasQueuedReaderThreads
+func (t *SimpleTunnel) HasQueuedReaderThreads() bool {
+	return t.readerLock.HasQueuedThreads()
+}
+
+// AcquireWriter override Tunnel.AcquireWriter
+func (t *SimpleTunnel) AcquireWriter() Writer {
+	t.writerLock.Lock()
+	return t.socket.GetWriter()
+}
+
+// ReleaseWriter override Tunnel.ReleaseWriter
+func (t *SimpleTunnel) ReleaseWriter() {
+	t.writerLock.Unlock()
+}
+
+// HasQueuedWriterThreads override Tunnel.HasQueuedWriterThreads
+func (t *SimpleTunnel) HasQueuedWriterThreads() bool {
+	return t.writerLock.HasQueuedThreads()
+}
+
+// Close override Tunnel.Close
+func (t *SimpleTunnel) Close() (err error) {
+	if t.socket != nil {
+		err = t.socket.Close()
+	} else {
+		err = ErrConnectionClosed.NewError("Closed")
+	}
+	return
+}
+
+// IsOpen override Tunnel.IsOpen
+func (t *SimpleTunnel) IsOpen() bool {
+	if t.socket != nil {
+		return t.socket.IsOpen()
+	}
+	return false
+}
+
+// GetUUID override Tunnel.GetUUID
+func (t *SimpleTunnel) GetUUID() uuid.UUID {
+	return t.uuid
+}
+
+// GetSocket override Tunnel.GetSocket
+func (t *SimpleTunnel) GetSocket() Socket {
+	return t.socket
 }
