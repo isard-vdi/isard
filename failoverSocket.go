@@ -54,7 +54,7 @@ type FailoverSocket struct {
  */
 func handleUpstreamErrors(instruction Instruction) (err error) {
 	// Ignore error instructions which are missing the Status code
-	args := instruction.GetArgs()
+	args := instruction.Args
 	if len(args) < 2 {
 		// logger.debug("Received \"error\" instruction without Status code.");
 		return
@@ -121,12 +121,12 @@ func NewFailoverSocket(socket Socket) (ret FailoverSocket, err error) {
 	reader := ret.socket.GetReader()
 
 	// Continuously read instructions, searching for errors
-	for instruction, err = reader.ReadInstruction(); len(instruction.GetOpcode()) > 0 && err == nil; instruction, err = reader.ReadInstruction() {
+	for instruction, err = reader.ReadInstruction(); len(instruction.Opcode) > 0 && err == nil; instruction, err = reader.ReadInstruction() {
 		// Add instruction to tail of instruction queue
 		ret.instructionQueue = append(ret.instructionQueue, instruction)
 
 		// If instruction is a "sync" instruction, stop reading
-		opcode := instruction.GetOpcode()
+		opcode := instruction.Opcode
 		if opcode == "sync" {
 			break
 		}
@@ -183,9 +183,12 @@ func (opt *FailoverSocket) IsOpen() bool {
 	return opt.socket.IsOpen()
 }
 
-///////////////////////////////////////////////////////////////////
-// ADD for lambda Interface
-///////////////////////////////////////////////////////////////////
+/**
+ * GuacamoleReader which reads instructions from the queue populated when
+ * the FailoverGuacamoleSocket was constructed. Once the queue has been
+ * emptied, reads are delegated directly to the reader of the wrapped
+ * socket.
+ */
 
 type lambdaQueuedReader struct {
 	core *FailoverSocket

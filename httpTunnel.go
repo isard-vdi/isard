@@ -15,7 +15,7 @@ import (
  * independently of the HTTP requests.
  */
 type HttpTunnel struct {
-	DelegatingTunnel
+	Tunnel
 	/**
 	 * The last time this tunnel was accessed.
 	 */
@@ -30,8 +30,8 @@ type HttpTunnel struct {
  * @param wrappedTunnel
  *     The Tunnel to wrap within this HttpTunnel.
  */
-func NewHttpTunnel(wrappedTunnel Tunnel) (ret HttpTunnel) {
-	ret.DelegatingTunnel = NewDelegatingTunnel(wrappedTunnel)
+func NewHttpTunnel(tunnel Tunnel) (ret HttpTunnel) {
+	ret.Tunnel = tunnel
 	ret.Access()
 	return
 }

@@ -50,7 +50,7 @@ func NewInetSocket(hostname string, port int) (ret InetSocket, err error) {
 	// On successful connect, retrieve I/O streams
 	stream := NewStream(sock, SocketTimeout)
 	ret.sock = sock
-	ret.reader = NewReaderReader(stream)
+	ret.reader = NewInstructionReader(stream)
 	ret.write = stream
 	return
 }

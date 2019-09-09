@@ -170,79 +170,40 @@ func (s *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWriter
 
 /**
  * Called whenever the JavaScript Guacamole client makes a read request.
- * This function should in general not be overridden, as it already
- * contains a proper implementation of the read operation.
- *
- * @param request
- *     The HttpServletRequest associated with the read request received.
- *
- * @param response
- *     The HttpServletResponse associated with the write request received.
- *     Any data to be sent to the client in response to the write request
- *     should be written to the response body of this HttpServletResponse.
- *
- * @param tunnelUUID
- *     The UUID of the tunnel to read from, as specified in the write
- *     request. This tunnel must have been created by a previous call to
- *     doConnect().
- *
- * @throws ErrOther
- *     If an error occurs while handling the read request.
  */
-func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) (err error) {
-
+func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
 	// Get tunnel, ensure tunnel exists
 	tunnel, err := s.getTunnel(tunnelUUID)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Ensure tunnel is open
 	if !tunnel.IsOpen() {
 		s.deregisterTunnel(tunnel)
 		err = ErrResourceNotFound.NewError("Tunnel is closed.")
-		return
+		return err
 	}
 
 	reader := tunnel.AcquireReader()
 	defer tunnel.ReleaseReader()
 
-	e := s.doReadCore1(response, reader, tunnel)
-
-	if e != nil {
-
-		// Log typically frequent I/O error if desired
-		logger.Debug("Error writing to servlet output stream", e)
-
-		// Deregister and close
-		s.deregisterTunnel(tunnel)
-		e = tunnel.Close()
-	}
-
-	return
-}
-
-func (s *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader Reader, tunnel Tunnel) (e error) {
 	// Note that although we are sending text, Webkit browsers will
 	// buffer 1024 bytes before starting a normal stream if we use
 	// anything but application/octet-stream.
 	response.Header().Set("Content-Type", "application/octet-stream")
 	response.Header().Set("Cache-Control", "no-cache")
 
-	// response.Close() -->
 	if v, ok := response.(http.Flusher); ok {
 		v.Flush()
 	}
 
-	// Get writer for response
-	// Writer out = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), "UTF-8"));
-
 	// Stream data to response, ensuring output stream is closed
-	err := s.doReadCore2(response, reader, tunnel)
+	err = s.stream(response, reader, tunnel)
 
 	if err == nil {
 		// success
-		return
+		return err
 	}
 
 	switch err.(*ErrGuac).Kind {
@@ -258,13 +219,15 @@ func (s *HttpTunnelServlet) doReadCore1(response http.ResponseWriter, reader Rea
 			v.Flush()
 		}
 	default:
-		// Deregister and close
-		e = err
+		logger.Debug("Error writing to servlet output stream", err)
+		s.deregisterTunnel(tunnel)
+		tunnel.Close()
 	}
-	return
+
+	return err
 }
 
-func (s *HttpTunnelServlet) doReadCore2(response http.ResponseWriter, reader Reader, tunnel Tunnel) (err error) {
+func (s *HttpTunnelServlet) stream(response http.ResponseWriter, reader Reader, tunnel Tunnel) (err error) {
 	var ok bool
 	var message []byte
 	// Deregister tunnel and throw error if we reach EOF without
@@ -322,22 +285,6 @@ func (s *HttpTunnelServlet) doReadCore2(response http.ResponseWriter, reader Rea
  * Called whenever the JavaScript Guacamole client makes a write request.
  * This function should in general not be overridden, as it already
  * contains a proper implementation of the write operation.
- *
- * @param request
- *     The HttpServletRequest associated with the write request received.
- *     Any data to be written will be specified within the body of this
- *     request.
- *
- * @param response
- *     The HttpServletResponse associated with the write request received.
- *
- * @param tunnelUUID
- *     The UUID of the tunnel to write to, as specified in the write
- *     request. This tunnel must have been created by a previous call to
- *     doConnect().
- *
- * @throws ErrOther
- *     If an error occurs while handling the write request.
  */
 func (s *HttpTunnelServlet) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
 	tunnel, err := s.getTunnel(tunnelUUID)

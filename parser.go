@@ -17,7 +17,7 @@ const (
 	InstructionMaxDigits = 5
 
 	/*INSTRUCTION_MAX_ELEMENTS *
-	 * The maximum number of elements per instruction, including the opcode.
+	 * The maximum number of elements per instruction, including the Opcode.
 	 */
 	InstructionMaxElements = 64
 )

@@ -30,13 +30,13 @@ type ConfiguredSocket struct {
 }
 
 /*expect *
-* Waits for the instruction having the given opcode, returning that
+* Waits for the instruction having the given Opcode, returning that
 * instruction once it has been read. If the instruction is never read,
 * an exception is thrown.
 *
 * @param reader The reader to read instructions from.
-* @param opcode The opcode of the instruction we are expecting.
-* @return The instruction having the given opcode.
+* @param Opcode The Opcode of the instruction we are expecting.
+* @return The instruction having the given Opcode.
 * @throws ErrOther If an error occurs while reading, or if
 *                            the expected instruction is not read.
  */
@@ -48,14 +48,14 @@ func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction I
 		return
 	}
 
-	if len(instruction.GetOpcode()) == 0 {
+	if len(instruction.Opcode) == 0 {
 		err = ErrServer.NewError("End of stream while waiting for \"" + opcode + "\".")
 		return
 	}
 
-	// Ensure instruction has expected opcode
-	if instruction.GetOpcode() != opcode {
-		err = ErrServer.NewError("Expected \"" + opcode + "\" instruction but instead received \"" + instruction.GetOpcode() + "\".")
+	// Ensure instruction has expected Opcode
+	if instruction.Opcode != opcode {
+		err = ErrServer.NewError("Expected \"" + opcode + "\" instruction but instead received \"" + instruction.Opcode + "\".")
 		return
 	}
 	return
@@ -96,14 +96,14 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 		return
 	}
 
-	// Wait for server args
+	// Wait for server Args
 	args, err := one.expect(reader, "args")
 	if err != nil {
 		return
 	}
 
-	// Build args list off provided names and config
-	argNameS := args.GetArgs()
+	// Build Args list off provided names and config
+	argNameS := args.Args
 	argValueS := make([]string, 0, len(argNameS))
 	for _, argName := range argNameS {
 
@@ -148,7 +148,7 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 		return
 	}
 
-	// Send args
+	// Send Args
 	_, err = WriteInstruction(writer, NewInstruction("connect", argValueS...))
 	if err != nil {
 		return
@@ -160,7 +160,7 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 		return
 	}
 
-	readyArgs := ready.GetArgs()
+	readyArgs := ready.Args
 	if len(readyArgs) == 0 {
 		err = ErrServer.NewError("No connection ID received")
 		return

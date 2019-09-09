@@ -5,32 +5,31 @@ import (
 	"strconv"
 )
 
-// readerReader A Reader which wraps a standard io Reader,
+// instructionReader A Reader which wraps a standard io Reader,
 // using that Reader as the Guacamole instruction stream.
-type readerReader struct {
+type instructionReader struct {
 	input      *Stream
 	parseStart int
 	buffer     []byte
 	usedLength int
 }
 
-// NewReaderReader Construct function of readerReader
-func NewReaderReader(input *Stream) (ret Reader) {
-	one := readerReader{}
-	one.input = input
-	one.parseStart = 0
-	one.buffer = make([]byte, 0, 20480)
-	ret = &one
-	return
+// NewInstructionReader Construct function of instructionReader
+func NewInstructionReader(input *Stream) Reader {
+	return &instructionReader{
+		input:      input,
+		parseStart: 0,
+		buffer:     make([]byte, 0, 20480),
+	}
 }
 
 // Available override Reader.Available
-func (opt *readerReader) Available() (ok bool, err error) {
-	ok = len(opt.buffer) > 0
+func (r *instructionReader) Available() (ok bool, err error) {
+	ok = len(r.buffer) > 0
 	if ok {
 		return
 	}
-	ok, e := opt.input.Available()
+	ok, e := r.input.Available()
 	if e != nil {
 		err = ErrServer.NewError(e.Error())
 		return
@@ -39,7 +38,7 @@ func (opt *readerReader) Available() (ok bool, err error) {
 }
 
 // Read override Reader.Read
-func (opt *readerReader) Read() (instruction []byte, err error) {
+func (r *instructionReader) Read() (instruction []byte, err error) {
 	var n int
 	stepBuffer := make([]byte, StepLength)
 
@@ -50,13 +49,13 @@ mainLoop:
 		var elementLength int
 
 		// Resume where we left off
-		i := opt.parseStart
+		i := r.parseStart
 
 	parseLoop:
 		// Parse instruction in buffer
-		for i < len(opt.buffer) {
+		for i < len(r.buffer) {
 			// Read character
-			readChar := opt.buffer[i]
+			readChar := r.buffer[i]
 			i++
 
 			switch readChar {
@@ -66,13 +65,13 @@ mainLoop:
 
 			// If not digit, check for end-of-length character
 			case '.':
-				if i+elementLength >= len(opt.buffer) {
-					// break for i < opt.usedLength { ... }
+				if i+elementLength >= len(r.buffer) {
+					// break for i < r.usedLength { ... }
 					// Otherwise, read more data
 					break parseLoop
 				}
 				// Check if element present in buffer
-				terminator := opt.buffer[i+elementLength]
+				terminator := r.buffer[i+elementLength]
 				// Move to character after terminator
 				i += elementLength + 1
 
@@ -80,15 +79,15 @@ mainLoop:
 				elementLength = 0
 
 				// Continue here if necessary
-				opt.parseStart = i
+				r.parseStart = i
 
 				// If terminator is semicolon, we have a full
 				// instruction.
 				switch terminator {
 				case ';':
-					instruction = opt.buffer[0:i]
-					opt.parseStart = 0
-					opt.buffer = opt.buffer[i:]
+					instruction = r.buffer[0:i]
+					r.parseStart = 0
+					r.buffer = r.buffer[i:]
 					break mainLoop
 				case ',':
 					// nothing
@@ -112,7 +111,7 @@ mainLoop:
 		// buffer = buffer + stepBuffer[0:n]
 		// instead
 
-		n, err = opt.input.Read(stepBuffer)
+		n, err = r.input.Read(stepBuffer)
 		if err != nil {
 			// Discard
 			// Time out throw ErrUpstreamTimeout for
@@ -120,7 +119,7 @@ mainLoop:
 			// Other socket err
 			// Here or use normal err instead
 
-			// Inside opt.input.Read()
+			// Inside r.input.Read()
 			// Error occurs will close socket
 			// So ...
 			switch err.(type) {
@@ -136,17 +135,17 @@ mainLoop:
 			}
 			break mainLoop
 		}
-		opt.buffer = append(opt.buffer, stepBuffer[0:n]...)
+		r.buffer = append(r.buffer, stepBuffer[0:n]...)
 	}
 	return
 }
 
 // ReadInstruction override Reader.ReadInstruction
-func (opt *readerReader) ReadInstruction() (instruction Instruction, err error) {
+func (r *instructionReader) ReadInstruction() (instruction Instruction, err error) {
 	var instructionBuffer []byte
 
 	// Get instruction
-	instructionBuffer, err = opt.Read()
+	instructionBuffer, err = r.Read()
 
 	// If EOF, return EOF
 	if err != nil {
@@ -202,7 +201,7 @@ func (opt *readerReader) ReadInstruction() (instruction Instruction, err error) 
 
 	}
 
-	// Pull opcode off elements list
+	// Pull Opcode off elements list
 	// Create instruction
 	instruction = NewInstruction(elements[0], elements[1:]...)
 
