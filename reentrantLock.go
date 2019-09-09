@@ -1,6 +1,6 @@
 package guac
 
-// Becareful here
+// Be careful here
 // Using sync/* to instead java.ReentrantLock
 // That means change whole work design
 // Fortunately, there is nothing need to re-enter in java

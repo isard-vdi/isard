@@ -10,23 +10,9 @@ import (
 
 // ConfiguredSocket ==> Socket
 type ConfiguredSocket struct {
-
-	/**
-	 * The wrapped socket.
-	 */
-	socket Socket
-
-	/**
-	 * The configuration to use when performing the Guacamole protocol
-	 * handshake.
-	 */
-	config Config
-
-	/**
-	 * The unique identifier associated with this connection, as determined
-	 * by the "ready" instruction received from the Guacamole proxy.
-	 */
-	id string
+	Socket
+	config *Config
+	id     string
 }
 
 /*expect *
@@ -67,7 +53,7 @@ func (opt *ConfiguredSocket) expect(reader Reader, opcode string) (instruction I
 * the given Socket. A default ClientInfo object
 * is used to provide basic client information.
  */
-func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSocket, error) {
+func NewConfiguredGuacamoleSocket2(socket Socket, config *Config) (ConfiguredSocket, error) {
 	return NewConfiguredSocket3(socket, config, NewGuacamoleClientInformation())
 }
 
@@ -76,8 +62,8 @@ func NewConfiguredGuacamoleSocket2(socket Socket, config Config) (ConfiguredSock
 * Config and ClientInfo to complete the
 * initial protocol handshake over the given Socket.
  */
-func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one ConfiguredSocket, err error) {
-	one.socket = socket
+func NewConfiguredSocket3(socket Socket, config *Config, info *ClientInfo) (one ConfiguredSocket, err error) {
+	one.Socket = socket
 	one.config = config
 
 	// Get reader and writer
@@ -85,9 +71,9 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 	writer := socket.GetWriter()
 
 	// Get protocol / connection ID
-	selectArg := config.GetConnectionID()
+	selectArg := config.ConnectionID
 	if len(selectArg) == 0 {
-		selectArg = config.GetProtocol()
+		selectArg = config.Protocol
 	}
 
 	// Send requested protocol or connection ID
@@ -110,7 +96,7 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 		// Retrieve argument name
 
 		// Get defined value for name
-		value := config.GetParameter(argName)
+		value := config.Parameters[argName]
 
 		// If value defined, set that value
 		if len(value) == 0 {
@@ -121,9 +107,9 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 
 	// Send size
 	_, err = WriteInstruction(writer, NewInstruction("size",
-		fmt.Sprintf("%v", info.GetOptimalScreenWidth()),
-		fmt.Sprintf("%v", info.GetOptimalScreenHeight()),
-		fmt.Sprintf("%v", info.GetOptimalResolution())),
+		fmt.Sprintf("%v", info.OptimalScreenWidth),
+		fmt.Sprintf("%v", info.OptimalScreenHeight),
+		fmt.Sprintf("%v", info.OptimalResolution)),
 	)
 
 	if err != nil {
@@ -131,19 +117,19 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 	}
 
 	// Send supported audio formats
-	_, err = WriteInstruction(writer, NewInstruction("audio", info.GetAudioMimetypes()...))
+	_, err = WriteInstruction(writer, NewInstruction("audio", info.AudioMimetypes...))
 	if err != nil {
 		return
 	}
 
 	// Send supported video formats
-	_, err = WriteInstruction(writer, NewInstruction("video", info.GetVideoMimetypes()...))
+	_, err = WriteInstruction(writer, NewInstruction("video", info.VideoMimetypes...))
 	if err != nil {
 		return
 	}
 
 	// Send supported image formats
-	_, err = WriteInstruction(writer, NewInstruction("image", info.GetImageMimetypes()...))
+	_, err = WriteInstruction(writer, NewInstruction("image", info.ImageMimetypes...))
 	if err != nil {
 		return
 	}
@@ -172,46 +158,8 @@ func NewConfiguredSocket3(socket Socket, config Config, info ClientInfo) (one Co
 
 }
 
-/*GetConfiguration *
-* Returns the Config used to configure this
-* ConfiguredSocket.
-*
-* @return The Config used to configure this
-*         ConfiguredSocket.
- */
-func (opt *ConfiguredSocket) GetConfiguration() Config {
-	return opt.config
-}
-
-/*GetConnectionID *
-* Returns the unique ID associated with the Guacamole connection
-* negotiated by this ConfiguredSocket. The ID is provided by
-* the "ready" instruction returned by the Guacamole proxy.
-*
-* @return The ID of the negotiated Guacamole connection.
- */
 func (opt *ConfiguredSocket) GetConnectionID() string {
 	return opt.id
-}
-
-// GetWriter override Socket.GetWriter
-func (opt *ConfiguredSocket) GetWriter() io.Writer {
-	return opt.socket.GetWriter()
-}
-
-// GetReader override Socket.GetReader
-func (opt *ConfiguredSocket) GetReader() Reader {
-	return opt.socket.GetReader()
-}
-
-// Close override Socket.Close
-func (opt *ConfiguredSocket) Close() (err error) {
-	return opt.socket.Close()
-}
-
-// IsOpen override Socket.IsOpen
-func (opt *ConfiguredSocket) IsOpen() bool {
-	return opt.socket.IsOpen()
 }
 
 func WriteInstruction(writer io.Writer, instruction Instruction) (int, error) {

@@ -40,15 +40,17 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	config := guac.NewGuacamoleConfiguration()
 	info := guac.NewGuacamoleClientInformation()
 
-	config.SetProtocol("ssh")
-	config.SetParameter("port", "22")
-	config.SetParameter("hostname", secret.Host)
-	config.SetParameter("username", secret.Username)
-	config.SetParameter("password", secret.Password)
+	config.Protocol = "ssh"
+	config.Parameters = map[string]string{
+		"port":     "22",
+		"hostname": secret.Host,
+		"username": secret.Username,
+		"password": secret.Password,
+	}
 
 	// view
-	info.SetOptimalScreenHeight(600)
-	info.SetOptimalScreenWidth(800)
+	info.OptimalScreenHeight = 600
+	info.OptimalScreenWidth = 800
 
 	core, err := guac.NewInetSocket("127.0.0.1", 4822)
 	if err != nil {
