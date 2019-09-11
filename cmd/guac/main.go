@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"github.com/jakecoffman/guac"
 	"github.com/jakecoffman/guac/cmd/guac/secret"
-	logger "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"net/http"
+	"net/http/pprof"
 )
 
 func main() {
-	logger.SetLevel(logger.DebugLevel)
+	logrus.SetLevel(logrus.DebugLevel)
 
 	fs := http.FileServer(http.Dir("."))
 
@@ -20,10 +21,21 @@ func main() {
 	mux.Handle("/tunnel/", servlet)
 	mux.Handle("/", fs)
 
-	logger.Println("Serving on http://127.0.0.1:4567")
+	// Register pprof handlers
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+	mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
+
+	logrus.Println("Serving on http://127.0.0.1:4567")
 
 	s := &http.Server{
-		Addr:           ":4567",
+		Addr:           "127.0.0.1:4567",
 		Handler:        mux,
 		ReadTimeout:    guac.SocketTimeout,
 		WriteTimeout:   guac.SocketTimeout,
@@ -48,17 +60,17 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 		"password": secret.Password,
 	}
 
-	// view
-	info.OptimalScreenHeight = 600
-	info.OptimalScreenWidth = 800
+	//info.OptimalScreenHeight = 600
+	//info.OptimalScreenWidth = 800
+	info.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
-	core, err := guac.NewInetSocket("127.0.0.1", 4822)
+	socket, err := guac.NewInetSocket("127.0.0.1", 4822)
 	if err != nil {
 		return nil, err
 	}
-	socket, err := guac.NewConfiguredSocket3(&core, config, info)
+	err = guac.ConfigureSocket(socket, config, info)
 	if err != nil {
 		return nil, err
 	}
-	return guac.NewSimpleTunnel(&socket), nil
+	return guac.NewSimpleTunnel(socket), nil
 }

@@ -1,42 +1,58 @@
 package guac
 
-import "io"
+import (
+	"crypto/tls"
+	"fmt"
+	"net"
+	"time"
+)
 
-// Socket Provides abstract socket-like access to a Guacamole connection.
-type Socket interface {
-	/**
-	 * Returns a Reader which can be used to read from the
-	 * Guacamole instruction stream associated with the connection
-	 * represented by this Socket.
-	 *
-	 * @return A Reader which can be used to read from the
-	 *         Guacamole instruction stream.
-	 */
-	GetReader() Reader
+// SocketTimeout socket timeout setting
+//  * The number of milliseconds to wait for data on the TCP socket before
+//  * timing out.
+const SocketTimeout = 15 * time.Second
 
-	/**
-	 * Returns a Writer which can be used to write to the
-	 * Guacamole instruction stream associated with the connection
-	 * represented by this Socket.
-	 *
-	 * @return A Writer which can be used to write to the
-	 *         Guacamole instruction stream.
-	 */
-	GetWriter() io.Writer
+// Socket provides abstract socket-like access to a Guacamole connection.
+type Socket struct {
+	*InstructionReader
+	*Stream
+}
 
-	/**
-	 * Releases all resources in use by the connection represented by this
-	 * Socket.
-	 *
-	 * @throws ErrOther If an error occurs while releasing resources.
-	 */
-	Close() error
+// NewInetSocket connects to Guacamole
+func NewInetSocket(hostname string, port int) (*Socket, error) {
+	address := fmt.Sprintf("%s:%d", hostname, port)
+	addr, e := net.ResolveTCPAddr("tcp", address)
 
-	/**
-	 * Returns whether this Socket is open and can be used for reading
-	 * and writing.
-	 *
-	 * @return true if this Socket is open, false otherwise.
-	 */
-	IsOpen() bool
+	conn, e := net.DialTCP("tcp", nil, addr)
+	if e != nil {
+		err := ErrUpstreamTimeout.NewError("Connection timed out.", e.Error())
+		return nil, err
+	}
+
+	stream := NewStream(conn, SocketTimeout)
+	return &Socket{
+		Stream: stream,
+		InstructionReader: NewInstructionReader(stream),
+	}, nil
+}
+
+// NewSslSocket connects to Guacamole
+func NewSslSocket(hostname string, port int) (*Socket, error) {
+	address := fmt.Sprintf("%s:%d", hostname, port)
+	conn, err := tls.DialWithDialer(
+		&net.Dialer{Timeout: SocketTimeout}, "tcp", address,
+		&tls.Config{
+			InsecureSkipVerify: true,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	// Set read timeout
+	// On successful connect, retrieve I/O streams
+	stream := NewStream(conn, SocketTimeout)
+	return &Socket{
+		Stream: stream,
+		InstructionReader: NewInstructionReader(stream),
+	}, nil
 }

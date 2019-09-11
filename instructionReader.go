@@ -5,18 +5,18 @@ import (
 	"strconv"
 )
 
-// instructionReader A Reader which wraps a standard io Reader,
+// InstructionReader A Reader which wraps a standard io Reader,
 // using that Reader as the Guacamole instruction stream.
-type instructionReader struct {
+type InstructionReader struct {
 	input      *Stream
 	parseStart int
 	buffer     []byte
 	usedLength int
 }
 
-// NewInstructionReader Construct function of instructionReader
-func NewInstructionReader(input *Stream) Reader {
-	return &instructionReader{
+// NewInstructionReader Construct function of InstructionReader
+func NewInstructionReader(input *Stream) *InstructionReader {
+	return &InstructionReader{
 		input:      input,
 		parseStart: 0,
 		buffer:     make([]byte, 0, 20480),
@@ -24,21 +24,12 @@ func NewInstructionReader(input *Stream) Reader {
 }
 
 // Available override Reader.Available
-func (r *instructionReader) Available() (ok bool, err error) {
-	ok = len(r.buffer) > 0
-	if ok {
-		return
-	}
-	ok, e := r.input.Available()
-	if e != nil {
-		err = ErrServer.NewError(e.Error())
-		return
-	}
-	return
+func (r *InstructionReader) Available() bool {
+	return len(r.buffer) > 0
 }
 
-// Read override Reader.Read
-func (r *instructionReader) Read() (instruction []byte, err error) {
+// ReadSome override Reader.ReadSome
+func (r *InstructionReader) ReadSome() (instruction []byte, err error) {
 	var n int
 	stepBuffer := make([]byte, StepLength)
 
@@ -54,7 +45,7 @@ mainLoop:
 	parseLoop:
 		// Parse instruction in buffer
 		for i < len(r.buffer) {
-			// Read character
+			// ReadSome character
 			readChar := r.buffer[i]
 			i++
 
@@ -100,28 +91,10 @@ mainLoop:
 				err = ErrServer.NewError("Non-numeric character in element length:", string(readChar))
 				break mainLoop
 			}
-
 		}
-
-		// no more buffer explain in golang
-		// discard
-		// if (usedLength > buffer.length/2) { ... }
-		// using
-		// Read(stepBuffer)
-		// buffer = buffer + stepBuffer[0:n]
-		// instead
 
 		n, err = r.input.Read(stepBuffer)
 		if err != nil {
-			// Discard
-			// Time out throw ErrUpstreamTimeout for
-			// Closed throw ErrConnectionClosed for
-			// Other socket err
-			// Here or use normal err instead
-
-			// Inside r.input.Read()
-			// Error occurs will close socket
-			// So ...
 			switch err.(type) {
 			case net.Error:
 				ex := err.(net.Error)
@@ -140,12 +113,12 @@ mainLoop:
 	return
 }
 
-// ReadInstruction override Reader.ReadInstruction
-func (r *instructionReader) ReadInstruction() (instruction Instruction, err error) {
+// ReadOne override Reader.ReadOne
+func (r *InstructionReader) ReadOne() (instruction *Instruction, err error) {
 	var instructionBuffer []byte
 
 	// Get instruction
-	instructionBuffer, err = r.Read()
+	instructionBuffer, err = r.ReadSome()
 
 	// If EOF, return EOF
 	if err != nil {
@@ -169,14 +142,14 @@ func (r *instructionReader) ReadInstruction() (instruction Instruction, err erro
 		// read() is required to return a complete instruction. If it does
 		// not, this is a severe internal error.
 		if lengthEnd == -1 {
-			err = ErrServer.NewError("Read returned incomplete instruction.")
+			err = ErrServer.NewError("ReadSome returned incomplete instruction.")
 			return
 		}
 
 		// Parse length
 		length, e := strconv.Atoi(string(instructionBuffer[elementStart:lengthEnd]))
 		if e != nil {
-			err = ErrServer.NewError("Read returned wrong pattern instruction.", e.Error())
+			err = ErrServer.NewError("ReadSome returned wrong pattern instruction.", e.Error())
 			return
 		}
 
@@ -187,7 +160,7 @@ func (r *instructionReader) ReadInstruction() (instruction Instruction, err erro
 		// Append element to list of elements
 		elements = append(elements, element)
 
-		// Read terminator after element
+		// ReadSome terminator after element
 		elementStart += length
 		terminator := instructionBuffer[elementStart]
 

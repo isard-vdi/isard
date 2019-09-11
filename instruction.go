@@ -14,10 +14,11 @@ type Instruction struct {
 }
 
 // NewInstruction Construct function
-func NewInstruction(opcode string, args ...string) (ret Instruction) {
-	ret.Opcode = opcode
-	ret.Args = args
-	return
+func NewInstruction(opcode string, args ...string) *Instruction {
+	return &Instruction{
+		Opcode: opcode,
+		Args:   args,
+	}
 }
 
 func (opt *Instruction) String() string {

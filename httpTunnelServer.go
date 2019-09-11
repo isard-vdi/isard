@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-/**
- * Logger for this class.
- */
-//private final Logger logger = LoggerFactory.getLogger(HttpTunnelServlet.class);
-
 const (
 	/*READ_PREFIX *
 	 * The prefix of the query string which denotes a tunnel read operation.
@@ -178,13 +173,6 @@ func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.R
 		return err
 	}
 
-	// Ensure tunnel is open
-	if !tunnel.IsOpen() {
-		s.deregisterTunnel(tunnel)
-		err = ErrResourceNotFound.NewError("Tunnel is closed.")
-		return err
-	}
-
 	reader := tunnel.AcquireReader()
 	defer tunnel.ReleaseReader()
 
@@ -227,18 +215,21 @@ func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.R
 	return err
 }
 
-func (s *HttpTunnelServlet) stream(response http.ResponseWriter, reader Reader, tunnel Tunnel) (err error) {
+func (s *HttpTunnelServlet) stream(response http.ResponseWriter, reader *InstructionReader, tunnel Tunnel) (err error) {
 	var ok bool
 	var message []byte
 	// Deregister tunnel and throw error if we reach EOF without
 	// having ever sent any data
-	message, err = reader.Read()
+	message, err = reader.ReadSome()
 	if err != nil {
 		return
 	}
 
 	// For all messages, until another stream is ready (we send at least one message)
-	for ; tunnel.IsOpen() && len(message) > 0 && err == nil; message, err = reader.Read() {
+	for ; len(message) > 0; message, err = reader.ReadSome() {
+		if err != nil {
+			return
+		}
 
 		// Get message output bytes
 		_, e := response.Write(message)
@@ -247,12 +238,8 @@ func (s *HttpTunnelServlet) stream(response http.ResponseWriter, reader Reader, 
 			return
 		}
 
-		// Flush if we expect to wait
-		ok, err = reader.Available()
-		if err != nil {
-			return
-		}
-
+		// Flush if we assertOpcode to wait
+		ok = reader.Available()
 		if !ok {
 			if v, ok := response.(http.Flusher); ok {
 				v.Flush()
@@ -307,13 +294,10 @@ func (s *HttpTunnelServlet) doWrite(response http.ResponseWriter, request *http.
 
 	if err != nil {
 		s.deregisterTunnel(tunnel)
-		tunnel.Close()
+		if err = tunnel.Close(); err != nil {
+			logger.Debug("Error closing tunnel")
+		}
 	}
 
 	return err
-}
-
-// Destroy release
-func (s *HttpTunnelServlet) Destroy() {
-	s.tunnels.Shutdown()
 }
