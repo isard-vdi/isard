@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -11,11 +12,20 @@ import (
 )
 
 type SharedWebsocketServer struct {
+	// we need to lock around the channel map since there's asynchronous access to it
 	sync.RWMutex
+	// the function to connect to guac
 	connect func(*http.Request) (Tunnel, error)
+	// the connection to guac
 	Tunnel
-	channels          []chan []byte
-	writeChannel      chan []byte
+	// messages to send to connected websockets
+	channels []chan []byte
+	// messages to send to guac
+	writeChannel chan []byte
+	// When additional clients connect they miss out on important messages.
+	// Since I don't know what messages are important yet, I just gather up
+	// a certain amount of the first messages and send them. This needs to
+	// be better.
 	firstInstructions [][]byte
 }
 
@@ -90,9 +100,10 @@ func (s *SharedWebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 			}
 			// prevent a single client from disconnecting all clients
 			// TODO send this when all clients disconnect
-			if !strings.Contains(string(data), "disconnect") {
-				s.writeChannel <- data
+			if strings.HasPrefix(string(data), "10.disconnect") {
+				continue
 			}
+			s.writeChannel <- data
 		}
 	}()
 
@@ -144,6 +155,7 @@ func (s *SharedWebsocketServer) guacToAllWs(reader *InstructionReader) {
 			logrus.Error("Error reading from guacd", err)
 			return
 		}
+		log.Println("FROM:", string(ins))
 
 		if len(s.firstInstructions) < 768 {
 			s.firstInstructions = append(s.firstInstructions, ins)
@@ -172,6 +184,7 @@ func (s *SharedWebsocketServer) allToGuacd() {
 		case <-timer.C:
 			logrus.Debug("Closing tunnel due to socket timeout")
 		case data = <-s.writeChannel:
+			log.Println("TO:  ", string(data))
 			if string(data[0]) == InternalDataOpcode {
 				// TODO handle custom ping (need to use InstructionReader)
 				logrus.Debug("Got opcode", string(data))
