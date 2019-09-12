@@ -183,8 +183,12 @@ func (s *SharedWebsocketServer) allToGuacd() {
 		select {
 		case <-timer.C:
 			logrus.Debug("Closing tunnel due to socket timeout")
+			return
 		case data = <-s.writeChannel:
 			log.Println("TO:  ", string(data))
+			if len(data) == 0 {
+				return
+			}
 			if string(data[0]) == InternalDataOpcode {
 				// TODO handle custom ping (need to use InstructionReader)
 				logrus.Debug("Got opcode", string(data))
