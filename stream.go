@@ -8,7 +8,7 @@ import (
 
 // Step value
 const (
-	StepLength = 1024
+	StepLength = 64
 )
 
 type Stream struct {

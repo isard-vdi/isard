@@ -51,6 +51,8 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func wsToGuacd(ws *websocket.Conn, tunnel Tunnel) {
 	writer := tunnel.AcquireWriter()
+	defer tunnel.ReleaseWriter()
+	defer tunnel.Close()
 
 	for {
 		_, data, err := ws.ReadMessage()
@@ -88,11 +90,9 @@ func guacdToWs(tunnel Tunnel, ws *websocket.Conn) {
 			return
 		}
 
-		if !reader.Available() || len(ins) > 0 {
-			if err = ws.WriteMessage(1, ins); err != nil {
-				logrus.Error("Failed sending message to ws", err)
-				return
-			}
+		if err = ws.WriteMessage(1, ins); err != nil {
+			logrus.Error("Failed sending message to ws", err)
+			return
 		}
 	}
 }
@@ -131,7 +131,7 @@ func (s *SharedWebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 	defer ws.Close()
 
-	channel := make(chan []byte, 768)
+	channel := make(chan []byte, 64)
 
 	// I am first so create the tunnel
 	if s.Tunnel == nil {
@@ -225,13 +225,11 @@ func (s *SharedWebsocketServer) guacToAllWs(reader *InstructionReader) {
 			s.firstInstructions = append(s.firstInstructions, ins)
 		}
 
-		if !reader.Available() || len(ins) > 0 {
-			s.RLock()
-			for i := 0; i < len(s.channels); i++ {
-				// to do, if the channel fills up this will error?
-				s.channels[i] <- ins
-			}
-			s.RUnlock()
+		s.RLock()
+		for i := 0; i < len(s.channels); i++ {
+			// to do, if the channel fills up this will error?
+			s.channels[i] <- ins
 		}
+		s.RUnlock()
 	}
 }
