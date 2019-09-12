@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/jakecoffman/guac"
 	"github.com/sirupsen/logrus"
+	"log"
 	"net/http"
 	"net/http/pprof"
 )
@@ -37,7 +37,7 @@ func main() {
 	logrus.Println("Serving on http://127.0.0.1:4567")
 
 	s := &http.Server{
-		Addr:           "127.0.0.1:4567",
+		Addr:           "0.0.0.0:4567",
 		Handler:        mux,
 		ReadTimeout:    guac.SocketTimeout,
 		WriteTimeout:   guac.SocketTimeout,
@@ -51,22 +51,15 @@ func main() {
 
 // DemoDoConnect creates the tunnel to the remote machine (via guacd)
 func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
-	ip := getIP()
-	if ip == "" {
-		return nil, errors.New("failed to get IP")
-	}
 	config := guac.NewGuacamoleConfiguration()
 	info := guac.NewGuacamoleClientInformation()
 
-	config.Protocol = "rdp"
-	config.Parameters = map[string]string{
-		"port":     "3389",
-		"hostname": ip,
-		"username": "admin",
-		"password": "WWTwwt1!",
-		"security": "nla",
-		"ignore-cert": "true",
+	config.Protocol = request.URL.Query().Get("scheme")
+	config.Parameters = map[string]string{}
+	for k, v := range request.URL.Query() {
+		config.Parameters[k] = v[0]
 	}
+	log.Println(config.Parameters)
 
 	//info.OptimalScreenHeight = 600
 	//info.OptimalScreenWidth = 800
