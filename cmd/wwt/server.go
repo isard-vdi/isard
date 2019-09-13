@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/jakecoffman/guac"
 	"github.com/sirupsen/logrus"
@@ -20,7 +19,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/tunnel", servlet)
 	mux.Handle("/tunnel/", servlet)
-	mux.Handle("/websocket-tunnel", guac.NewSharedWebsocketServer(DemoDoConnect))
+	mux.Handle("/websocket-tunnel", guac.NewWebsocketServer(DemoDoConnect))
 	mux.Handle("/", fs)
 
 	// Register pprof handlers
@@ -77,37 +76,4 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	}
 	logrus.Debug("Socket configured")
 	return guac.NewSimpleTunnel(socket), nil
-}
-
-func getIP() string {
-	req, err := http.NewRequest("GET", "http://atc-access-api.apps-local.wwt.com/deployments?wwtUserId=46501", nil)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	req.Header.Add("remote_user", "coffmanj")
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	defer res.Body.Close()
-
-	var deployments []Deployment
-	if err = json.NewDecoder(res.Body).Decode(&deployments); err != nil {
-		logrus.Fatal(err)
-	}
-
-	if len(deployments) == 0 {
-		return ""
-	}
-
-	return deployments[0].Accesses[0].Host
-}
-
-type Deployment struct {
-	Accesses []Access `json:"accesses"`
-}
-
-type Access struct {
-	Host string `json:"host"`
 }
