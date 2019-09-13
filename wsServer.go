@@ -16,10 +16,15 @@ func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketS
 	}
 }
 
+const (
+	websocketReadBufferSize  = 1024
+	websocketWriteBufferSize = 16384
+)
+
 func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  websocketReadBufferSize,
+		WriteBufferSize: websocketWriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
 			return true // TODO
 		},
@@ -83,7 +88,7 @@ func guacdToWs(tunnel Tunnel, ws *websocket.Conn) {
 	for {
 		ins, err := reader.ReadSome()
 		if err != nil {
-			logrus.Error("Error reading from guacd", err)
+			logrus.Error("Error reading from guacd ", err)
 			return
 		}
 

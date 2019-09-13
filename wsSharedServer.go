@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -40,8 +39,8 @@ func NewSharedWebsocketServer(connect func(*http.Request) (Tunnel, error)) *Shar
 
 func (s *SharedWebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  websocketReadBufferSize,
+		WriteBufferSize: websocketWriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
 			return true // TODO
 		},
@@ -155,7 +154,7 @@ func (s *SharedWebsocketServer) guacToAllWs(reader *InstructionReader) {
 			logrus.Error("Error reading from guacd", err)
 			return
 		}
-		log.Println("FROM:", string(ins))
+		logrus.Trace("FROM:", string(ins))
 
 		if len(s.firstInstructions) < 768 {
 			s.firstInstructions = append(s.firstInstructions, ins)
@@ -185,7 +184,7 @@ func (s *SharedWebsocketServer) allToGuacd() {
 			logrus.Debug("Closing tunnel due to socket timeout")
 			return
 		case data = <-s.writeChannel:
-			log.Println("TO:  ", string(data))
+			logrus.Trace("TO:  ", string(data))
 			if len(data) == 0 {
 				return
 			}
