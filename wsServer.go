@@ -1,6 +1,7 @@
 package guac
 
 import (
+	"bytes"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -17,8 +18,8 @@ func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketS
 }
 
 const (
-	websocketReadBufferSize  = 1024
-	websocketWriteBufferSize = 16384
+	websocketReadBufferSize  = maxGuacMessage
+	websocketWriteBufferSize = maxGuacMessage * 2
 )
 
 func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +86,8 @@ func guacdToWs(tunnel Tunnel, ws *websocket.Conn) {
 		return
 	}
 
+	buf := bytes.NewBuffer(make([]byte, 0, maxGuacMessage*2))
+
 	for {
 		ins, err := reader.ReadSome()
 		if err != nil {
@@ -92,9 +95,18 @@ func guacdToWs(tunnel Tunnel, ws *websocket.Conn) {
 			return
 		}
 
-		if err = ws.WriteMessage(1, ins); err != nil {
-			logrus.Error("Failed sending message to ws", err)
+		if _, err = buf.Write(ins); err != nil {
+			//out of memory?!
+			logrus.Error("Failed to buffer guacd to ws")
 			return
+		}
+
+		if !reader.Available() || buf.Len() >= maxGuacMessage {
+			if err = ws.WriteMessage(1, buf.Bytes()); err != nil {
+				logrus.Error("Failed sending message to ws", err)
+				return
+			}
+			buf.Reset()
 		}
 	}
 }

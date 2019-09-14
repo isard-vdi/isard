@@ -37,8 +37,8 @@ type SimpleTunnel struct {
 	 * directed to the proper tunnel.
 	 */
 	uuid       uuid.UUID
-	readerLock ReentrantLock
-	writerLock ReentrantLock
+	readerLock CountedLock
+	writerLock CountedLock
 }
 
 // NewSimpleTunnel Construct function
@@ -62,7 +62,7 @@ func (t *SimpleTunnel) ReleaseReader() {
 
 // HasQueuedReaderThreads override Tunnel.HasQueuedReaderThreads
 func (t *SimpleTunnel) HasQueuedReaderThreads() bool {
-	return t.readerLock.HasQueuedThreads()
+	return t.readerLock.HasQueued()
 }
 
 // AcquireWriter override Tunnel.AcquireWriter
@@ -78,7 +78,7 @@ func (t *SimpleTunnel) ReleaseWriter() {
 
 // HasQueuedWriterThreads override Tunnel.HasQueuedWriterThreads
 func (t *SimpleTunnel) HasQueuedWriterThreads() bool {
-	return t.writerLock.HasQueuedThreads()
+	return t.writerLock.HasQueued()
 }
 
 // Close override Tunnel.Close

@@ -154,7 +154,6 @@ func (s *SharedWebsocketServer) guacToAllWs(reader *InstructionReader) {
 			logrus.Error("Error reading from guacd", err)
 			return
 		}
-		logrus.Trace("FROM:", string(ins))
 
 		if len(s.firstInstructions) < 768 {
 			s.firstInstructions = append(s.firstInstructions, ins)
@@ -164,6 +163,7 @@ func (s *SharedWebsocketServer) guacToAllWs(reader *InstructionReader) {
 		for i := 0; i < len(s.channels); i++ {
 			s.channels[i] <- ins
 		}
+		reader.Flush()
 		s.RUnlock()
 	}
 }

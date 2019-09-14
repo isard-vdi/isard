@@ -9,47 +9,22 @@ import (
 )
 
 const (
-	/*READ_PREFIX *
-	 * The prefix of the query string which denotes a tunnel read operation.
-	 */
-	ReadPrefix string = "read:"
-
-	/*WRITE_PREFIX *
-	 * The prefix of the query string which denotes a tunnel write operation.
-	 */
-	WritePrefix string = "write:"
-
-	/*READ_PREFIX_LENGTH *
-	 * The length of the read prefix, in characters.
-	 */
-	ReadPrefixLength = len(ReadPrefix)
-
-	/*WRITE_PREFIX_LENGTH *
-	 * The length of the write prefix, in characters.
-	 */
-	WritePrefixLength = len(WritePrefix)
-
-	/*UUID_LENGTH *
-	 * The length of every tunnel UUID, in characters.
-	 */
-	UuidLength = 36
+	readPrefix        string = "read:"
+	writePrefix       string = "write:"
+	readPrefixLength         = len(readPrefix)
+	writePrefixLength        = len(writePrefix)
+	uuidLength               = 36
 )
 
-/*HttpTunnelServlet ==> HttpServlet*
- * A HttpServlet implementing and abstracting the operations required by the
- * HTTP implementation of the JavaScript Guacamole client's tunnel.
- */
-type HttpTunnelServlet struct {
-	/**
-	 * Map of absolutely all active tunnels using HTTP, indexed by tunnel UUID.
-	 */
+// HttpTunnelServer uses HTTP requests to talk to guacd
+type HttpTunnelServer struct {
 	tunnels HttpTunnelMap
 	connect func(*http.Request) (Tunnel, error)
 }
 
-// NewHTTPTunnelServlet Construct function
-func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTunnelServlet {
-	return &HttpTunnelServlet{
+// NewHTTPTunnelServlet constructor
+func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTunnelServer {
+	return &HttpTunnelServer{
 		tunnels: NewHttpTunnelMap(),
 		connect: connect,
 	}
@@ -58,11 +33,8 @@ func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTu
 /**
  * Registers the given tunnel such that future read/write requests to that
  * tunnel will be properly directed.
- *
- * @param tunnel
- *     The tunnel to register.
  */
-func (s *HttpTunnelServlet) registerTunnel(tunnel Tunnel) {
+func (s *HttpTunnelServer) registerTunnel(tunnel Tunnel) {
 	s.tunnels.Put(tunnel.GetUUID().String(), tunnel)
 	logger.Debugf("Registered tunnel \"%v\".", tunnel.GetUUID())
 }
@@ -70,11 +42,8 @@ func (s *HttpTunnelServlet) registerTunnel(tunnel Tunnel) {
 /**
  * Deregisters the given tunnel such that future read/write requests to
  * that tunnel will be rejected.
- *
- * @param tunnel
- *     The tunnel to deregister.
  */
-func (s *HttpTunnelServlet) deregisterTunnel(tunnel Tunnel) {
+func (s *HttpTunnelServer) deregisterTunnel(tunnel Tunnel) {
 	s.tunnels.Remove(tunnel.GetUUID().String())
 	logger.Debugf("Deregistered tunnel \"%v\".", tunnel.GetUUID())
 }
@@ -83,7 +52,7 @@ func (s *HttpTunnelServlet) deregisterTunnel(tunnel Tunnel) {
  * Returns the tunnel with the given UUID, if it has been registered with
  * registerTunnel() and not yet deregistered with deregisterTunnel().
  */
-func (s *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel, err error) {
+func (s *HttpTunnelServer) getTunnel(tunnelUUID string) (ret Tunnel, err error) {
 	var ok bool
 	ret, ok = s.tunnels.Get(tunnelUUID)
 
@@ -93,13 +62,13 @@ func (s *HttpTunnelServlet) getTunnel(tunnelUUID string) (ret Tunnel, err error)
 	return
 }
 
-func (s *HttpTunnelServlet) sendError(response http.ResponseWriter, guacStatus Status, message string) {
+func (s *HttpTunnelServer) sendError(response http.ResponseWriter, guacStatus Status, message string) {
 	response.Header().Set("Guacamole-Status-Code", fmt.Sprintf("%v", guacStatus.GetGuacamoleStatusCode()))
 	response.Header().Set("Guacamole-Error-Message", message)
 	response.WriteHeader(guacStatus.GetHTTPStatusCode())
 }
 
-func (s *HttpTunnelServlet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *HttpTunnelServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := s.handleTunnelRequestCore(w, r)
 	if err == nil {
 		return
@@ -117,7 +86,7 @@ func (s *HttpTunnelServlet) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (s *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWriter, request *http.Request) (err error) {
+func (s *HttpTunnelServer) handleTunnelRequestCore(response http.ResponseWriter, request *http.Request) (err error) {
 	query := request.URL.RawQuery
 	if len(query) == 0 {
 		return ErrClient.NewError("No query string provided.")
@@ -147,14 +116,14 @@ func (s *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWriter
 			return
 		}
 
-	} else if strings.HasPrefix(query, ReadPrefix) {
+	} else if strings.HasPrefix(query, readPrefix) {
 		// If read operation, call doRead() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = s.doRead(response, request, query[ReadPrefixLength:ReadPrefixLength+UuidLength])
-	} else if strings.HasPrefix(query, WritePrefix) {
+		err = s.doRead(response, request, query[readPrefixLength:readPrefixLength+uuidLength])
+	} else if strings.HasPrefix(query, writePrefix) {
 		// If write operation, call doWrite() with tunnel UUID, ignoring any
 		// characters following the tunnel UUID.
-		err = s.doWrite(response, request, query[WritePrefixLength:WritePrefixLength+UuidLength])
+		err = s.doWrite(response, request, query[writePrefixLength:writePrefixLength+uuidLength])
 	} else {
 		// Otherwise, invalid operation
 		err = ErrClient.NewError("Invalid tunnel operation: " + query)
@@ -163,11 +132,8 @@ func (s *HttpTunnelServlet) handleTunnelRequestCore(response http.ResponseWriter
 	return
 }
 
-/**
- * Called whenever the JavaScript Guacamole client makes a read request.
- */
-func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
-	// Get tunnel, ensure tunnel exists
+// doRead takes guacd messages and sends them in the response
+func (s *HttpTunnelServer) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
 	tunnel, err := s.getTunnel(tunnelUUID)
 	if err != nil {
 		return err
@@ -186,8 +152,7 @@ func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.R
 		v.Flush()
 	}
 
-	// Stream data to response, ensuring output stream is closed
-	err = s.stream(response, reader, tunnel)
+	err = s.writeSome(response, reader, tunnel)
 
 	if err == nil {
 		// success
@@ -215,32 +180,30 @@ func (s *HttpTunnelServlet) doRead(response http.ResponseWriter, request *http.R
 	return err
 }
 
-func (s *HttpTunnelServlet) stream(response http.ResponseWriter, reader *InstructionReader, tunnel Tunnel) (err error) {
-	var ok bool
+// writeSome drains the guacd buffer holding instructions into the response
+func (s *HttpTunnelServer) writeSome(response http.ResponseWriter, reader *InstructionReader, tunnel Tunnel) (err error) {
 	var message []byte
-	// Deregister tunnel and throw error if we reach EOF without
-	// having ever sent any data
-	message, err = reader.ReadSome()
-	if err != nil {
-		return
-	}
 
 	// For all messages, until another stream is ready (we send at least one message)
-	for ; len(message) > 0; message, err = reader.ReadSome() {
+	for {
+		message, err = reader.ReadSome()
 		if err != nil {
+			s.deregisterTunnel(tunnel)
+			tunnel.Close()
 			return
 		}
 
-		// Get message output bytes
+		if len(message) == 0 {
+			return
+		}
+
 		_, e := response.Write(message)
 		if e != nil {
 			err = ErrOther.NewError(e.Error())
 			return
 		}
 
-		// Flush if we assertOpcode to wait
-		ok = reader.Available()
-		if !ok {
+		if !reader.Available() {
 			if v, ok := response.(http.Flusher); ok {
 				v.Flush()
 			}
@@ -250,12 +213,6 @@ func (s *HttpTunnelServlet) stream(response http.ResponseWriter, reader *Instruc
 		if tunnel.HasQueuedReaderThreads() {
 			break
 		}
-	}
-
-	// Close tunnel immediately upon EOF
-	if err != nil {
-		s.deregisterTunnel(tunnel)
-		tunnel.Close()
 	}
 
 	// End-of-instructions marker
@@ -268,12 +225,8 @@ func (s *HttpTunnelServlet) stream(response http.ResponseWriter, reader *Instruc
 	return nil
 }
 
-/**
- * Called whenever the JavaScript Guacamole client makes a write request.
- * This function should in general not be overridden, as it already
- * contains a proper implementation of the write operation.
- */
-func (s *HttpTunnelServlet) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
+// doWrite takes data from the request and sends it to guacd
+func (s *HttpTunnelServer) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
 	tunnel, err := s.getTunnel(tunnelUUID)
 	if err != nil {
 		return err

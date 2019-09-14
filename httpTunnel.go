@@ -46,7 +46,7 @@ const TunnelTimeout = 15 * time.Second
 /*HttpTunnelMap *
  * Map-style object which tracks in-use HTTP tunnels, automatically removing
  * and closing tunnels which have not been used recently. This class is
- * intended for use only within the HttpTunnelServlet implementation,
+ * intended for use only within the HttpTunnelServer implementation,
  * and has no real utility outside that implementation.
  */
 type HttpTunnelMap struct {

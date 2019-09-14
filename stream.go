@@ -6,11 +6,6 @@ import (
 	"time"
 )
 
-// Step value
-const (
-	StepLength = 64
-)
-
 type Stream struct {
 	net.Conn
 	timeout time.Duration

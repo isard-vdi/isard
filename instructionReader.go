@@ -5,21 +5,25 @@ import (
 	"strconv"
 )
 
+const maxGuacMessage = 8192
+
 // InstructionReader A Reader which wraps a standard io Reader,
 // using that Reader as the Guacamole instruction stream.
 type InstructionReader struct {
 	input      *Stream
 	parseStart int
 	buffer     []byte
-	usedLength int
+	reset      []byte
 }
 
 // NewInstructionReader Construct function of InstructionReader
 func NewInstructionReader(input *Stream) *InstructionReader {
+	buffer := make([]byte, 0, maxGuacMessage*3)
 	return &InstructionReader{
 		input:      input,
 		parseStart: 0,
-		buffer:     make([]byte, 0, 20480),
+		buffer:     buffer,
+		reset:      buffer[:cap(buffer)],
 	}
 }
 
@@ -28,12 +32,14 @@ func (r *InstructionReader) Available() bool {
 	return len(r.buffer) > 0
 }
 
+func (r *InstructionReader) Flush() {
+	copy(r.reset, r.buffer)
+	r.buffer = r.reset[:len(r.buffer)]
+}
+
 // ReadSome override Reader.ReadSome
 func (r *InstructionReader) ReadSome() (instruction []byte, err error) {
 	var n int
-	stepBuffer := make([]byte, StepLength)
-
-mainLoop:
 	// While we're blocking, or input is available
 	for {
 		// Length of element
@@ -79,21 +85,25 @@ mainLoop:
 					instruction = r.buffer[0:i]
 					r.parseStart = 0
 					r.buffer = r.buffer[i:]
-					break mainLoop
+					return
 				case ',':
-					// nothing
+					// keep going
 				default:
 					err = ErrServer.NewError("Element terminator of instruction was not ';' nor ','")
-					break mainLoop
+					return
 				}
 			default:
 				// Otherwise, parse error
 				err = ErrServer.NewError("Non-numeric character in element length:", string(readChar))
-				break mainLoop
+				return
 			}
 		}
 
-		n, err = r.input.Read(stepBuffer)
+		if cap(r.buffer) < maxGuacMessage {
+			r.Flush()
+		}
+
+		n, err = r.input.Read(r.buffer[len(r.buffer):cap(r.buffer)])
 		if err != nil {
 			switch err.(type) {
 			case net.Error:
@@ -106,11 +116,11 @@ mainLoop:
 			default:
 				err = ErrServer.NewError(err.Error())
 			}
-			break mainLoop
+			return
 		}
-		r.buffer = append(r.buffer, stepBuffer[0:n]...)
+		// must reslice so len is changed
+		r.buffer = r.buffer[:len(r.buffer)+n]
 	}
-	return
 }
 
 // ReadOne override Reader.ReadOne

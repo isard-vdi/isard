@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jakecoffman/guac"
 	"github.com/sirupsen/logrus"
-	"log"
 	"net/http"
 	"net/http/pprof"
 )
@@ -58,7 +57,6 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	for k, v := range request.URL.Query() {
 		config.Parameters[k] = v[0]
 	}
-	log.Println(config.Parameters)
 
 	//info.OptimalScreenHeight = 600
 	//info.OptimalScreenWidth = 800
