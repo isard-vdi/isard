@@ -7,15 +7,19 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 type WebsocketServer struct {
+	sync.RWMutex
 	connect func(*http.Request) (Tunnel, error)
+	connIds map[string]int
 }
 
 func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketServer {
 	return &WebsocketServer{
 		connect: connect,
+		connIds: map[string]int{},
 	}
 }
 
@@ -50,6 +54,27 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer tunnel.Close()
 	logrus.Debug("Connected to tunnel")
 
+	id := tunnel.GetSocket().ID
+
+	if _, ok := s.connIds[id]; !ok {
+		s.Lock()
+		s.connIds[id] = 1
+		s.Unlock()
+	} else {
+		s.connIds[id]++
+	}
+	defer func() {
+		s.Lock()
+		numConns := s.connIds[id]
+		if numConns <= 1 {
+			delete(s.connIds, id)
+		} else {
+			numConns--
+			s.connIds[id] = numConns
+		}
+		s.Unlock()
+	}()
+
 	writer := tunnel.AcquireWriter()
 	defer tunnel.ReleaseWriter()
 
@@ -64,6 +89,12 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	go wsToGuacd(ws, writer)
 	guacdToWs(ws, reader)
+}
+
+func (s *WebsocketServer) Sessions() map[string]int {
+	s.RLock()
+	defer s.RUnlock()
+	return s.connIds
 }
 
 type MessageReader interface {

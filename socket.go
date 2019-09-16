@@ -14,6 +14,7 @@ const SocketTimeout = 15 * time.Second
 
 // Socket provides abstract socket-like access to a Guacamole connection.
 type Socket struct {
+	ID string
 	*InstructionReader
 	*Stream
 }
@@ -31,7 +32,7 @@ func NewInetSocket(hostname string, port int) (*Socket, error) {
 
 	stream := NewStream(conn, SocketTimeout)
 	return &Socket{
-		Stream: stream,
+		Stream:            stream,
 		InstructionReader: NewInstructionReader(stream),
 	}, nil
 }
@@ -52,7 +53,7 @@ func NewSslSocket(hostname string, port int) (*Socket, error) {
 	// On successful connect, retrieve I/O streams
 	stream := NewStream(conn, SocketTimeout)
 	return &Socket{
-		Stream: stream,
+		Stream:            stream,
 		InstructionReader: NewInstructionReader(stream),
 	}, nil
 }

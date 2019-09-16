@@ -15,7 +15,7 @@ func main() {
 	fs := http.FileServer(http.Dir("."))
 
 	servlet := guac.NewHTTPTunnelServlet(DemoDoConnect)
-	wsServer := guac.NewSharedWebsocketServer(DemoDoConnect)
+	wsServer := guac.NewWebsocketServer(DemoDoConnect)
 
 	mux := http.NewServeMux()
 	mux.Handle("/tunnel", servlet)
@@ -24,7 +24,23 @@ func main() {
 	mux.HandleFunc("/sessions/", func(w http.ResponseWriter, r *http.Request) {
 		sessionIds := wsServer.Sessions()
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(sessionIds); err != nil {
+
+		type ConnIds struct {
+			Uuid string `json:"uuid"`
+			Num  int    `json:"num"`
+		}
+
+		connIds := make([]*ConnIds, len(sessionIds))
+
+		i := 0
+		for id, num := range sessionIds {
+			connIds[i] = &ConnIds{
+				Uuid: id,
+				Num:  num,
+			}
+		}
+
+		if err := json.NewEncoder(w).Encode(connIds); err != nil {
 			logrus.Error(err)
 		}
 	})
@@ -78,6 +94,9 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 		return nil, err
 	}
 	logrus.Debug("Connected to guacd")
+	if request.URL.Query().Get("uuid") != "" {
+		config.ConnectionID = request.URL.Query().Get("uuid")
+	}
 	err = guac.ConfigureSocket(socket, config, info)
 	if err != nil {
 		return nil, err

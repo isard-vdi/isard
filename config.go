@@ -140,8 +140,7 @@ func ConfigureSocket(socket *Socket, config *Config, info *ClientInfo) error {
 	}
 
 	socket.InstructionReader.Flush()
-
-	//socket.SetId(readyArgs[0])
+	socket.ID = readyArgs[0]
 
 	return nil
 }

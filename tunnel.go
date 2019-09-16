@@ -25,6 +25,7 @@ type Tunnel interface {
 	ReleaseWriter()
 	HasQueuedWriterThreads() bool
 	GetUUID() string
+	GetSocket() *Socket
 	Close() error
 }
 
@@ -76,6 +77,10 @@ func (t *SimpleTunnel) AcquireWriter() io.Writer {
 // ReleaseWriter override Tunnel.ReleaseWriter
 func (t *SimpleTunnel) ReleaseWriter() {
 	t.writerLock.Unlock()
+}
+
+func (t *SimpleTunnel) GetSocket() *Socket {
+	return t.socket
 }
 
 // HasQueuedWriterThreads override Tunnel.HasQueuedWriterThreads
