@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"io"
 	"net/http"
+	"strings"
 )
 
 type WebsocketServer struct {
@@ -48,62 +50,78 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer tunnel.Close()
 	logrus.Debug("Connected to tunnel")
 
-	go wsToGuacd(ws, tunnel)
-	guacdToWs(tunnel, ws)
-}
-
-func wsToGuacd(ws *websocket.Conn, tunnel Tunnel) {
 	writer := tunnel.AcquireWriter()
 	defer tunnel.ReleaseWriter()
-	defer tunnel.Close()
 
+	reader := tunnel.AcquireReader()
+	defer tunnel.ReleaseReader()
+
+	// may need this for reconnect functionality
+	//if err := ws.WriteMessage(1, []byte(NewInstruction(InternalDataOpcode, tunnel.GetUUID()).String())); err != nil {
+	//	logrus.Error("Error writing UUID", err)
+	//	return
+	//}
+
+	go wsToGuacd(ws, writer)
+	guacdToWs(ws, reader)
+}
+
+type MessageReader interface {
+	ReadMessage() (int, []byte, error)
+}
+
+func wsToGuacd(ws MessageReader, guacd io.Writer) {
 	for {
 		_, data, err := ws.ReadMessage()
 		if err != nil {
-			logrus.Error("Error reading message from ws", err)
+			logrus.Errorln("Error reading message from ws", err)
 			return
 		}
 
-		if string(data[0]) == InternalDataOpcode {
+		if strings.HasPrefix(string(data), internalOpcodeIns) {
 			// TODO handle custom ping (need to use InstructionReader)
-			logrus.Debug("Got opcode", string(data))
 
 			// messages starting with the InternalDataOpcode are never sent to guacd
 			continue
 		}
 
-		if _, err = writer.Write(data); err != nil {
-			logrus.Error("Failed writing to guacd", err)
+		if _, err = guacd.Write(data); err != nil {
+			logrus.Errorln("Failed writing to guacd", err)
 			return
 		}
 	}
 }
 
-func guacdToWs(tunnel Tunnel, ws *websocket.Conn) {
-	reader := tunnel.AcquireReader()
-	if err := ws.WriteMessage(1, []byte(NewInstruction(InternalDataOpcode, tunnel.GetUUID().String()).String())); err != nil {
-		logrus.Error("Error writing UUID", err)
-		return
-	}
+type MessageWriter interface {
+	WriteMessage(int, []byte) error
+}
 
+func guacdToWs(ws MessageWriter, guacd *InstructionReader) {
 	buf := bytes.NewBuffer(make([]byte, 0, maxGuacMessage*2))
 
 	for {
-		ins, err := reader.ReadSome()
+		ins, err := guacd.ReadSome()
 		if err != nil {
-			logrus.Error("Error reading from guacd ", err)
+			logrus.Errorln("Error reading from guacd ", err)
 			return
+		}
+
+		if strings.HasPrefix(string(ins), internalOpcodeIns) {
+			// TODO handle custom ping (need to use InstructionReader)
+
+			// messages starting with the InternalDataOpcode are never sent to guacd
+			continue
 		}
 
 		if _, err = buf.Write(ins); err != nil {
 			//out of memory?!
-			logrus.Error("Failed to buffer guacd to ws")
+			logrus.Errorln("Failed to buffer guacd to ws")
 			return
 		}
 
-		if !reader.Available() || buf.Len() >= maxGuacMessage {
+		if !guacd.Available() || buf.Len() >= maxGuacMessage {
 			if err = ws.WriteMessage(1, buf.Bytes()); err != nil {
-				logrus.Error("Failed sending message to ws", err)
+				logrus.Errorln("Failed sending message to ws", err)
 				return
 			}
 			buf.Reset()

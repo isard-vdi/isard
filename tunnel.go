@@ -1,6 +1,7 @@
 package guac
 
 import (
+	"fmt"
 	"github.com/satori/go.uuid"
 	"io"
 )
@@ -13,6 +14,8 @@ import (
 //  * transmit the tunnel UUID.
 const InternalDataOpcode = ""
 
+var internalOpcodeIns = fmt.Sprint(len(InternalDataOpcode), ".", InternalDataOpcode)
+
 // Tunnel provides a unique identifier and synchronized access to the Reader and Writer associated with a Socket.
 type Tunnel interface {
 	AcquireReader() *InstructionReader
@@ -21,8 +24,7 @@ type Tunnel interface {
 	AcquireWriter() io.Writer
 	ReleaseWriter()
 	HasQueuedWriterThreads() bool
-	GetUUID() uuid.UUID
-	GetSocket() *Socket
+	GetUUID() string
 	Close() error
 }
 
@@ -92,11 +94,6 @@ func (t *SimpleTunnel) Close() (err error) {
 }
 
 // GetUUID override Tunnel.GetUUID
-func (t *SimpleTunnel) GetUUID() uuid.UUID {
-	return t.uuid
-}
-
-// GetSocket override Tunnel.GetSocket
-func (t *SimpleTunnel) GetSocket() *Socket {
-	return t.socket
+func (t *SimpleTunnel) GetUUID() string {
+	return t.uuid.String()
 }

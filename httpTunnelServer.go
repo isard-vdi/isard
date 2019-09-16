@@ -35,7 +35,7 @@ func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTu
  * tunnel will be properly directed.
  */
 func (s *HttpTunnelServer) registerTunnel(tunnel Tunnel) {
-	s.tunnels.Put(tunnel.GetUUID().String(), tunnel)
+	s.tunnels.Put(tunnel.GetUUID(), tunnel)
 	logger.Debugf("Registered tunnel \"%v\".", tunnel.GetUUID())
 }
 
@@ -44,7 +44,7 @@ func (s *HttpTunnelServer) registerTunnel(tunnel Tunnel) {
  * that tunnel will be rejected.
  */
 func (s *HttpTunnelServer) deregisterTunnel(tunnel Tunnel) {
-	s.tunnels.Remove(tunnel.GetUUID().String())
+	s.tunnels.Remove(tunnel.GetUUID())
 	logger.Debugf("Deregistered tunnel \"%v\".", tunnel.GetUUID())
 }
 
@@ -109,7 +109,7 @@ func (s *HttpTunnelServer) handleTunnelRequestCore(response http.ResponseWriter,
 		response.Header().Set("Cache-Control", "no-cache")
 
 		// Send UUID to client
-		_, e = response.Write([]byte(tunnel.GetUUID().String()))
+		_, e = response.Write([]byte(tunnel.GetUUID()))
 
 		if e != nil {
 			err = ErrServer.NewError(e.Error())

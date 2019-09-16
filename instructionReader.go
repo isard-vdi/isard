@@ -118,6 +118,9 @@ func (r *InstructionReader) ReadSome() (instruction []byte, err error) {
 			}
 			return
 		}
+		if n == 0 {
+			err = ErrServer.NewError("read 0 bytes")
+		}
 		// must reslice so len is changed
 		r.buffer = r.buffer[:len(r.buffer)+n]
 	}

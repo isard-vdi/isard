@@ -2,6 +2,7 @@ package guac
 
 import (
 	"bytes"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ func TestInstructionReader_ReadSome(t *testing.T) {
 
 	// Read some more to simulate data being fragmented
 	copy(conn.ToRead, ",2.ab;")
+	conn.HasRead = false
 	ins, err = reader.ReadSome()
 
 	if err != nil {
@@ -51,37 +53,45 @@ func TestInstructionReader_Flush(t *testing.T) {
 }
 
 type fakeConn struct {
-	ToRead []byte
+	ToRead  []byte
+	HasRead bool
+	Closed  bool
 }
 
-func (f fakeConn) Read(b []byte) (n int, err error) {
-	return copy(b, f.ToRead), nil
+func (f *fakeConn) Read(b []byte) (n int, err error) {
+	if f.HasRead {
+		return 0, io.EOF
+	} else {
+		f.HasRead = true
+		return copy(b, f.ToRead), nil
+	}
 }
 
-func (f fakeConn) Write(b []byte) (n int, err error) {
+func (f *fakeConn) Write(b []byte) (n int, err error) {
 	return 0, nil
 }
 
-func (f fakeConn) Close() error {
+func (f *fakeConn) Close() error {
+	f.Closed = true
 	return nil
 }
 
-func (f fakeConn) LocalAddr() net.Addr {
+func (f *fakeConn) LocalAddr() net.Addr {
 	return nil
 }
 
-func (f fakeConn) RemoteAddr() net.Addr {
+func (f *fakeConn) RemoteAddr() net.Addr {
 	return nil
 }
 
-func (f fakeConn) SetDeadline(t time.Time) error {
+func (f *fakeConn) SetDeadline(t time.Time) error {
 	return nil
 }
 
-func (f fakeConn) SetReadDeadline(t time.Time) error {
+func (f *fakeConn) SetReadDeadline(t time.Time) error {
 	return nil
 }
 
-func (f fakeConn) SetWriteDeadline(t time.Time) error {
+func (f *fakeConn) SetWriteDeadline(t time.Time) error {
 	return nil
 }

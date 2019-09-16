@@ -18,7 +18,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/tunnel", servlet)
 	mux.Handle("/tunnel/", servlet)
-	mux.Handle("/websocket-tunnel", guac.NewWebsocketServer(DemoDoConnect))
+	mux.Handle("/websocket-tunnel", guac.NewSharedWebsocketServer(DemoDoConnect))
 	mux.Handle("/", fs)
 
 	// Register pprof handlers

@@ -139,6 +139,8 @@ func ConfigureSocket(socket *Socket, config *Config, info *ClientInfo) error {
 		return err
 	}
 
+	socket.InstructionReader.Flush()
+
 	//socket.SetId(readyArgs[0])
 
 	return nil
