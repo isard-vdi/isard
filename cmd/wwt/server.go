@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/jakecoffman/guac"
 	"github.com/sirupsen/logrus"
@@ -14,11 +15,20 @@ func main() {
 	fs := http.FileServer(http.Dir("."))
 
 	servlet := guac.NewHTTPTunnelServlet(DemoDoConnect)
+	wsServer := guac.NewSharedWebsocketServer(DemoDoConnect)
 
 	mux := http.NewServeMux()
 	mux.Handle("/tunnel", servlet)
 	mux.Handle("/tunnel/", servlet)
-	mux.Handle("/websocket-tunnel", guac.NewSharedWebsocketServer(DemoDoConnect))
+	mux.Handle("/websocket-tunnel", wsServer)
+	mux.HandleFunc("/sessions/", func(w http.ResponseWriter, r *http.Request) {
+		sessionIds := wsServer.Sessions()
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(sessionIds); err != nil {
+			logrus.Error(err)
+		}
+	})
+
 	mux.Handle("/", fs)
 
 	// Register pprof handlers

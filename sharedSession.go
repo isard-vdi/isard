@@ -102,7 +102,7 @@ func (s *SharedSession) pumpFromGuac() {
 		//	continue
 		//}
 
-		if s.firstInstructions.Len() < maxGuacMessage*24 {
+		if s.firstInstructions.Len() < maxGuacMessage*100 {
 			s.firstInstructions.Write(ins)
 		}
 

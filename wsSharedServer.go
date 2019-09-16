@@ -25,6 +25,16 @@ func NewSharedWebsocketServer(connect ConnectFunc) *SharedWebsocketServer {
 	}
 }
 
+func (s *SharedWebsocketServer) Sessions() []string {
+	s.RLock()
+	sessionIds := []string{}
+	for id := range s.sessions {
+		sessionIds = append(sessionIds, id)
+	}
+	s.RUnlock()
+	return sessionIds
+}
+
 func (s *SharedWebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  websocketReadBufferSize,
