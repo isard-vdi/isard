@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/pprof"
+	"strconv"
 )
 
 func main() {
@@ -78,14 +79,28 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	config := guac.NewGuacamoleConfiguration()
 	info := guac.NewGuacamoleClientInformation()
 
-	config.Protocol = request.URL.Query().Get("scheme")
+	query := request.URL.Query()
+	config.Protocol = query.Get("scheme")
 	config.Parameters = map[string]string{}
 	for k, v := range request.URL.Query() {
 		config.Parameters[k] = v[0]
 	}
 
-	//info.OptimalScreenHeight = 600
-	//info.OptimalScreenWidth = 800
+	var err error
+	if query.Get("width") != "" {
+		info.OptimalScreenHeight, err = strconv.Atoi(query.Get("width"))
+		if err != nil || info.OptimalScreenHeight == 0 {
+			logrus.Error("Invalid height")
+			info.OptimalScreenHeight = 600
+		}
+	}
+	if query.Get("height") != "" {
+		info.OptimalScreenWidth, err = strconv.Atoi(query.Get("height"))
+		if err != nil || info.OptimalScreenWidth == 0 {
+			logrus.Error("Invalid width")
+			info.OptimalScreenWidth = 800
+		}
+	}
 	info.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
 	logrus.Debug("Connecting to guacd")
