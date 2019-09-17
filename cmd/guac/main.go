@@ -14,7 +14,7 @@ func main() {
 
 	fs := http.FileServer(http.Dir("."))
 
-	servlet := guac.NewHTTPTunnelServlet(DemoDoConnect)
+	servlet := guac.NewServer(DemoDoConnect)
 
 	mux := http.NewServeMux()
 	mux.Handle("/tunnel", servlet)

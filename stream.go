@@ -128,7 +128,7 @@ func (s *Stream) ReadSome() (instruction []byte, err error) {
 		}
 
 		n, err = s.conn.Read(s.buffer[len(s.buffer):cap(s.buffer)])
-		if err != nil {
+		if err != nil && n == 0{
 			switch err.(type) {
 			case net.Error:
 				ex := err.(net.Error)

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-/*HttpTunnel
+/*LastAccessedTunnel
  * Tracks the last time a particular Tunnel was accessed. This
  * information is not necessary for tunnels associated with WebSocket
  * connections, as each WebSocket connection has its own read thread which
@@ -16,23 +16,23 @@ import (
  * multiple requests, tracking of activity on the tunnel must be performed
  * independently of the HTTP requests.
  */
-type HttpTunnel struct {
+type LastAccessedTunnel struct {
 	Tunnel
 	lastAccessedTime time.Time
 }
 
-func NewHttpTunnel(tunnel Tunnel) (ret HttpTunnel) {
+func NewHttpTunnel(tunnel Tunnel) (ret LastAccessedTunnel) {
 	ret.Tunnel = tunnel
 	ret.Access()
 	return
 }
 
-func (opt *HttpTunnel) Access() {
-	opt.lastAccessedTime = time.Now()
+func (t *LastAccessedTunnel) Access() {
+	t.lastAccessedTime = time.Now()
 }
 
-func (opt *HttpTunnel) GetLastAccessedTime() time.Time {
-	return opt.lastAccessedTime
+func (t *LastAccessedTunnel) GetLastAccessedTime() time.Time {
+	return t.lastAccessedTime
 }
 
 /*TunnelTimeout *
@@ -43,13 +43,13 @@ func (opt *HttpTunnel) GetLastAccessedTime() time.Time {
  */
 const TunnelTimeout = 15 * time.Second
 
-/*HttpTunnelMap *
+/*TunnelMap *
  * Map-style object which tracks in-use HTTP tunnels, automatically removing
  * and closing tunnels which have not been used recently. This class is
- * intended for use only within the HttpTunnelServer implementation,
+ * intended for use only within the Server implementation,
  * and has no real utility outside that implementation.
  */
-type HttpTunnelMap struct {
+type TunnelMap struct {
 	/**
 	 * Executor service which runs the periodic tunnel timeout task.
 	 */
@@ -64,18 +64,18 @@ type HttpTunnelMap struct {
 	/**
 	 * Map of all tunnels that are using HTTP, indexed by tunnel UUID.
 	 */
-	tunnelMap     map[string]*HttpTunnel
+	tunnelMap     map[string]*LastAccessedTunnel
 	tunnelMapLock sync.RWMutex
 }
 
-/*NewHttpTunnelMap *
- * Creates a new HttpTunnelMap which automatically closes and
+/*NewTunnelMap *
+ * Creates a new TunnelMap which automatically closes and
  * removes HTTP tunnels which are no longer in use.
  */
-func NewHttpTunnelMap() (ret HttpTunnelMap) {
+func NewTunnelMap() (ret TunnelMap) {
 
 	ret.executor = make([]*time.Ticker, 0, 1)
-	ret.tunnelMap = make(map[string]*HttpTunnel)
+	ret.tunnelMap = make(map[string]*LastAccessedTunnel)
 
 	ret.tunnelTimeout = TunnelTimeout
 
@@ -83,49 +83,49 @@ func NewHttpTunnelMap() (ret HttpTunnelMap) {
 	return
 }
 
-func (opt *HttpTunnelMap) startScheduled(count int32, timeout time.Duration) {
-	for i := int32(len(opt.executor)); i < count; i++ {
+func (m *TunnelMap) startScheduled(count int32, timeout time.Duration) {
+	for i := int32(len(m.executor)); i < count; i++ {
 
 		tick := time.NewTicker(timeout)
-		go opt.tunnelTimeoutTask(tick.C)
+		go m.tunnelTimeoutTask(tick.C)
 
-		opt.executor = append(opt.executor, tick)
+		m.executor = append(m.executor, tick)
 	}
 }
 
-func (opt *HttpTunnelMap) tunnelTimeoutTask(c <-chan time.Time) {
+func (m *TunnelMap) tunnelTimeoutTask(c <-chan time.Time) {
 	for {
 		_, ok := <-c
 		if !ok {
 			break
 		}
-		opt.tunnelTimeoutTaskRun()
+		m.tunnelTimeoutTaskRun()
 	}
 }
 
-func (opt *HttpTunnelMap) tunnelTimeoutTaskRun() {
+func (m *TunnelMap) tunnelTimeoutTaskRun() {
 	// timeLine = Now() - tunnelTimeout
-	timeLine := time.Now().Add(0 - opt.tunnelTimeout)
+	timeLine := time.Now().Add(0 - m.tunnelTimeout)
 
 	type pair struct {
 		uuid   string
-		tunnel *HttpTunnel
+		tunnel *LastAccessedTunnel
 	}
 	removeIDs := make([]pair, 0, 1)
 
-	opt.tunnelMapLock.RLock()
-	for uuid, tunnel := range opt.tunnelMap {
+	m.tunnelMapLock.RLock()
+	for uuid, tunnel := range m.tunnelMap {
 		if tunnel.GetLastAccessedTime().Before(timeLine) {
 			removeIDs = append(removeIDs, pair{uuid: uuid, tunnel: tunnel})
 		}
 	}
-	opt.tunnelMapLock.RUnlock()
+	m.tunnelMapLock.RUnlock()
 
 	for _, double := range removeIDs {
 		logrus.Debugf("HTTP tunnel \"%v\" has timed out.", double.uuid)
-		opt.tunnelMapLock.Lock()
-		delete(opt.tunnelMap, double.uuid)
-		opt.tunnelMapLock.Unlock()
+		m.tunnelMapLock.Lock()
+		delete(m.tunnelMap, double.uuid)
+		m.tunnelMapLock.Unlock()
 
 		if double.tunnel != nil {
 			err := double.tunnel.Close()
@@ -139,7 +139,7 @@ func (opt *HttpTunnelMap) tunnelTimeoutTaskRun() {
 
 /*Get *
  * Returns the Tunnel having the given UUID, wrapped within a
- * HttpTunnel. If the no tunnel having the given UUID is
+ * LastAccessedTunnel. If the no tunnel having the given UUID is
  * available, null is returned.
  *
  * @param uuid
@@ -147,15 +147,15 @@ func (opt *HttpTunnelMap) tunnelTimeoutTaskRun() {
  *
  * @return
  *     The Tunnel having the given UUID, wrapped within a
- *     HttpTunnel, if such a tunnel exists, or null if there is no
+ *     LastAccessedTunnel, if such a tunnel exists, or null if there is no
  *     such tunnel.
  */
-func (opt *HttpTunnelMap) Get(uuid string) (tunnel *HttpTunnel, ok bool) {
+func (m *TunnelMap) Get(uuid string) (tunnel *LastAccessedTunnel, ok bool) {
 
 	// Update the last access time
-	opt.tunnelMapLock.RLock()
-	tunnel, ok = opt.tunnelMap[uuid]
-	opt.tunnelMapLock.RUnlock()
+	m.tunnelMapLock.RLock()
+	tunnel, ok = m.tunnelMap[uuid]
+	m.tunnelMapLock.RUnlock()
 
 	if ok && tunnel != nil {
 		tunnel.Access()
@@ -179,36 +179,36 @@ func (opt *HttpTunnelMap) Get(uuid string) (tunnel *HttpTunnel, ok bool) {
  *     The Tunnel being registered, its associated connection
  *     having just been established via HTTP.
  */
-func (opt *HttpTunnelMap) Put(uuid string, tunnel Tunnel) {
+func (m *TunnelMap) Put(uuid string, tunnel Tunnel) {
 	one := NewHttpTunnel(tunnel)
-	opt.tunnelMapLock.Lock()
-	opt.tunnelMap[uuid] = &one
-	opt.tunnelMapLock.Unlock()
+	m.tunnelMapLock.Lock()
+	m.tunnelMap[uuid] = &one
+	m.tunnelMapLock.Unlock()
 }
 
 /*Remove *
  * Removes the Tunnel having the given UUID, if such a tunnel
  * exists. The original tunnel is returned wrapped within a
- * HttpTunnel.
+ * LastAccessedTunnel.
  *
  * @param uuid
  *     The UUID of the tunnel to remove (deregister).
  *
  * @return
  *     The Tunnel having the given UUID, if such a tunnel exists,
- *     wrapped within a HttpTunnel, or null if no such tunnel
+ *     wrapped within a LastAccessedTunnel, or null if no such tunnel
  *     exists and no removal was performed.
  */
-func (opt *HttpTunnelMap) Remove(uuid string) (*HttpTunnel, bool) {
+func (m *TunnelMap) Remove(uuid string) (*LastAccessedTunnel, bool) {
 
-	opt.tunnelMapLock.RLock()
-	v, ok := opt.tunnelMap[uuid]
-	opt.tunnelMapLock.RUnlock()
+	m.tunnelMapLock.RLock()
+	v, ok := m.tunnelMap[uuid]
+	m.tunnelMapLock.RUnlock()
 
 	if ok {
-		opt.tunnelMapLock.Lock()
-		delete(opt.tunnelMap, uuid)
-		opt.tunnelMapLock.Unlock()
+		m.tunnelMapLock.Lock()
+		delete(m.tunnelMap, uuid)
+		m.tunnelMapLock.Unlock()
 	}
 	return v, ok
 }
@@ -217,9 +217,9 @@ func (opt *HttpTunnelMap) Remove(uuid string) (*HttpTunnel, bool) {
  * Shuts down this tunnel map, disallowing future tunnels from being
  * registered and reclaiming any resources.
  */
-func (opt *HttpTunnelMap) Shutdown() {
-	for _, c := range opt.executor {
+func (m *TunnelMap) Shutdown() {
+	for _, c := range m.executor {
 		c.Stop()
 	}
-	opt.executor = make([]*time.Ticker, 0, 1)
+	m.executor = make([]*time.Ticker, 0, 1)
 }

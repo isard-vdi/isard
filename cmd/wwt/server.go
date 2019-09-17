@@ -15,7 +15,7 @@ func main() {
 
 	fs := http.FileServer(http.Dir("."))
 
-	servlet := guac.NewHTTPTunnelServlet(DemoDoConnect)
+	servlet := guac.NewServer(DemoDoConnect)
 	wsServer := guac.NewWebsocketServer(DemoDoConnect)
 
 	mux := http.NewServeMux()
@@ -104,7 +104,7 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	info.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
 	logrus.Debug("Connecting to guacd")
-	socket, err := guac.NewInetSocket("127.0.0.1", 4822)
+	stream, err := guac.NewInetSocket("127.0.0.1", 4822)
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +112,10 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	if request.URL.Query().Get("uuid") != "" {
 		config.ConnectionID = request.URL.Query().Get("uuid")
 	}
-	err = guac.ConfigureSocket(socket, config, info)
+	err = guac.ConfigureSocket(stream, config, info)
 	if err != nil {
 		return nil, err
 	}
 	logrus.Debug("Socket configured")
-	return guac.NewSimpleTunnel(socket), nil
+	return guac.NewSimpleTunnel(stream), nil
 }

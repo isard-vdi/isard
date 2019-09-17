@@ -7,9 +7,7 @@ import (
 	"time"
 )
 
-// SocketTimeout stream timeout setting
-//  * The number of milliseconds to wait for data on the TCP stream before
-//  * timing out.
+// SocketTimeout is the longest time a read or write from Guacamole may take
 const SocketTimeout = 15 * time.Second
 
 // NewInetSocket connects to Guacamole via non-tls dialer

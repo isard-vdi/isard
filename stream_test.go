@@ -22,9 +22,13 @@ func TestInstructionReader_ReadSome(t *testing.T) {
 	if !bytes.Equal(ins, []byte("4.copy,2.ab;")) {
 		t.Error("Unexpected bytes returned")
 	}
+	if !stream.Available() {
+		t.Error("Stream has more available but returned false")
+	}
 
-	// Read some more to simulate data being fragmented
-	copy(conn.ToRead, ",2.ab;")
+	// Read the rest of the fragmented instruction
+	n := copy(conn.ToRead, ",2.ab;")
+	conn.ToRead = conn.ToRead[:n]
 	conn.HasRead = false
 	ins, err = stream.ReadSome()
 
@@ -33,6 +37,9 @@ func TestInstructionReader_ReadSome(t *testing.T) {
 	}
 	if !bytes.Equal(ins, []byte("4.copy,2.ab;")) {
 		t.Error("Unexpected bytes returned")
+	}
+	if stream.Available() {
+		t.Error("Stream thinks it has more available but doesn't")
 	}
 }
 
@@ -49,6 +56,9 @@ func TestInstructionReader_Flush(t *testing.T) {
 
 	if s.buffer[0] != '3' && s.buffer[1] != '4' {
 		t.Error("Unexpected buffer contents:", string(s.buffer[:2]))
+	}
+	if len(s.buffer) != 2 {
+		t.Error("Unexpected length", len(s.buffer))
 	}
 }
 

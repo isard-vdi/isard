@@ -16,16 +16,16 @@ const (
 	uuidLength               = 36
 )
 
-// HttpTunnelServer uses HTTP requests to talk to guacd
-type HttpTunnelServer struct {
-	tunnels HttpTunnelMap
+// Server uses HTTP requests to talk to guacd
+type Server struct {
+	tunnels TunnelMap
 	connect func(*http.Request) (Tunnel, error)
 }
 
-// NewHTTPTunnelServlet constructor
-func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTunnelServer {
-	return &HttpTunnelServer{
-		tunnels: NewHttpTunnelMap(),
+// NewServer constructor
+func NewServer(connect func(r *http.Request) (Tunnel, error)) *Server {
+	return &Server{
+		tunnels: NewTunnelMap(),
 		connect: connect,
 	}
 }
@@ -34,7 +34,7 @@ func NewHTTPTunnelServlet(connect func(r *http.Request) (Tunnel, error)) *HttpTu
  * Registers the given tunnel such that future read/write requests to that
  * tunnel will be properly directed.
  */
-func (s *HttpTunnelServer) registerTunnel(tunnel Tunnel) {
+func (s *Server) registerTunnel(tunnel Tunnel) {
 	s.tunnels.Put(tunnel.GetUUID(), tunnel)
 	logger.Debugf("Registered tunnel \"%v\".", tunnel.GetUUID())
 }
@@ -43,7 +43,7 @@ func (s *HttpTunnelServer) registerTunnel(tunnel Tunnel) {
  * Deregisters the given tunnel such that future read/write requests to
  * that tunnel will be rejected.
  */
-func (s *HttpTunnelServer) deregisterTunnel(tunnel Tunnel) {
+func (s *Server) deregisterTunnel(tunnel Tunnel) {
 	s.tunnels.Remove(tunnel.GetUUID())
 	logger.Debugf("Deregistered tunnel \"%v\".", tunnel.GetUUID())
 }
@@ -52,7 +52,7 @@ func (s *HttpTunnelServer) deregisterTunnel(tunnel Tunnel) {
  * Returns the tunnel with the given UUID, if it has been registered with
  * registerTunnel() and not yet deregistered with deregisterTunnel().
  */
-func (s *HttpTunnelServer) getTunnel(tunnelUUID string) (ret Tunnel, err error) {
+func (s *Server) getTunnel(tunnelUUID string) (ret Tunnel, err error) {
 	var ok bool
 	ret, ok = s.tunnels.Get(tunnelUUID)
 
@@ -62,13 +62,13 @@ func (s *HttpTunnelServer) getTunnel(tunnelUUID string) (ret Tunnel, err error) 
 	return
 }
 
-func (s *HttpTunnelServer) sendError(response http.ResponseWriter, guacStatus Status, message string) {
+func (s *Server) sendError(response http.ResponseWriter, guacStatus Status, message string) {
 	response.Header().Set("Guacamole-Status-Code", fmt.Sprintf("%v", guacStatus.GetGuacamoleStatusCode()))
 	response.Header().Set("Guacamole-Error-Message", message)
 	response.WriteHeader(guacStatus.GetHTTPStatusCode())
 }
 
-func (s *HttpTunnelServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := s.handleTunnelRequestCore(w, r)
 	if err == nil {
 		return
@@ -86,7 +86,7 @@ func (s *HttpTunnelServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (s *HttpTunnelServer) handleTunnelRequestCore(response http.ResponseWriter, request *http.Request) (err error) {
+func (s *Server) handleTunnelRequestCore(response http.ResponseWriter, request *http.Request) (err error) {
 	query := request.URL.RawQuery
 	if len(query) == 0 {
 		return ErrClient.NewError("No query string provided.")
@@ -133,7 +133,7 @@ func (s *HttpTunnelServer) handleTunnelRequestCore(response http.ResponseWriter,
 }
 
 // doRead takes guacd messages and sends them in the response
-func (s *HttpTunnelServer) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
+func (s *Server) doRead(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
 	tunnel, err := s.getTunnel(tunnelUUID)
 	if err != nil {
 		return err
@@ -181,7 +181,7 @@ func (s *HttpTunnelServer) doRead(response http.ResponseWriter, request *http.Re
 }
 
 // writeSome drains the guacd buffer holding instructions into the response
-func (s *HttpTunnelServer) writeSome(response http.ResponseWriter, guacd InstructionReader, tunnel Tunnel) (err error) {
+func (s *Server) writeSome(response http.ResponseWriter, guacd InstructionReader, tunnel Tunnel) (err error) {
 	var message []byte
 
 	for {
@@ -225,7 +225,7 @@ func (s *HttpTunnelServer) writeSome(response http.ResponseWriter, guacd Instruc
 }
 
 // doWrite takes data from the request and sends it to guacd
-func (s *HttpTunnelServer) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
+func (s *Server) doWrite(response http.ResponseWriter, request *http.Request, tunnelUUID string) error {
 	tunnel, err := s.getTunnel(tunnelUUID)
 	if err != nil {
 		return err
