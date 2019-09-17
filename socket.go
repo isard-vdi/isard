@@ -7,20 +7,13 @@ import (
 	"time"
 )
 
-// SocketTimeout socket timeout setting
-//  * The number of milliseconds to wait for data on the TCP socket before
+// SocketTimeout stream timeout setting
+//  * The number of milliseconds to wait for data on the TCP stream before
 //  * timing out.
 const SocketTimeout = 15 * time.Second
 
-// Socket provides abstract socket-like access to a Guacamole connection.
-type Socket struct {
-	ID string
-	*InstructionReader
-	*Stream
-}
-
-// NewInetSocket connects to Guacamole
-func NewInetSocket(hostname string, port int) (*Socket, error) {
+// NewInetSocket connects to Guacamole via non-tls dialer
+func NewInetSocket(hostname string, port int) (*Stream, error) {
 	address := fmt.Sprintf("%s:%d", hostname, port)
 	addr, e := net.ResolveTCPAddr("tcp", address)
 
@@ -30,15 +23,11 @@ func NewInetSocket(hostname string, port int) (*Socket, error) {
 		return nil, err
 	}
 
-	stream := NewStream(conn, SocketTimeout)
-	return &Socket{
-		Stream:            stream,
-		InstructionReader: NewInstructionReader(stream),
-	}, nil
+	return NewStream(conn, SocketTimeout), nil
 }
 
-// NewSslSocket connects to Guacamole
-func NewSslSocket(hostname string, port int) (*Socket, error) {
+// NewSslSocket connects to Guacamole via a tls dialer
+func NewSslSocket(hostname string, port int) (*Stream, error) {
 	address := fmt.Sprintf("%s:%d", hostname, port)
 	conn, err := tls.DialWithDialer(
 		&net.Dialer{Timeout: SocketTimeout}, "tcp", address,
@@ -49,11 +38,5 @@ func NewSslSocket(hostname string, port int) (*Socket, error) {
 		return nil, err
 	}
 
-	// Set read timeout
-	// On successful connect, retrieve I/O streams
-	stream := NewStream(conn, SocketTimeout)
-	return &Socket{
-		Stream:            stream,
-		InstructionReader: NewInstructionReader(stream),
-	}, nil
+	return NewStream(conn, SocketTimeout), nil
 }

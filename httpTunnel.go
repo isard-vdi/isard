@@ -11,7 +11,7 @@ import (
  * information is not necessary for tunnels associated with WebSocket
  * connections, as each WebSocket connection has its own read thread which
  * continuously checks the state of the tunnel and which will automatically
- * timeout when the underlying socket times out, but the HTTP tunnel has no
+ * timeout when the underlying stream times out, but the HTTP tunnel has no
  * such thread. Because the HTTP tunnel requires the stream to be split across
  * multiple requests, tracking of activity on the tunnel must be performed
  * independently of the HTTP requests.

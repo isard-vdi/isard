@@ -181,12 +181,11 @@ func (s *HttpTunnelServer) doRead(response http.ResponseWriter, request *http.Re
 }
 
 // writeSome drains the guacd buffer holding instructions into the response
-func (s *HttpTunnelServer) writeSome(response http.ResponseWriter, reader *InstructionReader, tunnel Tunnel) (err error) {
+func (s *HttpTunnelServer) writeSome(response http.ResponseWriter, guacd InstructionReader, tunnel Tunnel) (err error) {
 	var message []byte
 
-	// For all messages, until another stream is ready (we send at least one message)
 	for {
-		message, err = reader.ReadSome()
+		message, err = guacd.ReadSome()
 		if err != nil {
 			s.deregisterTunnel(tunnel)
 			tunnel.Close()
@@ -203,13 +202,13 @@ func (s *HttpTunnelServer) writeSome(response http.ResponseWriter, reader *Instr
 			return
 		}
 
-		if !reader.Available() {
+		if !guacd.Available() {
 			if v, ok := response.(http.Flusher); ok {
 				v.Flush()
 			}
 		}
 
-		// No more messages another stream can take over
+		// No more messages another guacd can take over
 		if tunnel.HasQueuedReaderThreads() {
 			break
 		}

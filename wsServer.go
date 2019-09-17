@@ -54,7 +54,7 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer tunnel.Close()
 	logrus.Debug("Connected to tunnel")
 
-	id := tunnel.GetSocket().ID
+	id := tunnel.ConnectionID()
 
 	if _, ok := s.connIds[id]; !ok {
 		s.Lock()
@@ -127,7 +127,7 @@ type MessageWriter interface {
 	WriteMessage(int, []byte) error
 }
 
-func guacdToWs(ws MessageWriter, guacd *InstructionReader) {
+func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 	buf := bytes.NewBuffer(make([]byte, 0, maxGuacMessage*2))
 
 	for {

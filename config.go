@@ -38,8 +38,8 @@ func NewGuacamoleClientInformation() *ClientInfo {
 	}
 }
 
-func assertOpcode(reader *InstructionReader, opcode string) (instruction *Instruction, err error) {
-	instruction, err = reader.ReadOne()
+func assertOpcode(stream *Stream, opcode string) (instruction *Instruction, err error) {
+	instruction, err = ReadOne(stream)
 	if err != nil {
 		return
 	}
@@ -56,7 +56,7 @@ func assertOpcode(reader *InstructionReader, opcode string) (instruction *Instru
 	return
 }
 
-func ConfigureSocket(socket *Socket, config *Config, info *ClientInfo) error {
+func ConfigureSocket(stream *Stream, config *Config, info *ClientInfo) error {
 	// Get protocol / connection ID
 	selectArg := config.ConnectionID
 	if len(selectArg) == 0 {
@@ -64,13 +64,13 @@ func ConfigureSocket(socket *Socket, config *Config, info *ClientInfo) error {
 	}
 
 	// Send requested protocol or connection ID
-	_, err := writeInstruction(socket, NewInstruction("select", selectArg))
+	_, err := writeInstruction(stream, NewInstruction("select", selectArg))
 	if err != nil {
 		return err
 	}
 
 	// Wait for server Args
-	args, err := assertOpcode(socket.InstructionReader, "args")
+	args, err := assertOpcode(stream, "args")
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func ConfigureSocket(socket *Socket, config *Config, info *ClientInfo) error {
 	}
 
 	// Send size
-	_, err = writeInstruction(socket, NewInstruction("size",
+	_, err = writeInstruction(stream, NewInstruction("size",
 		fmt.Sprintf("%v", info.OptimalScreenWidth),
 		fmt.Sprintf("%v", info.OptimalScreenHeight),
 		fmt.Sprintf("%v", info.OptimalResolution)),
@@ -104,31 +104,31 @@ func ConfigureSocket(socket *Socket, config *Config, info *ClientInfo) error {
 	}
 
 	// Send supported audio formats
-	_, err = writeInstruction(socket, NewInstruction("audio", info.AudioMimetypes...))
+	_, err = writeInstruction(stream, NewInstruction("audio", info.AudioMimetypes...))
 	if err != nil {
 		return err
 	}
 
 	// Send supported video formats
-	_, err = writeInstruction(socket, NewInstruction("video", info.VideoMimetypes...))
+	_, err = writeInstruction(stream, NewInstruction("video", info.VideoMimetypes...))
 	if err != nil {
 		return err
 	}
 
 	// Send supported image formats
-	_, err = writeInstruction(socket, NewInstruction("image", info.ImageMimetypes...))
+	_, err = writeInstruction(stream, NewInstruction("image", info.ImageMimetypes...))
 	if err != nil {
 		return err
 	}
 
 	// Send Args
-	_, err = writeInstruction(socket, NewInstruction("connect", argValueS...))
+	_, err = writeInstruction(stream, NewInstruction("connect", argValueS...))
 	if err != nil {
 		return err
 	}
 
 	// Wait for ready, store ID
-	ready, err := assertOpcode(socket.InstructionReader, "ready")
+	ready, err := assertOpcode(stream, "ready")
 	if err != nil {
 		return err
 	}
@@ -139,8 +139,8 @@ func ConfigureSocket(socket *Socket, config *Config, info *ClientInfo) error {
 		return err
 	}
 
-	socket.InstructionReader.Flush()
-	socket.ID = readyArgs[0]
+	stream.Flush()
+	stream.ConnectionID = readyArgs[0]
 
 	return nil
 }

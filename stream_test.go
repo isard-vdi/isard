@@ -12,9 +12,9 @@ func TestInstructionReader_ReadSome(t *testing.T) {
 	conn := &fakeConn{
 		ToRead: []byte("4.copy,2.ab;4.copy"),
 	}
-	reader := NewInstructionReader(NewStream(conn, 1*time.Minute))
+	stream := NewStream(conn, 1*time.Minute)
 
-	ins, err := reader.ReadSome()
+	ins, err := stream.ReadSome()
 
 	if err != nil {
 		t.Error("Unexpected error", err)
@@ -26,7 +26,7 @@ func TestInstructionReader_ReadSome(t *testing.T) {
 	// Read some more to simulate data being fragmented
 	copy(conn.ToRead, ",2.ab;")
 	conn.HasRead = false
-	ins, err = reader.ReadSome()
+	ins, err = stream.ReadSome()
 
 	if err != nil {
 		t.Error("Unexpected error", err)
@@ -37,18 +37,18 @@ func TestInstructionReader_ReadSome(t *testing.T) {
 }
 
 func TestInstructionReader_Flush(t *testing.T) {
-	r := NewInstructionReader(NewStream(&fakeConn{}, time.Second))
-	r.buffer = r.buffer[:4]
-	r.buffer[0] = '1'
-	r.buffer[1] = '2'
-	r.buffer[2] = '3'
-	r.buffer[3] = '4'
-	r.buffer = r.buffer[2:]
+	s := NewStream(&fakeConn{}, time.Second)
+	s.buffer = s.buffer[:4]
+	s.buffer[0] = '1'
+	s.buffer[1] = '2'
+	s.buffer[2] = '3'
+	s.buffer[3] = '4'
+	s.buffer = s.buffer[2:]
 
-	r.Flush()
+	s.Flush()
 
-	if r.buffer[0] != '3' && r.buffer[1] != '4' {
-		t.Error("Unexpected buffer contents:", string(r.buffer[:2]))
+	if s.buffer[0] != '3' && s.buffer[1] != '4' {
+		t.Error("Unexpected buffer contents:", string(s.buffer[:2]))
 	}
 }
 

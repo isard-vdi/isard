@@ -24,9 +24,8 @@ func TestWebsocketServer_guacdToWs(t *testing.T) {
 		ToRead: expected,
 	}
 	guac := NewStream(conn, time.Minute)
-	insReader := NewInstructionReader(guac)
 
-	guacdToWs(msgWriter, insReader)
+	guacdToWs(msgWriter, guac)
 
 	if len(msgWriter.Messages) != 1 {
 		t.Error("Expected 1 got", len(msgWriter.Messages))
@@ -47,11 +46,11 @@ func (f *fakeMessageWriter) WriteMessage(n int, buf []byte) error {
 }
 
 type fakeTunnel struct {
-	reader *InstructionReader
+	reader InstructionReader
 	writer io.Writer
 }
 
-func (f *fakeTunnel) AcquireReader() *InstructionReader {
+func (f *fakeTunnel) AcquireReader() InstructionReader {
 	return f.reader
 }
 

@@ -6,31 +6,151 @@ import (
 	"time"
 )
 
+const maxGuacMessage = 8192
+
+// Stream wraps the connection to Guacamole providing timeouts and reading
+// a single instruction at a time (since returning partial instructions
+// would be an error)
 type Stream struct {
-	net.Conn
-	timeout time.Duration
+	conn         net.Conn
+
+	// ConnectionID is the ID Guacamole gives and can be used to reconnect or share sessions
+	ConnectionID string
+	timeout      time.Duration
+
+	// if more than a single instruction is read, the rest are buffered here
+	parseStart   int
+	buffer       []byte
+	reset        []byte
 }
 
-// NewStream Construct function
+// NewStream creates a new stream
 func NewStream(conn net.Conn, timeout time.Duration) (ret *Stream) {
-	ret = &Stream{}
-	ret.Conn = conn
-	ret.timeout = timeout
-	return
+	buffer := make([]byte, 0, maxGuacMessage*3)
+	return &Stream {
+		conn: conn,
+		timeout: timeout,
+		buffer: buffer,
+		reset: buffer[:cap(buffer)],
+	}
 }
 
+// Write sends messages to Guacamole with a timeout
 func (s *Stream) Write(data []byte) (n int, err error) {
-	if err = s.Conn.SetWriteDeadline(time.Now().Add(s.timeout)); err != nil {
+	if err = s.conn.SetWriteDeadline(time.Now().Add(s.timeout)); err != nil {
 		logger.Error(err)
 		return
 	}
-	return s.Conn.Write(data)
+	return s.conn.Write(data)
 }
 
-func (s *Stream) Read(p []byte) (n int, err error) {
-	if err = s.Conn.SetReadDeadline(time.Now().Add(s.timeout)); err != nil {
+// Available returns true if there are messages buffered
+func (s *Stream) Available() bool {
+	return len(s.buffer) > 0
+}
+
+// Flush resets the internal buffer
+func (s *Stream) Flush() {
+	copy(s.reset, s.buffer)
+	s.buffer = s.reset[:len(s.buffer)]
+}
+
+// ReadSome takes the next instruction (from the network or from the buffer) and returns it.
+// io.Reader is not implemented because this seems like the right place to maintain a buffer.
+func (s *Stream) ReadSome() (instruction []byte, err error) {
+	if err = s.conn.SetReadDeadline(time.Now().Add(s.timeout)); err != nil {
 		logger.Error(err)
 		return
 	}
-	return s.Conn.Read(p)
+
+	var n int
+	// While we're blocking, or input is available
+	for {
+		// Length of element
+		var elementLength int
+
+		// Resume where we left off
+		i := s.parseStart
+
+	parseLoop:
+		// Parse instruction in buffer
+		for i < len(s.buffer) {
+			// ReadSome character
+			readChar := s.buffer[i]
+			i++
+
+			switch readChar {
+			// If digit, update length
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+				elementLength = elementLength*10 + int(readChar-'0')
+
+			// If not digit, check for end-of-length character
+			case '.':
+				if i+elementLength >= len(s.buffer) {
+					// break for i < s.usedLength { ... }
+					// Otherwise, read more data
+					break parseLoop
+				}
+				// Check if element present in buffer
+				terminator := s.buffer[i+elementLength]
+				// Move to character after terminator
+				i += elementLength + 1
+
+				// Reset length
+				elementLength = 0
+
+				// Continue here if necessary
+				s.parseStart = i
+
+				// If terminator is semicolon, we have a full
+				// instruction.
+				switch terminator {
+				case ';':
+					instruction = s.buffer[0:i]
+					s.parseStart = 0
+					s.buffer = s.buffer[i:]
+					return
+				case ',':
+					// keep going
+				default:
+					err = ErrServer.NewError("Element terminator of instruction was not ';' nor ','")
+					return
+				}
+			default:
+				// Otherwise, parse error
+				err = ErrServer.NewError("Non-numeric character in element length:", string(readChar))
+				return
+			}
+		}
+
+		if cap(s.buffer) < maxGuacMessage {
+			s.Flush()
+		}
+
+		n, err = s.conn.Read(s.buffer[len(s.buffer):cap(s.buffer)])
+		if err != nil {
+			switch err.(type) {
+			case net.Error:
+				ex := err.(net.Error)
+				if ex.Timeout() {
+					err = ErrUpstreamTimeout.NewError("Connection to guacd timed out.", err.Error())
+				} else {
+					err = ErrConnectionClosed.NewError("Connection to guacd is closed.", err.Error())
+				}
+			default:
+				err = ErrServer.NewError(err.Error())
+			}
+			return
+		}
+		if n == 0 {
+			err = ErrServer.NewError("read 0 bytes")
+		}
+		// must reslice so len is changed
+		s.buffer = s.buffer[:len(s.buffer)+n]
+	}
+}
+
+// Close closes the underlying network connection
+func (s *Stream) Close() error {
+	return s.conn.Close()
 }
