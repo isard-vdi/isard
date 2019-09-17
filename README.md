@@ -2,13 +2,11 @@
 
 Guacamole client in Go.
 
-Initially forked from https://github.com/johnzhd/guacamole_client_go which is a direct rewrite of the Java.
-
-The goal is to make it more Go-ey.
+Initially forked from https://github.com/johnzhd/guacamole_client_go which is a direct rewrite of the Java Guacamole client.
 
 ## To run
 
-To run gaucd:
+To run a gaucd to connect to:
 
 ```shell script
 docker run --name guacd -d -p 4822:4822 guacamole/guacd
@@ -16,7 +14,7 @@ docker run --name guacd -d -p 4822:4822 guacamole/guacd
 
 ## Notes
 
-Example tunnel connection from conprox:
+Example query parameters from the official guac client:
 
 ```
 token=3E095C96B7E96186DAEF2C3D9C58215BCF120CB8D3C499F69089AB7C2D107BB3
