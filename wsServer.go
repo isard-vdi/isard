@@ -6,7 +6,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 )
 
@@ -44,14 +43,22 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		logrus.Error("Failed to upgrade websocket", err)
 		return
 	}
-	defer ws.Close()
+	defer func() {
+		if err = ws.Close(); err != nil {
+			logrus.Errorln("Error closing websocket", err)
+		}
+	}()
 
 	logrus.Debug("Connecting to tunnel")
 	tunnel, e := s.connect(r)
 	if e != nil {
 		return
 	}
-	defer tunnel.Close()
+	defer func() {
+		if err = tunnel.Close(); err != nil {
+			logrus.Errorln("Error closing tunnel", err)
+		}
+	}()
 	logrus.Debug("Connected to tunnel")
 
 	id := tunnel.ConnectionID()
@@ -105,11 +112,14 @@ func wsToGuacd(ws MessageReader, guacd io.Writer) {
 	for {
 		_, data, err := ws.ReadMessage()
 		if err != nil {
+			if err.Error() == "close 1005 (no status)" || err.Error() == "use of closed network connection" {
+				return
+			}
 			logrus.Errorln("Error reading message from ws", err)
 			return
 		}
 
-		if strings.HasPrefix(string(data), internalOpcodeIns) {
+		if bytes.HasPrefix(data, internalOpcodeIns) {
 			// TODO handle custom ping (need to use InstructionReader)
 
 			// messages starting with the InternalDataOpcode are never sent to guacd
@@ -133,11 +143,11 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 	for {
 		ins, err := guacd.ReadSome()
 		if err != nil {
-			logrus.Errorln("Error reading from guacd ", err)
+			logrus.Errorln("Error reading from guacd", err)
 			return
 		}
 
-		if strings.HasPrefix(string(ins), internalOpcodeIns) {
+		if bytes.HasPrefix(ins, internalOpcodeIns) {
 			// TODO handle custom ping (need to use InstructionReader)
 
 			// messages starting with the InternalDataOpcode are never sent to guacd
@@ -152,6 +162,9 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 
 		if !guacd.Available() || buf.Len() >= maxGuacMessage {
 			if err = ws.WriteMessage(1, buf.Bytes()); err != nil {
+				if err == websocket.ErrCloseSent {
+					return
+				}
 				logrus.Errorln("Failed sending message to ws", err)
 				return
 			}

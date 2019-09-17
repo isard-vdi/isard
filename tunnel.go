@@ -14,7 +14,7 @@ import (
 // transmit the tunnel UUID.
 const InternalDataOpcode = ""
 
-var internalOpcodeIns = fmt.Sprint(len(InternalDataOpcode), ".", InternalDataOpcode)
+var internalOpcodeIns = []byte(fmt.Sprint(len(InternalDataOpcode), ".", InternalDataOpcode))
 
 // InstructionReader provides reading functionality to a Stream
 type InstructionReader interface {
@@ -97,12 +97,7 @@ func (t *SimpleTunnel) HasQueuedWriterThreads() bool {
 
 // Close closes the underlying stream
 func (t *SimpleTunnel) Close() (err error) {
-	if t.stream != nil {
-		err = t.stream.Close()
-	} else {
-		err = ErrConnectionClosed.NewError("Closed")
-	}
-	return
+	return t.stream.Close()
 }
 
 // GetUUID returns the tunnel's UUID
