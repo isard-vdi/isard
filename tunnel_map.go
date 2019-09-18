@@ -21,7 +21,7 @@ type LastAccessedTunnel struct {
 	lastAccessedTime time.Time
 }
 
-func NewHttpTunnel(tunnel Tunnel) (ret LastAccessedTunnel) {
+func NewLastAccessedTunnel(tunnel Tunnel) (ret LastAccessedTunnel) {
 	ret.Tunnel = tunnel
 	ret.Access()
 	return
@@ -180,7 +180,7 @@ func (m *TunnelMap) Get(uuid string) (tunnel *LastAccessedTunnel, ok bool) {
  *     having just been established via HTTP.
  */
 func (m *TunnelMap) Put(uuid string, tunnel Tunnel) {
-	one := NewHttpTunnel(tunnel)
+	one := NewLastAccessedTunnel(tunnel)
 	m.tunnelMapLock.Lock()
 	m.tunnelMap[uuid] = &one
 	m.tunnelMapLock.Unlock()

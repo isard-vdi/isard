@@ -7,9 +7,9 @@ import (
 
 // Instruction represents a Guacamole instruction
 type Instruction struct {
-	Opcode       string
-	Args         []string
-	ProtocolForm string
+	Opcode string
+	Args   []string
+	cache  string
 }
 
 // NewInstruction creates an instruction
@@ -21,18 +21,18 @@ func NewInstruction(opcode string, args ...string) *Instruction {
 }
 
 // String returns the on-wire representation of the instruction
-func (opt *Instruction) String() string {
-	if len(opt.ProtocolForm) > 0 {
-		return opt.ProtocolForm
+func (i *Instruction) String() string {
+	if len(i.cache) > 0 {
+		return i.cache
 	}
 
-	opt.ProtocolForm = fmt.Sprintf("%d.%s", len(opt.Opcode), opt.Opcode)
-	for _, value := range opt.Args {
-		opt.ProtocolForm += fmt.Sprintf(",%d.%s", len(value), value)
+	i.cache = fmt.Sprintf("%d.%s", len(i.Opcode), i.Opcode)
+	for _, value := range i.Args {
+		i.cache += fmt.Sprintf(",%d.%s", len(value), value)
 	}
-	opt.ProtocolForm += ";"
+	i.cache += ";"
 
-	return opt.ProtocolForm
+	return i.cache
 }
 
 // ReadOne takes an instruction from the stream and parses it into an Instruction
