@@ -1,4 +1,4 @@
-module github.com/jakecoffman/guac
+module github.com/wwt/guac
 
 go 1.13
 

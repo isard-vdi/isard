@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jakecoffman/guac"
 	"github.com/sirupsen/logrus"
+	"github.com/wwt/guac"
 	"net/http"
 	"net/http/pprof"
 	"strconv"
