@@ -112,7 +112,7 @@ func wsToGuacd(ws MessageReader, guacd io.Writer) {
 	for {
 		_, data, err := ws.ReadMessage()
 		if err != nil {
-			if err.Error() == "close 1005 (no status)" || err.Error() == "use of closed network connection" {
+			if err.Error() == "websocket: close 1005 (no status)" || err.Error() == "use of closed network connection" {
 				return
 			}
 			logrus.Errorln("Error reading message from ws", err)
