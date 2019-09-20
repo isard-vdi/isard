@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/wwt/guac"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"strconv"
@@ -104,15 +105,21 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	info.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
 	logrus.Debug("Connecting to guacd")
-	stream, err := guac.NewInetSocket("127.0.0.1", 4822)
+	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:4822")
+
+	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
+		logrus.Errorln("error while connecting to guacd", err)
 		return nil, err
 	}
+
+	stream := guac.NewStream(conn, guac.SocketTimeout)
+
 	logrus.Debug("Connected to guacd")
 	if request.URL.Query().Get("uuid") != "" {
 		config.ConnectionID = request.URL.Query().Get("uuid")
 	}
-	err = guac.ConfigureSocket(stream, config, info)
+	err = stream.Handshake(config, info)
 	if err != nil {
 		return nil, err
 	}

@@ -1,37 +1,41 @@
 package guac
 
 import (
+	"fmt"
 	logger "github.com/sirupsen/logrus"
 	"net"
 	"time"
 )
 
-const maxGuacMessage = 8192
+const (
+	SocketTimeout  = 15 * time.Second
+	maxGuacMessage = 8192
+)
 
 // Stream wraps the connection to Guacamole providing timeouts and reading
 // a single instruction at a time (since returning partial instructions
 // would be an error)
 type Stream struct {
-	conn         net.Conn
+	conn net.Conn
 
 	// ConnectionID is the ID Guacamole gives and can be used to reconnect or share sessions
 	ConnectionID string
 	timeout      time.Duration
 
 	// if more than a single instruction is read, the rest are buffered here
-	parseStart   int
-	buffer       []byte
-	reset        []byte
+	parseStart int
+	buffer     []byte
+	reset      []byte
 }
 
 // NewStream creates a new stream
 func NewStream(conn net.Conn, timeout time.Duration) (ret *Stream) {
 	buffer := make([]byte, 0, maxGuacMessage*3)
-	return &Stream {
-		conn: conn,
+	return &Stream{
+		conn:    conn,
 		timeout: timeout,
-		buffer: buffer,
-		reset: buffer[:cap(buffer)],
+		buffer:  buffer,
+		reset:   buffer[:cap(buffer)],
 	}
 }
 
@@ -128,7 +132,7 @@ func (s *Stream) ReadSome() (instruction []byte, err error) {
 		}
 
 		n, err = s.conn.Read(s.buffer[len(s.buffer):cap(s.buffer)])
-		if err != nil && n == 0{
+		if err != nil && n == 0 {
 			switch err.(type) {
 			case net.Error:
 				ex := err.(net.Error)
@@ -153,4 +157,112 @@ func (s *Stream) ReadSome() (instruction []byte, err error) {
 // Close closes the underlying network connection
 func (s *Stream) Close() error {
 	return s.conn.Close()
+}
+
+// Handshake configures the guacd session
+func (s *Stream) Handshake(config *Config, info *ClientInfo) error {
+	// Get protocol / connection ID
+	selectArg := config.ConnectionID
+	if len(selectArg) == 0 {
+		selectArg = config.Protocol
+	}
+
+	// Send requested protocol or connection ID
+	_, err := s.Write(NewInstruction("select", selectArg).Byte())
+	if err != nil {
+		return err
+	}
+
+	// Wait for server Args
+	args, err := s.AssertOpcode("args")
+	if err != nil {
+		return err
+	}
+
+	// Build Args list off provided names and config
+	argNameS := args.Args
+	argValueS := make([]string, 0, len(argNameS))
+	for _, argName := range argNameS {
+
+		// Retrieve argument name
+
+		// Get defined value for name
+		value := config.Parameters[argName]
+
+		// If value defined, set that value
+		if len(value) == 0 {
+			value = ""
+		}
+		argValueS = append(argValueS, value)
+	}
+
+	// Send size
+	_, err = s.Write(NewInstruction("size",
+		fmt.Sprintf("%v", info.OptimalScreenWidth),
+		fmt.Sprintf("%v", info.OptimalScreenHeight),
+		fmt.Sprintf("%v", info.OptimalResolution)).Byte(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// Send supported audio formats
+	_, err = s.Write(NewInstruction("audio", info.AudioMimetypes...).Byte())
+	if err != nil {
+		return err
+	}
+
+	// Send supported video formats
+	_, err = s.Write(NewInstruction("video", info.VideoMimetypes...).Byte())
+	if err != nil {
+		return err
+	}
+
+	// Send supported image formats
+	_, err = s.Write(NewInstruction("image", info.ImageMimetypes...).Byte())
+	if err != nil {
+		return err
+	}
+
+	// Send Args
+	_, err = s.Write(NewInstruction("connect", argValueS...).Byte())
+	if err != nil {
+		return err
+	}
+
+	// Wait for ready, store ID
+	ready, err := s.AssertOpcode("ready")
+	if err != nil {
+		return err
+	}
+
+	readyArgs := ready.Args
+	if len(readyArgs) == 0 {
+		err = ErrServer.NewError("No connection ID received")
+		return err
+	}
+
+	s.Flush()
+	s.ConnectionID = readyArgs[0]
+
+	return nil
+}
+
+func (s *Stream) AssertOpcode(opcode string) (instruction *Instruction, err error) {
+	instruction, err = ReadOne(s)
+	if err != nil {
+		return
+	}
+
+	if len(instruction.Opcode) == 0 {
+		err = ErrServer.NewError("End of stream while waiting for \"" + opcode + "\".")
+		return
+	}
+
+	if instruction.Opcode != opcode {
+		err = ErrServer.NewError("Expected \"" + opcode + "\" instruction but instead received \"" + instruction.Opcode + "\".")
+		return
+	}
+	return
 }

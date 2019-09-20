@@ -35,6 +35,10 @@ func (i *Instruction) String() string {
 	return i.cache
 }
 
+func (i *Instruction) Byte() []byte {
+	return []byte(i.String())
+}
+
 // ReadOne takes an instruction from the stream and parses it into an Instruction
 func ReadOne(stream *Stream) (instruction *Instruction, err error) {
 	var instructionBuffer []byte
