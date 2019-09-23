@@ -22,30 +22,30 @@ func (s *MemorySessionStore) Get(id string) int {
 	return s.ConnIds[id]
 }
 
-func (s *MemorySessionStore) Add(id string, req *http.Request) int {
+func (s *MemorySessionStore) Add(id string, req *http.Request) {
 	s.Lock()
 	defer s.Unlock()
 	n, ok := s.ConnIds[id]
 	if !ok {
 		s.ConnIds[id] = 1
-		return 1
+		return
 	}
 	n++
 	s.ConnIds[id] = n
-	return n
+	return
 }
 
-func (s *MemorySessionStore) Delete(id string) int {
+func (s *MemorySessionStore) Delete(id string, req *http.Request) {
 	s.Lock()
 	defer s.Unlock()
 	n, ok := s.ConnIds[id]
 	if !ok {
-		return 0
+		return
 	}
 	if n == 1 {
 		delete(s.ConnIds, id)
-		return 0
+		return
 	}
 	s.ConnIds[id]--
-	return n - 1
+	return
 }

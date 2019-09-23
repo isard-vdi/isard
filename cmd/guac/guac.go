@@ -17,7 +17,8 @@ func main() {
 	wsServer := guac.NewWebsocketServer(DemoDoConnect)
 
 	sessions := guac.NewMemorySessionStore()
-	wsServer.Sessions = sessions
+	wsServer.OnConnect = sessions.Add
+	wsServer.OnDisconnect = sessions.Delete
 
 	mux := http.NewServeMux()
 	mux.Handle("/tunnel", servlet)

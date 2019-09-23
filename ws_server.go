@@ -10,13 +10,8 @@ import (
 
 type WebsocketServer struct {
 	connect func(*http.Request) (Tunnel, error)
-	Sessions SessionStore
-}
-
-type SessionStore interface {
-	Get(string) int
-	Add(string, *http.Request) int
-	Delete(string) int
+	OnConnect func(string, *http.Request)
+	OnDisconnect func(string, *http.Request)
 }
 
 func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketServer {
@@ -66,9 +61,11 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	id := tunnel.ConnectionID()
 
-	if s.Sessions != nil {
-		s.Sessions.Add(id, r)
-		defer s.Sessions.Delete(id)
+	if s.OnConnect != nil {
+		s.OnConnect(id, r)
+	}
+	if s.OnDisconnect != nil {
+		defer s.OnDisconnect(id, r)
 	}
 
 	writer := tunnel.AcquireWriter()
