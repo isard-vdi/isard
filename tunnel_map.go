@@ -168,7 +168,7 @@ func (m *TunnelMap) Get(uuid string) (tunnel *LastAccessedTunnel, ok bool) {
 
 }
 
-/*Put *
+/*Add *
  * Registers that a new connection has been established using HTTP via the
  * given Tunnel.
  *

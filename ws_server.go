@@ -6,19 +6,22 @@ import (
 	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
-	"sync"
 )
 
 type WebsocketServer struct {
-	sync.RWMutex
 	connect func(*http.Request) (Tunnel, error)
-	connIds map[string]int
+	Sessions SessionStore
+}
+
+type SessionStore interface {
+	Get(string) int
+	Add(string, *http.Request) int
+	Delete(string) int
 }
 
 func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketServer {
 	return &WebsocketServer{
 		connect: connect,
-		connIds: map[string]int{},
 	}
 }
 
@@ -63,24 +66,10 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	id := tunnel.ConnectionID()
 
-	if _, ok := s.connIds[id]; !ok {
-		s.Lock()
-		s.connIds[id] = 1
-		s.Unlock()
-	} else {
-		s.connIds[id]++
+	if s.Sessions != nil {
+		s.Sessions.Add(id, r)
+		defer s.Sessions.Delete(id)
 	}
-	defer func() {
-		s.Lock()
-		numConns := s.connIds[id]
-		if numConns <= 1 {
-			delete(s.connIds, id)
-		} else {
-			numConns--
-			s.connIds[id] = numConns
-		}
-		s.Unlock()
-	}()
 
 	writer := tunnel.AcquireWriter()
 	defer tunnel.ReleaseWriter()
@@ -96,12 +85,6 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	go wsToGuacd(ws, writer)
 	guacdToWs(ws, reader)
-}
-
-func (s *WebsocketServer) Sessions() map[string]int {
-	s.RLock()
-	defer s.RUnlock()
-	return s.connIds
 }
 
 type MessageReader interface {

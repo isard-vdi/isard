@@ -7,35 +7,37 @@ import (
 	"github.com/wwt/guac"
 	"net"
 	"net/http"
-	"net/http/pprof"
 	"strconv"
 )
 
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 
-	fs := http.FileServer(http.Dir("."))
-
 	servlet := guac.NewServer(DemoDoConnect)
 	wsServer := guac.NewWebsocketServer(DemoDoConnect)
+
+	sessions := guac.NewMemorySessionStore()
+	wsServer.Sessions = sessions
 
 	mux := http.NewServeMux()
 	mux.Handle("/tunnel", servlet)
 	mux.Handle("/tunnel/", servlet)
 	mux.Handle("/websocket-tunnel", wsServer)
 	mux.HandleFunc("/sessions/", func(w http.ResponseWriter, r *http.Request) {
-		sessionIds := wsServer.Sessions()
 		w.Header().Set("Content-Type", "application/json")
+
+		sessions.RLock()
+		defer sessions.RUnlock()
 
 		type ConnIds struct {
 			Uuid string `json:"uuid"`
 			Num  int    `json:"num"`
 		}
 
-		connIds := make([]*ConnIds, len(sessionIds))
+		connIds := make([]*ConnIds, len(sessions.ConnIds))
 
 		i := 0
-		for id, num := range sessionIds {
+		for id, num := range sessions.ConnIds {
 			connIds[i] = &ConnIds{
 				Uuid: id,
 				Num:  num,
@@ -46,19 +48,6 @@ func main() {
 			logrus.Error(err)
 		}
 	})
-
-	mux.Handle("/", fs)
-
-	// Register pprof handlers
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-
-	mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
-	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
-	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
 
 	logrus.Println("Serving on http://127.0.0.1:4567")
 
