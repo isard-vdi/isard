@@ -10,6 +10,7 @@ services:
     container_name: isard-nginx-devel
 
   isard-hypervisor:
+    # Uncomment following line to avoid hypervisor to be started
     image: hello-world
     restart: none
     container_name: isard-hypervisor-devel
