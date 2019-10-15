@@ -10,6 +10,8 @@ services:
     container_name: isard-nginx-devel
 
   isard-hypervisor:
+    image: hello-world
+    restart: none
     container_name: isard-hypervisor-devel
     ports:
       - "2022:22"
