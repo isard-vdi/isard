@@ -40,6 +40,11 @@ backups/*
 #uploads
 uploads/*
 
+#certificates
+certs/*
+
+#database
+database/*
 #docker run scripts
 run_docker_engine.py
 run_docker_webapp.py
@@ -60,3 +65,4 @@ csv/
 install/.wizard
 
 known_hosts
+grafana/

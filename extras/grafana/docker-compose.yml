@@ -13,10 +13,12 @@ services:
         mode: host
     networks:
       - isard_network
-    image: isard/grafana:1.1
+    image: isard/grafana:1.1.1
+    build:
+      context: .
     restart: unless-stopped
-    logging:
-        driver: none
+#    logging:
+#        driver: none
     #~ depends_on:
       #~ - isard-app
       

@@ -1,23 +1,42 @@
+### Intended to be used in cloned repo in /opt/isard with command:
+### docker-compose -f docker-compose.yml -f docker-compose.devel.yml --compatibility up -d
 version: "3.5"
 services:
   isard-database:
     container_name: isard-database-devel
     ports:
-      - "8080:8080"      
+      ### Database web administration port. Warning! Has no passwd!
+      - "8080:8080"
+      ### Database driver port
       - "28015:28015"
-
+#    deploy:
+#      resources:
+#        limits:
+#          cpus: '2'
+#          memory: 512M
+#        reservations:
+#          memory: 368M
   isard-nginx:
     container_name: isard-nginx-devel
 
   isard-hypervisor:
+    ### This image overrides original to avoid starting a full hypervisor in this server
+    ### If you need to develop isard-hypervisor image remove next line:
+    image: hello-world
     container_name: isard-hypervisor-devel
     ports:
+      ### As the host could have port 22 open we map it to 2022
       - "2022:22"
         
   isard-app:
     container_name: isard-app-devel
     ports:
-      - "5000:5000"       
+      ### Web frontend runs on port 5000
+      - "5000:5000"
+      ### Engine control api
       - "5555:5555"
+    volumes:
+      ### In development we mount external source app code
+      - "/opt/isard/src:/isard"
     build:
       target: development
