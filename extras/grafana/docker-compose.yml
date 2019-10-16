@@ -17,10 +17,10 @@ services:
     build:
       context: .
     restart: unless-stopped
+    build:
+        context: .
     #logging:
         #driver: none
-    #~ depends_on:
-      #~ - isard-app
       
 networks:
   isard_network:

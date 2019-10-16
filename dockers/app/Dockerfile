@@ -16,6 +16,7 @@ RUN apk add --no-cache \
         py3-pyldap \
 	curl \
 	openssh-client \
+	sshpass \
 	supervisor
 
 RUN apk add --no-cache --virtual .build_deps \
