@@ -18,6 +18,7 @@ services:
     logging:
         driver: none
     build:
+        context: .
     #~ depends_on:
       #~ - isard-app
       
