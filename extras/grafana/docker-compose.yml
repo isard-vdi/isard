@@ -17,6 +17,7 @@ services:
     restart: unless-stopped
     logging:
         driver: none
+    build:
     #~ depends_on:
       #~ - isard-app
       

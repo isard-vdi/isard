@@ -32,7 +32,7 @@ services:
   isard-hypervisor:
     container_name: isard-hypervisor
     volumes:
-      - "sshkeys:/root/.ssh"
+      - "/opt/isard/sshkeys:/root/.ssh"
       - "/opt/isard:/isard"
       - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
       - "/etc/localtime:/etc/localtime:ro"
@@ -51,7 +51,7 @@ services:
   isard-app:
     container_name: isard-app
     volumes:
-      - "sshkeys:/root/.ssh"
+      - "/opt/isard/sshkeys:/root/.ssh"
       - "/opt/isard/certs:/certs"
       - "/opt/isard/logs:/isard/logs"
       - "/opt/isard/database/wizard:/isard/install/wizard"
@@ -71,9 +71,6 @@ services:
     depends_on:
       - isard-database
       - isard-hypervisor
-
-volumes:
-  sshkeys:
 
 networks:
   isard_network:

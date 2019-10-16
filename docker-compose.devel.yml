@@ -5,14 +5,21 @@ services:
     ports:
       - "8080:8080"      
       - "28015:28015"
+    restart: "no"
 
   isard-nginx:
     container_name: isard-nginx-devel
+    build:
+      target: development
+    restart: "no"
 
   isard-hypervisor:
     container_name: isard-hypervisor-devel
     ports:
       - "2022:22"
+    build:
+      target: development
+    restart: "no"
         
   isard-app:
     container_name: isard-app-devel
@@ -21,3 +28,4 @@ services:
       - "5555:5555"
     build:
       target: development
+    restart: "no"
