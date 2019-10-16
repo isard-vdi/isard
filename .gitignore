@@ -60,3 +60,7 @@ csv/
 install/.wizard
 
 known_hosts
+
+grafana/
+certs/
+database/

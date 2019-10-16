@@ -18,7 +18,6 @@ then
     USER=root
 fi
 
-apk add --no-cache sshpass
 if [ -f /NEWHYPER ]
 then
     rm /NEWHYPER
@@ -50,7 +49,7 @@ then
    exit 1
 fi
 
-
+cp /root/.ssh/known_hosts /root/.ssh/known_hosts.bak
 echo "Access to $USER@$HYPERVISOR:$PORT granted and found libvirtd service running."
 echo "Now you can create this hypervisor in IsardVDI web interface."
 

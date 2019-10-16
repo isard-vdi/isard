@@ -14,6 +14,9 @@ services:
     restart: "no"
 
   isard-hypervisor:
+    # Uncomment following line to avoid hypervisor to be started
+    image: hello-world
+    restart: none
     container_name: isard-hypervisor-devel
     ports:
       - "2022:22"

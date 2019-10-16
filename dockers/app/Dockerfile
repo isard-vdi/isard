@@ -13,8 +13,10 @@ RUN apk add --no-cache \
 	py3-flask \
 	py3-netaddr \
 	py3-requests \
+        py3-pyldap \
 	curl \
 	openssh-client \
+	sshpass \
 	supervisor
 
 RUN apk add --no-cache --virtual .build_deps \
