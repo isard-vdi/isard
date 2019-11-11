@@ -14,8 +14,7 @@ type WebsocketServer struct {
 	connect func(*http.Request) (Tunnel, error)
 	// OnConnect is an optional callback called when a websocket disconnect.
 	OnConnect func(string, *http.Request)
-	// OnDisconnect is an optional callback called when the websocket disconnects. If you implement this you must
-	// call tunnel.ReleaseReader and tunnel.ReleaseWriter yourself.
+	// OnDisconnect is an optional callback called when the websocket disconnects.
 	OnDisconnect func(string, *http.Request, Tunnel)
 }
 
@@ -72,12 +71,11 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	writer := tunnel.AcquireWriter()
 	reader := tunnel.AcquireReader()
+	defer tunnel.ReleaseWriter()
+	defer tunnel.ReleaseReader()
 
 	if s.OnDisconnect != nil {
 		defer s.OnDisconnect(id, r, tunnel)
-	} else {
-		defer tunnel.ReleaseWriter()
-		defer tunnel.ReleaseReader()
 	}
 
 	go wsToGuacd(ws, writer)
