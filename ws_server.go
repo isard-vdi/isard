@@ -2,10 +2,11 @@ package guac
 
 import (
 	"bytes"
-	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+
+	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 type WebsocketServer struct {
@@ -73,12 +74,6 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	reader := tunnel.AcquireReader()
 	defer tunnel.ReleaseReader()
-
-	// may need this for reconnect functionality
-	//if err := ws.WriteMessage(1, []byte(NewInstruction(InternalDataOpcode, tunnel.GetUUID()).String())); err != nil {
-	//	logrus.Error("Error writing UUID", err)
-	//	return
-	//}
 
 	go wsToGuacd(ws, writer)
 	guacdToWs(ws, reader)
