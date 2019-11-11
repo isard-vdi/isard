@@ -9,10 +9,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// WebsocketServer implements a websocket-based connection to guacd.
 type WebsocketServer struct {
 	connect func(*http.Request) (Tunnel, error)
+	// OnConnect is an optional callback called when a websocket disconnect.
 	OnConnect func(string, *http.Request)
-	OnDisconnect func(string, *http.Request)
+	// OnDisconnect is an optional callback called when the websocket disconnects. If you implement this you must
+	// call tunnel.ReleaseReader and tunnel.ReleaseWriter yourself.
+	OnDisconnect func(string, *http.Request, Tunnel)
 }
 
 func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketServer {
@@ -65,15 +69,16 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.OnConnect != nil {
 		s.OnConnect(id, r)
 	}
-	if s.OnDisconnect != nil {
-		defer s.OnDisconnect(id, r)
-	}
 
 	writer := tunnel.AcquireWriter()
-	defer tunnel.ReleaseWriter()
-
 	reader := tunnel.AcquireReader()
-	defer tunnel.ReleaseReader()
+
+	if s.OnDisconnect != nil {
+		defer s.OnDisconnect(id, r, tunnel)
+	} else {
+		defer tunnel.ReleaseWriter()
+		defer tunnel.ReleaseReader()
+	}
 
 	go wsToGuacd(ws, writer)
 	guacdToWs(ws, reader)

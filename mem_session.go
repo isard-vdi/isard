@@ -35,7 +35,9 @@ func (s *MemorySessionStore) Add(id string, req *http.Request) {
 	return
 }
 
-func (s *MemorySessionStore) Delete(id string, req *http.Request) {
+func (s *MemorySessionStore) Delete(id string, req *http.Request, tunnel Tunnel) {
+	tunnel.ReleaseReader()
+	tunnel.ReleaseWriter()
 	s.Lock()
 	defer s.Unlock()
 	n, ok := s.ConnIds[id]
