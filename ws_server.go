@@ -71,12 +71,13 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	writer := tunnel.AcquireWriter()
 	reader := tunnel.AcquireReader()
-	defer tunnel.ReleaseWriter()
-	defer tunnel.ReleaseReader()
 
 	if s.OnDisconnect != nil {
 		defer s.OnDisconnect(id, r, tunnel)
 	}
+
+	defer tunnel.ReleaseWriter()
+	defer tunnel.ReleaseReader()
 
 	go wsToGuacd(ws, writer)
 	guacdToWs(ws, reader)
