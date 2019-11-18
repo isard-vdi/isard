@@ -2,6 +2,8 @@
 
 Guacamole client in Go.
 
+[![GoDoc](https://godoc.org/github.com/wwt/guac?status.svg)](http://godoc.org/github.com/wwt/guac)
+
 ## To run
 
 First start guacd in a container, for example:
