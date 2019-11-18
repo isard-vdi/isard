@@ -16,9 +16,9 @@ const (
 	uuidLength               = 36
 )
 
-// Server uses HTTP requests to talk to guacd
+// Server uses HTTP requests to talk to guacd (as opposed to WebSockets in ws_server.go)
 type Server struct {
-	tunnels TunnelMap
+	tunnels *TunnelMap
 	connect func(*http.Request) (Tunnel, error)
 }
 
@@ -30,28 +30,19 @@ func NewServer(connect func(r *http.Request) (Tunnel, error)) *Server {
 	}
 }
 
-/**
- * Registers the given tunnel such that future read/write requests to that
- * tunnel will be properly directed.
- */
+// Registers the given tunnel such that future read/write requests to that tunnel will be properly directed.
 func (s *Server) registerTunnel(tunnel Tunnel) {
 	s.tunnels.Put(tunnel.GetUUID(), tunnel)
 	logger.Debugf("Registered tunnel \"%v\".", tunnel.GetUUID())
 }
 
-/**
- * Deregisters the given tunnel such that future read/write requests to
- * that tunnel will be rejected.
- */
+// Deregisters the given tunnel such that future read/write requests to that tunnel will be rejected.
 func (s *Server) deregisterTunnel(tunnel Tunnel) {
 	s.tunnels.Remove(tunnel.GetUUID())
 	logger.Debugf("Deregistered tunnel \"%v\".", tunnel.GetUUID())
 }
 
-/**
- * Returns the tunnel with the given UUID, if it has been registered with
- * registerTunnel() and not yet deregistered with deregisterTunnel().
- */
+// Returns the tunnel with the given UUID.
 func (s *Server) getTunnel(tunnelUUID string) (ret Tunnel, err error) {
 	var ok bool
 	ret, ok = s.tunnels.Get(tunnelUUID)
@@ -91,8 +82,7 @@ func (s *Server) handleTunnelRequestCore(response http.ResponseWriter, request *
 	if len(query) == 0 {
 		return ErrClient.NewError("No query string provided.")
 	}
-	// If connect operation, call doConnect() and return tunnel UUID
-	// in response.
+	// If connect operation, call doConnect() and return tunnel UUID in response.
 	if query == "connect" {
 		tunnel, e := s.connect(request)
 

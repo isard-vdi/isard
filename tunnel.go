@@ -18,22 +18,34 @@ var internalOpcodeIns = []byte(fmt.Sprint(len(InternalDataOpcode), ".", Internal
 
 // InstructionReader provides reading functionality to a Stream
 type InstructionReader interface {
+	// ReadSome returns the next complete guacd message from the stream
 	ReadSome() ([]byte, error)
+	// Available returns true if there are bytes buffered in the stream
 	Available() bool
+	// Flush resets the internal buffer for reuse
 	Flush()
 }
 
 // Tunnel provides a unique identifier and synchronized access to the InstructionReader and Writer
 // associated with a Stream.
 type Tunnel interface {
+	// AcquireReader returns a reader to the tunnel if it isn't locked
 	AcquireReader() InstructionReader
+	// ReleaseReader releases the lock on the reader
 	ReleaseReader()
+	// HasQueuedReaderThreads returns true if there is a reader locked
 	HasQueuedReaderThreads() bool
+	// AcquireWriter returns a writer to the tunnel if it isn't locked
 	AcquireWriter() io.Writer
+	// ReleaseWriter releases the lock on the writer
 	ReleaseWriter()
+	// HasQueuedWriterThreads returns true if there is a writer locked
 	HasQueuedWriterThreads() bool
+	// GetUUID returns the uuid of the tunnel
 	GetUUID() string
+	// ConnectionId returns the guacd Connection ID of the tunnel
 	ConnectionID() string
+	// Close closes the tunnel
 	Close() error
 }
 

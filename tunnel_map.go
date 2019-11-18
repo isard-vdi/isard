@@ -6,16 +6,16 @@ import (
 	"time"
 )
 
-/*LastAccessedTunnel
- * Tracks the last time a particular Tunnel was accessed. This
- * information is not necessary for tunnels associated with WebSocket
- * connections, as each WebSocket connection has its own read thread which
- * continuously checks the state of the tunnel and which will automatically
- * timeout when the underlying stream times out, but the HTTP tunnel has no
- * such thread. Because the HTTP tunnel requires the stream to be split across
- * multiple requests, tracking of activity on the tunnel must be performed
- * independently of the HTTP requests.
- */
+/*
+LastAccessedTunnel tracks the last time a particular Tunnel was accessed.
+This information is not necessary for tunnels associated with WebSocket
+connections, as each WebSocket connection has its own read thread which
+continuously checks the state of the tunnel and which will automatically
+timeout when the underlying stream times out, but the HTTP tunnel has no
+such thread. Because the HTTP tunnel requires the stream to be split across
+multiple requests, tracking of activity on the tunnel must be performed
+independently of the HTTP requests.
+*/
 type LastAccessedTunnel struct {
 	Tunnel
 	lastAccessedTime time.Time
@@ -35,52 +35,41 @@ func (t *LastAccessedTunnel) GetLastAccessedTime() time.Time {
 	return t.lastAccessedTime
 }
 
-/*TunnelTimeout *
- * The number of seconds to wait between tunnel accesses before timing out
- * Note that this will be enforced only within a factor of 2. If a tunnel
- * is unused, it will take between TUNNEL_TIMEOUT and TUNNEL_TIMEOUT*2
- * seconds before that tunnel is closed and removed.
- */
+/*
+TunnelTimeout is the number of seconds to wait between tunnel accesses before timing out.
+Note that this will be enforced only within a factor of 2. If a tunnel
+is unused, it will take between TUNNEL_TIMEOUT and TUNNEL_TIMEOUT*2
+seconds before that tunnel is closed and removed.
+*/
 const TunnelTimeout = 15 * time.Second
 
-/*TunnelMap *
- * Map-style object which tracks in-use HTTP tunnels, automatically removing
- * and closing tunnels which have not been used recently. This class is
- * intended for use only within the Server implementation,
- * and has no real utility outside that implementation.
- */
+/*
+TunnelMap tracks in-use HTTP tunnels, automatically removing
+and closing tunnels which have not been used recently. This class is
+intended for use only within the Server implementation,
+and has no real utility outside that implementation.
+*/
 type TunnelMap struct {
-	/**
-	 * Executor service which runs the periodic tunnel timeout task.
-	 */
+	// Executor service which runs the periodic tunnel timeout task.
 	executor []*time.Ticker
 
-	/**
-	 * The maximum amount of time to allow between accesses to any one
-	 * HTTP tunnel, in milliseconds.
-	 */
+	// tunnelTimeout is the maximum amount of time to allow between accesses to any one HTTP tunnel.
 	tunnelTimeout time.Duration
 
-	/**
-	 * Map of all tunnels that are using HTTP, indexed by tunnel UUID.
-	 */
+	// Map of all tunnels that are using HTTP, indexed by tunnel UUID.
 	tunnelMap     map[string]*LastAccessedTunnel
 	tunnelMapLock sync.RWMutex
 }
 
-/*NewTunnelMap *
- * Creates a new TunnelMap which automatically closes and
- * removes HTTP tunnels which are no longer in use.
- */
-func NewTunnelMap() (ret TunnelMap) {
-
-	ret.executor = make([]*time.Ticker, 0, 1)
-	ret.tunnelMap = make(map[string]*LastAccessedTunnel)
-
-	ret.tunnelTimeout = TunnelTimeout
-
-	ret.startScheduled(1, TunnelTimeout)
-	return
+// NewTunnelMap creates a new TunnelMap which automatically closes and removes HTTP tunnels which are no longer in use.
+func NewTunnelMap() *TunnelMap {
+	tunnelMap := &TunnelMap{
+		executor: make([]*time.Ticker, 0, 1),
+		tunnelMap: make(map[string]*LastAccessedTunnel),
+		tunnelTimeout: TunnelTimeout,
+	}
+	tunnelMap.startScheduled(1, TunnelTimeout)
+	return tunnelMap
 }
 
 func (m *TunnelMap) startScheduled(count int32, timeout time.Duration) {

@@ -68,7 +68,6 @@ func main() {
 // DemoDoConnect creates the tunnel to the remote machine (via guacd)
 func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	config := guac.NewGuacamoleConfiguration()
-	info := guac.NewGuacamoleClientInformation()
 
 	query := request.URL.Query()
 	config.Protocol = query.Get("scheme")
@@ -79,20 +78,20 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 
 	var err error
 	if query.Get("width") != "" {
-		info.OptimalScreenHeight, err = strconv.Atoi(query.Get("width"))
-		if err != nil || info.OptimalScreenHeight == 0 {
+		config.OptimalScreenHeight, err = strconv.Atoi(query.Get("width"))
+		if err != nil || config.OptimalScreenHeight == 0 {
 			logrus.Error("Invalid height")
-			info.OptimalScreenHeight = 600
+			config.OptimalScreenHeight = 600
 		}
 	}
 	if query.Get("height") != "" {
-		info.OptimalScreenWidth, err = strconv.Atoi(query.Get("height"))
-		if err != nil || info.OptimalScreenWidth == 0 {
+		config.OptimalScreenWidth, err = strconv.Atoi(query.Get("height"))
+		if err != nil || config.OptimalScreenWidth == 0 {
 			logrus.Error("Invalid width")
-			info.OptimalScreenWidth = 800
+			config.OptimalScreenWidth = 800
 		}
 	}
-	info.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
+	config.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
 	logrus.Debug("Connecting to guacd")
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:4822")
@@ -109,7 +108,7 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	if request.URL.Query().Get("uuid") != "" {
 		config.ConnectionID = request.URL.Query().Get("uuid")
 	}
-	err = stream.Handshake(config, info)
+	err = stream.Handshake(config)
 	if err != nil {
 		return nil, err
 	}

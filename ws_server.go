@@ -83,7 +83,9 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	guacdToWs(ws, reader)
 }
 
+// MessageReader wraps a websocket connection and only permits Reading
 type MessageReader interface {
+	// ReadMessage should return a single complete message to send to guac
 	ReadMessage() (int, []byte, error)
 }
 
@@ -99,8 +101,6 @@ func wsToGuacd(ws MessageReader, guacd io.Writer) {
 		}
 
 		if bytes.HasPrefix(data, internalOpcodeIns) {
-			// TODO handle custom ping (need to use InstructionReader)
-
 			// messages starting with the InternalDataOpcode are never sent to guacd
 			continue
 		}
@@ -112,7 +112,9 @@ func wsToGuacd(ws MessageReader, guacd io.Writer) {
 	}
 }
 
+// MessageWriter wraps a websocket connection and only permits Writing
 type MessageWriter interface {
+	// WriteMessage writes one or more complete guac commands to the websocket
 	WriteMessage(int, []byte) error
 }
 
@@ -127,18 +129,16 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 		}
 
 		if bytes.HasPrefix(ins, internalOpcodeIns) {
-			// TODO handle custom ping (need to use InstructionReader)
-
-			// messages starting with the InternalDataOpcode are never sent to guacd
+			// messages starting with the InternalDataOpcode are never sent to the websocket
 			continue
 		}
 
 		if _, err = buf.Write(ins); err != nil {
-			//out of memory?!
-			logrus.Errorln("Failed to buffer guacd to ws")
+			logrus.Errorln("Failed to buffer guacd to ws", err)
 			return
 		}
 
+		// if the buffer has more data in it or we've reached the max buffer size, send the data and reset
 		if !guacd.Available() || buf.Len() >= maxGuacMessage {
 			if err = ws.WriteMessage(1, buf.Bytes()); err != nil {
 				if err == websocket.ErrCloseSent {

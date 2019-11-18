@@ -2,9 +2,10 @@ package guac
 
 import (
 	"fmt"
-	logger "github.com/sirupsen/logrus"
 	"net"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -42,7 +43,7 @@ func NewStream(conn net.Conn, timeout time.Duration) (ret *Stream) {
 // Write sends messages to Guacamole with a timeout
 func (s *Stream) Write(data []byte) (n int, err error) {
 	if err = s.conn.SetWriteDeadline(time.Now().Add(s.timeout)); err != nil {
-		logger.Error(err)
+		logrus.Error(err)
 		return
 	}
 	return s.conn.Write(data)
@@ -63,7 +64,7 @@ func (s *Stream) Flush() {
 // io.Reader is not implemented because this seems like the right place to maintain a buffer.
 func (s *Stream) ReadSome() (instruction []byte, err error) {
 	if err = s.conn.SetReadDeadline(time.Now().Add(s.timeout)); err != nil {
-		logger.Error(err)
+		logrus.Error(err)
 		return
 	}
 
@@ -160,7 +161,7 @@ func (s *Stream) Close() error {
 }
 
 // Handshake configures the guacd session
-func (s *Stream) Handshake(config *Config, info *ClientInfo) error {
+func (s *Stream) Handshake(config *Config) error {
 	// Get protocol / connection ID
 	selectArg := config.ConnectionID
 	if len(selectArg) == 0 {
@@ -198,9 +199,9 @@ func (s *Stream) Handshake(config *Config, info *ClientInfo) error {
 
 	// Send size
 	_, err = s.Write(NewInstruction("size",
-		fmt.Sprintf("%v", info.OptimalScreenWidth),
-		fmt.Sprintf("%v", info.OptimalScreenHeight),
-		fmt.Sprintf("%v", info.OptimalResolution)).Byte(),
+		fmt.Sprintf("%v", config.OptimalScreenWidth),
+		fmt.Sprintf("%v", config.OptimalScreenHeight),
+		fmt.Sprintf("%v", config.OptimalResolution)).Byte(),
 	)
 
 	if err != nil {
@@ -208,19 +209,19 @@ func (s *Stream) Handshake(config *Config, info *ClientInfo) error {
 	}
 
 	// Send supported audio formats
-	_, err = s.Write(NewInstruction("audio", info.AudioMimetypes...).Byte())
+	_, err = s.Write(NewInstruction("audio", config.AudioMimetypes...).Byte())
 	if err != nil {
 		return err
 	}
 
 	// Send supported video formats
-	_, err = s.Write(NewInstruction("video", info.VideoMimetypes...).Byte())
+	_, err = s.Write(NewInstruction("video", config.VideoMimetypes...).Byte())
 	if err != nil {
 		return err
 	}
 
 	// Send supported image formats
-	_, err = s.Write(NewInstruction("image", info.ImageMimetypes...).Byte())
+	_, err = s.Write(NewInstruction("image", config.ImageMimetypes...).Byte())
 	if err != nil {
 		return err
 	}
@@ -249,6 +250,7 @@ func (s *Stream) Handshake(config *Config, info *ClientInfo) error {
 	return nil
 }
 
+// AssertOpcode checks the next opcode in the stream matches what is expected. Useful during handshake.
 func (s *Stream) AssertOpcode(opcode string) (instruction *Instruction, err error) {
 	instruction, err = ReadOne(s)
 	if err != nil {

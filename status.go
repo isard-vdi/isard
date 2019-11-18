@@ -6,141 +6,83 @@ const (
 	// Undefined Add to instead null
 	Undefined Status = -1
 
-	/*Success *
-	 * The operation succeeded.
-	 */
+	// Success indicates the operation succeeded.
 	Success Status = iota
 
-	/*Unsupported *
-	 * The requested operation is unsupported.
-	 */
+	// Unsupported indicates the requested operation is unsupported.
 	Unsupported
 
-	/*SERVER_ERROR *
-	 * The operation could not be performed due to an internal failure.
-	 */
+	// ServerError indicates the operation could not be performed due to an internal failure.
 	ServerError
 
-	/*SERVER_BUSY *
-	 * The operation could not be performed as the server is busy.
-	 */
+	// ServerBusy indicates the operation could not be performed as the server is busy.
 	ServerBusy
 
-	/*UPSTREAM_TIMEOUT *
-	 * The operation could not be performed because the upstream server is not
-	 * responding.
-	 */
+	// UpstreamTimeout indicates the operation could not be performed because the upstream server is not responding.
 	UpstreamTimeout
 
-	/*UPSTREAM_ERROR *
-	 * The operation was unsuccessful due to an error or otherwise unexpected
-	 * condition of the upstream server.
-	 */
+	// UpstreamError indicates the operation was unsuccessful due to an error or otherwise unexpected
+	// condition of the upstream server.
 	UpstreamError
 
-	/*RESOURCE_NOT_FOUND *
-	 * The operation could not be performed as the requested resource does not
-	 * exist.
-	 */
+	// ResourceNotFound indicates the operation could not be performed as the requested resource does not exist.
 	ResourceNotFound
 
-	/*RESOURCE_CONFLICT *
-	 * The operation could not be performed as the requested resource is already
-	 * in use.
-	 */
+	// ResourceConflict indicates the operation could not be performed as the requested resource is already in use.
 	ResourceConflict
 
-	/*RESOURCE_CLOSED *
-	 * The operation could not be performed as the requested resource is now
-	 * closed.
-	 */
+	// ResourceClosed indicates the operation could not be performed as the requested resource is now closed.
 	ResourceClosed
 
-	/*UPSTREAM_NOT_FOUND *
-	 * The operation could not be performed because the upstream server does
-	 * not appear to exist.
-	 */
+	// UpstreamNotFound indicates the operation could not be performed because the upstream server does
+	// not appear to exist.
 	UpstreamNotFound
 
-	/*UPSTREAM_UNAVAILABLE *
-	 * The operation could not be performed because the upstream server is not
-	 * available to service the request.
-	 */
+	// UpstreamUnavailable indicates the operation could not be performed because the upstream server is not
+	// available to service the request.
 	UpstreamUnavailable
 
-	/*SESSION_CONFLICT *
-	 * The session within the upstream server has ended because it conflicted
-	 * with another session.
-	 */
+	// SessionConflict indicates the session within the upstream server has ended because it conflicted
+	// with another session.
 	SessionConflict
 
-	/*SESSION_TIMEOUT *
-	 * The session within the upstream server has ended because it appeared to
-	 * be inactive.
-	 */
+	// SessionTimeout indicates the session within the upstream server has ended because it appeared to be inactive.
 	SessionTimeout
 
-	/*SESSION_CLOSED *
-	 * The session within the upstream server has been forcibly terminated.
-	 */
+	// SessionClosed indicates the session within the upstream server has been forcibly terminated.
 	SessionClosed
 
-	/*CLIENT_BAD_REQUEST *
-	 * The operation could not be performed because bad parameters were given.
-	 */
+	// ClientBadRequest indicates the operation could not be performed because bad parameters were given.
 	ClientBadRequest
 
-	/*CLIENT_UNAUTHORIZED *
-	 * Permission was denied to perform the operation, as the user is not yet
-	 * authorized (not yet logged in, for example). As HTTP 401 has implications
-	 * for HTTP-specific authorization schemes, this Status continues to map to
-	 * HTTP 403 ("Forbidden"). To do otherwise would risk unintended effects.
-	 */
+	// ClientUnauthorized indicates the user is not authorized.
 	ClientUnauthorized
 
-	/*CLIENT_FORBIDDEN *
-	 * Permission was denied to perform the operation, and this operation will
-	 * not be granted even if the user is authorized.
-	 */
+	// ClientForbidden indicates the user is not allowed to do the operation.
 	ClientForbidden
 
-	/*CLIENT_TIMEOUT *
-	 * The client took too long to respond.
-	 */
+	// ClientTimeout indicates the client took too long to respond.
 	ClientTimeout
 
-	/*CLIENT_OVERRUN *
-	 * The client sent too much data.
-	 */
+	// ClientOverrun indicates the client sent too much data.
 	ClientOverrun
 
-	/*CLIENT_BAD_TYPE *
-	 * The client sent data of an unsupported or unexpected type.
-	 */
+	// ClientBadType indicates the client sent data of an unsupported or unexpected type.
 	ClientBadType
 
-	/*CLIENT_TOO_MANY *
-	 * The operation failed because the current client is already using too
-	 * many resources.
-	 */
+	// ClientTooMany indivates the operation failed because the current client is already using too many resources.
 	ClientTooMany
 )
 
 type statusData struct {
 	name string
-	/**
-	 * The most applicable HTTP error code.
-	 */
+	// The most applicable HTTP error code.
 	httpCode int
 
-	/**
-	 * The most applicable WebSocket error code.
-	 */
+	// The most applicable WebSocket error code.
 	websocketCode int
 
-	/**
-	 * The Guacamole protocol Status code.
-	 */
+	// The Guacamole protocol Status code.
 	guacCode int
 }
 
@@ -176,6 +118,7 @@ var guacamoleStatusMap = map[Status]statusData{
 	ClientTooMany:       newStatusData("CLIENT_TOO_MANY", 429, 1008, 0x031D),
 }
 
+// String returns the name of the status.
 func (statue Status) String() string {
 	if v, ok := guacamoleStatusMap[statue]; ok {
 		return v.name
@@ -183,11 +126,7 @@ func (statue Status) String() string {
 	return ""
 }
 
-/*GetHTTPStatusCode *
- * Returns the most applicable HTTP error code.
- *
- * @return The most applicable HTTP error code.
- */
+// GetHTTPStatusCode returns the most applicable HTTP error code.
 func (statue Status) GetHTTPStatusCode() int {
 	if v, ok := guacamoleStatusMap[statue]; ok {
 		return v.httpCode
@@ -195,11 +134,7 @@ func (statue Status) GetHTTPStatusCode() int {
 	return -1
 }
 
-/*GetWebSocketCode *
- * Returns the most applicable HTTP error code.
- *
- * @return The most applicable HTTP error code.
- */
+// GetWebSocketCode returns the most applicable HTTP error code.
 func (statue Status) GetWebSocketCode() int {
 	if v, ok := guacamoleStatusMap[statue]; ok {
 		return v.websocketCode
@@ -207,11 +142,7 @@ func (statue Status) GetWebSocketCode() int {
 	return -1
 }
 
-/*GetGuacamoleStatusCode *
- * Returns the corresponding Guacamole protocol Status code.
- *
- * @return The corresponding Guacamole protocol Status code.
- */
+// GetGuacamoleStatusCode returns the corresponding Guacamole protocol Status code.
 func (statue Status) GetGuacamoleStatusCode() int {
 	if v, ok := guacamoleStatusMap[statue]; ok {
 		return v.guacCode
@@ -219,19 +150,7 @@ func (statue Status) GetGuacamoleStatusCode() int {
 	return -1
 }
 
-/*FromGuacamoleStatusCode *
- * Returns the Status corresponding to the given Guacamole
- * protocol Status code. If no such Status is defined, null is
- * returned.
- *
- * @param code
- *     The Guacamole protocol Status code to translate into a
- *     Status.
- *
- * @return
- *     The Status corresponding to the given Guacamole protocol
- *     Status code, or null if no such Status is defined.
- */
+// FromGuacamoleStatusCode returns the Status corresponding to the given Guacamole protocol Status code.
 func FromGuacamoleStatusCode(code int) (ret Status) {
 	// Search for a Status having the given Status code
 	for k, v := range guacamoleStatusMap {
