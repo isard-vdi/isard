@@ -20,7 +20,7 @@ cd guac/cmd/guac
 go run guac.go
 ```
 
-Now you can connect with an example UI (coming soon)
+Now you can connect with [the example Vue app](https://github.com/wwt/guac-vue)
 
 ## Acknowledgements
 
