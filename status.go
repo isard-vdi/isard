@@ -119,32 +119,32 @@ var guacamoleStatusMap = map[Status]statusData{
 }
 
 // String returns the name of the status.
-func (statue Status) String() string {
-	if v, ok := guacamoleStatusMap[statue]; ok {
+func (s Status) String() string {
+	if v, ok := guacamoleStatusMap[s]; ok {
 		return v.name
 	}
 	return ""
 }
 
 // GetHTTPStatusCode returns the most applicable HTTP error code.
-func (statue Status) GetHTTPStatusCode() int {
-	if v, ok := guacamoleStatusMap[statue]; ok {
+func (s Status) GetHTTPStatusCode() int {
+	if v, ok := guacamoleStatusMap[s]; ok {
 		return v.httpCode
 	}
 	return -1
 }
 
 // GetWebSocketCode returns the most applicable HTTP error code.
-func (statue Status) GetWebSocketCode() int {
-	if v, ok := guacamoleStatusMap[statue]; ok {
+func (s Status) GetWebSocketCode() int {
+	if v, ok := guacamoleStatusMap[s]; ok {
 		return v.websocketCode
 	}
 	return -1
 }
 
 // GetGuacamoleStatusCode returns the corresponding Guacamole protocol Status code.
-func (statue Status) GetGuacamoleStatusCode() int {
-	if v, ok := guacamoleStatusMap[statue]; ok {
+func (s Status) GetGuacamoleStatusCode() int {
+	if v, ok := guacamoleStatusMap[s]; ok {
 		return v.guacCode
 	}
 	return -1
