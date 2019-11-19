@@ -3,11 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/wwt/guac"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
+
+	"github.com/sirupsen/logrus"
+	"github.com/wwt/guac"
 )
 
 func main() {
@@ -69,10 +72,29 @@ func main() {
 func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	config := guac.NewGuacamoleConfiguration()
 
-	query := request.URL.Query()
+	var query url.Values
+	if request.URL.RawQuery == "connect" {
+		// http tunnel uses the body to pass parameters
+		data, err := ioutil.ReadAll(request.Body)
+		if err != nil {
+			logrus.Error("Failed to read body ", err)
+			return nil, err
+		}
+		_ = request.Body.Close()
+		queryString := string(data)
+		query, err = url.ParseQuery(queryString)
+		if err != nil {
+			logrus.Error("Failed to parse body query ", err)
+			return nil, err
+		}
+		logrus.Debugln("body:", queryString, query)
+	} else {
+		query = request.URL.Query()
+	}
+
 	config.Protocol = query.Get("scheme")
 	config.Parameters = map[string]string{}
-	for k, v := range request.URL.Query() {
+	for k, v := range query {
 		config.Parameters[k] = v[0]
 	}
 
@@ -108,6 +130,7 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	if request.URL.Query().Get("uuid") != "" {
 		config.ConnectionID = request.URL.Query().Get("uuid")
 	}
+	logrus.Debugf("Starting handshake with %#v", config)
 	err = stream.Handshake(config)
 	if err != nil {
 		return nil, err
