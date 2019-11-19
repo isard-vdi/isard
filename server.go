@@ -33,13 +33,13 @@ func NewServer(connect func(r *http.Request) (Tunnel, error)) *Server {
 // Registers the given tunnel such that future read/write requests to that tunnel will be properly directed.
 func (s *Server) registerTunnel(tunnel Tunnel) {
 	s.tunnels.Put(tunnel.GetUUID(), tunnel)
-	logger.Debugf("Registered tunnel \"%v\".", tunnel.GetUUID())
+	logger.Debugf("Registered tunnel %v.", tunnel.GetUUID())
 }
 
 // Deregisters the given tunnel such that future read/write requests to that tunnel will be rejected.
 func (s *Server) deregisterTunnel(tunnel Tunnel) {
 	s.tunnels.Remove(tunnel.GetUUID())
-	logger.Debugf("Deregistered tunnel \"%v\".", tunnel.GetUUID())
+	logger.Debugf("Deregistered tunnel %v.", tunnel.GetUUID())
 }
 
 // Returns the tunnel with the given UUID.
@@ -82,40 +82,35 @@ func (s *Server) handleTunnelRequestCore(response http.ResponseWriter, request *
 	if len(query) == 0 {
 		return ErrClient.NewError("No query string provided.")
 	}
-	// If connect operation, call doConnect() and return tunnel UUID in response.
+
+	// Call the supplied connect callback upon HTTP connect request
 	if query == "connect" {
 		tunnel, e := s.connect(request)
-
-		// Failed to connect
 		if e != nil {
 			err = ErrResourceNotFound.NewError("No tunnel created.", e.Error())
 			return
 		}
 
-		// Register newly-created tunnel
 		s.registerTunnel(tunnel)
 
 		// Ensure buggy browsers do not cache response
 		response.Header().Set("Cache-Control", "no-cache")
 
-		// Send UUID to client
 		_, e = response.Write([]byte(tunnel.GetUUID()))
 
 		if e != nil {
 			err = ErrServer.NewError(e.Error())
 			return
 		}
+		return
+	}
 
-	} else if strings.HasPrefix(query, readPrefix) {
-		// If read operation, call doRead() with tunnel UUID, ignoring any
-		// characters following the tunnel UUID.
+	// Connect has already been called so we use the UUID to do read and writes to the existing session
+	if strings.HasPrefix(query, readPrefix) && len(query) >= readPrefixLength+uuidLength {
 		err = s.doRead(response, request, query[readPrefixLength:readPrefixLength+uuidLength])
-	} else if strings.HasPrefix(query, writePrefix) {
-		// If write operation, call doWrite() with tunnel UUID, ignoring any
-		// characters following the tunnel UUID.
+	} else if strings.HasPrefix(query, writePrefix) && len(query) >= writePrefixLength+uuidLength {
 		err = s.doWrite(response, request, query[writePrefixLength:writePrefixLength+uuidLength])
 	} else {
-		// Otherwise, invalid operation
 		err = ErrClient.NewError("Invalid tunnel operation: " + query)
 	}
 
@@ -152,7 +147,6 @@ func (s *Server) doRead(response http.ResponseWriter, request *http.Request, tun
 	switch err.(*ErrGuac).Kind {
 	// Send end-of-stream marker and close tunnel if connection is closed
 	case ErrConnectionClosed:
-		// Deregister and close
 		s.deregisterTunnel(tunnel)
 		tunnel.Close()
 
@@ -162,7 +156,7 @@ func (s *Server) doRead(response http.ResponseWriter, request *http.Request, tun
 			v.Flush()
 		}
 	default:
-		logger.Debug("Error writing to servlet output stream", err)
+		logger.Debugln("Error writing to output", err)
 		s.deregisterTunnel(tunnel)
 		tunnel.Close()
 	}
