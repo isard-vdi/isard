@@ -50,6 +50,10 @@ type fakeTunnel struct {
 	writer io.Writer
 }
 
+func (f *fakeTunnel) ConnectionID() string {
+	return "asdf"
+}
+
 func (f *fakeTunnel) AcquireReader() InstructionReader {
 	return f.reader
 }
