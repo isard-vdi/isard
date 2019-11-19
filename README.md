@@ -1,10 +1,9 @@
 # guac
 
-A Guacamole client in Go.
+A port of the [Apache Guacamole client](https://github.com/apache/guacamole-client) to Go.
 
 [![GoDoc](https://godoc.org/github.com/wwt/guac?status.svg)](http://godoc.org/github.com/wwt/guac)
 
-## To run
 ## Development
 
 First start guacd in a container, for example:
