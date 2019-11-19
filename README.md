@@ -12,11 +12,10 @@ First start guacd in a container, for example:
 docker run --name guacd -d -p 4822:4822 guacamole/guacd
 ```
 
-Next run provided main:
+Next run the example main:
 
 ```sh
-cd guac/cmd/guac
-go run guac.go
+go run cmd/guac/guac.go
 ```
 
 Now you can connect with [the example Vue app](https://github.com/wwt/guac-vue)
