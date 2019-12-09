@@ -1,6 +1,8 @@
 # guac
 
-A port of the [Apache Guacamole client](https://github.com/apache/guacamole-client) to Go.
+A port of the [Apache Guacamole client](https://github.com/apache/guacamole-client) to Go. 
+
+Apache Guacamole provides access to your desktop using remote desktop protocols in your web browser without any plugins.
 
 [![GoDoc](https://godoc.org/github.com/wwt/guac?status.svg)](http://godoc.org/github.com/wwt/guac)
 [![Go Report Card](https://goreportcard.com/badge/github.com/wwt/guac)](https://goreportcard.com/report/github.com/wwt/guac)
