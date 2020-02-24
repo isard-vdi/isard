@@ -36,9 +36,11 @@ services:
       - "/opt/isard:/isard"
       - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
       - "/etc/localtime:/etc/localtime:ro"
+    environment:
+      - WEBSOCKETS=50
     ports:
       - "5900-5999:5900-5999"
-      - "55900-55999:55900-55999"
+      - "6400-6499:6400-6499"
     networks:
       - isard_network
     image: isard/hypervisor:${TAG:-latest}

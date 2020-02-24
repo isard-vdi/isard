@@ -280,6 +280,7 @@ class Wizard():
             resources=r.db('isard').table('config').get(1).pluck('resources').run()['resources']
             self.code=resources['code']
             self.url=resources['url']
+            #r.db('isard').wait(wait_for='all_replicas_ready').run()
             # ~ if 'isard' in r.db_list().run(): 
                 # ~ from ..config.populate import Populate
                 # ~ dict=self.register_isard_updates()
@@ -295,7 +296,7 @@ class Wizard():
                 # ~ return False
             return True
         except Exception as e:
-            #~ wlog.error(str(e))
+            wlog.error(str(e))
             return False
 
     def register_isard_updates(self):
@@ -606,20 +607,20 @@ class Wizard():
             @self.wapp.route('/validate/<step>', methods=['POST'])
             def wizard_validate_step(step):
                 if request.method == 'POST':
-                    if step is '1':
+                    if step == '1':
                         return json.dumps(self.valid_config_file() and self.valid_config_syntax())
-                    if step is '2':
+                    if step == '2':
                         return json.dumps(self.valid_rethinkdb() and self.valid_isard_database())
-                    if step is '3':
+                    if step == '3':
                         return json.dumps(self.valid_password())
-                    # ~ if step is '4':
+                    # ~ if step == '4':
                         # ~ return json.dumps(self.valid_server('isardvdi.com'))
-                    if step is '4':
+                    if step == '4':
                         return json.dumps(self.valid_engine())                         
-                    if step is '5':
+                    if step == '5':
                         # ~ return json.dumps(self.valid_hypervisor() if self.valid_isard_database() else False) 
                         return json.dumps(self.valid_hypervisor())                                       
-                    if step is '6':
+                    if step == '6':
                         return json.dumps(self.valid_server('isardvdi.com')) 
                                                                                                                     
             @self.wapp.route('/content', methods=['POST'])
