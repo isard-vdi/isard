@@ -1,9 +1,11 @@
+apk add iproute2 bridge-utils
+
 eth=$(ip link | awk -F: '$0 ~ "eth1"{print $2;getline}')
 if [ -z $eth ]; then
 	echo "Trunk interface not found."
 else
-	echo "Wait, scanning trunk interface for VLANS for 1 minute..."
-	tshark -a duration:60 -i eth1 -Y "vlan" -x -V 2>&1 |grep -o " = ID: .*" |awk '{ print $NF }'  > out
+	echo "Wait, scanning trunk interface for VLANS for 260 seconds..."
+	tshark -a duration:260 -i eth1 -Y "vlan" -x -V 2>&1 |grep -o " = ID: .*" |awk '{ print $NF }'  > out
 	cat out | sort -u > vlans
 	rm out
 	VLANS=$(cat vlans |tr "\n" " ")
@@ -13,7 +15,12 @@ else
 	        echo "Creating vlan interface v$VLAN..."
 	        ip link add name v$VLAN link eth1 type vlan id $VLAN
         	ip link set v$VLAN up
-	        echo "   Created vlan interface: v$VLAN."
+		echo "Creating bridge br-$VLAN"
+		ip link add name br-$VLAN type bridge
+		ip link set br-$VLAN up
+		ip link set v$VLAN master br-$VLAN
+
+	        echo " + Created vlan interface: bridge br-$VLAN over vlan-if v$VLAN."
 	done
-	echo "You can now configure those Internet vlan interfaces in Isard hypervisor."
+	echo "You can now configure those Internet bridge interfaces in Isard hypervisor."
 fi
