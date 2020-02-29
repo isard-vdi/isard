@@ -19,6 +19,7 @@ do
        ip link set br-$VLAN up
        ip link set v$VLAN master br-$VLAN
        echo " + Created vlan interface: bridge br-$VLAN over vlan-if v$VLAN."
+       echo $VLAN >> /root/.ssh/vlans
 done
 echo "You can now configure those Internet vlan interfaces in Isard hypervisor."
 
