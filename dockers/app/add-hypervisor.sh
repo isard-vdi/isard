@@ -51,6 +51,7 @@ fi
 
 cp /root/.ssh/known_hosts /root/.ssh/known_hosts.bak
 echo "Access to $USER@$HYPERVISOR:$PORT granted and found libvirtd service running."
-echo "Now you can create this hypervisor in IsardVDI web interface."
+echo "Adding hyper to Isard..."
+/usr/bin/python3 /add-hyper-rethink.py -u $USER -a $HYPERVISOR -p $PORT
 
 

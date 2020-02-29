@@ -51,6 +51,7 @@ RUN mv /isard/isard.conf.docker /isard/isard.conf
 
 COPY dockers/app/certs.sh /
 COPY dockers/app/add-hypervisor.sh /
+COPY dockers/app/add-hyper-rethink.py /
 COPY dockers/app/supervisord.conf /etc/supervisord.conf
 
 EXPOSE 5000
