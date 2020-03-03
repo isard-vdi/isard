@@ -1,4 +1,4 @@
-apk add sshpass
+apk add sshpass ssh-keygen
 if [[ -z $HYPERVISOR || -z $PASSWORD ]]
 then
     echo "You should add environment variables:"
