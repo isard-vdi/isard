@@ -277,10 +277,12 @@ class Wizard():
 
     def valid_isard_database(self):        
         try:
+            if 'isard' in r.db_list().run(): 
+                r.db('isard').wait(wait_for='all_replicas_ready').run()
+            time.sleep(5)
             resources=r.db('isard').table('config').get(1).pluck('resources').run()['resources']
             self.code=resources['code']
             self.url=resources['url']
-            #r.db('isard').wait(wait_for='all_replicas_ready').run()
             # ~ if 'isard' in r.db_list().run(): 
                 # ~ from ..config.populate import Populate
                 # ~ dict=self.register_isard_updates()
