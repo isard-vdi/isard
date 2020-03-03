@@ -12,6 +12,7 @@ RUN apk add --no-cache \
     openssh \
     curl \
     python3 \
+    tshark \
     supervisor
 
 RUN apk add --no-cache --virtual .build_deps \
@@ -45,9 +46,11 @@ RUN mkdir -p /etc/pki/libvirt-spice /var/log/supervisor
 COPY dockers/hypervisor/reset-hyper.sh /
 COPY dockers/hypervisor/start_proxy.py /
 COPY dockers/hypervisor/supervisord.conf /etc/supervisord.conf
+COPY dockers/hypervisor/vlans-add.sh /
+COPY dockers/hypervisor/vlans-discover.sh /
 
 EXPOSE 5900-6399
-EXPOSE 6900-7399
+EXPOSE 6400-6899
 
 VOLUME [ "/isard" ]
 
@@ -55,7 +58,3 @@ CMD [ "/usr/bin/supervisord", "-c", "/etc/supervisord.conf" ]
 FROM production as development
 RUN apk add nano bash
 
-# Vlan detection in version 1.2.2
-RUN apk add tshark
-COPY dockers/hypervisor/vlans-add.sh /
-COPY dockers/hypervisor/vlans-discover.sh /

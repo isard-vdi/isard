@@ -365,7 +365,7 @@ class ManagerHypervisors(object):
 
                     #launch grafana thread
                     logs.main.debug('launching grafana thread')
-                    self.manager.t_grafana = launch_grafana_thread(self.manager.t_status)
+                    self.manager.t_grafana = launch_grafana_thread(self.manager.t_status,self.manager)
 
                     logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
                     update_table_field('engine', 'engine', 'status_all_threads', 'Starting')

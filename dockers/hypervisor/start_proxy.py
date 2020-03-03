@@ -6,9 +6,9 @@ import socket
 import os
 
 try:
-    websockets = int(os.getenv('WEBSOCKETS','10'))
+    websockets = int(os.getenv('WEBSOCKETS','50'))
 except:
-    websockets=10
+    websockets=50
 
 servers = {}
 procs = {}
