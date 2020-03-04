@@ -65,4 +65,8 @@ RUN pip3 install --no-cache-dir ipython pytest
 RUN apk add --no-cache --update bash vim openssh 
 #py3-pexpect
 
+# 
+RUN pip3 install python-telegram-bot
+RUN apk add py3-yaml 
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
