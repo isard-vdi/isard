@@ -57,5 +57,17 @@ if [ ! -f /grafana/data/grafana.db ]; then
   chown -R grafana:grafana /grafana
 fi
 
+if [ ! "$GRAFANA_DOMAIN" == "false" ]; then
+        sed -i "/^domain/c\domain = $GRAFANA_DOMAIN" /grafana/conf/defaults.ini
+        sed -i "/^root_url/c\root_url = https://$GRAFANA_DOMAIN/grafana/" /grafana/conf/defaults.ini
+        sed -i "/^serve_from_sub_path/c\serve_from_sub_path = true" /grafana/conf/defaults.ini
+else
+    	sed -i "/^domain/c\domain = localhost" /grafana/conf/defaults.ini
+        sed -i "/^root_url/c\root_url = %(protocol)s://%(domain)s:%(http_port)s/" /grafana/conf/defaults.ini
+        sed -i "/^serve_from_sub_path/c\serve_from_sub_path = false" /grafana/conf/defaults.ini
+fi
+sed -i "/enable anonymous access/{N;s/enabled.*/enabled = true/}" /grafana/conf/defaults.ini
+sed -i "/^org_name/c\org_name = IsardVDI" /grafana/conf/defaults.ini
+
 exec supervisord -c /etc/supervisord.conf
 
