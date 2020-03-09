@@ -34,16 +34,16 @@ RUN apk add --no-cache \
   libffi-dev
 
 # Grafana
-ENV GRAFANA_VERSION=5.4.3
-ENV GRAFANA_VERSION=6.2.2
+#ENV GRAFANA_VERSION=5.4.3
+ENV GRAFANA_VERSION=6.6.2
 
 RUN set -ex \
  && addgroup -S grafana \
  && adduser -S -G grafana grafana \
  && apk add --no-cache libc6-compat ca-certificates su-exec \
  && mkdir /tmp/setup \
- && wget -P /tmp/setup https://dl.grafana.com/oss/release/grafana-6.4.0-beta2.linux-amd64.tar.gz \
- && tar -xzf /tmp/setup/grafana-6.4.0-beta2.linux-amd64.tar.gz -C /tmp/setup --strip-components=1 \
+ && wget -P /tmp/setup https://dl.grafana.com/oss/release/grafana-$GRAFANA_VERSION.linux-amd64.tar.gz \
+ && tar -xzf /tmp/setup/grafana-$GRAFANA_VERSION.linux-amd64.tar.gz -C /tmp/setup --strip-components=1 \
 # && wget -P /tmp/setup http://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-${GRAFANA_VERSION}.linux-amd64.tar.gz \
 # && tar -xzf /tmp/setup/grafana-$GRAFANA_VERSION.linux-amd64.tar.gz -C /tmp/setup --strip-components=1 \
  && install -m 755 /tmp/setup/bin/grafana-server /usr/local/bin/ \
@@ -55,7 +55,7 @@ RUN set -ex \
  && grafana-cli plugins update-all \
  && rm -rf /tmp/setup
 
-ADD grafana-defaults.ini /grafana/conf/defaults.ini
+ADD extras/grafana/grafana-defaults.ini /grafana/conf/defaults.ini
 
 EXPOSE 8080
 EXPOSE 3000
@@ -65,10 +65,10 @@ EXPOSE 7002
 
 VOLUME ["/opt/graphite/conf", "/opt/graphite/storage"]
 
-COPY run.sh /run.sh
-COPY etc/ /etc/
-COPY data/ /grafana/data_init/
-COPY conf/ /opt/graphite/conf.example/
+COPY extras/grafana/run.sh /run.sh
+COPY extras/grafana/etc/ /etc/
+COPY extras/grafana/data/ /grafana/data_init/
+COPY extras/grafana/conf/ /opt/graphite/conf.example/
 
 # Enable tiny init
 ENTRYPOINT ["/sbin/tini", "--"]

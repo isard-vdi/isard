@@ -215,6 +215,10 @@ class GrafanaThread(threading.Thread):
                                 # ~ for id_domain,d_stats in stats_domains_now.items():
                                     # ~ dict_to_send[f'domain-stats-{j}'] = {'domain-id':{id_domain:1},'last': d_stats,}
                                 dict_to_send[f'hypers.'+id_hyp]['domains']=stats_domains_now #{x:0 for x in stats_domains_now}
+                                # d_radar = {}
+                                # for k in "net_tx,net_rx,vcpu_load,disk_wr,disk_rd".split(','):
+                                #     d_radar[k] = stats_domains_now[k]
+                                # dict_to_send[f'hypers.'+id_hyp]['domains_radar'] = d_radar
                                     # ~ print(stats_domains_now)
                                     # ~ j+=1
                 #dict_to_send['engine'] = self.t_status
