@@ -3,6 +3,9 @@ from rethinkdb import r
 
 parser = optparse.OptionParser()
 
+parser.add_option('-e', '--enabled',
+    action="store", dest="enabled",
+    help="Enable hyper now. Default=False", default=False)
 parser.add_option('-u', '--user',
     action="store", dest="user",
     help="Username to connect to hypervisor. Default=root", default="root")
@@ -20,7 +23,7 @@ parser.add_option('-o', '--pool',
     help="Pool for hypervisor. Default=default", default="default")
 parser.add_option('-d', '--disk-capability',
     action="store", dest="diskcap",
-    help="Disk capabilities. Default=False", default=False)
+    help="Disk capabilities. Default=True", default=True)
 parser.add_option('-v', '--virtual-capability',
     action="store", dest="hypercap",
     help="Hypervisor capabilities. Default=True", default=True)    
@@ -39,21 +42,25 @@ if not options.hostname:
     print('Hostname/IP is required. Add -a or --address')
     exit(1)
 
+ENABLED=True if str(options.enabled).lower() == 'true' else False
 USER=options.user
 HOSTNAME=options.hostname
 ID=options.id if options.id else options.hostname
 PORT=str(options.port)
 HPOOL=options.hpool
-DISKCAP=options.diskcap
-HYPERCAP=options.hypercap
+DISKCAP=True if str(options.diskcap).lower() == 'true' else False
+HYPERCAP=True if str(options.hypercap).lower() == 'true' else False
 VHOSTNAME=options.vhostname if options.vhostname else options.hostname
 VNATHOSTNAME=options.vnathostname if options.vnathostname else options.hostname
 VNATOFFSET=str(options.vnatoffset) if options.vnatoffset else 0
 
+print(ENABLED)
+print(DISKCAP)
+print(HYPERCAP)
 hdict={'capabilities': {'disk_operations': DISKCAP, 'hypervisor': HYPERCAP},
              'description': '',
              'detail': '',
-             'enabled': True,
+             'enabled': ENABLED,
              'hostname': HOSTNAME,
              'hypervisors_pools': [str(HPOOL)],
              'id': str(ID),
@@ -68,6 +75,6 @@ try:
     r.connect('isard-database', 28015).repl()
     r.db('isard').table('hypervisors').insert(hdict, conflict="error").run()
 except Exception as e:
-    print('Error adding hypervisor to database. Add it through Isard admin web.')
+    print('Error adding hypervisor to database. Hypervisor ID maybe already in database. If not, add it through Isard admin web.')
     print('Err:'+str(e))
 
