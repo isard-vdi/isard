@@ -9,6 +9,11 @@ then
     exit 1
 fi
 
+if [[ -z $ENABLED ]]
+then
+    ENABLED=false
+fi
+
 if [[ -z $PORT ]]
 then
     PORT=22
@@ -22,6 +27,36 @@ fi
 if [[ -z $ID ]]
 then
     ID=$(echo "$HYPERVISOR" | tr "." "_")
+fi
+
+if [[ -z $POOL ]]
+then
+    POOL=default
+fi
+
+if [[ -z $DISKOP ]]
+then
+    DISKOP=true
+fi
+
+if [[ -z $VIRTUALOP ]]
+then
+    VIRTUALOP=true
+fi
+
+if [[ -z $VIEWERHOST ]]
+then
+    VIEWERHOST=$HYPERVISOR
+fi
+
+if [[ -z $VIEWERNATHOST ]]
+then
+    VIEWERNATHOST=$HYPERVISOR
+fi
+
+if [[ -z $VIEWERNATOFFSET ]]
+then
+    VIEWERNATOFFSET=0
 fi
 
 if [ -f /NEWHYPER ]
@@ -47,6 +82,7 @@ else
 fi
 
 echo "Hypervisor ssh access granted."
+sleep 1
 virsh -c qemu+ssh://"$USER"@"$HYPERVISOR":"$PORT"/system quit
 if [ $? -ne 0 ]
 then
@@ -58,6 +94,5 @@ fi
 cp /root/.ssh/known_hosts /root/.ssh/known_hosts.bak
 echo "Access to $USER@$HYPERVISOR:$PORT granted and found libvirtd service running."
 echo "Adding hyper to Isard..."
-/usr/bin/python3 /add-hyper-rethink.py -u $USER -a $HYPERVISOR -p $PORT -i $ID
-
-
+echo "Options: -e $ENABLED -u $USER -a $HYPERVISOR -p $PORT -i $ID -o $POOL -d $DISKOP -v $VIRTUALOP -m $VIEWERHOST -n $VIEWERNATHOST -f $VIEWERNATOFFSET"
+/usr/bin/python3 /add-hyper-rethink.py -e $ENABLED -u $USER -a $HYPERVISOR -p $PORT -i $ID -o $POOL -d $DISKOP -v $VIRTUALOP -m $VIEWERHOST -n $VIEWERNATHOST -f $VIEWERNATOFFSET
