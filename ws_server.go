@@ -47,7 +47,7 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() {
 		if err = ws.Close(); err != nil {
-			logrus.Errorln("Error closing websocket", err)
+			logrus.Traceln("Error closing websocket", err)
 		}
 	}()
 
@@ -58,7 +58,7 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() {
 		if err = tunnel.Close(); err != nil {
-			logrus.Errorln("Error closing tunnel", err)
+			logrus.Traceln("Error closing tunnel", err)
 		}
 	}()
 	logrus.Debug("Connected to tunnel")
@@ -93,10 +93,7 @@ func wsToGuacd(ws MessageReader, guacd io.Writer) {
 	for {
 		_, data, err := ws.ReadMessage()
 		if err != nil {
-			if err.Error() == "websocket: close 1005 (no status)" || err.Error() == "use of closed network connection" {
-				return
-			}
-			logrus.Errorln("Error reading message from ws", err)
+			logrus.Traceln("Error reading message from ws", err)
 			return
 		}
 
@@ -106,7 +103,7 @@ func wsToGuacd(ws MessageReader, guacd io.Writer) {
 		}
 
 		if _, err = guacd.Write(data); err != nil {
-			logrus.Errorln("Failed writing to guacd", err)
+			logrus.Traceln("Failed writing to guacd", err)
 			return
 		}
 	}
@@ -124,7 +121,7 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 	for {
 		ins, err := guacd.ReadSome()
 		if err != nil {
-			logrus.Errorln("Error reading from guacd", err)
+			logrus.Traceln("Error reading from guacd", err)
 			return
 		}
 
@@ -134,7 +131,7 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 		}
 
 		if _, err = buf.Write(ins); err != nil {
-			logrus.Errorln("Failed to buffer guacd to ws", err)
+			logrus.Traceln("Failed to buffer guacd to ws", err)
 			return
 		}
 
@@ -144,7 +141,7 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 				if err == websocket.ErrCloseSent {
 					return
 				}
-				logrus.Errorln("Failed sending message to ws", err)
+				logrus.Traceln("Failed sending message to ws", err)
 				return
 			}
 			buf.Reset()
