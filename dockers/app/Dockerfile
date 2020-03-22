@@ -1,5 +1,5 @@
 #FROM alpine:3.8 as test
-FROM alpine:3.11.3 as test
+FROM alpine:3.11.3 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache \
@@ -60,7 +60,7 @@ EXPOSE 5000
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 
 
-FROM test as development
+FROM production as development
 RUN pip3 install --no-cache-dir ipython pytest
 RUN apk add --no-cache --update bash vim openssh 
 #py3-pexpect
