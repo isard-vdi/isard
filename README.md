@@ -9,9 +9,13 @@ Open Source KVM Virtual Desktops based on KVM Linux and dockers.
 - Engine that monitors hypervisors and domains (desktops)
 - Websocket user interface with real time events.
 
-## Quick Start
+## Quick Start with docker & docker-compose
 
-Pull images and bring it up:
+### 1) *INSTALL DOCKER & DOCKER-COMPOSE*
+- https://docs.docker.com/install/
+- https://docs.docker.com/compose/install/
+
+### 2) **Pull images and bring it up**:
 
 ```
 wget https://raw.githubusercontent.com/isard-vdi/isard/master/docker-compose.yml

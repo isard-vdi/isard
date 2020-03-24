@@ -13,6 +13,8 @@ RUN apk add --no-cache \
     curl \
     python3 \
     tshark \
+    rsync \
+    ovmf \
     supervisor
 
 RUN apk add --no-cache --virtual .build_deps \

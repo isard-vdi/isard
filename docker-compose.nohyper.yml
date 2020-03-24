@@ -1,5 +1,0 @@
-version: "3.5"
-services:
-  isard-hypervisor:
-    image: hello-world
-    restart: "no"
