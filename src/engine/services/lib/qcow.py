@@ -399,7 +399,7 @@ def verify_output_cmds1_template_from_domain(cmds_done, path_domain_disk, path_t
             cmd_to_move = 'mv {} {}'.format(path_domain_disk, path_template_disk)
         if move_tool == 'rsync':
             # cmd_to_move = 'rsync -aP --remove-source-files "{}" "{}"'.format(path_domain_disk,path_template_disk)
-            cmd_to_move = 'rsync -aP --inplace --bwlimit=30000 --remove-source-files "{}" "{}"'.format(path_domain_disk,
+            cmd_to_move = 'rsync -aP --inplace --remove-source-files "{}" "{}"'.format(path_domain_disk,
                                                                                                        path_template_disk)
 
     return error_severity, move_tool, cmd_to_move
