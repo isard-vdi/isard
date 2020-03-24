@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2020-03-24
+
+### Added
+
+- Hypervisor autodetects VLANS or can be set by script.
+- Adding remote hypervisor through CLI has all the UI options now.
+- New config.env file with main system parameters.
+- Grafana container updated to latest version and uses config.env file
+- Rsync added to Hypervisor image so now can handle different mount points.
+- Maintenance mode (on/off) in nginx. docker exec -ti isard-nginx /bin/sh -c "maintenance.sh on"
+
+### Fixed
+
+- Fixed supervisord parameters in app to be more stable at restart.
+- Hypervisor default network is forced to be active as failed in some systems.
+- Mosquitto extras image rebuild and now automatically monitors Espurna IoT power devices.
+- Removed rsync bwlimit when creating templates
+
+### Changed
+- Grafana is now part of main docker-compose file.
+
+### Removed
+- 
+
 ## [1.2.1] - 2019-07-06
 
 ### Fixed

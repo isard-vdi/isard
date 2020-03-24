@@ -1,4 +1,3 @@
-#FROM alpine:3.8 as test
 FROM alpine:3.11.3 as production
 MAINTAINER isard <info@isard.com>
 

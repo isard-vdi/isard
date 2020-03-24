@@ -5,12 +5,12 @@ if [ -z $eth ]; then
 	echo "Trunk interface not found."
 	exit 0
 fi
-if [ ! -f /root/.ssh/vlans ] | [ -z $SCAN  ]; then
+if [ ! -f /root/.ssh/vlans ] | [ ! -z $SCAN  ]; then
 	echo "Wait, scanning trunk interface for VLANS for 260 seconds..."
 	tshark -a duration:260 -i eth1 -Y "vlan" -x -V 2>&1 |grep -o " = ID: .*" |awk '{ print $NF }'  > out
 	cat out | sort -u > /root/.ssh/vlans
 	rm out
-else
+fi
 	echo "Configuring existing vlans..."
 	VLANS=$(cat /root/.ssh/vlans |tr "\n" " ")
 	for VLAN in $VLANS
@@ -26,4 +26,3 @@ else
 	        echo " + Created vlan interface: bridge br-$VLAN over vlan-if v$VLAN."
 	done
 	echo "You can now configure those Internet bridge interfaces in Isard hypervisor."
-fi
