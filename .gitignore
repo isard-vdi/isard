@@ -61,6 +61,6 @@ install/.wizard
 
 known_hosts
 
-grafana/
+#grafana/
 certs/
 database/

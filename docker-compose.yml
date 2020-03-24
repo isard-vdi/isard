@@ -32,15 +32,18 @@ services:
   isard-hypervisor:
     container_name: isard-hypervisor
     volumes:
-      - "/opt/isard/sshkeys:/root/.ssh"
+      - "/opt/isard/sshkeys/$HOSTNAME:/root/.ssh"
       - "/opt/isard:/isard"
       - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
       - "/etc/localtime:/etc/localtime:ro"
     ports:
+      - "2022:22"
       - "5900-5999:5900-5999"
       - "6400-6499:6400-6499"
     networks:
       - isard_network
+#      - default
+#      - internet-vms
     image: isard/hypervisor:${TAG:-latest}
     build:
       context: .
@@ -49,7 +52,7 @@ services:
       - config.env
     privileged: true
     restart: unless-stopped
-        
+
   isard-app:
     container_name: isard-app
     volumes:
@@ -92,14 +95,17 @@ services:
       context: .
       dockerfile: dockers/grafana/Dockerfile
     restart: unless-stopped
-    build:
-        context: .
     env_file:
       - config.env
-    #logging:
-        #driver: none
 
 networks:
   isard_network:
     external: false
     name: isard_network
+#  internet-vms:
+#    driver: macvlan
+#    driver_opts:
+#      parent: viewers
+#    ipam:
+#      config:
+#        - subnet: 172.30.0.0/16
