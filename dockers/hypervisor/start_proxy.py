@@ -6,7 +6,7 @@ import socket
 import os
 
 try:
-    websockets = int(os.getenv('HYPERVISOR_WEBSOCKETS','50'))
+    websockets = int(os.getenv('HTML5_WEBSOCKETS','50'))
 except:
     websockets=50
 

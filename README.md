@@ -52,6 +52,10 @@ Create a template from a desktop:
 
 It will create a template from that desktop as it was now. You can create as many desktops identical to that template.
 
+### Config
+
+Most of the config is done in web interface but you'll find dns, proxy, grafana config also in .env file.
+
 ### Updates
 
 In Updates menu you will have access to different resources you can download from our IsardVDI updates server.
