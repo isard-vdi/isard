@@ -64,3 +64,4 @@ known_hosts
 #grafana/
 certs/
 database/
+.env.devel
