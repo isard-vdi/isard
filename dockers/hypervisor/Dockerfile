@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.11.3 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache \
@@ -12,12 +12,16 @@ RUN apk add --no-cache \
     openssh \
     curl \
     python3 \
+    tshark \
+    rsync \
+    ovmf \
     supervisor
 
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
     python3-dev 
-RUN pip3 install --no-cache-dir websockify==0.8.0
+RUN pip3 install --no-cache-dir websockify
+#==0.8.0
 RUN apk del .build_deps
 
 RUN ln -s /usr/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
@@ -44,10 +48,15 @@ RUN mkdir -p /etc/pki/libvirt-spice /var/log/supervisor
 COPY dockers/hypervisor/reset-hyper.sh /
 COPY dockers/hypervisor/start_proxy.py /
 COPY dockers/hypervisor/supervisord.conf /etc/supervisord.conf
+COPY dockers/hypervisor/vlans-add.sh /
+COPY dockers/hypervisor/vlans-discover.sh /
 
-EXPOSE 5900-5950
-EXPOSE 55900-55950
+EXPOSE 5900-6399
+EXPOSE 6400-6899
 
 VOLUME [ "/isard" ]
 
 CMD [ "/usr/bin/supervisord", "-c", "/etc/supervisord.conf" ]
+FROM production as development
+RUN apk add nano bash
+

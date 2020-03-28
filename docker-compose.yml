@@ -30,24 +30,29 @@ services:
       - isard-app
 
   isard-hypervisor:
+    environment:
+      - HTML5_WEBSOCKETS=${HTML5_WEBSOCKETS}
     container_name: isard-hypervisor
     volumes:
-      - "/opt/isard/sshkeys:/root/.ssh"
+      - "/opt/isard/sshkeys/$HOSTNAME:/root/.ssh"
       - "/opt/isard:/isard"
       - "/opt/isard/certs/default:/etc/pki/libvirt-spice"
       - "/etc/localtime:/etc/localtime:ro"
     ports:
-      - "5900-5999:5900-5999"
-      - "55900-55999:55900-55999"
+      - "2022:22"
+      - "5900-6199:5900-6199"
+      - "6400-6699:6400-6699"
     networks:
       - isard_network
+#      - default
+#      - internet-vms
     image: isard/hypervisor:${TAG:-latest}
     build:
       context: .
       dockerfile: dockers/hypervisor/Dockerfile    
     privileged: true
     restart: unless-stopped
-        
+
   isard-app:
     container_name: isard-app
     volumes:
@@ -62,6 +67,8 @@ services:
       - "isard-engine:127.0.0.1"
     networks:
       - isard_network
+    env_file:
+      - .env
     image: isard/app:${TAG:-latest}
     build:
       context: .
@@ -72,7 +79,53 @@ services:
       - isard-database
       - isard-hypervisor
 
+  isard-grafana:
+    environment:
+      - ISARD_PUBLIC_DOMAIN=${ISARD_PUBLIC_DOMAIN}
+    container_name: isard-grafana
+    volumes:
+      - "/opt/isard/grafana/grafana/data:/grafana/data"
+      - "/opt/isard/grafana/graphite/storage:/opt/graphite/storage"
+      - "/opt/isard/grafana/graphite/conf:/opt/graphite/conf"
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: host
+    networks:
+      - isard_network
+    image: isard/grafana:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: dockers/grafana/Dockerfile
+    restart: unless-stopped
+
+  isard-squid:
+    environment:
+      - SPICE_HOSTS=${SPICE_HOSTS}
+      - SPICE_PROXY_PORT=${SPICE_PROXY_PORT}
+    container_name: isard-squid
+    ports:
+      - target: ${SPICE_PROXY_PORT}
+        published: ${SPICE_PROXY_PORT}
+        protocol: tcp
+        mode: host
+    networks:
+      - isard_network
+    image: isard/squid:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: dockers/squid/Dockerfile
+    restart: "no"
+
 networks:
   isard_network:
     external: false
     name: isard_network
+#  internet-vms:
+#    driver: macvlan
+#    driver_opts:
+#      parent: viewers
+#    ipam:
+#      config:
+#        - subnet: 172.30.0.0/16

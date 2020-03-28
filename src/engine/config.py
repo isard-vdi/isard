@@ -55,6 +55,7 @@ while not table_exists:
             rconfig = r.db(RETHINK_DB).table('config').get(1).run(conn)
             #grafana= rconfig['engine']['grafana']
             rconfig = rconfig['engine']
+            r.db('isard').wait(wait_for='all_replicas_ready').run(conn)
         table_exists=True
         if fail_first_loop:
             print('ENGINE STARTING, database is online')
