@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2020-03-24
+
+### Added
+
+- Hypervisor autodetects VLANS or can be set by script.
+- Adding remote hypervisor through CLI has all the UI options now.
+  docker exec -e ENABLED=True -e ID=isard-hypervisor -e HYPERVISOR=192.168.0.10 -e PASSWORD=isard -e PORT=2022 -e POOL=default -e DISKOP=True -e VIRTUALOP=True -e VIEWERHOST=localhost -e VIEWERNATHOST=isardvdi.com -e VIEWERNATOFFSET=30000 isard-app sh -c '/add-hypervisor.sh'
+- Added squid image that allows proxying spice viewers.
+- Now .env file allows to configure main system parameters.
+- Grafana container updated to latest version and uses .env file
+- Rsync added to Hypervisor image so now can handle different mount points.
+- Maintenance mode (on/off) in nginx. docker exec -ti isard-nginx /bin/sh -c "maintenance.sh on"
+
+### Fixed
+
+- Fixed supervisord parameters in app to be more stable at restart.
+- Hypervisor default network is forced to be active as failed in some systems.
+- Mosquitto extras image rebuild and now automatically monitors Espurna IoT power devices.
+- Removed rsync bwlimit when creating templates
+
+### Changed
+- Grafana is now part of main docker-compose file.
+- Database upgrade modified python3 rethinkdb connection
+
+### Removed
+- 
+
 ## [1.2.1] - 2019-07-06
 
 ### Fixed

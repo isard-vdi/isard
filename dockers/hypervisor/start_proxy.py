@@ -3,14 +3,20 @@
 import multiprocessing
 import websockify
 import socket
+import os
+
+try:
+    websockets = int(os.getenv('HTML5_WEBSOCKETS','50'))
+except:
+    websockets=50
 
 servers = {}
 procs = {}
 
-for i in range(50):
+for i in range(websockets):
     servers[i] = websockify.WebSocketProxy(
         listen_host="0.0.0.0",
-        listen_port=55900 + i,
+        listen_port=6400 + i,
         target_host=socket.getfqdn(),
         target_port=5900 + i,
         cert="/etc/pki/libvirt-spice/server-cert.pem",

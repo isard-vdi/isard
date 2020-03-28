@@ -9,9 +9,13 @@ Open Source KVM Virtual Desktops based on KVM Linux and dockers.
 - Engine that monitors hypervisors and domains (desktops)
 - Websocket user interface with real time events.
 
-## Quick Start
+## Quick Start with docker & docker-compose
 
-Pull images and bring it up:
+### 1) *INSTALL DOCKER & DOCKER-COMPOSE*
+- https://docs.docker.com/install/
+- https://docs.docker.com/compose/install/
+
+### 2) **Pull images and bring it up**:
 
 ```
 wget https://raw.githubusercontent.com/isard-vdi/isard/master/docker-compose.yml
@@ -47,6 +51,10 @@ Create a template from a desktop:
 2. Fill in the form and click on create.
 
 It will create a template from that desktop as it was now. You can create as many desktops identical to that template.
+
+### Config
+
+Most of the config is done in web interface but you'll find dns, proxy, grafana config also in .env file.
 
 ### Updates
 
