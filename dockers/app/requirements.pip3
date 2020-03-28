@@ -12,7 +12,6 @@ decorator==4.4.1
 Flask==0.12.5
 Flask-Login==0.5.0
 Flask-SocketIO==2.8.6
-###Flask-SocketIO==4.2.1
 gevent==1.4.0
 graphyte==1.6.0
 greenlet==0.4.15

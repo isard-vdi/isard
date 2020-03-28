@@ -26,9 +26,6 @@ All notable changes to this project will be documented in this file.
 - Grafana is now part of main docker-compose file.
 - Database upgrade modified python3 rethinkdb connection
 
-### Removed
-- 
-
 ## [1.2.1] - 2019-07-06
 
 ### Fixed

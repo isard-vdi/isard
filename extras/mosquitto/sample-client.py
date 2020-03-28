@@ -1,4 +1,3 @@
-## sudo pip3 install paho-mqtt
 import paho.mqtt.client as paho
 broker="localhost"
 port=1883
