@@ -29,12 +29,11 @@ RUN apk add --no-cache --virtual .build_deps \
         libxslt-dev \
 	gcc
 
+RUN apk upgrade openssh-client
 RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache-dir pandas
 COPY dockers/app/requirements.pip3 /requirements.pip3
 RUN pip3 install --no-cache-dir -r requirements.pip3
-#RUN pip3 list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1 | xargs -n1 pip3 install -U && exit 0
-#RUN pip3 install rethinkdb==2.3.0.post6  werkzeug==0.16.0 APScheduler==3.3.1 python-engineio==3.8.1
 RUN apk del .build_deps
 
 # Create the required directories
@@ -55,16 +54,11 @@ COPY dockers/app/add-hyper-rethink.py /
 COPY dockers/app/supervisord.conf /etc/supervisord.conf
 
 EXPOSE 5000
-
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-
 
 FROM production as development
 RUN pip3 install --no-cache-dir ipython pytest
 RUN apk add --no-cache --update bash vim openssh 
-#py3-pexpect
-
-# 
 RUN pip3 install python-telegram-bot
 RUN apk add py3-yaml 
 

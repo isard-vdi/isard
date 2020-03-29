@@ -44,6 +44,8 @@ services:
       - "6400-6699:6400-6699"
     networks:
       - isard_network
+## Uncomment following lines to use different network for
+## viewer and Internet connections to desktops
 #      - default
 #      - internet-vms
     image: isard/hypervisor:${TAG:-latest}
@@ -122,6 +124,9 @@ networks:
   isard_network:
     external: false
     name: isard_network
+## Uncomment following lines to use different network for
+## viewer and Internet connections to desktops
+## NOTE: parent should be your viewers network if name
 #  internet-vms:
 #    driver: macvlan
 #    driver_opts:

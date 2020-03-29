@@ -83,7 +83,6 @@ class mosquitto():
         t=time.time()
         tsplit=msg.topic[1:].rsplit("/",1)
         key=str(tsplit[0]+'/pwr/'+tsplit[1]).replace("/",".")
-        #print(key)
         self.grafana.send_kv(key,msg.payload.decode())
         topic=msg.topic.split("/")
         if not topic[3] in self.plugs_online.keys():
@@ -96,10 +95,7 @@ class mosquitto():
                 print(k+' offline')
         pprint.pprint(self.plugs_online)
 
-#database = db()
 database = {}
 g = grafana()
-# ~ g.send_kv('isard.hypers.isard-hypervisor.plug.power',34)
-# ~ if database.conn() and g.conn():
 m = mosquitto(g)
 
