@@ -29,6 +29,7 @@ RUN apk add --no-cache --virtual .build_deps \
         libxslt-dev \
 	gcc
 
+RUN apk upgrade openssh-client
 RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache-dir pandas
 COPY dockers/app/requirements.pip3 /requirements.pip3
