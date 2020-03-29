@@ -130,10 +130,6 @@ class GrafanaThread(threading.Thread):
             d_to_grafana['is_alive'] = False
             print('ERROR ----- ENGINE IS DEATH')
             return d_to_grafana
-        # except Exception as e:
-        #     d_to_grafana['is_alive'] = False
-        #     print('ERROR ----- ENGINE IS DEATH AND EXCEPTION DETECTED')
-        #     return d_engine
 
     def get_hostname_grafana(self):
         try:
@@ -199,32 +195,16 @@ class GrafanaThread(threading.Thread):
                         elapsed = 0
 
                     #send stats
-
                     j=0
                     for i, id_hyp in enumerate(hyps_online):
                         if id_hyp in self.t_status.keys():
-                            #stats_hyp = self.t_status[id_hyp].status_obj.hyp_obj.stats_hyp
                             stats_hyp_now = self.t_status[id_hyp].status_obj.hyp_obj.stats_hyp_now
-                            #stats_domains = self.t_status[id_hyp].status_obj.hyp_obj.stats_domains
                             if len(stats_hyp_now) > 0:
                                 dict_to_send[f'hypers.'+id_hyp] = {'stats':stats_hyp_now,'info':d_hyps_info['hyp-info-'+str(i)],'domains':{}}
 
                                 stats_domains_now = self.t_status[id_hyp].status_obj.hyp_obj.stats_domains_now
-                            # ~ for id_domain,d_stats in stats_domains_now.items():
-                            # ~ if len(stats_hyp_now) > 0:
-                                # ~ for id_domain,d_stats in stats_domains_now.items():
-                                    # ~ dict_to_send[f'domain-stats-{j}'] = {'domain-id':{id_domain:1},'last': d_stats,}
                                 dict_to_send[f'hypers.'+id_hyp]['domains']=stats_domains_now #{x:0 for x in stats_domains_now}
-                                # d_radar = {}
-                                # for k in "net_tx,net_rx,vcpu_load,disk_wr,disk_rd".split(','):
-                                #     d_radar[k] = stats_domains_now[k]
-                                # dict_to_send[f'hypers.'+id_hyp]['domains_radar'] = d_radar
-                                    # ~ print(stats_domains_now)
-                                    # ~ j+=1
-                #dict_to_send['engine'] = self.t_status
                 dict_to_send['engine'] = self.engine_info_to_grafana()
-                # from pprint import pprint
-                # pprint(dict_to_send)
                 self.send(dict_to_send)
 
 
