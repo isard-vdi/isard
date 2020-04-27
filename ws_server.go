@@ -11,7 +11,8 @@ import (
 
 // WebsocketServer implements a websocket-based connection to guacd.
 type WebsocketServer struct {
-	connect func(*http.Request) (Tunnel, error)
+	connect   func(*http.Request) (Tunnel, error)
+	connectWs func(*websocket.Conn, *http.Request) (Tunnel, error)
 
 	// OnConnect is an optional callback called when a websocket connects.
 	// Deprecated: use OnConnectWs
@@ -26,9 +27,17 @@ type WebsocketServer struct {
 	OnDisconnectWs func(string, *websocket.Conn, *http.Request, Tunnel)
 }
 
+// NewWebsocketServer creates a new server with a simple connect method.
 func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketServer {
 	return &WebsocketServer{
 		connect: connect,
+	}
+}
+
+// NewWebsocketServerWs creates a new server with a connect method that takes a websocket.
+func NewWebsocketServerWs(connect func(*websocket.Conn, *http.Request) (Tunnel, error)) *WebsocketServer {
+	return &WebsocketServer{
+		connectWs: connect,
 	}
 }
 
@@ -60,7 +69,13 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	logrus.Debug("Connecting to tunnel")
-	tunnel, e := s.connect(r)
+	var tunnel Tunnel
+	var e error
+	if s.connect != nil {
+		tunnel, e = s.connect(r)
+	} else {
+		tunnel, e = s.connectWs(ws, r)
+	}
 	if e != nil {
 		return
 	}
