@@ -12,10 +12,18 @@ import (
 // WebsocketServer implements a websocket-based connection to guacd.
 type WebsocketServer struct {
 	connect func(*http.Request) (Tunnel, error)
-	// OnConnect is an optional callback called when a websocket disconnect.
+
+	// OnConnect is an optional callback called when a websocket connects.
+	// Deprecated: use OnConnectWs
 	OnConnect func(string, *http.Request)
 	// OnDisconnect is an optional callback called when the websocket disconnects.
+	// Deprecated: use OnDisconnectWs
 	OnDisconnect func(string, *http.Request, Tunnel)
+
+	// OnConnectWs is an optional callback called when a websocket connects.
+	OnConnectWs func(string, *websocket.Conn, *http.Request)
+	// OnDisconnectWs is an optional callback called when the websocket disconnects.
+	OnDisconnectWs func(string, *websocket.Conn, *http.Request, Tunnel)
 }
 
 func NewWebsocketServer(connect func(*http.Request) (Tunnel, error)) *WebsocketServer {
@@ -68,12 +76,18 @@ func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.OnConnect != nil {
 		s.OnConnect(id, r)
 	}
+	if s.OnConnectWs != nil {
+		s.OnConnectWs(id, ws, r)
+	}
 
 	writer := tunnel.AcquireWriter()
 	reader := tunnel.AcquireReader()
 
 	if s.OnDisconnect != nil {
 		defer s.OnDisconnect(id, r, tunnel)
+	}
+	if s.OnDisconnectWs != nil {
+		defer s.OnDisconnectWs(id, ws, r, tunnel)
 	}
 
 	defer tunnel.ReleaseWriter()
