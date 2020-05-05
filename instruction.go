@@ -39,28 +39,16 @@ func (i *Instruction) Byte() []byte {
 	return []byte(i.String())
 }
 
-// ReadOne takes an instruction from the stream and parses it into an Instruction
-func ReadOne(stream *Stream) (instruction *Instruction, err error) {
-	var instructionBuffer []byte
-
-	// Get instruction
-	instructionBuffer, err = stream.ReadSome()
-
-	// If EOF, return EOF
-	if err != nil {
-		return
-	}
-
-	// Start of element
+func Parse(data []byte) (*Instruction, error) {
 	elementStart := 0
 
 	// Build list of elements
 	elements := make([]string, 0, 1)
-	for elementStart < len(instructionBuffer) {
+	for elementStart < len(data) {
 		// Find end of length
 		lengthEnd := -1
-		for i := elementStart; i < len(instructionBuffer); i++ {
-			if instructionBuffer[i] == '.' {
+		for i := elementStart; i < len(data); i++ {
+			if data[i] == '.' {
 				lengthEnd = i
 				break
 			}
@@ -68,27 +56,25 @@ func ReadOne(stream *Stream) (instruction *Instruction, err error) {
 		// read() is required to return a complete instruction. If it does
 		// not, this is a severe internal error.
 		if lengthEnd == -1 {
-			err = ErrServer.NewError("ReadSome returned incomplete instruction.")
-			return
+			return nil, ErrServer.NewError("ReadSome returned incomplete instruction.")
 		}
 
 		// Parse length
-		length, e := strconv.Atoi(string(instructionBuffer[elementStart:lengthEnd]))
+		length, e := strconv.Atoi(string(data[elementStart:lengthEnd]))
 		if e != nil {
-			err = ErrServer.NewError("ReadSome returned wrong pattern instruction.", e.Error())
-			return
+			return nil, ErrServer.NewError("ReadSome returned wrong pattern instruction.", e.Error())
 		}
 
 		// Parse element from just after period
 		elementStart = lengthEnd + 1
-		element := string(instructionBuffer[elementStart : elementStart+length])
+		element := string(data[elementStart : elementStart+length])
 
 		// Append element to list of elements
 		elements = append(elements, element)
 
 		// ReadSome terminator after element
 		elementStart += length
-		terminator := instructionBuffer[elementStart]
+		terminator := data[elementStart]
 
 		// Continue reading instructions after terminator
 		elementStart++
@@ -100,10 +86,16 @@ func ReadOne(stream *Stream) (instruction *Instruction, err error) {
 
 	}
 
-	// Pull Opcode off elements list
-	// Create instruction
-	instruction = NewInstruction(elements[0], elements[1:]...)
+	return NewInstruction(elements[0], elements[1:]...), nil
+}
 
-	// Return parsed instruction
-	return
+// ReadOne takes an instruction from the stream and parses it into an Instruction
+func ReadOne(stream *Stream) (instruction *Instruction, err error) {
+	var instructionBuffer []byte
+	instructionBuffer, err = stream.ReadSome()
+	if err != nil {
+		return
+	}
+
+	return Parse(instructionBuffer)
 }

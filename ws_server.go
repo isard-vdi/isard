@@ -42,8 +42,8 @@ func NewWebsocketServerWs(connect func(*websocket.Conn, *http.Request) (Tunnel, 
 }
 
 const (
-	websocketReadBufferSize  = maxGuacMessage
-	websocketWriteBufferSize = maxGuacMessage * 2
+	websocketReadBufferSize  = MaxGuacMessage
+	websocketWriteBufferSize = MaxGuacMessage * 2
 )
 
 func (s *WebsocketServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +145,7 @@ type MessageWriter interface {
 }
 
 func guacdToWs(ws MessageWriter, guacd InstructionReader) {
-	buf := bytes.NewBuffer(make([]byte, 0, maxGuacMessage*2))
+	buf := bytes.NewBuffer(make([]byte, 0, MaxGuacMessage*2))
 
 	for {
 		ins, err := guacd.ReadSome()
@@ -165,7 +165,7 @@ func guacdToWs(ws MessageWriter, guacd InstructionReader) {
 		}
 
 		// if the buffer has more data in it or we've reached the max buffer size, send the data and reset
-		if !guacd.Available() || buf.Len() >= maxGuacMessage {
+		if !guacd.Available() || buf.Len() >= MaxGuacMessage {
 			if err = ws.WriteMessage(1, buf.Bytes()); err != nil {
 				if err == websocket.ErrCloseSent {
 					return

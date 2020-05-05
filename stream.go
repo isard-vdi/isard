@@ -10,7 +10,7 @@ import (
 
 const (
 	SocketTimeout  = 15 * time.Second
-	maxGuacMessage = 8192
+	MaxGuacMessage = 8192
 )
 
 // Stream wraps the connection to Guacamole providing timeouts and reading
@@ -31,7 +31,7 @@ type Stream struct {
 
 // NewStream creates a new stream
 func NewStream(conn net.Conn, timeout time.Duration) (ret *Stream) {
-	buffer := make([]byte, 0, maxGuacMessage*3)
+	buffer := make([]byte, 0, MaxGuacMessage*3)
 	return &Stream{
 		conn:    conn,
 		timeout: timeout,
@@ -128,7 +128,7 @@ func (s *Stream) ReadSome() (instruction []byte, err error) {
 			}
 		}
 
-		if cap(s.buffer) < maxGuacMessage {
+		if cap(s.buffer) < MaxGuacMessage {
 			s.Flush()
 		}
 
