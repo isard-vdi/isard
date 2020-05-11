@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "github.com/isard-vdi/isard/engine/pkg/proto";
+
+service Engine {
+    rpc DesktopStop(DesktopStopRequest) returns (DesktopStopResponse) {}
+}
+
+enum Action {
+    UNKNOWN = 0;
+    STOP = 1;
+    START = 2;
+    PAUSE = 3;
+    RESUME = 4;
+    DELETE = 5;
+    UPDATE = 6;
+    TEMPLATE = 7;
+}
+
+message DesktopStopRequest {
+    string id = 1;
+}
+
+message DesktopStopResponse {
+    enum State {
+        STATE_UNKNOWN = 0;
+        STATE_STOPPED = 1;
+        STATE_FAILED = 2;
+    }
+
+    State state = 1;
+    repeated Action next_actions = 2;
+}
