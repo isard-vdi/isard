@@ -15,8 +15,8 @@ func (h *HyperServer) DesktopStart(ctx context.Context, req *proto.DesktopStartR
 	inputs := []libvirtxml.DomainInput{}
 	for _, i := range req.Devices.Input {
 		inputs = append(inputs, libvirtxml.DomainInput{
-			Type: i.Type.String(),
-			Bus:  i.Bus.String(),
+			Type: proto.DesktopStartRequestDesktopDeviceInputTypeString(i.Type),
+			Bus:  proto.DesktopStartRequestDesktopDeviceInputBusString(i.Bus),
 		})
 	}
 
@@ -35,7 +35,7 @@ func (h *HyperServer) DesktopStart(ctx context.Context, req *proto.DesktopStartR
 	for _, v := range req.Devices.Video {
 		videos = append(videos, libvirtxml.DomainVideo{
 			Model: libvirtxml.DomainVideoModel{
-				Type: v.Model.Type.String(),
+				Type: proto.DesktopStartRequestDesktopDeviceVideoModelTypeString(v.Model.Type),
 			},
 		})
 	}
@@ -45,9 +45,9 @@ func (h *HyperServer) DesktopStart(ctx context.Context, req *proto.DesktopStartR
 		Name: req.Name,
 		OS: &libvirtxml.DomainOS{
 			Type: &libvirtxml.DomainOSType{
-				Arch:    req.Os.Type.Arch.String(),
-				Machine: req.Os.Type.Machine.String(),
-				Type:    req.Os.Type.Type.String(),
+				Arch: proto.DesktopStartRequestDesktopOSTypeArchString(req.Os.Type.Arch),  
+				Machine: proto.DesktopStartRequestDesktopOSTypeMachineString(req.Os.Type.Machine),
+				Type:    proto.DesktopStartRequestDesktopOSTypeTypeString(req.Os.Type.Type),
 			},
 		},
 		Devices: &libvirtxml.DomainDeviceList{
