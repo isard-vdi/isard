@@ -3,7 +3,8 @@ package env
 import (
 	"sync"
 
-	"github.com/isard-vdi/isard/engine/cfg"
+	"github.com/isard-vdi/isard/hyper/cfg"
+
 	"go.uber.org/zap"
 )
 

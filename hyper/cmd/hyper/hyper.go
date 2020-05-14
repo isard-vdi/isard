@@ -7,9 +7,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/isard-vdi/isard/engine/cfg"
-	"github.com/isard-vdi/isard/engine/env"
-	"github.com/isard-vdi/isard/engine/transport/grpc"
+	"github.com/isard-vdi/isard/hyper/cfg"
+	"github.com/isard-vdi/isard/hyper/env"
+	"github.com/isard-vdi/isard/hyper/transport/grpc"
 
 	"go.uber.org/zap"
 )
@@ -41,7 +41,7 @@ func main() {
 	select {
 	case <-stop:
 		fmt.Println("")
-		env.Sugar.Info("stoping engine...")
+		env.Sugar.Info("stoping hyper...")
 
 		cancel()
 

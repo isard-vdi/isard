@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/isard-vdi/isard/engine/env"
-	"github.com/isard-vdi/isard/engine/pkg/proto"
+	"github.com/isard-vdi/isard/hyper/env"
+	"github.com/isard-vdi/isard/hyper/pkg/proto"
 
 	gRPC "google.golang.org/grpc"
 )
@@ -14,12 +14,12 @@ import (
 // API is the version for the gRPC API
 const API = "v1.0.0"
 
-// EngineServer implements the gRPC server
-type EngineServer struct {
+// HyperServer implements the gRPC server
+type HyperServer struct {
 	env *env.Env
 }
 
-// Serve starts the Engine gRPC server
+// Serve starts the Hyper gRPC server
 func Serve(ctx context.Context, env *env.Env) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", env.Cfg.GRPC.Port))
 	if err != nil {
@@ -29,17 +29,17 @@ func Serve(ctx context.Context, env *env.Env) {
 		)
 	}
 
-	srv := &EngineServer{env}
+	srv := &HyperServer{env}
 	s := gRPC.NewServer()
-	proto.RegisterEngineServer(s, srv)
+	proto.RegisterHyperServer(s, srv)
 
-	env.Sugar.Infow("engine gRPC serving",
+	env.Sugar.Infow("hyper gRPC serving",
 		"port", env.Cfg.GRPC.Port,
 	)
 	go func() {
 		if err = s.Serve(lis); err != nil {
 			if err != gRPC.ErrServerStopped {
-				env.Sugar.Fatalw("serve engine gRPC",
+				env.Sugar.Fatalw("serve hyper gRPC",
 					"err", err,
 					"port", env.Cfg.GRPC.Port,
 				)

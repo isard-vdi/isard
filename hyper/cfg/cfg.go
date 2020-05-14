@@ -1,6 +1,6 @@
 package cfg
 
-// Cfg holds all the configuration for the engine
+// Cfg holds all the configuration for the hyper
 type Cfg struct {
 	GRPC GRPC
 }
