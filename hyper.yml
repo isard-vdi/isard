@@ -1,0 +1,20 @@
+version: "3.5"
+services:
+  isard-hypervisor:
+    container_name: isard-hypervisor
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+    ports:
+      - "5900-7999:5900-7999"
+    networks:
+      - isard_network
+    image: isard/hypervisor:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: hyper/docker/Dockerfile    
+    restart: unless-stopped
+
+networks:
+  isard_network:
+    external: false
+    name: isard_network
