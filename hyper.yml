@@ -5,7 +5,7 @@ services:
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
     ports:
-      - "5900-7999:5900-7999"
+      - "5900-5950:5900-5950"
     networks:
       - isard_network
     image: isard/hypervisor:${TAG:-latest}
@@ -13,7 +13,7 @@ services:
       context: .
       dockerfile: hyper/docker/Dockerfile 
     privileged: true   
-    restart: unless-stopped
+    restart: "no"
 
 networks:
   isard_network:
