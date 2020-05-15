@@ -1,0 +1,732 @@
+# See docs/devel/tracing.txt for syntax documentation.
+#
+# This file is processed by the tracetool script during the build.
+#
+# To add a new trace event:
+#
+# 1. Choose a name for the trace event.  Declare its arguments and format
+#    string.
+#
+# 2. Call the trace event from code using trace_##name, e.g. multiwrite_cb() ->
+#    trace_multiwrite_cb().  The source file must #include "trace.h".
+#
+# Format of a trace event:
+#
+# [disable] <name>(<type1> <arg1>[, <type2> <arg2>] ...) "<format-string>"
+#
+# Example: g_malloc(size_t size) "size %zu"
+#
+# The "disable" keyword will build without the trace event.
+#
+# The <name> must be a valid as a C function name.
+#
+# Types should be standard C types.  Use void * for pointers because the trace
+# system may not have the necessary headers included.
+#
+# The <format-string> should be a sprintf()-compatible format string.
+
+# ioport.c
+cpu_in(unsigned int addr, char size, unsigned int val) "addr 0x%x(%c) value %u"
+cpu_out(unsigned int addr, char size, unsigned int val) "addr 0x%x(%c) value %u"
+
+# balloon.c
+# Since requests are raised via monitor, not many tracepoints are needed.
+balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"
+
+# vl.c
+vm_state_notify(int running, int reason, const char *reason_str) "running %d reason %d (%s)"
+load_file(const char *name, const char *path) "name %s location %s"
+runstate_set(int current_state, const char *current_state_str, int new_state, const char *new_state_str) "current_run_state %d (%s) new_state %d (%s)"
+system_wakeup_request(int reason) "reason=%d"
+qemu_system_shutdown_request(int reason) "reason=%d"
+qemu_system_powerdown_request(void) ""
+
+# dma-helpers.c
+dma_blk_io(void *dbs, void *bs, int64_t offset, bool to_dev) "dbs=%p bs=%p offset=%" PRId64 " to_dev=%d"
+dma_aio_cancel(void *dbs) "dbs=%p"
+dma_complete(void *dbs, int ret, void *cb) "dbs=%p ret=%d cb=%p"
+dma_blk_cb(void *dbs, int ret) "dbs=%p ret=%d"
+dma_map_wait(void *dbs) "dbs=%p"
+
+# exec.c
+find_ram_offset(uint64_t size, uint64_t offset) "size: 0x%" PRIx64 " @ 0x%" PRIx64
+find_ram_offset_loop(uint64_t size, uint64_t candidate, uint64_t offset, uint64_t next, uint64_t mingap) "trying size: 0x%" PRIx64 " @ 0x%" PRIx64 ", offset: 0x%" PRIx64" next: 0x%" PRIx64 " mingap: 0x%" PRIx64
+ram_block_discard_range(const char *rbname, void *hva, size_t length, bool need_madvise, bool need_fallocate, int ret) "%s@%p + 0x%zx: madvise: %d fallocate: %d ret: %d"
+memory_notdirty_write_access(uint64_t vaddr, uint64_t ram_addr, unsigned size) "0x%" PRIx64 " ram_addr 0x%" PRIx64 " size %u"
+memory_notdirty_set_dirty(uint64_t vaddr) "0x%" PRIx64
+
+# memory.c
+memory_region_ops_read(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
+memory_region_ops_write(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
+memory_region_subpage_read(int cpu_index, void *mr, uint64_t offset, uint64_t value, unsigned size) "cpu %d mr %p offset 0x%"PRIx64" value 0x%"PRIx64" size %u"
+memory_region_subpage_write(int cpu_index, void *mr, uint64_t offset, uint64_t value, unsigned size) "cpu %d mr %p offset 0x%"PRIx64" value 0x%"PRIx64" size %u"
+memory_region_ram_device_read(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
+memory_region_ram_device_write(int cpu_index, void *mr, uint64_t addr, uint64_t value, unsigned size) "cpu %d mr %p addr 0x%"PRIx64" value 0x%"PRIx64" size %u"
+flatview_new(void *view, void *root) "%p (root %p)"
+flatview_destroy(void *view, void *root) "%p (root %p)"
+flatview_destroy_rcu(void *view, void *root) "%p (root %p)"
+
+# gdbstub.c
+gdbstub_op_start(const char *device) "Starting gdbstub using device %s"
+gdbstub_op_exiting(uint8_t code) "notifying exit with code=0x%02x"
+gdbstub_op_continue(void) "Continuing all CPUs"
+gdbstub_op_continue_cpu(int cpu_index) "Continuing CPU %d"
+gdbstub_op_stepping(int cpu_index) "Stepping CPU %d"
+gdbstub_op_extra_info(const char *info) "Thread extra info: %s"
+gdbstub_hit_watchpoint(const char *type, int cpu_gdb_index, uint64_t vaddr) "Watchpoint hit, type=\"%s\" cpu=%d, vaddr=0x%" PRIx64 ""
+gdbstub_hit_internal_error(void) "RUN_STATE_INTERNAL_ERROR"
+gdbstub_hit_break(void) "RUN_STATE_DEBUG"
+gdbstub_hit_paused(void) "RUN_STATE_PAUSED"
+gdbstub_hit_shutdown(void) "RUN_STATE_SHUTDOWN"
+gdbstub_hit_io_error(void) "RUN_STATE_IO_ERROR"
+gdbstub_hit_watchdog(void) "RUN_STATE_WATCHDOG"
+gdbstub_hit_unknown(int state) "Unknown run state=0x%x"
+gdbstub_io_reply(const char *message) "Sent: %s"
+gdbstub_io_binaryreply(size_t ofs, const char *line) "0x%04zx: %s"
+gdbstub_io_command(const char *command) "Received: %s"
+gdbstub_io_got_ack(void) "Got ACK"
+gdbstub_io_got_unexpected(uint8_t ch) "Got 0x%02x when expecting ACK/NACK"
+gdbstub_err_got_nack(void) "Got NACK, retransmitting"
+gdbstub_err_garbage(uint8_t ch) "received garbage between packets: 0x%02x"
+gdbstub_err_overrun(void) "command buffer overrun, dropping command"
+gdbstub_err_invalid_repeat(uint8_t ch) "got invalid RLE count: 0x%02x"
+gdbstub_err_invalid_rle(void) "got invalid RLE sequence"
+gdbstub_err_checksum_invalid(uint8_t ch) "got invalid command checksum digit: 0x%02x"
+gdbstub_err_checksum_incorrect(uint8_t expected, uint8_t got) "got command packet with incorrect checksum, expected=0x%02x, received=0x%02x"
+
+# job.c
+job_state_transition(void *job,  int ret, const char *legal, const char *s0, const char *s1) "job %p (ret: %d) attempting %s transition (%s-->%s)"
+job_apply_verb(void *job, const char *state, const char *verb, const char *legal) "job %p in state %s; applying verb %s (%s)"
+job_completed(void *job, int ret) "job %p ret %d"
+
+# job-qmp.c
+qmp_job_cancel(void *job) "job %p"
+qmp_job_pause(void *job) "job %p"
+qmp_job_resume(void *job) "job %p"
+qmp_job_complete(void *job) "job %p"
+qmp_job_finalize(void *job) "job %p"
+qmp_job_dismiss(void *job) "job %p"
+
+
+### Guest events, keep at bottom
+
+
+## vCPU
+
+# trace/control-target.c
+
+# Hot-plug a new virtual (guest) CPU
+#
+# Mode: user, softmmu
+# Targets: all
+vcpu guest_cpu_enter(void)
+
+# trace/control.c
+
+# Hot-unplug a virtual (guest) CPU
+#
+# Mode: user, softmmu
+# Targets: all
+vcpu guest_cpu_exit(void)
+
+# hw/core/cpu.c
+
+# Reset the state of a virtual (guest) CPU
+#
+# Mode: user, softmmu
+# Targets: all
+vcpu guest_cpu_reset(void)
+
+# tcg/tcg-op.c
+
+# @vaddr: Access' virtual address.
+# @info : Access' information (see below).
+#
+# Start virtual memory access (before any potential access violation).
+#
+# Does not include memory accesses performed by devices.
+#
+# Access information can be parsed as:
+#
+# struct mem_info {
+#     uint8_t size_shift : 4; /* interpreted as "1 << size_shift" bytes */
+#     bool    sign_extend: 1; /* sign-extended */
+#     uint8_t endianness : 1; /* 0: little, 1: big */
+#     bool    store      : 1; /* whether it is a store operation */
+#             pad        : 1;
+#     uint8_t mmuidx     : 4; /* mmuidx (softmmu only)  */
+# };
+#
+# Mode: user, softmmu
+# Targets: TCG(all)
+vcpu tcg guest_mem_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
+
+# linux-user/syscall.c
+# bsd-user/syscall.c
+
+# @num: System call number.
+# @arg*: System call argument value.
+#
+# Start executing a guest system call in syscall emulation mode.
+#
+# Mode: user
+# Targets: TCG(all)
+vcpu guest_user_syscall(uint64_t num, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6, uint64_t arg7, uint64_t arg8) "num=0x%016"PRIx64" arg1=0x%016"PRIx64" arg2=0x%016"PRIx64" arg3=0x%016"PRIx64" arg4=0x%016"PRIx64" arg5=0x%016"PRIx64" arg6=0x%016"PRIx64" arg7=0x%016"PRIx64" arg8=0x%016"PRIx64
+
+# @num: System call number.
+# @ret: System call result value.
+#
+# Finish executing a guest system call in syscall emulation mode.
+#
+# Mode: user
+# Targets: TCG(all)
+vcpu guest_user_syscall_ret(uint64_t num, uint64_t ret) "num=0x%016"PRIx64" ret=0x%016"PRIx64
+# See docs/devel/tracing.txt for syntax documentation.
+
+# kvm-all.c
+kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
+kvm_vm_ioctl(int type, void *arg) "type 0x%x, arg %p"
+kvm_vcpu_ioctl(int cpu_index, int type, void *arg) "cpu_index %d, type 0x%x, arg %p"
+kvm_run_exit(int cpu_index, uint32_t reason) "cpu_index %d, reason %d"
+kvm_device_ioctl(int fd, int type, void *arg) "dev fd %d, type 0x%x, arg %p"
+kvm_failed_reg_get(uint64_t id, const char *msg) "Warning: Unable to retrieve ONEREG %" PRIu64 " from KVM: %s"
+kvm_failed_reg_set(uint64_t id, const char *msg) "Warning: Unable to set ONEREG %" PRIu64 " to KVM: %s"
+kvm_irqchip_commit_routes(void) ""
+kvm_irqchip_add_msi_route(char *name, int vector, int virq) "dev %s vector %d virq %d"
+kvm_irqchip_update_msi_route(int virq) "Updating MSI route virq=%d"
+kvm_irqchip_release_virq(int virq) "virq %d"
+kvm_set_ioeventfd_mmio(int fd, uint64_t addr, uint32_t val, bool assign, uint32_t size, bool datamatch) "fd: %d @0x%" PRIx64 " val=0x%x assign: %d size: %d match: %d"
+kvm_set_ioeventfd_pio(int fd, uint16_t addr, uint32_t val, bool assign, uint32_t size, bool datamatch) "fd: %d @0x%x val=0x%x assign: %d size: %d match: %d"
+kvm_set_user_memory(uint32_t slot, uint32_t flags, uint64_t guest_phys_addr, uint64_t memory_size, uint64_t userspace_addr, int ret) "Slot#%d flags=0x%x gpa=0x%"PRIx64 " size=0x%"PRIx64 " ua=0x%"PRIx64 " ret=%d"
+kvm_clear_dirty_log(uint32_t slot, uint64_t start, uint32_t size) "slot#%"PRId32" start 0x%"PRIx64" size 0x%"PRIx32
+
+# See docs/devel/tracing.txt for syntax documentation.
+
+# TCG related tracing (mostly disabled by default)
+# cpu-exec.c
+disable exec_tb(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
+disable exec_tb_nocache(void *tb, uintptr_t pc) "tb:%p pc=0x%"PRIxPTR
+disable exec_tb_exit(void *last_tb, unsigned int flags) "tb:%p flags=0x%x"
+
+# translate-all.c
+translate_block(void *tb, uintptr_t pc, uint8_t *tb_code) "tb:%p, pc:0x%"PRIxPTR", tb_code:%p"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# dbus-vmstate.c
+dbus_vmstate_pre_save(void)
+dbus_vmstate_post_load(int version_id) "version_id: %d"
+dbus_vmstate_loading(const char *id) "id: %s"
+dbus_vmstate_saving(const char *id) "id: %s"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# tlscreds.c
+qcrypto_tls_creds_load_dh(void *creds, const char *filename) "TLS creds load DH creds=%p filename=%s"
+qcrypto_tls_creds_get_path(void *creds, const char *filename, const char *path) "TLS creds path creds=%p filename=%s path=%s"
+
+# tlscredsanon.c
+qcrypto_tls_creds_anon_load(void *creds, const char *dir) "TLS creds anon load creds=%p dir=%s"
+
+# tlscredspsk.c
+qcrypto_tls_creds_psk_load(void *creds, const char *dir) "TLS creds psk load creds=%p dir=%s"
+
+# tlscredsx509.c
+qcrypto_tls_creds_x509_load(void *creds, const char *dir) "TLS creds x509 load creds=%p dir=%s"
+qcrypto_tls_creds_x509_check_basic_constraints(void *creds, const char *file, int status) "TLS creds x509 check basic constraints creds=%p file=%s status=%d"
+qcrypto_tls_creds_x509_check_key_usage(void *creds, const char *file, int status, int usage, int critical) "TLS creds x509 check key usage creds=%p file=%s status=%d usage=%d critical=%d"
+qcrypto_tls_creds_x509_check_key_purpose(void *creds, const char *file, int status, const char *usage, int critical) "TLS creds x509 check key usage creds=%p file=%s status=%d usage=%s critical=%d"
+qcrypto_tls_creds_x509_load_cert(void *creds, int isServer, const char *file) "TLS creds x509 load cert creds=%p isServer=%d file=%s"
+qcrypto_tls_creds_x509_load_cert_list(void *creds, const char *file) "TLS creds x509 load cert list creds=%p file=%s"
+
+# tlssession.c
+qcrypto_tls_session_new(void *session, void *creds, const char *hostname, const char *authzid, int endpoint) "TLS session new session=%p creds=%p hostname=%s authzid=%s endpoint=%d"
+qcrypto_tls_session_check_creds(void *session, const char *status) "TLS session check creds session=%p status=%s"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hmp.c
+handle_hmp_command(void *mon, const char *cmdline) "mon %p cmdline: %s"
+
+# monitor.c
+monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
+monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"
+monitor_protocol_event_queue(uint32_t event, void *qdict, uint64_t rate) "event=%d data=%p rate=%" PRId64
+monitor_suspend(void *ptr, int cnt) "mon %p: %d"
+
+# qmp.c
+monitor_qmp_cmd_in_band(const char *id) "%s"
+monitor_qmp_cmd_out_of_band(const char *id) "%s"
+handle_qmp_command(void *mon, const char *req) "mon %p req: %s"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# signal.c
+signal_table_init(int i) "number of unavailable signals: %d"
+signal_do_sigaction_guest(int sig, int max) "target signal %d (MAX %d)"
+signal_do_sigaction_host(int sig, int max) "host signal %d (MAX %d)"
+# */signal.c
+user_setup_frame(void *env, uint64_t frame_addr) "env=%p frame_addr=0x%"PRIx64
+user_setup_rt_frame(void *env, uint64_t frame_addr) "env=%p frame_addr=0x%"PRIx64
+user_do_rt_sigreturn(void *env, uint64_t frame_addr) "env=%p frame_addr=0x%"PRIx64
+user_do_sigreturn(void *env, uint64_t frame_addr) "env=%p frame_addr=0x%"PRIx64
+user_force_sig(void *env, int target_sig, int host_sig) "env=%p signal %d (host %d)"
+user_handle_signal(void *env, int target_sig) "env=%p signal %d"
+user_host_signal(void *env, int host_sig, int target_sig) "env=%p signal %d (target %d("
+user_queue_signal(void *env, int target_sig) "env=%p signal %d"
+user_s390x_restore_sigregs(void *env, uint64_t sc_psw_addr, uint64_t env_psw_addr) "env=%p frame psw.addr 0x%"PRIx64 " current psw.addr 0x%"PRIx64
+
+# mmap.c
+target_mprotect(uint64_t start, uint64_t len, int flags) "start=0x%"PRIx64 " len=0x%"PRIx64 " prot=0x%x"
+target_mmap(uint64_t start, uint64_t len, int pflags, int mflags, int fd, uint64_t offset) "start=0x%"PRIx64 " len=0x%"PRIx64 " prot=0x%x flags=0x%x fd=%d offset=0x%"PRIx64
+target_mmap_complete(uint64_t retaddr) "retaddr=0x%"PRIx64
+target_munmap(uint64_t start, uint64_t len) "start=0x%"PRIx64" len=0x%"PRIx64
+# loader.c
+loader_write_rom(const char *name, uint64_t gpa, uint64_t size, bool isrom) "%s: @0x%"PRIx64" size=0x%"PRIx64" ROM=%d"
+
+# qdev.c
+qdev_reset(void *obj, const char *objtype) "obj=%p(%s)"
+qdev_reset_all(void *obj, const char *objtype) "obj=%p(%s)"
+qdev_reset_tree(void *obj, const char *objtype) "obj=%p(%s)"
+qbus_reset(void *obj, const char *objtype) "obj=%p(%s)"
+qbus_reset_all(void *obj, const char *objtype) "obj=%p(%s)"
+qbus_reset_tree(void *obj, const char *objtype) "obj=%p(%s)"
+qdev_update_parent_bus(void *obj, const char *objtype, void *oldp, const char *oldptype, void *newp, const char *newptype) "obj=%p(%s) old_parent=%p(%s) new_parent=%p(%s)"
+
+# resettable.c
+resettable_reset(void *obj, int cold) "obj=%p cold=%d"
+resettable_reset_assert_begin(void *obj, int cold) "obj=%p cold=%d"
+resettable_reset_assert_end(void *obj) "obj=%p"
+resettable_reset_release_begin(void *obj, int cold) "obj=%p cold=%d"
+resettable_reset_release_end(void *obj) "obj=%p"
+resettable_change_parent(void *obj, void *o, unsigned oc, void *n, unsigned nc) "obj=%p from=%p(%d) to=%p(%d)"
+resettable_phase_enter_begin(void *obj, const char *objtype, unsigned count, int type) "obj=%p(%s) count=%d type=%d"
+resettable_phase_enter_exec(void *obj, const char *objtype, int type, int has_method) "obj=%p(%s) type=%d method=%d"
+resettable_phase_enter_end(void *obj, const char *objtype, unsigned count) "obj=%p(%s) count=%d"
+resettable_phase_hold_begin(void *obj, const char *objtype, unsigned count, int type) "obj=%p(%s) count=%d type=%d"
+resettable_phase_hold_exec(void *obj, const char *objtype, int has_method) "obj=%p(%s) method=%d"
+resettable_phase_hold_end(void *obj, const char *objtype, unsigned count) "obj=%p(%s) count=%d"
+resettable_phase_exit_begin(void *obj, const char *objtype, unsigned count, int type) "obj=%p(%s) count=%d type=%d"
+resettable_phase_exit_exec(void *obj, const char *objtype, int has_method) "obj=%p(%s) method=%d"
+resettable_phase_exit_end(void *obj, const char *objtype, unsigned count) "obj=%p(%s) count=%d"
+resettable_transitional_function(void *obj, const char *objtype) "obj=%p(%s)"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# jazz_led.c
+jazz_led_read(uint64_t addr, uint8_t val) "read addr=0x%"PRIx64": 0x%x"
+jazz_led_write(uint64_t addr, uint8_t new) "write addr=0x%"PRIx64": 0x%x"
+
+# xenfb.c
+xenfb_mouse_event(void *opaque, int dx, int dy, int dz, int button_state, int abs_pointer_wanted) "%p x %d y %d z %d bs 0x%x abs %d"
+xenfb_key_event(void *opaque, int scancode, int button_state) "%p scancode %d bs 0x%x"
+xenfb_input_connected(void *xendev, int abs_pointer_wanted) "%p abs %d"
+
+# g364fb.c
+g364fb_read(uint64_t addr, uint32_t val) "read addr=0x%"PRIx64": 0x%x"
+g364fb_write(uint64_t addr, uint32_t new) "write addr=0x%"PRIx64": 0x%x"
+
+# milkymist-tmu2.c
+milkymist_tmu2_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+milkymist_tmu2_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+milkymist_tmu2_start(void) "Start TMU"
+milkymist_tmu2_pulse_irq(void) "Pulse IRQ"
+
+# milkymist-vgafb.c
+milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+
+# vmware_vga.c
+vmware_value_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_value_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_palette_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_scratch_write(uint32_t index, uint32_t value) "index %d, value 0x%x"
+vmware_setmode(uint32_t w, uint32_t h, uint32_t bpp) "%dx%d @ %d bpp"
+
+# virtio-gpu-3d.c
+# virtio-gpu.c
+virtio_gpu_features(bool virgl) "virgl %d"
+virtio_gpu_cmd_get_display_info(void) ""
+virtio_gpu_cmd_get_edid(uint32_t scanout) "scanout %d"
+virtio_gpu_cmd_set_scanout(uint32_t id, uint32_t res, uint32_t w, uint32_t h, uint32_t x, uint32_t y) "id %d, res 0x%x, w %d, h %d, x %d, y %d"
+virtio_gpu_cmd_res_create_2d(uint32_t res, uint32_t fmt, uint32_t w, uint32_t h) "res 0x%x, fmt 0x%x, w %d, h %d"
+virtio_gpu_cmd_res_create_3d(uint32_t res, uint32_t fmt, uint32_t w, uint32_t h, uint32_t d) "res 0x%x, fmt 0x%x, w %d, h %d, d %d"
+virtio_gpu_cmd_res_unref(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_back_attach(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_back_detach(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_xfer_toh_2d(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_xfer_toh_3d(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_xfer_fromh_3d(uint32_t res) "res 0x%x"
+virtio_gpu_cmd_res_flush(uint32_t res, uint32_t w, uint32_t h, uint32_t x, uint32_t y) "res 0x%x, w %d, h %d, x %d, y %d"
+virtio_gpu_cmd_ctx_create(uint32_t ctx, const char *name) "ctx 0x%x, name %s"
+virtio_gpu_cmd_ctx_destroy(uint32_t ctx) "ctx 0x%x"
+virtio_gpu_cmd_ctx_res_attach(uint32_t ctx, uint32_t res) "ctx 0x%x, res 0x%x"
+virtio_gpu_cmd_ctx_res_detach(uint32_t ctx, uint32_t res) "ctx 0x%x, res 0x%x"
+virtio_gpu_cmd_ctx_submit(uint32_t ctx, uint32_t size) "ctx 0x%x, size %d"
+virtio_gpu_update_cursor(uint32_t scanout, uint32_t x, uint32_t y, const char *type, uint32_t res) "scanout %d, x %d, y %d, %s, res 0x%x"
+virtio_gpu_fence_ctrl(uint64_t fence, uint32_t type) "fence 0x%" PRIx64 ", type 0x%x"
+virtio_gpu_fence_resp(uint64_t fence) "fence 0x%" PRIx64
+
+# qxl.c
+disable qxl_interface_set_mm_time(int qid, uint32_t mm_time) "%d %d"
+disable qxl_io_write_vga(int qid, const char *mode, uint32_t addr, uint32_t val) "%d %s addr=%u val=%u"
+qxl_create_guest_primary(int qid, uint32_t width, uint32_t height, uint64_t mem, uint32_t format, uint32_t position) "%d %ux%u mem=0x%" PRIx64 " %u,%u"
+qxl_create_guest_primary_rest(int qid, int32_t stride, uint32_t type, uint32_t flags) "%d %d,%d,%d"
+qxl_destroy_primary(int qid) "%d"
+qxl_enter_vga_mode(int qid) "%d"
+qxl_exit_vga_mode(int qid) "%d"
+qxl_hard_reset(int qid, int64_t loadvm) "%d loadvm=%"PRId64
+qxl_interface_async_complete_io(int qid, uint32_t current_async, void *cookie) "%d current=%d cookie=%p"
+qxl_interface_attach_worker(int qid) "%d"
+qxl_interface_get_init_info(int qid) "%d"
+qxl_interface_set_compression_level(int qid, int64_t level) "%d %"PRId64
+qxl_interface_update_area_complete(int qid, uint32_t surface_id, uint32_t dirty_left, uint32_t dirty_right, uint32_t dirty_top, uint32_t dirty_bottom) "%d surface=%d [%d,%d,%d,%d]"
+qxl_interface_update_area_complete_rest(int qid, uint32_t num_updated_rects) "%d #=%d"
+qxl_interface_update_area_complete_overflow(int qid, int max) "%d max=%d"
+qxl_interface_update_area_complete_schedule_bh(int qid, uint32_t num_dirty) "%d #dirty=%d"
+qxl_io_destroy_primary_ignored(int qid, const char *mode) "%d %s"
+qxl_io_log(int qid, const char *log_buf) "%d %s"
+qxl_io_read_unexpected(int qid) "%d"
+qxl_io_unexpected_vga_mode(int qid, uint64_t addr, uint64_t val, const char *desc) "%d 0x%"PRIx64"=%"PRIu64" (%s)"
+qxl_io_write(int qid, const char *mode, uint64_t addr, const char *aname, uint64_t val, unsigned size, int async) "%d %s addr=%"PRIu64 " (%s) val=%"PRIu64" size=%u async=%d"
+qxl_memslot_add_guest(int qid, uint32_t slot_id, uint64_t guest_start, uint64_t guest_end) "%d %u: guest phys 0x%"PRIx64 " - 0x%" PRIx64
+qxl_post_load(int qid, const char *mode) "%d %s"
+qxl_pre_load(int qid) "%d"
+qxl_pre_save(int qid) "%d"
+qxl_reset_surfaces(int qid) "%d"
+qxl_ring_command_check(int qid, const char *mode) "%d %s"
+qxl_ring_command_get(int qid, const char *mode) "%d %s"
+qxl_ring_command_req_notification(int qid) "%d"
+qxl_ring_cursor_check(int qid, const char *mode) "%d %s"
+qxl_ring_cursor_get(int qid, const char *mode) "%d %s"
+qxl_ring_cursor_req_notification(int qid) "%d"
+qxl_ring_res_push(int qid, const char *mode, uint32_t surface_count, uint32_t free_res, void *last_release, const char *notify) "%d %s s#=%d res#=%d last=%p notify=%s"
+qxl_ring_res_push_rest(int qid, uint32_t ring_has, uint32_t ring_size, uint32_t prod, uint32_t cons) "%d ring %d/%d [%d,%d]"
+qxl_ring_res_put(int qid, uint32_t free_res) "%d #res=%d"
+qxl_set_mode(int qid, int modenr, uint32_t x_res, uint32_t y_res, uint32_t bits, uint64_t devmem) "%d mode=%d [ x=%d y=%d @ bpp=%d devmem=0x%" PRIx64 " ]"
+qxl_soft_reset(int qid) "%d"
+qxl_spice_destroy_surfaces_complete(int qid) "%d"
+qxl_spice_destroy_surfaces(int qid, int async) "%d async=%d"
+qxl_spice_destroy_surface_wait_complete(int qid, uint32_t id) "%d sid=%d"
+qxl_spice_destroy_surface_wait(int qid, uint32_t id, int async) "%d sid=%d async=%d"
+qxl_spice_flush_surfaces_async(int qid, uint32_t surface_count, uint32_t num_free_res) "%d s#=%d, res#=%d"
+qxl_spice_monitors_config(int qid) "%d"
+qxl_spice_loadvm_commands(int qid, void *ext, uint32_t count) "%d ext=%p count=%d"
+qxl_spice_oom(int qid) "%d"
+qxl_spice_reset_cursor(int qid) "%d"
+qxl_spice_reset_image_cache(int qid) "%d"
+qxl_spice_reset_memslots(int qid) "%d"
+qxl_spice_update_area(int qid, uint32_t surface_id, uint32_t left, uint32_t right, uint32_t top, uint32_t bottom) "%d sid=%d [%d,%d,%d,%d]"
+qxl_spice_update_area_rest(int qid, uint32_t num_dirty_rects, uint32_t clear_dirty_region) "%d #d=%d clear=%d"
+qxl_surfaces_dirty(int qid, uint64_t offset, uint64_t size) "%d offset=0x%"PRIx64" size=0x%"PRIx64
+qxl_send_events(int qid, uint32_t events) "%d %d"
+qxl_send_events_vm_stopped(int qid, uint32_t events) "%d %d"
+qxl_set_guest_bug(int qid) "%d"
+qxl_interrupt_client_monitors_config(int qid, int num_heads, void *heads) "%d %d %p"
+qxl_client_monitors_config_unsupported_by_guest(int qid, uint32_t int_mask, void *client_monitors_config) "%d 0x%X %p"
+qxl_client_monitors_config_unsupported_by_device(int qid, int revision) "%d revision=%d"
+qxl_client_monitors_config_capped(int qid, int requested, int limit) "%d %d %d"
+qxl_client_monitors_config_crc(int qid, unsigned size, uint32_t crc32) "%d %u %u"
+qxl_set_client_capabilities_unsupported_by_revision(int qid, int revision) "%d revision=%d"
+
+# qxl-render.c
+qxl_render_blit(int32_t stride, int32_t left, int32_t right, int32_t top, int32_t bottom) "stride=%d [%d, %d, %d, %d]"
+qxl_render_guest_primary_resized(int32_t width, int32_t height, int32_t stride, int32_t bytes_pp, int32_t bits_pp) "%dx%d, stride %d, bpp %d, depth %d"
+qxl_render_update_area_done(void *cookie) "%p"
+
+# vga.c
+vga_std_read_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_std_write_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_vbe_read(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+vga_vbe_write(uint32_t index, uint32_t val) "index 0x%x, val 0x%x"
+
+# cirrus_vga.c
+vga_cirrus_read_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_cirrus_write_io(uint32_t addr, uint32_t val) "addr 0x%x, val 0x%x"
+vga_cirrus_write_blt(uint32_t offset, uint32_t val) "offset 0x%x, val 0x%x"
+
+# sii9022.c
+sii9022_read_reg(uint8_t addr, uint8_t val) "addr 0x%02x, val 0x%02x"
+sii9022_write_reg(uint8_t addr, uint8_t val) "addr 0x%02x, val 0x%02x"
+sii9022_switch_mode(const char *mode) "mode: %s"
+
+# ati.c
+ati_mm_read(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 " %s -> 0x%"PRIx64
+ati_mm_write(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 " %s <- 0x%"PRIx64
+
+# artist.c
+artist_reg_read(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 "%s -> 0x%"PRIx64
+artist_reg_write(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 "%s <- 0x%"PRIx64
+artist_vram_read(unsigned int size, uint64_t addr, int posx, int posy, uint64_t val) "%u 0x%"PRIx64 " %ux%u-> 0x%"PRIx64
+artist_vram_write(unsigned int size, uint64_t addr, uint64_t val) "%u 0x%"PRIx64 " <- 0x%"PRIx64
+artist_fill_window(unsigned int start_x, unsigned int start_y, unsigned int width, unsigned int height, uint32_t op, uint32_t ctlpln) "start=%ux%u length=%ux%u op=0x%08x ctlpln=0x%08x"
+artist_block_move(unsigned int start_x, unsigned int start_y, unsigned int dest_x, unsigned int dest_y, unsigned int width, unsigned int height) "source %ux%u -> dest %ux%u size %ux%u"
+artist_draw_line(unsigned int start_x, unsigned int start_y, unsigned int end_x, unsigned int end_y) "%ux%u %ux%u"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# qapi-visit-core.c
+visit_free(void *v) "v=%p"
+visit_complete(void *v, void *opaque) "v=%p opaque=%p"
+
+visit_start_struct(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
+visit_check_struct(void *v) "v=%p"
+visit_end_struct(void *v, void *obj) "v=%p obj=%p"
+
+visit_start_list(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
+visit_next_list(void *v, void *tail, size_t size) "v=%p tail=%p size=%zu"
+visit_check_list(void *v) "v=%p"
+visit_end_list(void *v, void *obj) "v=%p obj=%p"
+
+visit_start_alternate(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
+visit_end_alternate(void *v, void *obj) "v=%p obj=%p"
+
+visit_optional(void *v, const char *name, bool *present) "v=%p name=%s present=%p"
+
+visit_type_enum(void *v, const char *name, int *obj) "v=%p name=%s obj=%p"
+visit_type_int(void *v, const char *name, int64_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint8(void *v, const char *name, uint8_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint16(void *v, const char *name, uint16_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint32(void *v, const char *name, uint32_t *obj) "v=%p name=%s obj=%p"
+visit_type_uint64(void *v, const char *name, uint64_t *obj) "v=%p name=%s obj=%p"
+visit_type_int8(void *v, const char *name, int8_t *obj) "v=%p name=%s obj=%p"
+visit_type_int16(void *v, const char *name, int16_t *obj) "v=%p name=%s obj=%p"
+visit_type_int32(void *v, const char *name, int32_t *obj) "v=%p name=%s obj=%p"
+visit_type_int64(void *v, const char *name, int64_t *obj) "v=%p name=%s obj=%p"
+visit_type_size(void *v, const char *name, uint64_t *obj) "v=%p name=%s obj=%p"
+visit_type_bool(void *v, const char *name, bool *obj) "v=%p name=%s obj=%p"
+visit_type_str(void *v, const char *name, char **obj) "v=%p name=%s obj=%p"
+visit_type_number(void *v, const char *name, void *obj) "v=%p name=%s obj=%p"
+visit_type_any(void *v, const char *name, void *obj) "v=%p name=%s obj=%p"
+visit_type_null(void *v, const char *name, void *obj) "v=%p name=%s obj=%p"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# object.c
+object_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"
+object_class_dynamic_cast_assert(const char *type, const char *target, const char *file, int line, const char *func) "%s->%s (%s:%d:%s)"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# helper.c
+arm_gt_recalc(int timer, int irqstate, uint64_t nexttick) "gt recalc: timer %d irqstate %d next tick 0x%" PRIx64
+arm_gt_recalc_disabled(int timer) "gt recalc: timer %d irqstate 0 timer disabled"
+arm_gt_cval_write(int timer, uint64_t value) "gt_cval_write: timer %d value 0x%" PRIx64
+arm_gt_tval_write(int timer, uint64_t value) "gt_tval_write: timer %d value 0x%" PRIx64
+arm_gt_ctl_write(int timer, uint64_t value) "gt_ctl_write: timer %d value 0x%" PRIx64
+arm_gt_imask_toggle(int timer, int irqstate) "gt_ctl_write: timer %d IMASK toggle, new irqstate %d"
+arm_gt_cntvoff_write(uint64_t value) "gt_cntvoff_write: value 0x%" PRIx64
+
+# kvm.c
+kvm_arm_fixup_msi_route(uint64_t iova, uint64_t gpa) "MSI iova = 0x%"PRIx64" is translated into 0x%"PRIx64
+# See docs/devel/tracing.txt for syntax documentation.
+
+# mem_helper.c
+disable hppa_tlb_flush_ent(void *env, void *ent, uint64_t va_b, uint64_t va_e, uint64_t pa) "env=%p ent=%p va_b=0x%lx va_e=0x%lx pa=0x%lx"
+disable hppa_tlb_find_entry(void *env, void *ent, int valid, uint64_t va_b, uint64_t va_e, uint64_t pa) "env=%p ent=%p valid=%d va_b=0x%lx va_e=0x%lx pa=0x%lx"
+disable hppa_tlb_find_entry_not_found(void *env, uint64_t addr) "env=%p addr=%08lx"
+disable hppa_tlb_get_physical_address(void *env, int ret, int prot, uint64_t addr, uint64_t phys) "env=%p ret=%d prot=%d addr=0x%lx phys=0x%lx"
+disable hppa_tlb_fill_excp(void *env, uint64_t addr, int size, int type, int mmu_idx) "env=%p addr=0x%lx size=%d type=%d mmu_idx=%d"
+disable hppa_tlb_fill_success(void *env, uint64_t addr, uint64_t phys, int size, int type, int mmu_idx) "env=%p addr=0x%lx phys=0x%lx size=%d type=%d mmu_idx=%d"
+disable hppa_tlb_itlba(void *env, void *ent, uint64_t va_b, uint64_t va_e, uint64_t pa) "env=%p ent=%p va_b=0x%lx va_e=0x%lx pa=0x%lx"
+disable hppa_tlb_itlbp(void *env, void *ent, int access_id, int u, int pl2, int pl1, int type, int b, int d, int t) "env=%p ent=%p access_id=%x u=%d pl2=%d pl1=%d type=%d b=%d d=%d t=%d"
+disable hppa_tlb_ptlb(void *env) "env=%p"
+disable hppa_tlb_ptlbe(void *env) "env=%p"
+disable hppa_tlb_lpa_success(void *env, uint64_t addr, uint64_t phys) "env=%p addr=0x%lx phys=0x%lx"
+disable hppa_tlb_lpa_failed(void *env, uint64_t addr) "env=%p addr=0x%lx"
+
+# op_helper.c
+disable hppa_tlb_probe(uint64_t addr, int level, int want) "addr=0x%lx level=%d want=%d"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# kvm.c
+kvm_x86_fixup_msi_error(uint32_t gsi) "VT-d failed to remap interrupt for GSI %" PRIu32
+kvm_x86_add_msi_route(int virq) "Adding route entry for virq %d"
+kvm_x86_remove_msi_route(int virq) "Removing route entry for virq %d"
+kvm_x86_update_msi_routes(int num) "Updated %d MSI routes"
+
+# sev.c
+kvm_sev_init(void) ""
+kvm_memcrypt_register_region(void *addr, size_t len) "addr %p len 0x%zu"
+kvm_memcrypt_unregister_region(void *addr, size_t len) "addr %p len 0x%zu"
+kvm_sev_change_state(const char *old, const char *new) "%s -> %s"
+kvm_sev_launch_start(int policy, void *session, void *pdh) "policy 0x%x session %p pdh %p"
+kvm_sev_launch_update_data(void *addr, uint64_t len) "addr %p len 0x%" PRIu64
+kvm_sev_launch_measurement(const char *value) "data %s"
+kvm_sev_launch_finish(void) ""
+# See docs/devel/tracing.txt for syntax documentation.
+
+# translate.c
+mips_translate_c0(const char *instr, const char *rn, int reg, int sel) "%s %s (reg %d sel %d)"
+mips_translate_tr(const char *instr, int rt, int u, int sel, int h) "%s (reg %d u %d sel %d h %d)"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# kvm.c
+kvm_failed_spr_set(int spr, const char *msg) "Warning: Unable to set SPR %d to KVM: %s"
+kvm_failed_spr_get(int spr, const char *msg) "Warning: Unable to retrieve SPR %d from KVM: %s"
+kvm_failed_fpscr_set(const char *msg) "Unable to set FPSCR to KVM: %s"
+kvm_failed_fp_set(const char *fpname, int fpnum, const char *msg) "Unable to set %s%d to KVM: %s"
+kvm_failed_vscr_set(const char *msg) "Unable to set VSCR to KVM: %s"
+kvm_failed_vr_set(int vr, const char *msg) "Unable to set VR%d to KVM: %s"
+kvm_failed_fpscr_get(const char *msg) "Unable to get FPSCR from KVM: %s"
+kvm_failed_fp_get(const char *fpname, int fpnum, const char *msg) "Unable to get %s%d from KVM: %s"
+kvm_failed_vscr_get(const char *msg) "Unable to get VSCR from KVM: %s"
+kvm_failed_vr_get(int vr, const char *msg) "Unable to get VR%d from KVM: %s"
+kvm_failed_vpa_addr_get(const char *msg) "Unable to get VPA address from KVM: %s"
+kvm_failed_slb_get(const char *msg) "Unable to get SLB shadow state from KVM: %s"
+kvm_failed_dtl_get(const char *msg) "Unable to get dispatch trace log state from KVM: %s"
+kvm_failed_vpa_addr_set(const char *msg) "Unable to set VPA address to KVM: %s"
+kvm_failed_slb_set(const char *msg) "Unable to set SLB shadow state to KVM: %s"
+kvm_failed_dtl_set(const char *msg) "Unable to set dispatch trace log state to KVM: %s"
+kvm_failed_null_vpa_addr_set(const char *msg) "Unable to set VPA address to KVM: %s"
+kvm_failed_put_vpa(void) "Warning: Unable to set VPA information to KVM"
+kvm_failed_get_vpa(void) "Warning: Unable to get VPA information from KVM"
+kvm_injected_interrupt(int irq) "injected interrupt %d"
+kvm_handle_dcr_write(void) "handle dcr write"
+kvm_handle_dcr_read(void) "handle dcr read"
+kvm_handle_halt(void) "handle halt"
+kvm_handle_papr_hcall(void) "handle PAPR hypercall"
+kvm_handle_epr(void) "handle epr"
+kvm_handle_watchdog_expiry(void) "handle watchdog expiry"
+kvm_handle_debug_exception(void) "handle debug exception"
+kvm_handle_nmi_exception(void) "handle NMI exception"
+# target/riscv/cpu_helper.c
+riscv_trap(uint64_t hartid, bool async, uint64_t cause, uint64_t epc, uint64_t tval, const char *desc) "hart:%"PRId64", async:%d, cause:%"PRId64", epc:0x%"PRIx64", tval:0x%"PRIx64", desc=%s"
+
+# pmp.c
+pmpcfg_csr_read(uint64_t mhartid, uint32_t reg_index, uint64_t val) "hart %" PRIu64 ": read reg%" PRIu32", val: 0x%" PRIx64
+pmpcfg_csr_write(uint64_t mhartid, uint32_t reg_index, uint64_t val) "hart %" PRIu64 ": write reg%" PRIu32", val: 0x%" PRIx64
+pmpaddr_csr_read(uint64_t mhartid, uint32_t addr_index, uint64_t val) "hart %" PRIu64 ": read addr%" PRIu32", val: 0x%" PRIx64
+pmpaddr_csr_write(uint64_t mhartid, uint32_t addr_index, uint64_t val) "hart %" PRIu64 ": write addr%" PRIu32", val: 0x%" PRIx64
+# See docs/devel/tracing.txt for syntax documentation.
+
+# mmu_helper.c
+get_skeys_nonzero(int rc) "SKEY: Call to get_skeys unexpectedly returned %d"
+set_skeys_nonzero(int rc) "SKEY: Call to set_skeys unexpectedly returned %d"
+
+# ioinst.c
+ioinst(const char *insn) "IOINST: %s"
+ioinst_sch_id(const char *insn, int cssid, int ssid, int schid) "IOINST: %s (%x.%x.%04x)"
+ioinst_chp_id(const char *insn, int cssid, int chpid) "IOINST: %s (%x.%02x)"
+ioinst_chsc_cmd(uint16_t cmd, uint16_t len) "IOINST: chsc command 0x%04x, len 0x%04x"
+
+# kvm.c
+kvm_enable_cmma(int rc) "CMMA: enabling with result code %d"
+kvm_clear_cmma(int rc) "CMMA: clearing with result code %d"
+kvm_failed_cpu_state_set(int cpu_index, uint8_t state, const char *msg) "Warning: Unable to set cpu %d state %" PRIu8 " to KVM: %s"
+kvm_assign_subch_ioeventfd(int fd, uint32_t addr, bool assign, int datamatch) "fd: %d sch: @0x%x assign: %d vq: %d"
+
+# cpu.c
+cpu_set_state(int cpu_index, uint8_t state) "setting cpu %d state to %" PRIu8
+cpu_halt(int cpu_index) "halting cpu %d"
+cpu_unhalt(int cpu_index) "unhalting cpu %d"
+
+# sigp.c
+sigp_finished(uint8_t order, int cpu_index, int dst_index, int cc) "SIGP: Finished order %u on cpu %d -> cpu %d with cc=%d"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# mmu_helper.c
+mmu_helper_dfault(uint64_t address, uint64_t context, int mmu_idx, uint32_t tl) "DFAULT at 0x%"PRIx64" context 0x%"PRIx64" mmu_idx=%d tl=%d"
+mmu_helper_dprot(uint64_t address, uint64_t context, int mmu_idx, uint32_t tl) "DPROT at 0x%"PRIx64" context 0x%"PRIx64" mmu_idx=%d tl=%d"
+mmu_helper_dmiss(uint64_t address, uint64_t context) "DMISS at 0x%"PRIx64" context 0x%"PRIx64
+mmu_helper_tfault(uint64_t address, uint64_t context) "TFAULT at 0x%"PRIx64" context 0x%"PRIx64
+mmu_helper_tmiss(uint64_t address, uint64_t context) "TMISS at 0x%"PRIx64" context 0x%"PRIx64
+mmu_helper_get_phys_addr_code(uint32_t tl, int mmu_idx, uint64_t prim_context, uint64_t sec_context, uint64_t address) "tl=%d mmu_idx=%d primary context=0x%"PRIx64" secondary context=0x%"PRIx64" address=0x%"PRIx64
+mmu_helper_get_phys_addr_data(uint32_t tl, int mmu_idx, uint64_t prim_context, uint64_t sec_context, uint64_t address) "tl=%d mmu_idx=%d primary context=0x%"PRIx64" secondary context=0x%"PRIx64" address=0x%"PRIx64
+mmu_helper_mmu_fault(uint64_t address, uint64_t paddr, int mmu_idx, uint32_t tl, uint64_t prim_context, uint64_t sec_context) "Translate at 0x%"PRIx64" -> 0x%"PRIx64", mmu_idx=%d tl=%d primary context=0x%"PRIx64" secondary context=0x%"PRIx64
+
+# int64_helper.c
+int_helper_set_softint(uint32_t softint) "new 0x%08x"
+int_helper_clear_softint(uint32_t softint) "new 0x%08x"
+int_helper_write_softint(uint32_t softint) "new 0x%08x"
+
+# int32_helper.c
+int_helper_icache_freeze(void) "Instruction cache: freeze"
+int_helper_dcache_freeze(void) "Data cache: freeze"
+
+# win_helper.c
+win_helper_gregset_error(uint32_t pstate) "ERROR in get_gregset: active pstate bits=0x%x"
+win_helper_switch_pstate(uint32_t pstate_regs, uint32_t new_pstate_regs) "change_pstate: switching regs old=0x%x new=0x%x"
+win_helper_no_switch_pstate(uint32_t new_pstate_regs) "change_pstate: regs new=0x%x (unchanged)"
+win_helper_wrpil(uint32_t psrpil, uint32_t new_pil) "old=0x%x new=0x%x"
+win_helper_done(uint32_t tl) "tl=%d"
+win_helper_retry(uint32_t tl) "tl=%d"
+# See docs/devel/tracing.txt for syntax documentation.
+
+# aio-posix.c
+run_poll_handlers_begin(void *ctx, int64_t max_ns, int64_t timeout) "ctx %p max_ns %"PRId64 " timeout %"PRId64
+run_poll_handlers_end(void *ctx, bool progress, int64_t timeout) "ctx %p progress %d new timeout %"PRId64
+poll_shrink(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
+poll_grow(void *ctx, int64_t old, int64_t new) "ctx %p old %"PRId64" new %"PRId64
+poll_add(void *ctx, void *node, int fd, unsigned revents) "ctx %p node %p fd %d revents 0x%x"
+poll_remove(void *ctx, void *node, int fd) "ctx %p node %p fd %d"
+
+# async.c
+aio_co_schedule(void *ctx, void *co) "ctx %p co %p"
+aio_co_schedule_bh_cb(void *ctx, void *co) "ctx %p co %p"
+
+# thread-pool.c
+thread_pool_submit(void *pool, void *req, void *opaque) "pool %p req %p opaque %p"
+thread_pool_complete(void *pool, void *req, void *opaque, int ret) "pool %p req %p opaque %p ret %d"
+thread_pool_cancel(void *req, void *opaque) "req %p opaque %p"
+
+# buffer.c
+buffer_resize(const char *buf, size_t olen, size_t len) "%s: old %zd, new %zd"
+buffer_move_empty(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
+buffer_free(const char *buf, size_t len) "%s: capacity %zd"
+
+# filemonitor-inotify.c
+qemu_file_monitor_add_watch(void *mon, const char *dirpath, const char *filename, void *cb, void *opaque, int64_t id) "File monitor %p add watch dir='%s' file='%s' cb=%p opaque=%p id=%" PRId64
+qemu_file_monitor_remove_watch(void *mon, const char *dirpath, int64_t id) "File monitor %p remove watch dir='%s' id=%" PRId64
+qemu_file_monitor_new(void *mon, int fd) "File monitor %p created fd=%d"
+qemu_file_monitor_enable_watch(void *mon, const char *dirpath, int id) "File monitor %p enable watch dir='%s' id=%u"
+qemu_file_monitor_disable_watch(void *mon, const char *dirpath, int id) "Fle monitor %p disable watch dir='%s' id=%u"
+qemu_file_monitor_event(void *mon, const char *dirpath, const char *filename, int mask, unsigned int id) "File monitor %p event dir='%s' file='%s' mask=0x%x id=%u"
+qemu_file_monitor_dispatch(void *mon, const char *dirpath, const char *filename, int ev, void *cb, void *opaque, int64_t id) "File monitor %p dispatch dir='%s' file='%s' ev=%d cb=%p opaque=%p id=%" PRId64
+
+# qemu-coroutine.c
+qemu_aio_coroutine_enter(void *ctx, void *from, void *to, void *opaque) "ctx %p from %p to %p opaque %p"
+qemu_coroutine_yield(void *from, void *to) "from %p to %p"
+qemu_coroutine_terminate(void *co) "self %p"
+
+# qemu-coroutine-lock.c
+qemu_co_mutex_lock_uncontended(void *mutex, void *self) "mutex %p self %p"
+qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
+qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
+qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
+qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
+
+# oslib-win32.c
+# oslib-posix.c
+qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
+qemu_anon_ram_alloc(size_t size, void *ptr) "size %zu ptr %p"
+qemu_vfree(void *ptr) "ptr %p"
+qemu_anon_ram_free(void *ptr, size_t size) "ptr %p size %zu"
+
+# hbitmap.c
+hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"
+hbitmap_reset(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
+hbitmap_set(void *hb, uint64_t start, uint64_t count, uint64_t sbit, uint64_t ebit) "hb %p items %"PRIu64",%"PRIu64" bits %"PRIu64"..%"PRIu64
+
+# lockcnt.c
+lockcnt_fast_path_attempt(const void *lockcnt, int expected, int new) "lockcnt %p fast path %d->%d"
+lockcnt_fast_path_success(const void *lockcnt, int expected, int new) "lockcnt %p fast path %d->%d succeeded"
+lockcnt_unlock_attempt(const void *lockcnt, int expected, int new) "lockcnt %p unlock %d->%d"
+lockcnt_unlock_success(const void *lockcnt, int expected, int new) "lockcnt %p unlock %d->%d succeeded"
+lockcnt_futex_wait_prepare(const void *lockcnt, int expected, int new) "lockcnt %p preparing slow path %d->%d"
+lockcnt_futex_wait(const void *lockcnt, int val) "lockcnt %p waiting on %d"
+lockcnt_futex_wait_resume(const void *lockcnt, int new) "lockcnt %p after wait: %d"
+lockcnt_futex_wake(const void *lockcnt) "lockcnt %p waking up one waiter"
+
+# qemu-sockets.c
+socket_listen(int num) "backlog: %d"
+
+# qemu-thread-common.h
+qemu_mutex_lock(void *mutex, const char *file, const int line) "waiting on mutex %p (%s:%d)"
+qemu_mutex_locked(void *mutex, const char *file, const int line) "taken mutex %p (%s:%d)"
+qemu_mutex_unlock(void *mutex, const char *file, const int line) "released mutex %p (%s:%d)"
+
+# vfio-helpers.c
+qemu_vfio_dma_reset_temporary(void *s) "s %p"
+qemu_vfio_ram_block_added(void *s, void *p, size_t size) "s %p host %p size 0x%zx"
+qemu_vfio_ram_block_removed(void *s, void *p, size_t size) "s %p host %p size 0x%zx"
+qemu_vfio_find_mapping(void *s, void *p) "s %p host %p"
+qemu_vfio_new_mapping(void *s, void *host, size_t size, int index, uint64_t iova) "s %p host %p size %zu index %d iova 0x%"PRIx64
+qemu_vfio_do_mapping(void *s, void *host, size_t size, uint64_t iova) "s %p host %p size %zu iova 0x%"PRIx64
+qemu_vfio_dma_map(void *s, void *host, size_t size, bool temporary, uint64_t *iova) "s %p host %p size %zu temporary %d iova %p"
+qemu_vfio_dma_unmap(void *s, void *host) "s %p host %p"

@@ -11,7 +11,8 @@ services:
     image: isard/hypervisor:${TAG:-latest}
     build:
       context: .
-      dockerfile: hyper/docker/Dockerfile    
+      dockerfile: hyper/docker/Dockerfile 
+    privileged: true   
     restart: unless-stopped
 
 networks:
