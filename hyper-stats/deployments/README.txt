@@ -1,1 +1,0 @@
-The deployment is located at ../hyper/deployments/hyper.yaml, since they both go to the same Pod

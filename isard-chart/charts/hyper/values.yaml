@@ -1,0 +1,6 @@
+imageRegistry: isard
+
+serviceType: ClusterIP
+
+portHyper: 1312
+portStats: 8080

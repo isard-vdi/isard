@@ -1,4 +1,14 @@
-FROM alpine:3.11.6 as build
+FROM golang:1.14-alpine as build-go
+
+RUN apk add --no-cache \
+	make
+
+COPY . /go/src/github.com/isard-vdi/isard/hyper
+WORKDIR /go/src/github.com/isard-vdi/isard/hyper
+
+RUN make build
+
+FROM alpine:3.11 as build-qemu
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache git \
@@ -13,18 +23,17 @@ RUN apk add --no-cache git \
 	zlib-dev zlib-static \
 	pixman-dev  \
 	# QXL
-	spice-dev \
+	spice-dev
 
 # Build QEMU
 RUN git clone git://git.qemu-project.org/qemu.git && \
 	cd qemu && \
 	mkdir -p bin/debug/native && \
 	cd bin/debug/native && \
-	../../../configure --target-list=x86_64-softmmu --enable-debug --disable-werror && \
-	--enable-spice && \
+	../../../configure --target-list=x86_64-softmmu --enable-debug --disable-werror --enable-spice && \
 	make -j8 install
 
-FROM alpine:3.11.6
+FROM alpine:3.11
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
@@ -99,7 +108,8 @@ RUN apk add --no-cache \
 	usbredir \
 	vde2-libs
 
-COPY --from=build /usr/local/ /usr/local/
+COPY --from=build-go /go/src/github.com/isard-vdi/isard/hyper/hyper /
+COPY --from=build-qemu /usr/local/ /usr/local/
 RUN ln -s /usr/local/bin/qemu-system-x86_64 /usr/libexec/qemu-kvm
 
 # Libvirt configuration and certs
@@ -112,9 +122,9 @@ RUN echo -e 'spice_listen = "0.0.0.0"\n \
 # Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
 
-COPY hyper/docker/checks/domain.xml /checks/
-COPY hyper/docker/auto-generate-certs.sh /
-COPY hyper/docker/run.sh /
+COPY build/package/checks/domain.xml /checks/
+COPY build/package/auto-generate-certs.sh /
+COPY build/package/run.sh /
 RUN chmod +x run.sh auto-generate-certs.sh
 
 CMD [ "sh", "run.sh"]

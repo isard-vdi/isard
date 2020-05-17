@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "hyper.fullname" . }}
+  labels:
+    {{- include "hyper.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.serviceType }}
+  ports:
+    - name: hyper
+      port: {{ .Values.portHyper }}
+    - name: hyper-stats
+      port: {{ .Values.portStats }}
+  selector:
+    {{- include "hyper.selectorLabels" . | nindent 4 }}

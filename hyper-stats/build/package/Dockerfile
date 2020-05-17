@@ -15,4 +15,4 @@ COPY --from=build /go/src/github.com/isard-vdi/isard/hyper-stats/hyper-stats /
 
 EXPOSE 8080
 
-CMD [ "/backend" ]
+CMD [ "/hyper-stats" ]

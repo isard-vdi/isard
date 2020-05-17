@@ -1,6 +1,8 @@
 package redis
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"os"
 	"time"
@@ -29,7 +31,8 @@ type HyperMsg struct {
 
 func Init(env *env.Env) {
 	env.Redis = redis.NewClient(&redis.Options{
-		Addr: fmt.Sprintf("%s:%d", env.Cfg.Redis.Host, env.Cfg.Redis.Port),
+		Addr:     fmt.Sprintf("%s:%d", env.Cfg.Redis.Host, env.Cfg.Redis.Port),
+		Password: env.Cfg.Redis.Password,
 	})
 
 	_, err := env.Redis.Ping().Result()
@@ -48,15 +51,27 @@ func keepAlive(env *env.Env) {
 
 	select {
 	case <-time.After(5 * time.Second):
-		if _, err := env.Redis.Publish(Channel, HyperMsg{
+		var buf bytes.Buffer
+		enc := gob.NewEncoder(&buf)
+		if err := enc.Encode(HyperMsg{
 			ID:    hostname,
 			State: HyperStateOK,
 			Time:  time.Now(),
-		}).Result(); err != nil {
+		}); err != nil {
+			env.Sugar.Errorw("encode hyper keepalive",
+				"err", err,
+			)
+			return
+		}
+
+		if _, err := env.Redis.Publish(Channel, buf.Bytes()).Result(); err != nil {
 			env.Sugar.Errorw("send hyper keepalive",
 				"err", err,
 			)
+			return
 		}
+
+		env.Sugar.Info("hyper keepalive sent")
 
 	case <-env.Ctx.Done():
 		if _, err := env.Redis.Publish(Channel, HyperMsg{
