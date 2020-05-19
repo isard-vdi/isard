@@ -1,9 +1,14 @@
 FROM golang:1.14-alpine as build-go
 
 RUN apk add --no-cache \
-	make
+	make \
+    git
 
-COPY . /go/src/github.com/isard-vdi/isard/hyper
+WORKDIR /go/src/github.com/isard-vdi/isard
+COPY ./go.mod ./go.sum /go/src/github.com/isard-vdi/isard/
+RUN go mod download
+
+COPY . /go/src/github.com/isard-vdi/isard
 WORKDIR /go/src/github.com/isard-vdi/isard/hyper
 
 RUN make build
@@ -122,9 +127,9 @@ RUN echo -e 'spice_listen = "0.0.0.0"\n \
 # Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
 
-COPY build/package/checks/domain.xml /checks/
-COPY build/package/auto-generate-certs.sh /
-COPY build/package/run.sh /
+COPY hyper/build/package/checks/domain.xml /checks/
+COPY hyper/build/package/auto-generate-certs.sh /
+COPY hyper/build/package/run.sh /
 RUN chmod +x run.sh auto-generate-certs.sh
 
 CMD [ "sh", "run.sh"]
