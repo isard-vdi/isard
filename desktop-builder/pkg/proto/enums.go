@@ -22,8 +22,11 @@ func GetXmlRequestDesktopOSTypeArchString(t GetXmlRequest_DesktopOS_DesktopOSTyp
 
 func GetXmlRequestDesktopOSTypeMachineString(t GetXmlRequest_DesktopOS_DesktopOSType_Machine) string {
 	switch t {
-	case GetXmlRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_PC_i44FX_4_2:
-		return "pc_i44FX_4.2"
+	case GetXmlRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_PC:
+		return "pc"
+
+	case GetXmlRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_Q35:
+		return "q35"
 
 	default:
 		return "unknown"
@@ -33,7 +36,7 @@ func GetXmlRequestDesktopOSTypeMachineString(t GetXmlRequest_DesktopOS_DesktopOS
 func GetXmlRequestDesktopOSTypeTypeString(t GetXmlRequest_DesktopOS_DesktopOSType_Type) string {
 	switch t {
 	case GetXmlRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_TYPE_HVM:
-		return "x86_64"
+		return "hvm"
 
 	default:
 		return "unknown"
@@ -63,6 +66,16 @@ func GetXmlRequestDesktopDeviceVideoModelTypeString(t GetXmlRequest_DesktopDevic
 	switch t {
 	case GetXmlRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL:
 		return "qxl"
+
+	default:
+		return "unknown"
+	}
+}
+
+func GetXmlRequestDesktopDeviceGraphicTypeString(t GetXmlRequest_DesktopDevices_DesktopDeviceGraphic_DesktopDeviceGraphicType) string {
+	switch t {
+	case GetXmlRequest_DesktopDevices_DesktopDeviceGraphic_DESKTOP_DEVICE_GRAPHIC_TYPE_SPICE:
+		return "spice"
 
 	default:
 		return "unknown"

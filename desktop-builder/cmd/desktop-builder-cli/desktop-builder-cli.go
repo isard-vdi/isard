@@ -16,42 +16,42 @@ func main() {
 
 	cli := proto.NewDesktopBuilderClient(conn)
 
-	_, err = cli.GetXml(context.Background(), &proto.DesktopStartRequest{
-		Type: proto.DesktopStartRequest_DESKTOP_TYPE_KVM,
+	_, err = cli.GetXml(context.Background(), &proto.GetXmlRequest{
+		Type: proto.GetXmlRequest_DESKTOP_TYPE_KVM,
 		Name: "test",
-		Os: &proto.DesktopStartRequest_DesktopOS{
-			Type: &proto.DesktopStartRequest_DesktopOS_DesktopOSType{
-				Arch: proto.DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_ARCH_X86_64,
-				Machine: proto.DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_PC_i44FX_4_2,
-				Type: proto.DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_TYPE_HVM,
+		Os: &proto.GetXmlRequest_DesktopOS{
+			Type: &proto.GetXmlRequest_DesktopOS_DesktopOSType{
+				Arch:    proto.GetXmlRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_ARCH_X86_64,
+				Machine: proto.GetXmlRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_Q35,
+				Type:    proto.GetXmlRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_TYPE_HVM,
 			},
 		},
-		Devices: &proto.DesktopStartRequest_DesktopDevices{
-			Input: []*proto.DesktopStartRequest_DesktopDevices_DesktopDeviceInput{
+		Devices: &proto.GetXmlRequest_DesktopDevices{
+			Input: []*proto.GetXmlRequest_DesktopDevices_DesktopDeviceInput{
 				{
-					Type: proto.DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_TYPE_KEYBOARD,
-					Bus: proto.DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_BUS_PS2,
+					Type: proto.GetXmlRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_TYPE_KEYBOARD,
+					Bus:  proto.GetXmlRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_BUS_PS2,
 				},
 			},
-			Graphic: []*proto.DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic{
-				{
-					Spice: true,
+			Graphic: []*proto.GetXmlRequest_DesktopDevices_DesktopDeviceGraphic{
+				{Type: proto.GetXmlRequest_DesktopDevices_DesktopDeviceGraphic_DESKTOP_DEVICE_GRAPHIC_TYPE_SPICE,
+					Listen: "0.0.0.0",
 				},
 			},
-			Video: []*proto.DesktopStartRequest_DesktopDevices_DesktopDeviceVideo{
+			Video: []*proto.GetXmlRequest_DesktopDevices_DesktopDeviceVideo{
 				{
-					Model: &proto.DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel{
-						Type: proto.DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL,
+					Model: &proto.GetXmlRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel{
+						Type: proto.GetXmlRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL,
 					},
 				},
 			},
 		},
-		Memory: &proto.DesktopStartRequest_DesktopMemory{
+		Memory: &proto.GetXmlRequest_DesktopMemory{
 			Value: 2,
-			Unit: "G",
+			Unit:  "G",
 		},
-		Vcpu: &proto.DesktopStartRequest_DesktopVCPU{
-			Num: 2,
+		Vcpu: &proto.GetXmlRequest_DesktopVCPU{
+			Num:       2,
 			Placement: "static",
 		},
 	})

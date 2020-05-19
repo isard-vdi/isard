@@ -4,8 +4,18 @@ package proto;
 option go_package = "github.com/isard-vdi/isard/desktop-builder/pkg/proto";
 
 service DesktopBuilder {
+    rpc GetXmlFromId(GetXmlFromIdRequest) returns (GetXmlFromIdResponse) {}
     rpc GetXml(GetXmlRequest) returns (GetXmlResponse) {}
     rpc GetViewer(GetViewerRequest) returns (GetViewerResponse) {}
+}
+
+message GetXmlFromIdRequest {
+    string xml = 1;
+    string id = 2;
+}
+
+message GetXmlFromIdResponse {
+    string xml = 1;
 }
 
 message GetXmlRequest {
@@ -24,7 +34,8 @@ message GetXmlRequest {
 
             enum Machine {
                 DESKTOP_OS_TYPE_MACHINE_UNKNOWN = 0;
-                DESKTOP_OS_TYPE_MACHINE_PC_i44FX_4_2 = 1;
+                DESKTOP_OS_TYPE_MACHINE_PC = 1;
+                DESKTOP_OS_TYPE_MACHINE_Q35 = 2;
             }
 
             enum Type {
@@ -57,7 +68,13 @@ message GetXmlRequest {
         }
 
         message DesktopDeviceGraphic {
-            bool spice = 1;
+            enum DesktopDeviceGraphicType {
+                DESKTOP_DEVICE_GRAPHIC_TYPE_UNKNOWN = 0;
+                DESKTOP_DEVICE_GRAPHIC_TYPE_SPICE = 1;
+            }
+
+            DesktopDeviceGraphicType type = 1;
+            string listen = 2;
         }
 
         message DesktopDeviceVideo {
@@ -73,9 +90,27 @@ message GetXmlRequest {
             DesktopDeviceVideoModel model = 1;
         }
 
+        message DesktopDeviceController {
+            enum DesktopDeviceControllerType {
+                DESKTOP_DEVICE_CONTROLLER_TYPE_UNKNOWN = 0;
+                DESKTOP_DEVICE_CONTROLLER_TYPE_PCI = 1;
+                DESKTOP_DEVICE_CONTROLLER_TYPE_PCIE = 2;
+            }
+
+            enum DesktopDeviceControllerModel {
+                DESKTOP_DEVICE_CONTROLLER_MODEL_UNKNOWN = 0;
+                DESKTOP_DEVICE_CONTROLLER_MODEL_PCIE_ROOT = 1;
+            }
+
+            DesktopDeviceControllerType type = 1;
+            int32 index = 2;
+            DesktopDeviceControllerModel model = 3;
+        }
+
         repeated DesktopDeviceInput input = 1;
         repeated DesktopDeviceGraphic graphic = 2;
         repeated DesktopDeviceVideo video = 3;
+        repeated DesktopDeviceController controller = 4;
     }
 
     message DesktopMemory {

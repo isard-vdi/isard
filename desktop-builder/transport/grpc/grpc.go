@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/isard-vdi/isard/DesktopBuilder/env"
-	"github.com/isard-vdi/isard/DesktopBuilder/pkg/proto"
+	"github.com/isard-vdi/isard/desktop-builder/env"
+	"github.com/isard-vdi/isard/desktop-builder/pkg/proto"
 
 	gRPC "google.golang.org/grpc"
 )

@@ -22,13 +22,11 @@ func (h *DesktopBuilderServer) GetXml(ctx context.Context, req *proto.GetXmlRequ
 
 	graphics := []libvirtxml.DomainGraphic{}
 	for _, g := range req.Devices.Graphic {
-		if g.Spice {
-			graphics = append(graphics, libvirtxml.DomainGraphic{
-				Spice: &libvirtxml.DomainGraphicSpice{
-					Listen: "0.0.0.0",
-				},
-			})
-		}
+		graphics = append(graphics, libvirtxml.DomainGraphic{
+			Spice: &libvirtxml.DomainGraphicSpice{
+				Listen: g.Listen,
+			},
+		})
 	}
 
 	videos := []libvirtxml.DomainVideo{}
