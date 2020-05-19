@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: disk-operations
+spec:
+  selector:
+    matchLabels:
+      app: disk-operations
+  template:
+    metadata:
+      labels:
+        app: disk-operations
+    spec:
+      containers:
+        - name: disk-operations
+          image: isard/disk-operations:2.0.0
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 1312
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: disk-operations
+spec:
+  selector:
+    app: disk-operations
+  ports:
+    - port: 1312
