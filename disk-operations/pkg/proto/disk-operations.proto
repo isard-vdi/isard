@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "github.com/isard-vdi/isard/disk-operations/pkg/proto";
+
+service DiskOperations {
+    rpc CreateDisk(CreateDiskRequest) returns (CreateDiskResponse) {}
+}
+
+message CreateDiskRequest {
+    string name = 1;
+    int64 size = 2;
+}
+
+message CreateDiskResponse {
+    bool result = 1;
+}
