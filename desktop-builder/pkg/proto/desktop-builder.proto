@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "github.com/isard-vdi/isard/desktop-builder/pkg/proto";
+
+service DesktopBuilder {
+    rpc GetXmlFromId(GetXmlFromIdRequest) returns (GetXmlFromIdResponse) {}
+    rpc GetXml(GetXmlRequest) returns (GetXmlResponse) {}
+    rpc GetViewer(GetViewerRequest) returns (GetViewerResponse) {}
+}
+
+message GetXmlFromIdRequest {
+    string xml = 1;
+    string id = 2;
+}
+
+message GetXmlFromIdResponse {
+    string xml = 1;
+}
+
+message GetXmlRequest {
+    enum DesktopType {
+        DESKTOP_TYPE_UNKNOWN = 0;
+        DESKTOP_TYPE_KVM = 1;
+        // TODO: Add the rest of the desktop-buildervisor drivers
+    }
+
+    message DesktopOS {
+        message DesktopOSType {
+            enum Arch {
+                DESKTOP_OS_TYPE_ARCH_UNKNOWN = 0;
+                DESKTOP_OS_TYPE_ARCH_X86_64 = 1;
+            }
+
+            enum Machine {
+                DESKTOP_OS_TYPE_MACHINE_UNKNOWN = 0;
+                DESKTOP_OS_TYPE_MACHINE_PC = 1;
+                DESKTOP_OS_TYPE_MACHINE_Q35 = 2;
+            }
+
+            enum Type {
+                DESKTOP_OS_TYPE_TYPE_UNKNOWN = 0;
+                DESKTOP_OS_TYPE_TYPE_HVM = 1;
+            }
+
+            Arch arch = 1;
+            Machine machine = 2;
+            Type type = 3;
+        }
+
+        DesktopOSType type = 1;
+    }
+
+    message DesktopDevices {
+        message DesktopDeviceInput {
+            enum DesktopDeviceInputType {
+                DESKTOP_DEVICE_INPUT_TYPE_UNKNOWN = 0;
+                DESKTOP_DEVICE_INPUT_TYPE_KEYBOARD = 1;
+            }
+
+            enum DesktopDeviceInputBus {
+                DESKTOP_DEVICE_INPUT_BUS_UNKNOWN = 0;
+                DESKTOP_DEVICE_INPUT_BUS_PS2 = 1;
+            }
+
+            DesktopDeviceInputType type = 1;
+            DesktopDeviceInputBus bus = 2;
+        }
+
+        message DesktopDeviceGraphic {
+            enum DesktopDeviceGraphicType {
+                DESKTOP_DEVICE_GRAPHIC_TYPE_UNKNOWN = 0;
+                DESKTOP_DEVICE_GRAPHIC_TYPE_SPICE = 1;
+            }
+
+            DesktopDeviceGraphicType type = 1;
+            string listen = 2;
+        }
+
+        message DesktopDeviceVideo {
+            message DesktopDeviceVideoModel {
+                enum DesktopDeviceVideoModelType {
+                    DESKTOP_DEVICE_VIDEO_MODEL_TYPE_UNKNOWN = 0;
+                    DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL = 1;
+                }
+
+                DesktopDeviceVideoModelType type = 1;
+            }
+
+            DesktopDeviceVideoModel model = 1;
+        }
+
+        message DesktopDeviceController {
+            enum DesktopDeviceControllerType {
+                DESKTOP_DEVICE_CONTROLLER_TYPE_UNKNOWN = 0;
+                DESKTOP_DEVICE_CONTROLLER_TYPE_PCI = 1;
+                DESKTOP_DEVICE_CONTROLLER_TYPE_PCIE = 2;
+            }
+
+            enum DesktopDeviceControllerModel {
+                DESKTOP_DEVICE_CONTROLLER_MODEL_UNKNOWN = 0;
+                DESKTOP_DEVICE_CONTROLLER_MODEL_PCIE_ROOT = 1;
+            }
+
+            DesktopDeviceControllerType type = 1;
+            int32 index = 2;
+            DesktopDeviceControllerModel model = 3;
+        }
+
+        repeated DesktopDeviceInput input = 1;
+        repeated DesktopDeviceGraphic graphic = 2;
+        repeated DesktopDeviceVideo video = 3;
+        repeated DesktopDeviceController controller = 4;
+    }
+
+    message DesktopMemory {
+        int32 value = 1;
+        string unit = 2;
+    }
+
+    message DesktopVCPU {
+        int32 num = 1;
+        string placement = 2;
+    }
+
+
+    DesktopType type = 1;
+    string name = 2;
+    DesktopOS os = 3;
+    DesktopDevices devices = 4;
+
+    DesktopMemory memory = 5;
+    DesktopVCPU vcpu = 6;
+}
+
+message GetXmlResponse {
+    string xml = 1;
+}
+
+message GetViewerRequest {
+    string xml = 1;
+}
+
+message GetViewerResponse {
+    string pwd = 1;
+    int32 spice_port = 2;
+    int32 spice_tls_port = 3;
+    int32 vnc_port = 4;
+    int32 vnc_tls_port = 5;
+}

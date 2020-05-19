@@ -24,7 +24,7 @@ const (
 )
 
 type HyperMsg struct {
-	ID    string
+	Host  string
 	State HyperState
 	Time  time.Time
 }
@@ -49,42 +49,44 @@ func Init(env *env.Env) {
 func keepAlive(env *env.Env) {
 	hostname := os.Getenv("HOSTNAME")
 
-	select {
-	case <-time.After(5 * time.Second):
-		var buf bytes.Buffer
-		enc := gob.NewEncoder(&buf)
-		if err := enc.Encode(HyperMsg{
-			ID:    hostname,
-			State: HyperStateOK,
-			Time:  time.Now(),
-		}); err != nil {
-			env.Sugar.Errorw("encode hyper keepalive",
-				"err", err,
-			)
+	for {
+		select {
+		case <-time.After(5 * time.Second):
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(HyperMsg{
+				Host:  hostname,
+				State: HyperStateOK,
+				Time:  time.Now(),
+			}); err != nil {
+				env.Sugar.Errorw("encode hyper keepalive",
+					"err", err,
+				)
+				break
+			}
+
+			if _, err := env.Redis.Publish(Channel, buf.Bytes()).Result(); err != nil {
+				env.Sugar.Errorw("send hyper keepalive",
+					"err", err,
+				)
+				break
+			}
+
+			env.Sugar.Info("hyper keepalive sent")
+
+		case <-env.Ctx.Done():
+			if _, err := env.Redis.Publish(Channel, HyperMsg{
+				Host:  hostname,
+				State: HyperStateStopping,
+				Time:  time.Now(),
+			}).Result(); err != nil {
+				env.Sugar.Errorw("send hyper stop signal",
+					"err", err,
+				)
+			}
+
+			env.WG.Done()
 			return
 		}
-
-		if _, err := env.Redis.Publish(Channel, buf.Bytes()).Result(); err != nil {
-			env.Sugar.Errorw("send hyper keepalive",
-				"err", err,
-			)
-			return
-		}
-
-		env.Sugar.Info("hyper keepalive sent")
-
-	case <-env.Ctx.Done():
-		if _, err := env.Redis.Publish(Channel, HyperMsg{
-			ID:    hostname,
-			State: HyperStateStopping,
-			Time:  time.Now(),
-		}).Result(); err != nil {
-			env.Sugar.Errorw("send hyper stop signal",
-				"err", err,
-			)
-		}
-
-		env.WG.Done()
-		return
 	}
 }

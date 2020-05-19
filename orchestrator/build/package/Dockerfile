@@ -9,15 +9,15 @@ COPY ./go.mod ./go.sum /go/src/github.com/isard-vdi/isard/
 RUN go mod download
 
 COPY . /go/src/github.com/isard-vdi/isard
-WORKDIR /go/src/github.com/isard-vdi/isard/hyper-stats
+WORKDIR /go/src/github.com/isard-vdi/isard/orchestrator
 
 RUN make build
 
 FROM alpine:3.11
 MAINTAINER isard <info@isard.com>
 
-COPY --from=build /go/src/github.com/isard-vdi/isard/hyper-stats/hyper-stats /
+COPY --from=build /go/src/github.com/isard-vdi/isard/orchestrator/orchestrator-bin /orchestrator
 
 EXPOSE 8080
 
-CMD [ "/hyper-stats" ]
+CMD [ "/orchestrator" ]

@@ -1,15 +1,10 @@
 FROM golang:1.14-alpine as build-go
 
 RUN apk add --no-cache \
-	make \
-    git
+	make
 
-WORKDIR /go/src/github.com/isard-vdi/isard
-COPY ./go.mod ./go.sum /go/src/github.com/isard-vdi/isard/
-RUN go mod download
-
-COPY . /go/src/github.com/isard-vdi/isard
-WORKDIR /go/src/github.com/isard-vdi/isard/hyper
+COPY . /go/src/github.com/isard-vdi/isard/desktop-builder
+WORKDIR /go/src/github.com/isard-vdi/isard/desktop-builder
 
 RUN make build
 
@@ -113,7 +108,7 @@ RUN apk add --no-cache \
 	usbredir \
 	vde2-libs
 
-COPY --from=build-go /go/src/github.com/isard-vdi/isard/hyper/hyper /
+COPY --from=build-go /go/src/github.com/isard-vdi/isard/desktop-builder /
 COPY --from=build-qemu /usr/local/ /usr/local/
 RUN ln -s /usr/local/bin/qemu-system-x86_64 /usr/libexec/qemu-kvm
 
@@ -127,9 +122,9 @@ RUN echo -e 'spice_listen = "0.0.0.0"\n \
 # Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
 
-COPY hyper/build/package/checks/domain.xml /checks/
-COPY hyper/build/package/auto-generate-certs.sh /
-COPY hyper/build/package/run.sh /
+COPY build/package/checks/domain.xml /checks/
+COPY build/package/auto-generate-certs.sh /
+COPY build/package/run.sh /
 RUN chmod +x run.sh auto-generate-certs.sh
 
 CMD [ "sh", "run.sh"]

@@ -10,7 +10,7 @@ test: tidy
 
 .PHONY: build
 build:
-	go build -o hyper-stats cmd/hyper-stats/main.go
+	go build -o orchestrator-bin cmd/orchestrator/main.go
 
 docker: test
-	docker build -f build/package/Dockerfile -t isard/hyper-stats:${VERSION} ..
+	docker build -f build/package/Dockerfile -t isard/orchestrator:${VERSION} ..
