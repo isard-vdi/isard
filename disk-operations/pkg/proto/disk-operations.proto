@@ -5,13 +5,71 @@ option go_package = "github.com/isard-vdi/isard/disk-operations/pkg/proto";
 
 service DiskOperations {
     rpc CreateDisk(CreateDiskRequest) returns (CreateDiskResponse) {}
+    rpc DeleteDisk(DeleteDiskRequest) returns (DeleteDiskResponse) {}
+    rpc DerivateDisk(DerivateDiskRequest) returns (DerivateDiskResponse) {}
+    rpc MoveDisk(MoveDiskRequest) returns (MoveDiskResponse) {}
+    //rpc ReplicateDisk(ReplicateDiskRequest) return (ReplicateDiskResponse) {}
+}
+
+enum Fmt {
+    FMT_UNKNOWN = 0;
+    FMT_QCOW2 = 1;
+    FMT_RAW = 2;
+}
+
+enum Preallocation {
+    PREALLOCATION_UNKNOWN = 0;
+    PREALLOCATION_OFF = 1;
+    PREALLOCATION_ON = 2;
+}
+
+enum LazyRefcounts {
+    LAZY_REFCOUNTS_UNKNOWN = 0;
+    LAZY_REFCOUNTS_TRUE = 1;
+    LAZY_REFCOUNTS_FALSE = 2;
+}
+enum ClusterSize {
+    CLUSTER_SIZE_UNKNOWN = 0;
+    CLUSTER_SIZE_4K = 1;
+    CLUSTER_SIZE_64K = 2;
 }
 
 message CreateDiskRequest {
-    string name = 1;
+    string filename = 1;
     int64 size = 2;
+    Fmt format = 3;
+    ClusterSize cluster_size = 4;
+    Preallocation preallocation = 5;
+    LazyRefcounts lazyrefcounts = 6;
 }
 
 message CreateDiskResponse {
+    bool result = 1;
+}
+
+message DeleteDiskRequest {
+    string filename = 1;
+}
+
+message DeleteDiskResponse {
+    bool result = 1;
+}
+
+message DerivateDiskRequest {
+    string filename = 1;
+    string backingfile = 2;
+    ClusterSize cluster_size = 3;
+}
+
+message DerivateDiskResponse {
+    bool result = 1;
+}
+
+message MoveDiskRequest {
+    string source = 1;
+    string destination = 2;
+}
+
+message  MoveDiskResponse {
     bool result = 1;
 }

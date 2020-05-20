@@ -29,13 +29,213 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
+type Fmt int32
+
+const (
+	Fmt_FMT_UNKNOWN Fmt = 0
+	Fmt_FMT_QCOW2   Fmt = 1
+	Fmt_FMT_RAW     Fmt = 2
+)
+
+// Enum value maps for Fmt.
+var (
+	Fmt_name = map[int32]string{
+		0: "FMT_UNKNOWN",
+		1: "FMT_QCOW2",
+		2: "FMT_RAW",
+	}
+	Fmt_value = map[string]int32{
+		"FMT_UNKNOWN": 0,
+		"FMT_QCOW2":   1,
+		"FMT_RAW":     2,
+	}
+)
+
+func (x Fmt) Enum() *Fmt {
+	p := new(Fmt)
+	*p = x
+	return p
+}
+
+func (x Fmt) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Fmt) Descriptor() protoreflect.EnumDescriptor {
+	return file_pkg_proto_disk_operations_proto_enumTypes[0].Descriptor()
+}
+
+func (Fmt) Type() protoreflect.EnumType {
+	return &file_pkg_proto_disk_operations_proto_enumTypes[0]
+}
+
+func (x Fmt) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Fmt.Descriptor instead.
+func (Fmt) EnumDescriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{0}
+}
+
+type Preallocation int32
+
+const (
+	Preallocation_PREALLOCATION_UNKNOWN Preallocation = 0
+	Preallocation_PREALLOCATION_OFF     Preallocation = 1
+	Preallocation_PREALLOCATION_ON      Preallocation = 2
+)
+
+// Enum value maps for Preallocation.
+var (
+	Preallocation_name = map[int32]string{
+		0: "PREALLOCATION_UNKNOWN",
+		1: "PREALLOCATION_OFF",
+		2: "PREALLOCATION_ON",
+	}
+	Preallocation_value = map[string]int32{
+		"PREALLOCATION_UNKNOWN": 0,
+		"PREALLOCATION_OFF":     1,
+		"PREALLOCATION_ON":      2,
+	}
+)
+
+func (x Preallocation) Enum() *Preallocation {
+	p := new(Preallocation)
+	*p = x
+	return p
+}
+
+func (x Preallocation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Preallocation) Descriptor() protoreflect.EnumDescriptor {
+	return file_pkg_proto_disk_operations_proto_enumTypes[1].Descriptor()
+}
+
+func (Preallocation) Type() protoreflect.EnumType {
+	return &file_pkg_proto_disk_operations_proto_enumTypes[1]
+}
+
+func (x Preallocation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Preallocation.Descriptor instead.
+func (Preallocation) EnumDescriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{1}
+}
+
+type LazyRefcounts int32
+
+const (
+	LazyRefcounts_LAZY_REFCOUNTS_UNKNOWN LazyRefcounts = 0
+	LazyRefcounts_LAZY_REFCOUNTS_TRUE    LazyRefcounts = 1
+	LazyRefcounts_LAZY_REFCOUNTS_FALSE   LazyRefcounts = 2
+)
+
+// Enum value maps for LazyRefcounts.
+var (
+	LazyRefcounts_name = map[int32]string{
+		0: "LAZY_REFCOUNTS_UNKNOWN",
+		1: "LAZY_REFCOUNTS_TRUE",
+		2: "LAZY_REFCOUNTS_FALSE",
+	}
+	LazyRefcounts_value = map[string]int32{
+		"LAZY_REFCOUNTS_UNKNOWN": 0,
+		"LAZY_REFCOUNTS_TRUE":    1,
+		"LAZY_REFCOUNTS_FALSE":   2,
+	}
+)
+
+func (x LazyRefcounts) Enum() *LazyRefcounts {
+	p := new(LazyRefcounts)
+	*p = x
+	return p
+}
+
+func (x LazyRefcounts) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LazyRefcounts) Descriptor() protoreflect.EnumDescriptor {
+	return file_pkg_proto_disk_operations_proto_enumTypes[2].Descriptor()
+}
+
+func (LazyRefcounts) Type() protoreflect.EnumType {
+	return &file_pkg_proto_disk_operations_proto_enumTypes[2]
+}
+
+func (x LazyRefcounts) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LazyRefcounts.Descriptor instead.
+func (LazyRefcounts) EnumDescriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{2}
+}
+
+type ClusterSize int32
+
+const (
+	ClusterSize_CLUSTER_SIZE_UNKNOWN ClusterSize = 0
+	ClusterSize_CLUSTER_SIZE_4K      ClusterSize = 1
+	ClusterSize_CLUSTER_SIZE_64K     ClusterSize = 2
+)
+
+// Enum value maps for ClusterSize.
+var (
+	ClusterSize_name = map[int32]string{
+		0: "CLUSTER_SIZE_UNKNOWN",
+		1: "CLUSTER_SIZE_4K",
+		2: "CLUSTER_SIZE_64K",
+	}
+	ClusterSize_value = map[string]int32{
+		"CLUSTER_SIZE_UNKNOWN": 0,
+		"CLUSTER_SIZE_4K":      1,
+		"CLUSTER_SIZE_64K":     2,
+	}
+)
+
+func (x ClusterSize) Enum() *ClusterSize {
+	p := new(ClusterSize)
+	*p = x
+	return p
+}
+
+func (x ClusterSize) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ClusterSize) Descriptor() protoreflect.EnumDescriptor {
+	return file_pkg_proto_disk_operations_proto_enumTypes[3].Descriptor()
+}
+
+func (ClusterSize) Type() protoreflect.EnumType {
+	return &file_pkg_proto_disk_operations_proto_enumTypes[3]
+}
+
+func (x ClusterSize) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ClusterSize.Descriptor instead.
+func (ClusterSize) EnumDescriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{3}
+}
+
 type CreateDiskRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Size int64  `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`
+	Filename      string        `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	Size          int64         `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`
+	Format        Fmt           `protobuf:"varint,3,opt,name=format,proto3,enum=proto.Fmt" json:"format,omitempty"`
+	ClusterSize   ClusterSize   `protobuf:"varint,4,opt,name=cluster_size,json=clusterSize,proto3,enum=proto.ClusterSize" json:"cluster_size,omitempty"`
+	Preallocation Preallocation `protobuf:"varint,5,opt,name=preallocation,proto3,enum=proto.Preallocation" json:"preallocation,omitempty"`
+	Lazyrefcounts LazyRefcounts `protobuf:"varint,6,opt,name=lazyrefcounts,proto3,enum=proto.LazyRefcounts" json:"lazyrefcounts,omitempty"`
 }
 
 func (x *CreateDiskRequest) Reset() {
@@ -70,9 +270,9 @@ func (*CreateDiskRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *CreateDiskRequest) GetName() string {
+func (x *CreateDiskRequest) GetFilename() string {
 	if x != nil {
-		return x.Name
+		return x.Filename
 	}
 	return ""
 }
@@ -82,6 +282,34 @@ func (x *CreateDiskRequest) GetSize() int64 {
 		return x.Size
 	}
 	return 0
+}
+
+func (x *CreateDiskRequest) GetFormat() Fmt {
+	if x != nil {
+		return x.Format
+	}
+	return Fmt_FMT_UNKNOWN
+}
+
+func (x *CreateDiskRequest) GetClusterSize() ClusterSize {
+	if x != nil {
+		return x.ClusterSize
+	}
+	return ClusterSize_CLUSTER_SIZE_UNKNOWN
+}
+
+func (x *CreateDiskRequest) GetPreallocation() Preallocation {
+	if x != nil {
+		return x.Preallocation
+	}
+	return Preallocation_PREALLOCATION_UNKNOWN
+}
+
+func (x *CreateDiskRequest) GetLazyrefcounts() LazyRefcounts {
+	if x != nil {
+		return x.Lazyrefcounts
+	}
+	return LazyRefcounts_LAZY_REFCOUNTS_UNKNOWN
 }
 
 type CreateDiskResponse struct {
@@ -131,28 +359,406 @@ func (x *CreateDiskResponse) GetResult() bool {
 	return false
 }
 
+type DeleteDiskRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Filename string `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+}
+
+func (x *DeleteDiskRequest) Reset() {
+	*x = DeleteDiskRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_proto_disk_operations_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DeleteDiskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDiskRequest) ProtoMessage() {}
+
+func (x *DeleteDiskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_proto_disk_operations_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDiskRequest.ProtoReflect.Descriptor instead.
+func (*DeleteDiskRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DeleteDiskRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+type DeleteDiskResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Result bool `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
+}
+
+func (x *DeleteDiskResponse) Reset() {
+	*x = DeleteDiskResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_proto_disk_operations_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DeleteDiskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDiskResponse) ProtoMessage() {}
+
+func (x *DeleteDiskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_proto_disk_operations_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDiskResponse.ProtoReflect.Descriptor instead.
+func (*DeleteDiskResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DeleteDiskResponse) GetResult() bool {
+	if x != nil {
+		return x.Result
+	}
+	return false
+}
+
+type DerivateDiskRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Filename    string      `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
+	Backingfile string      `protobuf:"bytes,2,opt,name=backingfile,proto3" json:"backingfile,omitempty"`
+	ClusterSize ClusterSize `protobuf:"varint,3,opt,name=cluster_size,json=clusterSize,proto3,enum=proto.ClusterSize" json:"cluster_size,omitempty"`
+}
+
+func (x *DerivateDiskRequest) Reset() {
+	*x = DerivateDiskRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_proto_disk_operations_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DerivateDiskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DerivateDiskRequest) ProtoMessage() {}
+
+func (x *DerivateDiskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_proto_disk_operations_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DerivateDiskRequest.ProtoReflect.Descriptor instead.
+func (*DerivateDiskRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DerivateDiskRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *DerivateDiskRequest) GetBackingfile() string {
+	if x != nil {
+		return x.Backingfile
+	}
+	return ""
+}
+
+func (x *DerivateDiskRequest) GetClusterSize() ClusterSize {
+	if x != nil {
+		return x.ClusterSize
+	}
+	return ClusterSize_CLUSTER_SIZE_UNKNOWN
+}
+
+type DerivateDiskResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Result bool `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
+}
+
+func (x *DerivateDiskResponse) Reset() {
+	*x = DerivateDiskResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_proto_disk_operations_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DerivateDiskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DerivateDiskResponse) ProtoMessage() {}
+
+func (x *DerivateDiskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_proto_disk_operations_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DerivateDiskResponse.ProtoReflect.Descriptor instead.
+func (*DerivateDiskResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DerivateDiskResponse) GetResult() bool {
+	if x != nil {
+		return x.Result
+	}
+	return false
+}
+
+type MoveDiskRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Source      string `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	Destination string `protobuf:"bytes,2,opt,name=destination,proto3" json:"destination,omitempty"`
+}
+
+func (x *MoveDiskRequest) Reset() {
+	*x = MoveDiskRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_proto_disk_operations_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MoveDiskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveDiskRequest) ProtoMessage() {}
+
+func (x *MoveDiskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_proto_disk_operations_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveDiskRequest.ProtoReflect.Descriptor instead.
+func (*MoveDiskRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *MoveDiskRequest) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *MoveDiskRequest) GetDestination() string {
+	if x != nil {
+		return x.Destination
+	}
+	return ""
+}
+
+type MoveDiskResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Result bool `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
+}
+
+func (x *MoveDiskResponse) Reset() {
+	*x = MoveDiskResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_proto_disk_operations_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *MoveDiskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MoveDiskResponse) ProtoMessage() {}
+
+func (x *MoveDiskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_proto_disk_operations_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MoveDiskResponse.ProtoReflect.Descriptor instead.
+func (*MoveDiskResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_disk_operations_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *MoveDiskResponse) GetResult() bool {
+	if x != nil {
+		return x.Result
+	}
+	return false
+}
+
 var File_pkg_proto_disk_operations_proto protoreflect.FileDescriptor
 
 var file_pkg_proto_disk_operations_proto_rawDesc = []byte{
 	0x0a, 0x1f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x64, 0x69, 0x73, 0x6b,
 	0x2d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x12, 0x05, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x3b, 0x0a, 0x11, 0x43, 0x72, 0x65, 0x61,
-	0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a,
-	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d,
-	0x65, 0x12, 0x12, 0x0a, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52,
-	0x04, 0x73, 0x69, 0x7a, 0x65, 0x22, 0x2c, 0x0a, 0x12, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44,
-	0x69, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72,
-	0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x72, 0x65, 0x73,
-	0x75, 0x6c, 0x74, 0x32, 0x55, 0x0a, 0x0e, 0x44, 0x69, 0x73, 0x6b, 0x4f, 0x70, 0x65, 0x72, 0x61,
-	0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x43, 0x0a, 0x0a, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44,
-	0x69, 0x73, 0x6b, 0x12, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x43, 0x72, 0x65, 0x61,
-	0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x36, 0x5a, 0x34, 0x67, 0x69,
-	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x73, 0x61, 0x72, 0x64, 0x2d, 0x76,
-	0x64, 0x69, 0x2f, 0x69, 0x73, 0x61, 0x72, 0x64, 0x2f, 0x64, 0x69, 0x73, 0x6b, 0x2d, 0x6f, 0x70,
-	0x65, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x12, 0x05, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x96, 0x02, 0x0a, 0x11, 0x43, 0x72, 0x65,
+	0x61, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a,
+	0x0a, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x73, 0x69,
+	0x7a, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x73, 0x69, 0x7a, 0x65, 0x12, 0x22,
+	0x0a, 0x06, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x0a,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x46, 0x6d, 0x74, 0x52, 0x06, 0x66, 0x6f, 0x72, 0x6d,
+	0x61, 0x74, 0x12, 0x35, 0x0a, 0x0c, 0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x5f, 0x73, 0x69,
+	0x7a, 0x65, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x12, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x53, 0x69, 0x7a, 0x65, 0x52, 0x0b, 0x63, 0x6c,
+	0x75, 0x73, 0x74, 0x65, 0x72, 0x53, 0x69, 0x7a, 0x65, 0x12, 0x3a, 0x0a, 0x0d, 0x70, 0x72, 0x65,
+	0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0e,
+	0x32, 0x14, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x50, 0x72, 0x65, 0x61, 0x6c, 0x6c, 0x6f,
+	0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0d, 0x70, 0x72, 0x65, 0x61, 0x6c, 0x6c, 0x6f, 0x63,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x3a, 0x0a, 0x0d, 0x6c, 0x61, 0x7a, 0x79, 0x72, 0x65, 0x66,
+	0x63, 0x6f, 0x75, 0x6e, 0x74, 0x73, 0x18, 0x06, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x14, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4c, 0x61, 0x7a, 0x79, 0x52, 0x65, 0x66, 0x63, 0x6f, 0x75, 0x6e,
+	0x74, 0x73, 0x52, 0x0d, 0x6c, 0x61, 0x7a, 0x79, 0x72, 0x65, 0x66, 0x63, 0x6f, 0x75, 0x6e, 0x74,
+	0x73, 0x22, 0x2c, 0x0a, 0x12, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c,
+	0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x22,
+	0x2f, 0x0a, 0x11, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65,
+	0x22, 0x2c, 0x0a, 0x12, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x22, 0x8a,
+	0x01, 0x0a, 0x13, 0x44, 0x65, 0x72, 0x69, 0x76, 0x61, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61,
+	0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61,
+	0x6d, 0x65, 0x12, 0x20, 0x0a, 0x0b, 0x62, 0x61, 0x63, 0x6b, 0x69, 0x6e, 0x67, 0x66, 0x69, 0x6c,
+	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x62, 0x61, 0x63, 0x6b, 0x69, 0x6e, 0x67,
+	0x66, 0x69, 0x6c, 0x65, 0x12, 0x35, 0x0a, 0x0c, 0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x5f,
+	0x73, 0x69, 0x7a, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x12, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2e, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x53, 0x69, 0x7a, 0x65, 0x52, 0x0b,
+	0x63, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x53, 0x69, 0x7a, 0x65, 0x22, 0x2e, 0x0a, 0x14, 0x44,
+	0x65, 0x72, 0x69, 0x76, 0x61, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x08, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x22, 0x4b, 0x0a, 0x0f, 0x4d,
+	0x6f, 0x76, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x16,
+	0x0a, 0x06, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06,
+	0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x12, 0x20, 0x0a, 0x0b, 0x64, 0x65, 0x73, 0x74, 0x69, 0x6e,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x64, 0x65, 0x73,
+	0x74, 0x69, 0x6e, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x2a, 0x0a, 0x10, 0x4d, 0x6f, 0x76, 0x65,
+	0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06,
+	0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x72, 0x65,
+	0x73, 0x75, 0x6c, 0x74, 0x2a, 0x32, 0x0a, 0x03, 0x46, 0x6d, 0x74, 0x12, 0x0f, 0x0a, 0x0b, 0x46,
+	0x4d, 0x54, 0x5f, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x0d, 0x0a, 0x09,
+	0x46, 0x4d, 0x54, 0x5f, 0x51, 0x43, 0x4f, 0x57, 0x32, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x46,
+	0x4d, 0x54, 0x5f, 0x52, 0x41, 0x57, 0x10, 0x02, 0x2a, 0x57, 0x0a, 0x0d, 0x50, 0x72, 0x65, 0x61,
+	0x6c, 0x6c, 0x6f, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x19, 0x0a, 0x15, 0x50, 0x52, 0x45,
+	0x41, 0x4c, 0x4c, 0x4f, 0x43, 0x41, 0x54, 0x49, 0x4f, 0x4e, 0x5f, 0x55, 0x4e, 0x4b, 0x4e, 0x4f,
+	0x57, 0x4e, 0x10, 0x00, 0x12, 0x15, 0x0a, 0x11, 0x50, 0x52, 0x45, 0x41, 0x4c, 0x4c, 0x4f, 0x43,
+	0x41, 0x54, 0x49, 0x4f, 0x4e, 0x5f, 0x4f, 0x46, 0x46, 0x10, 0x01, 0x12, 0x14, 0x0a, 0x10, 0x50,
+	0x52, 0x45, 0x41, 0x4c, 0x4c, 0x4f, 0x43, 0x41, 0x54, 0x49, 0x4f, 0x4e, 0x5f, 0x4f, 0x4e, 0x10,
+	0x02, 0x2a, 0x5e, 0x0a, 0x0d, 0x4c, 0x61, 0x7a, 0x79, 0x52, 0x65, 0x66, 0x63, 0x6f, 0x75, 0x6e,
+	0x74, 0x73, 0x12, 0x1a, 0x0a, 0x16, 0x4c, 0x41, 0x5a, 0x59, 0x5f, 0x52, 0x45, 0x46, 0x43, 0x4f,
+	0x55, 0x4e, 0x54, 0x53, 0x5f, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x17,
+	0x0a, 0x13, 0x4c, 0x41, 0x5a, 0x59, 0x5f, 0x52, 0x45, 0x46, 0x43, 0x4f, 0x55, 0x4e, 0x54, 0x53,
+	0x5f, 0x54, 0x52, 0x55, 0x45, 0x10, 0x01, 0x12, 0x18, 0x0a, 0x14, 0x4c, 0x41, 0x5a, 0x59, 0x5f,
+	0x52, 0x45, 0x46, 0x43, 0x4f, 0x55, 0x4e, 0x54, 0x53, 0x5f, 0x46, 0x41, 0x4c, 0x53, 0x45, 0x10,
+	0x02, 0x2a, 0x52, 0x0a, 0x0b, 0x43, 0x6c, 0x75, 0x73, 0x74, 0x65, 0x72, 0x53, 0x69, 0x7a, 0x65,
+	0x12, 0x18, 0x0a, 0x14, 0x43, 0x4c, 0x55, 0x53, 0x54, 0x45, 0x52, 0x5f, 0x53, 0x49, 0x5a, 0x45,
+	0x5f, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x13, 0x0a, 0x0f, 0x43, 0x4c,
+	0x55, 0x53, 0x54, 0x45, 0x52, 0x5f, 0x53, 0x49, 0x5a, 0x45, 0x5f, 0x34, 0x4b, 0x10, 0x01, 0x12,
+	0x14, 0x0a, 0x10, 0x43, 0x4c, 0x55, 0x53, 0x54, 0x45, 0x52, 0x5f, 0x53, 0x49, 0x5a, 0x45, 0x5f,
+	0x36, 0x34, 0x4b, 0x10, 0x02, 0x32, 0xa4, 0x02, 0x0a, 0x0e, 0x44, 0x69, 0x73, 0x6b, 0x4f, 0x70,
+	0x65, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x43, 0x0a, 0x0a, 0x43, 0x72, 0x65, 0x61,
+	0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x12, 0x18, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x43,
+	0x72, 0x65, 0x61, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44,
+	0x69, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x43, 0x0a,
+	0x0a, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x12, 0x18, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65,
+	0x6c, 0x65, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x22, 0x00, 0x12, 0x49, 0x0a, 0x0c, 0x44, 0x65, 0x72, 0x69, 0x76, 0x61, 0x74, 0x65, 0x44, 0x69,
+	0x73, 0x6b, 0x12, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x72, 0x69, 0x76,
+	0x61, 0x74, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x72, 0x69, 0x76, 0x61, 0x74, 0x65, 0x44,
+	0x69, 0x73, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x3d, 0x0a,
+	0x08, 0x4d, 0x6f, 0x76, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x12, 0x16, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x2e, 0x4d, 0x6f, 0x76, 0x65, 0x44, 0x69, 0x73, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x17, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x6f, 0x76, 0x65, 0x44, 0x69,
+	0x73, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x36, 0x5a, 0x34,
+	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x73, 0x61, 0x72, 0x64,
+	0x2d, 0x76, 0x64, 0x69, 0x2f, 0x69, 0x73, 0x61, 0x72, 0x64, 0x2f, 0x64, 0x69, 0x73, 0x6b, 0x2d,
+	0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -167,19 +773,41 @@ func file_pkg_proto_disk_operations_proto_rawDescGZIP() []byte {
 	return file_pkg_proto_disk_operations_proto_rawDescData
 }
 
-var file_pkg_proto_disk_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_pkg_proto_disk_operations_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_pkg_proto_disk_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_pkg_proto_disk_operations_proto_goTypes = []interface{}{
-	(*CreateDiskRequest)(nil),  // 0: proto.CreateDiskRequest
-	(*CreateDiskResponse)(nil), // 1: proto.CreateDiskResponse
+	(Fmt)(0),                     // 0: proto.Fmt
+	(Preallocation)(0),           // 1: proto.Preallocation
+	(LazyRefcounts)(0),           // 2: proto.LazyRefcounts
+	(ClusterSize)(0),             // 3: proto.ClusterSize
+	(*CreateDiskRequest)(nil),    // 4: proto.CreateDiskRequest
+	(*CreateDiskResponse)(nil),   // 5: proto.CreateDiskResponse
+	(*DeleteDiskRequest)(nil),    // 6: proto.DeleteDiskRequest
+	(*DeleteDiskResponse)(nil),   // 7: proto.DeleteDiskResponse
+	(*DerivateDiskRequest)(nil),  // 8: proto.DerivateDiskRequest
+	(*DerivateDiskResponse)(nil), // 9: proto.DerivateDiskResponse
+	(*MoveDiskRequest)(nil),      // 10: proto.MoveDiskRequest
+	(*MoveDiskResponse)(nil),     // 11: proto.MoveDiskResponse
 }
 var file_pkg_proto_disk_operations_proto_depIdxs = []int32{
-	0, // 0: proto.DiskOperations.CreateDisk:input_type -> proto.CreateDiskRequest
-	1, // 1: proto.DiskOperations.CreateDisk:output_type -> proto.CreateDiskResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: proto.CreateDiskRequest.format:type_name -> proto.Fmt
+	3,  // 1: proto.CreateDiskRequest.cluster_size:type_name -> proto.ClusterSize
+	1,  // 2: proto.CreateDiskRequest.preallocation:type_name -> proto.Preallocation
+	2,  // 3: proto.CreateDiskRequest.lazyrefcounts:type_name -> proto.LazyRefcounts
+	3,  // 4: proto.DerivateDiskRequest.cluster_size:type_name -> proto.ClusterSize
+	4,  // 5: proto.DiskOperations.CreateDisk:input_type -> proto.CreateDiskRequest
+	6,  // 6: proto.DiskOperations.DeleteDisk:input_type -> proto.DeleteDiskRequest
+	8,  // 7: proto.DiskOperations.DerivateDisk:input_type -> proto.DerivateDiskRequest
+	10, // 8: proto.DiskOperations.MoveDisk:input_type -> proto.MoveDiskRequest
+	5,  // 9: proto.DiskOperations.CreateDisk:output_type -> proto.CreateDiskResponse
+	7,  // 10: proto.DiskOperations.DeleteDisk:output_type -> proto.DeleteDiskResponse
+	9,  // 11: proto.DiskOperations.DerivateDisk:output_type -> proto.DerivateDiskResponse
+	11, // 12: proto.DiskOperations.MoveDisk:output_type -> proto.MoveDiskResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_pkg_proto_disk_operations_proto_init() }
@@ -212,19 +840,92 @@ func file_pkg_proto_disk_operations_proto_init() {
 				return nil
 			}
 		}
+		file_pkg_proto_disk_operations_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DeleteDiskRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_proto_disk_operations_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DeleteDiskResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_proto_disk_operations_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DerivateDiskRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_proto_disk_operations_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DerivateDiskResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_proto_disk_operations_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MoveDiskRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_proto_disk_operations_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*MoveDiskResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pkg_proto_disk_operations_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_pkg_proto_disk_operations_proto_goTypes,
 		DependencyIndexes: file_pkg_proto_disk_operations_proto_depIdxs,
+		EnumInfos:         file_pkg_proto_disk_operations_proto_enumTypes,
 		MessageInfos:      file_pkg_proto_disk_operations_proto_msgTypes,
 	}.Build()
 	File_pkg_proto_disk_operations_proto = out.File
@@ -246,6 +947,9 @@ const _ = grpc.SupportPackageIsVersion6
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DiskOperationsClient interface {
 	CreateDisk(ctx context.Context, in *CreateDiskRequest, opts ...grpc.CallOption) (*CreateDiskResponse, error)
+	DeleteDisk(ctx context.Context, in *DeleteDiskRequest, opts ...grpc.CallOption) (*DeleteDiskResponse, error)
+	DerivateDisk(ctx context.Context, in *DerivateDiskRequest, opts ...grpc.CallOption) (*DerivateDiskResponse, error)
+	MoveDisk(ctx context.Context, in *MoveDiskRequest, opts ...grpc.CallOption) (*MoveDiskResponse, error)
 }
 
 type diskOperationsClient struct {
@@ -265,9 +969,39 @@ func (c *diskOperationsClient) CreateDisk(ctx context.Context, in *CreateDiskReq
 	return out, nil
 }
 
+func (c *diskOperationsClient) DeleteDisk(ctx context.Context, in *DeleteDiskRequest, opts ...grpc.CallOption) (*DeleteDiskResponse, error) {
+	out := new(DeleteDiskResponse)
+	err := c.cc.Invoke(ctx, "/proto.DiskOperations/DeleteDisk", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *diskOperationsClient) DerivateDisk(ctx context.Context, in *DerivateDiskRequest, opts ...grpc.CallOption) (*DerivateDiskResponse, error) {
+	out := new(DerivateDiskResponse)
+	err := c.cc.Invoke(ctx, "/proto.DiskOperations/DerivateDisk", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *diskOperationsClient) MoveDisk(ctx context.Context, in *MoveDiskRequest, opts ...grpc.CallOption) (*MoveDiskResponse, error) {
+	out := new(MoveDiskResponse)
+	err := c.cc.Invoke(ctx, "/proto.DiskOperations/MoveDisk", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DiskOperationsServer is the server API for DiskOperations service.
 type DiskOperationsServer interface {
 	CreateDisk(context.Context, *CreateDiskRequest) (*CreateDiskResponse, error)
+	DeleteDisk(context.Context, *DeleteDiskRequest) (*DeleteDiskResponse, error)
+	DerivateDisk(context.Context, *DerivateDiskRequest) (*DerivateDiskResponse, error)
+	MoveDisk(context.Context, *MoveDiskRequest) (*MoveDiskResponse, error)
 }
 
 // UnimplementedDiskOperationsServer can be embedded to have forward compatible implementations.
@@ -276,6 +1010,15 @@ type UnimplementedDiskOperationsServer struct {
 
 func (*UnimplementedDiskOperationsServer) CreateDisk(context.Context, *CreateDiskRequest) (*CreateDiskResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateDisk not implemented")
+}
+func (*UnimplementedDiskOperationsServer) DeleteDisk(context.Context, *DeleteDiskRequest) (*DeleteDiskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteDisk not implemented")
+}
+func (*UnimplementedDiskOperationsServer) DerivateDisk(context.Context, *DerivateDiskRequest) (*DerivateDiskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DerivateDisk not implemented")
+}
+func (*UnimplementedDiskOperationsServer) MoveDisk(context.Context, *MoveDiskRequest) (*MoveDiskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MoveDisk not implemented")
 }
 
 func RegisterDiskOperationsServer(s *grpc.Server, srv DiskOperationsServer) {
@@ -300,6 +1043,60 @@ func _DiskOperations_CreateDisk_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DiskOperations_DeleteDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteDiskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DiskOperationsServer).DeleteDisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.DiskOperations/DeleteDisk",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DiskOperationsServer).DeleteDisk(ctx, req.(*DeleteDiskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DiskOperations_DerivateDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DerivateDiskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DiskOperationsServer).DerivateDisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.DiskOperations/DerivateDisk",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DiskOperationsServer).DerivateDisk(ctx, req.(*DerivateDiskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DiskOperations_MoveDisk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MoveDiskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DiskOperationsServer).MoveDisk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.DiskOperations/MoveDisk",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DiskOperationsServer).MoveDisk(ctx, req.(*MoveDiskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _DiskOperations_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.DiskOperations",
 	HandlerType: (*DiskOperationsServer)(nil),
@@ -307,6 +1104,18 @@ var _DiskOperations_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateDisk",
 			Handler:    _DiskOperations_CreateDisk_Handler,
+		},
+		{
+			MethodName: "DeleteDisk",
+			Handler:    _DiskOperations_DeleteDisk_Handler,
+		},
+		{
+			MethodName: "DerivateDisk",
+			Handler:    _DiskOperations_DerivateDisk_Handler,
+		},
+		{
+			MethodName: "MoveDisk",
+			Handler:    _DiskOperations_MoveDisk_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
