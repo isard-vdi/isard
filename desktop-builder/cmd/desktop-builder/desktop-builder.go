@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/isard-vdi/isard/desktop-builder/cfg"
+	"github.com/isard-vdi/isard/desktop-builder/desktopbuilder"
 	"github.com/isard-vdi/isard/desktop-builder/env"
 	"github.com/isard-vdi/isard/desktop-builder/transport/grpc"
 
@@ -20,15 +21,13 @@ func main() {
 		log.Fatalf("create logger: %v", err)
 	}
 	defer logger.Sync()
+	sugar := logger.Sugar()
 
 	env := &env.Env{
-		Sugar: logger.Sugar(),
-		Cfg: cfg.Cfg{
-			GRPC: cfg.GRPC{
-				Port: 1312,
-			},
-		},
+		Sugar: sugar,
+		Cfg:   cfg.Init(sugar),
 	}
+	env.DesktopBuilder = desktopbuilder.New(env)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -30,9 +30,16 @@ func (h *DiskOperationsServer) CreateDisk(ctx context.Context, req *proto.Create
 		}
 	}
 
-	Format := qcow2.DriverQCow2
-	if req.Format == proto.Fmt_FMT_RAW {
-		Format = qcow2.DriverRaw
+	var format qcow2.DriverFmt
+	switch req.Format {
+	case proto.Fmt_FMT_QCOW2:
+		format = qcow2.DriverQCow2
+
+	case proto.Fmt_FMT_RAW:
+		format = qcow2.DriverRaw
+
+	default:
+		format = qcow2.DriverQCow2
 	}
 
 	ClusterSize := 4096
@@ -48,7 +55,7 @@ func (h *DiskOperationsServer) CreateDisk(ctx context.Context, req *proto.Create
 	opts := &qcow2.Opts{
 		Filename:      req.Filename,
 		Size:          req.Size * 107374,
-		Fmt:           Format,
+		Fmt:           format,
 		ClusterSize:   ClusterSize,
 		Preallocation: qcow2.PREALLOC_MODE_OFF,
 		Encryption:    false,
