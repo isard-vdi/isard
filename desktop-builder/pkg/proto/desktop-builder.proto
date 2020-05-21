@@ -24,11 +24,18 @@ message ViewerGetRequest {
 }
 
 message ViewerGetResponse {
-    string pwd = 1;
-    int32 spice_port = 2;
-    int32 spice_tls_port = 3;
-    int32 vnc_port = 4;
-    int32 vnc_tls_port = 5;
+    message Spice {
+        string pwd = 1;
+        int32 spice_port = 2;
+        int32 spice_tls_port = 3;        
+    }
+    message Vnc {
+        string pwd = 1;
+        int32 vnc_port = 2; 
+        int32 vnc_websocket_port = 4;      
+    }
+    repeated Spice spice = 2;
+    repeated Vnc vnc = 3;
 }
 
 // message XMLGetRequest {
