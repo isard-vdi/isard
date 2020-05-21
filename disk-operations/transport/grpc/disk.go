@@ -145,3 +145,10 @@ func (h *DiskOperationsServer) MoveDisk(ctx context.Context, req *proto.MoveDisk
 	}
 	return &proto.MoveDiskResponse{Result: false}, status.Error(codes.Unimplemented, err.Error())
 }
+
+func (h *DiskOperationsServer) Download(ctx context.Context, req *proto.DownloadRequest) (*proto.DownloadResponse, error) {
+	xml, err := h.env.DiskOperations.Download(ctx, req.Filepath, req.Url)
+	if err != nil {
+		return &proto.DownloadResponse{Result: false}, status.Error(codes.Unimplemented, err.Error())
+	}
+}

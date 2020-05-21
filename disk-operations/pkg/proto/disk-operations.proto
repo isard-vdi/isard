@@ -8,6 +8,7 @@ service DiskOperations {
     rpc DeleteDisk(DeleteDiskRequest) returns (DeleteDiskResponse) {}
     rpc DerivateDisk(DerivateDiskRequest) returns (DerivateDiskResponse) {}
     rpc MoveDisk(MoveDiskRequest) returns (MoveDiskResponse) {}
+    rpc Download(DownloadRequest) returns (DownloadResponse) {}
     //rpc ReplicateDisk(ReplicateDiskRequest) return (ReplicateDiskResponse) {}
 }
 
@@ -71,5 +72,14 @@ message MoveDiskRequest {
 }
 
 message  MoveDiskResponse {
+    bool result = 1;
+}
+
+message DownloadRequest {
+    string filepath = 1;
+    string url = 2;
+}
+
+message  DownloadResponse {
     bool result = 1;
 }

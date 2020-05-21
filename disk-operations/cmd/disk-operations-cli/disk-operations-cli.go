@@ -45,4 +45,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	_, err = cli.Download(context.Background(), &proto.DownloadRequest{
+		Filepath: "/opt/isard/tests/derivated.qcow2",
+		Url:      "http://distro.ibiblio.org/damnsmall/current/dsl-4.4.10-initrd.iso",
+	})
+	if err != nil {
+		panic(err)
+	}
 }
