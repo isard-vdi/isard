@@ -29,339 +29,13 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
-type DesktopStartRequest_DesktopType int32
-
-const (
-	DesktopStartRequest_DESKTOP_TYPE_UNKNOWN DesktopStartRequest_DesktopType = 0
-	DesktopStartRequest_DESKTOP_TYPE_KVM     DesktopStartRequest_DesktopType = 1 // TODO: Add the rest of the hypervisor drivers
-)
-
-// Enum value maps for DesktopStartRequest_DesktopType.
-var (
-	DesktopStartRequest_DesktopType_name = map[int32]string{
-		0: "DESKTOP_TYPE_UNKNOWN",
-		1: "DESKTOP_TYPE_KVM",
-	}
-	DesktopStartRequest_DesktopType_value = map[string]int32{
-		"DESKTOP_TYPE_UNKNOWN": 0,
-		"DESKTOP_TYPE_KVM":     1,
-	}
-)
-
-func (x DesktopStartRequest_DesktopType) Enum() *DesktopStartRequest_DesktopType {
-	p := new(DesktopStartRequest_DesktopType)
-	*p = x
-	return p
-}
-
-func (x DesktopStartRequest_DesktopType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DesktopStartRequest_DesktopType) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_hyper_proto_enumTypes[0].Descriptor()
-}
-
-func (DesktopStartRequest_DesktopType) Type() protoreflect.EnumType {
-	return &file_pkg_proto_hyper_proto_enumTypes[0]
-}
-
-func (x DesktopStartRequest_DesktopType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopType.Descriptor instead.
-func (DesktopStartRequest_DesktopType) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 0}
-}
-
-type DesktopStartRequest_DesktopOS_DesktopOSType_Arch int32
-
-const (
-	DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_ARCH_UNKNOWN DesktopStartRequest_DesktopOS_DesktopOSType_Arch = 0
-	DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_ARCH_X86_64  DesktopStartRequest_DesktopOS_DesktopOSType_Arch = 1
-)
-
-// Enum value maps for DesktopStartRequest_DesktopOS_DesktopOSType_Arch.
-var (
-	DesktopStartRequest_DesktopOS_DesktopOSType_Arch_name = map[int32]string{
-		0: "DESKTOP_OS_TYPE_ARCH_UNKNOWN",
-		1: "DESKTOP_OS_TYPE_ARCH_X86_64",
-	}
-	DesktopStartRequest_DesktopOS_DesktopOSType_Arch_value = map[string]int32{
-		"DESKTOP_OS_TYPE_ARCH_UNKNOWN": 0,
-		"DESKTOP_OS_TYPE_ARCH_X86_64":  1,
-	}
-)
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Arch) Enum() *DesktopStartRequest_DesktopOS_DesktopOSType_Arch {
-	p := new(DesktopStartRequest_DesktopOS_DesktopOSType_Arch)
-	*p = x
-	return p
-}
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Arch) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Arch) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_hyper_proto_enumTypes[1].Descriptor()
-}
-
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Arch) Type() protoreflect.EnumType {
-	return &file_pkg_proto_hyper_proto_enumTypes[1]
-}
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Arch) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopOS_DesktopOSType_Arch.Descriptor instead.
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Arch) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 0, 0, 0}
-}
-
-type DesktopStartRequest_DesktopOS_DesktopOSType_Machine int32
-
-const (
-	DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_UNKNOWN      DesktopStartRequest_DesktopOS_DesktopOSType_Machine = 0
-	DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_PC_i44FX_4_2 DesktopStartRequest_DesktopOS_DesktopOSType_Machine = 1
-)
-
-// Enum value maps for DesktopStartRequest_DesktopOS_DesktopOSType_Machine.
-var (
-	DesktopStartRequest_DesktopOS_DesktopOSType_Machine_name = map[int32]string{
-		0: "DESKTOP_OS_TYPE_MACHINE_UNKNOWN",
-		1: "DESKTOP_OS_TYPE_MACHINE_PC_i44FX_4_2",
-	}
-	DesktopStartRequest_DesktopOS_DesktopOSType_Machine_value = map[string]int32{
-		"DESKTOP_OS_TYPE_MACHINE_UNKNOWN":      0,
-		"DESKTOP_OS_TYPE_MACHINE_PC_i44FX_4_2": 1,
-	}
-)
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Machine) Enum() *DesktopStartRequest_DesktopOS_DesktopOSType_Machine {
-	p := new(DesktopStartRequest_DesktopOS_DesktopOSType_Machine)
-	*p = x
-	return p
-}
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Machine) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Machine) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_hyper_proto_enumTypes[2].Descriptor()
-}
-
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Machine) Type() protoreflect.EnumType {
-	return &file_pkg_proto_hyper_proto_enumTypes[2]
-}
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Machine) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopOS_DesktopOSType_Machine.Descriptor instead.
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Machine) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 0, 0, 1}
-}
-
-type DesktopStartRequest_DesktopOS_DesktopOSType_Type int32
-
-const (
-	DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_TYPE_UNKNOWN DesktopStartRequest_DesktopOS_DesktopOSType_Type = 0
-	DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_TYPE_HVM     DesktopStartRequest_DesktopOS_DesktopOSType_Type = 1
-)
-
-// Enum value maps for DesktopStartRequest_DesktopOS_DesktopOSType_Type.
-var (
-	DesktopStartRequest_DesktopOS_DesktopOSType_Type_name = map[int32]string{
-		0: "DESKTOP_OS_TYPE_TYPE_UNKNOWN",
-		1: "DESKTOP_OS_TYPE_TYPE_HVM",
-	}
-	DesktopStartRequest_DesktopOS_DesktopOSType_Type_value = map[string]int32{
-		"DESKTOP_OS_TYPE_TYPE_UNKNOWN": 0,
-		"DESKTOP_OS_TYPE_TYPE_HVM":     1,
-	}
-)
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Type) Enum() *DesktopStartRequest_DesktopOS_DesktopOSType_Type {
-	p := new(DesktopStartRequest_DesktopOS_DesktopOSType_Type)
-	*p = x
-	return p
-}
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Type) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Type) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_hyper_proto_enumTypes[3].Descriptor()
-}
-
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Type) Type() protoreflect.EnumType {
-	return &file_pkg_proto_hyper_proto_enumTypes[3]
-}
-
-func (x DesktopStartRequest_DesktopOS_DesktopOSType_Type) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopOS_DesktopOSType_Type.Descriptor instead.
-func (DesktopStartRequest_DesktopOS_DesktopOSType_Type) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 0, 0, 2}
-}
-
-type DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType int32
-
-const (
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_TYPE_UNKNOWN  DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType = 0
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_TYPE_KEYBOARD DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType = 1
-)
-
-// Enum value maps for DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType.
-var (
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType_name = map[int32]string{
-		0: "DESKTOP_DEVICE_INPUT_TYPE_UNKNOWN",
-		1: "DESKTOP_DEVICE_INPUT_TYPE_KEYBOARD",
-	}
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType_value = map[string]int32{
-		"DESKTOP_DEVICE_INPUT_TYPE_UNKNOWN":  0,
-		"DESKTOP_DEVICE_INPUT_TYPE_KEYBOARD": 1,
-	}
-)
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType) Enum() *DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType {
-	p := new(DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType)
-	*p = x
-	return p
-}
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_hyper_proto_enumTypes[4].Descriptor()
-}
-
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType) Type() protoreflect.EnumType {
-	return &file_pkg_proto_hyper_proto_enumTypes[4]
-}
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType.Descriptor instead.
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1, 0, 0}
-}
-
-type DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus int32
-
-const (
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_BUS_UNKNOWN DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus = 0
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_BUS_PS2     DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus = 1
-)
-
-// Enum value maps for DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus.
-var (
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus_name = map[int32]string{
-		0: "DESKTOP_DEVICE_INPUT_BUS_UNKNOWN",
-		1: "DESKTOP_DEVICE_INPUT_BUS_PS2",
-	}
-	DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus_value = map[string]int32{
-		"DESKTOP_DEVICE_INPUT_BUS_UNKNOWN": 0,
-		"DESKTOP_DEVICE_INPUT_BUS_PS2":     1,
-	}
-)
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus) Enum() *DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus {
-	p := new(DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus)
-	*p = x
-	return p
-}
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_hyper_proto_enumTypes[5].Descriptor()
-}
-
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus) Type() protoreflect.EnumType {
-	return &file_pkg_proto_hyper_proto_enumTypes[5]
-}
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus.Descriptor instead.
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1, 0, 1}
-}
-
-type DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType int32
-
-const (
-	DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DESKTOP_DEVICE_VIDEO_MODEL_TYPE_UNKNOWN DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType = 0
-	DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL     DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType = 1
-)
-
-// Enum value maps for DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType.
-var (
-	DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType_name = map[int32]string{
-		0: "DESKTOP_DEVICE_VIDEO_MODEL_TYPE_UNKNOWN",
-		1: "DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL",
-	}
-	DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType_value = map[string]int32{
-		"DESKTOP_DEVICE_VIDEO_MODEL_TYPE_UNKNOWN": 0,
-		"DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL":     1,
-	}
-)
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType) Enum() *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType {
-	p := new(DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType)
-	*p = x
-	return p
-}
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType) Descriptor() protoreflect.EnumDescriptor {
-	return file_pkg_proto_hyper_proto_enumTypes[6].Descriptor()
-}
-
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType) Type() protoreflect.EnumType {
-	return &file_pkg_proto_hyper_proto_enumTypes[6]
-}
-
-func (x DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType.Descriptor instead.
-func (DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType) EnumDescriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1, 2, 0, 0}
-}
-
 type DesktopStartRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Type    DesktopStartRequest_DesktopType     `protobuf:"varint,1,opt,name=type,proto3,enum=proto.DesktopStartRequest_DesktopType" json:"type,omitempty"`
-	Name    string                              `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Os      *DesktopStartRequest_DesktopOS      `protobuf:"bytes,3,opt,name=os,proto3" json:"os,omitempty"`
-	Devices *DesktopStartRequest_DesktopDevices `protobuf:"bytes,4,opt,name=devices,proto3" json:"devices,omitempty"`
-	Memory  *DesktopStartRequest_DesktopMemory  `protobuf:"bytes,5,opt,name=memory,proto3" json:"memory,omitempty"`
-	Vcpu    *DesktopStartRequest_DesktopVCPU    `protobuf:"bytes,6,opt,name=vcpu,proto3" json:"vcpu,omitempty"`
+	Xml      string `protobuf:"bytes,1,opt,name=xml,proto3" json:"xml,omitempty"`
+	Password string `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 }
 
 func (x *DesktopStartRequest) Reset() {
@@ -396,46 +70,18 @@ func (*DesktopStartRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *DesktopStartRequest) GetType() DesktopStartRequest_DesktopType {
+func (x *DesktopStartRequest) GetXml() string {
 	if x != nil {
-		return x.Type
-	}
-	return DesktopStartRequest_DESKTOP_TYPE_UNKNOWN
-}
-
-func (x *DesktopStartRequest) GetName() string {
-	if x != nil {
-		return x.Name
+		return x.Xml
 	}
 	return ""
 }
 
-func (x *DesktopStartRequest) GetOs() *DesktopStartRequest_DesktopOS {
+func (x *DesktopStartRequest) GetPassword() string {
 	if x != nil {
-		return x.Os
+		return x.Password
 	}
-	return nil
-}
-
-func (x *DesktopStartRequest) GetDevices() *DesktopStartRequest_DesktopDevices {
-	if x != nil {
-		return x.Devices
-	}
-	return nil
-}
-
-func (x *DesktopStartRequest) GetMemory() *DesktopStartRequest_DesktopMemory {
-	if x != nil {
-		return x.Memory
-	}
-	return nil
-}
-
-func (x *DesktopStartRequest) GetVcpu() *DesktopStartRequest_DesktopVCPU {
-	if x != nil {
-		return x.Vcpu
-	}
-	return nil
+	return ""
 }
 
 type DesktopStartResponse struct {
@@ -443,11 +89,7 @@ type DesktopStartResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Pwd          string `protobuf:"bytes,1,opt,name=pwd,proto3" json:"pwd,omitempty"`
-	SpicePort    int32  `protobuf:"varint,2,opt,name=spice_port,json=spicePort,proto3" json:"spice_port,omitempty"`
-	SpiceTlsPort int32  `protobuf:"varint,3,opt,name=spice_tls_port,json=spiceTlsPort,proto3" json:"spice_tls_port,omitempty"`
-	VncPort      int32  `protobuf:"varint,4,opt,name=vnc_port,json=vncPort,proto3" json:"vnc_port,omitempty"`
-	VncTlsPort   int32  `protobuf:"varint,5,opt,name=vnc_tls_port,json=vncTlsPort,proto3" json:"vnc_tls_port,omitempty"`
+	Xml string `protobuf:"bytes,1,opt,name=xml,proto3" json:"xml,omitempty"`
 }
 
 func (x *DesktopStartResponse) Reset() {
@@ -482,39 +124,11 @@ func (*DesktopStartResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *DesktopStartResponse) GetPwd() string {
+func (x *DesktopStartResponse) GetXml() string {
 	if x != nil {
-		return x.Pwd
+		return x.Xml
 	}
 	return ""
-}
-
-func (x *DesktopStartResponse) GetSpicePort() int32 {
-	if x != nil {
-		return x.SpicePort
-	}
-	return 0
-}
-
-func (x *DesktopStartResponse) GetSpiceTlsPort() int32 {
-	if x != nil {
-		return x.SpiceTlsPort
-	}
-	return 0
-}
-
-func (x *DesktopStartResponse) GetVncPort() int32 {
-	if x != nil {
-		return x.VncPort
-	}
-	return 0
-}
-
-func (x *DesktopStartResponse) GetVncTlsPort() int32 {
-	if x != nil {
-		return x.VncTlsPort
-	}
-	return 0
 }
 
 type DesktopStopRequest struct {
@@ -522,8 +136,7 @@ type DesktopStopRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Uuid   string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	Delete bool   `protobuf:"varint,2,opt,name=delete,proto3" json:"delete,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
 func (x *DesktopStopRequest) Reset() {
@@ -558,24 +171,19 @@ func (*DesktopStopRequest) Descriptor() ([]byte, []int) {
 	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *DesktopStopRequest) GetUuid() string {
+func (x *DesktopStopRequest) GetId() string {
 	if x != nil {
-		return x.Uuid
+		return x.Id
 	}
 	return ""
-}
-
-func (x *DesktopStopRequest) GetDelete() bool {
-	if x != nil {
-		return x.Delete
-	}
-	return false
 }
 
 type DesktopStopResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
+
+	Result bool `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
 }
 
 func (x *DesktopStopResponse) Reset() {
@@ -610,16 +218,21 @@ func (*DesktopStopResponse) Descriptor() ([]byte, []int) {
 	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{3}
 }
 
-type DesktopStartRequest_DesktopOS struct {
+func (x *DesktopStopResponse) GetResult() bool {
+	if x != nil {
+		return x.Result
+	}
+	return false
+}
+
+type DesktopListRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
-
-	Type *DesktopStartRequest_DesktopOS_DesktopOSType `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 }
 
-func (x *DesktopStartRequest_DesktopOS) Reset() {
-	*x = DesktopStartRequest_DesktopOS{}
+func (x *DesktopListRequest) Reset() {
+	*x = DesktopListRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_pkg_proto_hyper_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -627,13 +240,13 @@ func (x *DesktopStartRequest_DesktopOS) Reset() {
 	}
 }
 
-func (x *DesktopStartRequest_DesktopOS) String() string {
+func (x *DesktopListRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DesktopStartRequest_DesktopOS) ProtoMessage() {}
+func (*DesktopListRequest) ProtoMessage() {}
 
-func (x *DesktopStartRequest_DesktopOS) ProtoReflect() protoreflect.Message {
+func (x *DesktopListRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_proto_hyper_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -645,30 +258,21 @@ func (x *DesktopStartRequest_DesktopOS) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DesktopStartRequest_DesktopOS.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopOS) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 0}
+// Deprecated: Use DesktopListRequest.ProtoReflect.Descriptor instead.
+func (*DesktopListRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *DesktopStartRequest_DesktopOS) GetType() *DesktopStartRequest_DesktopOS_DesktopOSType {
-	if x != nil {
-		return x.Type
-	}
-	return nil
-}
-
-type DesktopStartRequest_DesktopDevices struct {
+type DesktopListResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Input   []*DesktopStartRequest_DesktopDevices_DesktopDeviceInput   `protobuf:"bytes,1,rep,name=input,proto3" json:"input,omitempty"`
-	Graphic []*DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic `protobuf:"bytes,2,rep,name=graphic,proto3" json:"graphic,omitempty"`
-	Video   []*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo   `protobuf:"bytes,3,rep,name=video,proto3" json:"video,omitempty"`
+	Id []string `protobuf:"bytes,1,rep,name=id,proto3" json:"id,omitempty"`
 }
 
-func (x *DesktopStartRequest_DesktopDevices) Reset() {
-	*x = DesktopStartRequest_DesktopDevices{}
+func (x *DesktopListResponse) Reset() {
+	*x = DesktopListResponse{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_pkg_proto_hyper_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -676,13 +280,13 @@ func (x *DesktopStartRequest_DesktopDevices) Reset() {
 	}
 }
 
-func (x *DesktopStartRequest_DesktopDevices) String() string {
+func (x *DesktopListResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DesktopStartRequest_DesktopDevices) ProtoMessage() {}
+func (*DesktopListResponse) ProtoMessage() {}
 
-func (x *DesktopStartRequest_DesktopDevices) ProtoReflect() protoreflect.Message {
+func (x *DesktopListResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_proto_hyper_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -694,43 +298,28 @@ func (x *DesktopStartRequest_DesktopDevices) ProtoReflect() protoreflect.Message
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DesktopStartRequest_DesktopDevices.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopDevices) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1}
+// Deprecated: Use DesktopListResponse.ProtoReflect.Descriptor instead.
+func (*DesktopListResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *DesktopStartRequest_DesktopDevices) GetInput() []*DesktopStartRequest_DesktopDevices_DesktopDeviceInput {
+func (x *DesktopListResponse) GetId() []string {
 	if x != nil {
-		return x.Input
+		return x.Id
 	}
 	return nil
 }
 
-func (x *DesktopStartRequest_DesktopDevices) GetGraphic() []*DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic {
-	if x != nil {
-		return x.Graphic
-	}
-	return nil
-}
-
-func (x *DesktopStartRequest_DesktopDevices) GetVideo() []*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo {
-	if x != nil {
-		return x.Video
-	}
-	return nil
-}
-
-type DesktopStartRequest_DesktopMemory struct {
+type DesktopXMLGetRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Value int32  `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
-	Unit  string `protobuf:"bytes,2,opt,name=unit,proto3" json:"unit,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
-func (x *DesktopStartRequest_DesktopMemory) Reset() {
-	*x = DesktopStartRequest_DesktopMemory{}
+func (x *DesktopXMLGetRequest) Reset() {
+	*x = DesktopXMLGetRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_pkg_proto_hyper_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -738,13 +327,13 @@ func (x *DesktopStartRequest_DesktopMemory) Reset() {
 	}
 }
 
-func (x *DesktopStartRequest_DesktopMemory) String() string {
+func (x *DesktopXMLGetRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DesktopStartRequest_DesktopMemory) ProtoMessage() {}
+func (*DesktopXMLGetRequest) ProtoMessage() {}
 
-func (x *DesktopStartRequest_DesktopMemory) ProtoReflect() protoreflect.Message {
+func (x *DesktopXMLGetRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_proto_hyper_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -756,36 +345,28 @@ func (x *DesktopStartRequest_DesktopMemory) ProtoReflect() protoreflect.Message 
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DesktopStartRequest_DesktopMemory.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopMemory) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 2}
+// Deprecated: Use DesktopXMLGetRequest.ProtoReflect.Descriptor instead.
+func (*DesktopXMLGetRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *DesktopStartRequest_DesktopMemory) GetValue() int32 {
+func (x *DesktopXMLGetRequest) GetId() string {
 	if x != nil {
-		return x.Value
-	}
-	return 0
-}
-
-func (x *DesktopStartRequest_DesktopMemory) GetUnit() string {
-	if x != nil {
-		return x.Unit
+		return x.Id
 	}
 	return ""
 }
 
-type DesktopStartRequest_DesktopVCPU struct {
+type DesktopXMLGetResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Num       int32  `protobuf:"varint,1,opt,name=num,proto3" json:"num,omitempty"`
-	Placement string `protobuf:"bytes,2,opt,name=placement,proto3" json:"placement,omitempty"`
+	Xml bool `protobuf:"varint,1,opt,name=xml,proto3" json:"xml,omitempty"`
 }
 
-func (x *DesktopStartRequest_DesktopVCPU) Reset() {
-	*x = DesktopStartRequest_DesktopVCPU{}
+func (x *DesktopXMLGetResponse) Reset() {
+	*x = DesktopXMLGetResponse{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_pkg_proto_hyper_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -793,13 +374,13 @@ func (x *DesktopStartRequest_DesktopVCPU) Reset() {
 	}
 }
 
-func (x *DesktopStartRequest_DesktopVCPU) String() string {
+func (x *DesktopXMLGetResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DesktopStartRequest_DesktopVCPU) ProtoMessage() {}
+func (*DesktopXMLGetResponse) ProtoMessage() {}
 
-func (x *DesktopStartRequest_DesktopVCPU) ProtoReflect() protoreflect.Message {
+func (x *DesktopXMLGetResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_proto_hyper_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -811,463 +392,67 @@ func (x *DesktopStartRequest_DesktopVCPU) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DesktopStartRequest_DesktopVCPU.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopVCPU) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 3}
+// Deprecated: Use DesktopXMLGetResponse.ProtoReflect.Descriptor instead.
+func (*DesktopXMLGetResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *DesktopStartRequest_DesktopVCPU) GetNum() int32 {
+func (x *DesktopXMLGetResponse) GetXml() bool {
 	if x != nil {
-		return x.Num
-	}
-	return 0
-}
-
-func (x *DesktopStartRequest_DesktopVCPU) GetPlacement() string {
-	if x != nil {
-		return x.Placement
-	}
-	return ""
-}
-
-type DesktopStartRequest_DesktopOS_DesktopOSType struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Arch    DesktopStartRequest_DesktopOS_DesktopOSType_Arch    `protobuf:"varint,1,opt,name=arch,proto3,enum=proto.DesktopStartRequest_DesktopOS_DesktopOSType_Arch" json:"arch,omitempty"`
-	Machine DesktopStartRequest_DesktopOS_DesktopOSType_Machine `protobuf:"varint,2,opt,name=machine,proto3,enum=proto.DesktopStartRequest_DesktopOS_DesktopOSType_Machine" json:"machine,omitempty"`
-	Type    DesktopStartRequest_DesktopOS_DesktopOSType_Type    `protobuf:"varint,3,opt,name=type,proto3,enum=proto.DesktopStartRequest_DesktopOS_DesktopOSType_Type" json:"type,omitempty"`
-}
-
-func (x *DesktopStartRequest_DesktopOS_DesktopOSType) Reset() {
-	*x = DesktopStartRequest_DesktopOS_DesktopOSType{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_proto_hyper_proto_msgTypes[8]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DesktopStartRequest_DesktopOS_DesktopOSType) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DesktopStartRequest_DesktopOS_DesktopOSType) ProtoMessage() {}
-
-func (x *DesktopStartRequest_DesktopOS_DesktopOSType) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_hyper_proto_msgTypes[8]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopOS_DesktopOSType.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopOS_DesktopOSType) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 0, 0}
-}
-
-func (x *DesktopStartRequest_DesktopOS_DesktopOSType) GetArch() DesktopStartRequest_DesktopOS_DesktopOSType_Arch {
-	if x != nil {
-		return x.Arch
-	}
-	return DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_ARCH_UNKNOWN
-}
-
-func (x *DesktopStartRequest_DesktopOS_DesktopOSType) GetMachine() DesktopStartRequest_DesktopOS_DesktopOSType_Machine {
-	if x != nil {
-		return x.Machine
-	}
-	return DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_MACHINE_UNKNOWN
-}
-
-func (x *DesktopStartRequest_DesktopOS_DesktopOSType) GetType() DesktopStartRequest_DesktopOS_DesktopOSType_Type {
-	if x != nil {
-		return x.Type
-	}
-	return DesktopStartRequest_DesktopOS_DesktopOSType_DESKTOP_OS_TYPE_TYPE_UNKNOWN
-}
-
-type DesktopStartRequest_DesktopDevices_DesktopDeviceInput struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Type DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType `protobuf:"varint,1,opt,name=type,proto3,enum=proto.DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType" json:"type,omitempty"`
-	Bus  DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus  `protobuf:"varint,2,opt,name=bus,proto3,enum=proto.DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus" json:"bus,omitempty"`
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceInput) Reset() {
-	*x = DesktopStartRequest_DesktopDevices_DesktopDeviceInput{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_proto_hyper_proto_msgTypes[9]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceInput) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceInput) ProtoMessage() {}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceInput) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_hyper_proto_msgTypes[9]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopDevices_DesktopDeviceInput.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceInput) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1, 0}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceInput) GetType() DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType {
-	if x != nil {
-		return x.Type
-	}
-	return DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_TYPE_UNKNOWN
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceInput) GetBus() DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus {
-	if x != nil {
-		return x.Bus
-	}
-	return DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DESKTOP_DEVICE_INPUT_BUS_UNKNOWN
-}
-
-type DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Spice bool `protobuf:"varint,1,opt,name=spice,proto3" json:"spice,omitempty"`
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic) Reset() {
-	*x = DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_proto_hyper_proto_msgTypes[10]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic) ProtoMessage() {}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_hyper_proto_msgTypes[10]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1, 1}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic) GetSpice() bool {
-	if x != nil {
-		return x.Spice
+		return x.Xml
 	}
 	return false
-}
-
-type DesktopStartRequest_DesktopDevices_DesktopDeviceVideo struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Model *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo) Reset() {
-	*x = DesktopStartRequest_DesktopDevices_DesktopDeviceVideo{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_proto_hyper_proto_msgTypes[11]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo) ProtoMessage() {}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_hyper_proto_msgTypes[11]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopDevices_DesktopDeviceVideo.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1, 2}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo) GetModel() *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel {
-	if x != nil {
-		return x.Model
-	}
-	return nil
-}
-
-type DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Type DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType `protobuf:"varint,1,opt,name=type,proto3,enum=proto.DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType" json:"type,omitempty"`
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel) Reset() {
-	*x = DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pkg_proto_hyper_proto_msgTypes[12]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel) ProtoMessage() {
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_proto_hyper_proto_msgTypes[12]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel.ProtoReflect.Descriptor instead.
-func (*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel) Descriptor() ([]byte, []int) {
-	return file_pkg_proto_hyper_proto_rawDescGZIP(), []int{0, 1, 2, 0}
-}
-
-func (x *DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel) GetType() DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType {
-	if x != nil {
-		return x.Type
-	}
-	return DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DESKTOP_DEVICE_VIDEO_MODEL_TYPE_UNKNOWN
 }
 
 var File_pkg_proto_hyper_proto protoreflect.FileDescriptor
 
 var file_pkg_proto_hyper_proto_rawDesc = []byte{
 	0x0a, 0x15, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x68, 0x79, 0x70, 0x65,
-	0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x05, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0xea,
-	0x11, 0x0a, 0x13, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x3a, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x0e, 0x32, 0x26, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73,
-	0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x54, 0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79,
-	0x70, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x34, 0x0a, 0x02, 0x6f, 0x73, 0x18, 0x03, 0x20, 0x01,
-	0x28, 0x0b, 0x32, 0x24, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74,
-	0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44,
-	0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f, 0x53, 0x52, 0x02, 0x6f, 0x73, 0x12, 0x43, 0x0a, 0x07,
-	0x64, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x29, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61,
-	0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
-	0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x52, 0x07, 0x64, 0x65, 0x76, 0x69, 0x63, 0x65,
-	0x73, 0x12, 0x40, 0x0a, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x18, 0x05, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x28, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
-	0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x52, 0x06, 0x6d, 0x65, 0x6d,
-	0x6f, 0x72, 0x79, 0x12, 0x3a, 0x0a, 0x04, 0x76, 0x63, 0x70, 0x75, 0x18, 0x06, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x26, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
-	0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x56, 0x43, 0x50, 0x55, 0x52, 0x04, 0x76, 0x63, 0x70, 0x75, 0x1a,
-	0xc2, 0x04, 0x0a, 0x09, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f, 0x53, 0x12, 0x46, 0x0a,
-	0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x32, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f,
-	0x53, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f, 0x53, 0x54, 0x79, 0x70, 0x65, 0x52,
-	0x04, 0x74, 0x79, 0x70, 0x65, 0x1a, 0xec, 0x03, 0x0a, 0x0d, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
-	0x70, 0x4f, 0x53, 0x54, 0x79, 0x70, 0x65, 0x12, 0x4b, 0x0a, 0x04, 0x61, 0x72, 0x63, 0x68, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x37, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f, 0x53, 0x2e, 0x44, 0x65, 0x73, 0x6b,
-	0x74, 0x6f, 0x70, 0x4f, 0x53, 0x54, 0x79, 0x70, 0x65, 0x2e, 0x41, 0x72, 0x63, 0x68, 0x52, 0x04,
-	0x61, 0x72, 0x63, 0x68, 0x12, 0x54, 0x0a, 0x07, 0x6d, 0x61, 0x63, 0x68, 0x69, 0x6e, 0x65, 0x18,
-	0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x3a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f, 0x53, 0x2e, 0x44, 0x65, 0x73, 0x6b,
-	0x74, 0x6f, 0x70, 0x4f, 0x53, 0x54, 0x79, 0x70, 0x65, 0x2e, 0x4d, 0x61, 0x63, 0x68, 0x69, 0x6e,
-	0x65, 0x52, 0x07, 0x6d, 0x61, 0x63, 0x68, 0x69, 0x6e, 0x65, 0x12, 0x4b, 0x0a, 0x04, 0x74, 0x79,
-	0x70, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x37, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f, 0x53, 0x2e, 0x44,
-	0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4f, 0x53, 0x54, 0x79, 0x70, 0x65, 0x2e, 0x54, 0x79, 0x70,
-	0x65, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x22, 0x49, 0x0a, 0x04, 0x41, 0x72, 0x63, 0x68, 0x12,
-	0x20, 0x0a, 0x1c, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x4f, 0x53, 0x5f, 0x54, 0x59,
-	0x50, 0x45, 0x5f, 0x41, 0x52, 0x43, 0x48, 0x5f, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10,
-	0x00, 0x12, 0x1f, 0x0a, 0x1b, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x4f, 0x53, 0x5f,
-	0x54, 0x59, 0x50, 0x45, 0x5f, 0x41, 0x52, 0x43, 0x48, 0x5f, 0x58, 0x38, 0x36, 0x5f, 0x36, 0x34,
-	0x10, 0x01, 0x22, 0x58, 0x0a, 0x07, 0x4d, 0x61, 0x63, 0x68, 0x69, 0x6e, 0x65, 0x12, 0x23, 0x0a,
-	0x1f, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x4f, 0x53, 0x5f, 0x54, 0x59, 0x50, 0x45,
-	0x5f, 0x4d, 0x41, 0x43, 0x48, 0x49, 0x4e, 0x45, 0x5f, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e,
-	0x10, 0x00, 0x12, 0x28, 0x0a, 0x24, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x4f, 0x53,
-	0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x4d, 0x41, 0x43, 0x48, 0x49, 0x4e, 0x45, 0x5f, 0x50, 0x43,
-	0x5f, 0x69, 0x34, 0x34, 0x46, 0x58, 0x5f, 0x34, 0x5f, 0x32, 0x10, 0x01, 0x22, 0x46, 0x0a, 0x04,
-	0x54, 0x79, 0x70, 0x65, 0x12, 0x20, 0x0a, 0x1c, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f,
-	0x4f, 0x53, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x55, 0x4e, 0x4b,
-	0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x1c, 0x0a, 0x18, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f,
-	0x50, 0x5f, 0x4f, 0x53, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x48,
-	0x56, 0x4d, 0x10, 0x01, 0x1a, 0x8b, 0x09, 0x0a, 0x0e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70,
-	0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x12, 0x52, 0x0a, 0x05, 0x69, 0x6e, 0x70, 0x75, 0x74,
-	0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x3c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44,
-	0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65,
-	0x73, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x49,
-	0x6e, 0x70, 0x75, 0x74, 0x52, 0x05, 0x69, 0x6e, 0x70, 0x75, 0x74, 0x12, 0x58, 0x0a, 0x07, 0x67,
-	0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x3e, 0x2e, 0x70,
+	0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x05, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x43,
+	0x0a, 0x13, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x78, 0x6d, 0x6c, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x03, 0x78, 0x6d, 0x6c, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77,
+	0x6f, 0x72, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77,
+	0x6f, 0x72, 0x64, 0x22, 0x28, 0x0a, 0x14, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74,
+	0x61, 0x72, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x78,
+	0x6d, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x78, 0x6d, 0x6c, 0x22, 0x24, 0x0a,
+	0x12, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x02, 0x69, 0x64, 0x22, 0x2d, 0x0a, 0x13, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74,
+	0x6f, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65,
+	0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75,
+	0x6c, 0x74, 0x22, 0x14, 0x0a, 0x12, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4c, 0x69, 0x73,
+	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x25, 0x0a, 0x13, 0x44, 0x65, 0x73, 0x6b,
+	0x74, 0x6f, 0x70, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22,
+	0x26, 0x0a, 0x14, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x58, 0x4d, 0x4c, 0x47, 0x65, 0x74,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x29, 0x0a, 0x15, 0x44, 0x65, 0x73, 0x6b, 0x74,
+	0x6f, 0x70, 0x58, 0x4d, 0x4c, 0x47, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x10, 0x0a, 0x03, 0x78, 0x6d, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x03, 0x78,
+	0x6d, 0x6c, 0x32, 0xb0, 0x02, 0x0a, 0x05, 0x48, 0x79, 0x70, 0x65, 0x72, 0x12, 0x49, 0x0a, 0x0c,
+	0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x12, 0x1a, 0x2e, 0x70,
 	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72,
-	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70,
-	0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44,
-	0x65, 0x76, 0x69, 0x63, 0x65, 0x47, 0x72, 0x61, 0x70, 0x68, 0x69, 0x63, 0x52, 0x07, 0x67, 0x72,
-	0x61, 0x70, 0x68, 0x69, 0x63, 0x12, 0x52, 0x0a, 0x05, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x18, 0x03,
-	0x20, 0x03, 0x28, 0x0b, 0x32, 0x3c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73,
-	0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x2e,
-	0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69, 0x64,
-	0x65, 0x6f, 0x52, 0x05, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x1a, 0xad, 0x03, 0x0a, 0x12, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6e, 0x70, 0x75, 0x74,
-	0x12, 0x67, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x53,
-	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74,
-	0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74,
-	0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
-	0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x2e, 0x44, 0x65, 0x73,
-	0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x54,
-	0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x64, 0x0a, 0x03, 0x62, 0x75, 0x73,
-	0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x52, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44,
-	0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65,
-	0x73, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x49,
-	0x6e, 0x70, 0x75, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69,
-	0x63, 0x65, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x42, 0x75, 0x73, 0x52, 0x03, 0x62, 0x75, 0x73, 0x22,
-	0x67, 0x0a, 0x16, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65,
-	0x49, 0x6e, 0x70, 0x75, 0x74, 0x54, 0x79, 0x70, 0x65, 0x12, 0x25, 0x0a, 0x21, 0x44, 0x45, 0x53,
-	0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x44, 0x45, 0x56, 0x49, 0x43, 0x45, 0x5f, 0x49, 0x4e, 0x50, 0x55,
-	0x54, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00,
-	0x12, 0x26, 0x0a, 0x22, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x44, 0x45, 0x56, 0x49,
-	0x43, 0x45, 0x5f, 0x49, 0x4e, 0x50, 0x55, 0x54, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x4b, 0x45,
-	0x59, 0x42, 0x4f, 0x41, 0x52, 0x44, 0x10, 0x01, 0x22, 0x5f, 0x0a, 0x15, 0x44, 0x65, 0x73, 0x6b,
-	0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x42, 0x75,
-	0x73, 0x12, 0x24, 0x0a, 0x20, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x44, 0x45, 0x56,
-	0x49, 0x43, 0x45, 0x5f, 0x49, 0x4e, 0x50, 0x55, 0x54, 0x5f, 0x42, 0x55, 0x53, 0x5f, 0x55, 0x4e,
-	0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x20, 0x0a, 0x1c, 0x44, 0x45, 0x53, 0x4b, 0x54,
-	0x4f, 0x50, 0x5f, 0x44, 0x45, 0x56, 0x49, 0x43, 0x45, 0x5f, 0x49, 0x4e, 0x50, 0x55, 0x54, 0x5f,
-	0x42, 0x55, 0x53, 0x5f, 0x50, 0x53, 0x32, 0x10, 0x01, 0x1a, 0x2c, 0x0a, 0x14, 0x44, 0x65, 0x73,
-	0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x47, 0x72, 0x61, 0x70, 0x68, 0x69,
-	0x63, 0x12, 0x14, 0x0a, 0x05, 0x73, 0x70, 0x69, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08,
-	0x52, 0x05, 0x73, 0x70, 0x69, 0x63, 0x65, 0x1a, 0x98, 0x03, 0x0a, 0x12, 0x44, 0x65, 0x73, 0x6b,
-	0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x12, 0x6a,
-	0x0a, 0x05, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x54, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61,
-	0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
-	0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70,
-	0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b,
-	0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x4d, 0x6f,
-	0x64, 0x65, 0x6c, 0x52, 0x05, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x1a, 0x95, 0x02, 0x0a, 0x17, 0x44,
-	0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69, 0x64, 0x65,
-	0x6f, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x12, 0x84, 0x01, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x73,
-	0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69,
-	0x64, 0x65, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63,
-	0x65, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x44, 0x65, 0x73, 0x6b,
-	0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x4d, 0x6f,
-	0x64, 0x65, 0x6c, 0x54, 0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x22, 0x73, 0x0a,
-	0x1b, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x56, 0x69,
-	0x64, 0x65, 0x6f, 0x4d, 0x6f, 0x64, 0x65, 0x6c, 0x54, 0x79, 0x70, 0x65, 0x12, 0x2b, 0x0a, 0x27,
-	0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x44, 0x45, 0x56, 0x49, 0x43, 0x45, 0x5f, 0x56,
-	0x49, 0x44, 0x45, 0x4f, 0x5f, 0x4d, 0x4f, 0x44, 0x45, 0x4c, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f,
-	0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x27, 0x0a, 0x23, 0x44, 0x45, 0x53,
-	0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x44, 0x45, 0x56, 0x49, 0x43, 0x45, 0x5f, 0x56, 0x49, 0x44, 0x45,
-	0x4f, 0x5f, 0x4d, 0x4f, 0x44, 0x45, 0x4c, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x51, 0x58, 0x4c,
-	0x10, 0x01, 0x1a, 0x39, 0x0a, 0x0d, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4d, 0x65, 0x6d,
-	0x6f, 0x72, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x05, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x75, 0x6e, 0x69,
-	0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x75, 0x6e, 0x69, 0x74, 0x1a, 0x3d, 0x0a,
-	0x0b, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x56, 0x43, 0x50, 0x55, 0x12, 0x10, 0x0a, 0x03,
-	0x6e, 0x75, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x03, 0x6e, 0x75, 0x6d, 0x12, 0x1c,
-	0x0a, 0x09, 0x70, 0x6c, 0x61, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x09, 0x70, 0x6c, 0x61, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x22, 0x3d, 0x0a, 0x0b,
-	0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x54, 0x79, 0x70, 0x65, 0x12, 0x18, 0x0a, 0x14, 0x44,
-	0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x55, 0x4e, 0x4b, 0x4e,
-	0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x14, 0x0a, 0x10, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f, 0x50,
-	0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x4b, 0x56, 0x4d, 0x10, 0x01, 0x22, 0xaa, 0x01, 0x0a, 0x14,
-	0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x70, 0x77, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x03, 0x70, 0x77, 0x64, 0x12, 0x1d, 0x0a, 0x0a, 0x73, 0x70, 0x69, 0x63, 0x65, 0x5f,
-	0x70, 0x6f, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x09, 0x73, 0x70, 0x69, 0x63,
-	0x65, 0x50, 0x6f, 0x72, 0x74, 0x12, 0x24, 0x0a, 0x0e, 0x73, 0x70, 0x69, 0x63, 0x65, 0x5f, 0x74,
-	0x6c, 0x73, 0x5f, 0x70, 0x6f, 0x72, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0c, 0x73,
-	0x70, 0x69, 0x63, 0x65, 0x54, 0x6c, 0x73, 0x50, 0x6f, 0x72, 0x74, 0x12, 0x19, 0x0a, 0x08, 0x76,
-	0x6e, 0x63, 0x5f, 0x70, 0x6f, 0x72, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x05, 0x52, 0x07, 0x76,
-	0x6e, 0x63, 0x50, 0x6f, 0x72, 0x74, 0x12, 0x20, 0x0a, 0x0c, 0x76, 0x6e, 0x63, 0x5f, 0x74, 0x6c,
-	0x73, 0x5f, 0x70, 0x6f, 0x72, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0a, 0x76, 0x6e,
-	0x63, 0x54, 0x6c, 0x73, 0x50, 0x6f, 0x72, 0x74, 0x22, 0x40, 0x0a, 0x12, 0x44, 0x65, 0x73, 0x6b,
-	0x74, 0x6f, 0x70, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x12,
-	0x0a, 0x04, 0x75, 0x75, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x75, 0x75,
-	0x69, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x64, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x08, 0x52, 0x06, 0x64, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x22, 0x15, 0x0a, 0x13, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x32, 0x9a, 0x01, 0x0a, 0x05, 0x48, 0x79, 0x70, 0x65, 0x72, 0x12, 0x49, 0x0a, 0x0c, 0x44,
-	0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x12, 0x1a, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e,
-	0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x46, 0x0a, 0x0b, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
-	0x70, 0x53, 0x74, 0x6f, 0x70, 0x12, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65,
-	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70,
-	0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x2c,
-	0x5a, 0x2a, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x73, 0x61,
-	0x72, 0x64, 0x2d, 0x76, 0x64, 0x69, 0x2f, 0x69, 0x73, 0x61, 0x72, 0x64, 0x2f, 0x68, 0x79, 0x70,
-	0x65, 0x72, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x61, 0x72, 0x74, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x46, 0x0a, 0x0b, 0x44, 0x65, 0x73, 0x6b, 0x74,
+	0x6f, 0x70, 0x53, 0x74, 0x6f, 0x70, 0x12, 0x19, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44,
+	0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f,
+	0x70, 0x53, 0x74, 0x6f, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12,
+	0x46, 0x0a, 0x0b, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4c, 0x69, 0x73, 0x74, 0x12, 0x19,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4c, 0x69,
+	0x73, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x4c, 0x0a, 0x0d, 0x44, 0x65, 0x73, 0x6b, 0x74,
+	0x6f, 0x70, 0x58, 0x4d, 0x4c, 0x47, 0x65, 0x74, 0x12, 0x1b, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2e, 0x44, 0x65, 0x73, 0x6b, 0x74, 0x6f, 0x70, 0x58, 0x4d, 0x4c, 0x47, 0x65, 0x74, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x44, 0x65,
+	0x73, 0x6b, 0x74, 0x6f, 0x70, 0x58, 0x4d, 0x4c, 0x47, 0x65, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x2c, 0x5a, 0x2a, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e,
+	0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x73, 0x61, 0x72, 0x64, 0x2d, 0x76, 0x64, 0x69, 0x2f, 0x69, 0x73,
+	0x61, 0x72, 0x64, 0x2f, 0x68, 0x79, 0x70, 0x65, 0x72, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1282,56 +467,31 @@ func file_pkg_proto_hyper_proto_rawDescGZIP() []byte {
 	return file_pkg_proto_hyper_proto_rawDescData
 }
 
-var file_pkg_proto_hyper_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_pkg_proto_hyper_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_pkg_proto_hyper_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_pkg_proto_hyper_proto_goTypes = []interface{}{
-	(DesktopStartRequest_DesktopType)(0),                                                                           // 0: proto.DesktopStartRequest.DesktopType
-	(DesktopStartRequest_DesktopOS_DesktopOSType_Arch)(0),                                                          // 1: proto.DesktopStartRequest.DesktopOS.DesktopOSType.Arch
-	(DesktopStartRequest_DesktopOS_DesktopOSType_Machine)(0),                                                       // 2: proto.DesktopStartRequest.DesktopOS.DesktopOSType.Machine
-	(DesktopStartRequest_DesktopOS_DesktopOSType_Type)(0),                                                          // 3: proto.DesktopStartRequest.DesktopOS.DesktopOSType.Type
-	(DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputType)(0),                              // 4: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput.DesktopDeviceInputType
-	(DesktopStartRequest_DesktopDevices_DesktopDeviceInput_DesktopDeviceInputBus)(0),                               // 5: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput.DesktopDeviceInputBus
-	(DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel_DesktopDeviceVideoModelType)(0), // 6: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo.DesktopDeviceVideoModel.DesktopDeviceVideoModelType
-	(*DesktopStartRequest)(nil),                                                                                    // 7: proto.DesktopStartRequest
-	(*DesktopStartResponse)(nil),                                                                                   // 8: proto.DesktopStartResponse
-	(*DesktopStopRequest)(nil),                                                                                     // 9: proto.DesktopStopRequest
-	(*DesktopStopResponse)(nil),                                                                                    // 10: proto.DesktopStopResponse
-	(*DesktopStartRequest_DesktopOS)(nil),                                                                          // 11: proto.DesktopStartRequest.DesktopOS
-	(*DesktopStartRequest_DesktopDevices)(nil),                                                                     // 12: proto.DesktopStartRequest.DesktopDevices
-	(*DesktopStartRequest_DesktopMemory)(nil),                                                                      // 13: proto.DesktopStartRequest.DesktopMemory
-	(*DesktopStartRequest_DesktopVCPU)(nil),                                                                        // 14: proto.DesktopStartRequest.DesktopVCPU
-	(*DesktopStartRequest_DesktopOS_DesktopOSType)(nil),                                                            // 15: proto.DesktopStartRequest.DesktopOS.DesktopOSType
-	(*DesktopStartRequest_DesktopDevices_DesktopDeviceInput)(nil),                                                  // 16: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput
-	(*DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic)(nil),                                                // 17: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceGraphic
-	(*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo)(nil),                                                  // 18: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo
-	(*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel)(nil),                          // 19: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo.DesktopDeviceVideoModel
+	(*DesktopStartRequest)(nil),   // 0: proto.DesktopStartRequest
+	(*DesktopStartResponse)(nil),  // 1: proto.DesktopStartResponse
+	(*DesktopStopRequest)(nil),    // 2: proto.DesktopStopRequest
+	(*DesktopStopResponse)(nil),   // 3: proto.DesktopStopResponse
+	(*DesktopListRequest)(nil),    // 4: proto.DesktopListRequest
+	(*DesktopListResponse)(nil),   // 5: proto.DesktopListResponse
+	(*DesktopXMLGetRequest)(nil),  // 6: proto.DesktopXMLGetRequest
+	(*DesktopXMLGetResponse)(nil), // 7: proto.DesktopXMLGetResponse
 }
 var file_pkg_proto_hyper_proto_depIdxs = []int32{
-	0,  // 0: proto.DesktopStartRequest.type:type_name -> proto.DesktopStartRequest.DesktopType
-	11, // 1: proto.DesktopStartRequest.os:type_name -> proto.DesktopStartRequest.DesktopOS
-	12, // 2: proto.DesktopStartRequest.devices:type_name -> proto.DesktopStartRequest.DesktopDevices
-	13, // 3: proto.DesktopStartRequest.memory:type_name -> proto.DesktopStartRequest.DesktopMemory
-	14, // 4: proto.DesktopStartRequest.vcpu:type_name -> proto.DesktopStartRequest.DesktopVCPU
-	15, // 5: proto.DesktopStartRequest.DesktopOS.type:type_name -> proto.DesktopStartRequest.DesktopOS.DesktopOSType
-	16, // 6: proto.DesktopStartRequest.DesktopDevices.input:type_name -> proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput
-	17, // 7: proto.DesktopStartRequest.DesktopDevices.graphic:type_name -> proto.DesktopStartRequest.DesktopDevices.DesktopDeviceGraphic
-	18, // 8: proto.DesktopStartRequest.DesktopDevices.video:type_name -> proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo
-	1,  // 9: proto.DesktopStartRequest.DesktopOS.DesktopOSType.arch:type_name -> proto.DesktopStartRequest.DesktopOS.DesktopOSType.Arch
-	2,  // 10: proto.DesktopStartRequest.DesktopOS.DesktopOSType.machine:type_name -> proto.DesktopStartRequest.DesktopOS.DesktopOSType.Machine
-	3,  // 11: proto.DesktopStartRequest.DesktopOS.DesktopOSType.type:type_name -> proto.DesktopStartRequest.DesktopOS.DesktopOSType.Type
-	4,  // 12: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput.type:type_name -> proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput.DesktopDeviceInputType
-	5,  // 13: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput.bus:type_name -> proto.DesktopStartRequest.DesktopDevices.DesktopDeviceInput.DesktopDeviceInputBus
-	19, // 14: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo.model:type_name -> proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo.DesktopDeviceVideoModel
-	6,  // 15: proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo.DesktopDeviceVideoModel.type:type_name -> proto.DesktopStartRequest.DesktopDevices.DesktopDeviceVideo.DesktopDeviceVideoModel.DesktopDeviceVideoModelType
-	7,  // 16: proto.Hyper.DesktopStart:input_type -> proto.DesktopStartRequest
-	9,  // 17: proto.Hyper.DesktopStop:input_type -> proto.DesktopStopRequest
-	8,  // 18: proto.Hyper.DesktopStart:output_type -> proto.DesktopStartResponse
-	10, // 19: proto.Hyper.DesktopStop:output_type -> proto.DesktopStopResponse
-	18, // [18:20] is the sub-list for method output_type
-	16, // [16:18] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	0, // 0: proto.Hyper.DesktopStart:input_type -> proto.DesktopStartRequest
+	2, // 1: proto.Hyper.DesktopStop:input_type -> proto.DesktopStopRequest
+	4, // 2: proto.Hyper.DesktopList:input_type -> proto.DesktopListRequest
+	6, // 3: proto.Hyper.DesktopXMLGet:input_type -> proto.DesktopXMLGetRequest
+	1, // 4: proto.Hyper.DesktopStart:output_type -> proto.DesktopStartResponse
+	3, // 5: proto.Hyper.DesktopStop:output_type -> proto.DesktopStopResponse
+	5, // 6: proto.Hyper.DesktopList:output_type -> proto.DesktopListResponse
+	7, // 7: proto.Hyper.DesktopXMLGet:output_type -> proto.DesktopXMLGetResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_pkg_proto_hyper_proto_init() }
@@ -1389,7 +549,7 @@ func file_pkg_proto_hyper_proto_init() {
 			}
 		}
 		file_pkg_proto_hyper_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopOS); i {
+			switch v := v.(*DesktopListRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1401,7 +561,7 @@ func file_pkg_proto_hyper_proto_init() {
 			}
 		}
 		file_pkg_proto_hyper_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopDevices); i {
+			switch v := v.(*DesktopListResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1413,7 +573,7 @@ func file_pkg_proto_hyper_proto_init() {
 			}
 		}
 		file_pkg_proto_hyper_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopMemory); i {
+			switch v := v.(*DesktopXMLGetRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1425,67 +585,7 @@ func file_pkg_proto_hyper_proto_init() {
 			}
 		}
 		file_pkg_proto_hyper_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopVCPU); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pkg_proto_hyper_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopOS_DesktopOSType); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pkg_proto_hyper_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopDevices_DesktopDeviceInput); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pkg_proto_hyper_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopDevices_DesktopDeviceGraphic); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pkg_proto_hyper_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pkg_proto_hyper_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DesktopStartRequest_DesktopDevices_DesktopDeviceVideo_DesktopDeviceVideoModel); i {
+			switch v := v.(*DesktopXMLGetResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1502,14 +602,13 @@ func file_pkg_proto_hyper_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pkg_proto_hyper_proto_rawDesc,
-			NumEnums:      7,
-			NumMessages:   13,
+			NumEnums:      0,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_pkg_proto_hyper_proto_goTypes,
 		DependencyIndexes: file_pkg_proto_hyper_proto_depIdxs,
-		EnumInfos:         file_pkg_proto_hyper_proto_enumTypes,
 		MessageInfos:      file_pkg_proto_hyper_proto_msgTypes,
 	}.Build()
 	File_pkg_proto_hyper_proto = out.File
@@ -1532,6 +631,8 @@ const _ = grpc.SupportPackageIsVersion6
 type HyperClient interface {
 	DesktopStart(ctx context.Context, in *DesktopStartRequest, opts ...grpc.CallOption) (*DesktopStartResponse, error)
 	DesktopStop(ctx context.Context, in *DesktopStopRequest, opts ...grpc.CallOption) (*DesktopStopResponse, error)
+	DesktopList(ctx context.Context, in *DesktopListRequest, opts ...grpc.CallOption) (*DesktopListResponse, error)
+	DesktopXMLGet(ctx context.Context, in *DesktopXMLGetRequest, opts ...grpc.CallOption) (*DesktopXMLGetResponse, error)
 }
 
 type hyperClient struct {
@@ -1560,10 +661,30 @@ func (c *hyperClient) DesktopStop(ctx context.Context, in *DesktopStopRequest, o
 	return out, nil
 }
 
+func (c *hyperClient) DesktopList(ctx context.Context, in *DesktopListRequest, opts ...grpc.CallOption) (*DesktopListResponse, error) {
+	out := new(DesktopListResponse)
+	err := c.cc.Invoke(ctx, "/proto.Hyper/DesktopList", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hyperClient) DesktopXMLGet(ctx context.Context, in *DesktopXMLGetRequest, opts ...grpc.CallOption) (*DesktopXMLGetResponse, error) {
+	out := new(DesktopXMLGetResponse)
+	err := c.cc.Invoke(ctx, "/proto.Hyper/DesktopXMLGet", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // HyperServer is the server API for Hyper service.
 type HyperServer interface {
 	DesktopStart(context.Context, *DesktopStartRequest) (*DesktopStartResponse, error)
 	DesktopStop(context.Context, *DesktopStopRequest) (*DesktopStopResponse, error)
+	DesktopList(context.Context, *DesktopListRequest) (*DesktopListResponse, error)
+	DesktopXMLGet(context.Context, *DesktopXMLGetRequest) (*DesktopXMLGetResponse, error)
 }
 
 // UnimplementedHyperServer can be embedded to have forward compatible implementations.
@@ -1575,6 +696,12 @@ func (*UnimplementedHyperServer) DesktopStart(context.Context, *DesktopStartRequ
 }
 func (*UnimplementedHyperServer) DesktopStop(context.Context, *DesktopStopRequest) (*DesktopStopResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DesktopStop not implemented")
+}
+func (*UnimplementedHyperServer) DesktopList(context.Context, *DesktopListRequest) (*DesktopListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DesktopList not implemented")
+}
+func (*UnimplementedHyperServer) DesktopXMLGet(context.Context, *DesktopXMLGetRequest) (*DesktopXMLGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DesktopXMLGet not implemented")
 }
 
 func RegisterHyperServer(s *grpc.Server, srv HyperServer) {
@@ -1617,6 +744,42 @@ func _Hyper_DesktopStop_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Hyper_DesktopList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DesktopListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HyperServer).DesktopList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.Hyper/DesktopList",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HyperServer).DesktopList(ctx, req.(*DesktopListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Hyper_DesktopXMLGet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DesktopXMLGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HyperServer).DesktopXMLGet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.Hyper/DesktopXMLGet",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HyperServer).DesktopXMLGet(ctx, req.(*DesktopXMLGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Hyper_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.Hyper",
 	HandlerType: (*HyperServer)(nil),
@@ -1628,6 +791,14 @@ var _Hyper_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DesktopStop",
 			Handler:    _Hyper_DesktopStop_Handler,
+		},
+		{
+			MethodName: "DesktopList",
+			Handler:    _Hyper_DesktopList_Handler,
+		},
+		{
+			MethodName: "DesktopXMLGet",
+			Handler:    _Hyper_DesktopXMLGet_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
