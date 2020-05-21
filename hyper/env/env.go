@@ -12,5 +12,6 @@ type Env struct {
 	WG    sync.WaitGroup
 	Sugar *zap.SugaredLogger
 
-	Cfg cfg.Cfg
+	Cfg   cfg.Cfg
+	Hyper *hyper.Hyper
 }
