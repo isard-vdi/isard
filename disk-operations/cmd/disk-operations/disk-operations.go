@@ -8,9 +8,9 @@ import (
 	"os/signal"
 
 	"github.com/isard-vdi/isard/disk-operations/cfg"
+	"github.com/isard-vdi/isard/disk-operations/diskoperations"
 	"github.com/isard-vdi/isard/disk-operations/env"
 	"github.com/isard-vdi/isard/disk-operations/transport/grpc"
-
 	"go.uber.org/zap"
 )
 
@@ -20,15 +20,14 @@ func main() {
 		log.Fatalf("create logger: %v", err)
 	}
 	defer logger.Sync()
+	sugar := logger.Sugar()
 
 	env := &env.Env{
-		Sugar: logger.Sugar(),
-		Cfg: cfg.Cfg{
-			GRPC: cfg.GRPC{
-				Port: 1312,
-			},
-		},
+		Sugar: sugar,
+		Cfg:   cfg.Init(sugar),
 	}
+
+	env.DiskOperations = diskoperations.New(env)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

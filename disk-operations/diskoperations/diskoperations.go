@@ -1,4 +1,4 @@
-package desktopbuilder
+package diskoperations
 
 import "github.com/isard-vdi/isard/disk-operations/env"
 

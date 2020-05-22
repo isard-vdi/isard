@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (d *DesktopBuilder) XMLGet(ctx context.Context, id, template string) (string, error) {
+func (db *DesktopBuilder) XMLGet(ctx context.Context, id string, template string) (string, error) {
 	switch template {
 	case "win10":
 		return fmt.Sprintf(`<domin type='kvm'>

@@ -14,5 +14,5 @@ type Env struct {
 	Sugar *zap.SugaredLogger
 
 	Cfg            cfg.Cfg
-	DesktopBuilder *desktopbuilder.DesktopBuilder
+	DesktopBuilder *desktopbuilder.Interface
 }

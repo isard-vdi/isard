@@ -1,21 +1,15 @@
-package desktopbuilder
+package diskoperations
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"path"
 
-	"github.com/isard-vdi/isard/disk-operations/pkg/proto"
-
-	"io"
 	"net/http"
 	"os"
-	"strings"
-
-	"github.com/dustin/go-humanize"
 )
 
-func (d *DiskOperations) Donwload(ctx context.Context, DownloadFile(filepath string, url string) error {
+func (d *DiskOperations) Donwload(ctx context.Context, filepath string, url string) error {
 	// Create the file, but give it a tmp file extension, this means we won't overwrite a
 	// file until it's downloaded, but we'll remove the tmp extension once downloaded.
 
@@ -43,11 +37,11 @@ func (d *DiskOperations) Donwload(ctx context.Context, DownloadFile(filepath str
 	defer resp.Body.Close()
 
 	// Create our progress reporter and pass it to be used alongside our writer
-	counter := &WriteCounter{}
-	if _, err = io.Copy(out, io.TeeReader(resp.Body, counter)); err != nil {
-		out.Close()
-		return err
-	}
+	//counter := &WriteCounter{}
+	//if _, err = io.Copy(out, io.TeeReader(resp.Body, counter)); err != nil {
+	//	out.Close()
+	//	return err
+	//}
 
 	// The progress use the same line so print a new line once it's finished downloading
 	fmt.Print("\n")
@@ -60,4 +54,3 @@ func (d *DiskOperations) Donwload(ctx context.Context, DownloadFile(filepath str
 	}
 	return nil
 }
-

@@ -17,8 +17,8 @@ func main() {
 	cli := proto.NewHyperClient(conn)
 
 	_, err = cli.DesktopStart(context.Background(), &proto.DesktopStartRequest{
-		Xml:      proto.DesktopStartRequest_XML,
-		Password: proto.DesktopStartRequest_PASSWORD,
+		Xml:      "<xml>",
+		Password: "Password",
 	})
 	if err != nil {
 		panic(err)

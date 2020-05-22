@@ -21,13 +21,23 @@ func main() {
 		log.Fatalf("create logger: %v", err)
 	}
 	defer logger.Sync()
-	sugar := logger.Sugar()
 
 	env := &env.Env{
-		Sugar: sugar,
-		Cfg:   cfg.Init(sugar),
+		Sugar: logger.Sugar(),
+		Cfg: cfg.Cfg{
+			GRPC: cfg.GRPC{
+				Port: 1312,
+			},
+		},
 	}
-	env.DesktopBuilder = desktopbuilder.New(env)
+
+	db, err := desktopbuilder.New(env)
+	if err != nil {
+		env.Sugar.Fatalw("connect to the hypervisor",
+			"err", err,
+		)
+	}
+	env.DesktopBuilder = db
 
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -8,7 +8,6 @@ import (
 	"path"
 
 	"github.com/isard-vdi/isard/disk-operations/pkg/proto"
-
 	"github.com/zchee/go-qcow2"
 
 	"google.golang.org/grpc/codes"

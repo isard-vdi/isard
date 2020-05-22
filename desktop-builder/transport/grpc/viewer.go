@@ -9,6 +9,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (h *DesktopBuilderServer) ViewerGet(ctx context.Context, req *proto.ViewerGetRequest) (*proto.ViewerGetResponse, error) {
+func (db *DesktopBuilderServer) ViewerGet(ctx context.Context, req *proto.ViewerGetRequest) (*proto.ViewerGetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "not implemented yet")
 }

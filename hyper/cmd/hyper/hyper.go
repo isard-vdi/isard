@@ -9,6 +9,7 @@ import (
 
 	"github.com/isard-vdi/isard/hyper/cfg"
 	"github.com/isard-vdi/isard/hyper/env"
+	"github.com/isard-vdi/isard/hyper/hyper"
 	"github.com/isard-vdi/isard/hyper/transport/grpc"
 
 	"go.uber.org/zap"
@@ -29,6 +30,15 @@ func main() {
 			},
 		},
 	}
+
+	h, err := hyper.New(env)
+	if err != nil {
+		env.Sugar.Fatalw("connect to the hypervisor",
+			"err", err,
+		)
+	}
+	env.Hyper = h
+	defer h.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
