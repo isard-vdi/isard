@@ -5,10 +5,10 @@ import (
 	"fmt"
 )
 
-func (db *DesktopBuilder) XMLGet(ctx context.Context, id string, template string) (string, error) {
-	switch template {
+func (d *DesktopBuilder) XMLGet(ctx context.Context, id string) (string, error) {
+	switch id {
 	case "win10":
-		return fmt.Sprintf(`<domin type='kvm'>
+		return fmt.Sprintf(`<domain type='kvm'>
 		<name>%s</name>
 		<memory unit='KiB'>4294656</memory>
 		<currentMemory>2097152</currentMemory>
@@ -219,6 +219,6 @@ func (db *DesktopBuilder) XMLGet(ctx context.Context, id string, template string
 	  </domain>`, id, id), nil
 
 	default:
-		return "", fmt.Errorf("template not found")
+		return "", fmt.Errorf("desktop not found")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/isard-vdi/isard/disk-operations/diskoperations"
 	"github.com/isard-vdi/isard/disk-operations/env"
 	"github.com/isard-vdi/isard/disk-operations/pkg/proto"
 
@@ -16,11 +17,12 @@ const API = "v1.0.0"
 
 // DiskOperationsServer implements the gRPC server
 type DiskOperationsServer struct {
-	env *env.Env
+	env            *env.Env
+	diskoperations *diskoperations.DiskOperations
 }
 
 // Serve starts the DiskOperations gRPC server
-func Serve(ctx context.Context, env *env.Env) {
+func Serve(ctx context.Context, env *env.Env, diskoperations *diskoperations.DiskOperations) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", env.Cfg.GRPC.Port))
 	if err != nil {
 		env.Sugar.Fatalw("listen gRPC port",
@@ -29,7 +31,7 @@ func Serve(ctx context.Context, env *env.Env) {
 		)
 	}
 
-	srv := &DiskOperationsServer{env}
+	srv := &DiskOperationsServer{env, diskoperations}
 	s := gRPC.NewServer()
 	proto.RegisterDiskOperationsServer(s, srv)
 

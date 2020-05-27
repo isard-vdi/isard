@@ -4,82 +4,66 @@ package proto;
 option go_package = "github.com/isard-vdi/isard/disk-operations/pkg/proto";
 
 service DiskOperations {
-    rpc CreateDisk(CreateDiskRequest) returns (CreateDiskResponse) {}
-    rpc DeleteDisk(DeleteDiskRequest) returns (DeleteDiskResponse) {}
-    rpc DerivateDisk(DerivateDiskRequest) returns (DerivateDiskResponse) {}
-    rpc MoveDisk(MoveDiskRequest) returns (MoveDiskResponse) {}
-    rpc Download(DownloadRequest) returns (DownloadResponse) {}
+    // rpc Create(CreateRequest) returns (CreateResponse) {}
+    rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+    rpc Derivate(DerivateRequest) returns (DerivateResponse) {}
+    // rpc Move(MoveRequest) returns (MoveResponse) {}
+    // TODO: Upload / Download progress (stream)
+    // rpc Upload(UploadRequest) returns (UploadResponse) {}
+    // rpc Download(DownloadRequest) returns (DownloadResponse) {}
     //rpc ReplicateDisk(ReplicateDiskRequest) return (ReplicateDiskResponse) {}
 }
 
-enum Fmt {
-    FMT_UNKNOWN = 0;
-    FMT_QCOW2 = 1;
-    FMT_RAW = 2;
+
+// message CreateRequest {
+//     enum DiskFormat {
+//         DISK_FORMAT_UNKNOWN = 0;
+//         DISK_FORMAT_QCOW2 = 1;
+//         DISK_FORMAT_RAW = 2;
+//     }
+
+//     enum DiskPreallocation {
+//         DISK_PREALLOCATION_UNKNOWN = 0;
+//         DISK_PREALLOCATION_OFF = 1;
+//         DISK_PREALLOCATION_ON = 2;
+//     }
+
+//     string name = 1;
+//     int64 size = 2;
+//     DiskFormat format = 3;
+//     int32 cluster_size = 4;
+//     DiskPreallocation preallocation = 5;
+//     bool lazy_refcounts = 6;
+// }
+
+// message CreateResponse {}
+
+message DeleteRequest {
+    string path = 1;
 }
 
-enum Preallocation {
-    PREALLOCATION_UNKNOWN = 0;
-    PREALLOCATION_OFF = 1;
-    PREALLOCATION_ON = 2;
+message DeleteResponse {}
+
+message DerivateRequest {
+    string path = 1;
+    string backing_file = 2;
+    int32 cluster_size = 3;
 }
 
-enum LazyRefcounts {
-    LAZY_REFCOUNTS_UNKNOWN = 0;
-    LAZY_REFCOUNTS_TRUE = 1;
-    LAZY_REFCOUNTS_FALSE = 2;
-}
-enum ClusterSize {
-    CLUSTER_SIZE_UNKNOWN = 0;
-    CLUSTER_SIZE_4K = 1;
-    CLUSTER_SIZE_64K = 2;
-}
+message DerivateResponse {}
 
-message CreateDiskRequest {
-    string filename = 1;
-    int64 size = 2;
-    Fmt format = 3;
-    ClusterSize cluster_size = 4;
-    Preallocation preallocation = 5;
-    LazyRefcounts lazyrefcounts = 6;
-}
+// message MoveRequest {
+//     string source = 1;
+//     string destination = 2;
+// }
 
-message CreateDiskResponse {
-    bool result = 1;
-}
+// message MoveResponse {}
 
-message DeleteDiskRequest {
-    string filename = 1;
-}
+// message DownloadRequest {
+//     string name = 1;
+//     string url = 2;
+// }
 
-message DeleteDiskResponse {
-    bool result = 1;
-}
-
-message DerivateDiskRequest {
-    string filename = 1;
-    string backingfile = 2;
-    ClusterSize cluster_size = 3;
-}
-
-message DerivateDiskResponse {
-    bool result = 1;
-}
-
-message MoveDiskRequest {
-    string source = 1;
-    string destination = 2;
-}
-
-message  MoveDiskResponse {
-    bool result = 1;
-}
-
-message DownloadRequest {
-    string filepath = 1;
-    string url = 2;
-}
-
-message  DownloadResponse {
-    bool result = 1;
-}
+// message  DownloadResponse {
+//     bool result = 1;
+// }

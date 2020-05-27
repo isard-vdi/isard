@@ -11,8 +11,8 @@ import (
 type Interface interface {
 	Start(xml string, paused bool) (string, error)
 	Stop(id string) error
-	GetXML(id string) (string, error)
-	ListDesktops() ([]libvirt.Domain, error)
+	XMLGet(id string) (string, error)
+	List() ([]libvirt.Domain, error)
 	Close() error
 }
 

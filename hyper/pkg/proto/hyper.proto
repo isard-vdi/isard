@@ -12,7 +12,6 @@ service Hyper {
 
 message DesktopStartRequest {
     string xml = 1;
-    string password = 2;
 }
 
 message DesktopStartResponse {
@@ -23,14 +22,12 @@ message DesktopStopRequest {
     string id = 1;
 }
 
-message DesktopStopResponse {
-    bool result = 1;
-}
+message DesktopStopResponse {}
 
 message DesktopListRequest {}
 
 message DesktopListResponse {
-    repeated string id = 1;
+    repeated string ids = 1;
 }
 
 message DesktopXMLGetRequest {
@@ -38,5 +35,5 @@ message DesktopXMLGetRequest {
 }
 
 message DesktopXMLGetResponse {
-    bool xml = 1;
+    string xml = 1;
 }

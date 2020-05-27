@@ -1,53 +1,61 @@
 package desktopbuilder
 
 import (
-	"context"
+	"errors"
 	"fmt"
 
-	libvirtxml "github.com/libvirt/libvirt-go-xml"
+	libvirtxml "libvirt.org/libvirt-go-xml"
 )
 
-type Spice struct {
-	Passwd  string
+var (
+	// ErrNoGraphics gets returned when a Viewer is requested but the desktop has no graphics
+	ErrNoGraphics = errors.New("the desktop has no graphics")
+)
+
+type Viewer struct {
+	Spice []*ViewerSpice
+	VNC   []*ViewerVNC
+}
+
+type ViewerSpice struct {
+	Pwd     string
 	Port    int
 	TLSPort int
 }
 
-type Vnc struct {
-	Passwd    string
-	Port      int
-	WebSocket int
+type ViewerVNC struct {
+	Pwd           string
+	Port          int
+	WebsocketPort int
 }
 
-type Viewer struct {
-	spice []Spice
-	vnc   []Vnc
-}
-
-func (db *DesktopBuilder) ViewerGet(ctx context.Context, xml string) (*Viewer, error) {
-	desktopcfg := &libvirtxml.Domain{}
-	err := desktopcfg.Unmarshal(xml)
-	if err != nil {
-		return nil, fmt.Errorf("list desktops: %s", err)
+// ViewerGet returns the viewer options for a desktop
+func (d *DesktopBuilder) ViewerGet(xml string) (*Viewer, error) {
+	desktop := &libvirtxml.Domain{}
+	if err := desktop.Unmarshal(xml); err != nil {
+		return nil, fmt.Errorf("unmarshal desktop XML: %w", err)
 	}
-	v := &Viewer{}
-	for _, g := range desktopcfg.Devices.Graphics {
-		//defer g.Free()
 
+	if len(desktop.Devices.Graphics) <= 0 {
+		return nil, ErrNoGraphics
+	}
+
+	v := &Viewer{}
+	for _, g := range desktop.Devices.Graphics {
 		if g.Spice != nil {
-			graphic := Spice{
-				Passwd:  g.Spice.Passwd,
+			v.Spice = append(v.Spice, &ViewerSpice{
+				Pwd:     g.Spice.Passwd,
 				Port:    g.Spice.Port,
-				TLSPort: g.Spice.TLSPort}
-			v.spice = append(v.spice, graphic)
+				TLSPort: g.Spice.TLSPort,
+			})
 		}
 
 		if g.VNC != nil {
-			graphic := Vnc{
-				Passwd:    g.VNC.Passwd,
-				Port:      g.VNC.Port,
-				WebSocket: g.VNC.WebSocket}
-			v.vnc = append(v.vnc, graphic)
+			v.VNC = append(v.VNC, &ViewerVNC{
+				Pwd:           g.VNC.Passwd,
+				Port:          g.VNC.Port,
+				WebsocketPort: g.VNC.WebSocket,
+			})
 		}
 	}
 

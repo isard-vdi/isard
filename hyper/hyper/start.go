@@ -20,20 +20,20 @@ func (h *Hyper) Start(xml string, paused bool) (string, error) {
 		if errors.As(err, &e) {
 			switch e.Code {
 			case libvirt.ERR_XML_ERROR:
-				return nil, fmt.Errorf("create desktop: %w", e)
+				return "", fmt.Errorf("create desktop: %w", e)
 
 			default:
-				return nil, fmt.Errorf("create desktop: %s", e.Message)
+				return "", fmt.Errorf("create desktop: %s", e.Message)
 			}
 		}
 
-		return nil, fmt.Errorf("create desktop: %w", err)
+		return "", fmt.Errorf("create desktop: %w", err)
 	}
 	defer desktop.Free()
 
-	xml, err := desktop.GetXMLDesc(libvirt.DOMAIN_XML_SECURE)
+	xml, err = desktop.GetXMLDesc(libvirt.DOMAIN_XML_SECURE)
 	if err != nil {
-		return nil, fmt.Errorf("get desktop XML: %w", err)
+		return "", fmt.Errorf("get desktop XML: %w", err)
 	}
 
 	return xml, nil

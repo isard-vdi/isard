@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/isard-vdi/isard/hyper/pkg/proto"
+
 	"google.golang.org/grpc"
 )
 
@@ -17,8 +18,7 @@ func main() {
 	cli := proto.NewHyperClient(conn)
 
 	_, err = cli.DesktopStart(context.Background(), &proto.DesktopStartRequest{
-		Xml:      "<xml>",
-		Password: "Password",
+		Xml: "<xml>",
 	})
 	if err != nil {
 		panic(err)

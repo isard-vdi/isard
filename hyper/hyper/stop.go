@@ -7,6 +7,10 @@ import (
 	"libvirt.org/libvirt-go"
 )
 
+var (
+	ErrDesktopNotStarted = errors.New("desktop is not started")
+)
+
 func (h *Hyper) Stop(id string) error {
 	desktop, err := h.conn.LookupDomainByName(id)
 	if err != nil {
@@ -14,14 +18,14 @@ func (h *Hyper) Stop(id string) error {
 		if errors.As(err, &e) {
 			switch e.Code {
 			case libvirt.ERR_NO_DOMAIN:
-				return fmt.Errorf("desktop is not started")
+				return ErrDesktopNotStarted
 
 			default:
 				return fmt.Errorf("stop desktop: %s", e.Message)
 			}
 		}
 
-		return nil, fmt.Errorf("stop desktop: %w", err)
+		return fmt.Errorf("stop desktop: %w", err)
 	}
 	defer desktop.Free()
 

@@ -21,28 +21,24 @@ func main() {
 		log.Fatalf("create logger: %v", err)
 	}
 	defer logger.Sync()
+	sugar := logger.Sugar()
 
 	env := &env.Env{
-		Sugar: logger.Sugar(),
-		Cfg: cfg.Cfg{
-			GRPC: cfg.GRPC{
-				Port: 1312,
-			},
-		},
+		Sugar: sugar,
+		Cfg:   cfg.Init(sugar),
 	}
 
-	h, err := hyper.New(env)
+	h, err := hyper.New(env, "")
 	if err != nil {
 		env.Sugar.Fatalw("connect to the hypervisor",
 			"err", err,
 		)
 	}
-	env.Hyper = h
 	defer h.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go grpc.Serve(ctx, env)
+	go grpc.Serve(ctx, env, h)
 	env.WG.Add(1)
 
 	stop := make(chan os.Signal, 1)

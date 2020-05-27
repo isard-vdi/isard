@@ -14,8 +14,8 @@ test: proto
 	go test -race -cover ./...
 
 .PHONY: build
-build: proto
-	go build -o desktop-builder cmd/desktop-builder/main.go
+build:
+	go build -o desktop-builder-bin cmd/desktop-builder/main.go
 
 docker: test
 	docker build -f build/package/Dockerfile -t isard/desktop-builder:${VERSION} ..

@@ -15,7 +15,7 @@ test: proto
 
 .PHONY: build
 build:
-	go build -o disk-operations cmd/disk-operations/main.go
+	go build -o disk-operations-bin cmd/disk-operations/main.go
 
 docker: test
 	docker build -f build/package/Dockerfile -t isard/disk-operations:${VERSION} ..
