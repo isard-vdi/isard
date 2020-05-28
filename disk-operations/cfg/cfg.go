@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Cfg holds all the configuration for the desktop-builder
+// Cfg holds all the configuration for the disk-operations
 type Cfg struct {
 	GRPC GRPC `mapstruct:"grpc"`
 }
@@ -42,7 +42,7 @@ func Init(sugar *zap.SugaredLogger) Cfg {
 }
 
 func setDefaults() {
-	viper.SetConfigName("hyper")
+	viper.SetConfigName("disk-operations")
 
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.isard")
@@ -53,7 +53,7 @@ func setDefaults() {
 		"port": 1312,
 	})
 
-	viper.SetEnvPrefix("HYPER")
+	viper.SetEnvPrefix("DISK_OPERATIONS")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 }

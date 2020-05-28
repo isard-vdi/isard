@@ -7,11 +7,11 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/isard-vdi/isard/hyper/cfg"
-	"github.com/isard-vdi/isard/hyper/env"
-	"github.com/isard-vdi/isard/hyper/hyper"
-	"github.com/isard-vdi/isard/hyper/transport/grpc"
-
+	"github.com/isard-vdi/isard/disk-operations/cfg"
+	"github.com/isard-vdi/isard/disk-operations/diskoperations"
+	"github.com/isard-vdi/isard/disk-operations/env"
+	"github.com/isard-vdi/isard/disk-operations/transport/grpc"
+	"github.com/spf13/afero"
 	"go.uber.org/zap"
 )
 
@@ -25,20 +25,15 @@ func main() {
 
 	env := &env.Env{
 		Sugar: sugar,
+		FS:    afero.NewOsFs(),
 		Cfg:   cfg.Init(sugar),
 	}
 
-	h, err := hyper.New(env, "")
-	if err != nil {
-		env.Sugar.Fatalw("connect to the hypervisor",
-			"err", err,
-		)
-	}
-	defer h.Close()
+	diskoperations := diskoperations.New(env)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go grpc.Serve(ctx, env, h)
+	go grpc.Serve(ctx, env, diskoperations)
 	env.WG.Add(1)
 
 	stop := make(chan os.Signal, 1)
@@ -47,7 +42,7 @@ func main() {
 	select {
 	case <-stop:
 		fmt.Println("")
-		env.Sugar.Info("stoping hyper...")
+		env.Sugar.Info("stoping disk-operations...")
 
 		cancel()
 

@@ -42,7 +42,7 @@ func Init(sugar *zap.SugaredLogger) Cfg {
 }
 
 func setDefaults() {
-	viper.SetConfigName("hyper")
+	viper.SetConfigName("desktop-builder")
 
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.isard")
@@ -53,7 +53,7 @@ func setDefaults() {
 		"port": 1312,
 	})
 
-	viper.SetEnvPrefix("HYPER")
+	viper.SetEnvPrefix("DESKTOP_BUILDER")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 }

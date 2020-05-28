@@ -2,7 +2,10 @@ FROM golang:1.14-alpine as build-go
 
 RUN apk add --no-cache \
 	make \
-    git
+    git \
+	libvirt \
+	libvirt-dev \
+	musl-dev
 
 WORKDIR /go/src/github.com/isard-vdi/isard
 COPY ./go.mod ./go.sum /go/src/github.com/isard-vdi/isard/
@@ -43,6 +46,7 @@ MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
     libvirt \
+	libvirt-dev \
     libvirt-daemon \
     dbus \
     polkit \

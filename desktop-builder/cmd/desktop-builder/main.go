@@ -7,10 +7,10 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/isard-vdi/isard/hyper/cfg"
-	"github.com/isard-vdi/isard/hyper/env"
-	"github.com/isard-vdi/isard/hyper/hyper"
-	"github.com/isard-vdi/isard/hyper/transport/grpc"
+	"github.com/isard-vdi/isard/desktop-builder/cfg"
+	"github.com/isard-vdi/isard/desktop-builder/desktopbuilder"
+	"github.com/isard-vdi/isard/desktop-builder/env"
+	"github.com/isard-vdi/isard/desktop-builder/transport/grpc"
 
 	"go.uber.org/zap"
 )
@@ -28,17 +28,11 @@ func main() {
 		Cfg:   cfg.Init(sugar),
 	}
 
-	h, err := hyper.New(env, "")
-	if err != nil {
-		env.Sugar.Fatalw("connect to the hypervisor",
-			"err", err,
-		)
-	}
-	defer h.Close()
+	d := desktopbuilder.New(env)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go grpc.Serve(ctx, env, h)
+	go grpc.Serve(ctx, env, d)
 	env.WG.Add(1)
 
 	stop := make(chan os.Signal, 1)
@@ -47,7 +41,7 @@ func main() {
 	select {
 	case <-stop:
 		fmt.Println("")
-		env.Sugar.Info("stoping hyper...")
+		env.Sugar.Info("stoping desktop-builder...")
 
 		cancel()
 

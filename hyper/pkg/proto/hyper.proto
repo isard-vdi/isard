@@ -6,109 +6,34 @@ option go_package = "github.com/isard-vdi/isard/hyper/pkg/proto";
 service Hyper {
     rpc DesktopStart(DesktopStartRequest) returns (DesktopStartResponse) {}
     rpc DesktopStop(DesktopStopRequest) returns (DesktopStopResponse) {}
+    rpc DesktopList(DesktopListRequest) returns (DesktopListResponse) {}
+    rpc DesktopXMLGet(DesktopXMLGetRequest) returns (DesktopXMLGetResponse) {}
 }
 
 message DesktopStartRequest {
-    enum DesktopType {
-        DESKTOP_TYPE_UNKNOWN = 0;
-        DESKTOP_TYPE_KVM = 1;
-        // TODO: Add the rest of the hypervisor drivers
-    }
-
-    message DesktopOS {
-        message DesktopOSType {
-            enum Arch {
-                DESKTOP_OS_TYPE_ARCH_UNKNOWN = 0;
-                DESKTOP_OS_TYPE_ARCH_X86_64 = 1;
-            }
-
-            enum Machine {
-                DESKTOP_OS_TYPE_MACHINE_UNKNOWN = 0;
-                DESKTOP_OS_TYPE_MACHINE_PC_i44FX_4_2 = 1;
-            }
-
-            enum Type {
-                DESKTOP_OS_TYPE_TYPE_UNKNOWN = 0;
-                DESKTOP_OS_TYPE_TYPE_HVM = 1;
-            }
-
-            Arch arch = 1;
-            Machine machine = 2;
-            Type type = 3;
-        }
-
-        DesktopOSType type = 1;
-    }
-
-    message DesktopDevices {
-        message DesktopDeviceInput {
-            enum DesktopDeviceInputType {
-                DESKTOP_DEVICE_INPUT_TYPE_UNKNOWN = 0;
-                DESKTOP_DEVICE_INPUT_TYPE_KEYBOARD = 1;
-            }
-
-            enum DesktopDeviceInputBus {
-                DESKTOP_DEVICE_INPUT_BUS_UNKNOWN = 0;
-                DESKTOP_DEVICE_INPUT_BUS_PS2 = 1;
-            }
-
-            DesktopDeviceInputType type = 1;
-            DesktopDeviceInputBus bus = 2;
-        }
-
-        message DesktopDeviceGraphic {
-            bool spice = 1;
-        }
-
-        message DesktopDeviceVideo {
-            message DesktopDeviceVideoModel {
-                enum DesktopDeviceVideoModelType {
-                    DESKTOP_DEVICE_VIDEO_MODEL_TYPE_UNKNOWN = 0;
-                    DESKTOP_DEVICE_VIDEO_MODEL_TYPE_QXL = 1;
-                }
-
-                DesktopDeviceVideoModelType type = 1;
-            }
-
-            DesktopDeviceVideoModel model = 1;
-        }
-
-        repeated DesktopDeviceInput input = 1;
-        repeated DesktopDeviceGraphic graphic = 2;
-        repeated DesktopDeviceVideo video = 3;
-    }
-
-    message DesktopMemory {
-        int32 value = 1;
-        string unit = 2;
-    }
-
-    message DesktopVCPU {
-        int32 num = 1;
-        string placement = 2;
-    }
-
-
-    DesktopType type = 1;
-    string name = 2;
-    DesktopOS os = 3;
-    DesktopDevices devices = 4;
-
-    DesktopMemory memory = 5;
-    DesktopVCPU vcpu = 6;
+    string xml = 1;
 }
 
 message DesktopStartResponse {
-    string pwd = 1;
-    int32 spice_port = 2;
-    int32 spice_tls_port = 3;
-    int32 vnc_port = 4;
-    int32 vnc_tls_port = 5;
+    string xml = 1;
 }
 
 message DesktopStopRequest {
-    string uuid = 1;
-    bool delete = 2;
+    string id = 1;
 }
 
 message DesktopStopResponse {}
+
+message DesktopListRequest {}
+
+message DesktopListResponse {
+    repeated string ids = 1;
+}
+
+message DesktopXMLGetRequest {
+    string id = 1;
+}
+
+message DesktopXMLGetResponse {
+    string xml = 1;
+}
