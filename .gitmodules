@@ -1,0 +1,6 @@
+[submodule "dockers/static/spice-web-client"]
+	path = dockers/static/spice-web-client
+	url = https://github.com/isard-vdi/spice-web-client
+[submodule "docker/static/noVNC/src"]
+	path = docker/static/noVNC/src
+	url = https://github.com/novnc/novnc

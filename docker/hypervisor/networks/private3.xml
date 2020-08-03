@@ -1,0 +1,5 @@
+<network>
+  <name>private3</name>
+  <uuid>98552eb2-3e01-4f4d-9d50-4b824f31caee</uuid>
+  <bridge name='virbr13' stp='on' delay='0'/>
+</network>

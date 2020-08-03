@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <!--
+    noVNC example: lightweight example using minimal UI and features
+
+    This is a self-contained file which doesn't import WebUtil or external CSS.
+
+    Copyright (C) 2019 The noVNC Authors
+    noVNC is licensed under the MPL 2.0 (see LICENSE.txt)
+    This file is licensed under the 2-Clause BSD license (see LICENSE.txt).
+
+    Connect parameters are provided in query string:
+        http://example.com/?host=HOST&port=PORT&scale=true
+    -->
+    <title>IsardVDI | noVNC Viewer</title>
+
+    <meta charset="utf-8">
+
+    <!-- Always force latest IE rendering engine (even in intranet) &
+                Chrome Frame. Remove this if you use the .htaccess -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <style>
+        body {
+            margin: 0;
+            background-color: dimgrey;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        html {
+            height: 100%;
+        }
+
+        #top_bar {
+            background-color: #6e84a3;
+            color: white;
+            font: bold 12px Helvetica;
+            padding: 6px 5px 4px 5px;
+            border-bottom: 1px outset;
+        }
+
+        #status {
+            text-align: center;
+        }
+
+        #sendCtrlAltDelButton,
+        #toggleFullscreen {
+            position: fixed;
+            top: 0px;
+            border: 1px outset;
+            padding: 5px 5px 4px 5px;
+            cursor: pointer;
+        }
+
+        #sendCtrlAltDelButton {
+            right: 0px;
+        }
+
+        #toggleFullscreen {
+            right: 145px;
+        }
+
+        #screen {
+            flex: 1;
+            /* fill remaining space */
+            overflow: hidden;
+        }
+    </style>
+
+    <script src="../spice-web-client/lib/modernizr.js"></script>
+    <script src="../spice-web-client/lib/jquery-2.0.3.js"></script>
+    <script src="../spice-web-client/lib/jquery-mousewheel.js"></script>
+    <script src="../spice-web-client/lib/jgestures.min.js"></script>
+    <script src="../spice-web-client/lib/pixastic.js"></script>
+    <script src="../spice-web-client/lib/base64.js"></script>
+    <script src="../spice-web-client/lib/biginteger.js"></script>
+    <script src="../spice-web-client/lib/virtualjoystick.js"></script>
+    <script src="../spice-web-client/lib/prettyprint.js"></script>
+    <script src="../spice-web-client/lib/jsbn.js"></script>
+    <script src="../spice-web-client/lib/jsbn2.js"></script>
+    <script src="../spice-web-client/lib/prng4.js"></script>
+    <script src="../spice-web-client/lib/rng.js"></script>
+    <script src="../spice-web-client/lib/sha1.js"></script>
+    <script src="../spice-web-client/lib/encrypt.js"></script>
+    <script src="../spice-web-client/swcanvas/swcanvas.js"></script>
+    <script src="../spice-web-client/lib/bowser.js"></script>
+    <script src="../spice-web-client/lib/utils.js"></script>
+    <script src="../spice-web-client/lib/flipper.js"></script>
+    <script src="../spice-web-client/lib/CollisionDetector.js"></script>
+    <script src="../spice-web-client/lib/GlobalPool.js"></script>
+    <script src="../spice-web-client/lib/GenericObjectPool.js"></script>
+    <script src="../spice-web-client/lib/AsyncConsumer.js"></script>
+    <script src="../spice-web-client/lib/AsyncWorker.js"></script>
+    <script src="../spice-web-client/lib/PacketWorkerIdentifier.js"></script>
+    <script src="../spice-web-client/spiceobjects/spiceobjects.js"></script>
+    <script src="../spice-web-client/spiceobjects/generated/protocol.js"></script>
+    <script src="../spice-web-client/lib/graphicdebug.js"></script>
+    <script src="../spice-web-client/lib/images/lz.js"></script>
+    <script src="../spice-web-client/lib/images/bitmap.js"></script>
+    <script src="../spice-web-client/lib/images/png.js"></script>
+    <script src="../spice-web-client/lib/runqueue.js"></script>
+    <script src="../spice-web-client/lib/graphic.js"></script>
+    <script src="../spice-web-client/lib/queue.js"></script>
+    <script src="../spice-web-client/lib/ImageUncompressor.js"></script>
+    <script src="../spice-web-client/lib/SyncAsyncHandler.js"></script>
+    <script src="../spice-web-client/lib/IntegrationBenchmark.js"></script>
+    <script src="../spice-web-client/lib/stuckkeyshandler.js"></script>
+    <script src="../spice-web-client/lib/timelapsedetector.js"></script>
+    <script src="../spice-web-client/lib/displayRouter.js"></script>
+    <script src="../spice-web-client/lib/rasterEngine.js"></script>
+    <script src="../spice-web-client/lib/DataLogger.js"></script>
+    <script src="../spice-web-client/network/socket.js"></script>
+    <script src="../spice-web-client/network/clusternodechooser.js"></script>
+    <script src="../spice-web-client/network/socketqueue.js"></script>
+    <script src="../spice-web-client/network/packetcontroller.js"></script>
+    <script src="../spice-web-client/network/packetextractor.js"></script>
+    <script src="../spice-web-client/network/packetreassembler.js"></script>
+    <script src="../spice-web-client/network/reassemblerfactory.js"></script>
+    <script src="../spice-web-client/network/sizedefiner.js"></script>
+    <script src="../spice-web-client/network/packetlinkfactory.js"></script>
+    <script src="../spice-web-client/network/spicechannel.js"></script>
+    <script src="../spice-web-client/network/busconnection.js"></script>
+    <script src="../spice-web-client/network/websocketwrapper.js"></script>
+    <script src="../spice-web-client/network/connectioncontrol.js"></script>
+    <script src="../spice-web-client/application/agent.js"></script>
+    <script src="../spice-web-client/application/spiceconnection.js"></script>
+    <script src="../spice-web-client/application/clientgui.js"></script>
+    <script src="../spice-web-client/application/packetprocess.js"></script>
+    <script src="../spice-web-client/application/packetfilter.js"></script>
+    <script src="../spice-web-client/application/packetfactory.js"></script>
+    <script src="../spice-web-client/application/application.js"></script>
+    <script src="../spice-web-client/application/virtualmouse.js"></script>
+    <script src="../spice-web-client/application/imagecache.js"></script>
+    <script src="../spice-web-client/application/rasteroperation.js"></script>
+    <script src="../spice-web-client/application/stream.js"></script>
+    <script src="../spice-web-client/application/inputmanager.js"></script>
+    <script src="../spice-web-client/process/busprocess.js"></script>
+    <script src="../spice-web-client/process/displayprocess.js"></script>
+    <script src="../spice-web-client/process/displaypreprocess.js"></script>
+    <script src="../spice-web-client/process/inputprocess.js"></script>
+    <script src="../spice-web-client/process/cursorprocess.js"></script>
+    <script src="../spice-web-client/process/playbackprocess.js"></script>
+    <script src="../spice-web-client/process/mainprocess.js"></script>
+    <script src="../spice-web-client/keymaps/keymapes.js"></script>
+    <script src="../spice-web-client/keymaps/keymapit.js"></script>
+    <script src="../spice-web-client/keymaps/keymapus.js"></script>
+    <script src="../spice-web-client/keymaps/keymap.js"></script>
+    <script src="../spice-web-client/application/WorkerProcess.js"></script>
+
+    <!-- Promise polyfill for IE11 -->
+    <script src="./src/vendor/promise.js"></script>
+
+    <!-- ES2015/ES6 modules polyfill -->
+    <script nomodule src="./src/vendor/browser-es-module-loader/dist/browser-es-module-loader.js"></script>
+
+    <!-- actual script modules -->
+    <script type="module" crossorigin="anonymous">
+        // RFB holds the API to connect and communicate with a VNC server
+        import RFB from './src/core/rfb.js';
+
+        let rfb;
+        let desktopName;
+
+        // When this function is called we have
+        // successfully connected to a server
+        function connectedToServer(e) {
+            status("Sistema de Virtualització d'Escriptoris IsardVDI");
+        }
+
+        // This function is called when we are disconnected
+        function disconnectedFromServer(e) {
+            if (e.detail.clean) {
+                status("Desconnectat");
+            } else {
+                status("Alguna cosa no ha anat bé, s'ha tancat la connexió");
+            }
+        }
+
+        // When this function is called, the server requires
+        // credentials to authenticate
+        function credentialsAreRequired(e) {
+            const password = prompt("Contrasenya:");
+            rfb.sendCredentials({ password: password });
+        }
+
+        // When this function is called we have received
+        // a desktop name from the server
+        function updateDesktopName(e) {
+            desktopName = e.detail.name;
+        }
+
+        // Since most operating systems will catch Ctrl+Alt+Del
+        // before they get a chance to be intercepted by the browser,
+        // we provide a way to emulate this key sequence.
+        function sendCtrlAltDel() {
+            rfb.sendCtrlAltDel();
+            return false;
+        }
+
+        function toggleFullscreen() {
+            let elem = document.documentElement
+            if (
+                !document.fullscreenElement &&
+                !document.mozFullScreenElement &&
+                !document.webkitFullscreenElement &&
+                !document.msFullscreenElement
+            ) {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.mozRequestFullScreen) {
+                    elem.mozRequestFullScreen();
+                } else if (elem.webkitRequestFullscreen) {
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) {
+                    elem.msRequestFullscreen();
+                }
+                isFullscreen = true;
+
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                isFullscreen = false;
+            }
+        }
+
+        // Show a status text in the top bar
+        function status(text) {
+            document.getElementById('status').textContent = text;
+        }
+
+        function readQueryVariable(name, defaultValue) {
+            // A URL with a query parameter can look like this:
+            // https://www.example.com?myqueryparam=myvalue
+            //
+            // Note that we use location.href instead of location.search
+            // because Firefox < 53 has a bug w.r.t location.search
+            const re = new RegExp('.*[?&]' + name + '=([^&#]*)'),
+                match = document.location.href.match(re);
+            if (match) {
+                // We have to decode the URL since want the cleartext value
+                return decodeURIComponent(match[1]);
+            }
+
+            return defaultValue;
+        }
+
+        function getParameter(name) {
+            var match = document.cookie.match(new RegExp('(^| )' + 'isard' + '=([^;]+)'));
+            if (!match) return false;
+
+            return JSON.parse(atob(match[2]))['web_viewer'][name];
+        }
+
+        function resize() {
+            let f = (action, params) => {
+                if (action === 'ready') {
+                    app.sendCommand('setResolution', {
+                        'width': document.getElementById("screen").offsetWidth,
+                        'height': document.getElementById("screen").offsetHeight
+                    });
+                    app.dispose();
+                }
+            }
+
+            let app = new Application();
+            app.run({
+                'callback': f,
+                'protocol': 'wss',
+                'host': getParameter('host') || readQueryVariable('host', window.location.hostname),
+                'port': getParameter('port') || '443',
+                'vmHost': getParameter('vmHost') || readQueryVariable('vmHost'),
+                'vmPort': (getParameter('vmPort') || readQueryVariable('vmPort')) - 2, // the spice (no TLS) port is two ports less than the vnc
+                'token': getParameter('token') || readQueryVariable('passwd'),
+                'clientOffset': {
+                    'x': 0,
+                    'y': 0
+                },
+            });
+        }
+
+        document.getElementById('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
+        document.getElementById('toggleFullscreen').onclick = toggleFullscreen;
+
+        // Read parameters specified in the URL query string
+        // By default, use the host and port of server that served this file
+        const host = getParameter('host') || readQueryVariable('host', window.location.hostname);
+        const port = getParameter('port') === false || getParameter('port') === undefined ? '' : ':' + getParameter('port');
+        const vmHost = getParameter('vmHost') || readQueryVariable('vmHost');
+        const vmPort = (getParameter('vmPort') || readQueryVariable('vmPort'));
+        const token = getParameter('token') || readQueryVariable('passwd');
+
+        // | | |         | | |
+        // | | | Connect | | |
+        // v v v         v v v
+
+        status("Connectant...");
+
+        resize()
+
+        // Build the websocket URL used to connect
+        let url = 'wss://' + host + port + '/' + vmHost + '/' + vmPort
+
+        // Creating a new RFB object will start a new connection
+        rfb = new RFB(document.getElementById('screen'), url,
+            { credentials: { password: token } });
+
+        // Add listeners to important events from the RFB module
+        rfb.addEventListener("connect", connectedToServer);
+        rfb.addEventListener("disconnect", disconnectedFromServer);
+        rfb.addEventListener("credentialsrequired", credentialsAreRequired);
+        rfb.addEventListener("desktopname", updateDesktopName);
+
+        // Set parameters that can be changed on an active connection
+        rfb.scaleViewport = true;
+
+        // Resize the window
+        let resizeTimeout;
+        window.addEventListener('resize', (e) => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resize, 500);
+        });
+    </script>
+</head>
+
+<body>
+    <div id="top_bar">
+        <div id="status">Carregant...</div>
+        <div id="sendCtrlAltDelButton">Envia 'Ctrl Alt Suprimir'</div>
+        <div id="toggleFullscreen">Pantalla Completa</div>
+    </div>
+    <div id="screen">
+        <!-- This is where the remote screen will appear -->
+    </div>
+</body>
+
+</html>

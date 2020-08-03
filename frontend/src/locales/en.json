@@ -1,0 +1,50 @@
+{
+    "components": {
+        "help": {
+            "close-guide": "Close guide",
+            "local-client": "Use the local client (recommended)",
+            "best-performance": "It's the option with the best performance",
+            "install": "Install",
+            "other-windows-versions": "other Windows versions",
+            "once-installed": "Once installed, click the 'local client' button, that will download the virtual desktop file",
+            "use-browser": "Use the browser",
+            "no-install": "There's no need to install any external program, ",
+            "worse-performance": "but the performance is worse",
+            "simply": "You simply need to click the button and it will open the virtual desktop in a new tab",
+            "text": {
+                "macos": "MacOS is an unsupported platform. You need to use the browser option",
+                "ios": "",
+                "windows": "",
+                "android": "",
+                "linux": ""
+            }
+        },
+        "not-found": {
+            "title": "The requested address wasn't found",
+            "home": "Go back"
+        }
+    },
+    "views": {
+        "create-error": {
+            "title": "We couldn't create the virtual desktop due to an error",
+            "retry": "Retry"
+        },
+        "creating": {
+            "title": "Creating the virtual desktop",
+            "subtitle": "This can take a few moments"
+        },
+        "error": {
+            "title": "Error",
+            "codes": {
+                "401": "Your group doesn't have permissions to access this page",
+                "403": "You don't have permissions to access this page",
+                "500": "Unexpected error"
+            }
+        },
+        "expired-session": {
+            "title": "The session has expired",
+            "subtitle": "In order to use the virtual desktop, login again",
+            "button": "Login"
+        }
+    }
+}

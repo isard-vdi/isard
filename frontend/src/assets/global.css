@@ -1,0 +1,9 @@
+html, body {
+  height: 100%;
+  background-color: #fafafa !important;
+}
+
+.white-img {
+  -webkit-filter: invert(1);
+  filter: invert(1);
+}

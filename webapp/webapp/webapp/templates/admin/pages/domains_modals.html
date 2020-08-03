@@ -1,0 +1,386 @@
+
+
+
+
+<div class="modal fade" id="modalAddFromBuilder" tabindex="-1" role="dialog" 
+   aria-labelledby="modalAddBuilder" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header"  style="padding: 5px;">
+           <button type="button" class="close" 
+              data-dismiss="modal">
+           <span aria-hidden="true">&times;</span>
+           <span class="sr-only">Close</span>
+           </button>
+           <h4 class="modal-title" id="myModalLabel">
+              <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-gears"> </i>   Create desktop from automated builder
+           </h4>
+        </div>
+        <!-- Modal Body -->
+        <div class="modal-body" style="padding: 7px;">
+           <form id="modalAdd" class="form-inline form-label-left">
+              <div id="modalData" class="x_panel" style="padding: 5px;">
+                 <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
+                 <div class="x_content" style="padding: 0px;">
+                     
+                    <div class="row">
+                       <div class="col-md-4 col-xs-12">
+                          <label class="control-label" for="name">Name <span class="required">*</span>
+                          </label>
+                          <input id="name" maxlength="40" pattern="[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                       </div>
+                       <div class="col-md-8 col-xs-12">
+                          <label class="control-label" for="description">Description 
+                          </label>
+                          <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              <div id="modalBuilder" class="x_panel" style="padding: 5px;">
+                 <p style="font-size: 18px;margin-bottom:0px;">Select an automated image builder</p>
+                 <input  id="builder-id" name="builder-id" type="hidden"  required>
+                 <input  id="install-id" name="install-id" type="hidden" required>
+                 <input  id="icon" name="icon" type="hidden" required>
+                 <table id="modal_add_builder" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                    <thead>
+                       <tr>
+                          <th>Name</th>
+<!--
+                          <th>Arch</th>
+                          <th>Rev</th>
+                          <th>Size</th>
+                          <th>SizeCompress</th>
+-->
+                       </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                 </table>
+                 <div id="datatables-error-status"></div>
+                        <label class="">Build options<span class="required">*</span>
+                        </label>
+
+                          <textarea id="builder-options" name="builder-options" class="form-control" rows="5" placeholder="Options" style="width:100%"></textarea>
+              </div>
+
+
+                      
+              <div class="x_panel" id="builder-hardware-block" style="padding: 5px;">
+                 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
+                 {% include '/snippets/domain_hardware_disksize_edit.html' %}
+              </div>
+              <!-- Modal Footer -->
+              <div class="modal-footer" style="padding: 5px;">
+                 <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                 </ul>
+                 <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Create desktop</button></li>
+                 </ul>
+              </div>
+           </form>
+          </div>
+          </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalAddFromMedia" tabindex="-1" role="dialog" 
+   aria-labelledby="modalAddMedia" aria-hidden="true" >
+    <div class="modal-dialog modal-lg" >
+        <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+           <button type="button" class="close" 
+              data-dismiss="modal">
+           <span aria-hidden="true">&times;</span>
+           <span class="sr-only">Close</span>
+           </button>
+           <h4 class="modal-title" id="myModalLabel">
+              <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i>   Create desktop from media
+           </h4>
+        </div>
+        <!-- Modal Body -->
+        <div class="modal-body">
+               <form id="modalAdd" class="" data-parsley-validate>
+                   
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12">
+                          <div id="modalData" class="x_panel" >
+                             <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
+                             <div class="x_content">
+                                <label for="name">Name<span class="required"> *</span></label>
+                                <input type="text" id="name" class="form-control" name="name" pattern="[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required />
+                      
+                                  <label for="message">Description</label>
+                                  <textarea id="description" class="form-control" name="description"></textarea>                              
+                             </div>
+                          </div>
+                        </div>
+                        <div class="col-md-6 col-xs-12">
+                          <div id="modalMedia" class="x_panel" style="background-color:#f5f5f0;">
+                             <p style="font-size: 18px;margin-bottom:0px;"><i class="fa fa-circle-o"></i> Select ISO/Floppy to boot from</p>
+                             <div id="datatables-media-error-status"></div>
+                             <input  id="media" name="media" type="hidden" required>
+                             <table id="modal_add_media" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                                <thead>
+                                   <tr>
+                                      <th>Name</th>
+                                   </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                             </table>
+                        
+                          </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12">                   
+                            <div class="row">
+                                  <div id="modalInstall" class="x_panel" style="background-color:#efeff5;">
+                                     <p style="font-size: 18px;margin-bottom:0px;"> Select OS template</p>
+                                     <div id="datatables-install-error-status"></div>
+                                     <input  id="install" name="install" type="hidden" required>
+                                     <table id="modal_add_install" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                                        <thead>
+                                           <tr>
+                                              <th>Name</th>
+                                              <th>Vers</th>
+                                           </tr>
+                                        </thead>
+                                        <tbody>
+                                        </tbody>
+                                     </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xs-12">    
+                          <div class="x_panel" id="media-hardware-block"  style="background-color:#efeff5;">
+                             <p style="font-size: 18px;margin-bottom:0px;"><i class="fa fa-wrench"></i> Adjust OS template Hardware</p>
+                             {% include '/snippets/domain_hardware_disksize_edit.html' %}
+                          </div>
+                        </div>
+                    </div>
+
+               </form>
+              <!-- Modal Footer -->
+              <div class="modal-footer">
+             <ul class="nav navbar-left panel_toolbox">
+                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+             </ul>
+             <ul class="nav navbar-right panel_toolbox">
+                <!--
+                   <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Set hardware</button></li>
+                   -->
+                <li><button id="send" type="button" class="btn btn-success">Create desktop</button></li>
+             </ul>
+          </div>
+       
+          </div>
+          </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalEditXml" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-file-code-o fa-1x"> </i> Edit XML
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+              <form id="modalEditXmlForm" class="form-horizontal form-label-left">
+                    <input  id="id" name="id" type="hidden" required>
+                     <div class="item form-group">
+                        </label>
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                           <textarea class="form-control" rows="30" id="xml"></textarea>
+                        </div>
+                        
+                     </div>
+
+        </div>
+                       
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="button" class="btn btn-success">Update XML</button>
+                        </div>
+                     </div>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalBulkEdit" tabindex="-1" role="dialog" 
+     aria-labelledby="modalBulkEdit" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header"  style="padding: 5px;">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i>   Edit multiple desktops
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+                
+              <form id="modalBulkEditForm" class="form-inline form-label-left"> 
+			  <div class="x_panel" style="padding: 5px;">
+                  <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
+					<div class="x_content" style="padding: 0px;">
+<!--
+                         <input type="hidden" id="id" name="id"/>
+                         <input type="hidden" id="name" name="name"/>
+-->
+                        <div class="row">
+<!--
+                            <div class="col-md-4 col-xs-12">
+                                <label class="control-label" for="name">Name <span class="required">*</span>
+                                </label>
+                                  <input id="name_hidden" disabled maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                            </div>
+-->
+
+                            <div class="col-md-8 col-xs-12">
+                                <label class="control-label" for="description">Domains afected 
+                                </label>
+                                  <select id="ids" name="ids[]" class="select2_multiple form-control" multiple="multiple">
+                                  </select>                                
+                            </div>
+                            <div class="col-md-4 col-xs-12">
+                                <button class="btn btn-success btn-xs pull-right btn-select-all" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Select all</button>
+                                <button class="btn btn-success btn-xs pull-right btn-unselect-all" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Unselect all</button>
+                            </div>                            
+                        </div>
+				</div>
+			  </div>
+
+            
+			  <div class="x_panel" id="hardware-block" style="padding: 5px;">
+					 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
+					{% include '/snippets/domain_hardware_edit.html' %}
+              </div>
+
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                   </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+<!--
+                    <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Edit hardware</button></li>
+-->
+                    <li><button id="send" type="button" class="btn btn-success">Modify desktop</button></li>
+                   </li>
+                </ul>
+            </div>                       
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalDeleteTemplate" tabindex="-1" role="dialog" 
+   aria-labelledby="modalDeleteTemplate" aria-hidden="true" >
+    <div class="modal-dialog modal-lg" >
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+               <button type="button" class="close" 
+                  data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+               </button>
+               <h4 class="modal-title" id="myModalLabel">
+                  <i class="fa fa-warning" style="color:red"></i>   Delete template and derivates
+               </h4>
+            </div>
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <div class="x_panel" style="padding: 5px;">
+                    <input  id="id" name="id" type="hidden" required>
+
+                    <!-- <div class="tree_template_delete"></div> -->
+                    <table class="tree_template_delete">
+                     <colgroup>
+                     <col width="30px"></col>
+                     <col width="100px"></col>
+                     <col width="*"></col>
+                     <col width="100px"></col>
+                     <col width="100px"></col>
+                     <col width="100px"></col>
+                     <col width="100px"></col>                                          
+                     </colgroup>
+                     <thead>
+                       <tr> <th></th> <th>#</th> <th></th> <th>User</th> <th>Type</th> <th>Category</th> <th>Group</th> </tr>
+                     </thead>
+                     <!-- Optionally define a row that serves as template, when new nodes are created: -->
+<!--                      <tbody>
+                       <tr>
+                         <td></td>
+                         <td></td>
+                         <td></td>
+                         <td class="alignRight"></td>
+                         <td class="alignRight"></td> #category
+                         <td class="alignRight"></td>
+                         <td class="alignRight"></td>
+                       </tr>
+                     </tbody> -->
+                   </table>
+                 
+
+                </div>
+                <div class="x_panel" style="padding: 5px;">
+                  <p style="font-size: 18px;margin-bottom:0px;">List of domains to be deleted</p>
+                    <div class="x_content" style="padding: 0px;">
+                         <p style="font-size: 18px;margin-bottom:0px;"> All this desktops and templates will be deleted!</p><br>
+                         All them depend on the template you are about to delete so they must be deleted also.<br>
+                         THIS OPERATION CAN'T BE UNDONE!
+                    </div>
+                </div>                
+                  <!-- Modal Footer -->
+            <div class="modal-footer">
+                 <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                 </ul>                
+                 <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-warning">Stop and Delete ALL!</button></li>
+                 </ul>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+

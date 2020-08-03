@@ -1,0 +1,16 @@
+version: '3.5'
+services:
+  isard-hypervisor:
+    volumes:
+    - ${BUILD_ROOT_PATH}/docker/hypervisor/supervisor.conf/:/supervisord.conf
+networks:
+  isard-network:
+    external: false
+    name: isard-network
+#  intranet: 
+#    driver: macvlan 
+#    driver_opts: 
+#      parent: br-intranet
+#    ipam: 
+#      config: 
+#        - subnet: 10.55.120.0/21

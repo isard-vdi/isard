@@ -1,0 +1,50 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="right_col" role="main">
+
+<!--
+<div class="page-title">
+   <div class="title_left">
+      <h3>ISARD <small>VDI</small></h3>
+   </div>
+   <div class="title_right">
+      <div class="col-md-5 col-sm-5 col-xs-12 form-group pull-right top_search">
+          <div class="input-group">
+         
+         </div>
+      </div>
+   </div>
+</div>
+-->
+<div class="clearfix"></div>
+<div class="jumbotron">
+   <div class="container for-about">
+   <h1><img src="/isard-admin/static/img/isard.png" width"100px" height="130px">IsardVDI</h1>
+   <p>Virtual Desktops Infrastructure</p>
+   <div class="col-lg-6">
+       <p>More info:</p>
+       <li><a href="http://www.isardvdi.com">Web Site</a></li>
+       <li><a href="https://isardvdi.readthedocs.io/en/latest/">Documentation</a></li>
+       <li><a href="https://github.com/isard-vdi/isard">Source Code</a></li>
+       <li><a href="https://github.com/isard-vdi/isard/issues">Open an issue</a></li>
+    </div>
+    <div class="col-lg-6 text-right">
+        <h3>Contact IsardVDI</h3>
+        <b>info@isardvdi.com</b><br>
+        <br>
+        <h3>License:</h3>
+        <p><img src="/isard-admin/static/img/agplv3-155x51.png"></p>
+    </div>
+   </div>
+</div>
+</div>
+
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/js/restful.js"></script>
+
+<script src="/isard-admin/static/js/quota_socket.js"></script> 
+{% endblock %}
