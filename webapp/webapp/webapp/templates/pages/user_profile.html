@@ -1,0 +1,238 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+        <div class="right_col" role="main">
+<!--
+          <div class="">
+-->
+            <div class="page-title">
+              <div class="title_left">
+                <h3>User Profile</h3>
+              </div>
+            </div>
+            
+            <div class="clearfix"></div>
+
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>User Report <small>Activity report</small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false"><i class="fa fa-wrench"></i></a>
+                        <ul class="dropdown-menu" role="menu">
+                          <li><a href="#">Settings 1</a>
+                          </li>
+                          <li><a href="#">Settings 2</a>
+                          </li>
+                        </ul>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div> <!-- end x_tittle -->
+                  <div class="x_content">
+                      
+                    <div class="col-md-3 col-sm-3 col-xs-12 profile_left">
+                      <div class="profile_img">
+                        <div id="crop-avatar">
+                          <!-- Current avatar -->
+                          <img class="img-responsive avatar-view" src="/isard-admin/static/img/user.png" alt="Avatar" class="img-circle profile_img">
+                        </div>
+                      </div>
+                      <h3>{{user.name}}</h3>
+
+                      <ul class="list-unstyled user_data">
+                        <li><i class="fa fa-lock user-profile-icon"><b> Authentication: </b></i> {{user.provider}}
+                        </li>
+
+                        <li><i class="fa fa-key user-profile-icon"><b> Role: </b></i> {{user.role}}
+                        </li>
+
+                        <li><i class="fa fa-leaf user-profile-icon"><b> Category: </b></i> {{user.category}}
+                        </li>
+
+                        <li><i class="fa fa-group user-profile-icon"><b> Group: </b></i> {{user.group}}
+                        </li>
+
+                        <li><i class="fa fa-mail user-profile-icon"><b> email: </b></i> {{user.email}}
+                        </li>
+                        
+                      </ul>
+                      
+                        {% if(user.provider=='local') %}
+                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalChangePw">
+                              <i class="fa fa-key m-right-xs"></i> Change password
+                            </button>
+                        {% endif %}
+                      <br />
+
+                    </div>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+
+                      <div class="profile_title">
+                        <div class="col-md-12">
+                          <h2>User Activity Report</h2>
+                        </div>
+                      </div>
+                      <!-- start of user-activity-graph -->
+                      <div id="domains_donut" style="height:250px;"></div>
+                      <!-- end of user-activity-graph -->
+
+                    </div>
+                    
+                  </div> <!-- end x_content -->
+                </div> <!-- end of x_panel -->
+              </div>
+            </div> <!-- end row -->
+        </div> <!-- end right col -->
+            
+<div class="modal fade" id="modalChangePw" tabindex="-1" role="dialog" 
+     aria-labelledby="modalChangePw" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-key fa-1x"> </i> Change password
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form name="Form" id="changepw" action="profile_pwd" method="post" class="form-horizontal form-label-left"
+                  data-parsley-excluded="input[type=button], input[type=submit], input[type=reset], input[type=hidden], [disabled], :hidden"
+                  data-parsley-trigger="keyup" data-parsley-validate>
+
+                  <div class="form-group">
+                        <label for="password1" class="control-label col-md-3 col-sm-3 col-xs-12">New Password <span class="required">*</span></label>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input id="password1" name="password" type="password" class="form-control col-md-7 col-xs-12 password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspannewpassinput"
+                            data-parsley-required-message="Please enter your new password."
+                            data-parsley-uppercase="1"
+                            data-parsley-lowercase="1"
+                            data-parsley-number="1"
+                            data-parsley-special="1"
+                            data-parsley-required />
+                          <span class="errorspannewpassinput"></span>
+                        </div>
+                  </div>
+
+                  <div class="form-group">
+                        <label for="confirm_password1" class="control-label col-md-3 col-sm-3 col-xs-12">Confirm Password <span class="required">*</span></label>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <input name="Password_2" id="password2" type="password" class="form-control col-md-7 col-xs-12 password"
+                            data-parsley-minlength="8"
+                            data-parsley-errors-container=".errorspanconfirmnewpassinput"
+                            data-parsley-required-message="Please re-enter your new password."
+                            data-parsley-equalto="#password1"
+                            data-parsley-required />
+                          <span class="errorspanconfirmnewpassinput"></span>
+                        </div>
+                  </div>
+
+                      <div class="ln_solid"></div>
+                      <div class="form-group">
+                        <div class="col-md-6 col-sm-6 col-xs-12 col-md-offset-3">
+                          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+						  <button class="btn btn-primary" type="reset">Reset</button>
+                          <button id="send" type="submit" class="btn btn-success">Change</button>
+                        </div>
+                      </div>
+                      
+                </form>
+        </div>
+<!--
+    </div>
+-->
+</div>
+
+
+</div>
+</div>
+{% endblock %}
+{% block pagescript %}
+    <!-- bootstrap-progressbar -->
+    <script src="/isard-admin/vendors/bootstrap-progressbar/bootstrap-progressbar.min.js"></script>
+    <script src="/isard-admin/static/js/quota_socket.js"></script> 
+    <script src="/isard-admin/static/js/snippets/profile_graphs.js"></script> 
+<script>
+//has uppercase
+window.Parsley.addValidator('uppercase', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var uppercases = value.match(/[A-Z]/g) || [];
+    return uppercases.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) uppercase letter.'
+  }
+});
+
+//has lowercase
+window.Parsley.addValidator('lowercase', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var lowecases = value.match(/[a-z]/g) || [];
+    return lowecases.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) lowercase letter.'
+  }
+});
+
+//has number
+window.Parsley.addValidator('number', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var numbers = value.match(/[0-9]/g) || [];
+    return numbers.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) number.'
+  }
+});
+
+//has special char
+window.Parsley.addValidator('special', {
+  requirementType: 'number',
+  validateString: function(value, requirement) {
+    var specials = value.match(/[^a-zA-Z0-9]/g) || [];
+    return specials.length >= requirement;
+  },
+  messages: {
+    en: 'Your password must contain at least (%s) special characters.'
+  }
+});
+
+    $(document).ready(function() {
+        $("#changepw").on('submit', function(e){
+            e.preventDefault();
+            console.log('prevent')
+            var form = $(this);
+
+            form.parsley().validate();
+
+            if (form.parsley().isValid()){
+                alert('valid');
+            }
+        });
+    });
+</script>
+{% endblock %}

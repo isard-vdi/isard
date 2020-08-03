@@ -1,0 +1,17 @@
+version: "3.5"
+services:
+  isard-static:
+    container_name: isard-static
+    image: isard/static:${TAG-latest}
+    networks:
+      - isard-network
+    restart: unless-stopped
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/static/Dockerfile
+      target: production
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

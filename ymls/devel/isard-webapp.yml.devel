@@ -1,0 +1,12 @@
+version: '3.5'
+services:
+  isard-webapp:
+    ports:
+      - "8081:8080"
+    volumes:
+      - ${BUILD_ROOT_PATH}/webapp/webapp:/isard:rw
+    command: sleep 999999      
+networks:
+  isard-network:
+    external: false
+    name: isard-network

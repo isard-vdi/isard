@@ -1,0 +1,26 @@
+version: "3.5"
+services:
+  isard-engine:
+    container_name: isard-engine
+    image: isard/engine:${TAG-latest}
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /opt/isard/certs/viewers:/certs:rw
+      - /opt/isard/sshkeys:/root/.ssh:rw
+      - /opt/isard-local/logs/engine:/isard/logs:rw
+    depends_on:
+      - isard-db
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: engine/docker/Dockerfile
+      target: production
+    env_file:
+      - .env
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

@@ -1,0 +1,38 @@
+version: "3.5"
+services:
+  isard-portal:
+    # container_name: isard-portal
+    # image: traefik:2.2
+    # networks:
+    #   - isard-network
+    # ports:
+    #   - "80:80"
+    #   - "8080:8080"
+    # volumes:
+    #   - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    #   - "../docker/portal/traefik.yml:/traefik.yml:ro"
+    #   - "../docker/portal/users:/users:ro"
+
+    container_name: isard-portal
+    image: isard/portal:${TAG-latest}
+    networks:
+      - isard-network
+    ports:
+      - published: 80
+        target: 80
+      - published: 443
+        target: 443
+    restart: unless-stopped
+    volumes:
+      - /opt/isard/certs/default:/certs:rw
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/portal/Dockerfile
+      target: production
+    env_file:
+      - .env
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

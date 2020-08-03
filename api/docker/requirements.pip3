@@ -1,0 +1,16 @@
+bcrypt==3.1.7
+cffi==1.14.0
+click==7.1.2
+Flask==1.1.2
+Flask-Login==0.5.0
+gevent==20.6.0
+greenlet==0.4.16
+itsdangerous==1.1.0
+Jinja2==2.11.2
+MarkupSafe==1.1.1
+pycparser==2.20
+rethinkdb==2.4.7
+six==1.15.0
+Werkzeug==1.0.1
+zope.event==4.4
+zope.interface==5.1.0

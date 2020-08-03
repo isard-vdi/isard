@@ -1,0 +1,30 @@
+version: "3.5"
+services:
+  isard-stats:
+    container_name: isard-stats
+    image: isard/stats:${TAG-latest}
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /opt/isard-local/sockets/:/var/run/libvirt/
+      - /:/mnt/root:ro
+      - /opt/isard-local/logs:/mnt/logs:ro
+      - /opt/isard/templates:/mnt/templates:ro
+      - /opt/isard/groups:/mnt/groups:ro
+      - /opt/isard/media:/mnt/media:ro
+      - /opt/isard/database:/mnt/database:ro
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/stats/Dockerfile
+      target: production
+    env_file:
+      - .env
+    #command: "sleep 100000000"
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

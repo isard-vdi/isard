@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+	<title>Fancytree - WAI-ARIA Tree View</title>
+
+	<script src="../lib/jquery.js"></script>
+	<script src="../src/jquery-ui-dependencies/jquery.fancytree.ui-deps.js"></script>
+
+	<link href="../src/skin-win8/ui.fancytree.css" rel="stylesheet">
+	<script src="../src/jquery.fancytree.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<link href="../lib/prettify.css" rel="stylesheet">
+	<script src="../lib/prettify.js"></script>
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+
+	<style type="text/css">
+	</style>
+
+	<script type="text/javascript">
+		$(function(){
+			$("#tree").fancytree({
+				aria: true,  // (aria is on by default anyway)
+				// selectMode: 1,
+				checkbox: true,
+				// generateIds: true,
+				quicksearch: true,
+				source: { url: "ajax-tree-products.json" },
+				keydown: function(event, data) {
+					// WAI-ARIA suggests that numpad '*' expands all siblings at
+					// the current node's level.
+					switch( $.ui.fancytree.eventToString(event) ) {
+						case "*":
+							$.each(data.node.parent.children, function(i, node){
+								node.setExpanded({noAnimation: true});
+							});
+							break;
+					};
+				}
+			});
+		});
+	</script>
+</head>
+
+<body class="example">
+	<h1>Example: WAI-ARIA Tree View</h1>
+	<div class="description">
+		<p>
+			This Fancytree Tree View has
+			<a href="https://www.w3.org/TR/wai-aria-practices/#TreeView">WAI-ARIA</a>
+			enabled.<br>
+			<strong>Note:</strong> please
+			<a href="https://github.com/mar10/fancytree/issues/656">provide feedback</a>
+			if you have suggestions for improvement.
+		</p>
+		<p>
+			See also the <a href="sample-aria-treegrid.html">ARIA Tree Grid example</a>.
+		</p>
+	</div>
+
+	<div>
+		<label for="lblBefore">Text 1<input type="text" id="lblBefore"></label>
+
+		<div id="tree">
+		</div>
+
+		<label for="lblAfter">Text 2</label><input type="text" id="lblAfter">
+	</div>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree">jquery.fancytree.js project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+		<a href="#" id="codeExample">View source code</a>
+	</p>
+	<pre id="sourceCode" class="prettyprint" style="display:none"></pre>
+	<!-- End_Exclude -->
+</body>
+</html>

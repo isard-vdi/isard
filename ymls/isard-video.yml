@@ -1,0 +1,29 @@
+version: "3.5"
+services:
+  isard-video:
+    container_name: isard-video
+    image: isard/video:${TAG-latest}
+    networks:
+      - isard-network
+    ports:
+      - published: 80
+        target: 80
+      - published: ${VIDEO_PORT}
+        target: 443
+      - published: ${VIDEO_STATS_PORT}
+        target: 8888
+    restart: unless-stopped
+    volumes:
+      - /opt/isard/certs/default/${HOSTNAME}:/certs:rw
+    #- /opt/isard/certs/viewers:/viewers:ro
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/video/Dockerfile
+      target: production
+    env_file:
+      - .env
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network
