@@ -101,5 +101,3 @@ Please email us at info@isardvdi.com if you have any questions or fill in an iss
 Mastodon: [@isard@fosstodon.org](https://fosstodon.org/@isard)  
 Twitter: [@isard_vdi](https://twitter.com/isard_vdi)
 
-docker exec -e ID=isard-hypervisor -e HYPERVISOR=isard-hypervisor -e PASSWORD=isard -e PORT=22 isard-engine sh -c '/add-hypervisor.sh'
-
