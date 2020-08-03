@@ -1,6 +1,6 @@
 # Isard**VDI**
 
-<img align="right" src="src/webapp/static/img/isard.png" alt="IsardVDI Logo" width="150px;">
+<img align="right" src="webapp/webapp/webapp/static/img/isard.png" alt="IsardVDI Logo" width="150px;">
 
 [![](https://img.shields.io/github/release/isard-vdi/isard.svg)](https://github.com/isard-vdi/isard/releases) [![](https://img.shields.io/badge/docker--compose-ready-blue.svg)](https://github.com/isard-vdi/isard/blob/master/docker-compose.yml) [![](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://isardvdi.readthedocs.io/en/latest/) [![](https://img.shields.io/badge/license-AGPL%20v3.0-brightgreen.svg)](https://github.com/isard-vdi/isard/blob/master/LICENSE)
 
@@ -12,7 +12,7 @@ Open Source KVM Virtual Desktops based on KVM Linux and dockers.
 
 - HTML5 and native SPICE client viewers
 
-  **IMPORTANT NOTE**: This versión 2.X does not upgrade from versión 1.X as there are many structural changes. You should backup your xml definition files and qcow disks and import it to the new version.
+  **IMPORTANT NOTE**: You cannot migrate from the version 1 to version 2, since there are many structural changes. You should backup your XML definition files and QCOW disks and import them in the new version.
 
 # Documentation
 
@@ -89,13 +89,13 @@ Go to [IsardVDI Project website](http://www.isardvdi.com/)
 ### Authors
 + Josep Maria Viñolas Auquer
 + Alberto Larraz Dalmases
++ Néfix Estrada
 
 ### Contributors
 + Daniel Criado Casas
-+ Néfix Estrada
 
 ### Support/Contact
-Please send us an email to info@isardvdi.com if you have any questions or fill in an issue.
+Please email us at info@isardvdi.com if you have any questions or fill in an issue.
 
 ### Social Networks
 Mastodon: [@isard@fosstodon.org](https://fosstodon.org/@isard)  
