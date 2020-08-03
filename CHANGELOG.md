@@ -2,9 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0rc1] - 2020-07-31
+## [2.0.0-rc1] - 2020-08-03
 
 ### Added
+
 - OAuth2 Gitlab & Google authentications
 - Auto enrollment codes
 - Non persistent desktops
@@ -25,6 +26,10 @@ All notable changes to this project will be documented in this file.
 
 - New grafana dashboards with more details
 - Stats moved from engine to an independent isard-stats container
+
+### Removed
+
+- Spice Web viewer (in favour of noVNC)
 
 ## [1.2.2] - 2020-03-24
 
