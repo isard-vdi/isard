@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  isard-portal:
+    volumes:
+    - ${BUILD_ROOT_PATH}/docker/portal/haproxy.conf:/usr/local/etc/haproxy/haproxy.cfg:rw
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network      

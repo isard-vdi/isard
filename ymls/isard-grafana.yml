@@ -1,0 +1,26 @@
+version: "3.5"
+services:
+  isard-grafana:
+    container_name: isard-grafana
+    image: isard/grafana:${TAG-latest}
+    ports:
+      - "3000:3000"
+      - "2004:2004"
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+      - /opt/isard/grafana/grafana/data:/grafana/data:rw
+      - /opt/isard/grafana/graphite/conf:/opt/graphite/conf:rw
+      - /opt/isard/grafana/graphite/storage:/opt/graphite/storage:rw
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/grafana/Dockerfile
+      target: production
+    env_file:
+      - .env
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

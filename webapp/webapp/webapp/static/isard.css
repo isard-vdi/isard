@@ -1,0 +1,47 @@
+.dataTables_filter {float: left; position: absolute;}
+.dataTables_filter input { max-width:90px;}
+
+.roundbox{border-radius:4px;border:1px solid #AAAAAA;}
+
+  .blink {
+      animation: blink 2s steps(5, start) infinite;
+      -webkit-animation: blink 1s steps(5, start) infinite;
+    }
+    @keyframes blink {
+      to {
+        visibility: hidden;
+      }
+    }
+    @-webkit-keyframes blink {
+      to {
+        visibility: hidden;
+      }
+    }
+
+.pnotify-center {
+   right: calc(50% - 150px) !important;
+}
+
+.ui-select-match-text{
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 40px;
+}
+.ui-select-toggle > .btn.btn-link {
+  margin-right: 10px;
+  top: 6px;
+  position: absolute;
+  right: 10px;
+}
+
+
+.fancytree-plain` span.fancytree-selected span.fancytree-title {
+  background-color: yellow;
+  color: black;
+}
+
+.fancytree-plain span.fancytree-active span.fancytree-title {
+  background-color: blue;
+  color: white;
+}

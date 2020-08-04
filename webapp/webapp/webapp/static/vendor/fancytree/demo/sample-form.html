@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<title>Fancytree - Example: Forms</title>
+
+	<link href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet">
+	<script src="//code.jquery.com/jquery-3.4.1.min.js"></script>
+	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+	<link href="../src/skin-win8/ui.fancytree.css" rel="stylesheet">
+	<script src="../src/jquery.fancytree.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<link href="../lib/prettify.css" rel="stylesheet">
+	<script src="../lib/prettify.js"></script>
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+
+<style type="text/css">
+</style>
+
+	<!-- Add code to initialize the tree when the document is loaded: -->
+<script type="text/javascript">
+	$(function(){
+		$("#tree").fancytree({
+			checkbox: true,
+			selectMode: 2,
+			source: [
+//                {title: "Item 1 with embedded html: <input type='input' name='node1info'>", key: "node1"},
+				{title: "Item 1", key: "node1"},
+				{title: "Folder 2", folder: true, expanded: true, key: "node2",
+					children: [
+						{title: "Sub-item 2.1", key: "node2.1"},
+						{title: "Sub-item 2.2", key: "node2.2"}
+					]
+				},
+				{title: "Item 3", key: "node3"}
+			]
+		});
+		$("#tree2").fancytree({
+			checkbox: false,
+			selectMode: 3,
+			source: [
+				{title: "Item 1", key: "node1"},
+				{title: "Folder 2", folder: true, key: "node2",
+					children: [
+						{title: "Sub-item 2.1", key: "node2.1"},
+						{title: "Sub-item 2.2", key: "node2.2"}
+					]
+				},
+				{title: "Item 3", key: "node3"}
+			]
+		});
+		$("form").submit(function() {
+			// Render hidden <input> elements for active and selected nodes
+			$.ui.fancytree.getTree("#tree").generateFormElements();
+			$.ui.fancytree.getTree("#tree2").generateFormElements();
+
+			alert("POST data:\n" + jQuery.param($(this).serializeArray()));
+			// return false to prevent submission of this sample
+			return false;
+		});
+	});
+</script>
+
+<!-- Start_Exclude: This block is not part of the sample code -->
+<script>
+$(function(){
+/*
+	addSampleButton({
+		label: "Generate <input> elements",
+		code: function(){
+			$.ui.fancytree.getTree("#tree").generateInput();
+			$.ui.fancytree.getTree("#tree2").generateInput();
+		}
+	});
+*/
+});
+</script>
+<!-- End_Exclude -->
+
+</head>
+
+<body class="example">
+	<h1>Example: Form</h1>
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<div class="description">
+	Two Fancytrees embedded in a form, together with some standard elements.
+	<ul>
+	<li>Use the <kbd>TAB</kbd> key to move the focus between form elements.<br>
+		Note that a tree behaves like a single control (like a radio button group)
+	<li>Experimental support for <a href="http://www.w3.org/TR/wai-aria/">WAI-ARIA</a>
+	<li>The submit handler is hooked to generate hidden checkbox elements for
+		selected and active nodes.<br>
+		Note that in select mode 3 only the topmost nodes are considered.<br>
+		Click the <kbd>Submit</kbd> button at the bottom of this page to POST
+		these values to the server (together with the other form elements).
+	</ul>
+	</div>
+	<div>
+		<label for="skinswitcher">Skin:</label> <select id="skinswitcher"></select>
+	</div>
+	<hr>
+	<!-- End_Exclude -->
+	<!--
+	<form action="http://127.0.0.1:8001/submit_data" method="POST">
+	 -->
+	<form action="/submit_data" method="POST">
+		<textarea name="comment"></textarea>
+		<br>
+		<fieldset>
+			<legend>Radioboxes</legend>
+			<label><input type="radio" name="rb1" value="foo" checked> Foo</label>
+			<label><input type="radio" name="rb1" value="bar"> Bar</label>
+			<label><input type="radio" name="rb1" value="baz"> Baz</label>
+		</fieldset>
+		<br>
+		<fieldset>
+			<legend>Checkboxes</legend>
+			<label><input type="checkbox" name="cb1" value="John" checked>John</label>
+			<label><input type="checkbox" name="cb1" value="Paul">Paul</label>
+			<label><input type="checkbox" name="cb1" value="George">George</label>
+			<label><input type="checkbox" name="cb1" value="Ringo">Ringo</label>
+		</fieldset>
+		<br>
+		<fieldset>
+			<legend>Lists</legend>
+			<select name="list1" multiple="multiple">
+				<option value="up">Up</option>
+				<option value="down">Down</option>
+				<option value="charm">Charm</option>
+				<option value="strange">Strange</option>
+			</select>
+		</fieldset>
+
+		Username: <input type="text" name="userName" />
+		<br>
+
+		<!-- The name attribute is used by tree.serializeArray()  -->
+		<fieldset>
+			<legend>Select 1</legend>
+			<div id="tree" name="selNodes">
+			</div>
+		</fieldset>
+		<fieldset>
+			<legend>Select 2</legend>
+			<div id="tree2" name="selNodes2">
+			</div>
+		</fieldset>
+
+		<input type="submit" value="Submit Form">
+	</form>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<p id="sampleButtons">
+	</p>
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree/">Fancytree project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+		<a href="#" id="codeExample">View source code</a>
+	</p>
+	<pre id="sourceCode" class="prettyprint" style="display:none"></pre>
+	<!-- End_Exclude -->
+</body>
+</html>

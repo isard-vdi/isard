@@ -1,0 +1,237 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+        <div class="right_col" role="main">
+			  
+            <div class="page-title">
+              <div class="title_left">
+                <h3><i class="fa fa-user"></i> Users<small>  Users - Roles - Categories - Groups</small></h3>
+              </div>
+              <div class="title_right">
+              </div>
+            </div>
+            <div class="clearfix"></div>
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2><i class="fa fa-user"></i> Users <small></small></h2>                			
+					          <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="btn-new-bulkusers"><span
+                              style="color: #5499c7; "><i class="fa fa-users"></i> Bulk create</span></a>
+                      </li>
+                      <li><a class="btn-new-user"><span
+                              style="color: #5499c7; "><i class="fa fa-user"></i> Add new</span></a>
+                      </li>
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <table id="users" class="table table-striped">
+                      <thead>
+                        <tr>
+<!--
+                            <th rowspan="2">Name</th>
+-->
+                            <th colspan="9">User info</th>
+                            <th colspan="4">Domains</th>
+<!--
+                            <th colspan="3">Contact</th>
+-->
+                        </tr>
+                        <tr>
+							<th></th>
+                          <th>active</th>
+                          <th>name</th>
+                          <th>provider</th>
+                          <th>category</th>
+                          <th>uid</th>
+                          <th>username</th>
+                          <th>role</th>
+                          <th>group</th>
+<!--
+                          <th>password</th>
+-->
+                          <th>last access</th>
+                          <th>base</th>
+                          <th>priv</th>
+                          <th>pub</th>
+                          <th>desk</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">                
+                <div class="col-md-12 col-sm-12 col-xs-12">
+                  <div class="x_panel">
+                    <div class="x_title">
+                      <h2><i class="fa fa-leaf"></i> Categories <small></small></h2> 
+            <ul class="nav navbar-right panel_toolbox">
+                    {% if current_user.role != 'manager' %}
+                        <li><a class="btn-new-category"><span
+                                style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                        </li>
+                    {% endif %}
+                        <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                        </li>
+                        <li><a class="close-link"><i class="fa fa-close"></i></a>
+                        </li>
+                      </ul>
+                      <div class="clearfix"></div>
+                    </div>
+                    <div class="x_content">
+                      <table id="categories" class="table table-striped">
+                        <thead>
+                          <tr>
+                            <th rowspan="2"></th>
+                            <th rowspan="2">name</th>
+                            <th rowspan="2">description</th>
+                            <th colspan="1">user</th> 
+
+                            <th colspan="2">desktops</th>
+                            <th colspan="2">concurrent</th> 
+                            <th colspan="2">vCPU</th>
+                            <th colspan="2">memory</th>   
+                            <th colspan="2">templates</th>
+                            <th colspan="2">isos</th>                                                                                                                                                                            
+                          </tr>
+                          <tr>
+                            <th>limits</th>
+
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>                                                                                                                                          
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+            </div>
+
+            <div class="row"> 
+                <div class="col-md-12 col-sm-12 col-xs-12">
+                  <div class="x_panel">
+                    <div class="x_title">
+                      <h2><i class="fa fa-group"></i> Groups <small></small></h2> 
+            <ul class="nav navbar-right panel_toolbox">
+                        <li><a class="btn-new-group"><span
+                                style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                        </li>
+                        <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                        </li>
+                        <li><a class="close-link"><i class="fa fa-close"></i></a>
+                        </li>
+                      </ul>
+                      <div class="clearfix"></div>
+                    </div>
+                    <div class="x_content">
+                      <table id="groups" class="table table-striped">
+                        <thead>
+                          <tr>
+                            <th rowspan="2"></th>
+                            <th rowspan="2">name</th>
+                            <th rowspan="2">description</th>
+                            <th colspan="1">user</th> 
+
+                            <th colspan="2">desktops</th>
+                            <th colspan="2">concurrent</th> 
+                            <th colspan="2">vCPU</th>
+                            <th colspan="2">memory</th>   
+                            <th colspan="2">templates</th>
+                            <th colspan="2">isos</th>                                                                                                                                                                          
+                          </tr>
+                          <tr>
+                            <th>limits</th>
+
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>
+                            <th>quota</th>
+                            <th>limits</th>                                                                                                                                       
+                          </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2><i class="fa fa-key"></i> Roles <small></small></h2> 
+          <ul class="nav navbar-right panel_toolbox">
+                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+                      </li>
+                      <li><a class="close-link"><i class="fa fa-close"></i></a>
+                      </li>
+                    </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <table id="roles" class="table table-striped ">
+                      <thead>
+                        <tr>
+              <th></th>
+                          <th>name</th>
+                          <th>description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>            
+		 </div>
+		</div>
+
+
+{% include '/admin/pages/users_modals.html' %}
+{% include '/admin/pages/users_detail.html' %}
+{% include '/admin/pages/categories_detail.html' %}
+{% include '/admin/pages/groups_detail.html' %}
+{% endblock %}
+
+{% block pagescript %}
+    <script src="/isard-admin/static/js/restful.js"></script>
+    <script src="/isard-admin/static/admin/js/users.js"></script>
+    <script src="/isard-admin/static/admin/js/roles.js"></script>
+    <script src="/isard-admin/static/admin/js/categories.js"></script>
+    <script src="/isard-admin/static/admin/js/groups.js"></script>
+{% endblock %}

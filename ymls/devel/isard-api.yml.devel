@@ -1,0 +1,25 @@
+version: '3.5'
+services:
+  isard-api:
+    container_name: isard-api
+    #image: isard/webapp:${TAG:-latest}
+    ports:
+      - "7039:7039"
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+    - /etc/localtime:/etc/localtime:ro
+    - ${BUILD_ROOT_PATH}/api/src:/api
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: api/docker/Dockerfile
+      target: production
+    env_file:
+      - .env
+    command: sleep 999999
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

@@ -1,0 +1,19 @@
+version: '3.5'
+services:
+  isard-db:
+    container_name: isard-db
+    image: rethinkdb
+    ports:
+      - "8080:8080"
+    #   - "28015:28015"
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+    - /etc/localtime:/etc/localtime:ro
+    - /opt/isard/database:/data:rw
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

@@ -1,0 +1,15 @@
+version: '3.5'
+services:
+  isard-websockify:
+    depends_on:
+      - isard-hypervisor
+  isard-squid:
+    depends_on:
+      - isard-hypervisor
+  isard-video:
+    depends_on:
+      - isard-squid
+      - isard-websockify
+  isard-stats:
+    depends_on:
+      - isard-video

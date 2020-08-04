@@ -1,0 +1,80 @@
+    <div class="row">
+      <div class="col-md-3 col-sm-3 col-xs-12">
+            <label>vCPUs</label>
+            <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-vcpus" name="hardware-vcpus">           
+            </select>
+        </div>
+        <div class="col-md-3 col-sm-3 col-xs-12">
+                <label>Memory (GB)</label>
+                <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-memory" name="hardware-memory">  
+               </select>
+        </div>
+        <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>Graphics:</label>
+               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-graphics" name="hardware-graphics">
+               </select>
+        </div>
+        <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>Video:</label>
+               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-videos" name="hardware-videos">
+               </select>
+        </div>                      
+    </div>
+    <div class="row">
+        <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>Boot:</label>
+               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-boot_order" name="hardware-boot_order">
+               </select>
+        </div>
+        <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>Network:</label>
+               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-interfaces" name="hardware-interfaces">
+               </select>
+        </div>  
+        <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>Disk Bus:</label>
+               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-diskbus" name="hardware-diskbus">
+                  <option value="virtio" selected="default">
+                     Default
+                  </option>
+                  <option value="virtio">
+                     Virtio
+                  </option>                     
+                  <option value="ide">
+                     IDE
+                  </option> 
+                  <option value="sata">
+                     SATA
+                  </option>  
+               </select>
+        </div>   
+        <div class="col-md-3 col-sm-3 col-xs-12">
+         <label>Disk Qos:</label>
+         <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-qos_id" name="hardware-qos_id">
+         </select>
+  </div>          
+<!--         <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>Hyper pool:</label>
+               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hypervisors_pools" name="hypervisors_pools">
+                  <option value="default" selected="default">
+                     Default
+                  </option>
+               </select>
+        </div>  
+        <div class="col-md-3 col-sm-3 col-xs-12">
+               <label>Forced Hyp:</label>
+               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="forced_hyp" name="forced_hyp">
+                  <option value="default" selected="default">
+                     Default
+                  </option>
+               </select>
+        </div>  --> 
+        <div class="col-md-3 col-sm-3 col-xs-12">
+        <input id="hypervisors_pools" name="hypervisors_pools" value="default" type="hidden"></input>  
+         </div> 
+         <div class="col-md-3 col-sm-3 col-xs-12">
+         <input id="forced_hyp" name="forced_hyp" value=false type="hidden" ></input>
+         </div> 
+    </div>
+   
+    <script src="/isard-admin/static/js/snippets/domain_hardware.js"></script> 

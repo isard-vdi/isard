@@ -1,0 +1,24 @@
+{
+	"tags"      : {
+		"allowUnknownTags" : true
+	},
+	"plugins"   : ["plugins/markdown"],
+	"templates" : {
+		"cleverLinks"     : false,
+		"monospaceLinks"  : false,
+		"default"         : {
+			"includeDate": true,
+			"outputSourceFiles" : true
+		},
+		"moogle"         : {
+			"analytics" : { "ua": "UA-316028-1", "domain": "auto" },
+			"ghForkMe"  : { "url": "https://github.com/mar10/fancytree/" },
+			"footer"   	: "",
+			"copyright" : "Fancytree Copyright © 2008-2020 Martin Wendt and contributors."
+		}
+	},
+	"markdown"  : {
+		"parser"   : "gfm",
+		"hardwrap" : true
+	}
+}

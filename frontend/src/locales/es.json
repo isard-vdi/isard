@@ -1,0 +1,50 @@
+{
+    "components": {
+        "help": {
+            "close-guide": "Cerrar la guía",
+            "local-client": "Utilizar el cliente local (recomendado)",
+            "best-performance": "Es la opción con el mejor rendimiento",
+            "install": "Instalar",
+            "other-windows-versions": "otras versiones de Windows",
+            "once-installed": "Una vez instalado, tienes que hacer click en el botón de 'cliente local', y se desgargará el fichero del escritorio virtual",
+            "use-browser": "Utilizar el navegador",
+            "no-install": "No es necesario instalar ningun aplicativo externo, ",
+            "worse-performance": "pero el rendimiento será peor",
+            "simply": "Simplemente tienes que hacer click en el botón y se abrirá el escritorio virtual en una pestaña nueva",
+            "text": {
+                "macos": "MacOS is an unsupported platform. You need to use the browser option",
+                "ios": "",
+                "windows": "",
+                "android": "",
+                "linux": ""
+            }
+        },
+        "not-found": {
+            "title": "No hemos encotrado la dirección solicitada",
+            "home": "Volver al inicio"
+        }
+    },
+    "views": {
+        "create-error": {
+            "title": "Debido a un error, no hemos podido crear el escritorio virtual",
+            "retry": "Volver a intentarlo"
+        },
+        "creating": {
+            "title": "Creando el escritorio virtual",
+            "subtitle": "Este proceso puede tardar unos segundos"
+        },
+        "error": {
+            "title": "Error",
+            "codes": {
+                "401": "Tu grupo no tiene permisos para acceder esta página",
+                "403": "No tienes permisos para acceder esta página",
+                "500": "Error inesperado"
+            }
+        },
+        "expired-session": {
+            "title": "La sesión ha caducado",
+            "subtitle": "Para volver a utilizar el escritorio virtual, inicia sessión de nuevo",
+            "button": "Iniciar sessión"
+        }
+    }
+}

@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  isard-engine:
+    volumes:
+      - ${BUILD_ROOT_PATH}/engine/engine:/isard:rw
+    command: sleep 999999 
+networks:
+  isard-network:
+    external: false
+    name: isard-network

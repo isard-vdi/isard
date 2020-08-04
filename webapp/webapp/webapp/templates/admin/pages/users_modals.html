@@ -1,0 +1,1213 @@
+<div class="modal fade" id="modalAddUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-user"> </i>   User
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalAddUserForm" class="form-horizontal form-label-left">
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <!--
+                        <input id="id" hidden/>
+-->
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]" placeholder="Full name" required="required" type="text">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Username <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 20]" name="id" placeholder="Login username" data-parsley-trigger="change" required type="text">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Email
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="email" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="email" placeholder="Email" type="email" data-parsley-trigger="change">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label for="password" class="control-label col-md-3">Password <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="password" type="password" name="password" data-validate-length="6,8" class="form-control col-md-7 col-xs-12" required="required">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label for="password2" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat Password <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="password2" type="password" name="password2" data-validate-linked="password" class="form-control col-md-7 col-xs-12" required="required">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota" required>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="add-category" name="category" class="form-control category" required>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="add-group" name="group" class="form-control group" required>
+                                    </select>
+                                </div>
+                            </div>
+                            <!--
+                     </div>
+-->
+
+                        </div>
+
+                        <div class="x_panel" id="users-quota" style="padding: 5px;">
+                            <p style="font-size: 18px;margin-bottom:0px;">Quota for this user</p>
+
+
+
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="unlimited">Unlimited
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                  <div class="checkbox">
+                                    <label class="">
+                                      <div class="icheckbox_flat-green" style="position: relative;">
+                                          <input type="checkbox" id="unlimited" name="unlimited" class="flat"  style="position: absolute; opacity: 0;">
+                                          <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                          </ins>
+                                      </div>
+                                    </label>
+                                  </div>                
+                                </div>
+                             </div>
+
+                            {% include '/snippets/quota_edit.html' %}
+                        </div>
+
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button id="send" type="button" class="btn btn-success">Create user</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-user"> </i>   Edit User
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalEditUserForm" class="form-horizontal form-label-left">
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <input id="id" name="id" hidden>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]" placeholder="Full name" required="required" type="text">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="uid">Username <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input disabled id="uid" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="uid" placeholder="Login username" data-parsley-trigger="change" required type="text">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="email">Email
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="email" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="email" placeholder="Email" type="email" data-parsley-trigger="change">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="role" name="role" class="form-control role" data-quota="users-quota" required>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="category" name="category" class="form-control category" disabled required>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="group" name="group" class="form-control group" disabled required>
+                                    </select>
+                                </div>
+                            </div>
+                            <!--
+                     </div>
+-->
+
+                        </div>
+
+                        <div class="x_panel" id="edit-users-quota" style="padding: 5px;">
+                            <p style="font-size: 18px;margin-bottom:0px;">Quota</p>
+
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="unlimited">Unlimited
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                  <div class="checkbox">
+                                    <label class="">
+                                      <div class="icheckbox_flat-green" style="position: relative;">
+                                          <input type="checkbox" id="unlimited" name="unlimited" class="flat"  style="position: absolute; opacity: 0;">
+                                          <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                          </ins>
+                                      </div>
+                                    </label>
+                                  </div>                
+                                </div>
+                             </div>
+
+                            {% include '/snippets/quota_edit.html' %}
+                        </div>
+
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button id="send" type="button" class="btn btn-success">Update user</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalPasswdUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-user"> </i>   Change user password
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalPasswdUserForm" class="form-horizontal form-label-left">
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <input id="id" hidden/>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]" placeholder="Full name" type="text" disabled>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="username">Username
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="username" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="username" placeholder="Login username" data-parsley-trigger="change" type="text" disabled>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label for="password" class="control-label col-md-3">New Password</label><span class="required">*</span>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="password" type="password" name="password" data-validate-length="6,8" class="form-control col-md-7 col-xs-12" required="required">
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label for="password2" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat Password</label><span class="required">*</span>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="password2" type="password" name="password2" data-validate-linked="password" class="form-control col-md-7 col-xs-12" required="required">
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button id="send" type="button" class="btn btn-success">Update user password</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAddBulkUsers" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-users"> </i>   Bulk users creation
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalAddBulkUsersForm" class="form-horizontal form-label-left">
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <!--
+                        <input id="id" hidden/>
+-->
+
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Import CSV <span class="required">*</span>
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input type="file" id="csv" name="csv" enctype="multipart/form-data" />
+                                    <p>CSV file should have this columns:</p>
+                                    <p>username,name,email,password</p>
+                                    <button id="btn-download-bulkusers" type="button" class="btn btn-success" data-dismiss="modal">Download template</button>
+                                    <!--
+                           <input id="csv" name="csv" class="form-control col-md-7 col-xs-12"  type="file">
+-->
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="bulk-role" name="role" class="form-control role" data-quota="bulkusers-quota" required>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="bulk-category" name="category" class="form-control category" required>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="bulk-group" name="group" class="form-control group" required>
+                                    </select>
+                                </div>
+                            </div>
+                            <!--
+                     </div>
+-->
+
+                        </div>
+
+                        <div class="x_panela" id="bulkusers-quota" style="padding: 5px;">
+                            <p style="font-size: 18px;margin-bottom:0px;">Quota for this users</p>
+                            {% include '/snippets/quota_edit.html' %}
+                        </div>
+
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button id="send" type="button" class="btn btn-success">Create users</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDeleteUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Delete User
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalDeleteUserForm" class="form-horizontal form-label-left">
+                    <input id="id" hidden/>
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <label class="control-label col-md-12 col-sm-12 col-xs-12" for="group">All this items will be deleted!</label>
+                            <div class="item form-group">
+                                <table id="table_modal_delete" class="table table-striped">
+                                    <thead>
+                                      <tr>
+                                        <th>kind</th>
+                                        <th>owner/id</th>
+                                        <th>name</th>
+                                      </tr>
+                                    </thead>
+              
+                                    <tbody>
+                                    </tbody>
+                                  </table>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button id="send" type="button" class="btn btn-success">Delete user</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDeleteCategory" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Delete Category
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalDeleteCategoryForm" class="form-horizontal form-label-left">
+                    <input id="id" hidden/>
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <label class="control-label col-md-12 col-sm-12 col-xs-12" for="group">All this items will be deleted!</label>
+                            <div class="item form-group">
+                                <table id="table_modal_category_delete" class="table table-striped">
+                                    <thead>
+                                      <tr>
+                                        <th>kind</th>
+                                        <th>owner/id</th>
+                                        <th>name</th>
+                                      </tr>
+                                    </thead>
+              
+                                    <tbody>
+                                    </tbody>
+                                  </table>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button id="send" type="button" class="btn btn-success">Delete category</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDeleteGroup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Delete group
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalDeleteGroupForm" class="form-horizontal form-label-left">
+                    <input id="id" hidden/>
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <label class="control-label col-md-12 col-sm-12 col-xs-12" for="group">All this items will be deleted!</label>
+                            <div class="item form-group">
+                                <table id="table_modal_group_delete" class="table table-striped">
+                                    <thead>
+                                      <tr>
+                                        <th>kind</th>
+                                        <th>owner/id</th>
+                                        <th>name</th>
+                                      </tr>
+                                    </thead>
+              
+                                    <tbody>
+                                    </tbody>
+                                  </table>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <div class="form-group">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button id="send" type="button" class="btn btn-success">Delete group</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalDeleteUserTree" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Delete User
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+                
+                <div id="domains_tree">
+                    <ul>
+                        <li>
+                            <input type="checkbox" />
+                            Root
+                            <ul>
+                                <li>
+                                    <input type="checkbox" />
+                                    Child 1
+                                    <ul>
+                                        <li>
+                                            <input type="checkbox" />
+                                            Subchild 1</li>
+                                        <li>
+                                            <input type="checkbox" />
+                                            Subchild 2</li>
+                                        <li>
+                                            <input type="checkbox" />
+                                            Subchild 3</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <input type="checkbox" />
+                                    Child 2
+                                    <ul>
+                                        <li>
+                                            <input type="checkbox" />
+                                            Subchild 1</li>
+                                        <li>
+                                            <input type="checkbox" />
+                                            Subchild 2</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalOldUsers" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="width:800px">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Old LDAP users in system
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <!--
+              <form id="modalAddBackupInfo" class="form-horizontal form-label-left">
+-->
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="btn-disable-olds"><span style="color: #5499c7; "><i class="fa fa-ban"></i> Disable all</span></a>
+                    </li>
+                </ul>
+                <!--
+			  <div class="x_panel">
+                 <div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Table: <span class="required">*</span></label>
+                     </div> 
+				 </div>
+			  </div>
+-->
+
+                <!-- Modal Footer -->
+                <div class="modal-footer">
+                    <table id="oldusers_table" class="display" width="100%">
+                        <thead>
+                            <tr>
+                                <th>Id</th>
+                                <th>Name</th>
+                                <th>Accessed</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAddRole" tabindex="-1" role="dialog" aria-labelledby="modalAddRole" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header" style="padding: 5px;">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i>    Add new Role <i class="fa fa-key"> </i>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+
+                <form id="modalAddRoleForm" class="form-inline form-label-left">
+                    <div class="x_panel">
+                        <p style="font-size: 18px;">Role</p>
+                        <div class="x_content">
+                            <div class="row">
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="name" class="roundbox" maxlength="15" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New role name" data-parsley-trigger="change" required type="text">
+                                </div>
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="description">Description
+                                    </label>
+                                    <input id="description" class="roundbox" name="description" placeholder="Role description" type="text" style="width:100%">
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="x_panel" id="roles-quota" style="padding: 5px;">
+                        <p style="font-size: 18px;margin-bottom:0px;">Quota for users in this role</p>
+                        {% include '/snippets/quota_edit.html' %}
+                    </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Create Role</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal fade" id="modalAddCategory" tabindex="-1" role="dialog" aria-labelledby="modalAddCategory" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header" style="padding: 5px;">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i>    Add new Category <i class="fa fa-key"> </i>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+
+                <form id="modalAddCategoryForm" class="form-inline form-label-left">
+                    <div class="x_panel">
+                        <p style="font-size: 18px;">Category</p>
+                        <div class="x_content">
+                            <div class="row">
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]" name="name" placeholder="New category name" data-parsley-trigger="change" required type="text">
+                                </div>
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="description">Description
+                                    </label>
+                                    <input id="description" class="roundbox" name="description" placeholder="Role description" type="text" style="width:100%">
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+					<div class="x_panel" id="desktops_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Auto desktops creation</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="auto-desktops-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        <div class="row" id="auto-desktops-data" style="display:none">
+							<label class="control-label" for="auto-desktops">Desktops list to be created at user login
+							</label>
+							<select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+							</select>
+                        </div>
+					</div>
+
+					<div class="x_panel" id="ephimeral_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="ephimeral-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        
+                        
+						<div class="row" id="ephimeral-data" style="display:none">
+							<div class="col-md-9 col-xs-12">
+								<label for="ephimeral-minutes">Minutes</label>
+								<input id="ephimeral-minutes" name="ephimeral-minutes"></input>
+							</div>
+
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
+                                <select id="ephimeral-action" name="ephimeral-action" class="form-control">
+                                    <option value="Stopping">Stop</option>
+                                    <option value="StoppingAndDeleting">Delete</option>
+                                </select>
+						</div>
+					</div>
+											
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Create Category</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAddGroup" tabindex="-1" role="dialog" aria-labelledby="modalAddGroup" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header" style="padding: 5px;">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i>    Add new Group <i class="fa fa-key"> </i>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+
+                <form id="modalAddGroupForm" class="form-inline form-label-left">
+                    <div class="x_panel">
+                        <p style="font-size: 18px;">Group</p>
+                        <div class="x_content">
+                            <div class="row">
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="name" class="roundbox" maxlength="15" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New group name" data-parsley-trigger="change" required type="text">
+                                </div>
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="description">Description
+                                    </label>
+                                    <input id="description" class="roundbox" name="description" placeholder="Group description" type="text" style="width:100%">
+                                </div>
+                            </div>
+                            <div class="row">
+                                {% if current_user.role == 'manager' %}
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="parent_category">Parent Category
+                                    </label>
+                                    <input id="parent_category" class="roundbox" name="parent_category" type="text" style="width:100%" value ="{{ current_user.category }}" disabled>
+                                </div>
+                                {% else %}
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="parent_category">Parent category <span class="required">*</span></label>
+                                    <div class="col-md-8 col-sm-8 col-xs-12">
+                                        <select id="parent_category" name="parent_category" class="form-control category" required>
+                                        </select>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+					<div class="x_panel" id="desktops_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Auto desktops creation</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="auto-desktops-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        <div class="row" id="auto-desktops-data" style="display:none">
+							<label class="control-label" for="auto-desktops">Desktops list to be created at user login
+							</label>
+							<select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+							</select>
+                        </div>
+					</div>
+
+					<div class="x_panel" id="ephimeral_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="ephimeral-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        
+                        
+						<div class="row" id="ephimeral-data" style="display:none">
+							<div class="col-md-9 col-xs-12">
+								<label for="ephimeral-minutes">Minutes</label>
+								<input id="ephimeral-minutes" name="ephimeral-minutes"></input>
+							</div>
+
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
+                                <select id="ephimeral-action" name="ephimeral-action" class="form-control">
+                                    <option value="Stopping">Stop</option>
+                                    <option value="StoppingAndDeleting">Delete</option>
+                                </select>
+						</div>
+					</div>
+                    
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Create Group</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEnrollment" tabindex="-1" role="dialog" aria-labelledby="modalEnrollment" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header" style="padding: 5px;">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i>    Enrollment keys <i class="fa fa-key"> </i>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+
+                <form id="modalEnrollmentForm" class="form-inline">
+                    <input hidden id="id" name="id"/>
+                    <div class="row">
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                              <label>Managers</label>
+                              <div class="checkbox">
+                                <label class="">
+                                  <div class="icheckbox_flat-green" style="position: relative;">
+                                      <input type="checkbox" id="manager-check" name="manager-check" class="flat"  style="position: absolute; opacity: 0;">
+                                      <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                      </ins>
+                                  </div>
+                                </label>
+                              </div>                               
+                              <input id="manager-key" class="form-control roundbox" name="manager-key" style="width:100%; " placeholder="Manager enrollment key" disabled />
+                        </div>
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                            <label>Advanced</label>
+                            <div class="checkbox">
+                                <label class="">
+                                  <div class="icheckbox_flat-green" style="position: relative;">
+                                      <input type="checkbox" id="advanced-check" name="advanced-check" class="flat"  style="position: absolute; opacity: 0;">
+                                      <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                      </ins>
+                                  </div>
+                                </label>
+                              </div>                              
+                            <input id="advanced-key" class="form-control roundbox" name="advanced-key" style="width:100%; " placeholder="Manager enrollment key" disabled />
+                        </div>                                            
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                            <label>Users</label>
+                            <div class="checkbox">
+                                <label class="">
+                                  <div class="icheckbox_flat-green" style="position: relative;">
+                                      <input type="checkbox" id="user-check" name="user-check" class="flat"  style="position: absolute; opacity: 0;">
+                                      <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                      </ins>
+                                  </div>
+                                </label>
+                              </div>                              
+                            <input id="user-key" class="form-control roundbox" name="user-key" style="width:100%; " placeholder="Manager enrollment key" disabled />
+                        </div>                                                                     
+                    </div>
+                
+                    <div class="row"> 
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                            <button class="btn btn-info btn-xs pull-right btn-copy-manager" type="button"  data-placement="top"><i class="fa fa-pencil m-right-xs" ></i>Copy to clipboard</button>
+            
+                        </div>
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                            <button class="btn btn-info btn-xs pull-right btn-copy-advanced" type="button"  data-placement="top"><i class="fa fa-pencil m-right-xs" ></i>Copy to clipboard</button>
+                           
+                        </div>
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                            <button class="btn btn-info btn-xs pull-right btn-copy-user" type="button"  data-placement="top"><i class="fa fa-pencil m-right-xs" ></i>Copy to clipboard</button>
+                          
+                        </div>                                                                        
+                    </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditQuota" tabindex="-1" role="dialog" 
+     aria-labelledby="modalEditQuota" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header"  style="padding: 5px;">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i>   Edit quota
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+              <form id="modalEditQuotaForm" class="form-horizontal form-label-left" method="POST" novalidate>
+			  <div class="x_panel">
+					<div class="x_content">
+                    <input id="id" hidden/>
+
+
+                    <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="unlimited">Unlimited
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="unlimited" name="unlimited" class="flat"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div>
+                            </label>
+                          </div>                
+                        </div>
+                     </div>
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Propagate to related
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="propagate" name="propagate" class="flat"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div>
+                            </label>
+                          </div>                
+                        </div>
+                     </div>
+                                          
+                    {% include '/snippets/quota_edit.html' %}                   
+				</div>
+			  </div>
+
+
+            </div>
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Update quota</button></li>
+                </ul>
+            </div>                       
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditLimits" tabindex="-1" role="dialog" 
+     aria-labelledby="modalEditLimits" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header"  style="padding: 5px;">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i>   Edit limits
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+              <form id="modalEditLimitsForm" class="form-horizontal form-label-left" method="POST" novalidate>
+			  <div class="x_panel">
+					<div class="x_content">
+                    <input id="id" hidden/>
+
+                    <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="unlimited">Unlimited
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="unlimited" name="unlimited" class="flat"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div>
+                            </label>
+                          </div>                
+                        </div>
+                     </div>
+
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Propagate to related
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                          <div class="checkbox">
+                            <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                  <input type="checkbox" id="propagate" name="propagate" class="flat"  style="position: absolute; opacity: 0;">
+                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                  </ins>
+                              </div>
+                            </label>
+                          </div>                
+                        </div>
+                     </div>
+
+                     {% include '/snippets/limits_edit.html' %} 
+
+				</div>
+			  </div>
+
+
+            </div>
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Update limits</button></li>
+                </ul>
+            </div>                       
+            </form>
+        </div>
+    </div>
+</div>

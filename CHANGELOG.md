@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-rc1] - 2020-08-03
+
+### Added
+
+- OAuth2 Gitlab & Google authentications
+- Auto enrollment codes
+- Non persistent desktops
+- Simplified web front end for non persistent desktops
+- Multitenancy configuration
+- New tenancy limits for users, desktops, concurrent, vcpus, memory, templates...
+- Single 80 & 443 ports for everything (including viewers)
+- New isardvdi.cfg and build.sh custom installation
+- New QoS resource definitions for networking and storage
+- New api with basic endpoints to control your users, desktops and viewers
+
+### Fixed
+
+- Deleting templates with fine grained detail of domains chain
+- Lots of non critical web user interface bugs
+
+### Changed
+
+- New grafana dashboards with more details
+- Stats moved from engine to an independent isard-stats container
+
+### Removed
+
+- Spice Web viewer (in favour of noVNC)
+
 ## [1.2.2] - 2020-03-24
 
 ### Added
