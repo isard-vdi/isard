@@ -1,0 +1,62 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+    <!-- Dropzone.js -->
+    <link href="/isard-admin/vendors/dropzone/dist/min/dropzone.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="right_col" role="main">
+   <div class="page-title">
+      <div class="title_left">
+         <h3><i class="fa fa-circle-o"></i> Media files <small>Upload and manage your isos</small></h3>
+      </div>
+   </div>
+   <div class="clearfix"></div>
+            <div class="row">
+                <div class="x_panel">
+                  <div class="x_title">
+                    <h2>Media list <small>Your media in system</small></h2>
+                        <ul class="nav navbar-right panel_toolbox">
+                            <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-globe"></i>  Upload from URL</span></a>
+<!--
+                            <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a>
+-->
+                           </li>
+                        </ul>
+                    <div class="clearfix"></div>
+                  </div>
+                  <div class="x_content">
+                    <br />
+
+					<table id="media" class="table table-striped" width="100%">
+					   <thead>
+						  <tr>
+							 <th></th>
+							 <th>Name</th>			 
+               <th>Status</th>  
+               <th>Owner</th>
+               <th>Category</th>
+               <th>Group</th>                           
+							 <th>Progress</th>
+              <th>Actions</th>
+						  </tr>
+					   </thead>
+					   <tbody>
+					   </tbody>
+					</table>
+                  </div>
+                </div>
+<!--
+              </div>
+-->
+          {% include 'admin/pages/media_modals.html' %}
+	      {% include '/snippets/alloweds_form.html' %}
+          </div>
+        </div>
+{% endblock %}
+{% block pagescript %}
+    <script src="/isard-admin/static/js/restful.js"></script>
+    <!-- Dropzone.js -->
+    <script src="/isard-admin/vendors/dropzone/dist/min/dropzone.min.js"></script>
+    <script src="/isard-admin/static/admin/js/media.js"></script>
+{% endblock %}

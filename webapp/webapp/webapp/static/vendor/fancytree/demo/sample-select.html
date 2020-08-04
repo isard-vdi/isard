@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+	<title>Fancytree - Example: Select</title>
+
+	<script src="//code.jquery.com/jquery-3.4.1.min.js"></script>
+	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+	<link href="../src/skin-win8/ui.fancytree.css" rel="stylesheet">
+	<script src="../src/jquery.fancytree.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<link href="../lib/prettify.css" rel="stylesheet">
+	<script src="../lib/prettify.js"></script>
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+
+<style type="text/css">
+</style>
+
+<script type="text/javascript">
+	$(function(){
+
+		// --- Initialize sample trees
+		$("#tree1").fancytree({
+			checkbox: "radio",
+			selectMode: 1,
+			// tooltip: true,
+			// tooltip: function(event, data) { return data.node.title + "!"},
+			source: [
+				{title: "n1 (checkbox: false)", expanded: true, checkbox: false, children: [
+					{title: "n1.1"},
+					{title: "n1.2 (selected)", selected: true},
+					{title: "n1.3"}
+				]},
+				{title: "n2", expanded: true, checkbox: false, children: [
+					{title: "n2.1"},
+					{title: "n2.2"},
+					{title: "n2.3"}
+				]}
+				],
+			init: function(event, data) {
+				// Set key from first part of title (just for this demo output)
+				data.tree.visit(function(n) {
+					n.key = n.title.split(" ")[0];
+				});
+			},
+			activate: function(event, data) {
+				$("#echoActive1").text(data.node.title);
+			},
+			select: function(event, data) {
+				// Display list of selected nodes
+				var s = data.tree.getSelectedNodes().join(", ");
+				$("#echoSelection1").text(s);
+			}
+		});
+
+		// ---------------------------------------------------------------------
+
+		$("#btnDeselectAll2").click(function(){
+			$.ui.fancytree.getTree("#tree2").selectAll(false);
+			return false;
+		});
+		$("#btnSelectAll2").click(function(){
+			$.ui.fancytree.getTree("#tree2").selectAll();
+			return false;
+		});
+
+		$("#tree2").fancytree({
+			checkbox: true,
+			selectMode: 2,
+			source: [
+				{title: "n1 (selected)", expanded: true, selected: true, children: [
+					{title: "n1.1"},
+					{title: "n1.2 (selected)", selected: true},
+					{title: "n1.3"}
+				]},
+				{title: "n2 (checkbox: false)", expanded: true, checkbox: false, children: [
+					{title: "n2.1"},
+					{title: "n2.2"},
+					{title: "n2.3"}
+				]},
+				{title: "n3 (radiogroup, checkbox: false)", expanded: true,
+					checkbox: false, radiogroup: true, children: [
+					{title: "n3.1"},
+					{title: "n3.2"},
+					{title: "n3.3"}
+				]}
+				],
+			init: function(event, data) {
+				// Set key from first part of title (just for this demo output)
+				data.tree.visit(function(n) {
+					n.key = n.title.split(" ")[0];
+				});
+			},
+			select: function(event, data) {
+				// Display list of selected nodes
+				var selNodes = data.tree.getSelectedNodes();
+				// convert to title/key array
+				var selKeys = $.map(selNodes, function(node){
+					   return "[" + node.key + "]: '" + node.title + "'";
+					});
+				$("#echoSelection2").text(selKeys.join(", "));
+			},
+			// The following options are only required, if we have more than one tree on one page:
+			cookieId: "fancytree-Cb2",
+			idPrefix: "fancytree-Cb2-"
+		});
+
+		// ---------------------------------------------------------------------
+
+		$("#btnDeselectAll3").click(function(){
+			$.ui.fancytree.getTree("#tree3").selectAll(false);
+			return false;
+		});
+		$("#btnSelectAll3").click(function(){
+			$.ui.fancytree.getTree("#tree3").selectAll();
+			return false;
+		});
+		$("#btnGetSelected3").click(function(){
+			var selNodes = $.ui.fancytree.getTree("#tree3").getSelectedNodes();
+			var selData = $.map(selNodes, function(n){
+				return n.toDict();
+			});
+			// alert(JSON.stringify(selData));
+			return false;
+		});
+		$("#tree3").fancytree({
+			checkbox: true,
+			selectMode: 3,
+			source: [
+				{title: "n1", expanded: true, children: [
+					{title: "n1.1 (selected)"},
+					{title: "n1.2"},
+					{title: "n1.3"}
+				]},
+				{title: "n2", expanded: true, children: [
+					{title: "n2.1 (selected)", selected: true},
+					{title: "n2.2", selected: false},
+					{title: "n2.3", selected: null}
+				]},
+				{title: "n3", expanded: true, children: [
+					{title: "n3.1", expanded: true, children: [
+						{title: "n3.1.1 (unselectable)", unselectable: true},
+						{title: "n3.1.2 (unselectable)", unselectable: true},
+						{title: "n3.1.3"}
+					]},
+					{title: "n3.2", expanded: true, children: [
+						{title: "n3.2.1 (unselectableStatus: true)", unselectableStatus: true},
+						{title: "n3.2.2 (unselectableStatus: false)", unselectableStatus: false},
+						{title: "n3.2.3"}
+					]},
+					{title: "n3.3", expanded: true, children: [
+						{title: "n3.3.1 (unselectableStatus: true, unselectableIgnore)",
+								unselectableStatus: true,  unselectableIgnore: true},
+						{title: "n3.3.2 (unselectableStatus: false, unselectableIgnore)",
+								unselectableStatus: false, unselectableIgnore: true},
+						{title: "n3.3.3"}
+					]}
+				]}
+				],
+			init: function(event, data) {
+				// Set key from first part of title (just for this demo output)
+				data.tree.visit(function(n) {
+					n.key = n.title.split(" ")[0];
+					n.expanded = true;
+				});
+			},
+			lazyLoad: function(event, ctx) {
+				ctx.result = {url: "ajax-sub2.json", debugDelay: 1000};
+			},
+			loadChildren: function(event, ctx) {
+				ctx.node.fixSelection3AfterClick();
+			},
+			select: function(event, data) {
+				// Get a list of all selected nodes, and convert to a key array:
+				var selKeys = $.map(data.tree.getSelectedNodes(), function(node){
+					return node.key;
+				});
+				$("#echoSelection3").text(selKeys.join(", "));
+
+				// Get a list of all selected TOP nodes
+				var selRootNodes = data.tree.getSelectedNodes(true);
+				// ... and convert to a key array:
+				var selRootKeys = $.map(selRootNodes, function(node){
+					return node.key;
+				});
+				$("#echoSelectionRootKeys3").text(selRootKeys.join(", "));
+				// $("#echoSelectionRoots3").text(selRootNodes.join(", "));
+			},
+			// The following options are only required, if we have more than one tree on one page:
+			cookieId: "fancytree-Cb3",
+			idPrefix: "fancytree-Cb3-"
+		});
+
+	});
+</script>
+</head>
+
+<body class="example">
+	<h1>Example: Selection and Checkboxes</h1>
+
+	<p class="description">
+		Use different select modes for the tree and distinct nodes.
+	</p>
+	<div>
+		<label for="skinswitcher">Skin:</label> <select id="skinswitcher"></select>
+	</div>
+
+	<!-- Tree #1 -->
+
+	<p class="description">
+		This tree has <b>checkoxes and selectMode 1 (single-selection)</b> enabled.<br>
+		The checkbox icons are replaced by radio buttons by adding
+		the <code>tree.checkbox: "radio"</code> option.
+	</p>
+	<div id="tree1">
+	</div>
+	<div>Active node: <span id="echoActive1">-</span></div>
+	<div>Selection: <span id="echoSelection1">-</span></div>
+
+
+	<!-- Tree #2 -->
+
+	<p class="description">
+		This tree has <b>selectMode 2 (multi-selection)</b> enabled.<br>
+		Node `n3` uses the 'radiogroup' option and hides the checkbox.
+	</p>
+	<p>
+		<a href="#" id="btnSelectAll2">Select all</a> -
+		<a href="#" id="btnDeselectAll2">Deselect all</a>
+	</p>
+	<div id="tree2"></div>
+	<div>Selected keys: <span id="echoSelection2">-</span></div>
+
+
+	<!-- Tree #3 -->
+
+	<p class="description">
+		This tree has <b>checkoxes and selectMode 3 (hierarchical multi-selection)</b> enabled.<br>
+		Node `n3` features different variations of the <code>unselectable</code> mode.
+	</p>
+	<p>
+		<a href="#" id="btnSelectAll3">Select all</a> -
+		<a href="#" id="btnDeselectAll3">Deselect all</a> -
+		<a href="#" id="btnGetSelected3">Get selected</a>
+	</p>
+	<div id="tree3"></div>
+	<div>Selected keys: <span id="echoSelection3">-</span></div>
+	<div>Selected root keys: <span id="echoSelectionRootKeys3">-</span></div>
+<!-- 	<div>Selected root nodes: <span id="echoSelectionRoots3">-</span></div> -->
+
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree">jquery.fancytree.js project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+		<a href="#" id="codeExample">View source code</a>
+	</p>
+	<pre id="sourceCode" class="prettyprint" style="display:none"></pre>
+	<!-- End_Exclude -->
+</body>
+</html>

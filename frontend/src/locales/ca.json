@@ -1,0 +1,50 @@
+{
+    "components": {
+        "help": {
+            "close-guide": "Tancar la guia",
+            "local-client": "Fer servir el client local (recomanat)",
+            "best-performance": "És l'opció amb el millor rendiment",
+            "install": "Instaŀlar",
+            "other-windows-versions": "altres versions de Windows",
+            "once-installed": "Un cop instaŀlat, has de fer click al botó de 'client local', i es descarregarà el fitxer de l'escriptori virtual",
+            "use-browser": "Utilitzar el navegador",
+            "no-install": "No és necessari instaŀlar cap aplicatiu extern, ",
+            "worse-performance": "però el rendiment serà pitjor",
+            "simply": "Simplement has de fer click al botó i s'obrirà l'escriptori virtual en una pestanya nova",
+            "text": {
+                "macos": "MacOS is an unsupported platform. You need to use the browser option",
+                "ios": "",
+                "windows": "",
+                "android": "",
+                "linux": ""
+            }
+        },
+        "not-found": {
+            "title": "No hem trobat l'adreça soŀlicitada",
+            "home": "Tornar a l'inici"
+        }
+    },
+    "views": {
+        "create-error": {
+            "title": "Degut a un error, no hem pogut crear l'escriptori virtual",
+            "retry": "Tornar-ho a intentar"
+        },
+        "creating": {
+            "title": "Creant l'escriptori virtual",
+            "subtitle": "Aquest procés pot trigar uns segons"
+        },
+        "error": {
+            "title": "Error",
+            "codes": {
+                "401": "El teu grup no té permisos per a accedir aquesta pàgina",
+                "403": "No tens permisos per a accedir aquesta pàgina",
+                "500": "Error inesperat"
+            }
+        },
+        "expired-session": {
+            "title": "La sessió ha caducat",
+            "subtitle": "Per a tornar a utilitzar l'escriptori virtual, inicia sessió de nou",
+            "button": "Iniciar sessió"
+        }
+    }
+}

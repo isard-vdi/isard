@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+	<title>Fancytree - Example: columnview</title>
+
+	<script src="//code.jquery.com/jquery-3.4.1.min.js"></script>
+	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+	<link href="../src/skin-lion/ui.fancytree.css" rel="stylesheet">
+	<script src="../src/jquery.fancytree.js"></script>
+	<script src="../src/jquery.fancytree.columnview.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<link href="../lib/prettify.css" rel="stylesheet">
+	<script src="../lib/prettify.js"></script>
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+
+<style type="text/css">
+	table.fancytree-ext-columnview {
+		border-collapse: collapse;
+    width: 100%;
+	}
+	table.fancytree-container tbody tr:first-child td {
+    height: 200px;
+	}
+	span.fancytree-node{
+		white-space: nowrap; /* prevent long lines to wrap */
+		overflow: hidden;
+		-o-text-overflow: ellipsis;
+		-ms-text-overflow: ellipsis;
+		text-overflow: ellipsis;
+/*
+		display: inline;
+		overflow-wrap: break-word;
+		word-wrap: break-word;
+		word-break: break-all;
+*/
+	}
+	span.fancytree-title{
+		display: inline; /* prevent long lines to start with a break after the icon */
+	}
+
+	span.selTag{
+		border: 1px outset #dec;
+		display: inline-block;
+		padding: 1px 3px;
+		margin: 1px 5px;
+		background-color: #dec;
+		border-radius: 5px;
+		cursor: pointer;
+    vertical-align: bottom;
+    position: relative;
+	}
+	span.selTag button.close{
+		border: 1px solid transparent;
+		border-radius: 5px;
+		padding: 0px 1px 2px 1px;
+    position: absolute;
+    top: 0;
+    right: 0;
+		background-color: transparent;
+		visibility: hidden;
+	}
+	span.selTag:hover button.close{
+		border-color: gray;
+		background-color: #f99;
+		opacity: 0.8;
+		visibility: visible;
+	}
+</style>
+
+	<!-- Add code to initialize the tree when the document is loaded: -->
+<script type="text/javascript">
+	$(function(){
+		// Attach the fancytree widget to an existing <div id="tree"> element
+		// and pass the tree options as an argument to the fancytree() function:
+		$("#columnview").fancytree({
+			extensions: ["columnview"],
+			checkbox: true,
+			source: {
+				url: "ajax-tree-products.json"
+			},
+			init: function(event, data) {
+				data.tree.findFirst("C64").setActive();
+			},
+			lazyLoad: function(event, data) {
+				data.result = {url: "ajax-sub2.json"};
+			},
+			activate: function(event, data) {
+				$("td#preview").text("activate " + data.node);
+			},
+			select: function(event, data) {
+				// create a tag, when node is selected
+				var node = data.node;
+				$("span#tag-" + node.key).remove();
+				if(node.selected){
+					$("<span>", {
+						id: "tag-" + node.key,
+						text: node.title,
+						"class": "selTag"
+					})
+					.data("key", node.key)
+					.append("<button class='close'>&times;</button>")
+					.appendTo($("td#tags"));
+				}
+			}
+		});
+
+		$("td#tags").on("click", "button.close", function(e){
+			// Bind live handler that deselects the node when user clicks 'x' of a tag
+			var key = $(e.target).parent().data("key"),
+				node = $.ui.fancytree.getTree().getNodeByKey(key);
+
+			node.setSelected(false);
+			return false; // do not bubble and trigger span click
+		}).on("click", "span.selTag", function(e){
+			// Bind live handler that activates the node, when tag is clicked
+			var key = $(e.target).data("key"),
+				node = $.ui.fancytree.getTree().getNodeByKey(key);
+
+			node.setActive();
+		});
+	});
+		</script>
+</head>
+<body class="example">
+	<h1>Example: 'columnview' extension</h1>
+	<div class="description">
+		<p>
+			Display tree data in a column view as known from Apple Macintosh / OSX.
+		</p>
+		<p>
+			<b>Status</b>: experimental.
+			<b>Details:</b>
+			<a href="https://github.com/mar10/fancytree/wiki/ExtColumnView"
+				target="_blank" class="external">ext-columnview</a>.
+		</p>
+	</div>
+	<div>
+		<label for="skinswitcher">Skin:</label> <select id="skinswitcher"></select>
+	</div>
+
+	<!-- Add a <table> element where the tree should appear: -->
+	<table id="columnview">
+		<colgroup>
+		<col width="33%"></col>
+		<col width="33%"></col>
+		<col width="33%"></col>
+		</colgroup>
+		<thead>
+			<tr> <th>1</th> <th>2</th> <th>3</th> </tr>
+		</thead>
+		<tbody>
+      <tr> <td>?</td> <td>?</td> <td>?</td> </tr>
+      <!-- The following rows are only used for the custom select badge functionality: -->
+			<tr> <td id="tags" colspan="3">Selected nodes: </td> </tr>
+			<tr> <td id="preview" colspan="3">preview</td> </tr>
+		</tbody>
+	</table>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree">jquery.fancytree.js project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+		<a href="#" id="codeExample">View source code</a>
+	</p>
+	<pre id="sourceCode" class="prettyprint" style="display:none"></pre>
+	<!-- End_Exclude -->
+</body>
+</html>

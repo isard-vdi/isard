@@ -1,0 +1,31 @@
+version: "3.5"
+services:
+  isard-webapp:
+    container_name: isard-webapp
+    image: isard/webapp:${TAG:-latest}
+    # ports:
+    #   - "5000:5000"
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /opt/isard/backups:/isard/backups:rw
+      - /opt/isard-local/logs/webapp:/isard/logs:rw
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: webapp/docker/Dockerfile
+      target: production
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webapp.middlewares=webapp-auth@docker,webapp-path@docker"
+      - "traefik.http.routers.webapp.rule=PathPrefix(`/debug/webapp`)"
+      - "traefik.http.middlewares.webapp-auth.basicauth.usersfile=/users"
+      - "traefik.http.middlewares.webapp-path.stripprefix.prefixes=/debug/webapp"
+    env_file:
+      - .env
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+	<title>Fancytree - Configurator</title>
+
+	<script src="//code.jquery.com/jquery-3.4.1.min.js"></script>
+
+	<link href="../src/skin-win8/ui.fancytree.css" rel="stylesheet"">
+	<script src="../src/jquery-ui-dependencies/jquery.fancytree.ui-deps.js"></script>
+	<script src="../src/jquery.fancytree.js"></script>
+
+	<script src="../lib/jquery.configurator.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js?autoload=true&amp;skin=sunburst"></script>
+<!--
+	<script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?autoload=true&amp;skin=sons-of-obsidian"></script>
+ -->
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+
+<style type="text/css">
+	fieldset {
+		/* border: 1px solid;
+		padding: 2px; */
+		margin-left: 8px;
+	}
+	fieldset.tree {
+		float: left;
+	}
+	div#tree{
+		width: 400px;
+	}
+	ul.fancytree-container {
+		border: none;
+		max-height: 400px;
+		overflow: auto;
+	}
+	fieldset.options {
+	}
+	div#options {
+		padding: 2px;
+		margin: 2px;
+	}
+	div#options ul {
+		padding: 4px;
+		margin: 0px;
+		font-size: 90%;
+	}
+	div#options ul li {
+		list-style-type: none;
+	}
+</style>
+
+<!-- Add code to initialize the tree when the document is loaded: -->
+<script type="text/javascript">
+
+var OPT_LIST = [
+	{name: "activeVisible", value: true,
+	 hint: "Make sure, active nodes are visible (expanded)"},
+	{name: "aria", value: true,
+	 hint: "Enable WAI-ARIA support"},
+	{name: "autoActivate", value: true,
+	 hint: "Automatically activate a node when it is focused using keyboard"},
+	{name: "autoCollapse", value: false,
+	 hint: "Automatically collapse all siblings, when a node is expanded"},
+	{name: "autoScroll", value: false,
+	 hint: "Automatically scroll nodes into visible area"},
+	{name: "clickFolderMode", value: [{name: "activate", value: 1},
+									  {name: "expand", value: 2},
+									  {name: "activate and expand", value: 3},
+									  {name: "activate (dblclick expands)", value: 4, selected: true}],
+	 hint: "1:activate, 2:expand, 3:activate and expand, 4:activate (dblclick expands)"},
+	{name: "checkbox", value: false,
+	 hint: "Show check boxes"},
+	{name: "checkboxAutoHide", value: false,
+	 hint: "Display check boxes on hover only"},
+	{name: "debugLevel", value: [{name: "quiet", value: 0},
+								 {name: "errors", value: 1},
+								 {name: "warnings", value: 2},
+								 {name: "infos", value: 3},
+								 {name: "debug", value: 4}],
+	 hint: "0:quiet, 1:errors, 2:warnings, 3:infos, 4:debug"},
+	{name: "disabled", value: false,
+	 hint: "Disable control"},
+	{name: "focusOnSelect", value: false,
+	 hint: "Set focus when node is checked by a mouse click"},
+	{name: "escapeTitles", value: false,
+	 hint: "Escape `node.title` content for display"},
+	{name: "generateIds", value: false,
+	 hint: "Generate id attributes like <span id='fancytree-id-KEY'>"},
+	{name: "idPrefix", value: "ft_",
+	 hint: "Used to generate node id´s like <span id='fancytree-id-<key>'>"},
+	{name: "icon", value: true,
+	 hint: "Display node icons"},
+	{name: "keyboard", value: true,
+	 hint: "Support keyboard navigation"},
+	{name: "keyPathSeparator", value: "/",
+	 hint: "Used by node.getKeyPath() and tree.loadKeyPath()"},
+	{name: "minExpandLevel", value: 1,
+	 hint: "1: root node is not collapsible"},
+	{name: "quicksearch", value: false,
+	 hint: "Navigate to next node by typing the first letters"},
+	{name: "rtl", value: false,
+	 hint: "Enable RTL (right-to-left) mode"},
+	{name: "selectMode", value: [{name: "single", value: 1},
+								 {name: "multi", value: 2, selected: true},
+								 {name: "multi-hier", value: 3}],
+	 hint: "1:single, 2:multi, 3:multi-hier"},
+	{name: "tabindex", value: [{name: "tabbable", value: "0"},
+							   {name: "focusable", value: "-1"},
+							   {name: "off", value: ""}],
+	 hint: "Whole tree behaves as one single control"},
+	{name: "titlesTabbable", value: false,
+	 hint: "Node titles can receive keyboard focus"},
+	{name: "tooltip", value: false,
+	 hint: "Use title as tooltip (also a callback could be specified)"}
+	];
+
+
+$(function(){
+
+	// Attach the fancytree widget to an existing <div id="tree"> element
+	// and pass the tree options as an argument to the fancytree() function:
+	$("#tree").fancytree({
+		source: {
+			url: "ajax-tree-plain.json"
+		},
+		lazyLoad: function(event, data) {
+			data.result = {url: "ajax-sub2.json"}
+		}
+	});
+	// Attach configurator plugin
+	$("#tree").configurator({
+		pluginName: "fancytree",
+		optionTarget: "div#options",
+		sourceTarget: "pre#sourceCode",
+		optionList: OPT_LIST,
+		render: function(event, name, value){
+//            var w = window.code_google_com_googleprettify;
+			$("#sourceCode").removeClass("prettyprinted");
+//            alert("change: " + name + "=" + value + "; " + PR.prettyPrint);
+			PR.prettyPrint();
+		}
+	});
+	$("input[name=showComments]").change(function(event){
+		$("#tree").configurator("option", "showComments", $(this).is(":checked"));
+	});
+	$("input[name=hideDefaults]").change(function(event){
+		$("#tree").configurator("option", "hideDefaults", $(this).is(":checked"));
+	});
+
+});
+</script>
+</head>
+
+<body class="example">
+	<h1>Fancytree Option Configurator</h1>
+	<div class="description">
+		Live preview of some Fancytree options.
+	</div>
+	<div>
+		<label for="skinswitcher">Skin:</label> <select id="skinswitcher"></select>
+	</div>
+	<p>
+		<fieldset class="tree">
+			<legend>Sample Fancytree</legend>
+			<div id="tree"> </div>
+		</fieldset>
+		<fieldset class="options">
+			<legend>Widget Options</legend>
+			<div id="options">OPTIONS</div>
+		</fieldset>
+	</p>
+
+	<label><input name="showComments" type="checkbox" checked="checked"> Render hint comments</label>
+	<label><input name="hideDefaults" type="checkbox"> Hide default settings</label>
+
+	<!--?prettify linenums=false?-->
+	<pre id="sourceCode" class="prettyprint">
+	</pre>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree">jquery.fancytree.js project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+<!--
+		<a href="#" id="codeExample">View source code</a>
+-->
+	</p>
+	<!-- End_Exclude -->
+</body>
+</html>

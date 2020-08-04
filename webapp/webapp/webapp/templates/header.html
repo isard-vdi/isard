@@ -1,0 +1,112 @@
+        <div class="top_nav" >
+          <div class="nav_menu" {% if current_user.role == 'admin' %} style="background-color:#ffe6e6;" {% endif %}>
+            <nav class="" role="navigation" >
+              <div class="nav toggle">
+                <a id="menu_toggle"><i class="fa fa-bars"></i></a>
+              </div>
+
+              <ul class="nav navbar-nav navbar-right">
+                <li class="">
+                  <a href="javascript:" class="user-profile dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                    <img src="/isard-admin/static/img/user.png" alt="..." >
+                    <b>{{ current_user.username }}</b> [{{ current_user.role }}]
+                    <span class=" fa fa-angle-down"></span>
+                  </a>
+                  <ul class="dropdown-menu dropdown-usermenu pull-right">
+                    <li><a href="/isard-admin/profile"><i class="fa fa-gear pull-right"></i> Profile</a></li>
+                    <li><a href="/isard-admin/logout"><i class="fa fa-sign-out pull-right"></i> Log Out</a></li>
+                  </ul>
+                </li>
+
+                {% if current_user.role == 'admin' or current_user.role == 'advanced' or current_user.role == 'manager' %}
+				<li role="presentation" class="quota-isos">
+                  <a href="javascript:" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false">
+                    <i class="fa fa-circle-o"></i>
+                    <span class="badge"></span>
+                  </a>
+				  <ul id="menu1" class="dropdown-menu list-unstyled msg_list" role="menu">
+                    <li>
+                      <a>
+                        <span class="image"><i class="fa fa-circle-o"></i></span>
+                        <span>
+                          <span>Isos</span>
+                          <span class="time"><span class="perc"></span>%</span>
+                        </span>
+                        <span class="message">
+                          You have <span class="have"></span> ISO files of <span class="of"></span> in your quota.
+                        </span>
+                      </a>
+                    </li>
+                   </ul>
+				</li>		
+				<li role="presentation" class="quota-templates">
+                  <a href="javascript:" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false">
+                    <i class="fa fa-cubes"></i>
+                    <span class="badge"></span>
+                  </a>
+				  <ul id="menu1" class="dropdown-menu list-unstyled msg_list" role="menu">
+                    <li>
+                      <a>
+                        <span class="image"><i class="fa fa-cubes"></i></span>
+                        <span>
+                          <span>Templates</span>
+                          <span class="time"><span class="perc"></span>%</span>
+                        </span>
+                        <span class="message">
+                          You have <span class="have"></span> templates of <span class="of"></span> in your quota.
+                        </span>
+                      </a>
+                    </li>
+                   </ul>
+				</li>
+                {% endif %}
+                
+				<li role="presentation" class="quota-play">
+                  <a href="javascript:" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false">
+                    <i class="fa fa-play"></i>
+                    <span class="badge"></span>
+                  </a>
+				  <ul id="menu1" class="dropdown-menu list-unstyled msg_list" role="menu">
+                    <li>
+                      <a>
+                        <span class="image"><i class="fa fa-play"></i></span>
+                        <span>
+                          <span>Desktops running</span>
+                          <span class="time"><span class="perc"></span>%</span>
+                        </span>
+                        <span class="message">
+                          You have <span class="have"></span> running desktops of <span class="of"></span> in your quota.
+                        </span>
+                      </a>
+                    </li>
+                   </ul>
+				</li>	
+				<li role="presentation" class="quota-desktops">
+                  <a href="javascript:" class="dropdown-toggle info-number" data-toggle="dropdown" aria-expanded="false">
+                    <i class="fa fa-desktop"></i>
+                    <span class="badge"></span>
+                  </a>
+				  <ul id="menu1" class="dropdown-menu list-unstyled msg_list" role="menu">
+                    <li>
+                      <a>
+                        <span class="image"><i class="fa fa-desktop"></i></span>
+                        <span>
+                          <span>Desktops</span>
+                          <span class="time"><span class="perc"></span>%</span>
+                        </span>
+                        <span class="message">
+                          You have <span class="have"></span> desktops of <span class="of"></span> in your quota.
+                        </span>
+                      </a>
+                    </li>
+                   </ul>
+        </li>	
+
+                                            
+              </ul>
+
+      
+              </div>	              
+            </nav>
+          </div>
+        </div>

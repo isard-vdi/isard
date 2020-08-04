@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+	<title>Fancytree - Example: ext-clones</title>
+
+	<script src="../lib/jquery.js"></script>
+	<script src="../src/jquery-ui-dependencies/jquery.fancytree.ui-deps.js"></script>
+
+	<link href="../src/skin-win8/ui.fancytree.css" class="skinswitcher" rel="stylesheet">
+	<script src="../src/jquery.fancytree.js"></script>
+	<script src="../src/jquery.fancytree.clones.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<link href="../lib/prettify.css" rel="stylesheet">
+	<script src="../lib/prettify.js"></script>
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+
+<style type="text/css">
+span.fancytree-node.fancytree-clone span.fancytree-title {
+	color: blue;
+}
+span.fancytree-node.fancytree-clone span.fancytree-title:after {
+	content: "";
+	background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAMAAAC67D+PAAAAFVBMVEVmmcwzmcyZzP8AZswAZv////////9E6giVAAAAB3RSTlP///////8AGksDRgAAADhJREFUGFcly0ESAEAEA0Ei6/9P3sEcVB8kmrwFyni0bOeyyDpy9JTLEaOhQq7Ongf5FeMhHS/4AVnsAZubxDVmAAAAAElFTkSuQmCC") 100% 50% no-repeat;
+	padding-right: 13px;
+}
+
+span.fancytree-node.fancytree-active-clone {
+  border-color: blue;
+  animation: flash 1s ease-out;
+  animation-iteration-count: 1;
+}
+
+@keyframes flash {
+	0% { background-color:none;}
+	50% { background-color:#fbf8b2;}
+	100% {background-color:none;}
+}
+</style>
+
+
+<!-- Add code to initialize the tree when the document is loaded: -->
+<script type="text/javascript">
+
+var SOURCE = [
+			  {title: "Folder 1", folder: true, expanded: true, key: "node1",
+				  children: [
+					  {title: "Sub-item 1.1", key: "node1.1", refKey: "1"},
+					  {title: "Sub-item 1.2", key: "node1.2", refKey: "2"}
+				  ]
+			  },
+			  {title: "Folder 2", folder: true, expanded: true, key: "node2",
+				  children: [
+					  {title: "Sub-item 2.1", key: "node2.1", refKey: "1"},
+					  {title: "Sub-item 2.2", key: "node2.2", refKey: "2"}
+				  ]
+			  },
+			  {title: "Folder 3", folder: true, expanded: true, key: "node3",
+				  children: [
+					  {title: "Sub-item 2.1", key: "node3.1", selected: false,
+						  children: [
+									  {title: "Sub-item 3.1.1", key: "node3.1.1", refKey: "3"},
+									  {title: "Sub-item 3.1.2", key: "node3.1.2", refKey: "2"}
+								  ]
+						  },
+					  {title: "Sub-item 2.2", key: "node3.2"}
+				  ]
+			  },
+			  {title: "Folder 4", folder: true, expanded: true, key: "node4",
+				  children: [
+					  {title: "Sub-item 2.1", key: "node4.1", refKey: "1"},
+					  {title: "Sub-item 2.2", key: "node4.2", refKey: "2",}
+				  ]
+			  },
+			  {title: "Item 3", key: "node5", lazy: true}
+		  ];
+		  // Lazy sub nodes
+		  var SOURCE_2 = [
+			  {title: "Lazy Folder 3.1", folder: true, expanded: true,
+				  children: [
+					  {title: "Lazy Sub-item 3.1.1", selected: false, refKey: "rk311",
+						  children: [
+									  {title: "Sub-item 3.1.1.1", refKey: "rk3111"},
+									  {title: "Sub-item 3.1.1.2", refKey: "rk3112", selected: false}
+								  ]
+						  },
+					  {title: "Sub-item 3.1.2"}
+				  ]
+			  }
+		  ];
+
+	$(function(){
+		$("#tree").fancytree({
+			extensions: ["clones"],
+//            source: { url: "ajax-tree-plain.json" },
+			source: SOURCE,
+			clones: {
+				highlightClones: true
+			},
+			lazyLoad: function(e, data) {
+				// data.result = {url: "ajax-sub2.json"}
+				data.result = SOURCE_2
+			},
+			activate: function(e, data){
+				var clones = data.node.getCloneList();
+				if( clones ) {
+//					alert("Clones: "+ $.map(clones, function(n){ return "" + n;}).join(", "));
+				}
+			}
+		});
+	});
+</script>
+<!-- Start_Exclude: This block is not part of the sample code -->
+<script>
+$(function(){
+	addSampleButton({
+		label: "find clones",
+		newline: false,
+		code: function(){
+			var tree = $.ui.fancytree.getTree("#tree"),
+				node3 = tree.getNodeByKey("node3");
+			alert("refKey '2' = " + tree.getNodesByRef("2"));
+			alert("refKey '2' below 'node3'' = " + tree.getNodesByRef("2", node3));
+		}
+	});
+	addSampleButton({
+		label: "remove",
+		newline: false,
+		code: function(){
+			var tree = $.ui.fancytree.getTree("#tree"),
+				node = tree.getActiveNode();
+			node.remove();
+		}
+	});
+});
+</script>
+<!-- End_Exclude -->
+</head>
+
+<body class="example">
+	<h1>Example: 'clones' extension</h1>
+	<div class="description">
+		<p>
+			Support linked nodes, i.e. multiple tree nodes representing the same
+			data instance.
+		</p>
+		<p>
+		</p>
+		<p>
+			<b>Status:</b> production.
+			<b>Details:</b>
+			<a href="https://github.com/mar10/fancytree/wiki/ExtClones"
+				target="_blank" class="external">ext-clones</a>.
+		</p>
+	</div>
+
+	<div>
+		<label for="skinswitcher">Skin:</label> <select id="skinswitcher"></select>
+	</div>
+	<p id="sampleButtons">
+	</p>
+	<!-- Add a <table> element where the tree should appear: -->
+	<div id="tree">
+	</div>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree">jquery.fancytree.js project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+		<a href="#" id="codeExample">View source code</a>
+	</p>
+	<pre id="sourceCode" class="prettyprint" style="display:none"></pre>
+	<!-- End_Exclude -->
+</body>
+</html>

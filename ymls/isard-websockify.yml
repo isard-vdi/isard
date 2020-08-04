@@ -1,0 +1,15 @@
+version: "3.5"
+services:
+  isard-websockify:
+    container_name: isard-websockify
+    image: isard/websockify:${TAG-latest}
+    networks:
+      - isard-network
+    restart: unless-stopped
+    build: ${BUILD_ROOT_PATH}/websockify
+    env_file:
+      - .env
+networks:
+  isard-network:
+    external: false
+    name: isard-network

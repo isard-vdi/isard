@@ -1,0 +1,4 @@
+ Short ID             | Name                                               | Version  | ID                                      
+----------------------+----------------------------------------------------+----------+-----------------------------------------
+ win7Virtio           | Microsoft windows 7 with Virtio devices            | 6.1      | http://microsoft.com/win/7
+ win10Virtio          | Microsoft windows 10 with Virtio devices           | 10.0     | http://microsoft.com/win/10

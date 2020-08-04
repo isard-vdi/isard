@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+	<title>Fancytree - Example: RTL</title>
+
+	<script src="//code.jquery.com/jquery-3.4.1.min.js"></script>
+	<script src="//code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+	<link href="../src/skin-xp/ui.fancytree.css" rel="stylesheet">
+	<script src="../src/jquery.fancytree.js"></script>
+	<script src="../src/jquery.fancytree.dnd5.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<link href="../lib/prettify.css" rel="stylesheet">
+	<script src="../lib/prettify.js"></script>
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+	<style type="text/css">
+	</style>
+	<script type="text/javascript">
+		$(function(){
+			$("#tree").fancytree({
+				extensions: ["dnd5"],
+				rtl: true,
+				source: {url: "ajax-tree-products.json"},
+				dnd5: {
+					dragStart: function(node, data) { return true; },
+					dragEnter: function(node, data) { return true; },
+					dragDrop: function(node, data) {
+						data.otherNode.moveTo(node, data.hitMode);
+					}
+				},
+				init: function(event, data){
+				},
+				keydown: function(event, data) {
+					var KC = $.ui.keyCode,
+						oe = event.originalEvent;
+
+					// Swap LEFT/RIGHT keys
+					switch( event.which ) {
+					case KC.LEFT:
+						oe.keyCode = KC.RIGHT;
+						oe.which = KC.RIGHT;
+						break;
+					case KC.RIGHT:
+						oe.keyCode = KC.LEFT;
+						oe.which = KC.LEFT;
+						break;
+					}
+				}
+			});
+		});
+	</script>
+</head>
+
+<body class="example">
+	<h1>Example: RTL</h1>
+	<p class="description">
+		This tree uses some extra styles to provide RTL support (experimental).
+	</p>
+	<div>
+		Skin:<select id="skinswitcher"></select>
+	</div>
+
+	<div id="tree">
+	</div>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree">jquery.fancytree.js project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+		<a href="#" id="codeExample">View source code</a>
+	</p>
+	<pre id="sourceCode" class="prettyprint" style="display:none"></pre>
+	<!-- End_Exclude -->
+</body>
+</html>

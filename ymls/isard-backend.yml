@@ -1,0 +1,32 @@
+version: "3.5"
+services:
+  isard-backend:
+    container_name: isard-backend
+    image: isard/backend:${TAG:-latest}
+    ports:
+      - "1312:1312"
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+      - "/opt/isard/backend/keys:/keys"
+      - "/opt/isard/backend/metadata:/metadata"
+    build:
+      context: ${BUILD_ROOT_PATH}/backend
+      dockerfile: build/package/Dockerfile
+    env_file:
+      - .env
+
+  isard-redis:
+    container_name: isard-redis
+    image: redis:6-alpine
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+      - "/opt/isard/redis:/data"
+
+networks:
+  isard-network:
+    external: false
+    name: isard-network

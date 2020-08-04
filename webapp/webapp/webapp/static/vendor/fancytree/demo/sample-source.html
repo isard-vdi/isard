@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+	<title>Fancytree - Example</title>
+
+	<script src="../lib/jquery.js"></script>
+	<script src="../src/jquery-ui-dependencies/jquery.fancytree.ui-deps.js"></script>
+
+	<link href="../src/skin-win8/ui.fancytree.css" rel="stylesheet">
+	<script src="../src/jquery.fancytree.js"></script>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<link href="../lib/prettify.css" rel="stylesheet">
+	<script src="../lib/prettify.js"></script>
+	<link href="sample.css" rel="stylesheet">
+	<script src="sample.js"></script>
+	<!-- End_Exclude -->
+
+	<script type="text/javascript">
+	$(function(){
+		var FT = $.ui.fancytree;
+
+		// attach to instance 1 and 3
+		$("#tree1, #tree3").fancytree({
+			checkbox: true,
+			selectMode: 1,
+			activate: function(event, data){
+				var node = data.node;
+				FT.debug("activate: event=", event, ", data=", data);
+				if(!$.isEmptyObject(node.data)){
+					alert("custom node data: " + JSON.stringify(node.data));
+				}
+			},
+			lazyLoad: function(event, data){
+				// we can't `return` values from an event handler, so we
+				// pass the result as `data.result` attribute:
+				data.result = {url: "ajax-sub2.json"};
+			}
+		// }).on("fancytreeactivate", function(event, data){
+		// 	$.ui.fancytree.debug("fancytreeactivate: event=", event, ", data=", data);
+		// 	return false;
+		});
+
+		// Load tree from Ajax JSON
+		$("#tree2").fancytree({
+			source: {
+				url: "ajax-tree-plain.json"
+			},
+			lazyLoad: function(event, data){
+				data.result = $.ajax({
+					url: "ajax-sub2.json",
+					dataType: "json"
+				});
+			}
+		});
+	});
+	</script>
+<!-- Start_Exclude: This block is not part of the sample code -->
+<script>
+	$(function(){
+		addSampleButton({
+			label: "destroy all",
+			newline: false,
+			code: function(){
+				$(":ui-fancytree").fancytree("destroy");
+			}
+		});
+		addSampleButton({
+			label: "init all",
+			newline: false,
+			code: function(){
+				$(".sampletree").fancytree();
+			}
+		});
+		addSampleButton({
+			label: "Reload() #1",
+			newline: false,
+			code: function(){
+				$.ui.fancytree.getTree("#tree1").reload([
+					{title: "node1"},
+					{title: "node2"}
+				]).done(function(){
+					alert("reloaded");
+				});
+			}
+		});
+		addSampleButton({
+			label: "Set 'source' option (all)",
+			newline: false,
+			code: function(){
+				$(".sampletree").fancytree("option", "source", [
+					{title: "node1"}
+				]);
+			}
+		});
+	});
+</script>
+<!-- End_Exclude -->
+</head>
+
+<body class="example">
+	<h1>Example: Initialization Methods</h1>
+
+	<p class="description">
+		Use different methods to initialize the tree (Ajax, embedded &lt;ul>,
+		embedded JSON).
+		<br>
+		Also distinct nodes contain custom data using `data="..."` attributes.
+		<br>
+		See the <a href="https://github.com/mar10/fancytree/wiki/TutorialLoadData"
+			target="_blank" class="external">LoadData Tutorial</a>
+		for details.
+	</p>
+	<div>
+		<label for="skinswitcher">Skin:</label> <select id="skinswitcher"></select>
+	</div>
+
+	<p id="sampleButtons">
+	</p>
+
+	<p>Load from embedded &lt;UL> markup:</p>
+	<div id="tree1" class="sampletree">
+		<ul id="treeData" styleXXX="display: none;">
+			<li>simple node (no explicit id, so a default key is generated)
+			<li id="id1" title="Look, a tool tip!">Define key and tooltip using 'id' and 'title' attributes
+			<li id="id2"><span>item2 with <b>html</b> inside a span tag</span>
+			<li class="nolink">this nodes adds class 'nolink', so no &lt;a> tag is generated
+			<li><a href="http:/wwwwendt.de/">using single a-tag to pass href (this would be clickable even if JavaScript is off)</a>
+			<li data-foo="bar">defining custom node.data.foo = 'bar' using a data-foo attribute
+			<li data-json='{"foo": "bar"}'>defining node.data.foo = 'bar' using a data-json attribute
+			<li class="my-extra-class">node with some extra classes (will be added to the generated markup)
+			<li id="id3" class="folder">Folder with some children
+				<ul>
+					<li id="id3.1">Sub-item 3.1
+						<ul>
+							<li id="id3.1.1">Sub-item 3.1.1
+							<li id="id3.1.2">Sub-item 3.1.2
+						</ul>
+					<li id="id3.2">Sub-item 3.2
+						<ul>
+							<li id="id3.2.1">Sub-item 3.2.1
+							<li id="id3.2.2">Sub-item 3.2.2
+						</ul>
+				</ul>
+			<li id="id4" class="expanded">Document with some children (expanded on init)
+				<ul>
+					<li id="id4.1"  class="active focus">Sub-item 4.1 (active and focus on init)
+						<ul>
+							<li id="id4.1.1">Sub-item 4.1.1
+							<li id="id4.1.2">Sub-item 4.1.2
+						</ul>
+					<li id="id4.2">Sub-item 4.2
+						<ul>
+							<li id="id4.2.1">Sub-item 4.2.1
+							<li id="id4.2.2">Sub-item 4.2.2
+						</ul>
+				</ul>
+			<li class="lazy folder" data-source="foo">Lazy loading folder
+			<li id="id6" class="lazy folder expanded">Lazy loading folder (expand on init)
+		</ul>
+	</div>
+
+	<p>Load from Ajax data:</p>
+	<div id="tree2" data-source="ajax" class="sampletree">
+	</div>
+
+	<p>Load from embedded JSON data:</p>
+	<div id="tree3" class="sampletree" data-type="json">
+	{"foo": "bazbaz", "children":
+	[
+		{"title": "node 1"},
+		{"title": "node 2", "folder": true }
+	]}
+	</div>
+
+	<!-- Start_Exclude: This block is not part of the sample code -->
+	<hr>
+	<p class="sample-links  no_code">
+		<a class="hideInsideFS" href="https://github.com/mar10/fancytree">jquery.fancytree.js project home</a>
+		<a class="hideOutsideFS" href="#">Link to this page</a>
+		<a class="hideInsideFS" href="index.html">Example Browser</a>
+		<a href="#" id="codeExample">View source code</a>
+	</p>
+	<pre id="sourceCode" class="prettyprint" style="display:none"></pre>
+	<!-- End_Exclude -->
+</body>
+</html>
