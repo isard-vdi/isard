@@ -87,7 +87,7 @@ def api_v2_user_exists(id=False):
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
     try:
-        users.UserExists(id)
+        users.Exists(id)
         return json.dumps({}), 200, {'ContentType': 'application/json'}
     except UserNotFound:
         log.error("User "+id+" not in database.")
@@ -117,7 +117,7 @@ def api_v2_user_update(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
     try:
-        users.UserUpdate(id,name,email,photo)
+        users.Update(id,name,email,photo)
         return json.dumps({}), 200, {'ContentType': 'application/json'}
     except UpdateFailed:
         log.error("User "+id+" update failed.")
@@ -163,7 +163,7 @@ def api_v2_user_insert():
 
 
     try:
-        user_id=users.UserCreate( provider, \
+        user_id=users.Create( provider, \
                                     category_id, \
                                     user_uid, \
                                     user_username, \
@@ -195,7 +195,7 @@ def api_v2_user_insert():
 @app.route('/api/v2/user/<user_id>', methods=['DELETE'])
 def api_v2_user_delete(user_id):
     try:
-        users.UserDelete(user_id)
+        users.Delete(user_id)
         return json.dumps({}), 200, {'ContentType': 'application/json'}
     except UserNotFound:
         log.error("User delete "+user_id+", user not found")
@@ -218,7 +218,7 @@ def api_v2_user_templates(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
-    try:
+    """ try:
         quotas.DesktopCreateAndStart(id)
     except QuotaUserNewDesktopExceeded:
         log.error("Quota for user "+id+" to create a desktop exceeded")
@@ -262,10 +262,10 @@ def api_v2_user_templates(id=False):
 
     except Exception as e:
         error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"DesktopNew quota check general exception: " + error }), 401, {'ContentType': 'application/json'}
+        return json.dumps({"code":9,"msg":"DesktopNew quota check general exception: " + error }), 401, {'ContentType': 'application/json'} """
 
     try:
-        templates = users.UserTemplates(id)
+        templates = users.Templates(id)
         dropdown_templates = [{'id':t['id'],'name':t['name'],'icon':t['icon'],'description':t['description']} for t in templates]
         return json.dumps(dropdown_templates), 200, {'ContentType': 'application/json'}
     except UserNotFound:
@@ -285,7 +285,7 @@ def api_v2_user_desktops(id=False):
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
     try:
-        desktops = users.UserDesktops(id)
+        desktops = users.Desktops(id)
         dropdown_desktops = [{'id':d['id'],'name':d['name'],'status':d['status'],'icon':d['icon'],'description':d['description']} for d in desktops]
         return json.dumps(dropdown_desktops), 200, {'ContentType': 'application/json'}
     except UserNotFound:
