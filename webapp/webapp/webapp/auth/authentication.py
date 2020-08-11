@@ -45,7 +45,7 @@ class User(UserMixin):
         self.password = dict['password']
         self.role = dict['role']
         self.group = dict['group']
-        self.path = dict['category']+'/'+dict['group_uid']+'/'+dict['provider']+'/'+dict['uid']+'_'+dict['username']+'/'
+        self.path = dict['category']+'/'+dict['group_uid']+'/'+dict['provider']+'/'+dict['uid']+'-'+dict['username']+'/'
         self.email = dict['email']
         self.quota = dict['quota']
         self.auto = dict['auto'] if 'auto' in dict.keys() else False

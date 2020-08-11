@@ -30,7 +30,7 @@ class ApiTemplates():
 
 
 
-    def TemplateNew(self, template_name, user_id, from_desktop_id):
+    def New(self, template_name, user_id, from_desktop_id):
         parsed_name = _parse_string(template_name)
         template_id = '_' + user_id + '-' + parsed_name
 
