@@ -42,7 +42,7 @@ else:
 Import all views
 '''
 from .views import UsersView
-from .views import DesktopsView
+from .views import DesktopsNonPersistentView
 
 
 

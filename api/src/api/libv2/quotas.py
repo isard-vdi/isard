@@ -75,7 +75,6 @@ class Quotas():
     def DesktopCreateAndStart(self,user_id):
         self.DesktopCreate(user_id)
         self.DesktopStart(user_id)
-        return False
 
     def TemplateCreate(sefl,user_id):
         return False

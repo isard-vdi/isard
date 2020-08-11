@@ -39,12 +39,12 @@ class ApiUsers():
         if user == False:
             raise UserLoginFailed
 
-    def UserExists(self,user_id):
+    def Exists(self,user_id):
         with app.app_context():
             if r.table('users').get(user_id).run(db.conn) is None:
                 raise UserNotFound
 
-    def UserCreate(self, provider, category_id, user_uid, user_username, role_id, group_id, password=False, photo='', email=''):
+    def Create(self, provider, category_id, user_uid, user_username, role_id, group_id, password=False, photo='', email=''):
         # password=False generates a random password
         with app.app_context():
             id = provider+'-'+category_id+'-'+user_uid+'-'+user_username
@@ -79,13 +79,13 @@ class ApiUsers():
                 raise NewUserNotInserted #, conflict='update').run(db.conn)
         return user['id']
 
-    def UserUpdate(self, user_id, user_name, user_email='', user_photo=''):
-        self.UserExists(user_id)
+    def Update(self, user_id, user_name, user_email='', user_photo=''):
+        self.Exists(user_id)
         with app.app_context():
             if not _check(r.table('users').get(user_id).update({'name':user_name, 'email':user_email, 'photo':user_photo}).run(db.conn),'replaced'):
                 raise UpdateFailed
 
-    def UserTemplates(self,user_id):
+    def Templates(self,user_id):
         with app.app_context():
             if r.table('users').get(user_id).run(db.conn) == None:
                 raise UserNotFound
@@ -144,7 +144,7 @@ class ApiUsers():
         except Exception as e:
             raise UserTemplatesError
 
-    def UserDesktops(self,user_id):
+    def Desktops(self,user_id):
         with app.app_context():
             if r.table('users').get(user_id).run(db.conn) == None:
                 raise UserNotFound
@@ -155,7 +155,7 @@ class ApiUsers():
         except Exception as e:
             raise UserDesktopsError
 
-    def UserDelete(self,user_id):
+    def Delete(self,user_id):
         with app.app_context():
             if r.table('users').get(user_id).run(db.conn) is None:
                 raise UserNotFound
