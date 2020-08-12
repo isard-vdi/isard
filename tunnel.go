@@ -2,7 +2,7 @@ package guac
 
 import (
 	"fmt"
-	"github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"io"
 )
 
@@ -66,7 +66,7 @@ type SimpleTunnel struct {
 func NewSimpleTunnel(stream *Stream) *SimpleTunnel {
 	return &SimpleTunnel{
 		stream: stream,
-		uuid:   uuid.NewV4(),
+		uuid:   uuid.New(),
 	}
 }
 
