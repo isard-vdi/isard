@@ -27,10 +27,11 @@
                </select>
         </div>
         <div class="col-md-3 col-sm-3 col-xs-12">
-               <label>Network:</label>
-               <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-interfaces" name="hardware-interfaces">
-               </select>
-        </div>  
+            <label class="control-label" for="hardware-interfaces">Networks 
+            </label>
+            <select id="hardware-interfaces" name="hardware-interfaces[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;" disabled>
+            </select>
+         </div>
         <div class="col-md-3 col-sm-3 col-xs-12">
                <label>Disk Bus:</label>
                <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-diskbus" name="hardware-diskbus">

@@ -956,13 +956,12 @@ def socketio_domain_edit(form_data):
     #~ Check if user has quota and rights to do it
     #~ if current_user.role=='admin':
         #~ None
-    create_dict=app.isardapi.f.unflatten_dict(form_data)
-    create_dict=parseHardware(create_dict)
+    create_dict=app.isardapi.f.unflatten_dict(form_data)  
+    create_dict=parseHardware(create_dict)     
     create_dict=quotas.limit_user_hardware_allowed(create_dict,current_user.id)
 
     create_dict['create_dict']['hardware']={**create_dict['hardware'], **create_dict['create_dict']['hardware']}
     create_dict.pop('hardware',None)
-
     if 'options' not in create_dict:
         create_dict['options']={'viewers':{'spice':{'fullscreen':False}}}
     else:
@@ -1162,7 +1161,7 @@ def parseHardware(create_dict):
     create_dict['hardware']['graphics']=[create_dict['hardware']['graphics']] if 'graphics' in create_dict['hardware'].keys() else original_create_dict['hardware']['graphics']
     create_dict['hardware']['videos']=[create_dict['hardware']['videos']] if 'videos' in create_dict['hardware'].keys() else original_create_dict['hardware']['videos']
     create_dict['hardware']['boot_order']=[create_dict['hardware']['boot_order']] if 'boot_order' in create_dict['hardware'].keys() else original_create_dict['hardware']['boot_order']
-    create_dict['hardware']['interfaces']=[create_dict['hardware']['interfaces']] if 'interfaces' in create_dict['hardware'].keys() else original_create_dict['hardware']['interfaces']
+    create_dict['hardware']['interfaces']=create_dict['hardware']['interfaces'] if 'interfaces' in create_dict['hardware'].keys() else original_create_dict['hardware']['interfaces']
     create_dict['hardware']['qos_id']=create_dict['hardware']['qos_id'] if 'qos_id' in create_dict['hardware'].keys() else original_create_dict['hardware']['qos_id'] if 'qos_id' in original_create_dict['hardware'].keys() else False
     create_dict['hypervisors_pools']=[create_dict['hypervisors_pools']] if 'hypervisors_pools' in create_dict else original_create_dict['hypervisors_pools']
     
