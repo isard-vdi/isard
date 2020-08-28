@@ -699,10 +699,18 @@ class DomainXML(object):
     def remove_device(self, xpath, order_num=-1):
         if self.tree.xpath('/domain/devices'):
             if self.tree.xpath(xpath):
+                if order_num == -1:
+                    print('ORDER NUM:'+str(order_num))
+                    remaining=len(self.tree.xpath(xpath))
+                    while remaining:
+                        print('ORDER NUM:'+str(order_num)+' REMAINING:'+str(remaining))
+                        self.tree.xpath(xpath)[remaining-1].getparent().remove(self.tree.xpath(xpath)[remaining-1])
+                        remaining = len(self.tree.xpath(xpath))
+                    return True                 
                 l = len(self.tree.xpath(xpath))
                 if order_num >= -1 and order_num < l:
                     self.tree.xpath(xpath)[order_num].getparent().remove(self.tree.xpath(xpath)[order_num])
-                    return True
+                    return True                   
                 else:
                     log.debug('index error in remove_device function')
             else:
@@ -1025,9 +1033,9 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     # aunque la información que vale de verdad es la backing-chain del disco
     # template_name = hw['name']
 
-
-    for interface_index in range(len(v.vm_dict['interfaces'])):
-        v.remove_interface(order=interface_index)
+    v.remove_interface()
+    """ for interface_index in range(len(v.vm_dict['interfaces'])):
+        v.(order=interface_index) """
 
     if 'interfaces' in hw.keys():
         for d_interface in hw['interfaces']:
@@ -1260,8 +1268,9 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
 
     # clean interfaces saving the mac...
     mac_address = []
-    for interface_index in range(len(x.vm_dict['interfaces'])):
-        x.remove_interface(order=interface_index)
+    x.remove_interface()  #-1 removes it all
+    """ for interface_index in range(len(x.vm_dict['interfaces'])):
+        x.remove_interface(order=interface_index) """
 
 
     custom_mac = False
