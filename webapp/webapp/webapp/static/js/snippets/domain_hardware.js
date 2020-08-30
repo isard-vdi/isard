@@ -102,7 +102,9 @@
             $(div_id+' #hardware-videos option:selected').prop("selected", false);
             $(div_id+' #hardware-boot_order option:selected').prop("selected", false);
 			api.ajax('/isard-admin/domains/hardware','POST',{'pk':domain_id}).done(function(domain) {
-				$(div_id+' #hardware-interfaces option[value="'+domain.hardware.interfaces[0]+'"]').prop("selected",true);
+				$.each(domain.hardware.interfaces, function(k,value){
+					$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
+				})
 				$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics[0].type+'"]').prop("selected",true);
                 $(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
                 $(div_id+' #hardware-diskbus option[value="'+domain.hardware.disks[0].bus+'"]').prop("selected",true);
