@@ -1,4 +1,4 @@
-FROM alpine:latest as production
+FROM alpine:3.12.0 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache \
