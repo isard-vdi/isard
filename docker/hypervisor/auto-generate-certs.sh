@@ -31,6 +31,7 @@ openssl x509 -req -days 9999 -in server-key.csr -CA ca-cert.pem -CAkey ca-key.pe
           -set_serial $RND -sha256 -out server-cert.pem
           
 chmod 440 *
+chown qemu:root *
 cd /
 
 fi

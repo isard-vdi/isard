@@ -1,4 +1,4 @@
-FROM alpine:3.11.3 as build-qemu
+FROM alpine:3.12.0 as build-qemu
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache git \
@@ -6,19 +6,24 @@ RUN apk add --no-cache git \
     make \
     python3 \
     gcc \
+    g++ \
     libc-dev \
     pkgconf \
     linux-headers \
     glib-dev glib-static \
     zlib-dev zlib-static \
     pixman-dev  \
+    bash \
     # QXL
     spice-dev \
     # USB Network redirection
     libusb-dev \
-    usbredir-dev
+    usbredir-dev \
+    # ui/shader/
+    perl
+
 # Build QEMU
-RUN git clone https://github.com/qemu/qemu && \
+RUN git clone --depth 1 --branch v5.1.0 https://github.com/qemu/qemu && \
     cd qemu && \
     mkdir -p bin/debug/native && \
     cd bin/debug/native && \
@@ -26,7 +31,7 @@ RUN git clone https://github.com/qemu/qemu && \
 	--enable-spice &&\
     make -j8 install
 
-FROM alpine:3.11.3 as production
+FROM alpine:3.12.0 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
@@ -35,12 +40,11 @@ RUN apk add --no-cache \
     dbus \
     polkit \
     openssh \
-    \
     curl \
     rsync \
-    qemu-img \
     ovmf \
-    iproute2
+    iproute2 \
+    shadow
 
 RUN apk add --no-cache \
     libcap \
@@ -123,9 +127,11 @@ RUN sed -i \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' /etc/ssh/sshd_config
     
 # Libvirt configuration and certs
+RUN useradd -ms /bin/sh qemu
 RUN echo -e "listen_tls = 0\n \
     listen_tcp = 1" >> /etc/libvirt/libvirtd.conf
 RUN echo -e 'spice_listen = "0.0.0.0"\n \
+    spice_listen = "0.0.0.0"\n \
     spice_tls = 1\n \
     spice_tls_x509_cert_dir = "/etc/pki/libvirt-spice"' >> /etc/libvirt/qemu.conf
 

@@ -1,6 +1,7 @@
 echo "Generating selfsigned certs for spice client..."
 sh auto-generate-certs.sh
 echo "Starting libvirt daemon..."
+chown root:kvm /dev/kvm
 /usr/sbin/virtlogd &
 /usr/sbin/libvirtd &
 sleep 2
