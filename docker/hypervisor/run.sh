@@ -1,6 +1,17 @@
 echo "Generating selfsigned certs for spice client..."
 sh auto-generate-certs.sh
 echo "Starting libvirt daemon..."
+echo 'polkit.addAdminRule(function(action, subject) {
+    return ["unix-group:wheel"];
+});
+
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.libvirt.unix.manage" &&
+        subject.isInGroup("wheel")) {
+            return polkit.Result.YES;
+    }
+});' > /etc/polkit-1/rules.d/50-libvirt.rules
+sed -i "/^root:x:0:root/c\root:x:0:root,qemu" /etc/group
 chown root:kvm /dev/kvm
 /usr/sbin/virtlogd &
 /usr/sbin/libvirtd &
