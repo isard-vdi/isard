@@ -3,7 +3,6 @@ MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache \
     yarn \
-        py3-libvirt==5.9.0-r0 \
     py3-paramiko==2.7.1-r0 \
     py3-lxml==4.4.2-r0 \
     py3-openssl==19.1.0-r0 \
@@ -13,7 +12,6 @@ RUN apk add --no-cache \
     py3-netaddr==0.7.19-r4 \
     py3-requests==2.22.0-r0 \
         py3-pyldap==3.2.0-r1 \
-        libvirt-client==5.9.0-r1 \
     curl==7.67.0-r0 \
     openssh-client==8.1_p1-r0 \
     sshpass==1.06-r0 \
