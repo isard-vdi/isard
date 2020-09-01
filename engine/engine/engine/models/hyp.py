@@ -293,7 +293,10 @@ class hyp(object):
             if tree.xpath('/sysinfo/memory_device'):
                 self.info['memory_banks'] = len(tree.xpath('/sysinfo/memory_device'))
                 self.info['memory_type'] = tree.xpath('/sysinfo/memory_device/entry[@name="type"]')[0].text
-                self.info['memory_speed'] = tree.xpath('/sysinfo/memory_device/entry[@name="speed"]')[0].text
+                try:
+                    self.info['memory_speed'] = tree.xpath('/sysinfo/memory_device/entry[@name="speed"]')[0].text
+                except:
+                    self.info['memory_speed'] = "0"
 
         except Exception as e:
             log.error('Exception when extract information with libvirt from hypervisor {}: {}'.format(self.hostname, e))
