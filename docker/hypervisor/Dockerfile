@@ -116,6 +116,7 @@ COPY --from=build-qemu /usr/local/ /usr/local/
 RUN ln -s /usr/local/bin/qemu-system-x86_64 /usr/libexec/qemu-kvm
 # This handles old Isard qemu-kvm path
 RUN ln -s /usr/local/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
+RUN ln -s /usr/local/bin/qemu-img /usr/bin/qemu-img
 
 # SSH configuration
 RUN echo "root:isard" |chpasswd
