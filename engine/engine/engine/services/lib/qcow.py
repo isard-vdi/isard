@@ -489,7 +489,7 @@ def verify_output_cmds1_template_from_domain(cmds_done, path_domain_disk, path_t
 
 
 def create_disk_from_base_cmd(filename, basename, clustersize='4k'):
-    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize} -b \"{basename}\" \"{filename}\"'
+    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize} -b \"{basename}\" -F qcow2 \"{filename}\"'
     cmd = cmd.format(filename=filename, basename=basename, clustersize=clustersize)
     return cmd
 
