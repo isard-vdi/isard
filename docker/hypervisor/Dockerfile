@@ -20,6 +20,8 @@ RUN apk add --no-cache git \
     libusb-dev \
     usbredir-dev \
     # ui/shader/
+    # pulseaudio-dev \
+    #alsa-lib-dev \
     perl
 
 # Build QEMU
@@ -30,6 +32,7 @@ RUN git clone --depth 1 --branch v5.1.0 https://github.com/qemu/qemu && \
     ../../../configure --target-list=x86_64-softmmu --enable-debug --disable-werror \
 	--enable-spice &&\
     make -j8 install
+#--audio-drv-list=alsa &&\
 
 FROM alpine:3.12.0 as production
 MAINTAINER isard <info@isardvdi.com>
@@ -108,8 +111,9 @@ RUN apk add --no-cache \
     lz4-libs \
     spice-server \
     libusb \
-    usbredir \
-    vde2-libs
+    usbredir
+    #vde2-libs 
+    #libpulse
 
 COPY --from=build-qemu /usr/local/ /usr/local/
 # This handles no xml qemu-kvm path definition
@@ -129,8 +133,12 @@ RUN sed -i \
     
 # Libvirt configuration and certs
 RUN useradd -ms /bin/sh qemu
-RUN echo -e "listen_tls = 0\n \
-    listen_tcp = 1" >> /etc/libvirt/libvirtd.conf
+COPY docker/hypervisor/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
+RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
+RUN sed -i "/^kvm:x:34:kvm/c\kvm:x:34:kvm,qemu" /etc/group
+RUN echo -e 'listen_tls = 0\n \
+    listen_tcp = 1\n \
+    unix_sock_group = "kvm"' >> /etc/libvirt/libvirtd.conf
 RUN echo -e 'spice_listen = "0.0.0.0"\n \
     spice_listen = "0.0.0.0"\n \
     spice_tls = 1\n \
