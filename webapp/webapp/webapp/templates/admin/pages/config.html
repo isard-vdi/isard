@@ -14,80 +14,7 @@
 
     </div>
     <div class="clearfix"></div>
-    <!--
-    <div class="row">
-        <div class="col-md-6 col-sm-6 col-xs-12">
-            <div class="x_panel">
-                <div class="x_title">
-                    <h2><i class="fa fa-lock"></i> Authentication <small></small></h2>
-                    <ul class="nav navbar-right panel_toolbox">
-                        <li><a class="btn-edit" data-panel="auth"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
-                    </ul>
-                    <div class="clearfix"></div>
-                </div>
-                <div class="x_content">
-
-                    <form id="formAuthentication" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
-                        <div class="x_panel">
-                            <div class="x_title">
-                                <h2>Database authentication<small></small></h2>
-                                <label class="control-label navbar-right" for="auth-local-active"> Active
-                                </label>
-                                <div class="checkbox pull-right">
-                                    <label>
-                                        <input id="auth-local-active" name="auth-local-active" type="checkbox" class="flat">
-                                    </label>
-                                </div>
-                                <div class="clearfix"></div>
-                            </div>
-
-                            <div class="x_content">
-                            </div>
-                        </div>
-                        <div class="x_panel">
-                            <div class="x_title">
-                                <h2>LDAP authentication<small></small></h2>
-                                <label class="control-label navbar-right" for="auth-ldap-active"> Active
-                                </label>
-                                <div class="checkbox pull-right">
-                                    <label>
-                                        <input id="auth-ldap-active" name="auth-ldap-active" type="checkbox" class="flat">
-                                    </label>
-                                </div>
-                                <div class="clearfix"></div>
-                            </div>
-
-                            <div class="x_content">
-                                <div class="item form-group">
-                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="auth-ldap-ldap_server">Server <span class="required">*</span>
-                                    </label>
-                                    <div class="col-md-6 col-sm-6 col-xs-12">
-                                        <input id="auth-ldap-ldap_server" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="auth-ldap-ldap_server" placeholder="ldap://ldap.domain.com" required="required" type="text">
-                                    </div>
-                                </div>
-
-                                <div class="item form-group">
-                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="auth-ldap-bind_dn">bind dn <span class="required">*</span>
-                                    </label>
-                                    <div class="col-md-6 col-sm-6 col-xs-12">
-                                        <input id="auth-ldap-bind_dn" class="form-control col-md-7 col-xs-12" name="auth-ldap-bind_dn" placeholder="dc=domain,dc=com" required="required" type="text">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group footer-auth" style="display:none">
-                            <div class="col-md-6 col-md-offset-3">
-                                <button type="button" class="btn btn-secondary btn-cancel" data-panel="auth">Cancel</button>
-                                <button id="send" type="submit" class="btn btn-success">Update</button>
-                            </div>
-                        </div>
-
-                    </form>
-                </div>
-            </div>
-        </div>
-        
+        <!--
  		<div class="col-md-6 col-sm-6 col-xs-12">
 			<div class="x_panel">
 				<div class="x_title">
@@ -295,6 +222,79 @@
     </div>
     <div class="clearfix"></div>
 
+    <div class="row">
+        <div class="col-md-6 col-sm-6 col-xs-12">
+            <div class="x_panel">
+                <div class="x_title">
+                    <h2><i class="fa fa-lock"></i> Authentication <small></small></h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                        <li><a class="btn-edit" data-panel="auth"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
+                    </ul>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="x_content">
+
+                    <form id="formAuthentication" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
+                        <div class="x_panel">
+                            <div class="x_title">
+                                <h2>Database authentication<small></small></h2>
+                                <label class="control-label navbar-right" for="auth-local-active"> Active
+                                </label>
+                                <div class="checkbox pull-right">
+                                    <label>
+                                        <input id="auth-local-active" name="auth-local-active" type="checkbox" class="flat">
+                                    </label>
+                                </div>
+                                <div class="clearfix"></div>
+                            </div>
+
+                            <div class="x_content">
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="x_title">
+                                <h2>LDAP authentication<small></small></h2>
+                                <label class="control-label navbar-right" for="auth-ldap-active"> Active
+                                </label>
+                                <div class="checkbox pull-right">
+                                    <label>
+                                        <input id="auth-ldap-active" name="auth-ldap-active" type="checkbox" class="flat">
+                                    </label>
+                                </div>
+                                <div class="clearfix"></div>
+                            </div>
+
+                            <div class="x_content">
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="auth-ldap-ldap_server">Server <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-6 col-sm-6 col-xs-12">
+                                        <input id="auth-ldap-ldap_server" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="auth-ldap-ldap_server" placeholder="ldap://ldap.domain.com" required="required" type="text">
+                                    </div>
+                                </div>
+
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="auth-ldap-bind_dn">bind dn <span class="required">*</span>
+                                    </label>
+                                    <div class="col-md-6 col-sm-6 col-xs-12">
+                                        <input id="auth-ldap-bind_dn" class="form-control col-md-7 col-xs-12" name="auth-ldap-bind_dn" placeholder="dc=domain,dc=com" required="required" type="text">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group footer-auth" style="display:none">
+                            <div class="col-md-6 col-md-offset-3">
+                                <button type="button" class="btn btn-secondary btn-cancel" data-panel="auth">Cancel</button>
+                                <button id="send" type="submit" class="btn btn-success">Update</button>
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="row">
         <div class="col-md-6 col-sm-6 col-xs-12">
     </div>

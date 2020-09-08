@@ -19,19 +19,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -39,14 +39,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/api:2.0.0-rc1
     networks:
       isard-network: {}
@@ -72,19 +72,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -92,14 +92,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/backend:2.0.0-rc1
     networks:
       isard-network: {}
@@ -140,19 +140,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -160,14 +160,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/engine:2.0.0-rc1
     networks:
       isard-network: {}
@@ -193,19 +193,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -213,14 +213,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/grafana:2.0.0-rc1
     networks:
       isard-network: {}
@@ -250,19 +250,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -270,14 +270,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/hypervisor:2.0.0-rc1
     networks:
       isard-network: {}
@@ -308,19 +308,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -328,14 +328,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/portal:2.0.0-rc1
     networks:
       isard-network: {}
@@ -371,19 +371,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -391,14 +391,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/squid:2.0.0-rc1
     networks:
       isard-network: {}
@@ -431,19 +431,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -451,14 +451,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/stats:2.0.0-rc1
     networks:
       isard-network: {}
@@ -489,19 +489,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -509,14 +509,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/webapp:2.0.0-rc1
     labels:
       traefik.enable: "true"
@@ -545,19 +545,19 @@ services:
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
-      GRAFANA_URL: localhost
-      HOSTNAME: localhost
+      GRAFANA_URL: isard.escoladeltreball.org
+      HOSTNAME: isardvdi-edt
       LOG_LEVEL: INFO
       RETHINKDB_DB: isard
       RETHINKDB_HOST: isard-db
       RETHINKDB_PORT: '28015'
-      STATS_HOSTNAME: localhost
+      STATS_HOSTNAME: isardvdi-edt
       STATS_RETHINKDB_DB: isard
       STATS_RETHINKDB_HOST: isard-db
       STATS_RETHINKDB_PORT: '28015'
       STATS_SERVER: isard-grafana
-      TELEGRAM_BOT_CHAT_ID: ''
-      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_BOT_CHAT_ID: '451903641'
+      TELEGRAM_BOT_TOKEN: 1116693240:AAFo_H5L0nSFruZVSMW4Zl5EmQXtDCyG2MU
       VIDEO_HAPROXY_HOST: isard-video
       VIDEO_HYPERVISOR_HOSTNAMES: isard-hypervisor
       VIDEO_HYPERVISOR_PORTS: 5900-6899
@@ -565,14 +565,14 @@ services:
       VIDEO_LETSENCRYPT_EMAIL: ''
       VIDEO_PORT: '443'
       VIDEO_STATS_PORT: '8889'
-      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_ADMIN_PWD: flamenkit0
       WEBAPP_HOST: isard-webapp
-      WEBAPP_LETSENCRYPT_DNS: ''
-      WEBAPP_LETSENCRYPT_EMAIL: ''
+      WEBAPP_LETSENCRYPT_DNS: isard.escoladeltreball.org
+      WEBAPP_LETSENCRYPT_EMAIL: info@isardvdi.com
       WEBAPP_RETHINKDB_DB: isard
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
-      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WEBAPP_SESSION_SECRET: aq0Z7MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
     image: isard/websockify:2.0.0-rc1
     networks:
       isard-network: {}
