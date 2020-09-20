@@ -15,6 +15,7 @@ from ..lib.flask_rethink import RethinkDB
 db = RethinkDB(app)
 db.init_app(app)
 from ..lib.log import *
+import traceback
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -149,7 +150,7 @@ class auth(object):
         cfg=r.table('config').get(1).run(db.conn)['auth']
         try:
             conn = ldap.initialize(cfg['ldap']['ldap_server'])
-            id_conn = conn.search(cfg['ldap']['bind_dn'],ldap.SCOPE_SUBTREE,"uid=%s" % username)
+            id_conn = conn.search(cfg['ldap']['bind_dn'],ldap.SCOPE_SUBTREE,"uid=%s" % username.split('-')[-1])
             tmp,info=conn.result(id_conn, 0)
             user_dn=info[0][0]
             if conn.simple_bind_s(who=user_dn,cred=password):
@@ -162,6 +163,7 @@ class auth(object):
             else:
                 return False
         except Exception as e:
+            #print(traceback.format_exc())
             log.error("LDAP ERROR: "+str(e))
             return False 
    
