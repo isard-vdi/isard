@@ -25,6 +25,8 @@ isardviewer = isardViewer()
 
 from .apiv2_exc import *
 
+from .helpers import _check, _parse_string, _parse_media_info, _disk_path
+
 from .ds import DS 
 ds = DS()
 
@@ -199,10 +201,42 @@ class ApiUsers():
         raise CodeNotFound
 
     def CategoryGet(self,category_id):
-        category = r.table('categories').get(category_id).run(db.conn)
+        with app.app_context():        
+            category = r.table('categories').get(category_id).run(db.conn)
         if category is None:
             raise CategoryNotFound
 
         return { 'name': category['name'] }
 
 
+### USER Schema
+
+    def CategoryGroupCreate(self,category_name,group_name,category_limits=False,category_quota=False,group_quota=False):
+        category_id=_parse_string(category_name)
+        group_id=_parse_string(group_name)
+        with app.app_context():
+            category = r.table('categories').get(category_id).run(db.conn)
+            if category == None:                 
+                category = {
+                        "description": "" ,
+                        "id": category_id ,
+                        "limits": category_limits ,
+                        "name": category_id ,
+                        "quota": category_quota
+                    }                
+                r.table('categories').insert(category).run(db.conn)
+
+            group = r.table('groups').get(group_id).run(db.conn)
+            if group == None:
+                group = {
+                        "description": "" ,
+                        "id": category_id+'-'+group_id ,
+                        "limits": False ,
+                        "parent_category": category_id,
+                        "uid": group_id,
+                        "name": group_id,
+                        "enrollment": {'manager':False, 'advanced':False, 'user':False},
+                        "quota": group_quota
+                    }
+                r.table('groups').insert(group).run(db.conn)                    
+        return group['quota']

@@ -43,7 +43,7 @@ class myLdapAuth(object):
         username=id.split('-')[-1]
         category = self._setUserCategory(username,info)
         group = self._setUserGroup(username,info)
-        myuser={'id': 'local-'+category+'-'+username+'-'+username,
+        myuser={'id': 'ldap-'+category+'-'+username+'-'+username,
                     'name': username if 'displayName' not in info[1].keys() else info[1]['displayName'][0].decode('utf-8'),
                     'uid': username,
                     'provider': 'ldap',
