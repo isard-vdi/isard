@@ -46,9 +46,9 @@ $(document).ready(function() {
             data['password']=data['password-add-user'];
             delete data['password-add-user'];
             delete data['password2-add-user'];
-            delete data['unlimited']
+            delete data['unlimited'];
             data['id']=data['username']=$('#modalAddUserForm #id').val();                     
-            socket.emit('user_add',data)
+            socket.emit('user_add',data);
         }
     }); 
 
