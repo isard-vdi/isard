@@ -43,7 +43,9 @@ $(document).ready(function() {
         form.parsley().validate();
         if (form.parsley().isValid()){   // || 'unlimited' in formdata){   
             data=userQuota2dict(formdata);
-            delete data['password2']
+            data['password']=data['password-add-user'];
+            delete data['password-add-user'];
+            delete data['password2-add-user'];
             delete data['unlimited']
             data['id']=data['username']=$('#modalAddUserForm #id').val();                     
             socket.emit('user_add',data)
@@ -69,7 +71,7 @@ $(document).ready(function() {
             data={}
             data['id']=data['username']=$('#modalPasswdUserForm #id').val();
             data['name']=$('#modalPasswdUserForm #name').val();
-            data['password']=$('#modalPasswdUserForm #password').val();
+            data['password']=$('#modalPasswdUserForm #password-reset').val();
             socket.emit('user_passwd',data)
         }
     }); 
