@@ -45,6 +45,20 @@ TELEGRAM_BOT_CHAT_ID=
 # Logging level
 LOG_LEVEL=INFO
 
+# HYPERVISOR
+## Uncomment to map host interface name inside hypervisor container.
+## If static vlans are commented then hypervisor will initiate an 
+## auto-discovery process. The discovery process will last for 260
+## seconds and this will delay the hypervisor from being available.
+## So it is recommended to set also the static vlans.
+#HYPERVISOR_HOST_TRUNK_INTERFACE=
+
+## This environment variable depends on previous one. When setting
+## vlans number comma separated it will disable auto-discovery and
+## fix this as forced vlans inside hypervisor.
+#HYPERVISOR_STATIC_VLANS=
+
+# Hypervisor video proxy
 ## Only set this to different LETSENCRYPT domain if you are using
 ## two different dns for web & hypervisor on the same host and you
 ## want to use letsencrypt!

@@ -47,7 +47,10 @@ RUN apk add --no-cache \
     rsync \
     ovmf \
     iproute2 \
-    shadow
+    bridge-utils \
+    shadow \
+    tshark
+    
 
 RUN apk add --no-cache \
     libcap \
@@ -149,6 +152,8 @@ RUN mkdir -p /etc/pki/libvirt-spice
 
 COPY docker/hypervisor/checks/domain.xml /checks/
 COPY docker/hypervisor/auto-generate-certs.sh /
+COPY docker/hypervisor/vlans-add.sh /
+COPY docker/hypervisor/vlans-discover.sh /
 COPY docker/hypervisor/run.sh /
 RUN chmod +x run.sh auto-generate-certs.sh
 
