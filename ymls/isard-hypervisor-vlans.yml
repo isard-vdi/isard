@@ -1,0 +1,36 @@
+version: "3.5"
+services:
+  isard-hypervisor:
+    container_name: isard-hypervisor
+    image: isard/hypervisor:${TAG-latest}
+    networks:
+      - isard-network
+      - internet-vms
+    ports:
+      - "2022:22"
+    privileged: true
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /opt/isard/certs/viewers:/etc/pki/libvirt-spice:rw
+      - /opt/isard/sshkeys:/root/.ssh:rw
+      - /opt/isard:/isard:rw
+      - /opt/isard-local/sockets/:/var/run/libvirt/
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/hypervisor/Dockerfile
+      target: production
+    env_file:
+      - .env
+networks:
+  isard-network:
+    external: false
+    name: isard-network
+  internet-vms:
+    driver: macvlan
+    driver_opts:
+      parent: ${HYPERVISOR_HOST_TRUNK_INTERFACE}
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
