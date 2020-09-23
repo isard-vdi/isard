@@ -59,7 +59,7 @@ XML_SNIPPET_CDROM = '''
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
       <source file="{path_cdrom}"/>
-      <target dev="hd{suffix_descriptor}" bus="ide"/>
+      <target dev="sd{suffix_descriptor}" bus="sata"/>
       <readonly/>
     </disk>
 '''
@@ -484,9 +484,9 @@ class DomainXML(object):
 
     def add_cdrom(self,index=0,path_cdrom='/path/to/cdrom'):
         global index_to_char_suffix_disks
-        #default bus ide
+        #default bus sata
 
-        index_bus = self.index_disks['ide']
+        index_bus = self.index_disks['sata']
         xml_snippet = XML_SNIPPET_CDROM.format(suffix_descriptor=index_to_char_suffix_disks[index_bus],
                                                path_cdrom=path_cdrom)
         disk_etree = etree.parse(StringIO(xml_snippet))
@@ -495,7 +495,7 @@ class DomainXML(object):
         xpath_previous = '/domain/devices/disk[@device="disk"]'
         xpath_next = '/domain/devices/controller'
         self.add_device(xpath_same, new_disk, xpath_next=xpath_next, xpath_previous=xpath_previous)
-        self.index_disks['ide'] += 1
+        self.index_disks['sata'] += 1
 
     def add_interface(self, type_interface, mac, model_type='virtio', net='default', qos=False):
         '''
@@ -856,7 +856,7 @@ class DomainXML(object):
             if force_bus is False:
                 bus = self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('target')[0].get('bus')
                 if bus is None:
-                    bus = 'ide'
+                    bus = 'sata'
             else:
                 bus = force_bus
                 self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath('target')[0].set('bus', bus)
@@ -872,7 +872,7 @@ class DomainXML(object):
                                                                                                   new_path_cdrom)
             path = self.tree.xpath('/domain/devices/disk[@device="cdrom"]')[index].xpath('source')[0].get('file')
 
-            bus = 'ide'
+            bus = 'sata'
             dev = '{}d{}'.format(BUS_LETTER[bus],index_to_char_suffix_disks[self.index_disks[bus]])
 
             self.tree.xpath('/domain/devices/disk[@device="cdrom"]')[index].xpath('target')[0].set('bus', bus)
