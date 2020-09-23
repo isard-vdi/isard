@@ -3,7 +3,7 @@ then
     echo "You should add environment variables:"
     echo "  docker exec -e VLANS=<vlan_id1,vlanid2,...> isard-hypervisor sh -c '/vlans-add.sh'"
     echo "Example VLANS"
-    echo "  docker exec -e VLANS="10,11" isard-hypervisor sh -c '/vlans-add.sh'"
+    echo "  docker exec -e VLANS='10,11' isard-hypervisor sh -c '/vlans-add.sh'"
     echo "Please run it again setting environment variables"
     exit 1
 fi

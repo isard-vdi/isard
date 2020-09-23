@@ -4,7 +4,6 @@ services:
     container_name: isard-hypervisor
     image: isard/hypervisor:${TAG-latest}
     networks:
-      - default
       - isard-network
       - internet-vms
     ports:
@@ -30,7 +29,7 @@ networks:
   internet-vms:
     driver: macvlan
     driver_opts:
-      parent: spice
+      parent: ${HYPERVISOR_HOST_TRUNK_INTERFACE}
     ipam:
       config:
         - subnet: 172.30.0.0/16
