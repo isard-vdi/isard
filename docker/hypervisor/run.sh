@@ -6,6 +6,7 @@ chown root:kvm /dev/kvm
 /usr/sbin/libvirtd &
 sleep 2
 #/usr/bin/virsh net-start default
+sh -c "/vlans-discover.sh"
 FILES=/etc/libvirt/qemu/networks/*
 for f in $FILES
 do

@@ -7,6 +7,12 @@ if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     exit 1
 fi
 
+read_var() {
+    VAR=$(grep $1 $2 | xargs)
+    IFS="=" read -ra VAR <<< "$VAR"
+    echo ${VAR[1]}
+}
+
 set -e
 git submodule init
 git submodule update --recursive --remote
@@ -18,13 +24,21 @@ echo "TAG=$TAG" >> .env
 echo "BUILD_ROOT_PATH=$(pwd)" >> .env
 cp isardvdi.cfg ymls/.env
 
+HYPERVISOR_HOST_TRUNK_INTERFACE=$(read_var HYPERVISOR_HOST_TRUNK_INTERFACE .env)
+echo $HYPERVISOR_HOST_TRUNK_INTERFACE
+if [ -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ]; then
+    HYPER_YAML=isard-hypervisor.yml
+else
+    HYPER_YAML=isard-hypervisor-vlans.yml
+fi
+
 if [ -z $1 ]; then
     echo "Building docker-compose.yml..."
     docker-compose  -f ymls/isard-db.yml \
             -f ymls/isard-engine.yml \
             -f ymls/isard-static.yml \
             -f ymls/isard-portal.yml \
-            -f ymls/isard-hypervisor.yml \
+            -f ymls/$HYPER_YAML \
             -f ymls/isard-websockify.yml \
             -f ymls/isard-squid.yml \
             -f ymls/isard-webapp.yml \
@@ -51,7 +65,7 @@ fi
 if [[ $1 == "hypervisor" ]]; then
     echo "Building hypervisor.yml..."
     docker-compose  -f ymls/isard-video.yml \
-            -f ymls/isard-hypervisor.yml \
+            -f ymls/$HYPER_YAML \
             -f ymls/isard-websockify.yml \
             -f ymls/isard-squid.yml \
             -f ymls/isard-stats.yml \
