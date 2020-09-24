@@ -8,6 +8,7 @@ then
     exit 1
 fi
 
+rm /root/.ssh/vlans
 VLANS=$(echo $VLANS | tr "," " ")
 for VLAN in $VLANS
 do
@@ -21,5 +22,7 @@ do
        echo " + Created vlan interface: bridge br-$VLAN over vlan-if v$VLAN."
        echo $VLAN >> /root/.ssh/vlans
 done
-echo "You can now configure those Internet vlan interfaces in Isard hypervisor."
-
+sh -c 'python3 vlans-db.py $(cat /root/.ssh/vlans |tr "\n" " ")'
+if [ ${#VLANS[@]} > 0 ]; then
+	echo "You can now configure those Internet bridge interfaces (vXXX) in Isard resources menu."
+fi
