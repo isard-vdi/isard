@@ -49,7 +49,8 @@ RUN apk add --no-cache \
     iproute2 \
     bridge-utils \
     shadow \
-    tshark
+    tshark \
+    openssl
     
 
 RUN apk add --no-cache \
