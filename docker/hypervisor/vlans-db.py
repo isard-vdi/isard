@@ -2,7 +2,7 @@ import os,sys
 from rethinkdb import r, ReqlTimeoutError
 import pprint
 
-r.connect(os.environ['WEBAPP_RETHINKDB_HOST'], os.environ['WEBAPP_RETHINKDB_PORT']).repl()
+r.connect(os.environ['STATS_RETHINKDB_HOST'], os.environ['STATS_RETHINKDB_PORT']).repl()
 
 if len(sys.argv) < 2:
     print("Needs to specify vlan numbers as arguments. Exitting.")
