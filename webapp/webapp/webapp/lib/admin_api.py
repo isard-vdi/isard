@@ -196,7 +196,8 @@ class isardAdmin():
             user['auto']=desktops['auto']        
 
         user['id']='local-'+user['category']+'-'+user['uid']+'-'+user['username']
-            
+        import pprint
+        pprint.pprint(user)
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
     def users_add(self,users):
@@ -208,7 +209,7 @@ class isardAdmin():
                     'uid': user['username'],
                     'active': True,
                     'accessed': time.time(),
-                    'password': p.encrypt(user['password'])}
+                    'password': p.encrypt(user['password'].rstrip())}
             del user['password']
             user={**usr, **user}
 

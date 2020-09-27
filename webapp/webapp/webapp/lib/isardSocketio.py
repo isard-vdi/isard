@@ -804,7 +804,13 @@ def socketio_bulkuser_add(form_data):
     if current_user.role == 'admin' or current_user.role == 'manager': 
         data=form_data['data']
         users=form_data['users']
-        
+        stripped_users=[]
+        for user in users:
+            #stripped_users.append({k.encode("latin1").rstrip(): v.encode("latin1").rstrip() for k,v in user.items()})
+            u=dict(map(str.strip,x) for x in user.items())
+            #u=dict(map(str.encode('utf-8'),x) for x in u.items())
+            stripped_users.append(u)
+        users=stripped_users
         exceeded = quotas.check('NewUsers',current_user.id, amount=len(users))
         if exceeded != False:
             data=json.dumps({'result':False,'title':'New bulk user add quota exceeded.','text':str(len(users))+' users can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})

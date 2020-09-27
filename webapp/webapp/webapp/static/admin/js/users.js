@@ -132,6 +132,7 @@ $(document).ready(function() {
             delete data['unlimited']
             users=parseCSV()
             socket.emit('bulkusers_add',{'data':data,'users':users})
+            $('#modalAddBulkUsers #send').prop('disabled', true);
         }
     }); 
 
@@ -304,7 +305,7 @@ $(document).ready(function() {
         //if(data.result){
             $('form').each(function() { this.reset() });
             $('.modal').modal('hide');
-            
+            $('#modalAddBulkUsers #send').prop('disabled', false);
         //}
         new PNotify({
                 title: data.title,
