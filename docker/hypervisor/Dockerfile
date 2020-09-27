@@ -150,10 +150,15 @@ RUN echo -e 'spice_listen = "0.0.0.0"\n \
 # Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
 
+RUN apk add py3-pip
+RUN pip3 install --upgrade pip
+RUN pip3 install --no-cache-dir rethinkdb==2.3.0.post6
+
 COPY docker/hypervisor/checks/domain.xml /checks/
 COPY docker/hypervisor/auto-generate-certs.sh /
 COPY docker/hypervisor/vlans-add.sh /
 COPY docker/hypervisor/vlans-discover.sh /
+COPY docker/hypervisor/vlans-db.py /
 COPY docker/hypervisor/run.sh /
 RUN chmod +x run.sh auto-generate-certs.sh
 
