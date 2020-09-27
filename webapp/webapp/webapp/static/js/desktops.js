@@ -404,8 +404,13 @@ function actionsDesktopDetail(){
             setMedia_add('#modalTemplateDesktop #media-block')  
             
             setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
+            $('#modalTemplateDesktopForm').parsley().validate();
         }
 	});
+
+        $('#modalTemplateDesktop').on('shown.bs.modal', function () {
+                validator.checkAll($('#modalTemplateDesktopForm')[0]);
+            });
 
 	$('.btn-delete').on('click', function () {
 				var pk=$(this).closest("[data-pk]").attr("data-pk");
