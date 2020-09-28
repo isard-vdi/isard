@@ -28,6 +28,10 @@ quotas = Quotas()
 from ..libv2.api_users import ApiUsers
 users = ApiUsers()
 
+@app.route('/api/v2', methods=['GET'])
+def api_v2_test():
+    return "IsardVDI api v2", 200, {'ContentType': 'application/json'}
+
 @app.route('/api/v2/login', methods=['POST'])
 def api_v2_login():
     try:
@@ -299,3 +303,36 @@ def api_v2_user_desktops(id=False):
         return json.dumps({"code":9,"msg":"UserDesktops general exception: " + error }), 401, {'ContentType': 'application/json'}
 
 
+# Add categorygroup
+@app.route('/api/v2/categorygroup', methods=['POST'])
+def api_v2_categorygroup_insert():
+    try:
+        # Required
+        category_name = request.form.get('category_name', type = str)
+        group_name = request.form.get('group_name', type = str)
+
+        # Optional
+        category_limits = request.form.get('category_limits', False, type = str)
+        category_quota = request.form.get('category_quota', False, type = str)
+        group_quota = request.form.get('group_quota', False, type = str)
+
+    ## We should check here if limits and quotas have a correct dict schema
+
+    ##
+    except Exception as e:
+        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'ContentType': 'application/json'}
+    if category_name == None:
+        log.error("Incorrect access parameters. Check your query.")
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
+
+    try:
+        users.CategoryGroupCreate( category_name, \
+                                            group_name,
+                                            category_limits=category_limits,
+                                            category_quota=category_quota,
+                                            group_quota=group_quota)
+        return json.dumps({}), 200, {'ContentType': 'application/json'}
+    except Exception as e:
+        log.error("Category / Group create error.")
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"General exception when creating category/group pair: "+error}), 401, {'ContentType': 'application/json'}

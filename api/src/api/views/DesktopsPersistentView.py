@@ -36,10 +36,13 @@ def api_v2_persistent_desktop_new():
         memory = request.form.get('memory', type = float)
         vcpus = request.form.get('vcpus', type = int)
 
-        template_id = request.form.get('template_id', type = str)
-        xml_id = request.form.get('xml_id', type = str)
-
-        disk_size = request.form.get('disk_size', type = str)
+        template_id = request.form.get('template_id', False, type = str)
+        xml_id = request.form.get('xml_id', False, type = str)
+        xml_definition = request.form.get('xml_definition', False, type = str)
+        disk_size = request.form.get('disk_size', False, type = str)
+        disk_path = request.form.get('disk_path', False, type = str)
+        iso = request.form.get('iso', False, type = str)
+        boot = request.form.get('template_id', 'disk', type = str)
     except Exception as e:
         return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'ContentType': 'application/json'}
 
@@ -65,7 +68,18 @@ def api_v2_persistent_desktop_new():
     try:
         now=time.time()
         #desktop_id = app.lib.DesktopNewPersistent(name, user_id,memory,vcpus,xml_id=xml_id, disk_size=disk_size)
-        desktop_id = desktops.DesktopNewPersistent(name, user_id,memory,vcpus,from_template_id=template_id, disk_size=disk_size)
+
+        desktop_id = desktops.DesktopNewPersistent(name, 
+                                                    user_id,
+                                                    memory,
+                                                    vcpus,
+                                                    from_template_id=template_id, 
+                                                    xml_id=xml_id,
+                                                    xml_definition=xml_definition,
+                                                    disk_size=disk_size,
+                                                    disk_path=disk_path,
+                                                    iso=iso,
+                                                    boot=boot)
         carbon.send({'create_and_start_time':str(round(time.time()-now,2))})
         return json.dumps({'id': desktop_id}), 200, {'ContentType': 'application/json'}
     except UserNotFound:
