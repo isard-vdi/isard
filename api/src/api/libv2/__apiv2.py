@@ -195,7 +195,7 @@ class ApiV2():
             raise UserLoginFailed
 
     """ def DesktopNewPersistent(self,user_id,template_id, desktop_name):
-        parsed_name = _parse_string(desktop_name)
+        parsed_name = _(desktop_name)
         desktop_id = '_' + user_id + '_' + parsed_name
         with app.app_context():
             desktops = r.db('isard').table('domains').get(desktop_id).run(db.conn)

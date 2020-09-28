@@ -39,7 +39,7 @@ class ApiDesktopsPersistent():
             raise DesktopNotFound
         ds.delete_desktop(desktop_id, desktop['status'])
 
-    def New(self, desktop_name, user_id,  memory, vcpus, from_template_id = False, xml_id = False, disk_size = False, iso = False, boot='disk'):
+    def New(self, desktop_name, user_id,  memory, vcpus, from_template_id = False, xml_id = False, xml_definition = False, disk_size = False, disk_path = False, iso = False, boot='disk'):
         parsed_name = _parse_string(desktop_name)
         hardware = {'boot_order': [boot],
                     'disks': [],
@@ -66,6 +66,8 @@ class ApiDesktopsPersistent():
                 xml_data = r.table('virt_install').get(xml_id).run(db.conn)
                 if xml_data == None: raise XmlNotFound
                 xml = xml_data['xml']
+            elif xml_definition != False:
+                xml = xml_definition
             else:
                 raise DesktopPreconditionFailed
 
@@ -82,6 +84,9 @@ class ApiDesktopsPersistent():
                                     'size':disk_size}]   # 15G as a format   UNITS NEEDED!!!
             status = 'CreatingDiskFromScratch'
             parents = []
+        elif disk_path != False:
+            hardware['disks']=[{'file':disk_path}]
+            status = 'Creating'            
         else:
             hardware['disks']=[{'file':dir_disk+'/'+disk_filename,
                                                 'parent':template['create_dict']['hardware']['disks'][0]['file']}]
