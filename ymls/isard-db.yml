@@ -5,7 +5,7 @@ services:
     image: rethinkdb
     ports:
       - "8080:8080"
-    #   - "28015:28015"
+      - "28015:28015"
     networks:
       - isard-network
     restart: unless-stopped
