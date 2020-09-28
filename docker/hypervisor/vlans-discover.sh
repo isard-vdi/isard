@@ -16,7 +16,7 @@ elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ -z "$HYPERVISOR_STATIC_VLAN
 	rm out
 elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ ! -z "$HYPERVISOR_STATIC_VLANS" ]; then
 	echo "Configuring vlans $HYPERVISOR_STATIC_VLANS..."
-        echo $HYPERVISOR_STATIC_VLANS | tr "," "\n" > /root/.ssh/vlans
+	echo $HYPERVISOR_STATIC_VLANS | tr "," "\n" > /root/.ssh/vlans
 else
 	rm /root/.ssh/vlans
 fi
