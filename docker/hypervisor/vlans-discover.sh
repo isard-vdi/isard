@@ -34,6 +34,7 @@ do
 	ip link set v$VLAN master br-$VLAN
 	echo " + Created vlan interface: bridge br-$VLAN over vlan-if v$VLAN."
 done
+sh -c 'python3 vlans-db.py $(cat /root/.ssh/vlans |tr "\n" " ")'
 
 if [ ${#VLANS[@]} > 0 ]; then
 	echo "You can now configure those Internet bridge interfaces (vXXX) in Isard resources menu."
