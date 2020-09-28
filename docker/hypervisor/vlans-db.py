@@ -5,6 +5,7 @@ import pprint
 r.connect(os.environ['STATS_RETHINKDB_HOST'], os.environ['STATS_RETHINKDB_PORT']).repl()
 
 if len(sys.argv) < 2:
+    print(sys.argv)
     print("Needs to specify vlan numbers as arguments. Exitting.")
     exit(1)
 
@@ -25,5 +26,5 @@ for vlan in sys.argv[1:]:
                         'users': False}
                     })
 
-r.db('isard').table('interfaces').insert(new_vlans, conflict='update').run()
+r.db('isard').table('interfaces').insert(new_vlans, conflict='error').run()
 

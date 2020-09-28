@@ -16,6 +16,7 @@ elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ -z "$HYPERVISOR_STATIC_VLAN
 	rm out
 elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ ! -z "$HYPERVISOR_STATIC_VLANS" ]; then
 	echo "Configuring vlans $HYPERVISOR_STATIC_VLANS..."
+        echo $HYPERVISOR_STATIC_VLANS | tr "," "\n" > /root/.ssh/vlans
 else
 	rm /root/.ssh/vlans
 fi
@@ -33,7 +34,6 @@ do
 	ip link set v$VLAN master br-$VLAN
 	echo " + Created vlan interface: bridge br-$VLAN over vlan-if v$VLAN."
 done
-sh -c 'python3 vlans-db.py $(cat /root/.ssh/vlans |tr "\n" " ")'
 
 if [ ${#VLANS[@]} > 0 ]; then
 	echo "You can now configure those Internet bridge interfaces (vXXX) in Isard resources menu."
