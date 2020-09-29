@@ -43,10 +43,12 @@ class ApiUsers():
 
     def Exists(self,user_id):
         with app.app_context():
-            if r.table('users').get(user_id).run(db.conn) is None:
-                raise UserNotFound
+            user = r.table('users').get(user_id).run(db.conn)
+        if user is None:
+            raise UserNotFound
+        return user
 
-    def Create(self, provider, category_id, user_uid, user_username, role_id, group_id, password=False, photo='', email=''):
+    def Create(self, provider, category_id, user_uid, user_username, name, role_id, group_id, password=False, encrypted_password=False, photo='', email=''):
         # password=False generates a random password
         with app.app_context():
             id = provider+'-'+category_id+'-'+user_uid+'-'+user_username
@@ -60,15 +62,19 @@ class ApiUsers():
 
             if password == False:
                 password = _random_password()
+            else:
+                bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            if encrypted_password != False:
+                password = encrypted_password
 
             user = {'id': id,
-                    'name': user_username,
+                    'name': name,
                     'uid': user_uid,
                     'provider': provider,
                     'active': True,
                     'accessed': time.time(),
                     'username': user_username,
-                    'password': bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+                    'password': password,
                     'role': role_id,
                     'category': category_id,
                     'group': group_id,
@@ -81,9 +87,15 @@ class ApiUsers():
                 raise NewUserNotInserted #, conflict='update').run(db.conn)
         return user['id']
 
-    def Update(self, user_id, user_name, user_email='', user_photo=''):
+    def Update(self, user_id, user_name=False, user_email=False, user_photo=False):
         self.Exists(user_id)
         with app.app_context():
+            user = r.table('users').get(user_id).run(db.conn)
+            if user == None:
+                raise UserNotFound
+            if user_name == False: user_name = user['name']
+            if user_email == False: user_email = user['email']
+            if user_photo == False: user_photo = user['photo']
             if not _check(r.table('users').get(user_id).update({'name':user_name, 'email':user_email, 'photo':user_photo}).run(db.conn),'replaced'):
                 raise UpdateFailed
 
@@ -223,10 +235,10 @@ class ApiUsers():
                         "limits": category_limits ,
                         "name": category_id ,
                         "quota": category_quota
-                    }                
-                r.table('categories').insert(category).run(db.conn)
+                    }
+                r.table('categories').insert(category, conflict='update').run(db.conn)
 
-            group = r.table('groups').get(group_id).run(db.conn)
+            group = r.table('groups').get(category_id+'-'+group_id).run(db.conn)
             if group == None:
                 group = {
                         "description": "" ,
@@ -238,7 +250,7 @@ class ApiUsers():
                         "enrollment": {'manager':False, 'advanced':False, 'user':False},
                         "quota": group_quota
                     }
-                r.table('groups').insert(group).run(db.conn)                    
+                r.table('groups').insert(group, conflict='update').run(db.conn)
         return group['quota']
 
     def CategoriesGet(self):
