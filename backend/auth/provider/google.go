@@ -79,7 +79,7 @@ func (g Google) Get(env *env.Env, u *model.User, val interface{}) error {
 			"body", string(b),
 		)
 
-		return fmt.Errorf("get user templates: %w", err)
+		return fmt.Errorf("oauth2: %w", err)
 	}
 
 	apiUsr := &googleUsrJSON{}

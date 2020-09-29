@@ -97,19 +97,18 @@ class NewTemplateNotInserted(Exception):
 
 
 class DesktopFailed(Exception):
-    pass    
+    pass
     
-class DomainNotFound(Exception):
-    pass    
+
 
 class HypervisorPoolNotFound(Exception):
-    pass    
+    pass
 
 class DomainHypervisorSSLPortNotFound(Exception):
-    pass    
+    pass
 
 class DomainHypervisorPortNotFound(Exception):
-    pass    
+    pass
     
 
 class CodeNotFound(Exception):
@@ -123,5 +122,5 @@ class NewDesktopNotBootable(Exception):
 class MediaNotFound(Exception):
     pass
 
-class XmlNotfound(Exception):
+class XmlNotFound(Exception):
     pass

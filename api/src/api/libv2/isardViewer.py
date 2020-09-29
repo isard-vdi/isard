@@ -51,10 +51,10 @@ class isardViewer():
     def viewer_data(self,id,get_viewer='spice-client',current_user=False,default_viewer=False,get_cookie=True):
         try:
             domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options').run(db.conn)
-        except DomainNotfound:
+        except DesktopNotfound:
             raise
         if not domain['status'] == 'Started':
-            raise DomainNotStarted
+            raise DesktopNotStarted
              
         if current_user is not False:
             if not id.startswith('_'+current_user.id+'-'): 

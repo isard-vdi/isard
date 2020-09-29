@@ -94,7 +94,85 @@ func (i *Isard) DesktopDelete(id string) error {
 			"id", id,
 		)
 
-		return fmt.Errorf("get user templates: %w", err)
+		return fmt.Errorf("delete desktop: %w", err)
+	}
+
+	return nil
+}
+
+func (i *Isard) DesktopStart(id string) error {
+	req, err := http.NewRequest(http.MethodGet, i.url("desktop/start/"+id), http.NoBody)
+	if err != nil {
+		i.sugar.Errorw("start desktop: start http request",
+			"err", err,
+			"id", id,
+		)
+
+		return fmt.Errorf("start desktop: start http request: %w", err)
+	}
+
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		i.sugar.Errorw("start desktop",
+			"err", err,
+			"id", id,
+		)
+
+		return fmt.Errorf("start desktop: %w", err)
+	}
+
+	defer rsp.Body.Close()
+	if rsp.StatusCode != http.StatusOK {
+		b, _ := ioutil.ReadAll(rsp.Body)
+
+		err = utils.NewHTTPCodeErr(rsp.StatusCode)
+		i.sugar.Errorw("start desktop",
+			"err", err,
+			"code", rsp.StatusCode,
+			"body", string(b),
+			"id", id,
+		)
+
+		return fmt.Errorf("start desktop: %w", err)
+	}
+
+	return nil
+}
+
+func (i *Isard) DesktopStop(id string) error {
+	req, err := http.NewRequest(http.MethodGet, i.url("desktop/stop/"+id), http.NoBody)
+	if err != nil {
+		i.sugar.Errorw("stop desktop: stop http request",
+			"err", err,
+			"id", id,
+		)
+
+		return fmt.Errorf("stop desktop: stop http request: %w", err)
+	}
+
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		i.sugar.Errorw("stop desktop",
+			"err", err,
+			"id", id,
+		)
+
+		return fmt.Errorf("stop desktop: %w", err)
+	}
+
+	defer rsp.Body.Close()
+	if rsp.StatusCode != http.StatusOK {
+		b, _ := ioutil.ReadAll(rsp.Body)
+
+		err = utils.NewHTTPCodeErr(rsp.StatusCode)
+		i.sugar.Errorw("stop desktop",
+			"err", err,
+			"code", rsp.StatusCode,
+			"body", string(b),
+			"id", id,
+		)
+
+		return fmt.Errorf("stop desktop: %w", err)
 	}
 
 	return nil

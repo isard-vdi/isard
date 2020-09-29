@@ -16,6 +16,7 @@ type User struct {
 	Role     string
 	Group    string
 
+	Desktops []Desktop
 	Templates []Template
 
 	Name  string

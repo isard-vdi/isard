@@ -53,7 +53,6 @@ def api_v2_login():
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserExists general exception: " + error }), 401, {'ContentType': 'application/json'}
 
-
 @app.route('/api/v2/category/<id>', methods=['GET'])
 def api_v2_category(id):
     try:
@@ -83,7 +82,6 @@ def api_v2_register():
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"Register general exception: " + error }), 401, {'ContentType': 'application/json'}
 
-
 @app.route('/api/v2/user/<id>', methods=['GET'])
 def api_v2_user_exists(id=False):
     if id == False:
@@ -91,8 +89,8 @@ def api_v2_user_exists(id=False):
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
     try:
-        users.Exists(id)
-        return json.dumps({}), 200, {'ContentType': 'application/json'}
+        user=users.Exists(id)
+        return json.dumps(user), 200, {'ContentType': 'application/json'}
     except UserNotFound:
         log.error("User "+id+" not in database.")
         return json.dumps({"code":1,"msg":"User not exists in database"}), 404, {'ContentType': 'application/json'}
@@ -108,20 +106,17 @@ def api_v2_user_update(id=False):
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
     try:
-        name = request.form.get('name', type = str)
-        email = request.form.get('email', type = str)
-        photo = request.form.get('photo', type = str)
+        name = request.form.get('name', False)
+        email = request.form.get('email', False)
+        photo = request.form.get('photo', False)
     except Exception as e:
         return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'ContentType': 'application/json'}
 
-    if photo == None:
-        photo = ""
-
-    if name == None or email == None:
+    if name == False and email == False and photo == False:
         log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query. At least one parameter should be specified." }), 401, {'ContentType': 'application/json'}
     try:
-        users.Update(id,name,email,photo)
+        users.Update(id,user_name=name,user_email=email,user_photo=photo)
         return json.dumps({}), 200, {'ContentType': 'application/json'}
     except UpdateFailed:
         log.error("User "+id+" update failed.")
@@ -143,7 +138,9 @@ def api_v2_user_insert():
         group_id = request.form.get('group', type = str)
 
         # Optional
+        name=request.form.get('name', user_username, type = str)
         password = request.form.get('password', False, type = str)
+        encrypted_password = request.form.get('encrypted_password', False, type = str)
         photo = request.form.get('photo', '', type = str)
         email = request.form.get('email', '', type = str)
     except Exception as e:
@@ -171,9 +168,11 @@ def api_v2_user_insert():
                                     category_id, \
                                     user_uid, \
                                     user_username, \
+                                    name, \
                                     role_id, \
                                     group_id, \
                                     password, \
+                                    encrypted_password, \
                                     photo, \
                                     email)
         return json.dumps({'id':user_id}), 200, {'ContentType': 'application/json'}
@@ -213,8 +212,6 @@ def api_v2_user_delete(user_id):
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserDelete general exception: " + error }), 401, {'ContentType': 'application/json'}
-
-
 
 @app.route('/api/v2/user/<id>/templates', methods=['GET'])
 def api_v2_user_templates(id=False):
@@ -270,7 +267,7 @@ def api_v2_user_templates(id=False):
 
     try:
         templates = users.Templates(id)
-        dropdown_templates = [{'id':t['id'],'name':t['name'],'icon':t['icon'],'description':t['description']} for t in templates]
+        dropdown_templates = [{'id':t['id'],'name':t['name'],'icon':t['icon'],'image':'','description':t['description']} for t in templates]
         return json.dumps(dropdown_templates), 200, {'ContentType': 'application/json'}
     except UserNotFound:
         log.error("User "+id+" not in database.")
@@ -290,13 +287,13 @@ def api_v2_user_desktops(id=False):
 
     try:
         desktops = users.Desktops(id)
-        dropdown_desktops = [{'id':d['id'],'name':d['name'],'status':d['status'],'icon':d['icon'],'description':d['description']} for d in desktops]
+        dropdown_desktops = [{'id':d['id'],'name':d['name'],'state':d['status'],'type':d['type'],'template':d['from_template'],'viewers':d['viewers'],'icon':d['icon'],'image':d['image'],'description':d['description']} for d in desktops]
         return json.dumps(dropdown_desktops), 200, {'ContentType': 'application/json'}
     except UserNotFound:
         log.error("User "+id+" not in database.")
         return json.dumps({"code":1,"msg":"UserDesktops: User not exists in database"}), 404, {'ContentType': 'application/json'}
     except UserDesktopsError:
-        log.error("Template list for user "+id+" failed.")
+        log.error("Desktops list for user "+id+" failed.")
         return json.dumps({"code":2,"msg":"UserDesktops: list error"}), 404, {'ContentType': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
@@ -312,14 +309,21 @@ def api_v2_categorygroup_insert():
         group_name = request.form.get('group_name', type = str)
 
         # Optional
-        category_limits = request.form.get('category_limits', False, type = str)
-        category_quota = request.form.get('category_quota', False, type = str)
-        group_quota = request.form.get('group_quota', False, type = str)
+        category_limits = request.form.get('category_limits', False)
+        if category_limits == 'False': category_limits = False
+        if category_limits != False: category_limits=json.loads(category_limits)
+        category_quota = request.form.get('category_quota', False)
+        if category_quota == 'False': category_quota = False
+        if category_quota != False: category_quota=json.loads(category_quota)
+        group_quota = request.form.get('group_quota', False)
+        if group_quota == 'False': group_quota = False
+        if group_quota != False: group_quota=json.loads(group_quota)
 
     ## We should check here if limits and quotas have a correct dict schema
 
     ##
     except Exception as e:
+        error = traceback.format_exc()
         return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'ContentType': 'application/json'}
     if category_name == None:
         log.error("Incorrect access parameters. Check your query.")
