@@ -13,10 +13,10 @@ for vlan in sys.argv[1:]:
     new_vlans.append({'id': 'v'+vlan,
                     'name': 'Vlan '+vlan,
                     'description': 'Infrastructure vlan',
-                    'ifname': 'v'+vlan,
+                    'ifname': 'br-'+vlan,
                     'kind': 'bridge',
                     'model': 'virtio',
-                    'net': '',
+                    'net': 'br-'+vlan,
                     'qos_id': False,
                     'allowed': {
                         'roles': ['admin'],
