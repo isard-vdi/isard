@@ -14,7 +14,7 @@ services:
     #   - "../docker/portal/users:/users:ro"
 
     container_name: isard-portal
-    image: isard/portal:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}portal:${DOCKER_IMAGE_TAG-latest}
     networks:
       - isard-network
     ports:
