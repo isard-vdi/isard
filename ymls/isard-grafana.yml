@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-grafana:
     container_name: isard-grafana
-    image: isard/grafana:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}grafana:${DOCKER_IMAGE_TAG-latest}
     ports:
       - "3000:3000"
       - "2004:2004"

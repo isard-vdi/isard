@@ -17,10 +17,7 @@ set -e
 git submodule init
 git submodule update --recursive --remote
 
-TAG="2.0.0-rc1"
-
 cp isardvdi.cfg .env
-echo "TAG=$TAG" >> .env
 echo "BUILD_ROOT_PATH=$(pwd)" >> .env
 cp isardvdi.cfg ymls/.env
 

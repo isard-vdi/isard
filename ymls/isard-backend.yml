@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-backend:
     container_name: isard-backend
-    image: isard/backend:${TAG:-latest}
+    image: ${DOCKER_IMAGE_PREFIX}backend:${DOCKER_IMAGE_TAG:-latest}
     ports:
       - "1312:1312"
     networks:

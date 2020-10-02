@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-static:
     container_name: isard-static
-    image: isard/static:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}static:${DOCKER_IMAGE_TAG-latest}
     networks:
       - isard-network
     restart: unless-stopped

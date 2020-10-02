@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-squid:
     container_name: isard-squid
-    image: isard/squid:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}squid:${DOCKER_IMAGE_TAG-latest}
     networks:
       - isard-network
     restart: unless-stopped

@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-api:
     container_name: isard-api
-    image: isard/api:${TAG:-latest}
+    image: ${DOCKER_IMAGE_PREFIX}api:${DOCKER_IMAGE_TAG:-latest}
     ports:
       - "7039:7039"
     networks:

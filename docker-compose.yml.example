@@ -16,6 +16,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -47,7 +49,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/api:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/api:v2.0.0-rc1
     networks:
       isard-network: {}
     ports:
@@ -69,6 +71,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -100,7 +104,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/backend:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/backend:v2.0.0-rc1
     networks:
       isard-network: {}
     ports:
@@ -118,6 +122,8 @@ services:
     ports:
     - published: 8080
       target: 8080
+    - published: 28015
+      target: 28015
     restart: unless-stopped
     volumes:
     - /opt/isard/database:/data:rw
@@ -137,6 +143,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -168,7 +176,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/engine:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/engine:v2.0.0-rc1
     networks:
       isard-network: {}
     restart: unless-stopped
@@ -190,6 +198,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -221,7 +231,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/grafana:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/grafana:v2.0.0-rc1
     networks:
       isard-network: {}
     ports:
@@ -247,6 +257,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -278,7 +290,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/hypervisor:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/hypervisor:v2.0.0-rc1
     networks:
       isard-network: {}
     ports:
@@ -305,6 +317,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -336,7 +350,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/portal:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/portal:v2.0.0-rc1
     networks:
       isard-network: {}
     ports:
@@ -368,6 +382,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -399,7 +415,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/squid:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/squid:v2.0.0-rc1
     networks:
       isard-network: {}
     restart: unless-stopped
@@ -411,7 +427,7 @@ services:
       dockerfile: docker/static/Dockerfile
       target: production
     container_name: isard-static
-    image: isard/static:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/static:v2.0.0-rc1
     networks:
       isard-network: {}
     restart: unless-stopped
@@ -428,6 +444,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -459,7 +477,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/stats:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/stats:v2.0.0-rc1
     networks:
       isard-network: {}
     restart: unless-stopped
@@ -486,6 +504,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -517,7 +537,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/webapp:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/webapp:v2.0.0-rc1
     labels:
       traefik.enable: "true"
       traefik.http.middlewares.webapp-auth.basicauth.usersfile: /users
@@ -542,6 +562,8 @@ services:
       BACKEND_MANTEINANCE_ADMINS: admin
       BACKEND_REDIS_HOST: isard-redis
       BACKEND_REDIS_PASSWORD: ''
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: v2.0.0-rc1
       GRAFANA_HOST: isard-grafana
       GRAFANA_PATH: /monitor/
       GRAFANA_PORT: '443'
@@ -573,7 +595,7 @@ services:
       WEBAPP_RETHINKDB_HOST: isard-db
       WEBAPP_RETHINKDB_PORT: '28015'
       WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-    image: isard/websockify:2.0.0-rc1
+    image: registry.gitlab.com/isard/isardvdi/websockify:v2.0.0-rc1
     networks:
       isard-network: {}
     restart: unless-stopped

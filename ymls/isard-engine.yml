@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-engine:
     container_name: isard-engine
-    image: isard/engine:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}engine:${DOCKER_IMAGE_TAG-latest}
     networks:
       - isard-network
     restart: unless-stopped
