@@ -793,10 +793,11 @@ class DomainXML(object):
         # <on_reboot>restart</on_reboot>
         # <on_crash>restart</on_crash>
 
-    def remove_boot_order_from_disks(self):
+    def remove_boot_order_and_danger_options_from_disks(self):
         for disk_xpath in self.tree.xpath('/domain/devices/disk'):
-            for boot_xpath in disk_xpath.xpath('boot'):
-                disk_xpath.remove(boot_xpath)
+            for tag_to_remove in ['boot','backingStore','alias','address']:
+                for tag_xpath in disk_xpath.xpath(tag_to_remove):
+                    disk_xpath.remove(tag_xpath)
 
     def update_boot_order(self,list_ordered_devs,boot_menu_enable=False):
 
@@ -1052,7 +1053,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
 
     v.randomize_vm()
     v.remove_selinux_options()
-    v.remove_boot_order_from_disks()
+    v.remove_boot_order_and_danger_options_from_disks()
     # v.print_xml()
     xml_raw = v.return_xml()
     #VERIFING HARDWARE FROM XML
@@ -1316,7 +1317,7 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     x.remove_selinux_options()
 
     #remove boot order in disk definition that conflict with /os/boot order in xml
-    x.remove_boot_order_from_disks()
+    x.remove_boot_order_and_danger_options_from_disks()
 
     x.dict_from_xml()
     # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
