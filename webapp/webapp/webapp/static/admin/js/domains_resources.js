@@ -330,7 +330,8 @@ $(document).ready(function() {
             }else{
                 //Update
                     data['name']=$('#modalInterfacesForm #name').val();
-                }
+            }
+            data['net']=data['ifname']
             data['table']='interfaces'             
             socket.emit('resources_insert_update',data)
         }
