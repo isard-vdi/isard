@@ -5,11 +5,11 @@ set -e
 
 if [ ! -e "/certs/chain.pem" ]
 then
-   sh /letsencrypt.sh
+   /bin/sh /letsencrypt.sh
 fi
 if [ ! -e "/certs/chain.pem" ]
 then
-   sh /auto-generate-certs.sh
+   /bin/sh /auto-generate-certs.sh
 fi
 
 
