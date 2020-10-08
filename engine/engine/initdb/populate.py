@@ -145,6 +145,7 @@ class Populate(object):
                                                                             }},
                                                         'grafana':{'active':False,'url':'','hostname':'isard-grafana','carbon_port':2004,"interval": 5},
                                                         'version':0,
+                                                        'shares':{'templates':False,'isos':False},
                                                         'resources': {'code': False,
                                                                     'url':'http://www.isardvdi.com:5050'}
                                                        }], conflict='update').run())
