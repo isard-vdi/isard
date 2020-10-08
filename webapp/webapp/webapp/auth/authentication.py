@@ -147,7 +147,8 @@ class auth(object):
    
 
     def authentication_ldap(self,username,password,returnObject=True):
-        cfg=r.table('config').get(1).run(db.conn)['auth']
+        with app.app_context():
+            cfg=r.table('config').get(1).run(db.conn)['auth']
         try:
             conn = ldap.initialize(cfg['ldap']['ldap_server'])
             id_conn = conn.search(cfg['ldap']['bind_dn'],ldap.SCOPE_SUBTREE,"uid=%s" % username.split('-')[-1])
@@ -172,7 +173,8 @@ class auth(object):
             r.table('users').get(username).update({'accessed':time.time()}).run(db.conn)
 
     def ldap_users_exists(self,commit=False):
-        cfg=r.table('config').get(1).run(db.conn)['auth']
+        with app.app_context():
+            cfg=r.table('config').get(1).run(db.conn)['auth']
         users=list(r.table('users').filter({'active':True,'provider':'ldap'}).pluck('id','name','accessed').run(db.conn))
         nonvalid=[]
         valid=[]
