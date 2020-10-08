@@ -104,7 +104,7 @@ def getAllTemplates():
     templates = app.isardapi.get_all_alloweds_domains(current_user.id)
     templates = [t for t in templates if t['status']=='Stopped']
     if current_user.role != "admin":
-        templates = [t for t in templates if t['category'] == current_user.category or t['category'] == 'default']
+        templates = [t for t in templates if t['category'] == current_user.category or app.shares_templates == True]
     return Response(json.dumps(templates), mimetype='application/json')
 
 # Gets users, categories and groups
