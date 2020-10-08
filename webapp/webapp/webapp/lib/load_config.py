@@ -74,6 +74,13 @@ class loadConfig():
                 print('Waiting for database to be populated with all tables...')
                 print('   '+str(len(tables))+' populated')
                 time.sleep(2)
+        sysconfig = r.db('isard').table('config').get(1).run(conn)
+        if 'shares' in sysconfig.keys():
+            app.shares_templates = sysconfig['shares']['templates']
+            app.shares_isos = sysconfig['shares']['isos']
+        else:
+            app.shares_templates=False
+            app.shares_isos=False
             
 
 def load_config():
