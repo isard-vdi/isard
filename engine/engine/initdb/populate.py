@@ -465,6 +465,20 @@ class Populate(object):
                                                                'groups': False,
                                                                'users': False}
                                                            }]).run())
+                self.result(r.table('interfaces').insert([{'id': 'user1',
+                                                           'name': 'User1',
+                                                           'description': 'User private network (shared between user desktops).',
+                                                           'ifname': 'user1',
+                                                           'kind': 'user',
+                                                           'model': 'virtio',
+                                                           'net': 'user1',
+                                                           'qos_id': False,
+                                                           'allowed': {
+                                                               'roles': ['admin'],
+                                                               'categories': False,
+                                                               'groups': False,
+                                                               'users': False}
+                                                           }]).run())
                 for i in range(1,6):
                     self.result(r.table('interfaces').insert([{'id': 'private'+str(i),
                                                             'name': 'Private '+str(i),
