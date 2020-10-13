@@ -77,15 +77,6 @@ class loadConfig():
         sysconfig = r.db('isard').table('config').get(1).run(conn)
         app.shares_templates = sysconfig.get('shares', {}).get('templates', False)
         app.shares_isos = sysconfig.get('shares', {}).get('isos', False)
-
-        print(app.shares_templates)
-        print(app.shares_isos)
-        """ if sysconfig is not None and 'shares' in sysconfig.keys():
-            app.shares_templates = sysconfig['shares']['templates']
-            app.shares_isos = sysconfig['shares']['isos']
-        else:
-            app.shares_templates=False
-            app.shares_isos=False """
             
 
 def load_config():
