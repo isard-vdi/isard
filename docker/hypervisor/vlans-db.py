@@ -26,5 +26,5 @@ for vlan in sys.argv[1:]:
                         'users': False}
                     })
 
-r.db('isard').table('interfaces').insert(new_vlans, conflict='error').run()
+r.db('isard').table('interfaces').insert(new_vlans, conflict='update').run()
 
