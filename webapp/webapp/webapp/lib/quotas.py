@@ -82,7 +82,7 @@ class QuotaLimits():
             qpvcpus=vcpus*100/user['quota']['vcpus'] if user['quota']['vcpus'] else 100
             vq=user['quota']['vcpus']
 
-            qpmemory=memory/user['quota']['memory'] if user['quota']['memory'] else 100 # convert GB to KB (domains are in KB by default)
+            qpmemory=memory*100/user['quota']['memory'] if user['quota']['memory'] else 100 # convert GB to KB (domains are in KB by default)
             mq=user['quota']['memory']
                         
         return {'d':desktops,  'dq':dq,  'dqp':int(round(qpdesktops,0)),
