@@ -38,7 +38,7 @@ class Quotas():
         return False
 
     def DesktopCreate(self,user_id):
-        exces = wq._check('NewDesktop',user_id)
+        exces = wq.check('NewDesktop',user_id)
         if exces != False: 
             if 'category' in exces:
                 raise QuotaCategoryNewDesktopExceeded
@@ -49,7 +49,7 @@ class Quotas():
         return False
 
     def DesktopStart(self,user_id):
-        exces = wq._check('NewConcurrent',user_id)
+        exces = wq.check('NewConcurrent',user_id)
         if exces != False: 
             if 'CPU' in exces:
                 if 'category' in exces:

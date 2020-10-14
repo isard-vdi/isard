@@ -88,7 +88,7 @@ class WebappQuotas():
             qpvcpus=vcpus*100/user['quota']['vcpus'] if user['quota']['vcpus'] else 100
             vq=user['quota']['vcpus']
 
-            qpmemory=memory/user['quota']['memory'] if user['quota']['memory'] else 100 # convert GB to KB (domains are in KB by default)
+            qpmemory=memory*100/user['quota']['memory'] if user['quota']['memory'] else 100 # convert GB to KB (domains are in KB by default)
             mq=user['quota']['memory']
                         
         return {'d':desktops,  'dq':dq,  'dqp':int(round(qpdesktops,0)),
@@ -247,7 +247,7 @@ class WebappQuotas():
                 'm':int(round(memory)),
                 'u':users}
 
-    def _check(self,item,user_id,amount=1):
+    def check(self,item,user_id,amount=1):
         ''' All common events should call here and check if quota/limits have exceeded already.'''
         user = self.process_user_quota(user_id)
         group = self.process_group_limits(user_id, from_user_id=True)
