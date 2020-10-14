@@ -311,18 +311,18 @@ class Populate(object):
             self.result(r.table('qos_net').insert([{
                 'id': 'limit1M',
                 'name': 'limit up and down to 1Mbps',
-                'description': 'limit upstream and downstream to 1Mbps(125KBps) and burst of 10Mbps for maximum 100MB',
+                'description': 'limit upstream and downstream to 1Mbps(125KBytes/s) and burst of 10Mbps for a max 100MB transfer.',
                 "bandwidth": {
                    "inbound": {
                        "@average": 125,
                        "@peak": 1250,
                        "@floor": 0,
-                       "@burst": 100000
+                       "@burst": 12500
                    },
                    "outbound": {
                        "@average": 125,
                        "@peak": 1250,
-                       "@burst": 100000
+                       "@burst": 12500
                    }
                 },
                 'allowed': {
