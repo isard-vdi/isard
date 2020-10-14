@@ -196,8 +196,6 @@ class isardAdmin():
             user['auto']=desktops['auto']        
 
         user['id']='local-'+user['category']+'-'+user['uid']+'-'+user['username']
-        import pprint
-        pprint.pprint(user)
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
     def users_add(self,users):

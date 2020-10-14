@@ -149,9 +149,7 @@ $(document).ready(function() {
         socket.emit('user_edit',data)
     }
 
-/*     $("#add-role").on('change', function(e){
-         setQuotaTableDefaults('#users-quota','roles',$(this).val())
-    }); */
+
     $("#add-category").on('change', function(e){
         setQuotaMax('#users-quota',kind='category',id=$(this).val(),disabled=false);
         //setQuotaTableDefaults('#users-quota','categories',$(this).val())
@@ -161,26 +159,13 @@ $(document).ready(function() {
         //setQuotaTableDefaults('#users-quota','groups',$(this).val())
     });
 
-
-/*     $("#edit-role").on('change', function(e){
-         setQuotaTableDefaults('#edit-users-quota','roles',$(this).val())
-    });
-    $("#edit-category").on('change', function(e){
-        setQuotaTableDefaults('#edit-users-quota','categories',$(this).val())
-    });
-    $("#edit-group").on('change', function(e){
-        setQuotaTableDefaults('#edit-users-quota','groups',$(this).val())
-    }); */
-
-
-    $("#bulk-role").on('change', function(e){
-         setQuotaTableDefaults('#bulkusers-quota','roles',$(this).val())
-    });
     $("#bulk-category").on('change', function(e){
-        setQuotaTableDefaults('#bulkusers-quota','categories',$(this).val())
+        setQuotaMax('#bulkusers-quota',kind='category',id=$(this).val(),disabled=false);
+        /* setQuotaTableDefaults('#bulkusers-quota','categories',$(this).val()) */
     });
     $("#bulk-group").on('change', function(e){
-        setQuotaTableDefaults('#bulkusers-quota','groups',$(this).val())
+        setQuotaMax('#bulkusers-quota',kind='group',id=$(this).val(),disabled=false);
+        /* setQuotaTableDefaults('#bulkusers-quota','groups',$(this).val()) */
     });
 
 
