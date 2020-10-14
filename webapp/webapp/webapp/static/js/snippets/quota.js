@@ -51,14 +51,14 @@
 				$(parentid+"#unlimited").removeAttr('checked').iCheck('update');
 				disabled=false
 				$(parentid+"#quota-desktops").val(usrquota.quota.desktops);
-				$(parentid+"#quota-desktops_disk_size").val(usrquota.quota.memory);
+				$(parentid+"#quota-desktops_disk_size").val(usrquota.quota.desktops_disk_size);
 				$(parentid+"#quota-running").val(usrquota.quota.running);	
 				$(parentid+"#quota-templates").val(usrquota.quota.templates);
-				$(parentid+"#quota-templates_disk_size").val(usrquota.quota.memory);		
+				$(parentid+"#quota-templates_disk_size").val(usrquota.quota.templates_disk_size);		
 				$(parentid+"#quota-isos").val(usrquota.quota.isos);	
-				$(parentid+"#quota-isos_disk_size").val(usrquota.quota.memory);
+				$(parentid+"#quota-isos_disk_size").val(usrquota.quota.isos_disk_size);
 				$(parentid+"#quota-memory").val(usrquota.quota.memory);
-				$(parentid+"#quota-vcpus").val( usrquota.quota.vcpus);	
+				$(parentid+"#quota-vcpus").val(usrquota.quota.vcpus);	
 			}else{
 				$(parentid+"#unlimited").iCheck('check');  
 				disabled=true
