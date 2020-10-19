@@ -11,6 +11,7 @@ services:
     volumes:
     - /etc/localtime:/etc/localtime:ro
     - ${BUILD_ROOT_PATH}/api/src:/api
+    - ${BUILD_ROOT_PATH}/webapp/webapp/lib:/api/lib:ro
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: api/docker/Dockerfile
