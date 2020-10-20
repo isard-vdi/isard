@@ -41,7 +41,9 @@ class isard():
 
 
     def update_table_status(self,user,table,data,remote_addr):
-            item = table[:-1].capitalize()
+            # Python 3.9
+            # item = table.removesuffix('s').capitalize()
+            item = (table.endswith('s') and table[:-1] or table).capitalize()
             with app.app_context():
                 dom = r.table(table).get(data['pk']).pluck('status','name','ephimeral').run(db.conn)          
             try:
