@@ -55,7 +55,6 @@ services:
       target: 7039
     restart: unless-stopped
     volumes:
-    - ./webapp/webapp/lib:/api/lib:ro
     - /etc/localtime:/etc/localtime:ro
   isard-backend:
     build:
