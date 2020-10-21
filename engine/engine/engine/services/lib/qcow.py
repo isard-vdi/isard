@@ -303,6 +303,8 @@ def extract_list_backing_chain(out_cmd_qemu_img, json_format=True):
 
 def verify_output_cmds3(cmds_done, path_domain_disk, path_template_disk, id_domain):
     error = None
+    backing_chain_domain = None
+    backing_chain_template = None
 
     d = [a for a in cmds_done if a['title'] == 'create_disk_domain_from_new_template'][0]
     if len(d['err']) > 0:
