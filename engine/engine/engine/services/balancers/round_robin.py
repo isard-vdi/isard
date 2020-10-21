@@ -13,9 +13,9 @@ class RoundRobin(BalancerInterface):
         self.id_pool = id_pool
         self.last_index = 0
 
-    def get_next(self, args):
-        to_create_disk = args.get("to_create_disk")
-        path_selected = args.get("path_selected")
+    def get_next(self, **kwargs):
+        to_create_disk = kwargs.get("to_create_disk")
+        path_selected = kwargs.get("path_selected")
         # NEXT RELEASES WE WILL WORK HERE
         # INFO TO DEVELOPER, SI se crea un disco podemos decidir algo distinto... en la decision de pools...
         self.hyps = get_hypers_in_pool(self.id_pool)
