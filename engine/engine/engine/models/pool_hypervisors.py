@@ -25,7 +25,7 @@ class Balancer_no_stats():
     #         'path_selected': path_selected,
     #         'domain_id': domain_id}
 
-    def get_next(self,to_create_disk,path_selected,domain_id):
+    def get_next(self, **kwargs):
         #return self.hyps[randint(0,len(self.hyps)-1)]
         self.index_round_robin += 1
         if self.index_round_robin >= len(self.hyps):
@@ -77,7 +77,7 @@ class PoolHypervisors():
         return hyps_obj
 
     def get_next(self, domain_id=None, to_create_disk=False, path_selected=''):
-        args = {'to_create_disk': to_create_disk,
+        kwargs = {'to_create_disk': to_create_disk,
                 'path_selected': path_selected,
                 'domain_id':domain_id}
-        return self.balancer.get_next(*args)
+        return self.balancer.get_next(**kwargs)
