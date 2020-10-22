@@ -1,21 +1,21 @@
-VERSION=2.0.0
+all: gen test build docker
 
-all: tidy proto test build docker
+gen:
+	protoc \
+		--go_out=. \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=. \
+		--go-grpc_opt=paths=source_relative \
+		--go-grpc-mock_out=. \
+		--go-grpc-mock_opt=paths=source_relative \
+	pkg/proto/hyper.proto
 
-tidy:
-	go mod tidy
+test:
+	go test -cover -race ./...
 
-proto: tidy
-	protoc -I "." -I pkg/proto/ pkg/proto/hyper.proto --go_out=plugins=grpc:pkg/proto
-	mv pkg/proto/github.com/isard-vdi/isard/hyper/pkg/proto/* pkg/proto
-	rm -r pkg/proto/github.com
-
-test: proto
-	go test -race -cover ./...
-
-.PHONY: build
 build:
-	go build -o hyper cmd/hyper/main.go
+	mkdir -p bin
+	go build -o bin/hyper-v$(VERSION) cmd/hyper/main.go
 
-docker: test
-	docker build -f build/package/Dockerfile -t isard/hyper:${VERSION} ..
+docker:
+	docker build -f build/package/Dockerfile -t isard/isardvdi-hyper:$(VERSION) ..

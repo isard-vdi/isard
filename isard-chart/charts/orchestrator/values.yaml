@@ -1,7 +1,0 @@
-replicaCount: 1
-
-imageRegistry: isard
-
-serviceType: ClusterIP
-
-port: 1312

@@ -2,56 +2,28 @@ package grpc
 
 import (
 	"context"
-	"fmt"
-	"net"
+	"sync"
 
-	"github.com/isard-vdi/isard/hyper/env"
-	"github.com/isard-vdi/isard/hyper/hyper"
-	"github.com/isard-vdi/isard/hyper/pkg/proto"
+	"gitlab.com/isard/isardvdi/common/pkg/grpc"
+	"gitlab.com/isard/isardvdi/hyper/hyper"
+	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
 
+	"github.com/rs/zerolog"
 	gRPC "google.golang.org/grpc"
 )
 
-// API is the version for the gRPC API
-const API = "v1.0.0"
-
-// HyperServer implements the gRPC server
 type HyperServer struct {
-	env   *env.Env
-	hyper hyper.Interface
+	Hyper hyper.Interface
+	Addr  string
+
+	Log *zerolog.Logger
+	WG  *sync.WaitGroup
+
+	proto.UnimplementedHyperServer
 }
 
-// Serve starts the Hyper gRPC server
-func Serve(ctx context.Context, env *env.Env, hyper hyper.Interface) {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", env.Cfg.GRPC.Port))
-	if err != nil {
-		env.Sugar.Fatalw("listen gRPC port",
-			"err", err,
-			"port", env.Cfg.GRPC.Port,
-		)
-	}
-
-	srv := &HyperServer{env, hyper}
-	s := gRPC.NewServer()
-	proto.RegisterHyperServer(s, srv)
-
-	env.Sugar.Infow("hyper gRPC serving",
-		"port", env.Cfg.GRPC.Port,
-	)
-	go func() {
-		if err = s.Serve(lis); err != nil {
-			if err != gRPC.ErrServerStopped {
-				env.Sugar.Fatalw("serve hyper gRPC",
-					"err", err,
-					"port", env.Cfg.GRPC.Port,
-				)
-			}
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		s.Stop()
-		env.WG.Done()
-	}
+func (h *HyperServer) Serve(ctx context.Context) {
+	grpc.Serve(ctx, h.Log, h.WG, func(s *gRPC.Server) {
+		proto.RegisterHyperServer(s, h)
+	}, h.Addr)
 }

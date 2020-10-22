@@ -3,54 +3,47 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
+	"sync"
 
-	"github.com/isard-vdi/isard/hyper/cfg"
-	"github.com/isard-vdi/isard/hyper/env"
-	"github.com/isard-vdi/isard/hyper/hyper"
-	"github.com/isard-vdi/isard/hyper/transport/grpc"
+	"gitlab.com/isard/isardvdi/hyper/cfg"
+	"gitlab.com/isard/isardvdi/hyper/hyper"
+	"gitlab.com/isard/isardvdi/hyper/transport/grpc"
 
-	"go.uber.org/zap"
+	"gitlab.com/isard/isardvdi/common/pkg/log"
 )
 
 func main() {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		log.Fatalf("create logger: %v", err)
-	}
-	defer logger.Sync()
-	sugar := logger.Sugar()
+	cfg := cfg.New()
 
-	env := &env.Env{
-		Sugar: sugar,
-		Cfg:   cfg.Init(sugar),
-	}
+	log := log.New("hyper", cfg.Log.Level)
 
-	h, err := hyper.New(env, "")
+	h, err := hyper.New("")
 	if err != nil {
-		env.Sugar.Fatalw("connect to the hypervisor",
-			"err", err,
-		)
+		log.Fatal().Err(err).Msg("connect to the hypervisor")
 	}
 	defer h.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
 
-	go grpc.Serve(ctx, env, h)
-	env.WG.Add(1)
+	grpc := &grpc.HyperServer{
+		Hyper: h,
+		Addr:  fmt.Sprintf("%s:%d", cfg.GRPC.Host, cfg.GRPC.Port),
+		Log:   log,
+		WG:    &wg,
+	}
+	go grpc.Serve(ctx)
+	wg.Add(1)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	select {
-	case <-stop:
-		fmt.Println("")
-		env.Sugar.Info("stoping hyper...")
+	<-stop
+	fmt.Println("")
+	log.Info().Msg("stopping service")
 
-		cancel()
-
-		env.WG.Wait()
-	}
+	cancel()
+	wg.Wait()
 }

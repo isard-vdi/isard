@@ -1,18 +1,18 @@
-module github.com/isard-vdi/isard
+module gitlab.com/isard/isardvdi
 
 go 1.14
 
 require (
-	github.com/go-redis/redis/v7 v7.3.0
-	github.com/golang/protobuf v1.4.2
-	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
-	github.com/libvirt/libvirt-go v6.3.0+incompatible
-	github.com/rs/xid v1.2.1
-	github.com/spf13/afero v1.2.2
-	github.com/spf13/viper v1.7.0
-	go.uber.org/zap v1.15.0
-	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.23.0
-	libvirt.org/libvirt-go v6.3.0+incompatible
-	libvirt.org/libvirt-go-xml v6.3.0+incompatible
+	github.com/alicebob/miniredis/v2 v2.13.3
+	github.com/bsm/redislock v0.6.0
+	github.com/go-pg/pg/v10 v10.5.0
+	github.com/go-redis/redis/v8 v8.3.2
+	github.com/qmuntal/stateless v1.1.5
+	github.com/rs/zerolog v1.20.0
+	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.6.1
+	google.golang.org/grpc v1.33.1
+	google.golang.org/protobuf v1.25.0
+	libvirt.org/libvirt-go v6.8.0+incompatible
+	libvirt.org/libvirt-go-xml v6.8.0+incompatible
 )

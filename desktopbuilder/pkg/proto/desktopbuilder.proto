@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package com.gitlab.isard.isardvdi.desktopbuilder;
+option go_package = "gitlab.com/isard/isardvdi/desktopbuilder/pkg/proto";
+
+import "viewer.proto";
+
+service DesktopBuilder {
+    rpc XMLGet(XMLGetRequest) returns (XMLGetResponse) {}
+    rpc ViewerGet(ViewerGetRequest) returns (ViewerGetResponse) {}
+}
+
+message XMLGetRequest {
+    string id = 1;
+}
+
+message XMLGetResponse {
+    string xml = 1;
+}
+
+message ViewerGetRequest {
+    string xml = 1;
+}
+
+message ViewerGetResponse {
+    com.gitlab.isard.isardvdi.common.Viewer viewer = 1;
+}

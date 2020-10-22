@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package com.gitlab.isard.isardvdi.common;
+option go_package = "gitlab.com/isard/isardvdi/common/pkg/proto";
+
+message Viewer {
+    message Spice {
+        string pwd = 1;
+        int32 port = 2;
+        int32 tls_port = 3;
+    }
+    message Vnc {
+        string pwd = 1;
+        int32 port = 2;
+        int32 websocket_port = 3;
+    }
+
+    repeated Spice spice = 1;
+    repeated Vnc vnc = 2;
+}

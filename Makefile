@@ -1,9 +1,22 @@
-VERSION=2.0.0
+VERSION := 3.0.0-rc0
+export VERSION
 
-all: docker
+MICROSERVICES = common hyper desktopbuilder controller
 
-docker:
-	for microservice in hyper hyper-stats orchestrator disk-operations desktop-builder; do \
-		cd $$microservice && make docker VERSION=$(VERSION) ; \
-		cd - ; \
-	done
+all: tidy gen test build docker
+.PHONY: all
+
+tidy:
+	go mod tidy
+
+gen: tidy
+	$(foreach micorservice,$(MICROSERVICES),$(MAKE) -C $(micorservice) gen;)
+
+test: gen
+	$(foreach micorservice,$(MICROSERVICES),$(MAKE) -C $(micorservice) test;)
+
+build: test
+	$(foreach micorservice,$(MICROSERVICES),$(MAKE) -C $(micorservice) build;)
+
+docker: build
+	$(foreach micorservice,$(MICROSERVICES),$(MAKE) -C $(micorservice) docker;)

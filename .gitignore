@@ -1,62 +1,16 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
 *.so
+*.dylib
 
-# Python compiled
-*.pyc
+hyper/bin
+controller/bin
+desktopbuilder/bin
 
-# javascript bower
-webapp/bower_components
-node_modules/
-webapp/node_modules/
+# Test binary, built with `go test -c`
+*.test
 
-#rethink data
-rethinkdb_data/
-
-# log
-*.log
-logs/*
-
-#pycharm
-.idea/
-webapp/.idea/
-engine/.idea/
-.vscode
-
-#pytest
-.pytest_cache
-__pycache__
-
-#ipython
-.ipython
-
-#backups
-backups/*
-
-#uploads
-uploads/*
-
-#docker run scripts
-run_docker_engine.py
-run_docker_webapp.py
-
-#Generated certs
-install/viewer-certs/*.pem
-install/viewer-certs/*.csr
-test/
-install/viewer-certs/host_name
-
-#Conf files
-isard.conf
-
-#Csv files
-csv/
-
-#Wizard disable
-install/.wizard
-
-known_hosts
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
