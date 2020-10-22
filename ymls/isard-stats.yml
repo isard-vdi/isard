@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-stats:
     container_name: isard-stats
-    image: isard/stats:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}stats:${DOCKER_IMAGE_TAG-latest}
     networks:
       - isard-network
     restart: unless-stopped

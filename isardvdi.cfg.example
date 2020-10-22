@@ -44,6 +44,12 @@ TELEGRAM_BOT_CHAT_ID=
 ##################################################################
 ##################################################################
 
+# DOCKER IMAGES
+# Image prefix that could include registry and repository
+DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
+# Image tag that could be tags or branches from the git repository
+DOCKER_IMAGE_TAG=v2.0.0-rc1
+
 # Logging level
 LOG_LEVEL=INFO
 
