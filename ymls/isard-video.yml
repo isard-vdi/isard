@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-video:
     container_name: isard-video
-    image: isard/video:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}video:${DOCKER_IMAGE_TAG-latest}
     networks:
       - isard-network
     ports:

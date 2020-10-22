@@ -2,7 +2,7 @@ version: "3.5"
 services:
   isard-websockify:
     container_name: isard-websockify
-    image: isard/websockify:${TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}websockify:${DOCKER_IMAGE_TAG-latest}
     networks:
       - isard-network
     restart: unless-stopped
