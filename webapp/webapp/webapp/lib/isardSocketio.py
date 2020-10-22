@@ -1317,7 +1317,7 @@ def socketio_admin_domains_media_add(form_data):
         return
             
     create_dict=app.isardapi.f.unflatten_dict(form_data)
-    create_dict=self.parseHardwareFromIso(create_dict)
+    create_dict=parseHardwareFromIso(create_dict)
 
     create_dict['create_from_virt_install_xml']=create_dict.pop('install','')
     disk_size=create_dict.pop('disk_size','15')+'G'
