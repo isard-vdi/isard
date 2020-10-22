@@ -29,9 +29,9 @@ Follow the extensive documentation to get the most of your installation:
 ### 2) **Pull images and bring it up**:
 
 ```
-wget https://raw.githubusercontent.com/isard-vdi/isard/master/docker-compose.yml.example
-docker-compose -f docker-compose.yml.example pull
-docker-compose -f docker-compose.yml.example up -d
+wget https://isardvdi.com/docker-compose.yml
+docker-compose pull
+docker-compose up -d
 ```
 
 Connect to **https://<ip|domain>**/isard-admin with default user *admin* and password *IsardVDI*
