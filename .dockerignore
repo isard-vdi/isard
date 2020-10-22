@@ -1,0 +1,8 @@
+hyper/bin
+hyper/build/package/Dockerfile
+controller/bin
+controller/build/package/Dockerfile
+desktopbuilder/bin
+desktopbuilder/build/package/Dockerfile
+orchestrator/bin
+orchestrator/build/package/Dockerfile

@@ -1,16 +1,25 @@
-VERSION=2.0.0
+all: gen test build docker
 
-all: tidy test build docker
+gen:
+	protoc \
+		--go_out=. \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=. \
+		--go-grpc_opt=paths=source_relative \
+		--go-grpc-mock_out=. \
+		--go-grpc-mock_opt=paths=source_relative \
+	pkg/proto/orchestrator.proto
 
-tidy:
-	go mod tidy
-
-test: tidy
-	go test -race -cover ./...
+test:
+	go test -cover -race ./...
 
 .PHONY: build
 build:
-	go build -o orchestrator-bin cmd/orchestrator/main.go
+	mkdir -p bin
+	go build -o bin/orchestrator-v$(VERSION) cmd/orchestrator/main.go
 
-docker: test
-	docker build -f build/package/Dockerfile -t isard/orchestrator:${VERSION} ..
+docker:
+	docker build -f build/package/Dockerfile -t isard/isardvdi-orchestrator:$(VERSION) ..
+
+run:
+	go run cmd/orchestrator/main.go

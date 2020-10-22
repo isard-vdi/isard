@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "desktopbuilder.fullname" . }}
+  labels:
+    {{- include "desktopbuilder.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "desktopbuilder.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "desktopbuilder.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository | default "docker.io/isard/isardvdi-desktopbuilder" }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+              # TODO
+              # livenessProbe:
+              #   httpGet:
+              #     path: /
+              #     port: http
+              # readinessProbe:
+              #   httpGet:
+              #     path: /
+              #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: DESKTOPBUILDER_GRPC_PORT
+              value: {{ .Values.service.port | quote}}
+            - name: DESKTOPBUILDER_DB_HOST
+              value: {{ .Release.Name }}-postgresql-ha-postgresql
+            - name: DESKTOPBUILDER_DB_USR
+              value: postgres
+            - name: DESKTOPBUILDER_DB_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql-ha-postgresql
+                  key: postgresql-password
+

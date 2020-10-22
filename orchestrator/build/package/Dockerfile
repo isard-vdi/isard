@@ -1,23 +1,33 @@
-FROM golang:1.14-alpine as build
+#
+# Build phase
+#
+FROM golang:1.15-alpine as build
 
 RUN apk add --no-cache \
-	make \
-    git
+    git \
+    make
 
-WORKDIR /go/src/github.com/isard-vdi/isard
-COPY ./go.mod ./go.sum /go/src/github.com/isard-vdi/isard/
+WORKDIR /build
+
+COPY go.mod /build
+COPY go.sum /build
+
 RUN go mod download
 
-COPY . /go/src/github.com/isard-vdi/isard
-WORKDIR /go/src/github.com/isard-vdi/isard/orchestrator
+WORKDIR /
+
+COPY . /build
+
+WORKDIR /build/orchestrator
 
 RUN make build
 
-FROM alpine:3.11
-MAINTAINER isard <info@isard.com>
 
-COPY --from=build /go/src/github.com/isard-vdi/isard/orchestrator/orchestrator-bin /orchestrator
+#
+# Orchestrator
+#
+FROM alpine:3.12
 
-EXPOSE 8080
+COPY --from=build /build/orchestrator/bin/orchestrator-v /orchestrator
 
 CMD [ "/orchestrator" ]

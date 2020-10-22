@@ -1,0 +1,68 @@
+version: '3.2'
+services:
+  redis:
+    image: "redis:6"
+  postgres:
+    image: "postgres:12"
+    environment:
+      - POSTGRES_USER=isard
+      - POSTGRES_PASSWORD=isard
+  hyper:
+    build:
+      context: .
+      dockerfile: hyper/build/package/Dockerfile
+    image: "isard/isardvdi-hyper:${VERSION-latest}"
+    restart: always
+    privileged: true
+    depends_on:
+      - redis
+    environment:
+      - HYPER_REDIS_HOST=redis
+  desktopbuilder:
+    build:
+      context: .
+      dockerfile: desktopbuilder/build/package/Dockerfile
+    image: "isard/isardvdi-desktopbuilder:${VERSION-latest}"
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      - DESKTOPBUILDER_DB_HOST=postgres
+      - DESKTOPBUILDER_DB_USR=isard
+      - DESKTOPBUILDER_DB_PWD=isard
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/build/package/Dockerfile
+    image: "isard/isardvdi-orchestrator:${VERSION-latest}"
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      - ORCHESTRATOR_REDIS_HOST=redis
+  controller:
+    build:
+      context: .
+      dockerfile: controller/build/package/Dockerfile
+    image: "isard/isardvdi-controller:${VERSION-latest}"
+    restart: always
+    depends_on:
+      - hyper
+      - desktopbuilder
+      - orchestrator
+  backend:
+    build:
+      context: .
+      dockerfile: backend/build/package/Dockerfile
+    image: "isard/isardvdi-backend:${VERSION-latest}"
+    restart: always
+    ports:
+      - "1312:1312"
+    depends_on:
+      - postgres
+      - controller
+    environment:
+      - BACKEND_REDIS_HOST=redis
+      - BACKEND_DB_HOST=postgres
+      - BACKEND_DB_USR=isard
+      - BACKEND_DB_PWD=isard

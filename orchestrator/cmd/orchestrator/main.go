@@ -3,49 +3,52 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
+	"sync"
 
-	"github.com/isard-vdi/isard/orchestrator/cfg"
-	"github.com/isard-vdi/isard/orchestrator/env"
-	"github.com/isard-vdi/isard/orchestrator/orchestrator"
-	"github.com/isard-vdi/isard/orchestrator/redis"
+	"gitlab.com/isard/isardvdi/orchestrator/cfg"
+	"gitlab.com/isard/isardvdi/orchestrator/provider"
+	"gitlab.com/isard/isardvdi/orchestrator/transport/grpc"
 
-	"go.uber.org/zap"
+	"gitlab.com/isard/isardvdi/common/pkg/log"
+	"gitlab.com/isard/isardvdi/common/pkg/redis"
 )
 
 func main() {
-	logger, err := zap.NewProduction()
+	cfg := cfg.New()
+
+	log := log.New("orchestrator", cfg.Log.Level)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+
+	redis := redis.New(cfg.Redis.Cluster, cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Usr, cfg.Redis.Pwd)
+	if err := redis.Ping(ctx).Err(); err != nil {
+		log.Fatal().Err(err).Msg("connect to redis")
+	}
+
+	provider, err := provider.New(ctx, cfg.Provider, redis)
 	if err != nil {
-		log.Fatalf("create logger: %v", err)
-	}
-	defer logger.Sync()
-	sugar := logger.Sugar()
-
-	env := &env.Env{
-		Sugar:        sugar,
-		Cfg:          cfg.Init(sugar),
-		Orchestrator: orchestrator.New(sugar),
+		log.Fatal().Err(err).Msg("create orchestrator decision provider")
 	}
 
-	var cancel context.CancelFunc
-	env.Ctx, cancel = context.WithCancel(context.Background())
-
-	redis.Init(env)
+	grpc := &grpc.OrchestratorServer{
+		Provider: provider,
+		Addr:     fmt.Sprintf("%s:%d", cfg.GRPC.Host, cfg.GRPC.Port),
+		Log:      log,
+		WG:       &wg,
+	}
+	go grpc.Serve(ctx)
+	wg.Add(1)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	select {
-	case <-stop:
-		fmt.Println("")
-		env.Sugar.Info("stoping hyper-stats...")
+	<-stop
+	fmt.Println("")
+	log.Info().Msg("stopping service")
 
-		cancel()
-
-		env.WG.Wait()
-
-		env.Redis.Close()
-	}
+	cancel()
+	wg.Wait()
 }
