@@ -597,9 +597,7 @@ function actionsDomainDetail(){
                                 },
                                 addclass: 'pnotify-center'
                             }).get().on('pnotify.confirm', function() {
-                                api.ajax('/isard-admin/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-                                    //Should return something about the result...
-                                });  
+                                socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
                             }).on('pnotify.cancel', function() {
                     });	
         });
