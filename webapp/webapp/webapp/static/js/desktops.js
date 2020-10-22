@@ -522,6 +522,7 @@ function setDesktopDetailButtonsStatus(id,status){
     }
     if(status=='Failed'){
       $('#actions-'+id+' .btn-edit').prop('disabled', false);
+      $('#actions-'+id+' .btn-delete').prop('disabled', false);
     }
 }
 	
