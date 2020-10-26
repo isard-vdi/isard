@@ -13,6 +13,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard/certs/viewers:/etc/pki/libvirt-spice:rw
       - /opt/isard/sshkeys:/root/.ssh:rw
+      - /opt/isard/hypervisor/sshd_keys:/usr/local/etc/ssh:rw
       - /opt/isard:/isard:rw
       - /opt/isard-local/sockets/:/var/run/libvirt/
     build:
