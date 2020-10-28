@@ -26,9 +26,9 @@ cp isardvdi.cfg ymls/.env
 HYPERVISOR_HOST_TRUNK_INTERFACE=$(read_var HYPERVISOR_HOST_TRUNK_INTERFACE .env)
 echo $HYPERVISOR_HOST_TRUNK_INTERFACE
 if [ -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ]; then
-    HYPER_YAML=isard-hypervisor.yml
+    HYPER_YAMLS="-f ymls/isard-hypervisor.yml"
 else
-    HYPER_YAML=isard-hypervisor-vlans.yml
+    HYPER_YAMLS="-f ymls/isard-hypervisor.yml -f ymls/isard-hypervisor-vlans.yml"
 fi
 
 if [ -z $1 ]; then
@@ -37,7 +37,7 @@ if [ -z $1 ]; then
             -f ymls/isard-engine.yml \
             -f ymls/isard-static.yml \
             -f ymls/isard-portal.yml \
-            -f ymls/$HYPER_YAML \
+            $HYPER_YAMLS \
             -f ymls/isard-websockify.yml \
             -f ymls/isard-squid.yml \
             -f ymls/isard-webapp.yml \
@@ -64,7 +64,7 @@ fi
 if [[ $1 == "hypervisor" ]]; then
     echo "Building hypervisor.yml..."
     docker-compose  -f ymls/isard-video.yml \
-            -f ymls/$HYPER_YAML \
+            $HYPER_YAMLS \
             -f ymls/isard-websockify.yml \
             -f ymls/isard-squid.yml \
             -f ymls/isard-stats.yml \
@@ -77,7 +77,7 @@ fi
 
 if [[ $1 == "hypervisor-standalone" ]]; then
     echo "Building docker-compose.hypervisor-standalone.yml..."
-    docker-compose -f ymls/$HYPER_YAML \
+    docker-compose $HYPER_YAMLS \
             -f ymls/isard-hypervisor-standalone.yml \
             -f ymls/isard-stats.yml \
             config > docker-compose.hypervisor-standalone.yml
