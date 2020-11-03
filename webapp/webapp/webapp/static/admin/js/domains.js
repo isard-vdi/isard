@@ -831,6 +831,7 @@ function modal_edit_desktop_datatables(id){
             form.parsley().validate();
             if (form.parsley().isValid()){
                     data=$('#modalEdit').serializeObject();
+                    data=replaceMedia_arrays('#modalEditDesktop',data);
                     socket.emit('domain_edit',data)
             }
         });

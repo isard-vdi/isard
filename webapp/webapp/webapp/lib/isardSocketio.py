@@ -1060,7 +1060,7 @@ def socketio_admins_domain_edit(form_data):
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardware(create_dict)
     create_dict=quotas.limit_user_hardware_allowed(create_dict,current_user.id)
-    create_dict['create_dict']={'hardware':create_dict['hardware'].copy()}
+    create_dict['create_dict']={**create_dict['hardware'], **create_dict['create_dict']['hardware']}
     create_dict.pop('hardware',None)
     res=app.isardapi.update_domain(create_dict.copy())
     if res is True:
