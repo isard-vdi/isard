@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"sync"
 
-	"gitlab.com/isard/isardvdi/hyper/cfg"
-	"gitlab.com/isard/isardvdi/hyper/hyper"
-	"gitlab.com/isard/isardvdi/hyper/transport/grpc"
+	"gitlab.com/isard/isardvdi/orchestrator/cfg"
+	"gitlab.com/isard/isardvdi/orchestrator/provider"
+	"gitlab.com/isard/isardvdi/orchestrator/transport/grpc"
 
 	"github.com/go-redis/redis/v8"
 	"gitlab.com/isard/isardvdi/common/pkg/log"
@@ -18,7 +18,7 @@ import (
 func main() {
 	cfg := cfg.New()
 
-	log := log.New("hyper", cfg.Log.Level)
+	log := log.New("orchestrator", cfg.Log.Level)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
@@ -33,24 +33,19 @@ func main() {
 		log.Fatal().Err(err).Msg("connect to redis")
 	}
 
-	h, err := hyper.New(ctx, redis, cfg.Libvirt.URI, cfg.GRPC.Host)
+	provider, err := provider.New(ctx, cfg.Provider, redis)
 	if err != nil {
-		log.Fatal().Err(err).Msg("connect to the hypervisor")
+		log.Fatal().Err(err).Msg("create orchestrator decision provider")
 	}
-	defer h.Close()
 
-	grpc := &grpc.HyperServer{
-		Hyper: h,
-		Addr:  fmt.Sprintf("%s:%d", cfg.GRPC.Host, cfg.GRPC.Port),
-		Log:   log,
-		WG:    &wg,
+	grpc := &grpc.OrchestratorServer{
+		Provider: provider,
+		Addr:     fmt.Sprintf("%s:%d", cfg.GRPC.Host, cfg.GRPC.Port),
+		Log:      log,
+		WG:       &wg,
 	}
 	go grpc.Serve(ctx)
 	wg.Add(1)
-
-	if err := h.Ready(); err != nil {
-		log.Fatal().Err(err).Msg("set hypervisor ready")
-	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)

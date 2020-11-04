@@ -1,7 +1,7 @@
 VERSION := 3.0.0-rc0
 export VERSION
 
-MICROSERVICES = common hyper desktopbuilder
+MICROSERVICES = common hyper desktopbuilder orchestrator
 
 all: tidy gen test build docker
 .PHONY: all

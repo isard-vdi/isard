@@ -8,6 +8,7 @@
 hyper/bin
 controller/bin
 desktopbuilder/bin
+orchestrator/bin
 
 # Test binary, built with `go test -c`
 *.test

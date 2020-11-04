@@ -12,8 +12,14 @@ import (
 const hyperStreamName = "hypervisors"
 
 type Hyper struct {
-	Host  string
-	State stateless.State
+	Host        string            `json:"host,omitempty"`
+	State       stateless.State   `json:"state,omitempty"`
+	Capabilites *HyperCapabilites `json:"capabilites,omitempty"`
+}
+
+type HyperCapabilites struct {
+	Persistent bool
+	GPU        bool
 }
 
 func (h *Hyper) ID() string {
@@ -51,6 +57,10 @@ func (h *HyperPool) unmarshal(b []byte) (poolItem, error) {
 
 	if err := json.Unmarshal(b, hyper); err != nil {
 		return nil, err
+	}
+
+	if hyper.Capabilites == nil {
+		hyper.Capabilites = &HyperCapabilites{}
 	}
 
 	return hyper, nil
