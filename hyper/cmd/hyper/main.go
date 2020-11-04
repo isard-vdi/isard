@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/go-redis/redis/v8"
 	"gitlab.com/isard/isardvdi/hyper/cfg"
 	"gitlab.com/isard/isardvdi/hyper/hyper"
 	"gitlab.com/isard/isardvdi/hyper/transport/grpc"
@@ -19,14 +20,24 @@ func main() {
 
 	log := log.New("hyper", cfg.Log.Level)
 
-	h, err := hyper.New("")
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+
+	redis := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+		Username: cfg.Redis.Usr,
+		Password: cfg.Redis.Pwd,
+	})
+
+	if err := redis.Ping(ctx).Err(); err != nil {
+		log.Fatal().Err(err).Msg("connect to redis")
+	}
+
+	h, err := hyper.New(ctx, redis, cfg.Libvirt.URI, cfg.GRPC.Host)
 	if err != nil {
 		log.Fatal().Err(err).Msg("connect to the hypervisor")
 	}
 	defer h.Close()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
 
 	grpc := &grpc.HyperServer{
 		Hyper: h,
@@ -36,6 +47,10 @@ func main() {
 	}
 	go grpc.Serve(ctx)
 	wg.Add(1)
+
+	if err := h.Ready(); err != nil {
+		log.Fatal().Err(err).Msg("set hypervisor ready")
+	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)

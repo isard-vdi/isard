@@ -5,39 +5,45 @@ import (
 	"encoding/json"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/qmuntal/stateless"
+	"gitlab.com/isard/isardvdi/common/pkg/state"
 )
 
 const hyperStreamName = "hypervisors"
 
-type HyperState int
-
-const (
-	HyperStateUnknown HyperState = iota
-	HyperStateOk
-	HyperStateMigrating
-	HyperStateOff
-)
-
 type Hyper struct {
 	Host  string
-	State HyperState
+	State stateless.State
 }
 
 func (h *Hyper) ID() string {
 	return h.Host
 }
 
+func (h *Hyper) GetState() stateless.State {
+	return h.State
+}
+
+func (h *Hyper) SetState(state stateless.State) {
+	h.State = state
+}
+
 type HyperPool struct {
-	pool *Pool
+	pool *pool
 }
 
 func NewHyperPool(ctx context.Context, cli *redis.Client) *HyperPool {
 	h := &HyperPool{}
-	h.pool = NewPool(hyperStreamName, cli, h.unmarshal, h.onErr)
+
+	h.pool = newPool(hyperStreamName, cli, state.NewHyperState, h.marshal, h.unmarshal, h.onErr)
 
 	go h.pool.listen(ctx)
 
 	return h
+}
+
+func (h *HyperPool) marshal(hyper poolItem) ([]byte, error) {
+	return json.Marshal(hyper)
 }
 
 func (h *HyperPool) unmarshal(b []byte) (poolItem, error) {
@@ -55,7 +61,7 @@ func (h *HyperPool) onErr(err error) {
 }
 
 func (h *HyperPool) Get(host string) (*Hyper, error) {
-	hyper, err := h.pool.Get(host)
+	hyper, err := h.pool.get(host)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +69,12 @@ func (h *HyperPool) Get(host string) (*Hyper, error) {
 	return hyper.(*Hyper), nil
 }
 
+func (h *HyperPool) Set(ctx context.Context, hyper *Hyper) error {
+	return h.pool.set(ctx, hyper)
+}
+
 func (h *HyperPool) List() ([]*Hyper, error) {
-	val, err := h.pool.List()
+	val, err := h.pool.list()
 	if err != nil {
 		return nil, err
 	}
@@ -75,4 +85,17 @@ func (h *HyperPool) List() ([]*Hyper, error) {
 	}
 
 	return hypers, nil
+}
+
+func (h *HyperPool) Remove(ctx context.Context, host string) error {
+	hyper, err := h.Get(host)
+	if err != nil {
+		return err
+	}
+
+	return h.pool.remove(ctx, hyper)
+}
+
+func (h *HyperPool) Fire(hyper *Hyper, trigger stateless.Trigger) error {
+	return h.pool.fire(hyper, trigger)
 }

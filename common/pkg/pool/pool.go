@@ -10,116 +10,140 @@ import (
 
 	"github.com/bsm/redislock"
 	"github.com/go-redis/redis/v8"
+	"github.com/qmuntal/stateless"
 )
 
 var ErrValueNotFound = errors.New("value not found in the pool")
+
+type ctxKey int
+
+const (
+	poolStateCtxKey ctxKey = iota
+)
 
 const (
 	msgKeyAction = "action"
 	msgKeyData   = "data"
 )
 
-type PoolAction int
+type poolAction int
 
 const (
-	PoolActionUnknown PoolAction = iota
-	PoolActionSet
-	PoolActionDelete
+	poolActionUnknown poolAction = iota
+	poolActionSet
+	poolActionDelete
 )
 
 type poolItem interface {
 	ID() string
+	GetState() stateless.State
+	SetState(stateless.State)
 }
 
-type Pool struct {
-	name   string
+type pool struct {
+	name string
+
 	cli    *redis.Client
 	locker *redislock.Client
 	lastID string
 
-	val map[string]interface{}
-	mu  sync.Mutex
+	val     map[string]poolItem
+	machine *stateless.StateMachine
+	mu      sync.Mutex
 
+	marshal   func(item poolItem) ([]byte, error)
 	unmarshal func([]byte) (poolItem, error)
 	onErr     func(err error)
 }
 
-func NewPool(name string, cli *redis.Client, unmarshal func([]byte) (poolItem, error), onErr func(err error)) *Pool {
-	return &Pool{
+func newPool(name string, cli *redis.Client, configureMachine func(*stateless.StateMachine), marshal func(poolItem) ([]byte, error), unmarshal func([]byte) (poolItem, error), onErr func(err error)) *pool {
+	p := &pool{
 		name:   name,
 		cli:    cli,
 		locker: redislock.New(cli),
 		lastID: "0",
 
-		val: map[string]interface{}{},
+		val: map[string]poolItem{},
 
+		marshal:   marshal,
 		unmarshal: unmarshal,
 		onErr:     onErr,
 	}
+
+	p.machine = stateless.NewStateMachineWithExternalStorage(p.getState, p.setState, stateless.FiringQueued)
+	configureMachine(p.machine)
+
+	return p
 }
 
-func (p *Pool) listen(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		return
+func (p *pool) listen(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
 
-	default:
-		streams, err := p.cli.XRead(ctx, &redis.XReadArgs{
-			Streams: []string{p.name, p.lastID},
-			Block:   0,
-		}).Result()
-		if err != nil {
-			p.onErr(err)
-		}
+		default:
+			streams, err := p.cli.XRead(ctx, &redis.XReadArgs{
+				Streams: []string{p.name, p.lastID},
+				Block:   0,
+			}).Result()
+			if err != nil {
+				p.onErr(err)
+			}
 
-		for _, s := range streams {
-			if s.Stream == p.name {
-				for _, msg := range s.Messages {
-					val, ok := msg.Values[msgKeyData]
-					if !ok {
-						p.onErr(errors.New("message with no data"))
-
-					} else {
-						b := []byte(val.(string))
-
-						if val, ok := msg.Values[msgKeyAction]; !ok {
-							p.onErr(errors.New("message with no action"))
+			for _, s := range streams {
+				if s.Stream == p.name {
+					for _, msg := range s.Messages {
+						val, ok := msg.Values[msgKeyData]
+						if !ok {
+							p.onErr(errors.New("message with no data"))
 
 						} else {
-							item, err := p.unmarshal(b)
-							if err != nil {
-								p.onErr(fmt.Errorf("unmarshal '%s' pool item: %w", p.name, err))
+							b := []byte(val.(string))
+
+							if val, ok := msg.Values[msgKeyAction]; !ok {
+								p.onErr(errors.New("message with no action"))
 
 							} else {
-								i, err := strconv.Atoi(val.(string))
+								item, err := p.unmarshal(b)
 								if err != nil {
-									p.onErr(fmt.Errorf("unknown pool action: %s", val.(string)))
-								}
+									p.onErr(fmt.Errorf("unmarshal '%s' pool item: %w", p.name, err))
 
-								switch PoolAction(i) {
-								case PoolActionSet:
-									p.set(item)
+								} else {
+									i, err := strconv.Atoi(val.(string))
+									if err != nil {
+										p.onErr(fmt.Errorf("unknown pool action: %s", val.(string)))
+									}
 
-								case PoolActionDelete:
-									p.del(item)
+									switch poolAction(i) {
+									case poolActionSet:
+										p.mu.Lock()
+										p.val[item.ID()] = item
+										p.mu.Unlock()
 
-								default:
-									p.onErr(fmt.Errorf("unknown pool action: %d", i))
+									case poolActionDelete:
+										p.mu.Lock()
+										delete(p.val, item.ID())
+										p.mu.Unlock()
+
+									default:
+										p.onErr(fmt.Errorf("unknown pool action: %d", i))
+									}
 								}
 							}
 						}
-					}
 
-					p.mu.Lock()
-					p.lastID = msg.ID
-					p.mu.Unlock()
+						p.mu.Lock()
+						p.lastID = msg.ID
+						p.mu.Unlock()
+					}
 				}
 			}
 		}
 	}
 }
 
-func (p *Pool) ensureLatestData() (*redislock.Lock, error) {
+func (p *pool) ensureLatestData() (*redislock.Lock, error) {
 	lock, err := p.locker.Obtain(p.name+"_lock", 100*time.Millisecond, &redislock.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("obtain '%s' stream lock: %w", p.name, err)
@@ -127,7 +151,9 @@ func (p *Pool) ensureLatestData() (*redislock.Lock, error) {
 
 	lastID, err := p.cli.Get(context.Background(), p.name+"_lastID").Result()
 	if err != nil {
-		return nil, fmt.Errorf("get '%s' stream last message ID: %w", p.name, err)
+		if !errors.Is(err, redis.Nil) {
+			return nil, fmt.Errorf("get '%s' stream last message ID: %w", p.name, err)
+		}
 	}
 
 	tc := time.NewTimer(100 * time.Millisecond)
@@ -140,6 +166,7 @@ func (p *Pool) ensureLatestData() (*redislock.Lock, error) {
 			p.mu.Lock()
 
 			if p.lastID >= lastID {
+				p.mu.Unlock()
 				return lock, nil
 			}
 
@@ -148,25 +175,11 @@ func (p *Pool) ensureLatestData() (*redislock.Lock, error) {
 	}
 }
 
-func (p *Pool) set(item poolItem) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.val[item.ID()] = item
-}
-
-func (p *Pool) del(item poolItem) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	delete(p.val, item.ID())
-}
-
-func (p *Pool) SendMsg(ctx context.Context, action PoolAction, b []byte) error {
+func (p *pool) sendMsg(ctx context.Context, action poolAction, b []byte) error {
 	id, err := p.cli.XAdd(ctx, &redis.XAddArgs{
 		Stream: p.name,
 		Values: map[string]interface{}{
-			msgKeyAction: action,
+			msgKeyAction: int(action),
 			msgKeyData:   b,
 		},
 	}).Result()
@@ -181,11 +194,12 @@ func (p *Pool) SendMsg(ctx context.Context, action PoolAction, b []byte) error {
 	return nil
 }
 
-func (p *Pool) Get(id string) (interface{}, error) {
+func (p *pool) get(id string) (interface{}, error) {
 	lock, err := p.ensureLatestData()
 	if err != nil {
 		return nil, err
 	}
+
 	defer lock.Release()
 
 	p.mu.Lock()
@@ -199,7 +213,22 @@ func (p *Pool) Get(id string) (interface{}, error) {
 	return val, nil
 }
 
-func (p *Pool) List() ([]interface{}, error) {
+func (p *pool) set(ctx context.Context, item poolItem) error {
+	lock, err := p.ensureLatestData()
+	if err != nil {
+		return err
+	}
+	defer lock.Release()
+
+	b, err := p.marshal(item)
+	if err != nil {
+		return fmt.Errorf("marshal item: %w", err)
+	}
+
+	return p.sendMsg(ctx, poolActionSet, b)
+}
+
+func (p *pool) list() ([]interface{}, error) {
 	lock, err := p.ensureLatestData()
 	if err != nil {
 		return nil, err
@@ -215,4 +244,64 @@ func (p *Pool) List() ([]interface{}, error) {
 	}
 
 	return val, nil
+}
+
+func (p *pool) remove(ctx context.Context, item poolItem) error {
+	lock, err := p.ensureLatestData()
+	if err != nil {
+		return err
+	}
+	defer lock.Release()
+
+	b, err := p.marshal(item)
+	if err != nil {
+		return fmt.Errorf("marshal item: %w", err)
+	}
+
+	return p.sendMsg(ctx, poolActionDelete, b)
+}
+
+func (p *pool) getState(ctx context.Context) (stateless.State, error) {
+	id := ctx.Value(poolStateCtxKey).(string)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	item, ok := p.val[id]
+	if !ok {
+		return nil, ErrValueNotFound
+	}
+
+	return item.GetState(), nil
+}
+
+func (p *pool) setState(ctx context.Context, state stateless.State) error {
+	id := ctx.Value(poolStateCtxKey).(string)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	item, ok := p.val[id]
+	if !ok {
+		return ErrValueNotFound
+	}
+
+	item.SetState(state)
+
+	b, err := p.marshal(item)
+	if err != nil {
+		return fmt.Errorf("marshal pool item: %w", err)
+	}
+
+	if err := p.sendMsg(ctx, poolActionSet, b); err != nil {
+		return fmt.Errorf("update pool item state in redis: %w", err)
+	}
+
+	return nil
+}
+
+func (p *pool) fire(item poolItem, trigger stateless.Trigger) error {
+	ctx := context.WithValue(context.Background(), poolStateCtxKey, item.ID())
+
+	return p.machine.FireCtx(ctx, trigger)
 }

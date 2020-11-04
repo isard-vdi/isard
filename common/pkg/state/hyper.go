@@ -2,31 +2,28 @@
 
 package state
 
-import "github.com/qmuntal/stateless"
-
-type HyperState string
-
-const (
-	HyperStateUnknown   HyperState = "Unknown"
-	HyperStateReady     HyperState = "Ready"
-	HyperStateDown      HyperState = "Down"
-	HyperStateMigrating HyperState = "Migrating"
+import (
+	"github.com/qmuntal/stateless"
 )
 
-type HyperTrigger string
-
 const (
-	HyperTriggerUnknown           HyperTrigger = "Unknown"
-	HyperTriggerUnkownToReady     HyperTrigger = "UnknownToReady"
-	HyperTriggerUnkownToDown      HyperTrigger = "UnknownToDown"
-	HyperTriggerUnkownToMigrating HyperTrigger = "UnknownToMigrating"
-	HyperTriggerMigrating         HyperTrigger = "Migrating"
-	HyperTriggerDown              HyperTrigger = "Down"
-	HyperTriggerReady             HyperTrigger = "Ready"
+	HyperStateUnknown   = "Unknown"
+	HyperStateReady     = "Ready"
+	HyperStateDown      = "Down"
+	HyperStateMigrating = "Migrating"
 )
 
-func NewHyperState() *stateless.StateMachine {
-	m := stateless.NewStateMachine(HyperStateReady)
+const (
+	HyperTriggerUnknown           = "Unknown"
+	HyperTriggerUnkownToReady     = "UnknownToReady"
+	HyperTriggerUnkownToDown      = "UnknownToDown"
+	HyperTriggerUnkownToMigrating = "UnknownToMigrating"
+	HyperTriggerMigrating         = "Migrating"
+	HyperTriggerDown              = "Down"
+	HyperTriggerReady             = "Ready"
+)
+
+func NewHyperState(m *stateless.StateMachine) {
 	m.Configure(HyperStateReady).
 		Permit(HyperTriggerDown, HyperStateDown).
 		Permit(HyperTriggerMigrating, HyperStateMigrating).
@@ -44,6 +41,4 @@ func NewHyperState() *stateless.StateMachine {
 		Permit(HyperTriggerUnkownToReady, HyperStateReady).
 		Permit(HyperTriggerUnkownToMigrating, HyperStateMigrating).
 		Permit(HyperTriggerUnkownToDown, HyperStateDown)
-
-	return m
 }

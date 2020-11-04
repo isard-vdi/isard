@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/qmuntal/stateless"
 	"gitlab.com/isard/isardvdi/common/pkg/state"
 )
 
 func main() {
-	m := state.NewHyperState()
+	m := stateless.NewStateMachine(state.HyperStateReady)
+	state.NewHyperState(m)
 
 	cmd := exec.Command("dot", "-T", "svg", "-o", "hyper.svg")
 	cmd.Stdin = bytes.NewReader([]byte(m.ToGraph()))

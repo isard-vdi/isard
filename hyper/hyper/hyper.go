@@ -1,8 +1,13 @@
 package hyper
 
 import (
+	"context"
 	"fmt"
+	"os"
 
+	"github.com/go-redis/redis/v8"
+	"gitlab.com/isard/isardvdi/common/pkg/pool"
+	"gitlab.com/isard/isardvdi/common/pkg/state"
 	"libvirt.org/libvirt-go"
 )
 
@@ -46,24 +51,94 @@ type Interface interface {
 // Hyper is the implementation of the hyper Interface
 type Hyper struct {
 	conn *libvirt.Connect
+
+	host       string
+	domEventID int
+
+	hypers   *pool.HyperPool
+	desktops *pool.DesktopPool
+}
+
+func init() {
 }
 
 // New creates a new Hyper and connects to the libvirt daemon
-func New(uri string) (*Hyper, error) {
+func New(ctx context.Context, redis *redis.Client, uri, host string) (*Hyper, error) {
 	if uri == "" {
 		uri = "qemu:///system"
 	}
+
+	if host == "" {
+		var err error
+		host, err = os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("get hostname: %w", err)
+		}
+	}
+
+	if err := libvirt.EventRegisterDefaultImpl(); err != nil {
+		return nil, fmt.Errorf("register libvirt events: %w", err)
+	}
+
+	go func() {
+		if err := libvirt.EventRunDefaultImpl(); err != nil {
+			panic(err)
+		}
+	}()
 
 	conn, err := libvirt.NewConnect(uri)
 	if err != nil {
 		return nil, fmt.Errorf("connect to libvirt: %w", err)
 	}
 
-	return &Hyper{conn}, nil
+	h := &Hyper{
+		conn: conn,
+		host: host,
+
+		hypers:   pool.NewHyperPool(ctx, redis),
+		desktops: pool.NewDesktopPool(ctx, redis),
+	}
+
+	domEventID, err := conn.DomainEventLifecycleRegister(nil, func(c *libvirt.Connect, d *libvirt.Domain, event *libvirt.DomainEventLifecycle) {
+		// TODO: This isn't working :(
+		fmt.Println(event)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("register desktop events handler: %w", err)
+	}
+
+	h.domEventID = domEventID
+
+	return h, nil
 }
 
 // Close closes the libvirt connection with the hypervisor
 func (h *Hyper) Close() error {
-	_, err := h.conn.Close()
-	return err
+	h.conn.DomainEventDeregister(h.domEventID)
+
+	h.conn.Close()
+
+	hyper, err := h.hypers.Get(h.host)
+	if err != nil {
+		return err
+	}
+
+	// TODO: There are two messages sent to redis
+	if err := h.hypers.Fire(hyper, state.HyperStateDown); err != nil {
+		if err := h.hypers.Fire(hyper, state.HyperStateUnknown); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *Hyper) Ready() error {
+	hyper := &pool.Hyper{Host: h.host}
+	hyper.SetState(state.HyperStateReady)
+	if err := h.hypers.Set(context.Background(), hyper); err != nil {
+		return fmt.Errorf("register hypervisor in redis: %w", err)
+	}
+
+	return nil
 }
