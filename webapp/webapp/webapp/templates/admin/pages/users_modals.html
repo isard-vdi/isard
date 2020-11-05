@@ -1208,7 +1208,9 @@
                         </div>
                      </div>
 
-                     {% include '/snippets/limits_edit.html' %} 
+                    {% with type="limits" %}
+                        {% include '/snippets/quota_edit.html' %}
+                    {% endwith %}
 
 				</div>
 			  </div>

@@ -45,3 +45,9 @@
   background-color: blue;
   color: white;
 }
+
+.quota-form-input {
+  width: 100% !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

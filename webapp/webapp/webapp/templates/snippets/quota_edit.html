@@ -1,52 +1,62 @@
+{% if type is not defined %}
+    {% set type = 'quota' %}
+{% endif %}
 <div class="x_content found">
     <div class="row">
         <div class="x_panel">
-
             <div class="col-xs-3 form-group">
                 <label>Desktops</label>
-                <input id="quota-desktops" name="quota-desktops" class="form-control" disabled value="1" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+		<input id="{{ type }}-desktops" name="{{ type }}-desktops" class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>
             <div class="col-xs-3 form-group">
                 <label>Concurrent</label>
-                <input id="quota-running" name="quota-running" class="form-control" disabled value="1" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-running" name="{{ type }}-running" class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>
             <div class="col-xs-3 form-group">
                 <label>vCPU</label>
-                <input id="quota-vcpus" name="quota-vcpus" class="form-control col-md-7 col-xs-12" disabled value="1" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-vcpus" name="{{ type }}-vcpus" class="form-control col-md-7 col-xs-12 roundbox quota-form-input" disabled value="1" min="0"maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>
             <div class="col-xs-3 form-group">
                 <label>Memory(GB)</label>
-                <input id="quota-memory" name="quota-memory" class="form-control col-md-7 col-xs-12" disabled value="2" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-memory" name="{{ type }}-memory" class="form-control col-md-7 col-xs-12 roundbox quota-form-input" disabled value="2" min="0"maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>
             <div class="col-xs-3 form-group">
                 <label>Disk size(GB)</label>
-                <input id="quota-desktops_disk_size" name="quota-desktops_disk_size" class="form-control" disabled value="40" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-desktops_disk_size" name="{{ type }}-desktops_disk_size" class="form-control roundbox quota-form-input" disabled value="40" min="0"maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>                   
         </div>
 
         <div class="x_panel">
             <div class="col-xs-3 form-group">
                 <label>Templates</label>
-                <input id="quota-templates" name="quota-templates" class="form-control" disabled value="0" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-templates" name="{{ type }}-templates" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>
             <div class="col-xs-3 form-group" style="display:none">
                 <label>Disk size(GB)</label>
-                <input id="quota-templates_disk_size" name="quota-templates_disk_size" class="form-control" disabled value="0" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-templates_disk_size" name="{{ type }}-templates_disk_size" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>                   
         </div>    
 
         <div class="x_panel">
             <div class="col-xs-3 form-group">
                 <label>Isos</label>
-                <input id="quota-isos" name="quota-isos" class="form-control" disabled value="0" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-isos" name="{{ type }}-isos" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>
             <div class="col-xs-3 form-group" style="display:none">
                 <label>Disk size(GB)</label>
-                <input id="quota-isos_disk_size" name="quota-isos_disk_size" class="form-control" disabled value="0" min="0" class="roundbox" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                <input id="{{ type }}-isos_disk_size" name="{{ type }}-isos_disk_size" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
             </div>                
         </div> 
-
+{% if type == 'limits' %}
+        <div class="x_panel">
+            <div class="col-xs-3 form-group">
+                <label>Users</label>
+                <input id="{{ type }}-users" name="{{ type }}-users" class="form-control roundbox quota-form-input" disabled value="5" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+            </div>
+        </div>
+{% endif %}
     </div>                   
 </div>
-
-<script src="/isard-admin/static/js/snippets/quota.js"></script> 
+{% if type == 'quota' %}
+<script src="/isard-admin/static/js/snippets/quota.js"></script>
+{% endif %}
