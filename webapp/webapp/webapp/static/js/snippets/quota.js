@@ -49,7 +49,7 @@
 
 			if(usrquota.quota != false){
 				$(parentid+"#unlimited").removeAttr('checked').iCheck('update');
-				disabled=false
+				enable=true
 				$(parentid+"#quota-desktops").val(usrquota.quota.desktops);
 				$(parentid+"#quota-desktops_disk_size").val(usrquota.quota.desktops_disk_size);
 				$(parentid+"#quota-running").val(usrquota.quota.running);	
@@ -61,10 +61,10 @@
 				$(parentid+"#quota-vcpus").val(usrquota.quota.vcpus);	
 			}else{
 				$(parentid+"#unlimited").iCheck('check');  
-				disabled=true
+				enable=false
 			}
 
-			if(disabled == false){
+			if(disabled == false && enable == true){
 				quotaEnable(parentid+' #quota-')
 			}else{
 				quotaDisable(parentid+' #quota-')
@@ -97,7 +97,7 @@
 
 			if(usrquota.limits != false){
 				$(parentid+"#unlimited").removeAttr('checked').iCheck('update');
-				disabled=false
+				enable=true
 				$(parentid+"#limits-users").val(usrquota.limits.users);	
 				$(parentid+"#limits-desktops").val(usrquota.limits.desktops);
 				$(parentid+"#limits-desktops_disk_size").val(usrquota.limits.desktops_disk_size);				
@@ -110,11 +110,11 @@
 				$(parentid+"#limits-vcpus").val( usrquota.limits.vcpus);	
 			}else{
 				$(parentid+"#unlimited").iCheck('check');  
-				disabled=true
+				enable=false
 				      
 			}
 
-			if(disabled == false){
+			if(disabled == false && enable == true){
 				quotaEnable(parentid+' #limits-')
 			}else{
 				quotaDisable(parentid+' #limits-')
