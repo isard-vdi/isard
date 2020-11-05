@@ -46,7 +46,9 @@
                               <div class="col-md-12">
                                 <div id="show-users-limits" class="show-users-limits-d.id"style="padding: 5px;">
                                  <p style="font-size: 18px;margin-bottom:0px;">Limits for this user category</p>
-                                 {% include '/snippets/limits_edit.html' %}
+                                {% with type="limits" %}
+                                    {% include '/snippets/quota_edit.html' %}
+                                {% endwith %}
                                 </div>
                               </div>                                                     
                           </div>                            
