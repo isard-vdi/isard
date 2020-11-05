@@ -49,11 +49,17 @@ func (i *Isard) UserLoad(u *model.User) error {
 }
 
 func (i *Isard) UserUpdate(u *model.User) error {
-	req, err := http.NewRequest(http.MethodPut, i.url("user/"+u.ID()), strings.NewReader(url.Values{
-		"name":  {u.Name},
+	if u.Name == "" || u.Email == "" {
+		return nil
+	}
+	params := url.Values{
+		"name": {u.Name},
 		"email": {u.Email},
-		"photo": {u.Photo},
-	}.Encode()))
+	}
+	if u.Photo != "" {
+		params.Add("photo", u.Photo)
+	}
+	req, err := http.NewRequest(http.MethodPut, i.url("user/"+u.ID()), strings.NewReader(params.Encode()))
 	if err != nil {
 		i.sugar.Errorw("update user: create request",
 			"err", err,
