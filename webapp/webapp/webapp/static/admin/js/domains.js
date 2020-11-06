@@ -250,6 +250,7 @@ $(document).ready(function() {
                 setDomainDetailButtonsStatus(row.data().id,row.data().status)
                 //if(row.data().status=='Stopped' || row.data().status=='Started' || row.data().status=='Failed'){
                     //~ setDomainGenealogy(row.data().id);
+                    setDomainHotplug(row.data().id, row.data());
                     setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
                     if(url!="Desktops"){
                         setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
