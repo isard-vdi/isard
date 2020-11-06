@@ -343,6 +343,7 @@ function actionsUserDetail(){
                 $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
                 $('#modalEditUserForm #group option:selected').prop("selected", false);
                 $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);                
+                $('#modalEditUserForm').parsley().validate();
             });
             setQuotaMax('#edit-users-quota',kind='user',id=pk,disabled=false);
 	});
