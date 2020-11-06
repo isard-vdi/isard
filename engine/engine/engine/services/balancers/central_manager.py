@@ -26,8 +26,8 @@ class CentralManager(BalancerInterface):
         if self.thread_refresh_stats.is_alive():
             self._stop_refresh_stats()
 
-    def get_next(self, args):
-        domain_id = args.get("domain_id")
+    def get_next(self, **kwargs):
+        domain_id = kwargs.get("domain_id")
         for hyp_id, hyp in self.hyps.items():
             cpu_free, cpu_power, cpu_ratio, ram_free = self._get_stats(hyp)
             ps = self._calcule_ps(cpu_free, cpu_power, cpu_ratio, ram_free)
