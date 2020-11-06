@@ -22,7 +22,7 @@ type HyperCapabilites struct {
 	GPU        bool
 }
 
-func (h *Hyper) ID() string {
+func (h *Hyper) GetID() string {
 	return h.Host
 }
 

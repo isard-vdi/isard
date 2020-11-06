@@ -13,14 +13,14 @@ const destkopStreamName = "desktops"
 type DesktopState int
 
 type Desktop struct {
-	Id  string
+	ID  string
 	XML string
 
 	StateMachine *stateless.StateMachine
 }
 
-func (d *Desktop) ID() string {
-	return d.Id
+func (d *Desktop) GetID() string {
+	return d.ID
 }
 
 type DesktopPool struct {

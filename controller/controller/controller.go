@@ -3,12 +3,14 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gitlab.com/isard/isardvdi/common/pkg/pool"
 	"gitlab.com/isard/isardvdi/common/pkg/proto"
 
 	desktopBuilderProto "gitlab.com/isard/isardvdi/desktopbuilder/pkg/proto"
 	hyperProto "gitlab.com/isard/isardvdi/hyper/pkg/proto"
+	orchestratorProto "gitlab.com/isard/isardvdi/orchestrator/pkg/proto"
 	"google.golang.org/grpc"
 )
 
@@ -17,10 +19,10 @@ type Interface interface {
 }
 
 type Controller struct {
-	desktopPool *pool.DesktopPool
+	desktops *pool.DesktopPool
 
-	hyperConn          *grpc.ClientConn
 	desktopBuilderConn *grpc.ClientConn
+	orchestratorConn   *grpc.ClientConn
 }
 
 func New() (*Controller, error) {
@@ -32,7 +34,7 @@ func (c *Controller) DesktopStart(ctx context.Context, id string) (*proto.Viewer
 	var xml string
 
 	// Check if the desktop is already started
-	d, err := c.desktopPool.Get(id)
+	d, err := c.desktops.Get(id)
 	if err != nil {
 		if !errors.Is(err, pool.ErrValueNotFound) {
 			panic(err)
@@ -47,12 +49,25 @@ func (c *Controller) DesktopStart(ctx context.Context, id string) (*proto.Viewer
 		}
 
 		// Ask for the hypervisor
+		orchestratorRsp, err := orchestratorProto.NewOrchestratorClient(c.orchestratorConn).GetHyper(ctx, &orchestratorProto.GetHyperRequest{
+			// TODO:
+			// desktopBuilderRsp.Persistent
+			// desktopBuilderRsp.GPU
+		})
+		if err != nil {
+			return nil, err
+		}
 
-		// Prepare the disk
+		// Prepare the disk(s)
 
 		// Start the desktop
-		hyperRsp, err := hyperProto.NewHyperClient(c.hyperConn).DesktopStart(ctx, &hyperProto.DesktopStartRequest{
-			Xml: "XML",
+		hyperConn, err := grpc.Dial(fmt.Sprintf("%s:%d", orchestratorRsp.Host, 1312), grpc.WithInsecure())
+		if err != nil {
+			// TODO: Set hyper to unknown?
+			return nil, fmt.Errorf("dial gRPC hypervisor: %w", err)
+		}
+		hyperRsp, err := hyperProto.NewHyperClient(hyperConn).DesktopStart(ctx, &hyperProto.DesktopStartRequest{
+			Xml: desktopBuilderRsp.Xml,
 		})
 		if err != nil {
 			return nil, err

@@ -51,7 +51,7 @@ func availableHypers(hypers []*pool.Hyper, opts *GetHyperOpts) []string {
 			}
 
 			if availHyp {
-				availHypers = append(availHypers, h.ID())
+				availHypers = append(availHypers, h.GetID())
 			}
 		}
 	}

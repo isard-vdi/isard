@@ -15,6 +15,7 @@ gen:
 test:
 	go test -cover -race ./...
 
+.PHONY: build
 build:
 	mkdir -p bin
 	go build -o bin/desktopbuilder-v$(VERSION) cmd/desktopbuilder/main.go

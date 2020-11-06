@@ -35,7 +35,7 @@ const (
 )
 
 type poolItem interface {
-	ID() string
+	GetID() string
 	GetState() stateless.State
 	SetState(stateless.State)
 }
@@ -118,12 +118,12 @@ func (p *pool) listen(ctx context.Context) {
 									switch poolAction(i) {
 									case poolActionSet:
 										p.mu.Lock()
-										p.val[item.ID()] = item
+										p.val[item.GetID()] = item
 										p.mu.Unlock()
 
 									case poolActionDelete:
 										p.mu.Lock()
-										delete(p.val, item.ID())
+										delete(p.val, item.GetID())
 										p.mu.Unlock()
 
 									default:
@@ -301,7 +301,7 @@ func (p *pool) setState(ctx context.Context, state stateless.State) error {
 }
 
 func (p *pool) fire(item poolItem, trigger stateless.Trigger) error {
-	ctx := context.WithValue(context.Background(), poolStateCtxKey, item.ID())
+	ctx := context.WithValue(context.Background(), poolStateCtxKey, item.GetID())
 
 	return p.machine.FireCtx(ctx, trigger)
 }
