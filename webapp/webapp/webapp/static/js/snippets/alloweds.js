@@ -12,12 +12,12 @@
                     $.each(alloweds,function(key, value) 
                     {   
                         if(value){
-			    var values=""
+			    var values=[];
 			    value.forEach(function(data)
-			    {            
-				values=values+data.text+','                      
+			    {
+				values.push(data.name);
 			    });			    
-			    $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+values+'</td></tr>');
+			    $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+values.join(', ')+'</td></tr>');
                         }
 
                     });
