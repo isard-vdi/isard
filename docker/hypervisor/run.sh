@@ -24,4 +24,5 @@ echo "Checking hypervisor..."
 echo "[1/1] basic domain start..."
 virsh create checks/domain.xml
 virsh destroy domain
+ssh-keygen -A -f /usr/local/
 /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config

@@ -128,12 +128,13 @@ RUN ln -s /usr/local/bin/qemu-img /usr/bin/qemu-img
 
 # SSH configuration
 RUN echo "root:isard" |chpasswd
-RUN ssh-keygen -A
 RUN sed -i \
     -e 's|[#]*PermitRootLogin prohibit-password|PermitRootLogin yes|g' \
     -e 's|[#]*PasswordAuthentication yes|PasswordAuthentication yes|g' \
     -e 's|[#]*ChallengeResponseAuthentication yes|ChallengeResponseAuthentication yes|g' \
-    -e 's|[#]*UsePAM yes|UsePAM yes|g' /etc/ssh/sshd_config
+    -e 's|[#]*UsePAM yes|UsePAM yes|g' \
+    -e 's|[#]*\(HostKey \)\(/etc/ssh/.*\)$|\1/usr/local\2|' \
+    /etc/ssh/sshd_config
     
 # Libvirt configuration and certs
 RUN useradd -ms /bin/sh qemu
