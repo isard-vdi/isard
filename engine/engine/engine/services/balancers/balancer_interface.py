@@ -5,4 +5,4 @@
 # License: AGPLv3
 
 class BalancerInterface(object):
-    def get_next(self, args): raise NotImplementedError
+    def get_next(self, **kwargs): raise NotImplementedError
