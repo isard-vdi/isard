@@ -25,7 +25,13 @@ $(document).ready(function() {
         drawUserQuota(data);
     });
 
+    socket.on('desktop_delete', function(){
+	table['domains'].ajax.reload();
+    });
 
+    socket.on('media_delete', function(){
+	table['media'].ajax.reload();
+    });
 
     table['domains']=$('#domains_tbl').DataTable({
 			"ajax": {
