@@ -1,0 +1,5 @@
+version: "3.5"
+services:
+  isard-hypervisor:
+    ports:
+      - "5900-6899:5900-6899"
