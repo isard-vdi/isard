@@ -1,8 +1,4 @@
 isardvdi.cfg
-docker-compose.yml
-docker-compose.yml.devel
-hypervisor.yml
-web.yml
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
