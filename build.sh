@@ -31,6 +31,14 @@ else
     HYPER_YAMLS="-f ymls/isard-hypervisor.yml -f ymls/isard-hypervisor-vlans.yml"
 fi
 
+docker-compose \
+    -f ymls/isard-stats.yml \
+    config > docker-compose.stats.yml
+docker-compose \
+    -f docker-compose.stats.yml \
+    -f ymls/devel/isard-stats.yml.devel \
+    config > docker-compose.stats.devel.yml
+
 if [ -z $1 ]; then
     echo "Building docker-compose.yml..."
     docker-compose  -f ymls/isard-db.yml \
@@ -42,19 +50,25 @@ if [ -z $1 ]; then
             -f ymls/isard-squid.yml \
             -f ymls/isard-webapp.yml \
             -f ymls/isard-grafana.yml \
-            -f ymls/isard-stats.yml \
             -f ymls/isard-api.yml \
             -f ymls/isard-backend.yml \
-            config > docker-compose.yml
-        docker-compose -f docker-compose.yml \
+            config > docker-compose.no-stats.yml
+        docker-compose \
+                -f docker-compose.no-stats.yml \
                 -f ymls/devel/isard-db.yml.devel \
                 -f ymls/devel/isard-portal.yml.devel \
                 -f ymls/devel/isard-engine.yml.devel \
                 -f ymls/devel/isard-webapp.yml.devel \
-                -f ymls/devel/isard-stats.yml.devel \
                 -f ymls/devel/isard-api.yml.devel \
-                config > docker-compose.yml.devel
-    echo "You have the docker-compose.yml and docker-compose.yml.devel compose files. Have fun!"
+                config > docker-compose.no-stats.devel.yml
+    docker-compose \
+            -f docker-compose.no-stats.yml \
+            -f docker-compose.stats.yml \
+            config > docker-compose.yml
+    docker-compose \
+            -f docker-compose.no-stats.devel.yml \
+            -f docker-compose.stats.devel.yml \
+            config > docker-compose.devel.yml
     echo "You can download the prebuild images and bring it up:"
     echo "   docker-compose pull && docker-compose up -d"
     echo "Or build it yourself:"
@@ -67,24 +81,30 @@ if [[ $1 == "hypervisor" ]]; then
             $HYPER_YAMLS \
             -f ymls/isard-websockify.yml \
             -f ymls/isard-squid.yml \
-            -f ymls/isard-stats.yml \
-            config > hypervisor.yml
-        docker-compose -f hypervisor.yml \
-                -f ymls/devel/isard-stats.yml.devel \
-                config > devel-hypervisor.yml
-    echo "You have the hypervisor.yml and devel-hypervisor.yml compose files. Have fun!"
+            config > docker-compose.hypervisor.no-stats.yml
+    docker-compose \
+            -f docker-compose.hypervisor.no-stats.yml \
+            -f docker-compose.stats.yml \
+            config > docker-compose.hypervisor.yml
+    docker-compose \
+            -f docker-compose.hypervisor.no-stats.yml \
+            -f docker-compose.stats.devel.yml \
+            config > docker-compose.hypervisor.devel.yml
 fi
 
 if [[ $1 == "hypervisor-standalone" ]]; then
     echo "Building docker-compose.hypervisor-standalone.yml..."
     docker-compose $HYPER_YAMLS \
             -f ymls/isard-hypervisor-standalone.yml \
-            -f ymls/isard-stats.yml \
+            config > docker-compose.hypervisor-standalone.no-stats.yml
+    docker-compose \
+            -f docker-compose.hypervisor-standalone.no-stats.yml \
+            -f docker-compose.stats.yml \
             config > docker-compose.hypervisor-standalone.yml
-        docker-compose -f docker-compose.hypervisor-standalone.yml \
-                -f ymls/devel/isard-stats.yml.devel \
-                config > docker-compose.hypervisor-standalone.devel.yml
-    echo "You have the docker-compose.hypervisor-standalone.yml and docker-compose.hypervisor-standalone.devel.yml compose files. Have fun!"
+    docker-compose \
+            -f docker-compose.hypervisor-standalone.no-stats.yml \
+            -f docker-compose.stats.devel.yml \
+            config > docker-compose.hypervisor-standalone.devel.yml
 fi
 
 if [[ $1 == "video-standalone" ]]; then
@@ -92,12 +112,15 @@ if [[ $1 == "video-standalone" ]]; then
     docker-compose  -f ymls/isard-video.yml \
             -f ymls/isard-websockify.yml \
             -f ymls/isard-squid.yml \
-            -f ymls/isard-stats.yml \
+            config > docker-compose.video-standalone.no-stats.yml
+    docker-compose \
+            -f docker-compose.video-standalone.no-stats.yml \
+            -f docker-compose.stats.yml \
             config > docker-compose.video-standalone.yml
-        docker-compose -f docker-compose.video-standalone.yml \
-                -f ymls/devel/isard-stats.yml.devel \
-                config > docker-compose.video-standalone.devel.yml
-    echo "You have the docker-compose.video-standalone.yml and docker-compose.hypervisor-standalone.devel.yml compose files. Have fun!"
+    docker-compose \
+            -f docker-compose.video-standalone.no-stats.yml \
+            -f docker-compose.stats.devel.yml \
+            config > docker-compose.video-standalone.devel.yml
 fi
 
 if [[ $1 == "web" ]]; then
@@ -108,20 +131,26 @@ if [[ $1 == "web" ]]; then
             -f ymls/isard-portal.yml \
             -f ymls/isard-webapp.yml \
             -f ymls/isard-grafana.yml \
-            -f ymls/isard-stats.yml \
             -f ymls/isard-api.yml \
             -f ymls/isard-backend.yml \
-            config > web.yml
-        docker-compose -f web.yml \
+            config > docker-compose.web.no-stats.yml
+        docker-compose \
+                -f docker-compose.web.no-stats.yml \
                 -f ymls/devel/isard-db.yml.devel \
                 -f ymls/devel/isardvdi-portal.yml.devel \
                 -f ymls/devel/isard-engine.yml.devel \
                 -f ymls/devel/isard-webapp.yml.devel \
-                -f ymls/devel/isard-stats.yml.devel \
-                config > devel-web.yml
-    echo "You have the web.yml and devel-web.yml compose files. Have fun!"
+                config > docker-compose.web.no-stats.devel.yml
+    docker-compose \
+            -f docker-compose.web.no-stats.yml \
+            -f docker-compose.stats.yml \
+            config > docker-compose.web.yml
+    docker-compose \
+            -f docker-compose.web.no-stats.devel.yml \
+            -f docker-compose.stats.devel.yml \
+            config > docker-compose.web.devel.yml
 fi
 
 # Fix the context parameter in the docker-compose file
-sed -i "s|$(pwd)|.|g" docker-compose.yml
-sed -i "s|$(pwd)|.|g" docker-compose.yml.devel
+sed -i "s|$(pwd)|.|g" docker-compose*.yml
+echo "You have the docker-compose files. Have fun!"
