@@ -5,6 +5,7 @@ if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo "  <web> (only web, no hypevisor nor video)"
     echo "  <hypervisor> (only hypervisor with video)"
     echo "  <hypervisor-standalone> (only hypervisor without video)"
+    echo "  <video-standalone> (only video without hypervisor)"
     exit 1
 fi
 
@@ -84,6 +85,19 @@ if [[ $1 == "hypervisor-standalone" ]]; then
                 -f ymls/devel/isard-stats.yml.devel \
                 config > docker-compose.hypervisor-standalone.devel.yml
     echo "You have the docker-compose.hypervisor-standalone.yml and docker-compose.hypervisor-standalone.devel.yml compose files. Have fun!"
+fi
+
+if [[ $1 == "video-standalone" ]]; then
+    echo "Building video-standalone.yml..."
+    docker-compose  -f ymls/isard-video.yml \
+            -f ymls/isard-websockify.yml \
+            -f ymls/isard-squid.yml \
+            -f ymls/isard-stats.yml \
+            config > docker-compose.video-standalone.yml
+        docker-compose -f docker-compose.video-standalone.yml \
+                -f ymls/devel/isard-stats.yml.devel \
+                config > docker-compose.video-standalone.devel.yml
+    echo "You have the docker-compose.video-standalone.yml and docker-compose.hypervisor-standalone.devel.yml compose files. Have fun!"
 fi
 
 if [[ $1 == "web" ]]; then
