@@ -1,0 +1,7 @@
+version: "3.5"
+services:
+  isard-video:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/video/Dockerfile
+      target: production

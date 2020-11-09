@@ -3,8 +3,6 @@ services:
   isard-webapp:
     container_name: isard-webapp
     image: ${DOCKER_IMAGE_PREFIX}webapp:${DOCKER_IMAGE_TAG:-latest}
-    # ports:
-    #   - "5000:5000"
     networks:
       - isard-network
     restart: unless-stopped
@@ -12,10 +10,6 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard/backups:/isard/backups:rw
       - /opt/isard-local/logs/webapp:/isard/logs:rw
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: webapp/docker/Dockerfile
-      target: production
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webapp.middlewares=webapp-auth@docker,webapp-path@docker"
@@ -24,8 +18,3 @@ services:
       - "traefik.http.middlewares.webapp-path.stripprefix.prefixes=/debug/webapp"
     env_file:
       - .env
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network

@@ -10,14 +10,5 @@ services:
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: api/docker/Dockerfile
-      target: production
     env_file:
       - .env
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network
