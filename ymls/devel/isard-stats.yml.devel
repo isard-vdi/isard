@@ -2,7 +2,7 @@ version: '3.5'
 services:
   isard-stats:
     volumes:
-    - ${BUILD_ROOT_PATH}/docker/stats/stats:/stats
+    - ${BUILD_ROOT_PATH}/docker/stats/src:/src
       
 networks:
   isard-network:
