@@ -13,14 +13,5 @@ services:
       - /opt/isard/grafana/grafana/data:/grafana/data:rw
       - /opt/isard/grafana/graphite/conf:/opt/graphite/conf:rw
       - /opt/isard/grafana/graphite/storage:/opt/graphite/storage:rw
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/grafana/Dockerfile
-      target: production
     env_file:
       - .env
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network

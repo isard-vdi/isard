@@ -1,0 +1,7 @@
+version: "3.5"
+services:
+  isard-engine:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: engine/docker/Dockerfile
+      target: production

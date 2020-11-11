@@ -15,15 +15,5 @@ services:
     restart: unless-stopped
     volumes:
       - /opt/isard/certs/default/${HOSTNAME}:/certs:rw
-    #- /opt/isard/certs/viewers:/viewers:ro
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/video/Dockerfile
-      target: production
     env_file:
       - .env
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network

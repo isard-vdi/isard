@@ -13,14 +13,5 @@ services:
       - /opt/isard-local/logs/engine:/isard/logs:rw
     depends_on:
       - isard-db
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: engine/docker/Dockerfile
-      target: production
     env_file:
       - .env
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network

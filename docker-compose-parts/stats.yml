@@ -16,15 +16,5 @@ services:
       - /opt/isard/groups:/mnt/groups:ro
       - /opt/isard/media:/mnt/media:ro
       - /opt/isard/database:/mnt/database:ro
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/stats/Dockerfile
-      target: production
     env_file:
       - .env
-    #command: "sleep 100000000"
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network
