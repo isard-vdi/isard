@@ -108,7 +108,7 @@ class ApiDesktopsNonPersistent():
         if template == None:
             raise TemplateNotFound
         timestamp = time.strftime("%Y%m%d%H%M%S")
-        parsed_name=timestamp+'-'+_parse_string(template['name'])
+        parsed_name=(timestamp+'-'+_parse_string(template['name']))[:40]
 
         parent_disk=template['hardware']['disks'][0]['file']
         dir_disk = 'volatiles/'+category+'/'+group+'/'+user_id
