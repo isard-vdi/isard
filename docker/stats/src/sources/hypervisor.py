@@ -11,10 +11,17 @@ import socket
 c=Carbon()
 dbconn=RethinkDB()
 
-ip_squid = socket.gethostbyname('isard-squid')
-ip_websockify = socket.gethostbyname('isard-websockify')
-
 from lib.helpers import cu, execute
+
+try:
+    ip_squid = socket.gethostbyname('isard-squid')
+except:
+    ip_squid = None
+try:
+    ip_websockify = socket.gethostbyname('isard-websockify')
+except:
+    ip_websockify = None
+
 
 class Hypervisors():
     def __init__(self, interval=5):
@@ -63,8 +70,8 @@ class Hypervisors():
             port_ip = [a.split(':')[1] for a in out_ss.splitlines()]
             resum_connections = collections.Counter([i.split()[1] for i  in set(port_ip)])
 
-            viewers_spice = resum_connections[ip_squid]
-            viewers_websockify = resum_connections[ip_websockify]
+            viewers_spice = resum_connections.get(ip_squid, 0)
+            viewers_websockify = resum_connections.get(ip_websockify, 0)
             total_viewers = viewers_spice + viewers_websockify
             
             # ~ print({'domains':{'started':num_desktops},
