@@ -1,0 +1,5 @@
+version: "3.5"
+networks:
+  isard-network:
+    external: false
+    name: isard-network

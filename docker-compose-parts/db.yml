@@ -12,8 +12,3 @@ services:
     volumes:
     - /etc/localtime:/etc/localtime:ro
     - /opt/isard/database:/data:rw
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network
