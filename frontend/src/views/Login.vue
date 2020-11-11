@@ -1,7 +1,7 @@
 <template>
   <b-container fluid>
     <b-row id="admin" align-h="end">
-      <b-button href="/isard-admin" size="sm" variant="outline-secondary">Administració</b-button>
+      <b-button :href="'/isard-admin/login/' + category.id" size="sm" variant="outline-secondary">Administració</b-button>
     </b-row>
     <b-row id="login" align-h="center">
       <b-col sm="10" md="6" lg="5" xl="4">
