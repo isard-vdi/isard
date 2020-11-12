@@ -102,19 +102,19 @@ export default {
 
       if (macosPlatforms.indexOf(platform) !== -1) {
         os = 'MacOS'
-        text = `${os} és una plataforma sense suport, cal fer servir el navegador.`
+        text = this.$i18n.components.help.text.macos
       } else if (iosPlatforms.indexOf(platform) !== -1) {
         os = 'iOS'
-        text = `És necessari instal·lar un aplicatiu extern, amb el sistema operatiu ${os} cal instal·lar l'aplicatiu següent:`
+        text = this.$i18n.components.help.text.ios
       } else if (windowsPlatforms.indexOf(platform) !== -1) {
         os = 'Windows'
-        text = `És necessari instal·lar un aplicatiu extern, amb el sistema operatiu ${os} cal descarregar i executar un dels següents instal·ladors:`
+        text = this.$i18n.components.help.text.windows
       } else if (/Android/.test(userAgent)) {
         os = 'Android'
-        text = `És necessari instal·lar un aplicatiu extern, amb el sistema operatiu ${os} cal instal·lar l'aplicatiu següent:`
+        text = this.$i18n.components.help.text.android
       } else if (!os && /Linux/.test(platform)) {
         os = 'Linux'
-        text = `És necessari instal·lar un aplicatiu extern, amb el sistema operatiu ${os} cal executar les ordres següents:`
+        text = this.$i18n.components.help.text.linux
       }
       return {
         os: os,

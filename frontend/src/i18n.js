@@ -1,3 +1,4 @@
+import * as cookies from 'tiny-cookie'
 import Vue from 'vue'
 import VueI18n from 'vue-i18n'
 
@@ -17,7 +18,21 @@ function loadLocaleMessages () {
 }
 
 export default new VueI18n({
-  locale: process.env.VUE_APP_I18N_LOCALE || 'ca_ES',
-  fallbackLocale: process.env.VUE_APP_I18N_FALLBACK_LOCALE || 'en',
+  locale: getLocale(),
+  fallbackLocale: 'en',
   messages: loadLocaleMessages()
 })
+
+function getLocale () {
+  const sessionCookie = cookies.getCookie('language')
+  if (isNullOrUndefined(sessionCookie)) {
+    const lang = navigator.language || navigator.browserLanguage || (navigator.languages || ['en'])[0]
+    return lang.split('_')[0].split('-')[0]
+  }
+
+  return sessionCookie
+}
+
+function isNullOrUndefined (arg) {
+  return arg === null || arg === undefined || arg === 'undefined'
+}

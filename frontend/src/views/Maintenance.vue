@@ -7,9 +7,9 @@
           <b-img fluid style="max-width: 12rem; max
           -height: 16rem;" key="img" class="mt-n4"
           src="../assets/logo.svg"/>
-          <h1 key="title" class="mt-2">Actualment el servei d'Isard es troba en manteniment</h1>
-          <h2 key="text">El servei tornarà a estar disponible de 8:00h a 18:00h</h2>
-          <h2 key="text2">Disculpeu les molèsties</h2>
+          <h1 key="title" class="mt-2">{{ $t('views.maintenance.title') }}</h1>
+          <h2 key="text">{{ $t('views.maintenance.the-service') }}</h2>
+          <h2 key="text2">{{ $t('views.maintenance.sorry') }}</h2>
         </transition-group>
       </b-col>
       <b-col md="1"/>

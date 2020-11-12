@@ -1,32 +1,43 @@
 <template>
   <b-container fluid>
-    <b-row id="admin" align-h="end">
-      <b-button href="/isard-admin" size="sm" variant="outline-secondary">Administració</b-button>
+    <b-row id="header">
+      <b-col>
+        <Language />
+      </b-col>
+
+      <b-col>
+        <h2 id="title">
+          <img id="logo" src="@/assets/logo.svg" alt="IsardVDI logo. It's a head of an Isard" />
+          IsardVDI
+        </h2>
+      </b-col>
+
+      <b-col>
+        <b-button href="/isard-admin" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
+      </b-col>
     </b-row>
     <b-row id="login" align-h="center">
       <b-col sm="10" md="6" lg="5" xl="4">
-        <img id="logo" src="@/assets/logo.svg" alt="IsardVDI logo. It's a head of an Isard" />
-
-        <h1>IsardVDI | Iniciar Sessió</h1>
+        <h1>{{ $t('views.login.title') }}</h1>
         <h3 v-show="category.id !== 'default'">{{ category.name }}</h3>
 
         <b-form method="POST" :action="login('local')">
-          <b-form-input id="username" name="usr" type="text" required placeholder="Nom d'usuari" />
+          <b-form-input id="username" name="usr" type="text" required :placeholder="$t('views.login.form.usr')" />
 
           <b-form-input
             id="password"
             name="pwd"
             type="password"
             required
-            placeholder="Contrasenya"
+            :placeholder="$t('views.login.form.pwd')"
           />
 
-          <b-button id="submit" type="submit" variant="warning" size="lg">Iniciar sessió</b-button>
+          <b-button id="submit" type="submit" variant="warning" size="lg">{{ $t('views.login.form.login') }}</b-button>
         </b-form>
 
         <hr />
 
-        <p>O iniciar sessió amb</p>
+        <p>{{ $t('views.login.other-logins') }}</p>
 
         <b-button
           v-for="provider in socialLogin"
@@ -44,9 +55,13 @@
 
 <script>
 import { apiAxios } from '@/router/auth'
+import Language from '@/components/Language.vue'
 
 export default {
   name: 'login',
+  components: {
+    Language
+  },
   data () {
     return {
       category: {
@@ -75,7 +90,7 @@ export default {
     } catch (err) {
       console.error(err)
       if (err.response.status === 404) {
-        this.$router.push({ name: 'NotFound' })
+        // this.$router.push({ name: 'NotFound' })
       } else {
         this.$router.push({
           name: 'Error',
@@ -88,15 +103,20 @@ export default {
 </script>
 
 <style>
-#admin a {
-  margin-top: 25px;
-  margin-right: 25px;
+#header {
+  padding: 25px 25px 0 25px;
+  margin-bottom: 100px;
 }
 
 #logo {
-  width: 125px;
-  margin-top: 100px;
-  margin-bottom: 50px;
+  width: 50px;
+  margin-right: 12.5px;
+  margin-top: -20px;
+}
+
+#title {
+  font-weight: 700;
+  margin-top: 20px;
 }
 
 #login form {
