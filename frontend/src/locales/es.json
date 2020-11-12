@@ -12,11 +12,11 @@
             "worse-performance": "pero el rendimiento será peor",
             "simply": "Simplemente tienes que hacer click en el botón y se abrirá el escritorio virtual en una pestaña nueva",
             "text": {
-                "macos": "MacOS is an unsupported platform. You need to use the browser option",
-                "ios": "",
-                "windows": "",
-                "android": "",
-                "linux": ""
+                "macos": "macOS es una plataforma sin soporte, se tiene que utilizar el navegador.",
+                "ios": "Es necesario instalar un aplicativo externo, con el sistema operativo iOS se tiene que instalar el aplicativo siguiente:",
+                "windows": "Es necesario instalar un aplicativo externo, con el sistema operativo Windows se tiene que descargar i ejecutar uno los siguientes instaladores:",
+                "android": "Es necesario instalar un aplicativo externo, con el sistema operativo Android se tiene que instalar el siguiente aplicativo:",
+                "linux": "Es necesario instalar un aplicativo externo,  con el sistema operativo Linux se tienen que ejecutar las siguientes órdenes:"
             }
         },
         "not-found": {
@@ -26,6 +26,7 @@
     },
     "views": {
         "create-error": {
+            "error": "Error",
             "title": "Debido a un error, no hemos podido crear el escritorio virtual",
             "retry": "Volver a intentarlo"
         },
@@ -45,6 +46,62 @@
             "title": "La sesión ha caducado",
             "subtitle": "Para volver a utilizar el escritorio virtual, inicia sessión de nuevo",
             "button": "Iniciar sessión"
+        },
+        "landing": {
+            "title": {
+                "first-time": "¿Es la primera vez que utilizas Isard (servicio de escritorios remoto)? Haz click ",
+                "here": "aquí",
+                "view-guide": "para ver una guía"
+            },
+            "buttons": {
+                "local": {
+                    "title": "Cliente local",
+                    "description": "(Versión recomendada) Abrir el escritorio con el cliente local"
+                },
+                "browser": {
+                    "title": "Navegador",
+                    "description": "Abrir el escritorio en el navegador"
+                },
+                "logout": {
+                    "title": "Salir",
+                    "description": "Cerrar la sessión de escritorio"
+                }
+            }
+        },
+        "login": {
+            "admin": "Administración",
+            "title": "Iniciar Sessión",
+            "form": {
+                "usr": "Nombre de usuario",
+                "pwd": "Contraseña",
+                "login": "Iniciar sessión"
+            },
+            "other-logins": "O iniciar sessión con"
+        },
+        "maintenance": {
+            "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",
+            "the-service": "El servicio volverá a estar disponible en un rato",
+            "sorry": "Disculpen las molestias"
+        },
+        "not-found": {
+            "title": "No hemos encontrado la dirección solicitada",
+            "back": "Volver al inicio"
+        },
+        "register": {
+            "title": "Registro",
+            "code": "Código de registro",
+            "register": "Registrarse"
+        },
+        "select-template": {
+            "no-templates": {
+                "title": "No hay ninguna plantilla para éste usuario!",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "which-template": "¿Qué escritorio quieres usar?"
+        },
+        "welcome": {
+            "title": "Bienvenido a Isard, sistema de escritorios virtuales",
+            "button": "Identificarse"
         }
     }
 }

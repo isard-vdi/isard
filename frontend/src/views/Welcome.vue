@@ -6,10 +6,10 @@
         <transition-group appear name="fade">
           <b-img fluid style="max-width: 10rem; max
           -height: 14rem;" key="img" src="../assets/logo.svg"/>
-          <h1 key="title">Benvingut al sistema d'escriptoris virtuals</h1>
+          <h1 key="title">{{ $t('views.welcome.title') }}</h1>
           <b-button class="btn" key="button" variant="primary" size="lg" :href="login_url">
             <b-icon icon="unlock-fill" variant="white"></b-icon>
-            Identifiqueu-vos
+            {{ $t('views.welcome.button') }}
           </b-button>
         </transition-group>
       </b-col>

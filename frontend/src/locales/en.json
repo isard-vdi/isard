@@ -12,14 +12,15 @@
             "worse-performance": "but the performance is worse",
             "simply": "You simply need to click the button and it will open the virtual desktop in a new tab",
             "text": {
-                "macos": "MacOS is an unsupported platform. You need to use the browser option",
-                "ios": "",
-                "windows": "",
-                "android": "",
-                "linux": ""
+                "macos": "macOS is an unsupported platform. You need to use the browser option",
+                "ios": "An external application is required, with the operative system iOS, you need to install the following application:",
+                "windows": "An external application is required, with the operative system Windows, you need to download and install one of the following executable:",
+                "android": "An external application is required, with the operative system Android, you need to instal the following application:",
+                "linux": "An external application is required, with the operative system Linux, you need to run the following commands:"
             }
         },
         "not-found": {
+            "error": "Error",
             "title": "The requested address wasn't found",
             "home": "Go back"
         }
@@ -44,6 +45,62 @@
         "expired-session": {
             "title": "The session has expired",
             "subtitle": "In order to use the virtual desktop, login again",
+            "button": "Login"
+        },
+        "landing": {
+            "title": {
+                "first-time": "Is it the first time you use Isard (remote desktop service)? Click ",
+                "here": "here",
+                "view-guide": "to view a guide"
+            },
+            "buttons": {
+                "local": {
+                    "title": "Local client",
+                    "description": "(recommended version) Open the desktop with the local client"
+                },
+                "browser": {
+                    "title": "Browser",
+                    "description": "Open the desktop in the browser"
+                },
+                "logout": {
+                    "title": "Quit",
+                    "description": "Close the desktop session"
+                }
+            }
+        },
+        "login": {
+            "admin": "Administration",
+            "title": "Login",
+            "form": {
+                "usr": "Username",
+                "pwd": "Password",
+                "login": "Login"
+            },
+            "other-logins": "Or login with"
+        },
+        "maintenance": {
+            "title": "Currently, Isard service is under maintenance",
+            "the-service": "The service is going to be avaliable again in a few minutes",
+            "sorry": "Sorry for the inconvenience"
+        },
+        "not-found": {
+            "title": "We couldn't find the requested address",
+            "back": "Go back to the start"
+        },
+        "register": {
+            "title": "Sign Up",
+            "code": "Sign up code",
+            "register": "Sign up"
+        },
+        "select-template": {
+            "no-templates": {
+                "title": "There are no templates for this user!",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "which-template": "Which desktop do you want to use?"
+        },
+        "welcome": {
+            "title": "Welcome to Isard, virtual desktops service",
             "button": "Login"
         }
     }
