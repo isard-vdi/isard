@@ -1,4 +1,8 @@
 apt install firewalld fail2ban -y
+# Fixes bug in iptables 1.8
+echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/buster-backports.list
+apt update
+apt install -y iptables -t buster-backports
 
 #echo "Setting iptables to not use nf_tables"
 update-alternatives --set iptables /usr/sbin/iptables-legacy
