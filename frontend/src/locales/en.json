@@ -20,13 +20,13 @@
             }
         },
         "not-found": {
-            "error": "Error",
             "title": "The requested address wasn't found",
             "home": "Go back"
         }
     },
     "views": {
         "create-error": {
+            "error": "Error",
             "title": "We couldn't create the virtual desktop due to an error",
             "retry": "Retry"
         },
