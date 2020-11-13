@@ -4,7 +4,7 @@
             <b-col sm="10" md="6" lg="5" xl="4">
                 <img id="logo" src="@/assets/logo.svg" alt="IsardVDI logo. It's a head of an Isard" />
 
-                <h1>IsardVDI | {{ $t('views.register.title') }}</h1>
+                <h1>{{ $t('views.register.title') }}</h1>
 
                 <b-form method="POST" :action="register()">
                     <b-form-input
