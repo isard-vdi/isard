@@ -15,7 +15,8 @@ export default {
       langs: {
         ca: 'Català',
         en: 'English',
-        es: 'Castellano'
+        es: 'Castellano',
+        eu: 'Euskara'
       }
     }
   },
