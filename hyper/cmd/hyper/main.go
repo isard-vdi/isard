@@ -11,8 +11,8 @@ import (
 	"gitlab.com/isard/isardvdi/hyper/hyper"
 	"gitlab.com/isard/isardvdi/hyper/transport/grpc"
 
-	"github.com/go-redis/redis/v8"
 	"gitlab.com/isard/isardvdi/common/pkg/log"
+	"gitlab.com/isard/isardvdi/common/pkg/redis"
 )
 
 func main() {
@@ -23,12 +23,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	redis := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs:     []string{fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)},
-		Username: cfg.Redis.Usr,
-		Password: cfg.Redis.Pwd,
-	})
-
+	redis := redis.New(cfg.Redis.Cluster, cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Usr, cfg.Redis.Pwd)
 	if err := redis.Ping(ctx).Err(); err != nil {
 		log.Fatal().Err(err).Msg("connect to redis")
 	}

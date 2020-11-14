@@ -7,25 +7,13 @@ import (
 
 type Cfg struct {
 	Log     cfg.Log
-	Redis   Redis
+	Redis   cfg.Redis
 	Libvirt Libvirt
-	GRPC    GRPC
-}
-
-type Redis struct {
-	Host string
-	Port int
-	Usr  string
-	Pwd  string
+	GRPC    cfg.GRPC
 }
 
 type Libvirt struct {
 	URI string
-}
-
-type GRPC struct {
-	Host string
-	Port int
 }
 
 func New() Cfg {
@@ -37,17 +25,10 @@ func New() Cfg {
 }
 
 func setDefaults() {
-	viper.SetDefault("redis", map[string]interface{}{
-		"host": "",
-		"port": 6379,
-		"usr":  "",
-		"pwd":  "",
-	})
 	viper.SetDefault("libvirt", map[string]interface{}{
 		"uri": "",
 	})
-	viper.SetDefault("grpc", map[string]interface{}{
-		"host": "",
-		"port": 1312,
-	})
+
+	cfg.SetRedisDefaults()
+	cfg.SetGRPCDefaults()
 }

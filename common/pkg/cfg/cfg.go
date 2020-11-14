@@ -12,6 +12,27 @@ type Log struct {
 	Level string
 }
 
+type Redis struct {
+	Cluster bool
+	Host    string
+	Port    int
+	Usr     string
+	Pwd     string
+}
+
+type DB struct {
+	Host string
+	Port int
+	Usr  string
+	Pwd  string
+	DB   string
+}
+
+type GRPC struct {
+	Host string
+	Port int
+}
+
 func New(name string, setDefaults func(), target interface{}) {
 	viper.SetConfigName(strings.ToLower(name))
 
@@ -45,5 +66,31 @@ func setCommonDefaults() {
 	viper.SetDefault("log", map[string]interface{}{
 		"level": "info",
 	})
+}
 
+func SetRedisDefaults() {
+	viper.SetDefault("redis", map[string]interface{}{
+		"cluster": false,
+		"host":    "",
+		"port":    6379,
+		"usr":     "",
+		"pwd":     "",
+	})
+}
+
+func SetDBDefaults() {
+	viper.SetDefault("db", map[string]interface{}{
+		"host": "",
+		"port": 5432,
+		"usr":  "",
+		"pwd":  "",
+		"db":   "isard",
+	})
+}
+
+func SetGRPCDefaults() {
+	viper.SetDefault("grpc", map[string]interface{}{
+		"host": "",
+		"port": 1312,
+	})
 }

@@ -14,7 +14,7 @@ type Random struct {
 	hypers *pool.HyperPool
 }
 
-func NewRandom(ctx context.Context, redis *redis.Client) *Random {
+func NewRandom(ctx context.Context, redis redis.Cmdable) *Random {
 	return &Random{
 		hypers: pool.NewHyperPool(ctx, redis),
 	}
