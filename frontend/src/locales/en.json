@@ -20,13 +20,13 @@
             }
         },
         "not-found": {
-            "error": "Error",
             "title": "The requested address wasn't found",
             "home": "Go back"
         }
     },
     "views": {
         "create-error": {
+            "error": "Error",
             "title": "We couldn't create the virtual desktop due to an error",
             "retry": "Retry"
         },
@@ -80,7 +80,7 @@
         },
         "maintenance": {
             "title": "Currently, Isard service is under maintenance",
-            "the-service": "The service is going to be avaliable again in a few minutes",
+            "the-service": "The service is going to be available again in a few minutes",
             "sorry": "Sorry for the inconvenience"
         },
         "not-found": {

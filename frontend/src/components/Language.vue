@@ -13,9 +13,10 @@ export default {
   data () {
     return {
       langs: {
+        es: 'Castellano',
         ca: 'Català',
         en: 'English',
-        es: 'Castellano'
+        eu: 'Euskara'
       }
     }
   },
