@@ -43,7 +43,7 @@ type poolItem interface {
 type pool struct {
 	name string
 
-	cli    *redis.Client
+	cli    redis.Cmdable
 	locker *redislock.Client
 	lastID string
 
@@ -56,7 +56,7 @@ type pool struct {
 	onErr     func(err error)
 }
 
-func newPool(name string, cli *redis.Client, configureMachine func(*stateless.StateMachine), marshal func(poolItem) ([]byte, error), unmarshal func([]byte) (poolItem, error), onErr func(err error)) *pool {
+func newPool(name string, cli redis.Cmdable, configureMachine func(*stateless.StateMachine), marshal func(poolItem) ([]byte, error), unmarshal func([]byte) (poolItem, error), onErr func(err error)) *pool {
 	p := &pool{
 		name:   name,
 		cli:    cli,

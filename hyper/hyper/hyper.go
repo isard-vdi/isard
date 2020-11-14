@@ -63,7 +63,7 @@ func init() {
 }
 
 // New creates a new Hyper and connects to the libvirt daemon
-func New(ctx context.Context, redis *redis.Client, uri, host string) (*Hyper, error) {
+func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, error) {
 	if uri == "" {
 		uri = "qemu:///system"
 	}

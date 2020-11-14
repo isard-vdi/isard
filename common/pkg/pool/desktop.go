@@ -27,7 +27,7 @@ type DesktopPool struct {
 	pool *pool
 }
 
-func NewDesktopPool(ctx context.Context, cli *redis.Client) *DesktopPool {
+func NewDesktopPool(ctx context.Context, cli redis.Cmdable) *DesktopPool {
 	d := &DesktopPool{}
 	// d.pool = newPool(destkopStreamName, cli, d.marshal, d.unmarshal, d.onErr)
 

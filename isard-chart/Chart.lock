@@ -1,0 +1,9 @@
+dependencies:
+- name: redis-cluster
+  repository: https://charts.bitnami.com/bitnami
+  version: 4.0.0
+- name: postgresql-ha
+  repository: https://charts.bitnami.com/bitnami
+  version: 6.0.1
+digest: sha256:377abaa85af27a7353a62aefe6a56ba1b8039abb5c78904ff1308ed1a0f68cf1
+generated: "2020-11-13T12:12:17.701596746+01:00"

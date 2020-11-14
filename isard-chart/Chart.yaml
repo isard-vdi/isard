@@ -1,0 +1,28 @@
+apiVersion: v2
+name: isard
+type: application
+version: 0.1.0
+appVersion: 3.0.0
+description: A Helm chart for IsardVDI
+home: https://isardvdi.com
+sources:
+  - https://gitlab.com/isard/isardvdi
+dependencies:
+  - name: redis-cluster
+    repository: https://charts.bitnami.com/bitnami
+    version: 4.0.0
+  - name: postgresql-ha
+    repository: https://charts.bitnami.com/bitnami
+    version: 6.0.1
+maintainers:
+  - name: Néfix Estrada
+    email: nefixestrada@gmail.com
+keywords:
+  - Isard
+  - VDI
+  - IsardVDI
+  - Virtualization
+  - Virt
+  - Desktop virtualization
+  - Virtual machines
+  - Libvirt

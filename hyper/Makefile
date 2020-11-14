@@ -13,6 +13,7 @@ gen:
 test:
 	go test -cover -race ./...
 
+.PHONY: build
 build:
 	mkdir -p bin
 	go build -o bin/hyper-v$(VERSION) cmd/hyper/main.go

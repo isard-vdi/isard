@@ -23,8 +23,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	redis := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+	redis := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:     []string{fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)},
 		Username: cfg.Redis.Usr,
 		Password: cfg.Redis.Pwd,
 	})
