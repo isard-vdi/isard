@@ -1,0 +1,5 @@
+version: '3.5'
+services:
+  isard-hypervisor:
+    volumes:
+    - ${BUILD_ROOT_PATH}/docker/hypervisor/supervisor.conf/:/supervisord.conf

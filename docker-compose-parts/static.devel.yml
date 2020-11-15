@@ -4,8 +4,3 @@ services:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/static/spice-web-client:/usr/share/nginx/html/static/spice-web-client
     - ${BUILD_ROOT_PATH}/docker/static/noVNC:/usr/share/nginx/html/static/noVNC
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network      
