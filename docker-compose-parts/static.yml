@@ -6,12 +6,3 @@ services:
     networks:
       - isard-network
     restart: unless-stopped
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/static/Dockerfile
-      target: production
-
-networks:
-  isard-network:
-    external: false
-    name: isard-network

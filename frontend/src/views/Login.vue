@@ -10,7 +10,7 @@
       </b-col>
 
       <b-col>
-        <b-button href="/isard-admin" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
+        <b-button :href="'/isard-admin/login/' + category.id" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
       </b-col>
     </b-row>
     <b-row id="login" align-h="center">
