@@ -69,15 +69,4 @@ database/
 .env
 tetris/.env
 
-/*.yml
-ymls/.env
-
-# ISARDVDI FOLDER
-isardvdi/*.yml
-isardvdi/webapp
-isardvdi/ymls
-isardvdi/docker
-isardvdi/engine
-isardvdi/webapp
-isardvdi/websockify
-
+/docker-compose*.yml

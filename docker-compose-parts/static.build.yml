@@ -1,0 +1,7 @@
+version: "3.5"
+services:
+  isard-static:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/static/Dockerfile
+      target: production
