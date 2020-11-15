@@ -48,6 +48,8 @@ spec:
           env:
             - name: HYPER_GRPC_PORT
               value: {{ .Values.service.port | quote}}
+            - name: HYPER_REDIS_CLUSTER
+              value: "true"
             - name: HYPER_REDIS_HOST
               value: {{ .Release.Name }}-redis-cluster
             - name: HYPER_REDIS_PWD

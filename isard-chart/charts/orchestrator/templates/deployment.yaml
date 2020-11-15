@@ -48,6 +48,8 @@ spec:
           env:
             - name: ORCHESTRATOR_GRPC_PORT
               value: {{ .Values.service.port | quote}}
+            - name: ORCHESTRATOR_REDIS_CLUSTER
+              value: "true"
             - name: ORCHESTRATOR_REDIS_HOST
               value: {{ .Release.Name }}-redis-cluster
             - name: ORCHESTRATOR_REDIS_PWD

@@ -81,8 +81,10 @@ func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, er
 	}
 
 	go func() {
-		if err := libvirt.EventRunDefaultImpl(); err != nil {
-			panic(err)
+		for {
+			if err := libvirt.EventRunDefaultImpl(); err != nil {
+				panic(err)
+			}
 		}
 	}()
 
@@ -108,6 +110,10 @@ func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, er
 	}
 
 	h.domEventID = domEventID
+
+	if err := conn.SetKeepAlive(5, 3); err != nil {
+		return nil, fmt.Errorf("set libvirt keepalive: %w", err)
+	}
 
 	return h, nil
 }
