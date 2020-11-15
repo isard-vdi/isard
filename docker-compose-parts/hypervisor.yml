@@ -16,13 +16,5 @@ services:
       - /opt/isard/hypervisor/sshd_keys:/usr/local/etc/ssh:rw
       - /opt/isard:/isard:rw
       - /opt/isard-local/sockets/:/var/run/libvirt/
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/hypervisor/Dockerfile
-      target: production
     env_file:
       - .env
-networks:
-  isard-network:
-    external: false
-    name: isard-network

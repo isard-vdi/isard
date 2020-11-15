@@ -3,8 +3,3 @@ services:
   isard-stats:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/stats/src:/src
-      
-networks:
-  isard-network:
-    external: false
-    name: isard-network
