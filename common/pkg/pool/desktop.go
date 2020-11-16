@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/qmuntal/stateless"
+	"gitlab.com/isard/isardvdi/common/pkg/state"
 )
 
 const destkopStreamName = "desktops"
