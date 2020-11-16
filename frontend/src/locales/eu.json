@@ -1,0 +1,107 @@
+{
+    "components": {
+        "help": {
+            "close-guide": "Itxi gida",
+            "local-client": "Tokiko bezeroa erabiltzea (gomendatua)",
+            "best-performance": "Errendimendu onena duen aukera da",
+            "install": "Instalatu",
+            "other-windows-versions": "Windowsen beste bertsio batzuk",
+            "once-installed": "Instalatu ondoren, 'Tokiko bezeroa' botoian klik egin behar duzu, eta mahaigain birtualeko fitxategia deskargatuko da.",
+            "use-browser": "Nabigatzailea erabiltzea",
+            "no-install": "Ez da beharrezkoa kanpoko aplikaziorik instalatzea, ",
+            "worse-performance": "Baina errendimendua okerragoa izango da",
+            "simply": "Botoian klik egin besterik ez duzu egin behar, eta mahaigain birtuala beste erlaitz batean irekiko da.",
+            "text": {
+                "macos": "MacOS euskarririk gabeko plataforma bat da, nabigatzailea erabili behar da.",
+                "ios": "Beharrezkoa da kanpoko aplikazio bat instalatzea; iOS sistema eragilearekin honako aplikazio hau instalatu behar da:",
+                "windows": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Windows sistema eragilearekin honako instalatzaile hauek deskargatu eta exekutatu behar dira:",
+                "android": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Android sistema eragilearekin honako aplikazio hau instalatu behar da:",
+                "linux": "Kanpoko aplikazio bat instalatu behar da, eta Linux sistema eragilearekin honako agindu hauek exekutatu behar dira:"
+            }
+        },
+        "not-found": {
+            "title": "Ez dugu aurkitu eskatutako helbidea",
+            "home": "Itzuli hasierara"
+        }
+    },
+    "views": {
+        "create-error": {
+            "error": "Akats",
+            "title": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu",
+            "retry": "Saiatu berriro"
+        },
+        "creating": {
+            "title": "Mahaigain birtuala sortzen",
+            "subtitle": "Prozesu horrek segundo batzuk iraun ditzake."
+        },
+        "error": {
+            "title": "Akats",
+            "codes": {
+                "401": "Zure taldeak ez du baimenik orrialde honetan sartzeko",
+                "403": "Ez duzu baimenik orri honetan sartzeko",
+                "500": "Ustekabeko errorea"
+            }
+        },
+        "expired-session": {
+            "title": "Saioa iraungi egin da",
+            "subtitle": "Mahaigain birtuala berriz erabiltzeko, hasi berriro sesioa",
+            "button": "Hasi sesioa"
+        },
+        "landing": {
+            "title": {
+                "first-time": "Isard (urruneko mahaigainen zerbitzua) erabiltzen duzun lehen aldia al da? Egin klik ",
+                "here": "hemen",
+                "view-guide": "gida bat ikusteko"
+            },
+            "buttons": {
+                "local": {
+                    "title": "Tokiko bezeroa",
+                    "description": "(Bertsio gomendatua) Ireki mahaigaina bertako bezeroarekin"
+                },
+                "browser": {
+                    "title": "Nabigatzaile",
+                    "description": "Mahaigaina nabigatzailean irekitzea"
+                },
+                "logout": {
+                    "title": "Irten",
+                    "description": "Mahaigaineko saioa ixtea"
+                }
+            }
+        },
+        "login": {
+            "admin": "Administrazio",
+            "title": "Hasi saioa",
+            "form": {
+                "usr": "Erabiltzailearen izena",
+                "pwd": "Pasahitza",
+                "login": "Hasi saioa"
+            },
+            "other-logins": "O-kin hasi saioa"
+        },
+        "maintenance": {
+            "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
+            "the-service": "Zerbitzua berehala egongo da erabilgarri.",
+            "sorry": "barkatu eragozpenak"
+        },
+        "not-found": {
+            "title": "Ez dugu aurkitu eskatutako helbidea",
+            "back": "Itzuli hasierara"
+        },
+        "register": {
+            "title": "Erregistroa",
+            "code": "Erregistro-kodea",
+            "register": "Izena eman"
+        },
+        "select-template": {
+            "no-templates": {
+                "title": "Ez dago txantiloirik erabiltzaile honentzat!",
+                "subtitle": "Akatsa dela uste baduzu, jarri harremanetan administratzailearekin"
+            },
+            "which-template": "Zer idazmahai erabili nahi duzu?"
+        },
+        "welcome": {
+            "title": "Ongi etorri Isardera, mahaigain birtualen sistemara",
+            "button": "Identifikatu"
+        }
+    }
+}

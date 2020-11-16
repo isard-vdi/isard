@@ -13,7 +13,7 @@
                     ></b-icon>
                     <b-icon stacked icon="tv" variant="dark" scale="2"></b-icon>
                 </b-iconstack>
-                <h1 class="mt-2">Error</h1>
+                <h1 class="mt-2">{{ $t('views.create-error.error') }}</h1>
                 <h3>{{ $t('views.create-error.title') }}</h3>
                 <b-button @click="redirectCreating()" class="btn mt-4" variant="primary" size="lg">
                     <b-icon icon="arrow-clockwise" variant="white"></b-icon>

@@ -12,11 +12,11 @@
             "worse-performance": "però el rendiment serà pitjor",
             "simply": "Simplement has de fer click al botó i s'obrirà l'escriptori virtual en una pestanya nova",
             "text": {
-                "macos": "MacOS is an unsupported platform. You need to use the browser option",
-                "ios": "",
-                "windows": "",
-                "android": "",
-                "linux": ""
+                "macos": "macOS és una plataforma sense suport, cal fer servir el navegador.",
+                "ios": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu iOS cal instal·lar l'aplicatiu següent:",
+                "windows": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Windows cal descarregar i executar un dels següents instal·ladors:",
+                "android": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Android cal instal·lar l'aplicatiu següent:",
+                "linux": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Linux cal executar les ordres següents:"
             }
         },
         "not-found": {
@@ -26,6 +26,7 @@
     },
     "views": {
         "create-error": {
+            "error": "Error",
             "title": "Degut a un error, no hem pogut crear l'escriptori virtual",
             "retry": "Tornar-ho a intentar"
         },
@@ -45,6 +46,62 @@
             "title": "La sessió ha caducat",
             "subtitle": "Per a tornar a utilitzar l'escriptori virtual, inicia sessió de nou",
             "button": "Iniciar sessió"
+        },
+        "landing": {
+            "title": {
+                "first-time": "És el primer cop que fas servir Isard (servei d'escriptori remot)? Fes click ",
+                "here": "aquí",
+                "view-guide": "per veure una guia"
+            },
+            "buttons": {
+                "local": {
+                    "title": "Client local",
+                    "description": "(Versió recomanada) Obrir l'escriptori amb el client local"
+                },
+                "browser": {
+                    "title": "Navegador",
+                    "description": "Obrir l'escriptori al navegador"
+                },
+                "logout": {
+                    "title": "Sortir",
+                    "description": "Tancar la sessió d'escriptori"
+                }
+            }
+        },
+        "login": {
+            "admin": "Administració",
+            "title": "Iniciar Sessió",
+            "form": {
+                "usr": "Nom d'usuari",
+                "pwd": "Contrasenya",
+                "login": "Iniciar sessió"
+            },
+            "other-logins": "O iniciar sessió amb"
+        },
+        "maintenance": {
+            "title": "Actualment, el servei d'Isard es troba en manteniment",
+            "the-service": "El servei tornarà a estar disponible en una estona",
+            "sorry": "Disculpeu les molèsties"
+        },
+        "not-found": {
+            "title": "No hem pogut trobar l'adreça sol·licitada",
+            "back": "Tornar a l'inici"
+        },
+        "register": {
+            "title": "Registre",
+            "code": "Codi de registre",
+            "register": "Registrar-se"
+        },
+        "select-template": {
+            "no-templates": {
+                "title": "No hi ha cap plantilla per a aquest usuari!",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "which-template": "Quin escriptori vols fer servir?"
+        },
+        "welcome": {
+            "title": "Benvingut a Isard, sistema d'escriptoris virtuals",
+            "button": "Identifiqueu-vos"
         }
     }
 }

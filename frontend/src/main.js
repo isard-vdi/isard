@@ -21,6 +21,8 @@ import { faDesktop } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import i18n from './i18n'
 
+console.log(i18n.locale)
+
 library.add(faDesktop, faWindows, faUbuntu, faFedora, faLinux, faCentos, faGithub, faGoogle)
 
 Vue.component('font-awesome-icon', FontAwesomeIcon)

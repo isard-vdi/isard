@@ -3,10 +3,10 @@
     <b-row class="h-100 d-flex justify-content-center align-items-center">
       <b-col md="1"/>
       <b-col md="10">
-        <h1>No hem pogut trobar l'adreça sol·licitada</h1>
+        <h1>{{ $t('views.not-found.title') }}</h1>
         <b-button @click="redirectLogin()" class="btn mt-4" variant="primary" size="lg">
           <b-icon icon="house-door-fill" variant="white"></b-icon>
-          Tornar a l'inici
+          {{ $t('views.not-found.back') }}
         </b-button>
         </b-col>
         <b-col md="1"/>
