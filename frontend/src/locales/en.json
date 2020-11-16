@@ -49,9 +49,9 @@
         },
         "landing": {
             "title": {
-                "first-time": "Is it the first time you use Isard (remote desktop service)? Click ",
+                "first-time": "Is it the first time you use Isard (remote desktop service)?",
                 "here": "here",
-                "view-guide": "to view a guide"
+                "view-guide": "Click {0} to view a guide."
             },
             "buttons": {
                 "local": {
