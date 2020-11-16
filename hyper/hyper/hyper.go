@@ -83,13 +83,15 @@ func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, er
 	}
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
+		for {
+			select {
+			case <-ctx.Done():
+				return
 
-		default:
-			if err := libvirt.EventRunDefaultImpl(); err != nil {
-				panic(err)
+			default:
+				if err := libvirt.EventRunDefaultImpl(); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}()
