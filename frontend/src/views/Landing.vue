@@ -3,7 +3,12 @@
     <b-row class="h-100 d-flex justify-content-center align-items-center">
       <b-col md="1"/>
       <b-col md="10">
-        <h2 class="mt-4">{{ $t('views.landing.title.first-time') }}<b-link v-b-modal.help_modal>{{ $t('views.landing.title.here') }}</b-link>{{ $t('views.landing.title.view-guide') }}</h2>
+        <h2 class="mt-4">
+          {{ $t('views.landing.title.first-time') }}
+          <i18n path="views.landing.title.view-guide" tag="label" for="views.landing.title.here">
+            <b-link v-b-modal.help_modal>{{ $t('views.landing.title.here') }}</b-link>
+          </i18n>
+          </h2>
         <Help/>
         <b-row>
           <b-col class="mt-4" xl="6" @click="openDesktop('remote')">
