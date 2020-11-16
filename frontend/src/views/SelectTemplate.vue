@@ -4,8 +4,8 @@
       <b-col md="1"/>
       <b-col md="10" class="mt-4">
         <div v-if="user_templates.length === 0">
-          <h1>No hi ha cap plantilla per a aquest usuari!</h1>
-          <p>Si creus que es tracta d'un error, contacta a l'administrador</p>
+          <h1>{{ $t('views.select-template.no-templates.title') }}</h1>
+          <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
         </div>
 
         <div v-else>
@@ -13,7 +13,7 @@
             <b-icon stacked icon="question" variant="primary" shift-v="1.5"></b-icon>
             <b-icon stacked icon="tv" variant="dark" scale="2"></b-icon>
           </b-iconstack>
-          <h1 class="mt-4">Quin escriptori vols fer servir?</h1>
+          <h1 class="mt-4">{{ $t('views.select-template.which-template') }}</h1>
           <b-container fluid class="mb-4">
               <transition-group appear name="bounce" tag="b-row">
                 <b-col class="big_button mt-2 mr-2 ml-2" v-for="template in user_templates"
