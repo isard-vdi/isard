@@ -2,10 +2,12 @@ package hyper
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/qmuntal/stateless"
 	"gitlab.com/isard/isardvdi/common/pkg/pool"
 	"gitlab.com/isard/isardvdi/common/pkg/state"
 	"libvirt.org/libvirt-go"
@@ -81,7 +83,11 @@ func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, er
 	}
 
 	go func() {
-		for {
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
 			if err := libvirt.EventRunDefaultImpl(); err != nil {
 				panic(err)
 			}
@@ -102,8 +108,48 @@ func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, er
 	}
 
 	domEventID, err := conn.DomainEventLifecycleRegister(nil, func(c *libvirt.Connect, d *libvirt.Domain, event *libvirt.DomainEventLifecycle) {
-		// TODO: This isn't working :(
-		fmt.Println(event)
+		id, err := d.GetName()
+		if err != nil {
+			panic(err)
+		}
+
+		var dState stateless.State
+		switch event.Event {
+		case libvirt.DOMAIN_EVENT_STARTED:
+			dState = state.DesktopStateStarted
+
+		default:
+			dState = state.DesktopStateUnknown
+		}
+
+		desktop, err := h.desktops.Get(id)
+		if err != nil {
+			if !errors.Is(err, pool.ErrValueNotFound) {
+				panic(err)
+			}
+
+			xml, err := d.GetXMLDesc(libvirt.DomainXMLFlags(0))
+			if err != nil {
+				panic(err)
+			}
+
+			desktop = &pool.Desktop{
+				ID:    id,
+				State: dState,
+				Hyper: h.host,
+				XML:   xml,
+			}
+			// if err := h.desktops.Set(context.Background(), desktop); err != nil {
+			// 	panic(err)
+			// }
+
+			return
+		}
+
+		// TODO: THIS SHOULD BE A TRIGGER AND NOT A STATE!
+		if err := h.desktops.Set(context.Background(), desktop); err != nil {
+			panic(err)
+		}
 	})
 	if err != nil {
 		return nil, fmt.Errorf("register desktop events handler: %w", err)

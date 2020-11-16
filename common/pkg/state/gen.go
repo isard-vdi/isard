@@ -12,13 +12,23 @@ import (
 )
 
 func main() {
-	m := stateless.NewStateMachine(state.HyperStateReady)
-	state.NewHyperState(m)
+	hyper := stateless.NewStateMachine(state.HyperStateReady)
+	state.NewHyperState(hyper)
 
-	cmd := exec.Command("dot", "-T", "svg", "-o", "hyper.svg")
-	cmd.Stdin = bytes.NewReader([]byte(m.ToGraph()))
+	desktop := stateless.NewStateMachine(state.DesktopStatePreCreating)
+	state.NewDesktopState(desktop)
 
-	if out, err := cmd.CombinedOutput(); err != nil {
-		fmt.Printf("error generating the hyper states diagram: %v: %s", err, out)
+	stateMachines := map[string]*stateless.StateMachine{
+		"hyper":   hyper,
+		"desktop": desktop,
+	}
+
+	for name, m := range stateMachines {
+		cmd := exec.Command("dot", "-T", "svg", "-o", name+".svg")
+		cmd.Stdin = bytes.NewReader([]byte(m.ToGraph()))
+
+		if out, err := cmd.CombinedOutput(); err != nil {
+			fmt.Printf("error generating the %s states diagram: %v: %s", name, err, out)
+		}
 	}
 }
