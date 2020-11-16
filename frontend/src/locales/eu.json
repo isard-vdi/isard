@@ -49,9 +49,9 @@
         },
         "landing": {
             "title": {
-                "first-time": "Isard (urruneko mahaigainen zerbitzua) erabiltzen duzun lehen aldia al da? Egin klik ",
+                "first-time": "Isard (urruneko mahaigainen zerbitzua) erabiltzen duzun lehen aldia al da?",
                 "here": "hemen",
-                "view-guide": "gida bat ikusteko"
+                "view-guide": "Egin klik {0} gida bat ikusteko."
             },
             "buttons": {
                 "local": {
