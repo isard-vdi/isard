@@ -20,13 +20,13 @@
             }
         },
         "not-found": {
-            "title": "Ez dugu aurkitu eskatutako helbidea",
-            "home": "Itzuli hasierara"
+            "title": "Eskatutako helbidea ez dugu aurkitu ",
+            "home": "Hasierara itzuli"
         }
     },
     "views": {
         "create-error": {
-            "error": "Akats",
+            "error": "Akatsa",
             "title": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu",
             "retry": "Saiatu berriro"
         },
@@ -35,7 +35,7 @@
             "subtitle": "Prozesu horrek segundo batzuk iraun ditzake."
         },
         "error": {
-            "title": "Akats",
+            "title": "Akatsa",
             "codes": {
                 "401": "Zure taldeak ez du baimenik orrialde honetan sartzeko",
                 "403": "Ez duzu baimenik orri honetan sartzeko",
@@ -44,8 +44,8 @@
         },
         "expired-session": {
             "title": "Saioa iraungi egin da",
-            "subtitle": "Mahaigain birtuala berriz erabiltzeko, hasi berriro sesioa",
-            "button": "Hasi sesioa"
+            "subtitle": "Mahaigain birtuala berriz erabiltzeko, berriro sesioa hasi",
+            "button": "Sesioa hasi"
         },
         "landing": {
             "title": {
@@ -59,7 +59,7 @@
                     "description": "(Bertsio gomendatua) Ireki mahaigaina bertako bezeroarekin"
                 },
                 "browser": {
-                    "title": "Nabigatzaile",
+                    "title": "Nabigatzailea",
                     "description": "Mahaigaina nabigatzailean irekitzea"
                 },
                 "logout": {
@@ -69,14 +69,14 @@
             }
         },
         "login": {
-            "admin": "Administrazio",
-            "title": "Hasi saioa",
+            "admin": "Administrazioa",
+            "title": "Saioa hasi",
             "form": {
                 "usr": "Erabiltzailearen izena",
                 "pwd": "Pasahitza",
-                "login": "Hasi saioa"
+                "login": "Saioa hasi"
             },
-            "other-logins": "O-kin hasi saioa"
+            "other-logins": "edo saioa hasi"
         },
         "maintenance": {
             "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
@@ -84,8 +84,8 @@
             "sorry": "barkatu eragozpenak"
         },
         "not-found": {
-            "title": "Ez dugu aurkitu eskatutako helbidea",
-            "back": "Itzuli hasierara"
+            "title": "Eskatutako helbidea ez dugu aurkitu",
+            "back": "Hasierara itzuli"
         },
         "register": {
             "title": "Erregistroa",
@@ -94,13 +94,13 @@
         },
         "select-template": {
             "no-templates": {
-                "title": "Ez dago txantiloirik erabiltzaile honentzat!",
-                "subtitle": "Akatsa dela uste baduzu, jarri harremanetan administratzailearekin"
+                "title": "Erabiltzaile honentzat ez dago txantiloirik!",
+                "subtitle": "Jarri harremanetan administratzailearekin akatsa dela uste baduzu"
             },
-            "which-template": "Zer idazmahai erabili nahi duzu?"
+            "which-template": "Zein idazmahai erabili nahi duzu?"
         },
         "welcome": {
-            "title": "Ongi etorri Isardera, mahaigain birtualen sistemara",
+            "title": "Ongi etorri Isard-era, mahaigain birtualen sistemara",
             "button": "Identifikatu"
         }
     }
