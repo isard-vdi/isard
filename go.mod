@@ -7,6 +7,7 @@ require (
 	github.com/bsm/redislock v0.6.0
 	github.com/go-pg/pg/v10 v10.5.1
 	github.com/go-redis/redis/v8 v8.3.3
+	github.com/gorilla/sessions v1.2.1
 	github.com/qmuntal/stateless v1.1.5
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/viper v1.7.1
