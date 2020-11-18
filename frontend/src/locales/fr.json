@@ -1,1 +1,107 @@
-{}
+{
+    "views": {
+        "register": {
+            "title": "Inscription",
+            "register": "S’inscrire",
+            "code": "Code d’inscription"
+        },
+        "welcome": {
+            "button": "Se connecter",
+            "title": "Bienvenue chez Isard, service de bureaux virtuels"
+        },
+        "select-template": {
+            "which-template": "Quel bureau voulez-vous utiliser ?",
+            "no-templates": {
+                "subtitle": "Si vous pensez qu’il s’agit d’une erreur, veuillez contacter l’administrateur",
+                "title": "Il n’y a pas de modèles pour cet utilisateur !"
+            }
+        },
+        "not-found": {
+            "back": "Revenir au début",
+            "title": "Nous n’avons pas trouvé l’adresse demandée"
+        },
+        "maintenance": {
+            "sorry": "Désolé pour le désagrément",
+            "the-service": "Le service sera à nouveau disponible dans quelques minutes",
+            "title": "Actuellement, le service Isard est en maintenance"
+        },
+        "login": {
+            "other-logins": "Ou connectez-vous avec",
+            "form": {
+                "login": "Se connecter",
+                "pwd": "Mot de passe",
+                "usr": "Nom d’utilisateur"
+            },
+            "title": "Se connecter",
+            "admin": "Administration"
+        },
+        "landing": {
+            "buttons": {
+                "logout": {
+                    "description": "Fermer la session de bureau",
+                    "title": "Quitter"
+                },
+                "browser": {
+                    "description": "Ouvrez le bureau dans le navigateur",
+                    "title": "Navigateur"
+                },
+                "local": {
+                    "description": "(version recommandée) Ouvrez le bureau avec le client local",
+                    "title": "Client local"
+                }
+            },
+            "title": {
+                "view-guide": "Cliquez {0} pour visualiser un guide.",
+                "here": "ici",
+                "first-time": "Est-ce la première fois que vous utilisez Isard (service de bureau à distance) ?"
+            }
+        },
+        "expired-session": {
+            "button": "Se connecter",
+            "subtitle": "Pour utiliser le bureau virtuel, connectez-vous à nouveau",
+            "title": "La session a expiré"
+        },
+        "error": {
+            "codes": {
+                "500": "Erreur inattendue",
+                "403": "Vous ne disposez pas des autorisations nécessaires pour accéder à cette page",
+                "401": "Votre groupe ne dispose pas des autorisations nécessaires pour accéder à cette page"
+            },
+            "title": "Erreur"
+        },
+        "creating": {
+            "subtitle": "Ceci peut prendre quelques instants",
+            "title": "Création du bureau virtuel"
+        },
+        "create-error": {
+            "retry": "Réessayer",
+            "title": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
+            "error": "Erreur"
+        }
+    },
+    "components": {
+        "not-found": {
+            "home": "Retour",
+            "title": "L’adresse demandée n’a pas été trouvée"
+        },
+        "help": {
+            "text": {
+                "linux": "Une application externe est requise, avec le système d’exploitation Linux, vous devez exécuter les commandes suivantes :",
+                "android": "Une application externe est requise, avec le système d’exploitation Android, vous devez installer l’application suivante :",
+                "windows": "Une application externe est requise, avec le système d’exploitation Windows, vous devez télécharger et installer l’un des exécutables suivants :",
+                "ios": "Une application externe est requise, avec le système d’exploitation iOS, vous devez installer l’application suivante :",
+                "macos": "macOS est une plateforme non prise en charge. Vous devez utiliser l’option du navigateur"
+            },
+            "simply": "Vous devez simplement cliquer sur le bouton et cela ouvrira le bureau virtuel dans un nouvel onglet",
+            "worse-performance": "mais la performance est moins bonne",
+            "no-install": "Il n’y a pas besoin d’installer de programme externe, ",
+            "use-browser": "Utiliser le navigateur",
+            "once-installed": "Une fois installé, cliquez sur le bouton « client local » qui téléchargera le fichier de bureau virtuel",
+            "other-windows-versions": "autres versions Windows",
+            "install": "Installer",
+            "best-performance": "C’est l’option avec la meilleure performance",
+            "local-client": "Utiliser le client local (recommandé)",
+            "close-guide": "Fermer le guide"
+        }
+    }
+}
