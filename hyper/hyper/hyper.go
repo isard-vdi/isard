@@ -137,7 +137,6 @@ func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, er
 
 			desktop = &pool.Desktop{
 				ID:    id,
-				State: dState,
 				Hyper: h.host,
 				XML:   xml,
 			}
@@ -147,6 +146,8 @@ func New(ctx context.Context, redis redis.Cmdable, uri, host string) (*Hyper, er
 
 			return
 		}
+
+		desktop.SetState(dState)
 
 		// TODO: THIS SHOULD BE A TRIGGER AND NOT A STATE!
 		if err := h.desktops.Set(context.Background(), desktop); err != nil {

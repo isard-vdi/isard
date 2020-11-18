@@ -1,0 +1,4 @@
+type Desktop {
+    id: ID!
+    name: String!
+}

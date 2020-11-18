@@ -1,0 +1,3 @@
+type Mutation {
+    desktopStart(id: ID!): Desktop!
+}
