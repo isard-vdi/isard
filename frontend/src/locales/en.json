@@ -93,6 +93,7 @@
             "register": "Sign up"
         },
         "select-template": {
+            "loading": "Loading templates",
             "no-templates": {
                 "title": "There are no templates for this user!",
                 "subtitle": "If you think this is an error, please contact the administrator"

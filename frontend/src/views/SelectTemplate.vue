@@ -3,7 +3,12 @@
     <b-row class="h-100 d-flex justify-content-center align-items-center mt-4">
       <b-col md="1"/>
       <b-col md="10" class="mt-4">
-        <div v-if="user_templates.length === 0">
+        <div v-if="!templates_loaded">
+          <b-spinner/>
+          <p>{{ $t('views.select-template.loading') }}</p>
+        </div>
+
+        <div v-else-if="user_templates.length === 0">
           <h1>{{ $t('views.select-template.no-templates.title') }}</h1>
           <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
         </div>
@@ -34,24 +39,23 @@
 // @ is an alias to /src
 
 export default {
+  created () {
+    this.$store.dispatch('fetchTemplates')
+  },
   computed: {
     user () {
       return this.$store.getters.getUser
     },
     user_templates () {
-      if (this.user && this.user.templates) {
-        for (var template of this.user.templates) {
-          Object.keys(this.icons).forEach((key) => {
-            if (template.icon.search(key) === -1) {
-              template.icon = 'default'
-            }
-          })
+      this.$store.getters.getTemplates.forEach((template) => {
+        if (!(template.icon in this.icons)) {
+          template.icon = 'default'
         }
-
-        return this.user.templates
-      }
-
-      return []
+      })
+      return this.$store.getters.getTemplates
+    },
+    templates_loaded () {
+      return this.$store.getters.getTemplatesLoaded
     }
   },
   methods: {
