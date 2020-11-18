@@ -93,6 +93,7 @@
             "register": "Registrar-se"
         },
         "select-template": {
+            "loading": "Carregant plantilles",
             "no-templates": {
                 "title": "No hi ha cap plantilla per a aquest usuari!",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
