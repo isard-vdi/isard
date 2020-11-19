@@ -29,7 +29,7 @@ func main() {
 
 	grpc := &grpc.ControllerServer{
 		Controller: controller,
-		Addr:       fmt.Sprint("%s:%d", cfg.GRPC.Host, cfg.GRPC.Port),
+		Addr:       fmt.Sprintf("%s:%d", cfg.GRPC.Host, cfg.GRPC.Port),
 		Log:        log,
 		WG:         &wg,
 	}
