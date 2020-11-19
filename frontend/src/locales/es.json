@@ -93,6 +93,7 @@
             "register": "Registrarse"
         },
         "select-template": {
+            "loading": "Cargando plantillas",
             "no-templates": {
                 "title": "No hay ninguna plantilla para éste usuario!",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"

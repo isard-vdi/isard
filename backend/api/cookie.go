@@ -13,7 +13,6 @@ import (
 
 type cookie struct {
 	Name         string            `json:"name"`
-	Templates    []model.Template  `json:"templates"`
 	DesktopID    string            `json:"desktop_id"`
 	WebViewer    *isard.ViewerHTML `json:"web_viewer,omitempty"`
 	RemoteViewer string            `json:"remote_viewer,omitempty"`
@@ -40,7 +39,6 @@ func (c *cookie) save(w http.ResponseWriter) error {
 
 func (c *cookie) update(u *model.User, w http.ResponseWriter) error {
 	c.Name = u.Name
-	c.Templates = u.Templates
 
 	if err := c.save(w); err != nil {
 		return err
