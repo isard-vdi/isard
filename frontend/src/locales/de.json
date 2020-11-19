@@ -1,0 +1,107 @@
+{
+    "views": {
+        "maintenance": {
+            "the-service": "Isard wird in wenigen Minuten wieder verfügbar sein",
+            "title": "Derzeit wird Isard gewartet",
+            "sorry": "Entschuldigung für die Unannehmlichkeiten"
+        },
+        "landing": {
+            "title": {
+                "first-time": "Verwenden Sie Isard (Fernarbeitsoberflächedienst) zum ersten Mal?",
+                "view-guide": "Klicken Sie {0}, um eine Anleitung anzuzeigen.",
+                "here": "hier"
+            },
+            "buttons": {
+                "local": {
+                    "description": "(empfohlene Version) Öffnen Sie die Arbeitsoberfläche mit dem lokalen Client",
+                    "title": "Lokaler Client"
+                },
+                "logout": {
+                    "description": "Arbeitsoberflächesitzung schließen",
+                    "title": "Beenden"
+                },
+                "browser": {
+                    "description": "Öffnen Sie die Arbeitsoberfläche im Browser",
+                    "title": "Browser"
+                }
+            }
+        },
+        "select-template": {
+            "no-templates": {
+                "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich an den Administrator",
+                "title": "Es gibt keine Vorlagen für diesen Benutzer!"
+            },
+            "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?"
+        },
+        "error": {
+            "codes": {
+                "500": "Unerwarteter Fehler",
+                "403": "Sie haben keine Berechtigung, auf diese Seite zuzugreifen",
+                "401": "Ihre Gruppe hat keine Berechtigung zum Zugriff auf diese Seite"
+            },
+            "title": "Fehler"
+        },
+        "not-found": {
+            "title": "Wir konnten die gewünschte Adresse nicht finden",
+            "back": "Zurück zum Start"
+        },
+        "register": {
+            "code": "Registrierungscode",
+            "title": "Registrierung",
+            "register": "Registrieren"
+        },
+        "login": {
+            "other-logins": "Oder anmelden mit",
+            "form": {
+                "login": "Anmelden",
+                "pwd": "Passwort",
+                "usr": "Benutzername"
+            },
+            "title": "Anmelden",
+            "admin": "Verwaltung"
+        },
+        "expired-session": {
+            "button": "Anmelden",
+            "subtitle": "Melden Sie sich erneut an, um die virtuelle Arbeitsoberfläche zu verwenden",
+            "title": "Die Sitzung ist abgelaufen"
+        },
+        "create-error": {
+            "title": "Die virtuelle Arbeitsoberfläche konnte aufgrund eines Fehlers nicht erstellt werden",
+            "retry": "Erneut versuchen",
+            "error": "Fehler"
+        },
+        "welcome": {
+            "button": "Anmelden",
+            "title": "Willkommen bei Isard, dem Dienst für virtuelle Arbeitsoberflächen"
+        },
+        "creating": {
+            "subtitle": "Dies kann einige Momente dauern",
+            "title": "Erstellen der virtuellen Arbeitsoberfläche"
+        }
+    },
+    "components": {
+        "not-found": {
+            "title": "Die angeforderte Adresse wurde nicht gefunden",
+            "home": "Zurück"
+        },
+        "help": {
+            "text": {
+                "linux": "Eine externe Anwendung ist erforderlich. Unter dem Betriebssystem Linux müssen Sie die folgenden Befehle ausführen:",
+                "android": "Eine externe Anwendung ist erforderlich. Mit dem Betriebssystem Android müssen Sie die folgende Anwendung installieren:",
+                "windows": "Eine externe Anwendung ist erforderlich. Unter dem Betriebssystem Windows müssen Sie eine der folgenden ausführbaren Dateien herunterladen und installieren:",
+                "ios": "Eine externe Anwendung ist erforderlich. Unter dem Betriebssystem iOS müssen Sie die folgende Anwendung installieren:",
+                "macos": "macOS ist eine nicht unterstützte Plattform. Sie müssen die Browseroption verwenden"
+            },
+            "simply": "Sie müssen nur auf die Schaltfläche klicken, um die virtuelle Arbeitsoberfläche in einer neuen Registerkarte zu öffnen",
+            "once-installed": "Klicken Sie nach der Installation auf die Schaltfläche „Lokaler Client“, um die Virtuelle-Arbeitsoberfläche-Datei herunterzuladen",
+            "worse-performance": "aber die Leistung ist schlechter",
+            "no-install": "Es ist nicht erforderlich, ein externes Programm zu installieren. ",
+            "use-browser": "Den Browser verwenden",
+            "other-windows-versions": "andere Windows-Versionen",
+            "install": "Installieren",
+            "best-performance": "Es ist die Option mit der besten Leistung",
+            "local-client": "Lokalen Client verwenden (empfohlen)",
+            "close-guide": "Anleitung schließen"
+        }
+    }
+}

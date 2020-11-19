@@ -6,13 +6,13 @@
             "best-performance": "És l'opció amb el millor rendiment",
             "install": "Instaŀlar",
             "other-windows-versions": "altres versions de Windows",
-            "once-installed": "Un cop instaŀlat, has de fer click al botó de 'client local', i es descarregarà el fitxer de l'escriptori virtual",
+            "once-installed": "Un cop instaŀlat, has de fer clic al botó de «client local», i es descarregarà el fitxer de l'escriptori virtual",
             "use-browser": "Utilitzar el navegador",
             "no-install": "No és necessari instaŀlar cap aplicatiu extern, ",
             "worse-performance": "però el rendiment serà pitjor",
-            "simply": "Simplement has de fer click al botó i s'obrirà l'escriptori virtual en una pestanya nova",
+            "simply": "Simplement has de fer clic al botó i s'obrirà l'escriptori virtual en una pestanya nova",
             "text": {
-                "macos": "macOS és una plataforma sense suport, cal fer servir el navegador.",
+                "macos": "macOS és una plataforma sense suport, cal fer servir el navegador",
                 "ios": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu iOS cal instal·lar l'aplicatiu següent:",
                 "windows": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Windows cal descarregar i executar un dels següents instal·ladors:",
                 "android": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Android cal instal·lar l'aplicatiu següent:",
@@ -51,7 +51,7 @@
             "title": {
                 "first-time": "És el primer cop que fas servir Isard (servei d'escriptori remot)?",
                 "here": "aquí",
-                "view-guide": "Fes click {0} per veure una guia."
+                "view-guide": "Fes clic {0} per veure una guia."
             },
             "buttons": {
                 "local": {
