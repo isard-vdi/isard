@@ -34,6 +34,8 @@ func Serve(ctx context.Context, log *zerolog.Logger, wg *sync.WaitGroup, registe
 	s := grpc.NewServer()
 	registerServer(s)
 
+	// TODO: Reflection, health check
+
 	log.Info().Str("addr", addr).Msg("serving through gRPC")
 
 	go func() {

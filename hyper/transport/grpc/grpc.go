@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	"gitlab.com/isard/isardvdi/hyper/hyper"
 	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
 
 	"github.com/rs/zerolog"
+	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	gRPC "google.golang.org/grpc"
 )
 

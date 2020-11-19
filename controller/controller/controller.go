@@ -5,35 +5,59 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/controller/cfg"
+
 	"gitlab.com/isard/isardvdi/common/pkg/pool"
 	"gitlab.com/isard/isardvdi/common/pkg/proto"
-
 	desktopBuilderProto "gitlab.com/isard/isardvdi/desktopbuilder/pkg/proto"
 	hyperProto "gitlab.com/isard/isardvdi/hyper/pkg/proto"
 	orchestratorProto "gitlab.com/isard/isardvdi/orchestrator/pkg/proto"
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/xds" // Add support for xDS
 )
 
 type Interface interface {
-	DesktopStart(id string) (*proto.Viewer, error)
+	DesktopStart(ctx context.Context, id string) (*proto.Viewer, error)
 }
 
 type Controller struct {
 	desktops *pool.DesktopPool
 
 	desktopBuilderConn *grpc.ClientConn
+	desktopBuilder     desktopBuilderProto.DesktopBuilderClient
 	orchestratorConn   *grpc.ClientConn
+	orchestrator       orchestratorProto.OrchestratorClient
 }
 
-func New() (*Controller, error) {
-	// proto.NewControllerClient(cc grpc.ClientConnInterface)
-	return nil, nil
+func New(cfg cfg.Cfg) (*Controller, error) {
+	var err error
+	c := &Controller{}
+
+	c.desktopBuilderConn, err = grpc.Dial(cfg.DesktopBuilderAddr, grpc.WithInsecure())
+	if err != nil {
+		return nil, fmt.Errorf("dial desktop builder: %w", err)
+	}
+	c.desktopBuilder = desktopBuilderProto.NewDesktopBuilderClient(c.desktopBuilderConn)
+
+	c.orchestratorConn, err = grpc.Dial(cfg.OrchestratorAddr, grpc.WithInsecure())
+	if err != nil {
+		return nil, fmt.Errorf("dial orchestrator: %w", err)
+	}
+	c.orchestrator = orchestratorProto.NewOrchestratorClient(c.desktopBuilderConn)
+
+	return c, nil
+}
+
+func (c *Controller) Close() error {
+	c.desktopBuilderConn.Close()
+	return c.orchestratorConn.Close()
 }
 
 func (c *Controller) DesktopStart(ctx context.Context, id string) (*proto.Viewer, error) {
 	var xml string
 
 	// Check if the desktop is already started
+	// TODO: What if the desktop is in an invalid state?
 	d, err := c.desktops.Get(id)
 	if err != nil {
 		if !errors.Is(err, pool.ErrValueNotFound) {
@@ -41,7 +65,7 @@ func (c *Controller) DesktopStart(ctx context.Context, id string) (*proto.Viewer
 		}
 
 		// Get the XML for the desktop
-		desktopBuilderRsp, err := desktopBuilderProto.NewDesktopBuilderClient(c.desktopBuilderConn).XMLGet(ctx, &desktopBuilderProto.XMLGetRequest{
+		desktopBuilderRsp, err := c.desktopBuilder.XMLGet(ctx, &desktopBuilderProto.XMLGetRequest{
 			Id: id,
 		})
 		if err != nil {
@@ -49,7 +73,7 @@ func (c *Controller) DesktopStart(ctx context.Context, id string) (*proto.Viewer
 		}
 
 		// Ask for the hypervisor
-		orchestratorRsp, err := orchestratorProto.NewOrchestratorClient(c.orchestratorConn).GetHyper(ctx, &orchestratorProto.GetHyperRequest{
+		orchestratorRsp, err := c.orchestrator.GetHyper(ctx, &orchestratorProto.GetHyperRequest{
 			// TODO:
 			// desktopBuilderRsp.Persistent
 			// desktopBuilderRsp.GPU
@@ -79,7 +103,7 @@ func (c *Controller) DesktopStart(ctx context.Context, id string) (*proto.Viewer
 	}
 
 	// Get the Viewer XML
-	viewer, err := desktopBuilderProto.NewDesktopBuilderClient(c.desktopBuilderConn).ViewerGet(ctx, &desktopBuilderProto.ViewerGetRequest{
+	viewer, err := c.desktopBuilder.ViewerGet(ctx, &desktopBuilderProto.ViewerGetRequest{
 		Xml: xml,
 	})
 	if err != nil {
