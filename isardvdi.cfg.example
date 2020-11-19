@@ -107,11 +107,13 @@ BACKEND_HOST=localhost
 BACKEND_REDIS_HOST=isard-redis
 BACKEND_REDIS_PASSWORD=
 BACKEND_AUTH_AUTOREGISTRATION=true
+# Create your Github OAuth credentials at https://github.com/settings/developers
 # BACKEND_AUTH_GITHUB_HOST=api.github.com
 # BACKEND_AUTH_GITHUB_ID=id
 # BACKEND_AUTH_GITHUB_SECRET=secret
+# Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
 # BACKEND_AUTH_GOOGLE_ID=id
-# BACKEND_AUTH_GOOGLE_ID=secret
+# BACKEND_AUTH_GOOGLE_SECRET=secret
 # BACKEND_AUTH_SAML_CERT_PATH=/keys/saml.cert
 # BACKEND_AUTH_SAML_KEY_PATH=/keys/saml.key
 # BACKEND_AUTH_SAML_IDP_URL=https://<yoursamlserver
