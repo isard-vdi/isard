@@ -33,13 +33,13 @@ func New(cfg cfg.Cfg) (*Controller, error) {
 	var err error
 	c := &Controller{}
 
-	c.desktopBuilderConn, err = grpc.Dial(cfg.DesktopBuilderAddr, grpc.WithInsecure())
+	c.desktopBuilderConn, err = grpc.Dial(cfg.ClientsAddr.DesktopBuilder, grpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("dial desktop builder: %w", err)
 	}
 	c.desktopBuilder = desktopBuilderProto.NewDesktopBuilderClient(c.desktopBuilderConn)
 
-	c.orchestratorConn, err = grpc.Dial(cfg.OrchestratorAddr, grpc.WithInsecure())
+	c.orchestratorConn, err = grpc.Dial(cfg.ClientsAddr.Orchestrator, grpc.WithInsecure())
 	if err != nil {
 		return nil, fmt.Errorf("dial orchestrator: %w", err)
 	}
