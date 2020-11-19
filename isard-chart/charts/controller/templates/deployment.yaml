@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "controller.fullname" . }}
+  labels:
+    {{- include "controller.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "controller.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "controller.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository | default "docker.io/isard/isardvdi-controller" }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+              # TODO
+              # livenessProbe:
+              #   httpGet:
+              #     path: /
+              #     port: http
+              # readinessProbe:
+              #   httpGet:
+              #     path: /
+              #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: CONTROLLER_GRPC_PORT
+              value: {{ .Values.service.port | quote}}
+            # - name: CONTROLLER_CLIENTSADDR_DESKTOPBUILDER
+            #   value: {{ .Values.service.port }}
+            # - name: CONTROLLER_CLIENTSADDR_ORCHESTRATOR
+            #   value: 

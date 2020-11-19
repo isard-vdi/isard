@@ -6,10 +6,14 @@ import (
 )
 
 type Cfg struct {
-	Log                cfg.Log
-	GRPC               cfg.GRPC
-	DesktopBuilderAddr string
-	OrchestratorAddr   string
+	Log         cfg.Log
+	GRPC        cfg.GRPC
+	ClientsAddr ClientsAddr
+}
+
+type ClientsAddr struct {
+	DesktopBuilder string
+	Orchestrator   string
 }
 
 func New() Cfg {
@@ -21,8 +25,10 @@ func New() Cfg {
 }
 
 func setDefaults() {
-	cfg.SetGRPCDefaults()
+	viper.SetDefault("clientsaddr", map[string]interface{}{
+		"desktopbuilder": "desktopbuilder:1312",
+		"orchestrator":   "orchestrator:1312",
+	})
 
-	viper.SetDefault("desktopbuilderaddr", "desktopbuilder:1312")
-	viper.SetDefault("orchestratoraddr", "orchestrator:1312")
+	cfg.SetGRPCDefaults()
 }
