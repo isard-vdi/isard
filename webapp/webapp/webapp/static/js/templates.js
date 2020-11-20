@@ -283,36 +283,6 @@ function actionsTmplDetail(){
             // Not implemented
         });
 
-        $('.btn-kind').on('click', function () {
-                var closest=$(this).closest("div");
-                var pk=closest.attr("data-pk");
-                var name=closest.attr("data-name");
-                new PNotify({
-                        title: 'Confirmation Needed',
-                            text: "Are you sure you want to change public/private on template: "+name+"?",
-                            hide: false,
-                            opacity: 0.9,
-                            confirm: {
-                                confirm: true
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            },
-                            addclass: 'pnotify-center'
-                        }).get().on('pnotify.confirm', function() {
-                            api.ajax('/isard-admin/template/togglekind','POST',{'pk':pk}).done(function(data) {
-                                //~ console.log('data received:'+data);
-                                table.ajax.reload() ;
-                            });  
-                        }).on('pnotify.cancel', function() {
-                });
-                
-        });
-
         $('.btn-delete').on('click', function () {
                 var pk=$(this).closest("div").attr("data-pk");
                 var name=$(this).closest("div").attr("data-name");
