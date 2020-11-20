@@ -317,20 +317,7 @@ class isard():
             if (d['allowed']['users'] and user in d['allowed']['users']) or d['allowed']['users'] == False:    
                 return 'Private'
         return 'Shared' 
-                        
 
-    def template_kind_toggle(self,user,id):
-        with app.app_context():
-            dom=r.table('domains').get(id).run(db.conn)
-            allowed=dom['allowed']
-            if not allowed['roles'] and not allowed['categories'] and not allowed['groups']:
-                if (allowed['users'] and user in allowed['users']) or allowed['users'] == False:
-                    allowed={'roles':[],'categories':[],'groups':[],'users':[]}
-                    kind='public_template'
-                    return self.check(r.table('domains').get(id).update({'allowed':allowed,'kind':kind}).run(db.conn),'replaced')
-            allowed={'roles':False,'categories':False,'groups':False,'users':[user]}
-            kind='user_template'
-            return self.check(r.table('domains').get(id).update({'allowed':allowed,'kind':kind}).run(db.conn),'replaced')
 
     def get_alloweds(self, user, table, pluck=[], order=False):
         with app.app_context():

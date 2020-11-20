@@ -30,21 +30,3 @@ def templates():
 @login_required
 def templates_get():
 	return json.dumps(app.isardapi.get_user_templates(current_user.id)), 200, {'ContentType': 'application/json'}
-
-@app.route('/isard-admin/template/togglekind', methods=['POST'])
-@login_required
-@ownsid
-def templates_kind():
-    if request.method == 'POST':
-        
-        try:
-            args = request.get_json(force=True)
-        except:
-            args = request.form.to_dict()
-        try:
-            if app.isardapi.template_kind_toggle(current_user.id,args['pk']):
-                return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-            else:
-                return json.dumps('Something went wrong.'), 500, {'ContentType':'application/json'}
-        except Exception as e:
-            return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
