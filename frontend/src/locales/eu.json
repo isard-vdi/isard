@@ -6,13 +6,13 @@
             "best-performance": "Errendimendu onena duen aukera da",
             "install": "Instalatu",
             "other-windows-versions": "Windowsen beste bertsio batzuk",
-            "once-installed": "Instalatu ondoren, 'Tokiko bezeroa' botoian klik egin behar duzu, eta mahaigain birtualeko fitxategia deskargatuko da.",
+            "once-installed": "Instalatu ondoren, 'Tokiko bezeroa' botoian klik egin behar duzu, eta mahaigain birtualeko fitxategia deskargatuko da",
             "use-browser": "Nabigatzailea erabiltzea",
             "no-install": "Ez da beharrezkoa kanpoko aplikaziorik instalatzea, ",
             "worse-performance": "Baina errendimendua okerragoa izango da",
-            "simply": "Botoian klik egin besterik ez duzu egin behar, eta mahaigain birtuala beste erlaitz batean irekiko da.",
+            "simply": "Botoian klik egin besterik ez duzu egin behar, eta mahaigain birtuala beste erlaitz batean irekiko da",
             "text": {
-                "macos": "MacOS euskarririk gabeko plataforma bat da, nabigatzailea erabili behar da.",
+                "macos": "MacOS euskarririk gabeko plataforma bat da, nabigatzailea erabili behar da",
                 "ios": "Beharrezkoa da kanpoko aplikazio bat instalatzea; iOS sistema eragilearekin honako aplikazio hau instalatu behar da:",
                 "windows": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Windows sistema eragilearekin honako instalatzaile hauek deskargatu eta exekutatu behar dira:",
                 "android": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Android sistema eragilearekin honako aplikazio hau instalatu behar da:",
@@ -32,7 +32,7 @@
         },
         "creating": {
             "title": "Mahaigain birtuala sortzen",
-            "subtitle": "Prozesu horrek segundo batzuk iraun ditzake."
+            "subtitle": "Prozesu horrek segundo batzuk iraun ditzake"
         },
         "error": {
             "title": "Akatsa",
@@ -76,11 +76,11 @@
                 "pwd": "Pasahitza",
                 "login": "Saioa hasi"
             },
-            "other-logins": "edo saioa hasi"
+            "other-logins": "edo honako hauek erabiliz hasi:"
         },
         "maintenance": {
             "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
-            "the-service": "Zerbitzua berehala egongo da erabilgarri.",
+            "the-service": "Zerbitzua berehala egongo da erabilgarri",
             "sorry": "barkatu eragozpenak"
         },
         "not-found": {

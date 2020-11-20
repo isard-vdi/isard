@@ -31,7 +31,8 @@
                 "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich an den Administrator",
                 "title": "Es gibt keine Vorlagen für diesen Benutzer!"
             },
-            "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?"
+            "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?",
+            "loading": "Laden von Vorlagen"
         },
         "error": {
             "codes": {
