@@ -45,7 +45,12 @@ spec:
               #     port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: {{ include "controller.fullname" . }}
+              mountPath: "/xds-bootstrap.json"
           env:
+            - name: GRPC_XDS_BOOTSTRAP
+              value: "/xds-bootstrap.json"
             - name: CONTROLLER_GRPC_PORT
               value: {{ .Values.service.port | quote}}
             # - name: CONTROLLER_CLIENTSADDR_DESKTOPBUILDER
