@@ -8,9 +8,9 @@ data:
   config.json: |
     {
       "xds_servers": [{
-        "server_uri": "{{ .Values.global.xds-addr }}",
+        "server_uri": "{{ .Values.global.xdsAddr }}",
       }],
       "node": {
-        "id": "{{ uuid }}"
+        "id": "{{ uuidv4 }}"
       }
     }

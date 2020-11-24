@@ -46,8 +46,9 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            - name: {{ include "controller.fullname" . }}
+            - name: xdsBootstrap
               mountPath: "/xds-bootstrap.json"
+              readOnly: true
           env:
             - name: GRPC_XDS_BOOTSTRAP
               value: "/xds-bootstrap.json"
@@ -57,3 +58,8 @@ spec:
             #   value: {{ .Values.service.port }}
             # - name: CONTROLLER_CLIENTSADDR_ORCHESTRATOR
             #   value: 
+          volumes:
+            - name: xdsBootstrap
+              configMap:
+                name: {{ include "controller.fullname" . }}
+                key: config.json
