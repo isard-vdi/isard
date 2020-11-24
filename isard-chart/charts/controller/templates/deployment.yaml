@@ -62,4 +62,3 @@ spec:
         - name: xdsBootstrap
           configMap:
             name: {{ include "controller.fullname" . }}
-            key: config.json
