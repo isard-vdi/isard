@@ -58,8 +58,8 @@ spec:
             #   value: {{ .Values.service.port }}
             # - name: CONTROLLER_CLIENTSADDR_ORCHESTRATOR
             #   value: 
-        volumes:
-          - name: xdsBootstrap
-            configMap:
-              name: {{ include "controller.fullname" . }}
-              key: config.json
+      volumes:
+        - name: xdsBootstrap
+          configMap:
+            name: {{ include "controller.fullname" . }}
+            key: config.json
