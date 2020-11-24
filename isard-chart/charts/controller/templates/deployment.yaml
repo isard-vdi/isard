@@ -46,7 +46,7 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            - name: xdsBootstrap
+            - name: xds-bootstrap
               mountPath: "/xds-bootstrap.json"
               readOnly: true
           env:
@@ -59,6 +59,6 @@ spec:
             # - name: CONTROLLER_CLIENTSADDR_ORCHESTRATOR
             #   value: 
       volumes:
-        - name: xdsBootstrap
+        - name: xds-bootstrap
           configMap:
             name: {{ include "controller.fullname" . }}
