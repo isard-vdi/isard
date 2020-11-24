@@ -47,11 +47,11 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: xds-bootstrap
-              mountPath: "/xds-bootstrap.json"
+              mountPath: "/config"
               readOnly: true
           env:
             - name: GRPC_XDS_BOOTSTRAP
-              value: "/xds-bootstrap.json"
+              value: "/config/xds-bootstrap.json"
             - name: CONTROLLER_GRPC_PORT
               value: {{ .Values.service.port | quote}}
             # - name: CONTROLLER_CLIENTSADDR_DESKTOPBUILDER
