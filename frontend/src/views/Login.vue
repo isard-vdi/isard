@@ -10,7 +10,7 @@
       </b-col>
 
       <b-col>
-        <b-button :href="'/isard-admin/login/' + category.id" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
+        <b-button v-if="configLoaded && config['show_admin_button']" :href="'/isard-admin/login/' + category.id" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
       </b-col>
     </b-row>
     <b-row id="login" align-h="center">
@@ -72,12 +72,22 @@ export default {
       socialLogin: ['GitHub', 'Google']
     }
   },
+  computed: {
+    config () {
+      return this.$store.getters.getConfig
+    },
+    configLoaded () {
+      return this.$store.getters.getConfigLoaded
+    }
+  },
   methods: {
     login (provider) {
       return `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category.id}?provider=${provider}&redirect=/select_template`
     }
   },
   beforeMount: async function () {
+    this.$store.dispatch('fetchConfig')
+
     this.category.id = this.$route.params.category
     if (this.category.id === undefined) {
       this.category.id = 'default'
