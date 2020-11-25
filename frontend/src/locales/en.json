@@ -8,9 +8,8 @@
             "other-windows-versions": "other Windows versions",
             "once-installed": "Once installed, click the 'local client' button, that will download the virtual desktop file",
             "use-browser": "Use the browser",
-            "no-install": "There's no need to install any external program, ",
+            "no-install": "There's no need to install any external program, {worse-performance}. You simply need to click the button and it will open the virtual desktop in a new tab",
             "worse-performance": "but the performance is worse",
-            "simply": "You simply need to click the button and it will open the virtual desktop in a new tab",
             "text": {
                 "macos": "macOS is an unsupported platform. You need to use the browser option",
                 "ios": "An external application is required, with the operative system iOS, you need to install the following application:",
