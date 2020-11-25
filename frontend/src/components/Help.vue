@@ -17,7 +17,8 @@
                 </h3>
                 <hr />
                 <b>{{ $t('components.help.best-performance') }}</b>
-                <div v-if="os=='Windows'">
+                {{ $t('components.help.spice-client-required') }}
+                <div v-if="os=='Windows' || os==null">
                     {{ $t('components.help.text.windows') }}
                     <ul v-on:click.stop>
                         <li>
@@ -39,7 +40,7 @@
                         </li>
                     </ul>
                 </div>
-                <div v-else-if="os=='Linux'">
+                <div v-if="os=='Linux' || os==null">
                     {{ $t('components.help.text.linux') }}
                     <ul v-on:click.stop>
                         <li>
@@ -52,7 +53,7 @@
                         </li>
                     </ul>
                 </div>
-                <div v-else-if="os=='Android'">
+                <div v-if="os=='Android' || os==null">
                     {{ $t('components.help.text.android') }}
                     <ul v-on:click.stop>
                         <li>
@@ -65,7 +66,7 @@
                         </li>
                     </ul>
                 </div>
-                <div v-else-if="os=='iOS'">
+                <div v-if="os=='iOS' || os==null">
                     {{ $t('components.help.text.ios') }}
                     <ul v-on:click.stop>
                         <li>
@@ -76,7 +77,7 @@
                         </li>
                     </ul>
                 </div>
-                <div v-else-if="os=='MacOS'">
+                <div v-if="os=='MacOS' || os==null">
                     {{ $t('components.help.text.macos') }}
                 </div>
                 <div class="mb-4" v-if="os!='MacOS'">{{ $t('components.help.once-installed') }}</div>
