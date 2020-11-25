@@ -30,7 +30,7 @@
                             </a>
                         </li>
                         <li>
-                            <b>Windows 32bits ({{ $t('components.help.other-window-versions') }}):</b>
+                            <b>Windows 32bits ({{ $t('components.help.other-windows-versions') }}):</b>
                             <a
                                 href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi"
                             >
