@@ -93,9 +93,8 @@
                 "ios": "Une application externe est requise, avec le système d’exploitation iOS, vous devez installer l’application suivante :",
                 "macos": "macOS est une plateforme non prise en charge. Vous devez utiliser l’option du navigateur"
             },
-            "simply": "Vous devez simplement cliquer sur le bouton et cela ouvrira le bureau virtuel dans un nouvel onglet",
             "worse-performance": "mais la performance est moins bonne",
-            "no-install": "Il n’y a pas besoin d’installer de programme externe, ",
+            "no-install": "Il n’y a pas besoin d’installer de programme externe, {worse-performance}. Vous devez simplement cliquer sur le bouton et cela ouvrira le bureau virtuel dans un nouvel onglet",
             "use-browser": "Utiliser le navigateur",
             "once-installed": "Une fois installé, cliquez sur le bouton « client local » qui téléchargera le fichier de bureau virtuel",
             "other-windows-versions": "autres versions Windows",

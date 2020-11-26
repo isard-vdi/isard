@@ -93,10 +93,9 @@
                 "ios": "Eine externe Anwendung ist erforderlich. Unter dem Betriebssystem iOS müssen Sie die folgende Anwendung installieren:",
                 "macos": "macOS ist eine nicht unterstützte Plattform. Sie müssen die Browseroption verwenden"
             },
-            "simply": "Sie müssen nur auf die Schaltfläche klicken, um die virtuelle Arbeitsoberfläche in einer neuen Registerkarte zu öffnen",
             "once-installed": "Klicken Sie nach der Installation auf die Schaltfläche „Lokaler Client“, um die Virtuelle-Arbeitsoberfläche-Datei herunterzuladen",
             "worse-performance": "aber die Leistung ist schlechter",
-            "no-install": "Es ist nicht erforderlich, ein externes Programm zu installieren. ",
+            "no-install": "Es ist nicht erforderlich, ein externes Programm zu installieren, {worse-performance}. Sie müssen nur auf die Schaltfläche klicken, um die virtuelle Arbeitsoberfläche in einer neuen Registerkarte zu öffnen",
             "use-browser": "Den Browser verwenden",
             "other-windows-versions": "andere Windows-Versionen",
             "install": "Installieren",

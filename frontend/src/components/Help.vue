@@ -82,9 +82,11 @@
                 <div class="mb-4" v-if="os!='MacOS'">{{ $t('components.help.once-installed') }}</div>
                 <h3>{{ $t('components.help.use-browser') }}</h3>
                 <hr />
-                {{ $t('components.help.no-install') }}
-                <b>{{ $t('components.help.worse-performance') }}</b>
-                . {{$t('components.help.simply') }}
+                <i18n path="components.help.no-install" tag="p">
+                    <template v-slot:worse-performance>
+                        <strong>{{ $t('components.help.worse-performance') }}</strong>
+                    </template>
+                </i18n>
             </b-container>
         </b-modal>
     </form>
