@@ -336,3 +336,12 @@ def api_v2_categorygroup_insert():
         log.error("Category / Group create error.")
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"General exception when creating category/group pair: "+error}), 401, {'ContentType': 'application/json'}
+
+
+@app.route('/api/v2/categories', methods=['GET'])
+def api_v2_categories():
+    try:
+        return json.dumps(users.CategoriesGet()), 200, {'ContentType': 'application/json'}
+    except Exception as e:
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"CategoriesGet general exception: " + error }), 401, {'ContentType': 'application/json'}
