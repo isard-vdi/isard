@@ -8,9 +8,8 @@
             "other-windows-versions": "altres versions de Windows",
             "once-installed": "Un cop instaŀlat, has de fer clic al botó de «client local», i es descarregarà el fitxer de l'escriptori virtual",
             "use-browser": "Utilitzar el navegador",
-            "no-install": "No és necessari instaŀlar cap aplicatiu extern, ",
+            "no-install": "No és necessari instaŀlar cap aplicatiu extern, {worse-performance}. Simplement has de fer clic al botó i s'obrirà l'escriptori virtual en una pestanya nova",
             "worse-performance": "però el rendiment serà pitjor",
-            "simply": "Simplement has de fer clic al botó i s'obrirà l'escriptori virtual en una pestanya nova",
             "text": {
                 "macos": "macOS és una plataforma sense suport, cal fer servir el navegador",
                 "ios": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu iOS cal instal·lar l'aplicatiu següent:",

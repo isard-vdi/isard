@@ -8,9 +8,8 @@
             "other-windows-versions": "otras versiones de Windows",
             "once-installed": "Una vez instalado, tienes que hacer clic en el botón de «cliente local», y se descargará el fichero del escritorio virtual",
             "use-browser": "Utilizar el navegador",
-            "no-install": "No es necesario instalar ningún aplicativo externo, ",
+            "no-install": "No es necesario instalar ningún aplicativo externo, {worse-performance}. Simplemente tienes que hacer clic en el botón y se abrirá el escritorio virtual en una pestaña nueva",
             "worse-performance": "pero el rendimiento será peor",
-            "simply": "Simplemente tienes que hacer clic en el botón y se abrirá el escritorio virtual en una pestaña nueva",
             "text": {
                 "macos": "macOS es una plataforma sin soporte, se tiene que utilizar el navegador",
                 "ios": "Es necesario instalar un aplicativo externo, con el sistema operativo iOS se tiene que instalar el aplicativo siguiente:",
