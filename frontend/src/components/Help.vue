@@ -17,30 +17,31 @@
                 </h3>
                 <hr />
                 <b>{{ $t('components.help.best-performance') }}</b>
-                {{ this.text }}
-                <ul v-on:click.stop>
-                    <div v-if="os=='Windows'">
-                        <ul>
-                            <li>
-                                <b>Windows 64bits (Windows 10):</b>
-                                <a
-                                    href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi"
-                                    style="text-align: right"
-                                >
-                                    <b>{{ $t('components.help.install') }}</b>
-                                </a>
-                            </li>
-                            <li>
-                                <b>Windows 32bits ({{ $t('components.help.other-window-versions') }}):</b>
-                                <a
-                                    href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi"
-                                >
-                                    <b>{{ $t('components.help.install') }}</b>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                    <div v-else-if="os=='Linux'">
+                <div v-if="os=='Windows'">
+                    {{ $t('components.help.text.windows') }}
+                    <ul v-on:click.stop>
+                        <li>
+                            <b>Windows 64bits (Windows 10):</b>
+                            <a
+                                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi"
+                                style="text-align: right"
+                            >
+                                <b>{{ $t('components.help.install') }}</b>
+                            </a>
+                        </li>
+                        <li>
+                            <b>Windows 32bits ({{ $t('components.help.other-window-versions') }}):</b>
+                            <a
+                                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi"
+                            >
+                                <b>{{ $t('components.help.install') }}</b>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div v-else-if="os=='Linux'">
+                    {{ $t('components.help.text.linux') }}
+                    <ul v-on:click.stop>
                         <li>
                             <b>Debian / Ubuntu:</b>
                             <code>sudo apt install virt-viewer -y</code>
@@ -49,8 +50,11 @@
                             <b>RedHat / CentOS / Fedora:</b>
                             <code>sudo dnf install remote-viewer -y</code>
                         </li>
-                    </div>
-                    <div v-else-if="os=='Android'">
+                    </ul>
+                </div>
+                <div v-else-if="os=='Android'">
+                    {{ $t('components.help.text.android') }}
+                    <ul v-on:click.stop>
                         <li>
                             <b>Android:</b>
                             <a
@@ -59,16 +63,22 @@
                                 <b>{{ $t('components.help.install') }}</b>
                             </a>
                         </li>
-                    </div>
-                    <div v-else-if="os=='iOS'">
+                    </ul>
+                </div>
+                <div v-else-if="os=='iOS'">
+                    {{ $t('components.help.text.ios') }}
+                    <ul v-on:click.stop>
                         <li>
                             <b>iOS:</b>
                             <a href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263">
                                 <b>{{ $t('components.help.install') }}</b>
                             </a>
                         </li>
-                    </div>
-                </ul>
+                    </ul>
+                </div>
+                <div v-else-if="os=='MacOS'">
+                    {{ $t('components.help.text.macos') }}
+                </div>
                 <div class="mb-4" v-if="os!='MacOS'">{{ $t('components.help.once-installed') }}</div>
                 <h3>{{ $t('components.help.use-browser') }}</h3>
                 <hr />
@@ -86,8 +96,7 @@
 export default {
   data () {
     return {
-      os: this.getOS().os,
-      text: this.getOS().text
+      os: this.getOS()
     }
   },
   methods: {
@@ -98,28 +107,19 @@ export default {
       var windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE']
       var iosPlatforms = ['iPhone', 'iPad', 'iPod']
       var os = null
-      var text = null
 
       if (macosPlatforms.indexOf(platform) !== -1) {
         os = 'MacOS'
-        text = this.$i18n.components.help.text.macos
       } else if (iosPlatforms.indexOf(platform) !== -1) {
         os = 'iOS'
-        text = this.$i18n.components.help.text.ios
       } else if (windowsPlatforms.indexOf(platform) !== -1) {
         os = 'Windows'
-        text = this.$i18n.components.help.text.windows
       } else if (/Android/.test(userAgent)) {
         os = 'Android'
-        text = this.$i18n.components.help.text.android
       } else if (!os && /Linux/.test(platform)) {
         os = 'Linux'
-        text = this.$i18n.components.help.text.linux
       }
-      return {
-        os: os,
-        text: text
-      }
+      return os
     }
   }
 }
