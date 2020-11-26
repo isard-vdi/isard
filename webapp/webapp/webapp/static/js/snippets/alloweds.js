@@ -71,6 +71,7 @@
              //~ console.log(id)
             if( id.replace('a-','') == 'groups'){
                 $(parentid+" #"+id).select2({
+                    placeholder: "Empty means allow to all. Type to search.",
                     minimumInputLength: 2,
                     multiple: true,
                     ajax: {
@@ -100,6 +101,7 @@
                 });	                
             }else{
                 $(parentid+" #"+id).select2({
+                    placeholder: "Empty means allow to all. Type to search.",
                     minimumInputLength: 2,
                     multiple: true,
                     ajax: {
