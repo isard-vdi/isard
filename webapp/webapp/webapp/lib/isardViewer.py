@@ -16,6 +16,7 @@ db.init_app(app)
 
 from .admin_api import flatten
 from netaddr import IPNetwork, IPAddress 
+import urllib
 
 from ..lib.viewer_exc import *
 
@@ -50,6 +51,7 @@ class isardViewer():
             if get_cookie:       
                 cookie = base64.b64encode(json.dumps({
                     'web_viewer': {
+                        'vmName': domain['name'],
                         'vmHost': domain['viewer']['proxy_hyper_host'],
                         'vmPort': str(domain['viewer']['base_port']),
                         'host': domain['viewer']['proxy_video'],
@@ -60,13 +62,14 @@ class isardViewer():
                 uri = 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
             else:
-                return 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd'],
+                return urllib.quote('https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+domain['name']+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd'])
             
         if get_viewer == 'vnc-html5':
             port=domain['viewer']['base_port']+self.vnc
             if get_cookie:       
                 cookie = base64.b64encode(json.dumps({
                     'web_viewer': {
+                        'vmName': domain['name'],
                         'vmHost': domain['viewer']['proxy_hyper_host'],
                         'vmPort': str(domain['viewer']['base_port']+self.vnc),
                         'host': domain['viewer']['proxy_video'],
@@ -77,7 +80,7 @@ class isardViewer():
                 uri = 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
             else:
-                return 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd'],
+                return urllib.quote('https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+domain['name']+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd'])
 
         if get_viewer == 'spice-client':
             port=domain['viewer']['base_port']+self.spice_tls
