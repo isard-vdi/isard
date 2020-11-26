@@ -105,7 +105,7 @@ export default {
     getOS () {
       var userAgent = window.navigator.userAgent
       var platform = window.navigator.platform
-      var macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K']
+      var macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K', 'Mac OS']
       var windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE']
       var iosPlatforms = ['iPhone', 'iPad', 'iPod']
       var os = null
