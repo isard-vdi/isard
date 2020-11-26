@@ -66,6 +66,24 @@
                     "title": "Salir",
                     "description": "Cerrar la sesión de escritorio"
                 }
+            },
+            "notification": {
+                "loading": {
+                    "title": "Cargando",
+                    "description": "Esperando respuesta del servidor."
+                },
+                "downloaded": {
+                    "title": "Descargado",
+                    "description": "El escritorio se ha descargado correctamente."
+                },
+		"opened": {
+                    "title": "Abierto",
+                    "description": "El escritorio se ha abierto correctamente."
+                },
+                "error": {
+                    "title": "Error",
+                    "description": "El escritorio no se ha abierto correctamente."
+                }
             }
         },
         "login": {
