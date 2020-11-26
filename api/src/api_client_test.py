@@ -143,7 +143,23 @@ def register(code):
         return json.loads(resp.text)
     raise
 
+def get_categories():
+    print("\n----------------------- CATEGORIES GET")
+    global auth, verifycert
+    url = base_url + "categories"
+    data = {}
+    print(" DATA SENT: "+str(data)) 
+    resp = requests.get(url, data=data, auth=auth, verify=verifycert)
+    
+    print("       URL: "+url)    
+    print("STATUS CODE: "+str(resp.status_code))
+    print("   RESPONSE: "+resp.text)
+    if resp.status_code == 200:
+        return json.loads(resp.text)
+    raise
 
+get_categories()
+exit(0)
 
 desktop_id='_local+default+admin+admin+downloaded_tetros'
 
