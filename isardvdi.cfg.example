@@ -4,6 +4,13 @@
 ## the system paths. If you have a domain set it here
 HOSTNAME=localhost
 
+## Frontend Administration Button
+## With this variable you can control if there is a button in the simplified
+## interface (frontend) to go to administration login.
+## True: show button
+## False (or variable not defined): don't show the button
+FRONTEND_SHOW_ADMIN_BTN=True
+
 ## Generate your own!:
 ## openssl rand -base64 32
 WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
