@@ -47,6 +47,7 @@ func New(env *env.Env) *API {
 		mux.NewRouter(),
 	}
 
+	a.Mux.HandleFunc("/api/"+version+"/config", a.configuration)
 	a.Mux.HandleFunc("/api/"+version+"/category/{category}", a.category)
 
 	a.Mux.HandleFunc("/api/"+version+"/login/", a.login)
@@ -62,6 +63,7 @@ func New(env *env.Env) *API {
 	a.Mux.HandleFunc("/api/"+version+"/templates", a.isAuthenticated(a.templates))
 	a.Mux.HandleFunc("/api/"+version+"/create", a.isAuthenticated(a.create))
 	a.Mux.HandleFunc("/api/"+version+"/viewer", a.isAuthenticated(a.viewer))
+
 	return a
 }
 
@@ -137,5 +139,4 @@ func handleErrRedirect(err error, w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/error/500", http.StatusFound)
-	return
 }

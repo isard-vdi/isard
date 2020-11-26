@@ -5,6 +5,7 @@ type Cfg struct {
 	Redis       Redis
 	Auth        Auth
 	Isard       Isard
+	Frontend    Frontend
 }
 
 type Redis struct {
@@ -48,4 +49,8 @@ type AuthGoogle struct {
 type Isard struct {
 	Host string
 	Port int
+}
+
+type Frontend struct {
+	ShowAdminButton bool `json:"show_admin_button"`
 }

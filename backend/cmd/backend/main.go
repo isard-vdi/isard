@@ -5,13 +5,13 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/spf13/afero"
 	"github.com/isard-vdi/isard/backend/api"
 	"github.com/isard-vdi/isard/backend/auth"
 	"github.com/isard-vdi/isard/backend/cfg"
 	"github.com/isard-vdi/isard/backend/env"
 	"github.com/isard-vdi/isard/backend/isard"
 
+	"github.com/spf13/afero"
 	"go.uber.org/zap"
 )
 
@@ -67,6 +67,18 @@ func init() {
 		)
 	}
 
+	var frontendShowAdmin bool
+	frontendShowAdminEnv := os.Getenv("FRONTEND_SHOW_ADMIN_BTN")
+	if frontendShowAdminEnv != "" {
+		frontendShowAdmin, err = strconv.ParseBool(frontendShowAdminEnv)
+		if err != nil {
+			sugar.Fatalw("invalid frontend show admin button value",
+				"err", err,
+			)
+		}
+
+	}
+
 	e = &env.Env{
 		Sugar: sugar,
 		FS:    afero.NewOsFs(),
@@ -101,6 +113,9 @@ func init() {
 			Isard: cfg.Isard{
 				Host: os.Getenv("BACKEND_ISARD_API_HOST"),
 				Port: isardPort,
+			},
+			Frontend: cfg.Frontend{
+				ShowAdminButton: frontendShowAdmin,
 			},
 		},
 		Auth: &env.Auth{},
