@@ -87,12 +87,13 @@
         },
         "help": {
             "text": {
-                "linux": "Eine externe Anwendung ist erforderlich. Unter dem Betriebssystem Linux müssen Sie die folgenden Befehle ausführen:",
-                "android": "Eine externe Anwendung ist erforderlich. Mit dem Betriebssystem Android müssen Sie die folgende Anwendung installieren:",
-                "windows": "Eine externe Anwendung ist erforderlich. Unter dem Betriebssystem Windows müssen Sie eine der folgenden ausführbaren Dateien herunterladen und installieren:",
-                "ios": "Eine externe Anwendung ist erforderlich. Unter dem Betriebssystem iOS müssen Sie die folgende Anwendung installieren:",
+                "linux": "Unter dem Betriebssystem Linux müssen Sie die folgenden Befehle ausführen:",
+                "android": "Mit dem Betriebssystem Android müssen Sie die folgende Anwendung installieren:",
+                "windows": "Unter dem Betriebssystem Windows müssen Sie eine der folgenden ausführbaren Dateien herunterladen und installieren:",
+                "ios": "Unter dem Betriebssystem iOS müssen Sie die folgende Anwendung installieren:",
                 "macos": "macOS ist eine nicht unterstützte Plattform. Sie müssen die Browseroption verwenden"
             },
+            "spice-client-required": "Eine externe Anwendung ist erforderlich.",
             "once-installed": "Klicken Sie nach der Installation auf die Schaltfläche „Lokaler Client“, um die Virtuelle-Arbeitsoberfläche-Datei herunterzuladen",
             "worse-performance": "aber die Leistung ist schlechter",
             "no-install": "Es ist nicht erforderlich, ein externes Programm zu installieren, {worse-performance}. Sie müssen nur auf die Schaltfläche klicken, um die virtuelle Arbeitsoberfläche in einer neuen Registerkarte zu öffnen",

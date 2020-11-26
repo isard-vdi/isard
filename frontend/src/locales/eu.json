@@ -10,12 +10,13 @@
             "use-browser": "Nabigatzailea erabiltzea",
             "no-install": "Ez da beharrezkoa kanpoko aplikaziorik instalatzea, {worse-performance}. Botoian klik egin besterik ez duzu egin behar, eta mahaigain birtuala beste erlaitz batean irekiko da",
             "worse-performance": "Baina errendimendua okerragoa izango da",
+            "spice-client-required": "Beharrezkoa da kanpoko aplikazio bat instalatzea.",
             "text": {
                 "macos": "MacOS euskarririk gabeko plataforma bat da, nabigatzailea erabili behar da",
-                "ios": "Beharrezkoa da kanpoko aplikazio bat instalatzea; iOS sistema eragilearekin honako aplikazio hau instalatu behar da:",
-                "windows": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Windows sistema eragilearekin honako instalatzaile hauek deskargatu eta exekutatu behar dira:",
-                "android": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Android sistema eragilearekin honako aplikazio hau instalatu behar da:",
-                "linux": "Kanpoko aplikazio bat instalatu behar da, eta Linux sistema eragilearekin honako agindu hauek exekutatu behar dira:"
+                "ios": "iOS sistema eragilearekin honako aplikazio hau instalatu behar da:",
+                "windows": "Windows sistema eragilearekin honako instalatzaile hauek deskargatu eta exekutatu behar dira:",
+                "android": "Android sistema eragilearekin honako aplikazio hau instalatu behar da:",
+                "linux": "Linux sistema eragilearekin honako agindu hauek exekutatu behar dira:"
             }
         },
         "not-found": {
