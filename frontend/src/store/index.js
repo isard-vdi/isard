@@ -2,6 +2,7 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import auth from './modules/auth'
 import templates from './modules/templates'
+import config from './modules/config'
 import { apiAxios } from '@/router/auth'
 import router from '@/router'
 
@@ -90,6 +91,7 @@ export default new Vuex.Store({
   },
   modules: {
     auth,
-    templates
+    templates,
+    config
   }
 })
