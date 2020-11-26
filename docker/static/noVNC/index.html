@@ -37,7 +37,7 @@
         }
 
         #top_bar {
-            background-color: #6e84a3;
+            background-color: #547c72;
             color: white;
             font: bold 12px Helvetica;
             padding: 6px 5px 4px 5px;
@@ -46,6 +46,12 @@
 
         #status {
             text-align: center;
+        }
+
+        #statusDesktopName {
+            position: fixed;
+            top: 0px;            
+            left: 0px;
         }
 
         #sendCtrlAltDelButton,
@@ -169,7 +175,8 @@
         // When this function is called we have
         // successfully connected to a server
         function connectedToServer(e) {
-            status("Sistema de Virtualització d'Escriptoris IsardVDI");
+            status("Sistema de Virtualització d'Escriptoris IsardVDI")
+            statusDesktopName(desktopName);
         }
 
         // This function is called when we are disconnected
@@ -191,7 +198,7 @@
         // When this function is called we have received
         // a desktop name from the server
         function updateDesktopName(e) {
-            desktopName = e.detail.name;
+            //desktopName = e.detail.name;
         }
 
         // Since most operating systems will catch Ctrl+Alt+Del
@@ -240,6 +247,10 @@
             document.getElementById('status').textContent = text;
         }
 
+        function statusDesktopName(text) {
+            document.getElementById('statusDesktopName').textContent = text;
+        }
+
         function readQueryVariable(name, defaultValue) {
             // A URL with a query parameter can look like this:
             // https://www.example.com?myqueryparam=myvalue
@@ -280,6 +291,7 @@
                 'protocol': 'wss',
                 'host': getParameter('host') || readQueryVariable('host', window.location.hostname),
                 'port': getParameter('port') || '443',
+                'desktopName': decodeURI(getParameter('vmName')) || decodeURI(readQueryVariable('vmName')),
                 'vmHost': getParameter('vmHost') || readQueryVariable('vmHost'),
                 'vmPort': (getParameter('vmPort') || readQueryVariable('vmPort')) - 2, // the spice (no TLS) port is two ports less than the vnc
                 'token': getParameter('token') || readQueryVariable('passwd'),
@@ -295,6 +307,7 @@
 
         // Read parameters specified in the URL query string
         // By default, use the host and port of server that served this file
+        desktopName = decodeURI(getParameter('vmName')) || decodeURI(readQueryVariable('vmName'));
         const host = getParameter('host') || readQueryVariable('host', window.location.hostname);
         const port = getParameter('port') === false || getParameter('port') === undefined ? '' : ':' + getParameter('port');
         const vmHost = getParameter('vmHost') || readQueryVariable('vmHost');
@@ -336,6 +349,7 @@
 
 <body>
     <div id="top_bar">
+        <div id="statusDesktopName"></div>
         <div id="status">Carregant...</div>
         <div id="sendCtrlAltDelButton">Envia 'Ctrl Alt Suprimir'</div>
         <div id="toggleFullscreen">Pantalla Completa</div>
