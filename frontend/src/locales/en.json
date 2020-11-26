@@ -65,6 +65,24 @@
                     "title": "Quit",
                     "description": "Close the desktop session"
                 }
+            },
+            "notification": {
+                "loading": {
+                    "title": "Loading",
+                    "description": "Waiting for server response."
+                },
+                "downloaded": {
+                    "title": "Downloaded",
+                    "description": "The desktop has been downloaded successfully."
+                },
+		"opened": {
+                    "title": "Opened",
+                    "description": "The desktop has been opened successfully."
+                },
+                "error": {
+                    "title": "Error",
+                    "description": "The desktop did not open properly."
+                }
             }
         },
         "login": {

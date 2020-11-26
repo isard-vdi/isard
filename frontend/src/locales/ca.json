@@ -65,6 +65,24 @@
                     "title": "Sortir",
                     "description": "Tancar la sessió d'escriptori"
                 }
+            },
+            "notification": {
+                "loading": {
+                    "title": "Carregant",
+                    "description": "Esperant resposta del servidor."
+                },
+                "downloaded": {
+                    "title": "Descarregat",
+                    "description": "L'escriptori ha estat descarregat correctament."
+                },
+		"opened": {
+                    "title": "Obert",
+                    "description": "L'escriptori s'ha obert correctament."
+                },
+                "error": {
+                    "title": "Error",
+                    "description": "L'escriptori no s'ha obert correctament."
+                }
             }
         },
         "login": {
