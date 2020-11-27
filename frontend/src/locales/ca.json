@@ -22,6 +22,9 @@
         "not-found": {
             "title": "No hem trobat l'adreça soŀlicitada",
             "home": "Tornar a l'inici"
+        },
+        "title": {
+            "logo-alt": "Logotip"
         }
     },
     "views": {
@@ -95,7 +98,9 @@
                 "pwd": "Contrasenya",
                 "login": "Iniciar sessió"
             },
-            "other-logins": "O iniciar sessió amb"
+            "other-logins": "O iniciar sessió amb",
+	    "powered-by": "Impulsat per",
+	    "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard."
         },
         "maintenance": {
             "title": "Actualment, el servei d'Isard es troba en manteniment",
