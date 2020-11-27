@@ -24,6 +24,24 @@
                     "description": "Öffnen Sie die Arbeitsoberfläche im Browser",
                     "title": "Browser"
                 }
+            },
+            "notification": {
+                "opened": {
+                    "title": "Geöffnet",
+                    "description": "Die Arbeitsoberfläche wurde erfolgreich geöffnet."
+                },
+                "error": {
+                    "description": "Die Arbeitsoberfläche wurde nicht richtig geöffnet.",
+                    "title": "Fehler"
+                },
+                "downloaded": {
+                    "description": "Die Arbeitsoberfläche wurde erfolgreich heruntergeladen.",
+                    "title": "Heruntergeladen"
+                },
+                "loading": {
+                    "description": "Warten auf Serverantwort.",
+                    "title": "Lade …"
+                }
             }
         },
         "select-template": {
@@ -56,7 +74,8 @@
             "form": {
                 "login": "Anmelden",
                 "pwd": "Passwort",
-                "usr": "Benutzername"
+                "usr": "Benutzername",
+                "select-category": "Bitte wählen Sie eine Kategorie"
             },
             "title": "Anmelden",
             "admin": "Verwaltung"
