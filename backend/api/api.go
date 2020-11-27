@@ -48,6 +48,7 @@ func New(env *env.Env) *API {
 	}
 
 	a.Mux.HandleFunc("/api/"+version+"/config", a.configuration)
+	a.Mux.HandleFunc("/api/"+version+"/categories", a.categories)
 	a.Mux.HandleFunc("/api/"+version+"/category/{category}", a.category)
 
 	a.Mux.HandleFunc("/api/"+version+"/login/", a.login)
