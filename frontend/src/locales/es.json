@@ -90,6 +90,7 @@
             "admin": "Administración",
             "title": "Iniciar Sesión",
             "form": {
+                "select-category": "Por favor, seleccione una categoría",
                 "usr": "Nombre de usuario",
                 "pwd": "Contraseña",
                 "login": "Iniciar sesión"
