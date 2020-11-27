@@ -31,7 +31,8 @@
             "form": {
                 "login": "Se connecter",
                 "pwd": "Mot de passe",
-                "usr": "Nom d’utilisateur"
+                "usr": "Nom d’utilisateur",
+                "select-category": "Veuillez sélectionner une catégorie"
             },
             "title": "Se connecter",
             "admin": "Administration"
@@ -55,6 +56,24 @@
                 "view-guide": "Cliquez {0} pour visualiser un guide.",
                 "here": "ici",
                 "first-time": "Est-ce la première fois que vous utilisez Isard (service de bureau à distance) ?"
+            },
+            "notification": {
+                "error": {
+                    "description": "Le bureau ne s'est pas ouvert correctement.",
+                    "title": "Erreur"
+                },
+                "opened": {
+                    "description": "Le bureau a été ouvert avec succès.",
+                    "title": "Ouvert"
+                },
+                "downloaded": {
+                    "description": "Le bureau a été téléchargé avec succès.",
+                    "title": "Téléchargé"
+                },
+                "loading": {
+                    "description": "En attente d'une réponse du serveur.",
+                    "title": "Chargement"
+                }
             }
         },
         "expired-session": {
