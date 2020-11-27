@@ -1,7 +1,7 @@
 <template>
     <b-container fluid>
         <b-row id="header" align-h="center">
-            <Title />
+            <Logo/>
         </b-row>
         <b-row id="register" align-h="center">
             <b-col sm="10" md="6" lg="5" xl="4">
@@ -24,11 +24,11 @@
 </template>
 
 <script>
-import Title from '@/components/Title.vue'
+import Logo from '@/components/Logo.vue'
 export default {
   name: 'register',
   components: {
-    Title
+    Logo
   },
   methods: {
     register () {

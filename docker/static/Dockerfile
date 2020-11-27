@@ -17,4 +17,5 @@ FROM nginx:alpine as production
 COPY docker/static/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/static/spice-web-client /usr/share/nginx/html/viewer/spice-web-client
 COPY docker/static/noVNC /usr/share/nginx/html/viewer/noVNC
+COPY frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
 COPY --from=frontend /isard-frontend/dist /usr/share/nginx/html
