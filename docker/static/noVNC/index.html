@@ -52,6 +52,7 @@
             position: fixed;
             top: 0px;            
             left: 0px;
+            padding: 5px 5px 4px 5px;
         }
 
         #sendCtrlAltDelButton,
@@ -175,23 +176,23 @@
         // When this function is called we have
         // successfully connected to a server
         function connectedToServer(e) {
-            status("Sistema de Virtualització d'Escriptoris IsardVDI")
+            status("IsardVDI.com")
             statusDesktopName(desktopName);
         }
 
         // This function is called when we are disconnected
         function disconnectedFromServer(e) {
             if (e.detail.clean) {
-                status("Desconnectat");
+                status("Disconnected");
             } else {
-                status("Alguna cosa no ha anat bé, s'ha tancat la connexió");
+                status("Something went wrong, connection closed");
             }
         }
 
         // When this function is called, the server requires
         // credentials to authenticate
         function credentialsAreRequired(e) {
-            const password = prompt("Contrasenya:");
+            const password = prompt("Password:");
             rfb.sendCredentials({ password: password });
         }
 
