@@ -10,15 +10,21 @@
       </b-col>
 
       <b-col>
-        <b-button v-if="configLoaded && config['show_admin_button']" :href="'/isard-admin/login/' + category.id" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
+        <b-button v-if="configLoaded && config['show_admin_button']" :href="'/isard-admin/login/' + category" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
       </b-col>
     </b-row>
     <b-row id="login" align-h="center">
       <b-col sm="10" md="6" lg="5" xl="4">
         <h1>{{ $t('views.login.title') }}</h1>
-        <h3 v-show="category.id !== 'default'">{{ category.name }}</h3>
+        <h3 v-if="category_by_path">{{ category_name }}</h3>
 
         <b-form method="POST" :action="login('local')">
+          <b-form-select v-if="!category_by_path" size="md" class="mb-4" required :options="categories" v-model="category">
+            <template #first>
+              <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
+            </template>
+          </b-form-select>
+
           <b-form-input id="username" name="usr" type="text" required :placeholder="$t('views.login.form.usr')" />
 
           <b-form-input
@@ -52,6 +58,7 @@
 
 <script>
 import { apiAxios } from '@/router/auth'
+import * as cookies from 'tiny-cookie'
 import Language from '@/components/Language.vue'
 import Title from '@/components/Title.vue'
 
@@ -63,11 +70,8 @@ export default {
   },
   data () {
     return {
-      category: {
-        id: '',
-        name: '',
-        icon: ''
-      },
+      categories: [],
+      category: '',
       window: window,
       socialLogin: ['GitHub', 'Google']
     }
@@ -78,26 +82,36 @@ export default {
     },
     configLoaded () {
       return this.$store.getters.getConfigLoaded
+    },
+    category_by_path () {
+      return this.$route.params.category !== undefined
+    },
+    category_name () {
+      var name = ''
+      this.categories.forEach(category => {
+        if (this.category === category.value) {
+          name = category.text
+        }
+      })
+      return name
     }
   },
   methods: {
     login (provider) {
-      return `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category.id}?provider=${provider}&redirect=/select_template`
+      return `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/select_template`
     }
   },
   beforeMount: async function () {
     this.$store.dispatch('fetchConfig')
 
-    this.category.id = this.$route.params.category
-    if (this.category.id === undefined) {
-      this.category.id = 'default'
-    }
-
-    try {
-      const rsp = await apiAxios.get('/category/' + this.category.id)
-      this.category.name = rsp.data.name
-    } catch (err) {
-      console.error(err)
+    await apiAxios.get('/categories').then(rsp => {
+      this.categories = rsp.data.map(category =>
+        ({
+          value: category.id,
+          text: category.name
+        })
+      )
+    }).catch(err => {
       if (err.response.status === 404) {
         // this.$router.push({ name: 'NotFound' })
       } else {
@@ -105,6 +119,18 @@ export default {
           name: 'Error',
           params: { code: err.response.status.toString() }
         })
+      }
+    })
+    if (this.category_by_path) {
+      this.category = this.$route.params.category
+    } else {
+      this.category = cookies.getCookie('category') || ''
+    }
+  },
+  watch: {
+    category: function () {
+      if (!this.category_by_path) {
+        cookies.setCookie('category', this.category)
       }
     }
   }

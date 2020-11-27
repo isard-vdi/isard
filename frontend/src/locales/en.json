@@ -90,6 +90,7 @@
             "admin": "Administration",
             "title": "Login",
             "form": {
+                "select-category": "Please, select a category",
                 "usr": "Username",
                 "pwd": "Password",
                 "login": "Login"
