@@ -100,10 +100,25 @@ def post_template(template_name, user_id, desktop_id):
         return json.loads(resp.text)
     raise
 
-def get_viewer(desktop_id):
+def get_spice_viewer(desktop_id):
     print("\n----------------------- VIEWER GET")    
     # spice-client / vnc-html5
     url = base_url + "desktop/"+desktop_id+"/viewer/spice-client"
+    data = {}
+    print(" DATA SENT: "+str(data)) 
+    resp = requests.get(url, data=data, auth=auth)
+
+    print("       URL: "+url)    
+    print("STATUS CODE: "+str(resp.status_code))
+    print("   RESPONSE: "+resp.text)
+    if resp.status_code == 200:
+        return json.loads(resp.text)
+    raise
+
+def get_html5_viewer(desktop_id):
+    print("\n----------------------- VIEWER GET")    
+    # spice-client / vnc-html5
+    url = base_url + "desktop/"+desktop_id+"/viewer/vnc-html5"
     data = {}
     print(" DATA SENT: "+str(data)) 
     resp = requests.get(url, data=data, auth=auth)
@@ -142,6 +157,9 @@ def register(code):
     if resp.status_code == 200:
         return json.loads(resp.text)
     raise
+
+get_html5_viewer('_local-default-admin-admin_downloaded_slax93')
+exit(1)
 
 def get_categories():
     print("\n----------------------- CATEGORIES GET")
