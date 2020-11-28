@@ -87,12 +87,13 @@
         },
         "help": {
             "text": {
-                "linux": "Une application externe est requise, avec le système d’exploitation Linux, vous devez exécuter les commandes suivantes :",
-                "android": "Une application externe est requise, avec le système d’exploitation Android, vous devez installer l’application suivante :",
-                "windows": "Une application externe est requise, avec le système d’exploitation Windows, vous devez télécharger et installer l’un des exécutables suivants :",
-                "ios": "Une application externe est requise, avec le système d’exploitation iOS, vous devez installer l’application suivante :",
+                "linux": "Avec le système d’exploitation Linux, vous devez exécuter les commandes suivantes :",
+                "android": "Avec le système d’exploitation Android, vous devez installer l’application suivante :",
+                "windows": "Avec le système d’exploitation Windows, vous devez télécharger et installer l’un des exécutables suivants :",
+                "ios": "Avec le système d’exploitation iOS, vous devez installer l’application suivante :",
                 "macos": "macOS est une plateforme non prise en charge. Vous devez utiliser l’option du navigateur"
             },
+            "spice-client-required": "Une application externe est requise.",
             "worse-performance": "mais la performance est moins bonne",
             "no-install": "Il n’y a pas besoin d’installer de programme externe, {worse-performance}. Vous devez simplement cliquer sur le bouton et cela ouvrira le bureau virtuel dans un nouvel onglet",
             "use-browser": "Utiliser le navigateur",

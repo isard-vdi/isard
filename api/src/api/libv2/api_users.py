@@ -240,3 +240,7 @@ class ApiUsers():
                     }
                 r.table('groups').insert(group).run(db.conn)                    
         return group['quota']
+
+    def CategoriesGet(self):
+        with app.app_context():        
+            return list(r.table('categories').pluck({'id','name'}).run(db.conn))    
