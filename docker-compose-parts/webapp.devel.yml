@@ -5,3 +5,4 @@ services:
       - "8081:8080"
     volumes:
       - ${BUILD_ROOT_PATH}/webapp/webapp:/isard:rw
+    command: sleep 999999999

@@ -125,6 +125,29 @@ def admin_items_delete():
         else:
             return json.dumps(res), 500,  {'ContentType': 'application/json'}
 
+
+@app.route('/isard-admin/admin/domains/jumperurl/<id>')
+@login_required
+@isAdminManager
+def admin_jumperurl(id):
+    data = app.adminapi.get_jumperurl(id)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}
+
+@app.route('/isard-admin/admin/domains/jumperurl_reset/<id>')
+@login_required
+@isAdminManager
+def admin_jumperurl_reset(id):
+    data = app.adminapi.jumperurl_reset(id)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}
+
+@app.route('/isard-admin/admin/domains/jumperurl_disable/<id>')
+@login_required
+@isAdminManager
+def admin_jumperurl_disable(id):
+    data = app.adminapi.jumperurl_reset(id,disabled=True)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}
+
+
 @app.route('/isard-admin/admin/domains/tree_list/<id>', methods=['GET'])
 @login_required
 @isAdminManager
