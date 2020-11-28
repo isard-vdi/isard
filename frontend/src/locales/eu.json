@@ -10,12 +10,13 @@
             "use-browser": "Nabigatzailea erabiltzea",
             "no-install": "Ez da beharrezkoa kanpoko aplikaziorik instalatzea, {worse-performance}. Botoian klik egin besterik ez duzu egin behar, eta mahaigain birtuala beste erlaitz batean irekiko da",
             "worse-performance": "Baina errendimendua okerragoa izango da",
+            "spice-client-required": "Beharrezkoa da kanpoko aplikazio bat instalatzea.",
             "text": {
                 "macos": "MacOS euskarririk gabeko plataforma bat da, nabigatzailea erabili behar da",
-                "ios": "Beharrezkoa da kanpoko aplikazio bat instalatzea; iOS sistema eragilearekin honako aplikazio hau instalatu behar da:",
-                "windows": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Windows sistema eragilearekin honako instalatzaile hauek deskargatu eta exekutatu behar dira:",
-                "android": "Beharrezkoa da kanpoko aplikazio bat instalatzea; Android sistema eragilearekin honako aplikazio hau instalatu behar da:",
-                "linux": "Kanpoko aplikazio bat instalatu behar da, eta Linux sistema eragilearekin honako agindu hauek exekutatu behar dira:"
+                "ios": "iOS sistema eragilearekin honako aplikazio hau instalatu behar da:",
+                "windows": "Windows sistema eragilearekin honako instalatzaile hauek deskargatu eta exekutatu behar dira:",
+                "android": "Android sistema eragilearekin honako aplikazio hau instalatu behar da:",
+                "linux": "Linux sistema eragilearekin honako agindu hauek exekutatu behar dira:"
             }
         },
         "not-found": {
@@ -65,12 +66,31 @@
                     "title": "Irten",
                     "description": "Mahaigaineko saioa ixtea"
                 }
+            },
+            "notification": {
+                "error": {
+                    "description": "Mahaigaina ez da modu egokian ireki.",
+                    "title": "Akatsa"
+                },
+                "opened": {
+                    "description": "Mahaigaina arrakastaz ireki da.",
+                    "title": "Irekita"
+                },
+                "downloaded": {
+                    "description": "Mahaigana arrakataz deskargatua izan da.",
+                    "title": "Deskargatua"
+                },
+                "loading": {
+                    "description": "Zerbitzariaren erantzunaren zain.",
+                    "title": "Abiarazten"
+                }
             }
         },
         "login": {
             "admin": "Administrazioa",
             "title": "Saioa hasi",
             "form": {
+                "select-category": "Mesedez, hautatu kategoria bat",
                 "usr": "Erabiltzailearen izena",
                 "pwd": "Pasahitza",
                 "login": "Saioa hasi"
@@ -96,7 +116,8 @@
                 "title": "Erabiltzaile honentzat ez dago txantiloirik!",
                 "subtitle": "Jarri harremanetan administratzailearekin akatsa dela uste baduzu"
             },
-            "which-template": "Zein idazmahai erabili nahi duzu?"
+            "which-template": "Zein idazmahai erabili nahi duzu?",
+            "loading": "Txantiloiak kargatzen"
         },
         "welcome": {
             "title": "Ongi etorri Isard-era, mahaigain birtualen sistemara",

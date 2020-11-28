@@ -10,12 +10,13 @@
             "use-browser": "Use the browser",
             "no-install": "There's no need to install any external program, {worse-performance}. You simply need to click the button and it will open the virtual desktop in a new tab",
             "worse-performance": "but the performance is worse",
+            "spice-client-required": "An external application is required.",
             "text": {
                 "macos": "macOS is an unsupported platform. You need to use the browser option",
-                "ios": "An external application is required, with the operative system iOS, you need to install the following application:",
-                "windows": "An external application is required, with the operative system Windows, you need to download and install one of the following executable:",
-                "android": "An external application is required, with the operative system Android, you need to instal the following application:",
-                "linux": "An external application is required, with the operative system Linux, you need to run the following commands:"
+                "ios": "On the operative system iOS, you need to install the following application:",
+                "windows": "On the operative system Windows, you need to download and install one of the following executable:",
+                "android": "On the operative system Android, you need to instal the following application:",
+                "linux": "On the operative system Linux, you need to run the following commands:"
             }
         },
         "not-found": {
@@ -89,6 +90,7 @@
             "admin": "Administration",
             "title": "Login",
             "form": {
+                "select-category": "Please, select a category",
                 "usr": "Username",
                 "pwd": "Password",
                 "login": "Login"

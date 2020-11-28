@@ -10,12 +10,13 @@
             "use-browser": "Utilitzar el navegador",
             "no-install": "No és necessari instaŀlar cap aplicatiu extern, {worse-performance}. Simplement has de fer clic al botó i s'obrirà l'escriptori virtual en una pestanya nova",
             "worse-performance": "però el rendiment serà pitjor",
+            "spice-client-required": "És necessari instal·lar un aplicatiu extern.",
             "text": {
                 "macos": "macOS és una plataforma sense suport, cal fer servir el navegador",
-                "ios": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu iOS cal instal·lar l'aplicatiu següent:",
-                "windows": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Windows cal descarregar i executar un dels següents instal·ladors:",
-                "android": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Android cal instal·lar l'aplicatiu següent:",
-                "linux": "És necessari instal·lar un aplicatiu extern, amb el sistema operatiu Linux cal executar les ordres següents:"
+                "ios": "En el sistema operatiu iOS cal instal·lar l'aplicatiu següent:",
+                "windows": "En el sistema operatiu Windows cal descarregar i executar un dels següents instal·ladors:",
+                "android": "En el sistema operatiu Android cal instal·lar l'aplicatiu següent:",
+                "linux": "En el sistema operatiu Linux cal executar les ordres següents:"
             }
         },
         "not-found": {
@@ -89,6 +90,7 @@
             "admin": "Administració",
             "title": "Iniciar Sessió",
             "form": {
+                "select-category": "Si us plau, selectiona una categoria",
                 "usr": "Nom d'usuari",
                 "pwd": "Contrasenya",
                 "login": "Iniciar sessió"
