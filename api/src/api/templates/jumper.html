@@ -24,7 +24,8 @@ function setCookie(name,value,days) {
 
       console.log('inside')
       //console.log({{ data.cookie }})
-      var data = {{vars|tojson}}
+      var data = {{ data|tojson }};
+      console.log(data.viewer)
       
       if(data['kind']=='url'){
           setCookie('isard', data['cookie'], 1)

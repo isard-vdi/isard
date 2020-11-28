@@ -29,13 +29,14 @@ quotas = Quotas()
 from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
 desktops = ApiDesktopsNonPersistent()
 
-@app.route('/viewer/<token>', methods=['GET'])
+@app.route('/vw/<token>', methods=['GET'])
 def api_v2_viewer(token):
     try:
         viewer=desktops.DesktopViewerFromToken(token)
         log.error(viewer)
-        return render_template('jumper.html', data=json.dumps(viewer))
-        #return json.dumps(url), 200, {'ContentType': 'application/json'}
+        log.error(viewer)
+        return render_template('jumper.html', data=(viewer))
+        #return json.dumps(viewer), 200, {'ContentType': 'application/json'}
     except DesktopNotFound:
         log.error("Jumper viewer desktop not found")
         return json.dumps({"code":1,"msg":"Jumper viewer token not found"}), 404, {'ContentType': 'application/json'}
@@ -46,7 +47,13 @@ def api_v2_viewer(token):
         log.error("Jumper viewer desktop start timeout.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":2,"msg":"Jumper viewer start timeout"}), 404, {'ContentType': 'application/json'}
+    except NotAllowed:
+        log.error("Jumper viewer desktop not allowed.")
+        carbon.send({'create_and_start_time':'100'})
+        return json.dumps({"code":2,"msg":"Jumper viewer start timeout"}), 404, {'ContentType': 'application/json'}
+
     except Exception as e:
+        log.error("the error:"+str(e))
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"JumperViewer general exception: " + error }), 401, {'ContentType': 'application/json'}
         
