@@ -92,6 +92,7 @@ func (i *Isard) viewer(id string, vType viewerType) (string, error) {
 			u.Query().Get("vmHost"),
 			u.Query().Get("vmPort"),
 			u.Query().Get("passwd"),
+			u.Query().Get("vmName"),
 		}, "|||")
 	}
 
@@ -115,6 +116,7 @@ type ViewerHTML struct {
 	VMHost string `json:"vmHost,omitempty"`
 	VMPort string `json:"vmPort,omitempty"`
 	Token  string `json:"token,omitempty"`
+	VMName string `json:"vmName,omitempty"`
 }
 
 // ViewerHTML returns the html viewer
@@ -132,5 +134,6 @@ func (i *Isard) ViewerHTML(id string) (*ViewerHTML, error) {
 		VMHost: val[2],
 		VMPort: val[3],
 		Token:  val[4],
+		VMName: val[5],
 	}, nil
 }
