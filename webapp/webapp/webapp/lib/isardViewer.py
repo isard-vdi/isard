@@ -62,7 +62,7 @@ class isardViewer():
                 uri = 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
             else:
-                return urllib.quote('https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+domain['name']+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd'])
+                return 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd']
             
         if get_viewer == 'vnc-html5':
             port=domain['viewer']['base_port']+self.vnc
@@ -80,7 +80,7 @@ class isardViewer():
                 uri = 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
             else:
-                return urllib.quote('https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+domain['name']+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd'])
+                return 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd']
 
         if get_viewer == 'spice-client':
             port=domain['viewer']['base_port']+self.spice_tls
