@@ -18,7 +18,8 @@ export default {
         de: 'Deutsch',
         en: 'English',
         eu: 'Euskara',
-        fr: 'Français'
+        fr: 'Français',
+        ru: 'Русский'
       }
     }
   },
