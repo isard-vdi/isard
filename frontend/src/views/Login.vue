@@ -18,24 +18,32 @@
         <h1 v-if="categories.length || config['social_logins']">{{ $t('views.login.title') }}</h1>
         <h3 v-if="category_by_path">{{ category_name }}</h3>
 
-        <b-form v-if="categories.length" method="POST" :action="login('local')">
-          <b-form-select v-if="!category_by_path" size="md" class="mb-4" required :options="categories" v-model="category">
+        <b-form v-if="categories.length" @submit.prevent="login('local')">
+
+          <b-alert
+            v-model="showDismissibleAlert"
+            dismissible
+            variant="danger"
+          >
+            {{ this.error }}
+          </b-alert>
+
+          <b-form-select v-if="!category_by_path" size="md" class="mb-4" required :options="categories_select" v-model="category">
             <template #first>
               <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
             </template>
           </b-form-select>
 
-          <b-form-input id="username" name="usr" type="text" required :placeholder="$t('views.login.form.usr')" />
+          <b-form-input v-model="usr" type="text" required :placeholder="$t('views.login.form.usr')" />
 
           <b-form-input
-            id="password"
-            name="pwd"
             type="password"
             required
+            v-model="pwd"
             :placeholder="$t('views.login.form.pwd')"
           />
 
-          <b-button id="submit" type="submit" variant="warning" size="lg">{{ $t('views.login.form.login') }}</b-button>
+          <b-button type="submit" variant="warning" size="lg">{{ $t('views.login.form.login') }}</b-button>
         </b-form>
 
         <hr v-if="categories.length && config['social_logins']"/>
@@ -45,7 +53,7 @@
         <b-button
           v-for="provider in config['social_logins']"
           v-bind:key="provider"
-          @click="window.location = login(provider.toLowerCase())"
+          @click="login(provider.toLowerCase())"
           :class="'login-btn btn-' + provider.toLowerCase()"
         >
           <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
@@ -57,7 +65,6 @@
 </template>
 
 <script>
-import { apiAxios } from '@/router/auth'
 import * as cookies from 'tiny-cookie'
 import Language from '@/components/Language.vue'
 import Title from '@/components/Title.vue'
@@ -70,12 +77,19 @@ export default {
   },
   data () {
     return {
-      categories: [],
+      categories_select: [],
       category: '',
-      window: window
+      usr: '',
+      pwd: '',
+      window: window,
+      error: '',
+      showDismissibleAlert: false
     }
   },
   computed: {
+    categories () {
+      return this.$store.state.categories
+    },
     config () {
       return this.$store.getters.getConfig
     },
@@ -88,8 +102,8 @@ export default {
     category_name () {
       var name = ''
       this.categories.forEach(category => {
-        if (this.category === category.value) {
-          name = category.text
+        if (this.category === category.id) {
+          name = category.name
         }
       })
       return name
@@ -97,14 +111,29 @@ export default {
   },
   methods: {
     login (provider) {
-      return `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/select_template`
+      if (provider === 'local') {
+        const data = new FormData()
+        data.append('category', this.category)
+        data.append('provider', provider)
+        data.append('usr', this.usr)
+        data.append('pwd', this.pwd)
+        this.$store
+          .dispatch('login', data)
+          .then(() => { this.$router.push({ name: 'SelectTemplate' }) })
+          .catch(err => {
+            this.error = this.$t('views.error.codes')[err.response.status.toString()]
+            this.showDismissibleAlert = true
+          })
+      } else {
+        window.location = `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/select_template`
+      }
     }
   },
   beforeMount: async function () {
     this.$store.dispatch('fetchConfig')
 
-    await apiAxios.get('/categories').then(rsp => {
-      this.categories = rsp.data.map(category =>
+    this.$store.dispatch('fetchCategories').then(() => {
+      this.categories_select = this.categories.map(category =>
         ({
           value: category.id,
           text: category.name

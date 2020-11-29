@@ -21,13 +21,8 @@ const router = new VueRouter({
       component: Login
     },
     {
-      path: '/login',
+      path: '/login/:category?',
       name: 'Login',
-      component: Login
-    },
-    {
-      path: '/login/:category',
-      name: 'LoginCategory',
       component: Login
     },
     {
