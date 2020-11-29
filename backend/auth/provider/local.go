@@ -12,6 +12,12 @@ import (
 
 const provLocal = "local"
 
+const (
+	userKey = "usr"
+	passwordKey = "pwd"
+)
+
+
 type Local struct{}
 
 func (Local) String() string {
@@ -19,13 +25,13 @@ func (Local) String() string {
 }
 
 func (l Local) Login(env *env.Env, w http.ResponseWriter, r *http.Request) {
-	usr := r.Form.Get("usr")
+	usr := r.FormValue(userKey)
 	if usr == "" {
 		http.Error(w, "no user was provided", http.StatusBadRequest)
 		return
 	}
 
-	pwd := r.Form.Get("pwd")
+	pwd := r.FormValue(passwordKey)
 	if pwd == "" {
 		http.Error(w, "no password was provided", http.StatusBadRequest)
 		return
