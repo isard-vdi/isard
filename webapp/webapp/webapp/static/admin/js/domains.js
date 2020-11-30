@@ -636,11 +636,11 @@ function actionsDomainDetail(){
             if(data.jumperurl != false){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
-                $('#jumperurl').val('test');
                 $('#jumperurl-check').iCheck('check');
-                $('#jumperurl').val(data.jumperurl);
+
+                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.jumperurl);
             }else{
-                $('#jumperurl-check').iCheck('uncheck');
+                $('#jumperurl-check').iCheck('update')[0].unchecked;
                 $('#jumperurl').hide();
                 $('.btn-copy-jumperurl').hide();
             }
@@ -652,7 +652,7 @@ function actionsDomainDetail(){
                 pk=$('#modalJumperurlForm #id').val();
                 
                 api.ajax('/isard-admin/admin/domains/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
-                    $('#jumperurl').val(data);
+                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
                 });         
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();

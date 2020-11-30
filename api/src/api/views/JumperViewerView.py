@@ -32,11 +32,10 @@ desktops = ApiDesktopsNonPersistent()
 @app.route('/vw/<token>', methods=['GET'])
 def api_v2_viewer(token):
     try:
+        # Only to harden brute force tests
+        time.sleep(5)
         viewer=desktops.DesktopViewerFromToken(token)
-        log.error(viewer)
-        log.error(viewer)
         return render_template('jumper.html', data=(viewer))
-        #return json.dumps(viewer), 200, {'ContentType': 'application/json'}
     except DesktopNotFound:
         log.error("Jumper viewer desktop not found")
         return json.dumps({"code":1,"msg":"Jumper viewer token not found"}), 404, {'ContentType': 'application/json'}
@@ -47,11 +46,6 @@ def api_v2_viewer(token):
         log.error("Jumper viewer desktop start timeout.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":2,"msg":"Jumper viewer start timeout"}), 404, {'ContentType': 'application/json'}
-    except NotAllowed:
-        log.error("Jumper viewer desktop not allowed.")
-        carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":2,"msg":"Jumper viewer start timeout"}), 404, {'ContentType': 'application/json'}
-
     except Exception as e:
         log.error("the error:"+str(e))
         error = traceback.format_exc()
