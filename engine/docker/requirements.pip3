@@ -42,7 +42,6 @@ numpy==1.18.4
 ordered-set==4.0.1
 packaging==20.4
 paramiko==2.7.1
-parso==0.8.0
 pathlib2==2.3.5
 pem==20.1.0
 pep517==0.8.2
