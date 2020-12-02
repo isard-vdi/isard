@@ -156,7 +156,7 @@
                     $('#modalAllowedsForm #alloweds-add #a-'+key+'-cb').iCheck('check');
                     value.forEach(function(data)
                     {  
-                        console.log(data)
+                        //console.log(data)
                         if('parent_category' in data){                                
                             var newOption = new Option('['+data['parent_category']+'] '+data.name, data.id, true, true);
                         }else{
