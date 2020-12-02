@@ -18,7 +18,7 @@
         <h1>{{ $t('views.login.title') }}</h1>
         <h3 v-if="category_by_path">{{ category_name }}</h3>
 
-        <b-form method="POST" :action="login('local')">
+        <b-form v-if="categories.length" method="POST" :action="login('local')">
           <b-form-select v-if="!category_by_path" size="md" class="mb-4" required :options="categories" v-model="category">
             <template #first>
               <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
@@ -38,9 +38,9 @@
           <b-button id="submit" type="submit" variant="warning" size="lg">{{ $t('views.login.form.login') }}</b-button>
         </b-form>
 
-        <hr />
+        <hr v-if="categories.length"/>
 
-        <p>{{ $t('views.login.other-logins') }}</p>
+        <p v-if="categories.length">{{ $t('views.login.other-logins') }}</p>
 
         <b-button
           v-for="provider in socialLogin"
