@@ -168,17 +168,6 @@ class ApiDesktopsNonPersistent():
 
     def DesktopStart(self, desktop_id):
         ds.WaitStatus(desktop_id, 'Any','Any','Started')
-    
-    def DesktopViewerFromToken(self, token):
-        with app.app_context():
-            domains = list(r.table('domains').filter({'jumperurl':token}).run(db.conn))
-        if len(domains) == 0: raise DesktopNotFound
-        if len(domains) == 1:
-            if domains[0]['status'] == 'Started':
-                return self.DesktopViewer(domains[0]['id'],'vnc-html5',get_cookie=True)
-            elif domains[0]['status'] == 'Stopped':
-                ds.WaitStatus(domains[0]['id'], 'Stopped','Starting','Started')
-                return self.DesktopViewer(domains[0]['id'],'vnc-html5',get_cookie=True)
-        raise
+
         
         

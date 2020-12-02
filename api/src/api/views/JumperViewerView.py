@@ -26,32 +26,34 @@ carbon = Carbon()
 from ..libv2.quotas import Quotas
 quotas = Quotas()
 
-from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
-desktops = ApiDesktopsNonPersistent()
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+desktops = ApiDesktopsPersistent()
 
 @app.route('/vw/<token>', methods=['GET'])
 def api_v2_viewer(token):
     try:
         # Only to harden brute force tests
-        # time.sleep(5)
-        
-        viewer=desktops.DesktopViewerFromToken(token)
-        log.error(viewer)
-        return render_template('jumper.html', data=json.dumps(viewer))
+        time.sleep(5)
+        viewers=desktops.DesktopViewerFromToken(token)
+        return render_template('jumper.html', vmName=viewers['vmName'], vmDescription=viewers['vmDescription'], viewers=json.dumps(viewers))
         #return render_template('jumper.html', data='')
     except DesktopNotFound:
         log.error("Jumper viewer desktop not found")
-        return json.dumps({"code":1,"msg":"Jumper viewer token not found"}), 404, {'ContentType': 'application/json'}
+        return render_template('error.html', error='Incorrect access')
+        #return json.dumps({"code":1,"msg":"Jumper viewer token not found"}), 404, {'ContentType': 'application/json'}
     except DesktopNotStarted:
         log.error("Jumper viewer desktop not started")
-        return json.dumps({"code":2,"msg":"Jumper viewer desktop is not started"}), 404, {'ContentType': 'application/json'}
+        return render_template('error.html', error='Desktop could not be started. Try again in a while...')
+        #return json.dumps({"code":2,"msg":"Jumper viewer desktop is not started"}), 404, {'ContentType': 'application/json'}
     except DesktopStartTimeout:
         log.error("Jumper viewer desktop start timeout.")
         carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":2,"msg":"Jumper viewer start timeout"}), 404, {'ContentType': 'application/json'}
+        return render_template('error.html', error='Desktop start timed out. Try again in a while...')
+        #return json.dumps({"code":2,"msg":"Jumper viewer start timeout"}), 404, {'ContentType': 'application/json'}
     except Exception as e:
         log.error("the error:"+str(e))
         error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"JumperViewer general exception: " + error }), 401, {'ContentType': 'application/json'}
+        return render_template('error.html', error='Incorrect access.')
+        #return json.dumps({"code":9,"msg":"JumperViewer general exception: " + error }), 401, {'ContentType': 'application/json'}
         
         

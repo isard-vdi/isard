@@ -11,6 +11,21 @@
     <meta http-equiv="Cache-Control" content="no-cache">
   
     <title>Direct viewer connection | Isard VDI</title>
+    <style>
+      div {
+	width: 500px;
+	height: 300px;
+	background-color: rgb(167, 194, 160);
+	
+	position: absolute;
+	top:0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+  	
+	margin: auto;
+}
+      </style>    
     <script  type="text/javascript">
 function setCookie(name,value,days) {
     var expires = "";
@@ -22,21 +37,17 @@ function setCookie(name,value,days) {
     document.cookie = name + "=" + (value || "")  + expires + "; path=/";
 }
 
-  function testing(){
-      //console.log({{ data.cookie }})
-      console.log('in testing')
-      var data = {{ data|safe }};
-      console.log(data)
-      //return
-      if(data['kind']=='url'){
-          setCookie('isard', data['cookie'], 1)
-          window.open(data['viewer'], '_blank');            
+  function open_viewer(kind){
+      var viewers = {{ viewers|safe }};
+      if(kind=='url'){
+          setCookie('isard', viewers['vnc-html5']['cookie'], 1)
+          window.open(viewers['vnc-html5']['viewer'], '_blank');            
       }        
 
-      if(data['kind']=='file'){
-          var viewerFile = new Blob([data['content']], {type: data['mime']});
+      if(kind=='file'){
+          var viewerFile = new Blob([viewers['spice-client']['content']], {type: viewers['spice-client']['mime']});
           var a = document.createElement('a');
-              a.download = 'console.'+data['ext'];
+              a.download = 'console.'+viewers['spice-client']['ext'];
               a.href = window.URL.createObjectURL(viewerFile);
           var ev = document.createEvent("MouseEvents");
               ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
@@ -47,9 +58,14 @@ function setCookie(name,value,days) {
   </head>
 
   <body>
-    
-    {{ data }}
-    <script>testing();</script>
+    <div>
+    <h1>IsardVDI</h1>
+    <h2><i>Direct viewer connection</i></h2>
+    <h3>{{ vmName|safe }}</h3>
+    <h5>{{ vmDescription|safe }}</h5>
+    <input id="url" type="button" class="button1" value="Browser access" onclick="open_viewer('url');" />
+    <input id="file" type="button" class="button2"value="Native spice client" onclick="open_viewer('file');" />
+  </div>
 
     
   </body>
