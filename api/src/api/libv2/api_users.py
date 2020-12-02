@@ -243,4 +243,4 @@ class ApiUsers():
 
     def CategoriesGet(self):
         with app.app_context():        
-            return list(r.table('categories').pluck({'id','name'}).run(db.conn))    
+            return list(r.table('categories').pluck({'id','name'}).filter({'public':True}).order_by('name').run(db.conn))
