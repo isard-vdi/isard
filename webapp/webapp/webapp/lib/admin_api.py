@@ -1227,7 +1227,7 @@ class isardAdmin():
         if 'jumperurl' not in domain.keys(): return {'jumperurl':False}
         return {'jumperurl':domain['jumperurl']}
 
-    def jumperurl_reset(self, id, disabled=False, length=40):
+    def jumperurl_reset(self, id, disabled=False, length=128):
         if disabled==True:
             with app.app_context():
                 r.table('domains').get(id).update({'jumperurl':False}).run(db.conn)
