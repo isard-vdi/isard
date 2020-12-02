@@ -33,9 +33,12 @@ desktops = ApiDesktopsNonPersistent()
 def api_v2_viewer(token):
     try:
         # Only to harden brute force tests
-        time.sleep(5)
+        # time.sleep(5)
+        
         viewer=desktops.DesktopViewerFromToken(token)
-        return render_template('jumper.html', data=(viewer))
+        log.error(viewer)
+        return render_template('jumper.html', data=json.dumps(viewer))
+        #return render_template('jumper.html', data='')
     except DesktopNotFound:
         log.error("Jumper viewer desktop not found")
         return json.dumps({"code":1,"msg":"Jumper viewer token not found"}), 404, {'ContentType': 'application/json'}
