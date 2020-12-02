@@ -93,7 +93,7 @@
             "admin": "Administració",
             "title": "Iniciar Sessió",
             "form": {
-                "select-category": "Si us plau, selectiona una categoria",
+                "select-category": "Si us plau, selecciona una opció",
                 "usr": "Nom d'usuari",
                 "pwd": "Contrasenya",
                 "login": "Iniciar sessió"
