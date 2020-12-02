@@ -79,6 +79,20 @@ func init() {
 
 	}
 
+	envAuthGithubHost := os.Getenv("BACKEND_AUTH_GITHUB_HOST")
+	envAuthGithubID := os.Getenv("BACKEND_AUTH_GITHUB_ID")
+	envAuthGithubSecret := os.Getenv("BACKEND_AUTH_GITHUB_SECRET")
+	var frontendSocialLogins []string
+	if envAuthGithubHost != "" && envAuthGithubID != "" && envAuthGithubSecret != "" {
+		frontendSocialLogins = append(frontendSocialLogins, "Github")
+	}
+
+	envAuthGoogleID := os.Getenv("BACKEND_AUTH_GOOGLE_ID")
+	envAuthGoogleSecret := os.Getenv("BACKEND_AUTH_GOOGLE_SECRET")
+	if envAuthGoogleID != "" && envAuthGoogleSecret != "" {
+		frontendSocialLogins = append(frontendSocialLogins, "Google")
+	}
+
 	e = &env.Env{
 		Sugar: sugar,
 		FS:    afero.NewOsFs(),
@@ -92,9 +106,9 @@ func init() {
 			Auth: cfg.Auth{
 				AutoRegistration: autoregistration,
 				GitHub: cfg.AuthGitHub{
-					Host:   os.Getenv("BACKEND_AUTH_GITHUB_HOST"),
-					ID:     os.Getenv("BACKEND_AUTH_GITHUB_ID"),
-					Secret: os.Getenv("BACKEND_AUTH_GITHUB_SECRET"),
+					Host:   envAuthGithubHost,
+					ID:     envAuthGithubID,
+					Secret: envAuthGithubSecret,
 				},
 				SAML: cfg.AuthSAML{
 					CertPath:        os.Getenv("BACKEND_AUTH_SAML_CERT_PATH"),
@@ -106,8 +120,8 @@ func init() {
 					AttrName:        os.Getenv("BACKEND_AUTH_SAML_ATTR_NAME"),
 				},
 				Google: cfg.AuthGoogle{
-					ID:     os.Getenv("BACKEND_AUTH_GOOGLE_ID"),
-					Secret: os.Getenv("BACKEND_AUTH_GOOGLE_SECRET"),
+					ID:     envAuthGoogleID,
+					Secret: envAuthGoogleSecret,
 				},
 			},
 			Isard: cfg.Isard{
@@ -116,6 +130,7 @@ func init() {
 			},
 			Frontend: cfg.Frontend{
 				ShowAdminButton: frontendShowAdmin,
+				SocialLogins: frontendSocialLogins,
 			},
 		},
 		Auth: &env.Auth{},
