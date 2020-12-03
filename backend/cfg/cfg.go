@@ -53,4 +53,5 @@ type Isard struct {
 
 type Frontend struct {
 	ShowAdminButton bool `json:"show_admin_button"`
+	SocialLogins []string `json:"social_logins"`
 }
