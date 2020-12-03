@@ -26,13 +26,38 @@ export function toast (titol, missatge) {
 
 export default new Vuex.Store({
   state: {
+    categories: []
   },
   mutations: {
+    setCategories (state, categories) {
+      state.categories = categories
+    }
   },
   actions: {
+    fetchCategories ({ commit }) {
+      return new Promise((resolve, reject) => {
+        apiAxios.get('/categories').then(response => {
+          commit('setCategories', response.data)
+          resolve()
+        }).catch(e => {
+          console.log(e)
+          reject(e.response)
+        })
+      })
+    },
     maintenance (context) {
       return new Promise((resolve, reject) => {
         apiAxios.get('/check').then(response => {
+          resolve()
+        }).catch(e => {
+          console.log(e)
+          reject(e)
+        })
+      })
+    },
+    login (context, data) {
+      return new Promise((resolve, reject) => {
+        apiAxios.post(`/login/${data.get('category')}?provider=${data.get('provider')}&redirect=/select_template`, data, { timeout: 25000 }).then(response => {
           resolve()
         }).catch(e => {
           console.log(e)
