@@ -15,7 +15,7 @@
     </b-row>
     <b-row id="login" align-h="center">
       <b-col sm="10" md="6" lg="5" xl="4">
-        <h1>{{ $t('views.login.title') }}</h1>
+        <h1 v-if="categories.length || config['social_logins']">{{ $t('views.login.title') }}</h1>
         <h3 v-if="category_by_path">{{ category_name }}</h3>
 
         <b-form v-if="categories.length" method="POST" :action="login('local')">
@@ -38,12 +38,12 @@
           <b-button id="submit" type="submit" variant="warning" size="lg">{{ $t('views.login.form.login') }}</b-button>
         </b-form>
 
-        <hr v-if="categories.length"/>
+        <hr v-if="categories.length && config['social_logins']"/>
 
-        <p v-if="categories.length">{{ $t('views.login.other-logins') }}</p>
+        <p v-if="categories.length && config['social_logins']">{{ $t('views.login.other-logins') }}</p>
 
         <b-button
-          v-for="provider in socialLogin"
+          v-for="provider in config['social_logins']"
           v-bind:key="provider"
           @click="window.location = login(provider.toLowerCase())"
           :class="'login-btn btn-' + provider.toLowerCase()"
@@ -72,8 +72,7 @@ export default {
     return {
       categories: [],
       category: '',
-      window: window,
-      socialLogin: ['GitHub', 'Google']
+      window: window
     }
   },
   computed: {
