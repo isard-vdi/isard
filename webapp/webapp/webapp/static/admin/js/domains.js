@@ -636,7 +636,11 @@ function actionsDomainDetail(){
             if(data.jumperurl != false){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
-                $('#jumperurl-check').iCheck('check');
+                //NOTE: With this it will fire ifChecked event, and generate new key
+                // and we don't want it now as we are just setting de initial state
+                // and don't want to reset de key again if already exists!
+                //$('#jumperurl-check').iCheck('check');
+                $('#jumperurl-check').prop('checked',true).iCheck('update');
 
                 $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.jumperurl);
             }else{

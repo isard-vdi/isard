@@ -16,7 +16,7 @@ from flask import request
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas_exc import *
 
-from flask import render_template, Response, request, redirect, url_for
+from flask import render_template, Response, request, redirect, url_for, send_file, send_from_directory
 #from ..libv2.telegram import tsend
 def tsend(txt):
     None
@@ -28,6 +28,10 @@ quotas = Quotas()
 
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 desktops = ApiDesktopsPersistent()
+
+@app.route('/vw/img/<img>', methods=['GET'])
+def api_v2_img(img):
+    return send_from_directory('templates/',img)
 
 @app.route('/vw/<token>', methods=['GET'])
 def api_v2_viewer(token):

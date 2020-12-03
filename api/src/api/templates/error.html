@@ -3,38 +3,64 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <!-- Meta, title, CSS, favicons, etc. -->
-      <meta charset="utf-8">
-      <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta http-equiv="no-cache">
     <meta http-equiv="Expires" content="-1">
     <meta http-equiv="Cache-Control" content="no-cache">
   
     <title>Direct viewer connection | Isard VDI</title>
     <style>
-      div {
-	width: 500px;
-	height: 300px;
-	background-color: rgb(167, 194, 160);
-	
-	position: absolute;
-	top:0;
-	bottom: 0;
-	left: 0;
-	right: 0;
-  	
-	margin: auto;
-}
-      </style>    
-  </head>
+      body { 
+        font-family: Avenir, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-align: center;
+        color: #2c3e50;
+      }
 
-  <body>
-    <div>
-    <h1>IsardVDI</h1>
-    <h2><i>Direct viewer connection</i></h2>
-    <h3>{{ error }}</h3>
-  </div>
+      div {     
+        position: absolute;
+        top:0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+      }
 
-    
-  </body>
-</html>
+      .logo {
+        width: 75px;
+        margin-top: 275px;
+      }
+
+      .big_button {
+        background-color:white;
+        border: 5px solid #e9ecef;
+        border-radius: 2rem;
+        padding: 75px 75px 75px 75px;
+        font-family: Avenir, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-align: center;
+        color: #2c3e50;
+        font-weight: bold;
+      }
+
+      .big_button:hover {
+        background-color: #e9ecef;
+        cursor: pointer;
+      }
+    </style>    
+    </head>
+
+    <body>
+      <div>
+        <img class="logo" src="/vw/img/logo.svg">
+        <h1>IsardVDI</h1>
+        <h2><i>Direct viewer connection</i></h2>
+        <h3 style="color:red;">{{ error }}</h3>
+      </div>
+    </body>
+  </html>
+  

@@ -196,7 +196,62 @@
     </div>
 </div>
 
-
+<div class="modal fade" id="modalJumperurl" tabindex="-1" role="dialog" aria-labelledby="modalJumperurl" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header" style="padding: 5px;">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i>    Direct viewer access <i class="fa fa-key"> </i>
+                </h4>
+            </div>
+ 
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+ 
+                <form id="modalJumperurlForm" class="form-inline">
+                    <input hidden id="id" name="id"/>
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                              <label>Direct web access to HTML5 viewer</label>
+                              <div class="checkbox">
+                                <label class="">
+                                  <div class="icheckbox_flat-green" style="position: relative;">
+                                      <input type="checkbox" id="jumperurl-check" name="jumperurl-check" class="flat"  style="position: absolute; opacity: 0;">
+                                      <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                      </ins>
+                                  </div>
+                                </label>
+                              </div>                               
+                              <input id="jumperurl" class="form-control roundbox" name="jumperurl" style="width:100%; " placeholder="Viewer url" disabled />
+                        </div>                                                                    
+                    </div>
+                
+                    <div class="row"> 
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                            <button class="btn btn-info btn-xs pull-right btn-copy-jumperurl" type="button"  data-placement="top"><i class="fa fa-pencil m-right-xs" ></i>Copy to clipboard</button>
+            
+                        </div>                                                                        
+                    </div>
+            </div>
+ 
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+            </form>
+        </div>
+    </div>
+ </div>
 
 <div class="modal fade" id="modalTemplateDesktop" tabindex="-1" role="dialog" 
      aria-labelledby="modalTemplateDesktop" aria-hidden="true">
