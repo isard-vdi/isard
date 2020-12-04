@@ -865,10 +865,7 @@ function modal_edit_desktop_datatables(id){
             setHardwareDomainDefaults('#modalEditDesktop', id);
             if(data['options-viewers-spice-fullscreen']){
                 $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
-            }else{
-                //~ $('#modalEditHyper #modalEdit #capabilities-disk_operations').iCheck('check');
             }
-            //~ $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
 		}				
 	});
   
