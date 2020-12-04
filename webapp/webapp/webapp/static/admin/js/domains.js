@@ -484,7 +484,7 @@ function actionsDomainDetail(){
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
 	});
-    
+
 	$('.btn-events').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
@@ -618,6 +618,87 @@ function actionsDomainDetail(){
         });
         
     }
+
+
+    
+
+    $('.btn-jumperurl').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        $("#modalJumperurlForm")[0].reset();
+        $('#modalJumperurlForm #id').val(pk);
+        $('#modalJumperurl').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        // setModalUser()
+        // setQuotaTableDefaults('#edit-users-quota','users',pk) 
+        api.ajax('/isard-admin/admin/domains/jumperurl/'+pk,'GET',{}).done(function(data) {
+            if(data.jumperurl != false){
+                $('#jumperurl').show();
+                $('.btn-copy-jumperurl').show();
+                //NOTE: With this it will fire ifChecked event, and generate new key
+                // and we don't want it now as we are just setting de initial state
+                // and don't want to reset de key again if already exists!
+                //$('#jumperurl-check').iCheck('check');
+                $('#jumperurl-check').prop('checked',true).iCheck('update');
+
+                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.jumperurl);
+            }else{
+                $('#jumperurl-check').iCheck('update')[0].unchecked;
+                $('#jumperurl').hide();
+                $('.btn-copy-jumperurl').hide();
+            }
+        }); 
+    });
+    
+        $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
+            if($('#jumperurl').val()==''){
+                pk=$('#modalJumperurlForm #id').val();
+                
+                api.ajax('/isard-admin/admin/domains/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
+                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
+                });         
+                $('#jumperurl').show();
+                $('.btn-copy-jumperurl').show();
+            }
+          }); 	
+        $('#jumperurl-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
+            pk=$('#modalJumperurlForm #id').val();
+            new PNotify({
+                title: 'Confirmation Needed',
+                    text: "Are you sure you want to delete direct viewer access url?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: {
+                        confirm: true
+                    },
+                    buttons: {
+                        closer: false,
+                        sticker: false
+                    },
+                    history: {
+                        history: false
+                    },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function() {
+                    pk=$('#modalJumperurlForm #id').val();
+                    api.ajax('/isard-admin/admin/domains/jumperurl_disable/'+pk,'GET',{}).done(function(data) {
+                        $('#jumperurl').val('');
+                    }); 
+                    $('#jumperurl').hide();
+                    $('.btn-copy-jumperurl').hide();
+                }).on('pnotify.cancel', function() {
+                    $('#jumperurl-check').iCheck('check');
+                    $('#jumperurl').show();
+                    $('.btn-copy-jumperurl').show();
+                });
+            }); 
+             
+    
+        $('.btn-copy-jumperurl').on('click', function () {
+            $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
+            document.execCommand("copy");
+        });
 }
 
 function setDefaultsTemplate(id) {

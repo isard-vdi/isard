@@ -136,4 +136,37 @@ class ApiDesktopsPersistent():
             else:
                 raise DesktopExists
 
+    def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
+        try:
+            viewer_txt = isardviewer.viewer_data(desktop_id, protocol, get_cookie=get_cookie)
+        except DesktopNotFound:
+            raise
+        except DesktopNotStarted:
+            raise
+        except NotAllowed:
+            raise
+        except ViewerProtocolNotFound:
+            raise
+        except ViewerProtocolNotImplemented:
+            raise
+        return viewer_txt
 
+    def DesktopViewerFromToken(self, token):
+        with app.app_context():
+            domains = list(r.table('domains').filter({'jumperurl':token}).run(db.conn))
+        if len(domains) == 0: raise DesktopNotFound
+        if len(domains) == 1:
+            if domains[0]['status'] == 'Started':
+                viewers={'vmName':domains[0]['name'],
+                        'vmDescription':domains[0]['description'],
+                        'spice-client':self.DesktopViewer(domains[0]['id'],'spice-client',get_cookie=True),
+                        'vnc-html5':self.DesktopViewer(domains[0]['id'],'vnc-html5',get_cookie=True)}
+                return viewers
+            elif domains[0]['status'] == 'Stopped':
+                ds.WaitStatus(domains[0]['id'], 'Stopped','Starting','Started')
+                viewers={'vmName':domains[0]['name'],
+                        'vmDescription':domains[0]['description'],
+                        'spice-client':self.DesktopViewer(domains[0]['id'],'spice-client',get_cookie=True),
+                        'vnc-html5':self.DesktopViewer(domains[0]['id'],'vnc-html5',get_cookie=True)}
+                return viewers
+        raise

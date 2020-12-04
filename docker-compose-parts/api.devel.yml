@@ -18,3 +18,4 @@ services:
       target: production
     env_file:
       - .env
+    command: sleep infinity
