@@ -477,9 +477,23 @@ class isardAdmin():
         return True
 
 
-
+    def category_group_update(self,dict):
+        table=dict['table']
+        dict.pop('table',None)  
+        id=dict['id']
+        dict.pop('id',None)
+        if 'frontend' not in dict.keys():
+            r.table(table).get(id).replace(r.row.without('frontend')).run(db.conn)        
+        if 'auto' not in dict.keys():
+            r.table(table).get(id).replace(r.row.without('auto')).run(db.conn)
+        if 'ephimeral' not in dict.keys():
+            r.table(table).get(id).replace(r.row.without('ephimeral')).run(db.conn)            
+        r.table(table).get(id).update(dict).run(db.conn)
+        return True
 
     def rcg_add(self,dict,current_user):
+        if 'id' in dict.keys():
+            return self.category_group_update(dict)
         table=dict['table']
         dict.pop('table',None)
         dict['id']=app.isardapi.parse_string(dict['name']).lower()

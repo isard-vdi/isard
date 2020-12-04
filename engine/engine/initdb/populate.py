@@ -250,6 +250,7 @@ class Populate(object):
                     self.result(r.table('categories').insert([{'id': 'default',
                                                                'name': 'Default',
                                                                'description': 'Default category',
+                                                               'frontend': True,
                                                                'quota': False,
                                                                'limits': False
                                                                }]).run())                                                    

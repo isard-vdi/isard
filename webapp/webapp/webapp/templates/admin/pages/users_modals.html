@@ -781,6 +781,23 @@
                         </div>
                     </div>
 
+                    <div class="x_panel" id="frontend_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Frontend dropdown show</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="frontend-show">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="frontend" name="frontend" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                    </div>
+                    
 					<div class="x_panel" id="desktops_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
@@ -848,6 +865,137 @@
                 <ul class="nav navbar-right panel_toolbox">
                     <li>
                         <button id="send" type="button" class="btn btn-success">Create Category</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditCategory" tabindex="-1" role="dialog" aria-labelledby="modalEditCategory" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header" style="padding: 5px;">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"> </i>    Edit Category <i class="fa fa-key"> </i>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+
+                <form id="modalEditCategoryForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="id"/>
+                    <div class="x_panel">
+                        <p style="font-size: 18px;">Category</p>
+                        <div class="x_content">
+                            <div class="row">
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]" name="name" placeholder="New category name" data-parsley-trigger="change" required type="text" disabled>
+                                </div>
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="description">Description
+                                    </label>
+                                    <input id="description" class="roundbox" name="description" placeholder="Role description" type="text" style="width:100%">
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="x_panel" id="frontend_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Frontend dropdown show</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="frontend">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="frontend" name="frontend" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+					<div class="x_panel" id="desktops_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Auto desktops creation</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="auto-desktops-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        <div class="row" id="auto-desktops-data" style="display:none">
+							<label class="control-label" for="auto-desktops">Desktops list to be created at user login
+							</label>
+							<select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+							</select>
+                        </div>
+					</div>
+
+					<div class="x_panel" id="ephimeral_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="ephimeral-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled" class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                  Enabled</label>
+                            </div>
+                        </div>
+                        
+                        
+						<div class="row" id="ephimeral-data" style="display:none">
+							<div class="col-md-9 col-xs-12">
+								<label for="ephimeral-minutes">Minutes</label>
+								<input id="ephimeral-minutes" name="ephimeral-minutes"></input>
+							</div>
+
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
+                                <select id="ephimeral-action" name="ephimeral-action" class="form-control">
+                                    <option value="Stopping">Stop</option>
+                                    <option value="StoppingAndDeleting">Delete</option>
+                                </select>
+						</div>
+					</div>
+											
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer" style="padding: 5px;">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Update Category</button>
                     </li>
                     </li>
                 </ul>
