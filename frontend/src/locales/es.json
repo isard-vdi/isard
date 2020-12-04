@@ -22,6 +22,9 @@
         "not-found": {
             "title": "No hemos encontrado la dirección solicitada",
             "home": "Volver al inicio"
+        },
+        "title": {
+            "logo-alt": "Logotipo"
         }
     },
     "views": {
@@ -95,7 +98,9 @@
                 "pwd": "Contraseña",
                 "login": "Iniciar sesión"
             },
-            "other-logins": "O iniciar sesión con"
+            "other-logins": "O iniciar sesión con",
+	    "powered-by": "Desarrollado por",
+	    "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
         },
         "maintenance": {
             "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",

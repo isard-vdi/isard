@@ -6,7 +6,7 @@
       </b-col>
 
       <b-col>
-        <Title />
+        <Logo/>
       </b-col>
 
       <b-col>
@@ -59,6 +59,16 @@
           <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
           {{ provider }}
         </b-button>
+        <hr v-if="categories.length || config['social_logins']"/>
+      </b-col>
+    </b-row>
+    <b-row id="powered-by" align-h="center">
+      <b-col>
+        <a href="https://isardvdi.com/" target="_blank">
+          {{ $t('views.login.powered-by') }}
+          <img id="isard-logo" src="@/assets/logo.svg" :alt="$t('views.login.isard-logo-alt')" />
+          <strong>IsardVDI</strong>
+        </a>
       </b-col>
     </b-row>
   </b-container>
@@ -67,13 +77,13 @@
 <script>
 import * as cookies from 'tiny-cookie'
 import Language from '@/components/Language.vue'
-import Title from '@/components/Title.vue'
+import Logo from '@/components/Logo.vue'
 
 export default {
   name: 'login',
   components: {
     Language,
-    Title
+    Logo
   },
   data () {
     return {
@@ -168,7 +178,15 @@ export default {
 <style>
 #header {
   padding: 25px 25px 0 25px;
-  margin-bottom: 100px;
+  margin-bottom: 50px;
+}
+
+#powered-by {
+  margin: 4rem;
+}
+#isard-logo {
+  width: 3rem;
+  margin: -3rem 0.5rem 0 0.5rem;
 }
 
 #login form {
@@ -199,4 +217,10 @@ export default {
   background-color: #4285f4 !important;
   border-color: #2a75f3 !important;
 }
+
+a {
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
 </style>

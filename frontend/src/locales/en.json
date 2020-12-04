@@ -22,6 +22,9 @@
         "not-found": {
             "title": "The requested address wasn't found",
             "home": "Go back"
+        },
+        "title": {
+            "logo-alt": "Logo"
         }
     },
     "views": {
@@ -95,7 +98,9 @@
                 "pwd": "Password",
                 "login": "Login"
             },
-            "other-logins": "Or login with"
+            "other-logins": "Or login with",
+	    "powered-by": "Powered by",
+	    "isard-logo-alt": "The IsardVDI logo is a chamois head."
         },
         "maintenance": {
             "title": "Currently, Isard service is under maintenance",
