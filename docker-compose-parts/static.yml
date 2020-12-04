@@ -6,3 +6,5 @@ services:
     networks:
       - isard-network
     restart: unless-stopped
+    volumes:
+      - /opt/isard/frontend/custom:/usr/share/nginx/html/custom:ro
