@@ -121,3 +121,23 @@ def templateUpdate(id):
     hardware=app.isardapi.get_domain(id)
     return Response(json.dumps(hardware),  mimetype='application/json')
 
+@app.route('/isard-admin/desktops/jumperurl/<id>')
+@login_required
+@ownsid
+def jumperurl(id):
+    data = app.adminapi.get_jumperurl(id)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}
+
+@app.route('/isard-admin/desktops/jumperurl_reset/<id>')
+@login_required
+@ownsid
+def jumperurl_reset(id):
+    data = app.adminapi.jumperurl_reset(id)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}
+
+@app.route('/isard-admin/desktops/jumperurl_disable/<id>')
+@login_required
+@ownsid
+def jumperurl_disable(id):
+    data = app.adminapi.jumperurl_reset(id,disabled=True)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}

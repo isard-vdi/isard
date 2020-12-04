@@ -31,6 +31,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from ..auth.authentication import Password
+import secrets
 
 from collections import defaultdict
 
@@ -1229,6 +1230,32 @@ class isardAdmin():
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
+
+    '''
+    JUMPERURL
+    '''
+    def get_jumperurl(self,id):
+        with app.app_context():
+            domain = r.table('domains').get(id).run(db.conn)  
+        if domain == None: return {}
+        if 'jumperurl' not in domain.keys(): return {'jumperurl':False}
+        return {'jumperurl':domain['jumperurl']}
+
+    def jumperurl_reset(self, id, disabled=False, length=128):
+        if disabled==True:
+            with app.app_context():
+                r.table('domains').get(id).update({'jumperurl':False}).run(db.conn)
+            return True
+        
+        code = False
+        while code == False:
+            code = secrets.token_urlsafe(length) 
+            found=list(r.table('domains').filter({'jumperurl':code}).run(db.conn))
+            if len(found) == 0:            
+                with app.app_context():
+                    r.table('domains').get(id).update({'jumperurl':code}).run(db.conn)                
+                return code
+        return False
 
     '''
     ENROLLMENT

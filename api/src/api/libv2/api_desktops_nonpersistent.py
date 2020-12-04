@@ -151,9 +151,9 @@ class ApiDesktopsNonPersistent():
         return False
 
 
-    def DesktopViewer(self, desktop_id, protocol):
+    def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
         try:
-            viewer_txt = isardviewer.viewer_data(desktop_id, protocol, get_cookie=False)
+            viewer_txt = isardviewer.viewer_data(desktop_id, protocol, get_cookie=get_cookie)
         except DesktopNotFound:
             raise
         except DesktopNotStarted:
@@ -166,3 +166,8 @@ class ApiDesktopsNonPersistent():
             raise
         return viewer_txt
 
+    def DesktopStart(self, desktop_id):
+        ds.WaitStatus(desktop_id, 'Any','Any','Started')
+
+        
+        

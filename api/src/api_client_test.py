@@ -12,6 +12,7 @@ verifycert=False
 auth=('admin', 'IsardVDI')
 #base_url="https://"+domain+"/debug/api/api/v2/"
 base_url="http://localhost:7039/api/v2/"
+base_jumper_url="http://localhost:7039/"
 
 # Create new users
 def user_post(user_uid, user_username, provider, role_id, category_id, group_id, password=False):
@@ -115,6 +116,14 @@ def get_spice_viewer(desktop_id):
         return json.loads(resp.text)
     raise
 
+def get_jumper_viewer(token):
+    print("\n----------------------- JUMPER VIEWER GET")    
+    # spice-client / vnc-html5
+    url = base_jumper_url + "viewer/"+token
+    data = {}
+    print(" DATA SENT: "+str(data)) 
+    resp = requests.get(url, data=data)
+    
 def get_html5_viewer(desktop_id):
     print("\n----------------------- VIEWER GET")    
     # spice-client / vnc-html5
@@ -176,7 +185,8 @@ def get_categories():
         return json.loads(resp.text)
     raise
 
-get_categories()
+## https://localhost/viewer/8Dx9PynTHxHlSsdfk9X8VIe9M2TbFKwz6Bi_xSfdvO_u3y-H6eq2Rg
+get_jumper_viewer('8Dx9PynTHxHlSsdfk9X8VIe9M2TbFKwz6Bi_xSfdvO_u3y-H6eq2Rg')
 exit(0)
 
 desktop_id='_local+default+admin+admin+downloaded_tetros'
