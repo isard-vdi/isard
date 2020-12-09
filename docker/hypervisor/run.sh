@@ -3,8 +3,9 @@ sh auto-generate-certs.sh
 echo "Starting libvirt daemon..."
 chown root:kvm /dev/kvm
 /usr/sbin/virtlogd &
-/usr/sbin/libvirtd &
 sleep 2
+/usr/sbin/libvirtd &
+sleep 1
 #/usr/bin/virsh net-start default
 sh -c "/vlans-discover.sh"
 FILES=/etc/libvirt/qemu/networks/*
