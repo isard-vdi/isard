@@ -672,7 +672,14 @@ class isardAdmin():
             data2 = r.table('domains').filter(r.row['kind'].match("template")).filter(r.row['name'].match(term))    .order_by('name').pluck({'id','name','kind','group','icon','user','description'}).run(db.conn)
         return data1+data2
             
-
+    def update_forcedhyp(self,dom_id,forced_hyp):
+        try:
+            with app.app_context():
+                r.table('domains').get(dom_id).update({'forced_hyp':forced_hyp}).run(db.conn)
+            return True
+        except:
+            None
+        return False
     '''
     HYPERVISORS
     '''

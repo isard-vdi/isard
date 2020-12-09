@@ -1051,7 +1051,22 @@ def socketio_admin_domains_update(data):
                     app.isardapi.update_table_status(current_user.id, 'domains', data,remote_addr),
                     namespace='/isard-admin/sio_admins', 
                     room='domains')
-                    
+
+@socketio.on('forcedhyp_update', namespace='/isard-admin/sio_admins')
+def socketio_admin_forcedhyp_update(data):
+    #remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+
+    res=app.adminapi.update_forcedhyp(data['id'], data['forced_hyp'])
+    if res:
+        data=json.dumps({'id':data['id'], 'result':True,'title':'Updated forced hypervisor','text':'Forced hypervisor has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'id':data['id'], 'result':False,'title':'Updated forced hypervisor','text':'Forced hypervisor can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('result',
+                    data,
+                    namespace='/isard-admin/sio_admins', 
+                    room='domains')
+
+
 @socketio.on('domain_edit', namespace='/isard-admin/sio_admins')
 def socketio_admins_domain_edit(form_data):
     #~ Check if user has quota and rights to do it

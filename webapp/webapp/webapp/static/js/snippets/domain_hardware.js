@@ -150,23 +150,11 @@
 	}
 
 	function setHardwareDomainDefaults_viewer(div_id,data){
-	    //if(data["hardware"]  != undefined){
-		//if('hardware' in data){
-
-		//}else{
-			data['hardware']=data['create_dict']['hardware']
-		//}
-		console.log(data)
+		data['hardware']=data['create_dict']['hardware']
 		$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
 		$(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
-		//mem=data.hardware.memory/1048576
-		//$(div_id+" #ram").html(mem.toFixed(3)+'GB');
-
-		//$(div_id+" #ram").html(data.hardware.memory+data.hardware.memory_unit);
-		// List could not be ordered! In theory all the disks have same virtual-size
-                //~ $(div_id+" #disks").html(domain['disks_info'][0]['virtual-size']);
-	    $(div_id+" #net").html(data.hardware.interfaces);
-	    $(div_id+" #graphics").html(data.hardware.graphics);
+	    	$(div_id+" #net").html(data.hardware.interfaces);
+	    	$(div_id+" #graphics").html(data.hardware.graphics);
 		$(div_id+" #video").html(data.hardware.videos);
 		$(div_id+" #boot").html(data.hardware['boot_order']);
 		$(div_id+" #hypervisor_pool").html(data['hypervisors_pools']);
@@ -176,8 +164,6 @@
 		}else{
 			$(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
 		}
-            //}
-			//~ }); 
 	}
 
 

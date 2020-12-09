@@ -38,14 +38,14 @@ def update_domain_force_update(id_domain, true_or_false=False):
     close_rethink_connection(r_conn)
     return results
 
-def update_domain_force_hyp(id_domain, hyp_id=None):
+def update_domain_forced_hyp(id_domain, hyp_id=None):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
 
     if hyp_id is None:
         hyp_id = ''
 
-    results = rtable.get_all(id_domain, index='id').update({'force_hyp' : hyp_id}).run(r_conn)
+    results = rtable.get_all(id_domain, index='id').update({'forced_hyp' : hyp_id}).run(r_conn)
 
     close_rethink_connection(r_conn)
     return results
@@ -496,31 +496,20 @@ def get_domain_force_update(domain_id):
         return False
 
 
-def get_domain_force_hyp(id_domain):
+def get_domain_forced_hyp(id_domain):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
 
-    results = list(rtable.get_all(id_domain, index='id').pluck('force_hyp').run(r_conn))
-
-    close_rethink_connection(r_conn)
-
-    #id_domain doesn't exist
-    if len(results) == 0:
+    try:
+        forced_hyp = rtable.get(id_domain).pluck('forced_hyp').run(r_conn)['forced_hyp']
+        close_rethink_connection(r_conn)
+    except:
         return False
-
-    #force hyp doesn't exist as key in domain dict
-    if len(results[0]) == 0:
-        return False
-
-
-    if type(results[0]['force_hyp'] is str):
-        if len(results[0]['force_hyp']) > 0:
-            return results[0]['force_hyp']
-        else:
-            return False
-    else:
-        return False
-
+    if isinstance(forced_hyp,list) and len(forced_hyp)>0:
+        ## By now, even the webapp will update it as a list, only lets
+        ## to set one forced_hyp
+        return forced_hyp[0]
+    return False
 
 def get_domain(id):
     r_conn = new_rethink_connection()

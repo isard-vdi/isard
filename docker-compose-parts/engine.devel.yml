@@ -3,3 +3,4 @@ services:
   isard-engine:
     volumes:
       - ${BUILD_ROOT_PATH}/engine/engine:/isard:rw
+    command: sleep infinity
