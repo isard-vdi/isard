@@ -90,7 +90,7 @@
             "admin": "Administrazioa",
             "title": "Saioa hasi",
             "form": {
-                "select-category": "Mesedez, hautatu kategoria bat",
+                "select-category": "Mesedez, aukeratu bat",
                 "usr": "Erabiltzailearen izena",
                 "pwd": "Pasahitza",
                 "login": "Saioa hasi"
