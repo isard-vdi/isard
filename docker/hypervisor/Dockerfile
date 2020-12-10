@@ -120,11 +120,12 @@ RUN apk add --no-cache \
     #libpulse
 
 COPY --from=build-qemu /usr/local/ /usr/local/
-# This handles no xml qemu-kvm path definition
-RUN ln -s /usr/local/bin/qemu-system-x86_64 /usr/libexec/qemu-kvm
-# This handles old Isard qemu-kvm path
-RUN ln -s /usr/local/bin/qemu-system-x86_64 /usr/bin/qemu-kvm
 RUN ln -s /usr/local/bin/qemu-img /usr/bin/qemu-img
+
+COPY docker/hypervisor/qemu-kvm /usr/libexec/qemu-kvm
+COPY docker/hypervisor/qemu-kvm /usr/bin/qemu-kvm
+RUN chmod a+x /usr/bin/qemu-kvm
+RUN chmod a+x /usr/libexec/qemu-kvm
 
 # SSH configuration
 RUN echo "root:isard" |chpasswd
