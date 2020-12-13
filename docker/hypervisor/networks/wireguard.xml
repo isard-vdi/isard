@@ -1,0 +1,11 @@
+<network>
+  <name>wireguard</name>
+  <bridge name="virbr20"/>
+  <forward mode="route" dev="eth1"/>
+  <ip address="192.168.128.1" netmask="255.255.252.0">
+    <dhcp>
+      <range start="192.168.128.33" end="192.168.129.254"/>
+    </dhcp>
+  </ip>
+  <route address="10.200.200.0" prefix="24" gateway="192.168.119.2"/>
+</network>

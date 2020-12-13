@@ -113,6 +113,7 @@ flavour "" \
 	stats \
 	api \
 	backend \
+	vpn \
 
 flavour hypervisor \
 	network \

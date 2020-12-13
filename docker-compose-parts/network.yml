@@ -3,3 +3,9 @@ networks:
   isard-network:
     external: false
     name: isard-network
+  isard-vpn:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet:  192.168.119.1/29
