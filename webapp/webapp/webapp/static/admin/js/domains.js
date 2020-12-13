@@ -381,6 +381,10 @@ $(document).ready(function() {
 						}).get().on('pnotify.confirm', function() {
                             setViewerButtons(data['id'],socket);
 
+                            if('viewer' in data && 'guest_ip' in data['viewer']){
+                                $('#viewer-buttons div[data-type="vpn"]').prop("disabled",false).html($('#viewer-buttons div[data-type="vpn"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',data['viewer']['guest_ip']))
+                                $('#viewer-buttons button[data-type="rdp"]').prop("disabled",false).html($('#viewer-buttons button[data-type="rdp"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',''))            
+                            }
                             $('#modalOpenViewer').modal({
                                 backdrop: 'static',
                                 keyboard: false
@@ -410,7 +414,7 @@ $(document).ready(function() {
     });
 
     startClientViewerSocket(socket);
-
+    startClientVpnSocket(socket)
     socket.on('user_quota', function(data) {
         console.log('Quota update')
         var data = JSON.parse(data);
@@ -419,6 +423,15 @@ $(document).ready(function() {
 
     socket.on(kind+'_data', function(data){
         var data = JSON.parse(data);
+        if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
+            if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
+                //console.log('NEW IP ARRIVED!: '+data['viewer']['guest_ip'])
+                if($('#viewer-buttons div[data-type="vpn"]').length){
+                    $('#viewer-buttons div[data-type="vpn"]').prop("disabled",false).html($('#viewer-buttons div[data-type="vpn"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',data['viewer']['guest_ip']))
+                    $('#viewer-buttons button[data-type="rdp"]').prop("disabled",false).html($('#viewer-buttons button[data-type="rdp"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',''))
+                }
+            }
+        }        
         dtUpdateInsert(domains_table,data,false);
         setDomainDetailButtonsStatus(data.id, data.status);
     });
@@ -877,13 +890,19 @@ function renderDisplay(data){
       			//~ <p class="excerpt" >'+data.description+'</p> \
            		//~ </div>'
 //~ }
-                        
+
 function renderIcon(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data)+'</span>'
 }
 
 function renderStatus(data){
-		return data.status;
+    return data.status;
+    //To return the guest ip
+    if('viewer' in data && 'guest_ip' in data['viewer']){
+        return data['viewer']['guest_ip']
+    }else{
+        return 'No ip'
+    }
 }
 
 function renderHypStarted(data){

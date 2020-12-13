@@ -111,85 +111,85 @@ aria-labelledby="modalAddDesktop" aria-hidden="true">
 <div class="modal fade" id="modalAddFromBuilder" tabindex="-1" role="dialog" 
    aria-labelledby="modalAddBuilder" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-        <!-- Modal Header -->
-        <div class="modal-header"  style="padding: 5px;">
-           <button type="button" class="close" 
-              data-dismiss="modal">
-           <span aria-hidden="true">&times;</span>
-           <span class="sr-only">Close</span>
-           </button>
-           <h4 class="modal-title" id="myModalLabel">
-              <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-gears"> </i>   Create desktop from automated builder
-           </h4>
-        </div>
-        <!-- Modal Body -->
-        <div class="modal-body" style="padding: 7px;">
-           <form id="modalAdd" class="form-inline form-label-left">
-              <div id="modalData" class="x_panel" style="padding: 5px;">
-                 <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
-                 <div class="x_content" style="padding: 0px;">
-                     
-                    <div class="row">
-                       <div class="col-md-4 col-xs-12">
-                          <label class="control-label" for="name">Name <span class="required">*</span>
-                          </label>
-                          <input id="name" maxlength="40" pattern="[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                       </div>
-                       <div class="col-md-8 col-xs-12">
-                          <label class="control-label" for="description">Description 
-                          </label>
-                          <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
-                       </div>
-                    </div>
-                 </div>
-              </div>
+         <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header"  style="padding: 5px;">
+               <button type="button" class="close" 
+                  data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+               </button>
+               <h4 class="modal-title" id="myModalLabel">
+                  <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-gears"> </i>   Create desktop from automated builder
+               </h4>
+            </div>
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+               <form id="modalAdd" class="form-inline form-label-left">
+                  <div id="modalData" class="x_panel" style="padding: 5px;">
+                     <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
+                     <div class="x_content" style="padding: 0px;">
+                           
+                        <div class="row">
+                           <div class="col-md-4 col-xs-12">
+                              <label class="control-label" for="name">Name <span class="required">*</span>
+                              </label>
+                              <input id="name" maxlength="40" pattern="[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                           </div>
+                           <div class="col-md-8 col-xs-12">
+                              <label class="control-label" for="description">Description 
+                              </label>
+                              <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                           </div>
+                        </div>
+                     </div>
+                  </div>
 
-              <div id="modalBuilder" class="x_panel" style="padding: 5px;">
-                 <p style="font-size: 18px;margin-bottom:0px;">Select an automated image builder</p>
-                 <input  id="builder-id" name="builder-id" type="hidden"  required>
-                 <input  id="install-id" name="install-id" type="hidden" required>
-                 <input  id="icon" name="icon" type="hidden" required>
-                 <table id="modal_add_builder" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
-                    <thead>
-                       <tr>
-                          <th>Name</th>
-<!--
-                          <th>Arch</th>
-                          <th>Rev</th>
-                          <th>Size</th>
-                          <th>SizeCompress</th>
--->
-                       </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                 </table>
-                 <div id="datatables-error-status"></div>
-                        <label class="">Build options<span class="required">*</span>
-                        </label>
+                  <div id="modalBuilder" class="x_panel" style="padding: 5px;">
+                     <p style="font-size: 18px;margin-bottom:0px;">Select an automated image builder</p>
+                     <input  id="builder-id" name="builder-id" type="hidden"  required>
+                     <input  id="install-id" name="install-id" type="hidden" required>
+                     <input  id="icon" name="icon" type="hidden" required>
+                     <table id="modal_add_builder" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
+                        <thead>
+                           <tr>
+                              <th>Name</th>
+      <!--
+                              <th>Arch</th>
+                              <th>Rev</th>
+                              <th>Size</th>
+                              <th>SizeCompress</th>
+      -->
+                           </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                     </table>
+                     <div id="datatables-error-status"></div>
+                              <label class="">Build options<span class="required">*</span>
+                              </label>
 
-                          <textarea id="builder-options" name="builder-options" class="form-control" rows="5" placeholder="Options" style="width:100%"></textarea>
-              </div>
+                              <textarea id="builder-options" name="builder-options" class="form-control" rows="5" placeholder="Options" style="width:100%"></textarea>
+                  </div>
 
 
-                      
-              <div class="x_panel" id="builder-hardware-block" style="padding: 5px;">
-                 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
-                 {% include '/snippets/domain_hardware_disksize_edit.html' %}
-              </div>
-              <!-- Modal Footer -->
-              <div class="modal-footer" style="padding: 5px;">
-                 <ul class="nav navbar-left panel_toolbox">
-                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                 </ul>
-                 <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Create desktop</button></li>
-                 </ul>
-              </div>
-           </form>
-          </div>
-          </div>
+                           
+                  <div class="x_panel" id="builder-hardware-block" style="padding: 5px;">
+                     <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
+                     {% include '/snippets/domain_hardware_disksize_edit.html' %}
+                  </div>
+                  <!-- Modal Footer -->
+                  <div class="modal-footer" style="padding: 5px;">
+                     <ul class="nav navbar-left panel_toolbox">
+                        <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                     </ul>
+                     <ul class="nav navbar-right panel_toolbox">
+                        <li><button id="send" type="button" class="btn btn-success">Create desktop</button></li>
+                     </ul>
+                  </div>
+               </form>
+            </div>
+         </div>
     </div>
 </div>
 

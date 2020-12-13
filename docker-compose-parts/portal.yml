@@ -3,13 +3,15 @@ services:
   isard-portal:
     container_name: isard-portal
     image: ${DOCKER_IMAGE_PREFIX}portal:${DOCKER_IMAGE_TAG-latest}
+    cap_add:
+    - NET_ADMIN    
     networks:
       - isard-network
     ports:
       - published: 80
         target: 80
       - published: 443
-        target: 443
+        target: 443      
     restart: unless-stopped
     volumes:
       - /opt/isard/certs/default:/certs:rw

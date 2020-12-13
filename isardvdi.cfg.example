@@ -58,7 +58,8 @@ TELEGRAM_BOT_CHAT_ID=
 ##################################################################
 ##################################################################
 
-# DOCKER IMAGES
+###################### DOCKER IMAGES
+
 # Image prefix that could include registry and repository
 DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 # Image tag that could be tags or branches from the git repository
@@ -67,16 +68,49 @@ DOCKER_IMAGE_TAG=v2.0.0-rc1
 # Logging level
 LOG_LEVEL=INFO
 
-# HYPERVISOR
-## VLAN mapping
-## You need to map a trunk 802.1q interface with your desired vlans
-## that will be taken from the host and inserted in hypervisor.
-## (I mean you will miss this interface from the host!)
-##
-## Requirements: pipework script, arping and wget
-## - pipework: wget -O /usr/local/bin/pipework https://raw.githubusercontent.com/jpetazzo/pipework/master/pipework && sudo chmod +x /usr/local/bin/pipework
-## - packages: apt install arping wget -y
-##
+###################### Wireguard
+
+## Users at home will get a unique /32 IP from this range.
+## Set a network that will allow as many clients as you will have.
+WG_USERS_NET=10.0.0.0/16
+
+## UDP port for users at home to connect wireguard to this server.
+WG_USERS_PORT=443
+
+## Only in infrastructure this will be used by remote hypers to 
+## send wireguard guests network to the main Isard. 
+WG_HYPERS_NET=10.1.0.0/24
+
+## UDP port for remote hypervisors to connect to this server.
+WG_HYPERS_PORT=4443
+
+## 0: isard-hypervisor.
+## N: next hypers. Be aware not to overlap them!
+## You need to set also this number when adding the hypervisor in
+## web admin. It should match as the networks are calculated based
+## on this hyper number.
+HYPERVISOR_NUMBER=0
+
+## This is the main range to be used by wireguard interface in
+## guests in your system. Will be subdivided in smaller ranges
+## for each hypervisor.
+WG_GUESTS_NETS=10.2.0.0/16
+
+## 23: 512 GUESTS -2
+## 24: 256 GUESTS -2
+## Each hypervisor will get one subnet from WG_GUESTS_NETS
+## Last network will be subdivided /29 to connect wireguard hyper
+## clients (isard-vpnc) to the wireguard server (isard-vpn)
+WG_GUESTS_DHCP_MASK=23
+## This sets a reserved dhcp range if you want.
+WG_GUESTS_RESERVED_HOSTS=20
+
+## This is the internal interface in wireguard and isard-hypervisor
+## containers. In docker it is the isard-vpn network.
+WG_INTERFACE=eth1
+
+###################### HYPERVISOR
+
 ## Uncomment to map host interface name inside hypervisor container.
 ## If static vlans are commented then hypervisor will initiate an 
 ## auto-discovery process. The discovery process will last for 260
@@ -91,7 +125,8 @@ LOG_LEVEL=INFO
 ## fix this as forced vlans inside hypervisor.
 #HYPERVISOR_STATIC_VLANS=
 
-# Hypervisor video proxy
+###################### Hypervisor video proxy
+
 ## Only set this to different LETSENCRYPT domain if you are using
 ## two different dns for web & hypervisor on the same host and you
 ## want to use letsencrypt!
@@ -108,16 +143,16 @@ LOG_LEVEL=INFO
 VIDEO_LETSENCRYPT_DNS=
 VIDEO_LETSENCRYPT_EMAIL=
 
-# ENGINE config
-###########################################################
+###################### ENGINE config
+
 ## Main database reacheable host name
 ## Defaults: isard-db
 RETHINKDB_HOST=isard-db
 RETHINKDB_PORT=28015
 RETHINKDB_DB=isard
 
-# WEBAPP config
-###########################################################
+###################### WEBAPP config
+
 ## Main database reacheable host name
 ## Defaults: isard-db
 ## Infrastructure: set it in host /etc/hosts: <IP> isard-db
@@ -126,8 +161,8 @@ WEBAPP_RETHINKDB_HOST=isard-db
 WEBAPP_RETHINKDB_PORT=28015
 WEBAPP_RETHINKDB_DB=isard
 
-# BACKEND config
-###########################################################
+###################### BACKEND config
+
 BACKEND_HOST=localhost
 BACKEND_REDIS_HOST=isard-redis
 BACKEND_REDIS_PASSWORD=

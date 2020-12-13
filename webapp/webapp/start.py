@@ -6,9 +6,6 @@ from flask_socketio import SocketIO
 from webapp.lib import api
 from webapp import app
 
-
-
-#~ import rethinkdb as r
 from webapp.lib.flask_rethink import RethinkDB
 db = RethinkDB(app)
 db.init_app(app)

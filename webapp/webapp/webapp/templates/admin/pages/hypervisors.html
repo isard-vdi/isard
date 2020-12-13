@@ -7,88 +7,89 @@
 -->
 {% endblock %} 
 {% block content %}
-        <div class="right_col" role="main">
-            <div class="page-title">
-              <div class="title_left">
-                <h3><i class="fa fa-rocket"></i> Hypervisors <small>System hypervisors and pools grouping</small></h3>
-              </div>
-            </div>
-            <div class="clearfix"></div>
-            <div class="row">
-              <div class="col-md-12 col-sm-12 col-xs-12">
-                <div class="x_panel">
-                  <div class="x_title">
-                    <h2>Hypervisors list <small></small></h2>
-                    <ul class="nav navbar-right panel_toolbox">
-                       <li><a class="btn-new-hyper"><span
-                               style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
-                       <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-                       </li>
-                    </ul>
-                    <div class="clearfix"></div>
-                  </div>
-                  <div class="x_content">
-                    <table id="hypervisors" class="table">
-                      <thead>
-                        <tr>
-						              <th></th>
-                          <th>enabled</th>
-                          <th>status</th>
-                          <th>id</th>
-                          <th>hostname</th>
-                          <th>qemu</th>
-                          <th>libvirt</th>
-                          <th>hyper</th>
-                          <th>mem</th>
-                          <th>th</th>
-                          <th>disk op</th>
-                          <th>hyp op</th>
-                          <th>static</th>
-                          <th>proxy_video</th>
-                          <th>proxy_hyper_host</th>
-                          <th>Last status change</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-md-12 col-sm-12 col-xs-12">
-                <div class="x_panel">
-                  <div class="x_title">
-                    <h2><i class="fa fa-object-group"> </i> Hypervisors pools list <small></small></h2>
-                    <ul class="nav navbar-right panel_toolbox">
+<div class="right_col" role="main">
+  <div class="page-title">
+    <div class="title_left">
+      <h3><i class="fa fa-rocket"></i> Hypervisors <small>System hypervisors and pools grouping</small></h3>
+    </div>
+  </div>
+  <div class="clearfix"></div>
+  <div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+        <div class="x_title">
+          <h2>Hypervisors list <small></small></h2>
+          <ul class="nav navbar-right panel_toolbox">
+              <li><a class="btn-new-hyper"><span
+                      style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+              <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+              </li>
+          </ul>
+          <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+          <table id="hypervisors" class="table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>enabled</th>
+                <th>status</th>
+                <th>num</th>
+                <th>id</th>
+                <th>hostname</th>
+                <th>qemu</th>
+                <th>libvirt</th>
+                <th>hyper</th>
+                <th>mem</th>
+                <th>th</th>
+                <th>disk op</th>
+                <th>hyp op</th>
+                <th>static</th>
+                <th>proxy_video</th>
+                <th>proxy_hyper_host</th>
+                <th>Last status change</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+        <div class="x_title">
+          <h2><i class="fa fa-object-group"> </i> Hypervisors pools list <small></small></h2>
+          <ul class="nav navbar-right panel_toolbox">
 <!--
-                       <li><a class="btn-new-pool"><span
-                               style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+              <li><a class="btn-new-pool"><span
+                      style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
 -->
-                       <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-                       </li>
-                    </ul>
-                    <div class="clearfix"></div>
-                  </div>
-                  <div class="x_content">
-                    <table id="hypervisors_pools" class="table table-striped">
-                      <thead>
-                        <tr>
-					      <th></th>
-                          <th>name</th>
-                          <th>description</th>
-                        </tr>
-                      </thead>
+              <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+              </li>
+          </ul>
+          <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+          <table id="hypervisors_pools" class="table table-striped">
+            <thead>
+              <tr>
+      <th></th>
+                <th>name</th>
+                <th>description</th>
+              </tr>
+            </thead>
 
-                      <tbody>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-            </div>
+  </div>
 </div>
 {% include '/admin/pages/hypervisors_modals.html' %}
 {% include '/admin/pages/hypervisors_detail.html' %}

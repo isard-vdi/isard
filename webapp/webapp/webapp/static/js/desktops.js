@@ -203,6 +203,11 @@ $(document).ready(function() {
                 break;
             case 'btn-display':
                 setViewerButtons(data['id'],socket);
+
+                if('viewer' in data && 'guest_ip' in data['viewer']){
+                    $('#viewer-buttons div[data-type="vpn"]').prop("disabled",false).html($('#viewer-buttons div[data-type="vpn"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',data['viewer']['guest_ip']))
+                    $('#viewer-buttons button[data-type="rdp"]').prop("disabled",false).html($('#viewer-buttons button[data-type="rdp"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',''))
+                }
                 $('#modalOpenViewer').modal({
                     backdrop: 'static',
                     keyboard: false
@@ -221,18 +226,29 @@ $(document).ready(function() {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    startClientViewerSocket(socket);
+
+     startClientViewerSocket(socket);
+     startClientVpnSocket(socket);
 
     socket.on('user_quota', function(data) {
         var data = JSON.parse(data);
-        console.log('user_quota')
+        //console.log('user_quota')
         drawUserQuota(data);
     });
 
     countdown ={}
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
-        console.log('desktop_data')
+        //console.log('desktop_data')
+
+        if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
+            if(!('viewer' in table.row('#'+data.id).data()) || !('guest_ip' in table.row('#'+data.id).data())){
+                //console.log('NEW IP ARRIVED!: '+data['viewer']['guest_ip'])
+                $('#viewer-buttons div[data-type="vpn"]').prop("disabled",false).html($('#viewer-buttons div[data-type="vpn"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',data['viewer']['guest_ip']))
+                $('#viewer-buttons button[data-type="rdp"]').prop("disabled",false).html($('#viewer-buttons button[data-type="rdp"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',''))
+         }
+        }
+
         if(data.status =='Started' && table.row('#'+data.id).data().status != 'Started'){
             if('preferred' in data['options']['viewers'] && data['options']['viewers']['preferred']){
                 socket.emit('domain_viewer',{'pk':data.id,'kind':data['options']['viewers']['preferred'],'os':getOS()});

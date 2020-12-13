@@ -1,0 +1,7 @@
+version: "3.5"
+services:
+  isard-vpn:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/vpn/Dockerfile
+      target: production

@@ -1,0 +1,6 @@
+version: "3.5"
+services:
+  isard-vpnc:
+    volumes:
+    - ${BUILD_ROOT_PATH}/docker/vpnc/src:/src
+    command: sleep infinity
