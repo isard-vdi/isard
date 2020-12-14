@@ -5,11 +5,14 @@
                   <div class="col-md-12 col-md-12 col-xs-12" id="actions-d.id" data-pk="d.id" data-name="d.name">
                         {% if(current_user.role!='user') %}
               <div class="row">
-              <button class="btn btn-success btn-xs pull-right btn-jumperurl" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Viewer</button>
+              <button class="btn btn-success btn-xs pull-right btn-jumperurl" type="button"  data-placement="top" ><i class="fa fa-eye m-right-xs"></i>Viewer</button>
               </div>                             
 							 <div class="row">
 								<button class="btn btn-success btn-xs pull-right btn-template" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Template it</button>
-							 </div>
+               </div>
+               <div class="row">
+               <button class="btn btn-success btn-xs pull-right btn-forcedhyp" type="button"  data-placement="top" ><i class="fa fa-rocket m-right-xs"></i>Forced hyp</button>
+              </div>                
                              <!-- Needed for admin -->
 							 <div class="row">
 								<button class="btn btn-danger btn-xs pull-right btn-delete-template" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>

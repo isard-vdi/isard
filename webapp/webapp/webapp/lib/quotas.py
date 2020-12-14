@@ -357,13 +357,11 @@ class QuotaLimits():
         dict['graphics']=app.isardapi.get_alloweds(user_id,'graphics',pluck=['id','name','description'],order='name')
         dict['videos']=app.isardapi.get_alloweds(user_id,'videos',pluck=['id','name','description'],order='name')
         dict['boots']=app.isardapi.get_alloweds(user_id,'boots',pluck=['id','name','description'],order='name')
-        #dict['forced_hyps'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
+        #dict['forced_hyp'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
         dict['qos_id']=app.isardapi.get_alloweds(user_id,'qos_disk',pluck=['id','name','description'],order='name')
 
         dict['hypervisors_pools']=app.isardapi.get_alloweds(user_id,'hypervisors_pools',pluck=['id','name','description'],order='name')
-        dict['forced_hyps']=[]
-        """ if current_user.role == 'admin':
-            dict['forced_hyps']=app.adminapi.get_admin_table('hypervisors',['id','hostname','description','status']) """
+        dict['forced_hyp']=[]
 
         quota=self.get_user(user_id)
         dict={**dict, **quota}
@@ -387,4 +385,4 @@ class QuotaLimits():
         
         return create_dict
         #hypervisors_pools
-        #forced_hyps
+        #forced_hyp

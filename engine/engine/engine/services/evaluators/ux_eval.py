@@ -24,7 +24,7 @@ import numpy as np
 from engine.config import GRAFANA
 from engine.controllers.eval_controller import EvalController
 from engine.services.db import update_domain_status, get_domains, get_domain_status, \
-    update_domain_force_hyp, get_domain
+    update_domain_forced_hyp, get_domain
 from engine.services.db.eval import get_eval_initial_ux, insert_eval_initial_ux
 from engine.services.evaluators.evaluator_interface import EvaluatorInterface
 from engine.services.log import logs
@@ -115,7 +115,7 @@ class UXEval(EvaluatorInterface):
             hyp = self.hyps[i]
             logs.eval.info(
                 "Calculing ux for template: {} in hypervisor {}. Domain: {}".format(template_id, hyp.id, domain_id))
-            update_domain_force_hyp(domain_id, hyp.id)
+            update_domain_forced_hyp(domain_id, hyp.id)
             threads[i] = Thread(target=self._get_stats_background, args=(domain_id, results, i, hyp))
             threads[i].start()
         for i in range(len(self.hyps)):
@@ -126,13 +126,13 @@ class UXEval(EvaluatorInterface):
             stats, et = results[i]
             self.initial_ux[template_id][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
             domain_id = domains[i]['id']
-            update_domain_force_hyp(domain_id, '')  # Clean force_hyp
+            update_domain_forced_hyp(domain_id, '')  # Clean forced_hyp
 
     def _initial_ux_sequencial(self, template_id, domain_id):
         self.initial_ux[template_id] = {}
         for hyp in self.hyps:
             logs.eval.info("Calculing ux for template: {} in hypervisor {}".format(template_id, hyp.id))
-            update_domain_force_hyp(domain_id, hyp.id)
+            update_domain_forced_hyp(domain_id, hyp.id)
             update_domain_status('Starting', domain_id)
             stats = []
             et_mean = []
@@ -145,7 +145,7 @@ class UXEval(EvaluatorInterface):
                 et_mean.append(et)
             et = round(mean(et_mean), 2)
             self.initial_ux[template_id][hyp.id] = self._calcule_ux_domain(stats, et, hyp.cpu_power)
-        update_domain_force_hyp(domain_id, '')  # Clean force_hyp
+        update_domain_forced_hyp(domain_id, '')  # Clean forced_hyp
 
     def _get_stats_background(self, domain_id, results, i, hyp):
         # hyp.launch_eval_statistics()

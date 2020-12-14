@@ -584,6 +584,7 @@ function actionsDesktopDetail(){
 function addDesktopDetailPannel ( d ) {
 		$newPanel = $template.clone();
         $newPanel.find('#derivates-d\\.id').remove();
+        $newPanel.find('.btn-forcedhyp').remove();
         $newPanel.find('.btn-xml').remove();
 		$newPanel.html(function(i, oldHtml){
 			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);

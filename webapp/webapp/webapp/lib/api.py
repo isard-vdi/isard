@@ -835,6 +835,8 @@ class isard():
                 tmpl['create_dict']['template']=tmpl['id']
                 tmpl['create_dict']['name']=tmpl['name']
                 tmpl['create_dict']['description']=tmpl['description']
+                if 'forced_hyp' in tmpl.keys():
+                    tmpl['create_dict']['forced_hyp']=tmpl['forced_hyp']
                 tmpl['create_dict']['hypervisors_pools']=tmpl['hypervisors_pools']
                         
             self.new_domain_from_tmpl(user, tmpl['create_dict'])
@@ -850,7 +852,8 @@ class isard():
         ephimeral = ephimeral_group if 'ephimeral' in ephimeral_group.keys() else  ephimeral_cat
         
         dom=app.isardapi.get_domain(create_dict['template'])
-            
+        if 'forced_hyp' not in dom.keys():
+            dom['forced_hyp']=False
         parent_disk=dom['hardware-disks'][0]['file']
 
         qos_id=create_dict.pop('qos_id') if 'qos_id' in create_dict.keys() else False
@@ -878,6 +881,7 @@ class isard():
                   'options': {'viewers':{'spice':{'fullscreen':True}}},
                   'create_dict': {'hardware':create_dict['hardware'], 
                                     'origin': create_dict['template']}, 
+                  'forced_hyp': dom['forced_hyp'],
                   'hypervisors_pools': create_dict['hypervisors_pools'],
                   'allowed': {'roles': False,
                               'categories': False,
