@@ -597,6 +597,7 @@ function setDesktopDetailButtonsStatus(id,status){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
     }else{
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
     }
     if(status=='Failed'){
       $('#actions-'+id+' .btn-edit').prop('disabled', false);

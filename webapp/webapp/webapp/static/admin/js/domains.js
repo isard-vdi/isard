@@ -731,11 +731,12 @@ function addDomainDetailPannel ( d ) {
 }
 
 function setDomainDetailButtonsStatus(id,status){
-          //~ if(status=='Stopped'){
-                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
-          //~ }else{
-                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          //~ }
+    if(status=='Started' || status=='Starting'){
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);           
+    }else{
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+    }
 }
 	
 function icon(data){
