@@ -35,7 +35,8 @@
                 "select-category": "Veuillez sélectionner une catégorie"
             },
             "title": "Se connecter",
-            "admin": "Administration"
+            "admin": "Administration",
+            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois."
         },
         "landing": {
             "buttons": {
@@ -120,6 +121,9 @@
             "best-performance": "C’est l’option avec la meilleure performance",
             "local-client": "Utiliser le client local (recommandé)",
             "close-guide": "Fermer le guide"
+        },
+        "title": {
+            "logo-alt": "Logo"
         }
     }
 }
