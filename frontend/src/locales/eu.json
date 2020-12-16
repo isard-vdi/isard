@@ -49,9 +49,7 @@
         },
         "landing": {
             "title": {
-                "first-time": "Isard (urruneko mahaigainen zerbitzua) erabiltzen duzun lehen aldia al da?",
-                "here": "hemen",
-                "view-guide": "Egin klik {0} gida bat ikusteko."
+                "view-guide": "IsardVDI (urruneko mahaigainen zerbitzua) erabiltzen duzun lehen aldia al da? Egin klik hemen gida bat ikusteko."
             },
             "buttons": {
                 "local": {

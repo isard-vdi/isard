@@ -53,9 +53,7 @@
                 }
             },
             "title": {
-                "view-guide": "Cliquez {0} pour visualiser un guide.",
-                "here": "ici",
-                "first-time": "Est-ce la première fois que vous utilisez Isard (service de bureau à distance) ?"
+                "view-guide": "Est-ce la première fois que vous utilisez IsardVDI (service de bureau à distance) ? Cliquez ici pour visualiser un guide."
             },
             "notification": {
                 "error": {
