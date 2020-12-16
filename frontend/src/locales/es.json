@@ -52,9 +52,7 @@
         },
         "landing": {
             "title": {
-                "first-time": "¿Es la primera vez que utilizas Isard (servicio de escritorios remoto)?",
-                "here": "aquí",
-                "view-guide": "Haz clic {0} para ver una guía."
+                "view-guide": "¿Es la primera vez que utilizas IsardVDI (servicio de escritorios remoto)? Haz clic aquí para ver una guía."
             },
             "buttons": {
                 "local": {

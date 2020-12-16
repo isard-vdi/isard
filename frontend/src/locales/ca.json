@@ -52,9 +52,7 @@
         },
         "landing": {
             "title": {
-                "first-time": "És el primer cop que fas servir Isard (servei d'escriptori remot)?",
-                "here": "aquí",
-                "view-guide": "Fes clic {0} per veure una guia."
+                "view-guide": "És el primer cop que fas servir IsardVDI (servei d'escriptori remot)? Fes clic aquí per veure una guia."
             },
             "buttons": {
                 "local": {

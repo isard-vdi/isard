@@ -52,9 +52,7 @@
         },
         "landing": {
             "title": {
-                "first-time": "Is it the first time you use Isard (remote desktop service)?",
-                "here": "here",
-                "view-guide": "Click {0} to view a guide."
+                "view-guide": "Is it the first time you use IsardVDI (remote desktop service)? Click here to view a guide."
             },
             "buttons": {
                 "local": {

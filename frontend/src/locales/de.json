@@ -7,9 +7,7 @@
         },
         "landing": {
             "title": {
-                "first-time": "Verwenden Sie Isard (Fernarbeitsoberflächedienst) zum ersten Mal?",
-                "view-guide": "Klicken Sie {0}, um eine Anleitung anzuzeigen.",
-                "here": "hier"
+                "view-guide": "Verwenden Sie IsardVDI (Fernarbeitsoberflächedienst) zum ersten Mal? Klicken Sie hier, um eine Anleitung anzuzeigen."
             },
             "buttons": {
                 "local": {
