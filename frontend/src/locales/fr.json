@@ -36,7 +36,8 @@
             },
             "title": "Se connecter",
             "admin": "Administration",
-            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois."
+            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
+            "powered-by": "Propulsé par"
         },
         "landing": {
             "buttons": {
