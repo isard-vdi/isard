@@ -5,18 +5,3 @@ services:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/vpn/Dockerfile
       target: production
-    container_name: isard-vpn      
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE  
-    networks:
-      isard-network: {}
-      isard-vpn:
-        ipv4_address: 192.168.119.2  
-    ports:
-      - published: 51820
-        target: 51820
-        protocol: udp
-    restart: unless-stopped
-    env_file:
-      - .env  

@@ -1,0 +1,5 @@
+version: "3.5"
+services:
+  isard-vpn:
+    volumes:
+    - ${BUILD_ROOT_PATH}/docker/vpn/src:/src
