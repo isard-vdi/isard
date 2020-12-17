@@ -32,11 +32,12 @@
                 "login": "Se connecter",
                 "pwd": "Mot de passe",
                 "usr": "Nom d’utilisateur",
-                "select-category": "Veuillez sélectionner une catégorie"
+                "select-category": "Veuillez sélectionner une option"
             },
             "title": "Se connecter",
             "admin": "Administration",
-            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois."
+            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
+            "powered-by": "Propulsé par"
         },
         "landing": {
             "buttons": {
