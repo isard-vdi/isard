@@ -1,7 +1,7 @@
-FROM alpine:3.11.3 as production
+FROM alpine:3.12.0 as production
 MAINTAINER isard <info@isard.com>
 
-RUN apk add python3 
+RUN apk add python3 py3-pip
 RUN pip3 install --upgrade pip
 RUN apk add --no-cache --virtual .build_deps \
     build-base \

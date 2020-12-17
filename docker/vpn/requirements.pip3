@@ -1,0 +1,2 @@
+rethinkdb==2.4.7
+python-iptables==1.0.0

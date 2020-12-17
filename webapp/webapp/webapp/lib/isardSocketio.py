@@ -1196,6 +1196,9 @@ def socketio_domains_viewer(data):
         else:
             default_viewer=False
     viewer_data=isardviewer.viewer_data(data['pk'],get_viewer=data['kind'],default_viewer=default_viewer,current_user=current_user)
+    import pprint
+    pprint.pprint(data)
+    pprint.pprint(viewer_data)
     if viewer_data:
         socketio.emit('domain_viewer',
                         json.dumps(viewer_data),

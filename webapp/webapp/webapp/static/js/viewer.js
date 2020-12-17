@@ -19,12 +19,18 @@ function setViewerButtons(id,socket,offer){
              'secure': true,
              'preferred': false
              },
-             {
+/*              {
              'type': 'spice',
              'client': 'websocket',
              'secure': true,
              'preferred': false
-             },
+             }, */
+             {
+                'type': 'vpn', 
+                'client': 'app',
+                'secure': true,
+                'preferred': false
+            },             
              //~ {
              //~ 'type': 'vnc', 
              //~ 'client': 'websocket', 
@@ -40,8 +46,6 @@ function setViewerButtons(id,socket,offer){
             ]
     html=""
     $.each(offer, function(idx,disp){
-        if(disp['type']=='spice' && disp['client']=='websocket'){
-        }else{
             prehtml='<div class="row"><div class="col-12 text-center">'
             posthtml='</div></div>'
             success='btn-round btn-info'
@@ -58,7 +62,6 @@ function setViewerButtons(id,socket,offer){
             else if(disp['client']=='websocket')
                 {type='<i class="fa fa-html5"></i>';btntext=disp['type'].toUpperCase()+' Browser';client='html5'}
             html=br+prehtml+html+'<button data-pk="'+id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br;
-        }
     })
     $('#viewer-buttons').html(html);
     $('#viewer-buttons .btn-viewers').on('click', function () {
@@ -95,7 +98,8 @@ function startClientViewerSocket(socket){
         if(data['kind']=='file'){
             var viewerFile = new Blob([data['content']], {type: data['mime']});
             var a = document.createElement('a');
-                a.download = 'console.'+data['ext'];
+                if(data['ext']=='conf'){name='isard-vpn'}else{name='console'}
+                a.download = name+'.'+data['ext'];
                 a.href = window.URL.createObjectURL(viewerFile);
             var ev = document.createEvent("MouseEvents");
                 ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);

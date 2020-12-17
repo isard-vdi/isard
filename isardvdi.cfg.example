@@ -60,6 +60,11 @@ DOCKER_IMAGE_TAG=v2.0.0-rc1
 # Logging level
 LOG_LEVEL=INFO
 
+# WIREGUARD VPN. Used to access guests network. Also for RDP.
+# IP should be the first one and the rest will be taken by clients
+# starting from the next one.
+WIREGUARD_SERVER_IP=10.200.200.1/24
+
 # HYPERVISOR
 ## Uncomment to map host interface name inside hypervisor container.
 ## If static vlans are commented then hypervisor will initiate an 
