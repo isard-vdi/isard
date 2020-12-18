@@ -6,7 +6,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func New(cluster bool, host string, port int, usr, pwd string) redis.Cmdable {
+func New(cluster bool, host string, port int, usr, pwd string) redis.UniversalClient {
 	addr := fmt.Sprintf("%s:%d", host, port)
 
 	if cluster {

@@ -12,4 +12,4 @@ build:
 	go build -o bin/backend-v$(VERSION) cmd/backend/main.go
 
 docker:
-	docker build -f build/package/Dockerfile -t isard/isardvdi-backend:$(VERSION)
+	docker build -f build/package/Dockerfile -t isard/isardvdi-backend:$(VERSION) ..

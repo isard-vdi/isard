@@ -1,0 +1,7 @@
+directive @hasRole(role: Role!) on FIELD_DEFINITION
+
+enum Role {
+    ADMIN
+    ADVANCED
+    USER
+}

@@ -9,6 +9,7 @@ hyper/bin
 controller/bin
 desktopbuilder/bin
 orchestrator/bin
+backend/bin
 
 # Test binary, built with `go test -c`
 *.test

@@ -1,3 +1,6 @@
 type Mutation {
-    desktopStart(id: ID!): Desktop!
+    login(provider: String!, organization: String!, usr: String, pwd: String): String
+
+    desktopStart(id: ID!): Viewer! @hasRole(role: USER)
+    desktopStop(id: ID!): Boolean @hasRole(role: USER)
 }

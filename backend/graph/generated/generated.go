@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -40,6 +41,7 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
+	HasRole func(ctx context.Context, obj interface{}, next graphql.Resolver, role model.Role) (res interface{}, err error)
 }
 
 type ComplexityRoot struct {
@@ -50,15 +52,32 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		DesktopStart func(childComplexity int, id string) int
+		DesktopStop  func(childComplexity int, id string) int
+		Login        func(childComplexity int, provider string, organization string, usr *string, pwd *string) int
 	}
 
 	Query struct {
 		Desktops func(childComplexity int) int
 	}
+
+	Viewer struct {
+		Spice   func(childComplexity int) int
+		VncHTML func(childComplexity int) int
+	}
+
+	ViewerSpice struct {
+		FileContent func(childComplexity int) int
+	}
+
+	ViewerVncHTML struct {
+		URL func(childComplexity int) int
+	}
 }
 
 type MutationResolver interface {
-	DesktopStart(ctx context.Context, id string) (*model.Desktop, error)
+	Login(ctx context.Context, provider string, organization string, usr *string, pwd *string) (*string, error)
+	DesktopStart(ctx context.Context, id string) (*model.Viewer, error)
+	DesktopStop(ctx context.Context, id string) (*bool, error)
 }
 type QueryResolver interface {
 	Desktops(ctx context.Context) ([]*model.Desktop, error)
@@ -105,12 +124,64 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DesktopStart(childComplexity, args["id"].(string)), true
 
+	case "Mutation.desktopStop":
+		if e.complexity.Mutation.DesktopStop == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_desktopStop_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DesktopStop(childComplexity, args["id"].(string)), true
+
+	case "Mutation.login":
+		if e.complexity.Mutation.Login == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_login_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Login(childComplexity, args["provider"].(string), args["organization"].(string), args["usr"].(*string), args["pwd"].(*string)), true
+
 	case "Query.desktops":
 		if e.complexity.Query.Desktops == nil {
 			break
 		}
 
 		return e.complexity.Query.Desktops(childComplexity), true
+
+	case "Viewer.Spice":
+		if e.complexity.Viewer.Spice == nil {
+			break
+		}
+
+		return e.complexity.Viewer.Spice(childComplexity), true
+
+	case "Viewer.VNC_HTML":
+		if e.complexity.Viewer.VncHTML == nil {
+			break
+		}
+
+		return e.complexity.Viewer.VncHTML(childComplexity), true
+
+	case "ViewerSpice.FileContent":
+		if e.complexity.ViewerSpice.FileContent == nil {
+			break
+		}
+
+		return e.complexity.ViewerSpice.FileContent(childComplexity), true
+
+	case "ViewerVNC_HTML.URL":
+		if e.complexity.ViewerVncHTML.URL == nil {
+			break
+		}
+
+		return e.complexity.ViewerVncHTML.URL(childComplexity), true
 
 	}
 	return 0, false
@@ -180,11 +251,34 @@ var sources = []*ast.Source{
     id: ID!
     name: String!
 }`, BuiltIn: false},
+	{Name: "graph/schema/directvies.graphqls", Input: `directive @hasRole(role: Role!) on FIELD_DEFINITION
+
+enum Role {
+    ADMIN
+    ADVANCED
+    USER
+}
+`, BuiltIn: false},
 	{Name: "graph/schema/mutation.graphqls", Input: `type Mutation {
-    desktopStart(id: ID!): Desktop!
+    login(provider: String!, organization: String!, usr: String, pwd: String): String
+
+    desktopStart(id: ID!): Viewer! @hasRole(role: USER)
+    desktopStop(id: ID!): Boolean @hasRole(role: USER)
 }`, BuiltIn: false},
 	{Name: "graph/schema/query.graphqls", Input: `type Query {
-    desktops: [Desktop!]!
+    desktops: [Desktop!]! @hasRole(role: USER)
+}`, BuiltIn: false},
+	{Name: "graph/schema/viewer.graphqls", Input: `type Viewer {
+    Spice: ViewerSpice!
+    VNC_HTML: ViewerVNC_HTML!
+}
+
+type ViewerSpice {
+    FileContent: String!
+}
+
+type ViewerVNC_HTML {
+    URL: String!
 }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -192,6 +286,21 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) dir_hasRole_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.Role
+	if tmp, ok := rawArgs["role"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("role"))
+		arg0, err = ec.unmarshalNRole2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐRole(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["role"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_desktopStart_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -205,6 +314,63 @@ func (ec *executionContext) field_Mutation_desktopStart_args(ctx context.Context
 		}
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_desktopStop_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["provider"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("provider"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["provider"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["organization"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("organization"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["organization"] = arg1
+	var arg2 *string
+	if tmp, ok := rawArgs["usr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("usr"))
+		arg2, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["usr"] = arg2
+	var arg3 *string
+	if tmp, ok := rawArgs["pwd"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pwd"))
+		arg3, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["pwd"] = arg3
 	return args, nil
 }
 
@@ -331,6 +497,45 @@ func (ec *executionContext) _Desktop_name(ctx context.Context, field graphql.Col
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_login_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().Login(rctx, args["provider"].(string), args["organization"].(string), args["usr"].(*string), args["pwd"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_desktopStart(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -355,8 +560,32 @@ func (ec *executionContext) _Mutation_desktopStart(ctx context.Context, field gr
 	}
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DesktopStart(rctx, args["id"].(string))
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().DesktopStart(rctx, args["id"].(string))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNRole2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐRole(ctx, "USER")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*model.Viewer); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *gitlab.com/isard/isardvdi/backend/graph/model.Viewer`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -368,9 +597,72 @@ func (ec *executionContext) _Mutation_desktopStart(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Desktop)
+	res := resTmp.(*model.Viewer)
 	fc.Result = res
-	return ec.marshalNDesktop2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktop(ctx, field.Selections, res)
+	return ec.marshalNViewer2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewer(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_desktopStop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_desktopStop_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().DesktopStop(rctx, args["id"].(string))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNRole2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐRole(ctx, "USER")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(*bool); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be *bool`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*bool)
+	fc.Result = res
+	return ec.marshalOBoolean2ᚖbool(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_desktops(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -390,8 +682,32 @@ func (ec *executionContext) _Query_desktops(ctx context.Context, field graphql.C
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Desktops(rctx)
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Query().Desktops(rctx)
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNRole2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐRole(ctx, "USER")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, graphql.ErrorOnPath(ctx, err)
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.([]*model.Desktop); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be []*gitlab.com/isard/isardvdi/backend/graph/model.Desktop`, tmp)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -477,6 +793,146 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	res := resTmp.(*introspection.Schema)
 	fc.Result = res
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Viewer_Spice(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Viewer",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Spice, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ViewerSpice)
+	fc.Result = res
+	return ec.marshalNViewerSpice2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewerSpice(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Viewer_VNC_HTML(ctx context.Context, field graphql.CollectedField, obj *model.Viewer) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Viewer",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VncHTML, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ViewerVncHTML)
+	fc.Result = res
+	return ec.marshalNViewerVNC_HTML2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewerVncHTML(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ViewerSpice_FileContent(ctx context.Context, field graphql.CollectedField, obj *model.ViewerSpice) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ViewerSpice",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FileContent, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ViewerVNC_HTML_URL(ctx context.Context, field graphql.CollectedField, obj *model.ViewerVncHTML) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "ViewerVNC_HTML",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -1621,11 +2077,15 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "login":
+			out.Values[i] = ec._Mutation_login(ctx, field)
 		case "desktopStart":
 			out.Values[i] = ec._Mutation_desktopStart(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "desktopStop":
+			out.Values[i] = ec._Mutation_desktopStop(ctx, field)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -1670,6 +2130,92 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
 			out.Values[i] = ec._Query___schema(ctx, field)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var viewerImplementors = []string{"Viewer"}
+
+func (ec *executionContext) _Viewer(ctx context.Context, sel ast.SelectionSet, obj *model.Viewer) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, viewerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Viewer")
+		case "Spice":
+			out.Values[i] = ec._Viewer_Spice(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "VNC_HTML":
+			out.Values[i] = ec._Viewer_VNC_HTML(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var viewerSpiceImplementors = []string{"ViewerSpice"}
+
+func (ec *executionContext) _ViewerSpice(ctx context.Context, sel ast.SelectionSet, obj *model.ViewerSpice) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, viewerSpiceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ViewerSpice")
+		case "FileContent":
+			out.Values[i] = ec._ViewerSpice_FileContent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var viewerVNC_HTMLImplementors = []string{"ViewerVNC_HTML"}
+
+func (ec *executionContext) _ViewerVNC_HTML(ctx context.Context, sel ast.SelectionSet, obj *model.ViewerVncHTML) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, viewerVNC_HTMLImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ViewerVNC_HTML")
+		case "URL":
+			out.Values[i] = ec._ViewerVNC_HTML_URL(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -1941,10 +2487,6 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNDesktop2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktop(ctx context.Context, sel ast.SelectionSet, v model.Desktop) graphql.Marshaler {
-	return ec._Desktop(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNDesktop2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Desktop) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -2007,6 +2549,16 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
+func (ec *executionContext) unmarshalNRole2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐRole(ctx context.Context, v interface{}) (model.Role, error) {
+	var res model.Role
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNRole2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐRole(ctx context.Context, sel ast.SelectionSet, v model.Role) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -2020,6 +2572,40 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNViewer2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewer(ctx context.Context, sel ast.SelectionSet, v model.Viewer) graphql.Marshaler {
+	return ec._Viewer(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNViewer2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewer(ctx context.Context, sel ast.SelectionSet, v *model.Viewer) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Viewer(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNViewerSpice2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewerSpice(ctx context.Context, sel ast.SelectionSet, v *model.ViewerSpice) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._ViewerSpice(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNViewerVNC_HTML2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewerVncHTML(ctx context.Context, sel ast.SelectionSet, v *model.ViewerVncHTML) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._ViewerVNC_HTML(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

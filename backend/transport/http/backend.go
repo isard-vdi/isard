@@ -6,8 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/isard/isardvdi/backend/auth"
 	"gitlab.com/isard/isardvdi/backend/graph"
 	"gitlab.com/isard/isardvdi/backend/graph/generated"
+	"gitlab.com/isard/isardvdi/backend/graph/middleware"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -21,12 +23,17 @@ type BackendServer struct {
 	WG  *sync.WaitGroup
 }
 
-func (b *BackendServer) Serve(ctx context.Context) {
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
+func (b *BackendServer) Serve(ctx context.Context, auth *auth.Auth) {
+	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
+		Resolvers:  &graph.Resolver{Auth: auth},
+		Directives: generated.DirectiveRoot(graph.NewDirective()),
+	}))
+
+	middleware := middleware.NewMiddleware(auth)
 
 	m := http.NewServeMux()
 	m.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
-	m.Handle("/graphql", srv)
+	m.Handle("/graphql", middleware.Serve(srv))
 
 	s := http.Server{
 		Addr:    b.Addr,

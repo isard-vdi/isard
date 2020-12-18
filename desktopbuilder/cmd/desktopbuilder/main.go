@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"gitlab.com/isard/isardvdi/desktopbuilder/cfg"
-	"gitlab.com/isard/isardvdi/desktopbuilder/db"
 	"gitlab.com/isard/isardvdi/desktopbuilder/desktopbuilder"
 	"gitlab.com/isard/isardvdi/desktopbuilder/transport/grpc"
 
+	"gitlab.com/isard/isardvdi/common/pkg/db"
 	"gitlab.com/isard/isardvdi/common/pkg/log"
 )
 

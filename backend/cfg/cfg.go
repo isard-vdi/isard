@@ -8,6 +8,7 @@ import (
 type Cfg struct {
 	Log     cfg.Log
 	DB      cfg.DB
+	Redis   cfg.Redis
 	GraphQL GraphQL
 }
 
@@ -31,4 +32,5 @@ func setDefaults() {
 	})
 
 	cfg.SetDBDefaults()
+	cfg.SetRedisDefaults()
 }

@@ -1,7 +1,7 @@
 VERSION := 3.0.0-rc0
 export VERSION
 
-MICROSERVICES = common hyper desktopbuilder orchestrator controller
+MICROSERVICES = common hyper desktopbuilder orchestrator controller backend
 
 all: tidy gen test build docker
 .PHONY: all
@@ -18,5 +18,11 @@ test: gen
 build: test
 	$(foreach micorservice,$(MICROSERVICES),$(MAKE) -C $(micorservice) build;)
 
-docker: build
+docker:
 	$(foreach micorservice,$(MICROSERVICES),$(MAKE) -C $(micorservice) docker;)
+
+docker-compose-up:
+	docker-compose -f ./deployments/docker-compose/docker-compose.yml --project-directory . up -d
+
+docker-compose-down:
+	docker-compose -f ./deployments/docker-compose/docker-compose.yml --project-directory . down
