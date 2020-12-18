@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [develop] - not released
+
+### Upgrade
+
+#### After upgrade
+
+If you bring up 2.0-rc1 version and then upgrade, as you will have the certs already created, they don't get the correct permissions.
+Fix permissions running the following command:
+```
+docker-compose run isard-hypervisor chown -R qemu /etc/pki/libvirt-spice
+```
+
 ## [2.0.0-rc1] - 2020-08-03
 
 ### Added
