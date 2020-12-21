@@ -77,32 +77,6 @@ def stop_threads():
     return jsonify({'stop_threads':True}), 200
 
 
-
-
-@api.route('/engine_restart', methods=['GET'])
-def engine_restart():
-
-    app.m.stop_threads()
-
-    while True:
-        app.m.update_info_threads_engine()
-        if len(app.m.threads_info_main['alive']) == 0 and len(app.m.threads_info_hyps['alive']) == 0:
-            action = {}
-            action['type'] = 'stop'
-            app.m.q.background.put(action)
-            break
-        sleep(0.5)
-
-    while True:
-        if app.m.t_background.is_alive():
-            sleep(0.2)
-        else:
-            update_table_field('engine', 'engine', 'status_all_threads', 'Stopped')
-            delattr(app, 'm')
-            app.m = ManagerHypervisors()
-            break
-    return jsonify({'engine_restart':True}), 200
-
 @api.route('/grafana/restart', methods=['GET'])
 def grafana_restart():
     app.m.t_grafana.restart_send_config = True
