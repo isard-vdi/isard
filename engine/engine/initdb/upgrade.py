@@ -17,8 +17,8 @@ from .lib import *
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 9
-### Upgrade is 8!!!
+release_version = 10
+### Upgrade is 9!!!
 tables=['config','hypervisors','hypervisors_pools','domains','media','graphics','users','roles','groups']
 
 
@@ -179,6 +179,15 @@ class Upgrade(object):
             except Exception as e:
                 log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
                 log.error('Error detail: '+str(e))
+
+        if version == 10:
+            try:
+                d['resources']['url']='https://repository.isardvdi.com'
+                r.table(table).update(d).run()
+            except Exception as e:
+                log.error('Could not update table '+table+' conversion fields for db version '+str(version)+'!')
+                log.error('Error detail: '+str(e))
+
         return True
         
     '''

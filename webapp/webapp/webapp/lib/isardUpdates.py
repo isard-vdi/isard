@@ -76,7 +76,7 @@ class Updates(object):
 
     def register(self):
         try:
-            req= requests.post(self.url+'/register' ,allow_redirects=False, verify=False, timeout=10)
+            req= requests.post(self.url+'/register',allow_redirects=False, verify=True, timeout=10)
             if req.status_code==200:
                 with app.app_context():
                     r.table('config').get(1).update({'resources':{'code':req.json()}}).run(db.conn)
@@ -87,7 +87,7 @@ class Updates(object):
             else:
                 print('Error response code: '+str(req.status_code)+'\nDetail: '+r.json())
         except Exception as e:
-            print("Error contacting.\n"+str(e))
+            print("Error repository register.\n"+str(e))
         return False
 
     def getNewKind(self,kind,username):
@@ -153,7 +153,7 @@ class Updates(object):
         
     def getKind(self,kind='builders'):
         try:
-            req = requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=False, timeout=10)
+            req = requests.post(self.url+'/get/'+kind+'/list', headers={'Authorization':str(self.code)},allow_redirects=False, verify=True, timeout=10)
             if req.status_code==200:
                 return req.json()
                 #~ return True
@@ -162,19 +162,19 @@ class Updates(object):
             else:
                 print('Error response code: '+str(req.status_code)+'\nDetail: '+req.json())
         except Exception as e:
-            print("Error contacting.\n"+str(e))
+            print("Error repository getkinds.\n"+str(e))
         return False
    
     def getPrivateKind(self,kind='private_domains'):
         try:
-            req = requests.post(self.url+'/private_get/'+kind+'/list', headers={'Authorization':str(self.code)}, json={"private_code": self.private_code}, allow_redirects=False, verify=False, timeout=10)
+            req = requests.post(self.url+'/private_get/'+kind+'/list', headers={'Authorization':str(self.code)}, json={"private_code": self.private_code}, allow_redirects=False, verify=True, timeout=10)
             if req.status_code==200:
                 return req.json()
             else:
                 print('Error response code: '+str(req.status_code)+'\nDetail: '+str(req.json()))
                 return False
         except Exception as e:
-            print("Error contacting.\n"+str(e))
+            print("Error repository getkind priv.\n"+str(e))
         return False
 
 
