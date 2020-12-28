@@ -584,6 +584,7 @@ function actionsDesktopDetail(){
 function addDesktopDetailPannel ( d ) {
 		$newPanel = $template.clone();
         $newPanel.find('#derivates-d\\.id').remove();
+        $newPanel.find('.btn-forcedhyp').remove();
         $newPanel.find('.btn-xml').remove();
 		$newPanel.html(function(i, oldHtml){
 			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
@@ -597,6 +598,7 @@ function setDesktopDetailButtonsStatus(id,status){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
     }else{
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
     }
     if(status=='Failed'){
       $('#actions-'+id+' .btn-edit').prop('disabled', false);

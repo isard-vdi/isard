@@ -1,11 +1,15 @@
-<network>
+<network xmlns:dnsmasq='http://libvirt.org/schemas/network/dnsmasq/1.0'>
   <name>wireguard</name>
+  <uuid>98552eb2-3e01-4f4d-9d50-4b824f31caff</uuid>
   <bridge name="virbr20"/>
   <forward mode="route" dev="eth1"/>
+  <port isolated='yes'/>
   <ip address="192.168.128.1" netmask="255.255.252.0">
     <dhcp>
       <range start="192.168.128.33" end="192.168.129.254"/>
     </dhcp>
   </ip>
-  <route address="10.200.200.0" prefix="24" gateway="192.168.119.2"/>
+       <dnsmasq:options>
+        <dnsmasq:option value="dhcp-option=121,10.200.200.0/24,192.168.128.1"/>
+      </dnsmasq:options>
 </network>

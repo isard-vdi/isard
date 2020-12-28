@@ -32,10 +32,12 @@
                 "login": "Se connecter",
                 "pwd": "Mot de passe",
                 "usr": "Nom d’utilisateur",
-                "select-category": "Veuillez sélectionner une catégorie"
+                "select-category": "Veuillez sélectionner une option"
             },
             "title": "Se connecter",
-            "admin": "Administration"
+            "admin": "Administration",
+            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
+            "powered-by": "Propulsé par"
         },
         "landing": {
             "buttons": {
@@ -53,9 +55,7 @@
                 }
             },
             "title": {
-                "view-guide": "Cliquez {0} pour visualiser un guide.",
-                "here": "ici",
-                "first-time": "Est-ce la première fois que vous utilisez Isard (service de bureau à distance) ?"
+                "view-guide": "Est-ce la première fois que vous utilisez IsardVDI (service de bureau à distance) ? Cliquez ici pour visualiser un guide."
             },
             "notification": {
                 "error": {
@@ -122,6 +122,9 @@
             "best-performance": "C’est l’option avec la meilleure performance",
             "local-client": "Utiliser le client local (recommandé)",
             "close-guide": "Fermer le guide"
+        },
+        "title": {
+            "logo-alt": "Logo"
         }
     }
 }

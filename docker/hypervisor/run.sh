@@ -1,3 +1,4 @@
+rm -rf /run/libvirt/*
 echo "Generating selfsigned certs for spice client..."
 sh auto-generate-certs.sh
 echo "Starting libvirt daemon..."
@@ -8,6 +9,10 @@ sleep 2
 sleep 1
 #/usr/bin/virsh net-start default
 sh -c "/vlans-discover.sh"
+
+# Allows hyper to reach wireguard clients
+ip r a 10.200.200.0/24 via 192.168.119.2
+
 FILES=/etc/libvirt/qemu/networks/*
 for f in $FILES
 do

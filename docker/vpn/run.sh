@@ -1,16 +1,12 @@
 cd /certs
 if [ ! -f /certs/server_private.key ]
 then
-    ## Alert! All client public keys should be updated in database
+    ## Alert! All client public keys should be updated in databas
+    ## It is done afterwards in wgadmin
     wg genkey | tee server_private.key | wg pubkey > server_public.key
 fi
-echo "[Interface]
-Address = $WIREGUARD_SERVER_IP
-SaveConfig = false
-PrivateKey = $(cat /certs/server_private.key)
-ListenPort = 443
-PostUp = iptables -I FORWARD -i wg0 -o wg0 -j REJECT --reject-with icmp-host-prohibited" > /etc/wireguard/wg0.conf
 
-wg-quick up wg0
+# Allows wireguard to reach guests in hypervisor
 ip r a 192.168.128.0/22 via 192.168.119.3
-sleep infinity
+cd /src
+python3 wgadmin.py

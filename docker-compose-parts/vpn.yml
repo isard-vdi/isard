@@ -15,6 +15,7 @@ services:
         target: 443
         protocol: udp
     volumes:
+      - /sys:/sys:rw
       - /opt/isard-local/wireguard/certs:/certs
     restart: unless-stopped
     env_file:
