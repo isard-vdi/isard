@@ -17,7 +17,7 @@ columns= [
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
 				{ "data": "icon" },
-                { "data": "hyp_started", "width": "10px"},
+                { "data": "hyp_started", "width": "100px"},
 				{ "data": "name"},
 				{ "data": null},
 				{ "data": "status"},
@@ -120,7 +120,12 @@ $(document).ready(function() {
 							"targets": 1,
 							"render": function ( data, type, full, meta ) {
 							  return renderIcon(full);
-							}},
+                            }},
+                            {
+                            "targets": 2,
+                            "render": function ( data, type, full, meta ) {
+                                return renderHypStarted(full);
+                            }},                            
 							//~ {
 							//~ "targets": 3,
 							//~ "render": function ( data, type, full, meta ) {
@@ -145,11 +150,6 @@ $(document).ready(function() {
                               }  
                               return full.accessed;                                 
 							  //~ return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm"); //moment.unix(full.accessed).fromNow();
-							}},
-                            {
-							"targets": 2,
-							"render": function ( data, type, full, meta ) {
-							  return renderHypStarted(full);
 							}}
 							]
 		} );
@@ -388,6 +388,9 @@ $(document).ready(function() {
     
     socket.on ('result', function (data) {
         var data = JSON.parse(data);
+        if(data.result){
+            $('.modal').modal('hide');
+        }        
         new PNotify({
                 title: data.title,
                 text: data.text,
@@ -409,8 +412,6 @@ $(document).ready(function() {
             $("#modalAddFromMedia").modal('hide');   
             $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
             $("#modalTemplateDesktop").modal('hide');             
-            //~ $('body').removeClass('modal-open');
-            //~ $('.modal-backdrop').remove();
         }
         new PNotify({
                 title: data.title,
@@ -430,7 +431,6 @@ $(document).ready(function() {
             $("#modalEditDesktop").modal('hide');
             $("#modalBulkEditForm")[0].reset();
             $("#modalBulkEdit").modal('hide');            
-            //setHardwareDomainDefaults_viewer('#hardware-'+data.id,data);
         }
         new PNotify({
                 title: data.title,
@@ -525,28 +525,6 @@ function actionsDomainDetail(){
 
     if(url=="Desktops"){
         $('.btn-delete-template').remove()
-        //~ $('.btn-template').on('click', function () {
-            //~ if($('.quota-templates .perc').text() >=100){
-                //~ new PNotify({
-                    //~ title: "Quota for creating templates full.",
-                    //~ text: "Can't create another template, quota full.",
-                    //~ hide: true,
-                    //~ delay: 3000,
-                    //~ icon: 'fa fa-alert-sign',
-                    //~ opacity: 1,
-                    //~ type: 'error'
-                //~ });
-            //~ }else{	
-                //~ var pk=$(this).closest("[data-pk]").attr("data-pk");
-                //~ setDefaultsTemplate(pk);
-                //~ setHardwareOptions('#modalTemplateDesktop');
-                //~ setHardwareDomainDefaults('#modalTemplateDesktop',pk);
-                //~ $('#modalTemplateDesktop').modal({
-                    //~ backdrop: 'static',
-                    //~ keyboard: false
-                //~ }).modal('show');
-            //~ }
-        //~ });
 
 	$('.btn-template').on('click', function () {
 		if($('.quota-templates .perc').text() >=100){
@@ -613,7 +591,6 @@ function actionsDomainDetail(){
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
-            //delete_templates(pk);
             populate_tree_template_delete(pk);
         });
         
@@ -651,54 +628,121 @@ function actionsDomainDetail(){
         }); 
     });
     
-        $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
-            if($('#jumperurl').val()==''){
+    $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
+        if($('#jumperurl').val()==''){
+            pk=$('#modalJumperurlForm #id').val();
+            
+            api.ajax('/isard-admin/admin/domains/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
+                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
+            });         
+            $('#jumperurl').show();
+            $('.btn-copy-jumperurl').show();
+        }
+        }); 	
+    $('#jumperurl-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
+        pk=$('#modalJumperurlForm #id').val();
+        new PNotify({
+            title: 'Confirmation Needed',
+                text: "Are you sure you want to delete direct viewer access url?",
+                hide: false,
+                opacity: 0.9,
+                confirm: {
+                    confirm: true
+                },
+                buttons: {
+                    closer: false,
+                    sticker: false
+                },
+                history: {
+                    history: false
+                },
+                addclass: 'pnotify-center'
+            }).get().on('pnotify.confirm', function() {
                 pk=$('#modalJumperurlForm #id').val();
-                
-                api.ajax('/isard-admin/admin/domains/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
-                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
-                });         
+                api.ajax('/isard-admin/admin/domains/jumperurl_disable/'+pk,'GET',{}).done(function(data) {
+                    $('#jumperurl').val('');
+                }); 
+                $('#jumperurl').hide();
+                $('.btn-copy-jumperurl').hide();
+            }).on('pnotify.cancel', function() {
+                $('#jumperurl-check').iCheck('check');
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
+            });
+        }); 
+            
+
+    $('.btn-copy-jumperurl').on('click', function () {
+        $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
+        document.execCommand("copy");
+    });
+
+
+    $('.btn-forcedhyp').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        $("#modalForcedhypForm")[0].reset();
+        $('#modalForcedhypForm #id').val(pk);
+        $('#modalForcedhyp').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        api.ajax('/isard-admin/admin/load/domains/post','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {        
+            if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
+                HypervisorsDropdown(data.forced_hyp[0]);
+                $('#modalForcedhypForm #forced_hyp').show();
+                //NOTE: With this it will fire ifChecked event, and generate new key
+                // and we don't want it now as we are just setting de initial state
+                // and don't want to reset de key again if already exists!
+                //$('#jumperurl-check').iCheck('check');
+                $('#forcedhyp-check').prop('checked',true).iCheck('update');
+            }else{
+                $('#forcedhyp-check').iCheck('update')[0].unchecked;
+                $('#modalForcedhypForm #forced_hyp').hide();
             }
-          }); 	
-        $('#jumperurl-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
-            pk=$('#modalJumperurlForm #id').val();
-            new PNotify({
-                title: 'Confirmation Needed',
-                    text: "Are you sure you want to delete direct viewer access url?",
-                    hide: false,
-                    opacity: 0.9,
-                    confirm: {
-                        confirm: true
-                    },
-                    buttons: {
-                        closer: false,
-                        sticker: false
-                    },
-                    history: {
-                        history: false
-                    },
-                    addclass: 'pnotify-center'
-                }).get().on('pnotify.confirm', function() {
-                    pk=$('#modalJumperurlForm #id').val();
-                    api.ajax('/isard-admin/admin/domains/jumperurl_disable/'+pk,'GET',{}).done(function(data) {
-                        $('#jumperurl').val('');
-                    }); 
-                    $('#jumperurl').hide();
-                    $('.btn-copy-jumperurl').hide();
-                }).on('pnotify.cancel', function() {
-                    $('#jumperurl-check').iCheck('check');
-                    $('#jumperurl').show();
-                    $('.btn-copy-jumperurl').show();
-                });
-            }); 
-             
-    
-        $('.btn-copy-jumperurl').on('click', function () {
-            $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
-            document.execCommand("copy");
+        }); 
+    });
+
+    $('#forcedhyp-check').unbind('ifChecked').on('ifChecked', function(event){
+        if($('#forced_hyp').val()==''){
+            pk=$('#modalForcedhypForm #id').val();  
+            api.ajax('/isard-admin/admin/load/domains/post','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {        
+                
+                if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
+                    HypervisorsDropdown(data.forced_hyp[0]);
+                }else{
+                    HypervisorsDropdown('');
+                }
+            });    
+            $('#modalForcedhypForm #forced_hyp').show();
+        }
+        }); 	
+    $('#forcedhyp-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
+        pk=$('#modalForcedhypForm #id').val();
+
+        $('#modalForcedhypForm #forced_hyp').hide();
+        $("#modalForcedhypForm #forced_hyp").empty()
+    }); 
+
+    $("#modalForcedhyp #send").on('click', function(e){
+        data=$('#modalForcedhypForm').serializeObject();
+        if('forced_hyp' in data){
+            socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':[data.forced_hyp]})
+        }else{
+            socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':false})
+        }
+    });
+}
+
+function HypervisorsDropdown(selected) {
+    $("#modalForcedhypForm #forced_hyp").empty();
+    api.ajax('/isard-admin/admin/load/hypervisors/post','POST',{'pluck':['id','hostname']}).done(function(data) {
+        data.forEach(function(hypervisor){
+            $("#modalForcedhypForm #forced_hyp").append('<option value=' + hypervisor.id + '>' + hypervisor.id+' ('+hypervisor.hostname+')' + '</option>');
+            if(hypervisor.id == selected){
+                $('#modalForcedhypForm #forced_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
+            }
         });
+    });                      
 }
 
 function setDefaultsTemplate(id) {
@@ -731,11 +775,12 @@ function addDomainDetailPannel ( d ) {
 }
 
 function setDomainDetailButtonsStatus(id,status){
-          //~ if(status=='Stopped'){
-                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
-          //~ }else{
-                //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-          //~ }
+    if(status=='Started' || status=='Starting'){
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);           
+    }else{
+        $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+    }
 }
 	
 function icon(data){
@@ -775,9 +820,12 @@ function renderStatus(data){
 }
 
 function renderHypStarted(data){
-        if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
-        if('hyp_started' in data){ return data.hyp_started;}
-		return '';
+    res=''
+    if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
+        res='<b>F: </b>'+data.forced_hyp[0]
+    }
+    if('hyp_started' in data && data.hyp_started != ''){ res=res+'<br><b>S: </b>'+ data.hyp_started;}
+    return res
 }
 
 function renderAction(data){

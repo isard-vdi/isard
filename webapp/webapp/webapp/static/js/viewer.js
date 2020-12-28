@@ -19,30 +19,12 @@ function setViewerButtons(id,socket,offer){
              'secure': true,
              'preferred': false
              },
-/*              {
-             'type': 'spice',
-             'client': 'websocket',
-             'secure': true,
-             'preferred': false
-             }, */
              {
                 'type': 'vpn', 
                 'client': 'app',
                 'secure': true,
                 'preferred': false
-            },             
-             //~ {
-             //~ 'type': 'vnc', 
-             //~ 'client': 'websocket', 
-             //~ 'secure': true,
-             //~ 'preferred': false
-             //~ },
-             //~ {
-             //~ 'type': 'vnc', 
-             //~ 'client': 'app', 
-             //~ 'secure': false,
-             //~ 'preferred': false
-             //~ },             
+            }           
             ]
     html=""
     $.each(offer, function(idx,disp){

@@ -1068,9 +1068,7 @@ def analize_backing_chains_outputs(array_out_err=[], path_to_write_json=None, pa
     return ({'ok': domains_ok, 'err': domains_err})
 
 def engine_restart():
-
-    subprocess.call('curl http://localhost:5555/engine_restart &', shell=True)
-    return True
+    exit()
 
 def clean_intermediate_status():
     #status_to_delete = ['DownloadAborting']

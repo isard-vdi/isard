@@ -93,6 +93,9 @@ class Wg(object):
             print(self.client_config(peer))
 
     def init_peers(self):
+
+        r.table('users').replace(r.row.without('vpn')).run()
+        
         wglist = list(r.table('users').pluck('id','vpn').run())
         self.clients_reserved_ips.append([p['vpn']['wireguard']['AllowedIPs'] for p in wglist if 'vpn' in p.keys()])
 
@@ -110,7 +113,7 @@ class Wg(object):
                                     'wireguard':
                                         {'Address':self.gen_client_ip(),
                                         'keys':self.keys.new_client_keys(),
-                                        'AllowedIPs':'0.0.0.0/0'}}}
+                                        'AllowedIPs':'192.168.128.0/22'}}}
                 create_peers.append(new_peer)
             if new_peer == False:
                 self.peers[peer['id']]=peer
@@ -130,7 +133,7 @@ class Wg(object):
                                 'wireguard':
                                     {'Address':self.gen_client_ip(),
                                     'keys':self.keys.new_client_keys(),
-                                    'AllowedIPs':'0.0.0.0/0'}}}            
+                                    'AllowedIPs':'192.168.128.0/22'}}}            
     
     def remove_peer(self,peer):
         None
@@ -143,7 +146,7 @@ class Wg(object):
  
     def gen_peer_config(self,peer):
         #allowed_ips=','.join(peer['vpn']['wireguard']['AllowedIPs'])
-        return '[peer]\nPublicKey='+peer['vpn']['wireguard']['keys']['public']+'\nAllowedIPs='+peer['vpn']['wireguard']['AllowedIPs']+'\n\n'
+        return '[peer]\nPublicKey='+peer['vpn']['wireguard']['keys']['public']+'\nAllowedIPs='+peer['vpn']['wireguard']['Address']+'\n\n'
 
     def set_peer(self,peer):
         if 'vpn' not in peer.keys():
@@ -152,7 +155,7 @@ class Wg(object):
                                 'wireguard':
                                 {'Address':self.gen_client_ip(),
                                 'keys':self.keys.new_client_keys(),
-                                'AllowedIPs':'0.0.0.0/0'}}}
+                                'AllowedIPs':'192.168.128.0/22'}}}
             create_peers.append(new_peer)
         self.peers[peer['id']]=new_peer
         ## gen_public_key()
@@ -163,15 +166,27 @@ class Wg(object):
         iptables=peer['vpn']['iptables']
 
     def sync_peers(self):
-        self.wg = '/usr/bin/wg'
-        self.config=''
+        try:
+            check_output(('/usr/bin/wg-quick', 'down', 'wg0'), text=True).strip()
+        except:
+            None
+        self.config=self.server_config()
         for k,v in self.peers.items():
             self.set_iptables(v)
             self.config=self.config+self.gen_peer_config(v)
-        with open("/certs/clients.conf", "w") as f:
+        with open("/etc/wireguard/wg0.conf", "w") as f:
             f.write(self.config)
-        check_output((self.wg, 'syncconf','wg0','/certs/clients.conf'), text=True).strip()
-        ## wg syncconf wg0 /certs/clients.conf
+        check_output(('/usr/bin/wg-quick', 'up', 'wg0'), text=True).strip()
+
+    def server_config(self):
+        return """[Interface]
+Address = %s
+SaveConfig = false
+PrivateKey = %s
+ListenPort = 443
+PostUp = iptables -I FORWARD -i wg0 -o wg0 -j REJECT --reject-with icmp-host-prohibited
+
+""" % (os.environ['WIREGUARD_SERVER_IP'],self.keys.skeys['private'])
 
     def client_config(self,peer):
         return """[Interface]
@@ -180,31 +195,8 @@ PrivateKey = %s
 
 [Peer]
 PublicKey = %s
-Endpoint = santantoni.duckdns.org:443
-AllowedIPs = 0.0.0.0/0
+Endpoint = server:443
+AllowedIPs = 192.168.128.0/22
 PersistentKeepalive = 21
-""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],self.keys.skeys['public'])
+""" % (peer['vpn']['wireguard']['AllowedIPs'],peer['vpn']['wireguard']['keys']['private'],self.keys.skeys['public'])
 
-
-#[Interface]
-#Address = 10.200.200.1/24
-#SaveConfig = true
-#PrivateKey = SERVER_PRIVATE_KEY
-#ListenPort = 51820
-
-#[Peer]
-#PublicKey = CLIENT_PUBLIC_KEY
-#AllowedIPs = 10.200.200.2/32
-
-###############33333
-
-
-#[Interface]
-#Address = 10.200.200.3/32
-#PrivateKey = CLIENT_PRIVATE_KEY
-#DNS = 10.200.200.1
-
-#[Peer]
-#PublicKey = SERVER_PUBLICKEY
-#Endpoint = my.ddns.example.com:51820
-#AllowedIPs = 0.0.0.0/0, ::/0

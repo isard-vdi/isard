@@ -28,7 +28,14 @@
             {{ this.error }}
           </b-alert>
 
-          <b-form-select v-if="!category_by_path" size="md" class="mb-4" required :options="categories_select" v-model="category">
+          <b-form-select
+            v-if="!category_by_path && categories.length > 1"
+            size="md"
+            class="mb-4"
+            required
+            :options="categories_select"
+            v-model="category"
+          >
             <template #first>
               <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
             </template>
@@ -143,12 +150,16 @@ export default {
     this.$store.dispatch('fetchConfig')
 
     this.$store.dispatch('fetchCategories').then(() => {
-      this.categories_select = this.categories.map(category =>
-        ({
-          value: category.id,
-          text: category.name
-        })
-      )
+      if (this.categories.length === 1) {
+        this.category = this.categories[0].id
+      } else {
+        this.categories_select = this.categories.map(category =>
+          ({
+            value: category.id,
+            text: category.name
+          })
+        )
+      }
     }).catch(err => {
       if (err.response.status === 404) {
         // this.$router.push({ name: 'NotFound' })

@@ -7,9 +7,7 @@
         },
         "landing": {
             "title": {
-                "first-time": "Verwenden Sie Isard (Fernarbeitsoberflächedienst) zum ersten Mal?",
-                "view-guide": "Klicken Sie {0}, um eine Anleitung anzuzeigen.",
-                "here": "hier"
+                "view-guide": "Verwenden Sie IsardVDI (Fernarbeitsoberflächedienst) zum ersten Mal? Klicken Sie hier, um eine Anleitung anzuzeigen."
             },
             "buttons": {
                 "local": {
@@ -75,10 +73,12 @@
                 "login": "Anmelden",
                 "pwd": "Passwort",
                 "usr": "Benutzername",
-                "select-category": "Bitte wählen Sie eine Kategorie"
+                "select-category": "Bitte wählen Sie eine Option"
             },
             "title": "Anmelden",
-            "admin": "Verwaltung"
+            "admin": "Verwaltung",
+            "isard-logo-alt": "Das IsardVDI-Logo ist ein Gämsenkopf.",
+            "powered-by": "Angetrieben von"
         },
         "expired-session": {
             "button": "Anmelden",
@@ -122,6 +122,9 @@
             "best-performance": "Es ist die Option mit der besten Leistung",
             "local-client": "Lokalen Client verwenden (empfohlen)",
             "close-guide": "Anleitung schließen"
+        },
+        "title": {
+            "logo-alt": "Logo"
         }
     }
 }

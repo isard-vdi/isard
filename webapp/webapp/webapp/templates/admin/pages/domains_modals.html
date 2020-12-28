@@ -289,6 +289,63 @@
    </div>
 </div>
 
+<div class="modal fade" id="modalForcedhyp" tabindex="-1" role="dialog" aria-labelledby="modalForcedHyp" aria-hidden="true">
+   <div class="modal-dialog">
+       <div class="modal-content">
+           <!-- Modal Header -->
+           <div class="modal-header" style="padding: 5px;">
+               <button type="button" class="close" data-dismiss="modal">
+                   <span aria-hidden="true">&times;</span>
+                   <span class="sr-only">Close</span>
+               </button>
+               <h4 class="modal-title" id="myModalLabel">
+                   <i class="fa fa-plus fa-1x"> </i>    Forced hypervisor <i class="fa fa-key"> </i>
+               </h4>
+           </div>
+
+           <!-- Modal Body -->
+           <div class="modal-body" style="padding: 7px;">
+
+               <form id="modalForcedhypForm" class="form-inline">
+                   <input hidden id="id" name="id"/>
+                   <div class="row">
+                       <div class="col-md-12 col-sm-12 col-xs-12">
+                             <label>Domain will be forced to start in defined hyper</label>
+                             <div class="checkbox">
+                               <label class="">
+                                 <div class="icheckbox_flat-green" style="position: relative;">
+                                     <input type="checkbox" id="forcedhyp-check" name="forcedhyp-check" class="flat"  style="position: absolute; opacity: 0;">
+                                     <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                     </ins>
+                                 </div>
+                               </label>
+                             </div> 
+                                                           
+                       </div>                                                                    
+                   </div>
+                   <div class="row">
+                     <div class="col-md-12 col-sm-12 col-xs-12">
+                        <select id="forced_hyp" name="forced_hyp" class="form-control" required>
+                        </select> 
+                     </div>
+                  </div>
+            
+           </div>
+
+           <!-- Modal Footer -->
+           <div class="modal-footer" style="padding: 5px;">
+               <ul class="nav navbar-left panel_toolbox">
+                   <li>
+                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                     <button id="send" type="button" class="btn btn-success">Update</button>
+                   </li>
+               </ul>
+           </div>
+           </form>
+       </div>
+   </div>
+</div>
+
 <div class="modal fade" id="modalBulkEdit" tabindex="-1" role="dialog" 
      aria-labelledby="modalBulkEdit" aria-hidden="true">
     <div class="modal-dialog">

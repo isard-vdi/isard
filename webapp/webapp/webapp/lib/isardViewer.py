@@ -117,9 +117,9 @@ PrivateKey = %s
 [Peer]
 PublicKey = %s
 Endpoint = %s:443
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = %s
 PersistentKeepalive = 21
-""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],app.wireguard_keys['public'],domain['viewer']['proxy_video'])
+""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],app.wireguard_keys['public'],domain['viewer']['proxy_video'],peer['vpn']['wireguard']['AllowedIPs'])
 
     def get_spice_file(self, domain, port):
         try:
