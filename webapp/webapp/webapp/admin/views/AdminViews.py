@@ -250,6 +250,7 @@ def admin_backup_detailinfo():
     global backup_data,backup_db
     if request.method == 'POST':
         table=request.get_json(force=True)['table']
+        if table=='': return json.dumps({}), 200, {'ContentType':'application/json'}
         new_db=app.adminapi.check_new_values(table,backup_db[table])
         return json.dumps(new_db), 200, {'ContentType':'application/json'}
     return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
