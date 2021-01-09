@@ -230,7 +230,7 @@ $(document).ready(function() {
 						//~ },
 						columns: [
 							{ "data": "id", "width": "88px"},
-							{ "data": "description", "width": "88px"},
+							{ "data": "description", "width": "88px", "defaultContent": ""},
 							{
 							"className":      'actions-control',
 							"orderable":      false,
