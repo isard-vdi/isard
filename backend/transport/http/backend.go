@@ -14,6 +14,11 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/rs/zerolog"
+
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/gorilla/websocket"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+  	"github.com/99designs/gqlgen/graphql/handler/lru"
 )
 
 type BackendServer struct {
@@ -24,10 +29,32 @@ type BackendServer struct {
 }
 
 func (b *BackendServer) Serve(ctx context.Context, auth *auth.Auth) {
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
+	srv := handler.New(generated.NewExecutableSchema(generated.Config{
 		Resolvers:  &graph.Resolver{Auth: auth},
 		Directives: generated.DirectiveRoot(graph.NewDirective()),
-	}))
+	  }))  
+	  
+	  srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.Upgrader{
+            CheckOrigin: func(r *http.Request) bool {
+                return true
+            },
+            ReadBufferSize:  1024,
+            WriteBufferSize: 1024,
+        },
+	  })
+	  srv.AddTransport(transport.Options{})
+	  srv.AddTransport(transport.GET{})
+	  srv.AddTransport(transport.POST{})
+	  srv.AddTransport(transport.MultipartForm{})
+	
+	  srv.SetQueryCache(lru.New(1000))
+	
+	  srv.Use(extension.Introspection{})
+	  srv.Use(extension.AutomaticPersistedQuery{
+		Cache: lru.New(100),
+	  })
 
 	middleware := middleware.NewMiddleware(auth)
 
