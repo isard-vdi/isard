@@ -1,6 +1,6 @@
 <style>
      [id^=modal_add_] .selected {
-        background-color: #ccccb3 !important;
+        background-color: #e0f1af !important;
     }
     
      [id^=modal_add_] tr.even:hover {
@@ -23,7 +23,7 @@
 
 <div class="modal fade" id="modalAddDesktop" tabindex="-1" role="dialog" 
      aria-labelledby="modalAddDesktop" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
             <div class="modal-header"  style="padding: 5px;">   
@@ -36,57 +36,49 @@
                     <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i>   Add new desktop
                 </h4>
             </div>
-            
+
             <!-- Modal Body -->
-            <div class="modal-body" style="padding: 7px;">
-                
-              <form id="modalAdd" class="form-inline form-label-left"> 
-			  <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
-					<div class="x_content" style="padding: 0px;">
+            <div class="modal-body">
+              <form id="modalAdd" class="form-horizontal"> 
+                <div class="x_panel">
+                    <div class="x_content">
                         <div class="row">
-                            <div class="col-md-4 col-xs-12">
-                                <label class="control-label" for="name">Name <span class="required">*</span>
-                                </label>
-                                  <input id="desktop-name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                            </div>
-                            <div class="col-md-8 col-xs-12">
-                                <label class="control-label" for="description">Description 
-                                </label>
-                                <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
-                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                  <label class="control-label" for="name">Name <span class="required">*</span></label>
+                                  <input id="desktop-name"  maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                              </div>
+                              <div class="col-md-9 col-sm-9 col-xs-12">
+                                <label class="control-label" for="description">Description </label>
+                                <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                              </div>
                         </div>
-				</div>
-			  </div>
-              
+                    </div>
+                </div>
 
-			  <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">Select a template</p>
-                        <input  id="template" name="template" type="hidden" required>
-                        <table id="modal_add_desktops" class="table table-striped " cellspacing="0" width="100%"  style="margin-top: 0px;">
-                           <thead>
-                              <tr>
-                                 <th>Type</th>
-                                 <th>Name</th>
-                                 <th>Group</th>
-                                 <th>User</th>
-                              </tr>
-                           </thead>
-                           <tbody>
-                           </tbody>
-                        </table>
-                        <div id="datatables-error-status"></div>
-                     
+			  <div class="x_panel" style="padding: 5px; height: 350px">
+                <p style="font-size: 18px;margin-bottom:0px;">Select a template as base for your new desktop</p>
+                <input  id="template" name="template" type="hidden" required>
+                <table id="modal_add_desktops" class="table table-striped " cellspacing="0" style="margin-top: 0px;" width="100%" >
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Group</th>
+                            <th>User</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+                <div id="datatables-error-status"></div>
 			  </div>
 
-            
 			  <div class="x_panel" id="hardware-block" style="padding: 5px; display: none;">
 					 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
 					{% include '/snippets/domain_hardware_edit.html' %}
               </div>
-
             </div>
-            
+
             <!-- Modal Footer -->
             <div class="modal-footer" style="padding: 5px;">
                 <ul class="nav navbar-left panel_toolbox">
@@ -98,7 +90,7 @@
                     <li><button id="send" type="button" class="btn btn-success">Create desktop</button></li>
                    </li>
                 </ul>
-            </div>                       
+            </div>
             </form>
         </div>
     </div>
