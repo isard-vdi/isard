@@ -147,7 +147,7 @@ class Populate(object):
                                                         'version':0,
                                                         'shares':{'templates':False,'isos':False},
                                                         'resources': {'code': False,
-                                                                    'url':'http://www.isardvdi.com:5050'}
+                                                                    'url':'https://repository.isardvdi.com'}
                                                        }], conflict='update').run())
                 log.info("Table config populated with defaults.")
                 return True
