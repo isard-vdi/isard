@@ -7,19 +7,21 @@
 
 socket=null
 user={}
+
+$(document).on('shown.bs.modal', '#modalAddDesktop', function () {
+    modal_add_desktops.columns.adjust().draw();
+}); 
+
 $(document).ready(function() {
     $('.admin-status').hide()
     user['role']=$('#user-data').data("role");
     $('.btn-delete-template').remove()
     modal_add_desktops = $('#modal_add_desktops').DataTable()
 	initalize_modal_all_desktops_events()
-    
     setViewerHelp();
- 
+
 	$template = $(".template-detail-domain");
 
-
-    
 	$('.btn-new').on('click', function () {
         if($('.quota-desktops .perc').text() >=100){
             new PNotify({
@@ -41,9 +43,8 @@ $(document).ready(function() {
                     opacity: 1,
                     type: 'error'
                 });                
-        }else{	
+        }else{
             setHardwareOptions('#modalAddDesktop');
-            //~ setHardwareDomainDefaults('#modalAddDesktop',pk);
             $("#modalAdd")[0].reset();
             $('#modalAddDesktop').modal({
                 backdrop: 'static',
@@ -54,7 +55,6 @@ $(document).ready(function() {
             modal_add_desktop_datatables();
         }
 	});
-
 
 	//DataTable Main renderer
 	var table = $('#desktops').DataTable({
@@ -141,41 +141,22 @@ $(document).ready(function() {
             tr.removeClass('shown');
         }
         else {
-            
             // Close other rows
-             if ( table.row( '.shown' ).length ) {
-                      $('.details-control', table.row( '.shown' ).node()).click();
-              }
-             //~ if (row.data().status=='Creating'){
-                 //In this case better not to open detail as ajax snippets will fail
-                 //Maybe needs to be blocked also on other -ing's
-						//~ new PNotify({
-						//~ title: "Domain is being created",
-							//~ text: "Wait till domain ["+row.data().name+"] creation completes to view details",
-							//~ hide: true,
-							//~ delay: 3000,
-							//~ icon: 'fa fa-alert-sign',
-							//~ opacity: 1,
-							//~ type: 'error'
-						//~ });                 
-             //~ }else{
-                // Open this row
-                row.child( addDesktopDetailPannel(row.data()) ).show();
-                tr.addClass('shown');
-                $('#status-detail-'+row.data().id).html(row.data().detail);
-                actionsDesktopDetail();
-                setDesktopDetailButtonsStatus(row.data().id,row.data().status)
-                if(row.data().status=='Stopped' || row.data().status=='Started'){
-                    //~ setDomainGenealogy(row.data().id);
-                    setDomainHotplug(row.data().id, row.data());
-                    //console.log('can edit')
-                    
-                    setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
-                }                   
-            //~ }
+            if ( table.row( '.shown' ).length ) {
+                    $('.details-control', table.row( '.shown' ).node()).click();
+            }
+            // Open this row
+            row.child( addDesktopDetailPannel(row.data()) ).show();
+            tr.addClass('shown');
+            $('#status-detail-'+row.data().id).html(row.data().detail);
+            actionsDesktopDetail();
+            setDesktopDetailButtonsStatus(row.data().id,row.data().status)
+            if(row.data().status=='Stopped' || row.data().status=='Started'){
+                setDomainHotplug(row.data().id, row.data());
+                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
+            }
           }
     } );
-
 
 	// DataTable buttons
     $('#desktops tbody').on( 'click', 'button', function () {
@@ -221,27 +202,17 @@ $(document).ready(function() {
 				});	
                 break;
             case 'btn-display':
-                //~ chooseViewer(data,socket);
                 setViewerButtons(data['id'],socket);
-
                 $('#modalOpenViewer').modal({
                     backdrop: 'static',
                     keyboard: false
                 }).modal('show');
-                        
                 break;
         }
     });
 
-
-    
-    // SocketIO
-    //~ reconnect=-1;
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_users');
-    //socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_users', { path: '/isard-admin/socket.io' });
 
-
-    
     socket.on('connect', function() {
         connection_done();
         console.log('Listening users namespace');
@@ -250,23 +221,19 @@ $(document).ready(function() {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    
-     startClientViewerSocket(socket);
-     
+    startClientViewerSocket(socket);
+
     socket.on('user_quota', function(data) {
         var data = JSON.parse(data);
         console.log('user_quota')
-
         drawUserQuota(data);
     });
 
-   
     countdown ={}
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
         console.log('desktop_data')
         if(data.status =='Started' && table.row('#'+data.id).data().status != 'Started'){
-            
             if('preferred' in data['options']['viewers'] && data['options']['viewers']['preferred']){
                 socket.emit('domain_viewer',{'pk':data.id,'kind':data['options']['viewers']['preferred'],'os':getOS()});
             }else{
@@ -282,13 +249,11 @@ $(document).ready(function() {
                 countdown[data.id]=null
             //~ }
         }
-        
-
 
         dtUpdateInsert(table,data,false);
         setDesktopDetailButtonsStatus(data.id, data.status);
     });
-    
+
     socket.on('desktop_delete', function(data){
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
@@ -302,7 +267,7 @@ $(document).ready(function() {
                 type: 'success'
         });
     });
-    
+
     socket.on('result', function (data) {
         var data = JSON.parse(data);
         if(data.title){
@@ -354,8 +319,6 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-            
-
 });
 
 
@@ -408,9 +371,9 @@ function actionsDesktopDetail(){
         }
 	});
 
-        $('#modalTemplateDesktop').on('shown.bs.modal', function () {
-                validator.checkAll($('#modalTemplateDesktopForm')[0]);
-            });
+    $('#modalTemplateDesktop').on('shown.bs.modal', function () {
+            validator.checkAll($('#modalTemplateDesktopForm')[0]);
+        });
 
 	$('.btn-delete').on('click', function () {
 				var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -478,7 +441,7 @@ function actionsDesktopDetail(){
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
 	});
-	
+
 	$('.btn-messages').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
@@ -498,7 +461,7 @@ function actionsDesktopDetail(){
             });
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
-	});		
+	});
 
     $('.btn-jumperurl').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -571,8 +534,7 @@ function actionsDesktopDetail(){
                     $('.btn-copy-jumperurl').show();
                 });
             }); 
-             
-    
+
         $('.btn-copy-jumperurl').on('click', function () {
             $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
             document.execCommand("copy");
@@ -615,7 +577,6 @@ function icon(name){
 }
 
 
-
 function renderDisplay(data){
         if(data.status=='Stopping' || data.status =='Started'){
             return ' <div class="display"> \
@@ -633,7 +594,7 @@ function renderName(data){
       			<p class="excerpt" >'+data.description+'</p> \
            		</div>'
 }
-                        
+
 function renderIcon(data){
 		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
 }
@@ -646,7 +607,6 @@ function renderStatus(data,table){
                     dtUpdateInsert(table,data,false);
                     },1000);
         }
-    
 		return data.status;
 }
 	
@@ -666,24 +626,6 @@ function renderAction(data){
         }            
         return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
-
-//~ function renderHypStarted(data){
-        //~ if('forced_hyp' in data && data.forced_hyp!=''){return '**'+data.forced_hyp+'**';}
-        //~ if('hyp_started' in data){ return data.hyp_started;}
-		//~ return '';
-//~ }
-
-//~ function renderEphimeral(data){ 
-            
-            //~ perc = data.ephimeral.minutes
-            //~ time_remaining=
-            //~ return data.ephimeral.minutes+''+data.accessed'<div class="progress"> \
-                  //~ <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
-                  //~ aria-valuemin="0" aria-valuemax="'+data.ephimeral.minutes+'" style="width:'+perc+'%"> \
-                    //~ Time remaining:'+perc+'%  \
-                  //~ </div> \
-                //~ </<div> '
-//~ }
 
 function renderMedia(data){
         html=''
@@ -740,15 +682,142 @@ function setDefaultsTemplate(id) {
 }
 
 
+function modal_add_desktop_datatables(){
+    modal_add_desktops.destroy()
+    $('#modalAddDesktop #template').val('');
+    $('#modalAddDesktop #datatables-error-status').empty()
+    $('#modal_add_desktops thead th').each( function () {
+    } );
+    
 
-    $("#modalEditDesktop #send").on('click', function(e){
-            var form = $('#modalEdit');
+	modal_add_desktops = $('#modal_add_desktops').DataTable({
+			"ajax": {
+				"url": "/isard-admin/desktops/getAllTemplates/",
+				"dataSrc": ""
+            },
+            "scrollY":        "350px",
+            "scrollCollapse": true,
+            "paging":         true,
+			"language": {
+				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+                "zeroRecords":    "No matching templates found",
+                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
+                "infoEmpty":      "Showing 0 to 0 of 0 templates",
+                "infoFiltered":   "(filtered from _MAX_ total templates)"
+			},
+			"rowId": "id",
+			"deferRender": true,
+			"columns": [
+                { "data": "name"},
+				{ "data": "description"},
+                { "data": "group"},
+                { "data": "username"}
+				],
+			 "order": [[0, 'asc']],	
+             "pageLength": 10,	 
+		"columnDefs": [     
+
+							]
+	} );  
+
+}
+
+function initalize_modal_all_desktops_events(){
+   $('#modal_add_desktops tbody').on( 'click', 'tr', function () {
+        rdata=modal_add_desktops.row(this).data()
+        if ( $(this).hasClass('selected') ) {
+            $(this).removeClass('selected');
+            $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+            $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+            
+            $('#modalAddDesktop #template').val('');
+            $('#modalAddDesktop #btn-hardware').hide();
+            $('#modalAddDesktop #hardware-block').hide();
+        }
+        else {
+            modal_add_desktops.$('tr.selected').removeClass('selected');
+            $(this).addClass('selected');
+            $('#modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
+            $('#modalAddDesktop #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+            $('#modalAddDesktop #template').val(rdata['id']);
+            //if(user['role']!='user'){
+                $('#modalAddDesktop #btn-hardware').show();
+                setHardwareDomainDefaults('#modalAddDesktop',rdata['id'])
+            //}
+        }
+    } );	
+	
+    $("#modalAddDesktop #send").on('click', function(e){
+        var form = $('#modalAdd');
+
+        form.parsley().validate();
+
+        if (form.parsley().isValid()){
+            template=$('#modalAddDesktop #template').val();
+            if (template !=''){
+                data=$('#modalAdd').serializeObject();
+                socket.emit('domain_add',data)
+            }else{
+                $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+            }
+        }
+    });
+        
+        $("#modalAddDesktop #btn-hardware").on('click', function(e){
+                $('#modalAddDesktop #hardware-block').show();
+        });
+
+
+
+    $("#modalTemplateDesktop #send").on('click', function(e){
+            var form = $('#modalTemplateDesktopForm');
+
             form.parsley().validate();
+
             if (form.parsley().isValid()){
-                    data=$('#modalEdit').serializeObject();
-                    data=replaceMedia_arrays('#modalEditDesktop',data);
-                    socket.emit('domain_edit',data)
+                desktop_id=$('#modalTemplateDesktopForm #id').val();
+                if (desktop_id !=''){
+                    data=$('#modalTemplateDesktopForm').serializeObject();
+                    data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
+                    data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
+                    socket.emit('domain_template_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                }
             }
         });
-        
+
+}
+
+function modal_edit_desktop_datatables(id){
+	$.ajax({
+		type: "GET",
+		url:"/isard-admin/desktops/templateUpdate/" + id,
+		success: function(data)
+		{
+            $('#modalEditDesktop #forced_hyp').closest("div").remove();
+			$('#modalEditDesktop #name_hidden').val(data.name);
+            $('#modalEditDesktop #name').val(data.name);
+			$('#modalEditDesktop #description').val(data.description);
+            $('#modalEditDesktop #id').val(data.id);
+            setHardwareDomainDefaults('#modalEditDesktop', id);
+            if(data['options-viewers-spice-fullscreen']){
+                $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
+            }
+		}				
+	});
+  
     
+}
+
+$("#modalEditDesktop #send").on('click', function(e){
+        var form = $('#modalEdit');
+        form.parsley().validate();
+        if (form.parsley().isValid()){
+                data=$('#modalEdit').serializeObject();
+                data=replaceMedia_arrays('#modalEditDesktop',data);
+                socket.emit('domain_edit',data)
+        }
+    });
