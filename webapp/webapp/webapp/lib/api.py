@@ -841,6 +841,53 @@ class isard():
                         
             self.new_domain_from_tmpl(user, tmpl['create_dict'])
 
+    def new_domains_from_tmpl(self, current_user, create_dict):
+        selected = create_dict.pop('allowed',None)
+        #if current_user.role == == 'manager'
+        users=[]
+        if current_user.role == 'admin' and selected['roles'] != False:
+            if len(selected['roles']) == 0:
+                with app.app_context():
+                    selected['roles']=[r['id'] for r in list(r.table('roles').pluck('id').run(db.conn))]
+            for role in selected['roles']:
+                ''' Can't use get_all as has no index in database '''
+                with app.app_context():
+                    roles = list(r.table('users').filter({'role':role}).pluck('id').run(db.conn))
+                users=users+[r['id'] for r in roles]
+        if current_user.role == 'admin' and selected['categories'] != False:
+            if len(selected['categories']) == 0:
+                with app.app_context():
+                    selected['categories']=[c['id'] for c in list(r.table('categories').pluck('id').run(db.conn))]            
+            with app.app_context():
+                categories = list(r.table('users').get_all(r.args(selected['categories']),index='category').pluck('id').run(db.conn))
+            users=users+[c['id'] for c in categories]
+        if selected['groups'] != False:
+            if len(selected['groups']) == 0:
+                with app.app_context():
+                    selected['groups']=[g['id'] for g in list(r.table('groups').pluck('id').run(db.conn))]            
+            with app.app_context():
+                groups = list(r.table('users').get_all(r.args(selected['groups']),index='group').pluck('id').run(db.conn))
+            users=users+[g['id'] for g in groups]
+        if selected['users'] != False:
+            if len(selected['users']) == 0:
+                with app.app_context():
+                    selected['users']=[u['id'] for u in list(r.table('users').pluck('id').run(db.conn))]            
+            users=users+selected['users']
+        '''Remove duplicates'''
+        users=list(set(users))
+        with app.app_context():
+            try:
+                existing_desktops=list(r.table('domains').get_all(r.args(users),index='user').filter({'name':create_dict['name']}).pluck('user').run(db.conn))
+            except:
+                None
+        if len(existing_desktops):
+            lst_existing_desktops=[ed['user'].split('-')[-1] for ed in existing_desktops]
+            return 'This users already have a desktop with the same name: '+', '.join(lst_existing_desktops)
+        for user in users:
+            self.new_domain_from_tmpl(user,create_dict)
+        return True
+
+
     def new_domain_from_tmpl(self, user, create_dict):
         exceeded = quotas.check('NewDesktop',user)
         if exceeded != False:

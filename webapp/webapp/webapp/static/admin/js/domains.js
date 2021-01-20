@@ -38,7 +38,60 @@ $(document).ready(function() {
     $admin_template_domain = $(".admin-template-detail-domain");
 
     var stopping_timer=null
+    modal_add_desktops = $('#modal_add_desktops').DataTable()
+    initalize_modal_all_desktops_events()
+    $('.btn-add-desktop').on('click', function () {
+        $('#allowed-title').html('')
+        $('#alloweds_panel').css('display','block');
+        setAlloweds_add('#alloweds-block');
+        console.log($('meta[id=user_data]').attr('data-role'))
+        if ($('meta[id=user_data]').attr('data-role') == 'manager'){
+            $('#categories_pannel').hide();
+            $('#roles_pannel').hide();
+        }
 
+        $("#modalAddDesktop #send-block").on('click', function(e){
+            var form = $('#modalAdd');
+
+            form.parsley().validate();
+    
+            if (form.parsley().isValid()){
+                template=$('#modalAddDesktop #template').val();
+                if (template !=''){
+                    data=$('#modalAdd').serializeObject();
+                    data=replaceAlloweds_arrays('#modalAddDesktop #alloweds-block',data)
+                    console.log(data)
+                    socket.emit('domain_add',data)
+                }else{
+                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
+                }
+            }
+        });     
+
+         if($('.limits-desktops-bar').attr('aria-valuenow') >=100){
+            new PNotify({
+                title: "Quota for creating desktops full.",
+                    text: "Can't create another desktop, category quota full.",
+                    hide: true,
+                    delay: 3000,
+                    icon: 'fa fa-alert-sign',
+                    opacity: 1,
+                    type: 'error'
+                });                
+        }else{	
+            setHardwareOptions('#modalAddDesktop');
+            $("#modalAdd")[0].reset();
+            $('#modalAddDesktop').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            $('#modalAddDesktop #hardware-block').hide();
+            $('#modalAdd').parsley();
+            modal_add_desktop_datatables();
+        }
+    });
+    
     $("#modalTemplateDesktop #send").on('click', function(e){
             var form = $('#modalTemplateDesktopForm');
 
@@ -411,7 +464,7 @@ $(document).ready(function() {
             $("#modalAddFromMedia #modalAdd")[0].reset();
             $("#modalAddFromMedia").modal('hide');   
             $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
-            $("#modalTemplateDesktop").modal('hide');             
+            $("#modalTemplateDesktop").modal('hide');
         }
         new PNotify({
                 title: data.title,
@@ -423,7 +476,26 @@ $(document).ready(function() {
                 type: data.type
         });
     });
+
     
+    socket.on('adds_form_result', function (data) {
+        console.log('received multiple add result')
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalAddDesktop #modalAdd")[0].reset();
+            $("#modalAddDesktop").modal('hide');                   
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        }); 
+    });
+
     socket.on('edit_form_result', function (data) {
         var data = JSON.parse(data);
         if(data.result){

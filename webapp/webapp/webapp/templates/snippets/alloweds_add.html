@@ -1,14 +1,17 @@
     <div class="x_panel" style="height: auto;">
       <div class="x_title">
-        <h2>Allows <small>By default ONLY YOUR USER will have access</small></h2>
+        <div id="allowed-title">
+            <h2>Allows <small>By default ONLY YOUR USER will have access</small></h2>
+        
             <ul class="nav navbar-right panel_toolbox">
                 <li><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
                 </li>
             </ul>
+        </div>
         <div class="clearfix"></div>
       </div>
       <div id="alloweds_panel" class="x_content" style="display: none;">
-                        <div class="row">
+                        <div class="row" id="roles_pannel">
                             <div class="col-md-3 col-xs-12">
                               <label class="control-label" for="a-roles-cb">
                                 <div class="icheckbox_flat-green" style="position: relative;">
@@ -27,7 +30,7 @@
                             </div>
                         </div>
 
-                        <div class="row">
+                        <div class="row" id="categories_pannel">
                             <div class="col-md-3 col-xs-12">
                               <label class="control-label" for="a-categories-cb">
                                 <div class="icheckbox_flat-green" style="position: relative;">

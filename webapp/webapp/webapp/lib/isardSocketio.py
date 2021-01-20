@@ -957,6 +957,37 @@ def socketio_domains_add(form_data):
                     namespace='/isard-admin/sio_users', 
                     room='user_'+current_user.id)
 
+@socketio.on('domain_add', namespace='/isard-admin/sio_admins')
+def socketio_admin_domains_add(form_data):
+    exceeded = quotas.check('NewDesktop',current_user.id)
+    if exceeded != False:
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+create_dict['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/isard-admin/sio_admins', 
+                        room='domains')
+        return
+
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+
+    create_dict=parseHardware(create_dict)
+    create_dict=quotas.limit_user_hardware_allowed(create_dict,current_user.id)
+
+    res=app.isardapi.new_domains_from_tmpl(current_user, create_dict)
+
+    if res == True:
+        data=json.dumps({'result':True,'title':'New desktops','text':'Desktops with name'+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'New desktops','text':'Desktop with name '+create_dict['name']+' can\'t be created. '+str(res),'icon':'warning','type':'error'})
+    socketio.emit('adds_form_result',
+                    data,
+                    namespace='/isard-admin/sio_admins', 
+                    room='domains')
+    socketio.emit('adds_form_result',
+                    data,
+                    namespace='/isard-admin/sio_admins', 
+                    room=current_user.category+'_domains')                    
+
 @socketio.on('domain_edit', namespace='/isard-admin/sio_users')
 def socketio_domain_edit(form_data):
     #~ Check if user has quota and rights to do it

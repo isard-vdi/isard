@@ -1,4 +1,3 @@
-
 	function setAlloweds_viewer(div_id,id){
 			api.ajax('/isard-admin/alloweds/table/domains','POST',{'pk':id}).done(function(alloweds) {
                 var all=false;
@@ -71,7 +70,7 @@
              //~ console.log(id)
             if( id.replace('a-','') == 'groups'){
                 $(parentid+" #"+id).select2({
-                    placeholder: "Empty means allow to all. Type to search.",
+                    placeholder: "Empty applies to all. Type at least 2 letters to search.",
                     minimumInputLength: 2,
                     multiple: true,
                     ajax: {
@@ -101,7 +100,7 @@
                 });	                
             }else{
                 $(parentid+" #"+id).select2({
-                    placeholder: "Empty means allow to all. Type to search.",
+                    placeholder: "Empty applies to all. Type at least 2 letters to search.",
                     minimumInputLength: 2,
                     multiple: true,
                     ajax: {
