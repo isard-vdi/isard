@@ -123,5 +123,5 @@ class NewDesktopNotBootable(Exception):
 class MediaNotFound(Exception):
     pass
 
-class XmlNotfound(Exception):
+class XmlNotFound(Exception):
     pass

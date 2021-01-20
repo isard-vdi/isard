@@ -44,6 +44,6 @@ Import all views
 from .views import UsersView
 from .views import DesktopsNonPersistentView
 from .views import JumperViewerView
-
-
+from .views import DesktopsPersistentView
+from .views import XmlView
 

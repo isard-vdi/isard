@@ -39,7 +39,8 @@ class ApiDesktopsPersistent():
             raise DesktopNotFound
         ds.delete_desktop(desktop_id, desktop['status'])
 
-    def New(self, desktop_name, user_id,  memory, vcpus, from_template_id = False, xml_id = False, xml_definition = False, disk_size = False, disk_path = False, iso = False, boot='disk'):
+    def New(self, desktop_name, user_id,  memory, vcpus, kind = 'desktop', from_template_id = False, xml_id = False, xml_definition = False, disk_size = False, disk_path = False, parent_disk_path=False, iso = False, boot='disk'):
+        if kind not in ['desktop', 'user_template']: raise NewDesktopNotInserted
         parsed_name = _parse_string(desktop_name)
         hardware = {'boot_order': [boot],
                     'disks': [],
@@ -84,9 +85,10 @@ class ApiDesktopsPersistent():
                                     'size':disk_size}]   # 15G as a format   UNITS NEEDED!!!
             status = 'CreatingDiskFromScratch'
             parents = []
-        elif disk_path != False:
-            hardware['disks']=[{'file':disk_path}]
-            status = 'Creating'            
+        if disk_path != False:
+            if parent_disk_path == False: parent_disk_path=''
+            hardware['disks']=[{'file':disk_path,'parent':parent_disk_path}]
+            status = 'Updating'
         else:
             hardware['disks']=[{'file':dir_disk+'/'+disk_filename,
                                                 'parent':template['create_dict']['hardware']['disks'][0]['file']}]
@@ -107,7 +109,7 @@ class ApiDesktopsPersistent():
         new_domain={'id': '_'+user_id+'-'+parsed_name,
                   'name': desktop_name,
                   'description': 'Api created',
-                  'kind': 'desktop',
+                  'kind': kind,
                   'user': user['id'],
                   'username': user['username'],
                   'status': status,
