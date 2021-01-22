@@ -1,5 +1,14 @@
 {
     "components": {
+        "desktop-cards": {
+            "table-header": {
+                "name": "Name",
+                "state": "Status",
+                "description": "Description",
+                "action": "Action",
+                "viewers": "Viewers"
+            }
+        },
         "help": {
             "close-guide": "Close guide",
             "local-client": "Use the local client (recommended)",
@@ -28,15 +37,6 @@
         }
     },
     "views": {
-        "create-error": {
-            "error": "Error",
-            "title": "We couldn't create the virtual desktop due to an error",
-            "retry": "Retry"
-        },
-        "creating": {
-            "title": "Creating the virtual desktop",
-            "subtitle": "This can take a few moments"
-        },
         "error": {
             "title": "Error",
             "codes": {
@@ -49,43 +49,6 @@
             "title": "The session has expired",
             "subtitle": "In order to use the virtual desktop, login again",
             "button": "Login"
-        },
-        "landing": {
-            "title": {
-                "view-guide": "Is it the first time you use IsardVDI (remote desktop service)? Click here to view a guide."
-            },
-            "buttons": {
-                "local": {
-                    "title": "Local client",
-                    "description": "(recommended version) Open the desktop with the local client"
-                },
-                "browser": {
-                    "title": "Browser",
-                    "description": "Open the desktop in the browser"
-                },
-                "logout": {
-                    "title": "Quit",
-                    "description": "Close the desktop session"
-                }
-            },
-            "notification": {
-                "loading": {
-                    "title": "Loading",
-                    "description": "Waiting for server response."
-                },
-                "downloaded": {
-                    "title": "Downloaded",
-                    "description": "The desktop has been downloaded successfully."
-                },
-		"opened": {
-                    "title": "Opened",
-                    "description": "The desktop has been opened successfully."
-                },
-                "error": {
-                    "title": "Error",
-                    "description": "The desktop did not open properly."
-                }
-            }
         },
         "login": {
             "admin": "Administration",
@@ -115,15 +78,89 @@
             "register": "Sign up"
         },
         "select-template": {
+            "template": "Template",
             "loading": "Loading templates",
             "no-templates": {
                 "title": "There are no templates for this user!",
                 "subtitle": "If you think this is an error, please contact the administrator"
             },
-            "which-template": "Which desktop do you want to use?"
+            "which-template": "Which desktop do you want to use?",
+            "persistent": "Persistent desktops",
+            "volatile": "Temporal desktops",
+            "viewers": "Viewers",
+            "viewer": "{name} viewer",
+            "viewer-name": {
+                "spice": "SPICE",
+                "browser": "Browser"
+            },
+            "remove": "Remove",
+            "notification": {
+                "loading": {
+                    "title": "Loading",
+                    "description": "Waiting for server response"
+                },
+                "downloaded": {
+                    "title": "Downloaded",
+                    "description": "The desktop has been downloaded successfully"
+                }
+            },
+            "error": {
+                "create-error": {
+                    "title": "Error",
+                    "description": "We couldn't create the virtual desktop due to an error"
+                },
+                "create-quota": {
+                    "title": "Error",
+                    "description": "You have too many desktops"
+                },
+                "start-error": {
+                    "title": "Error",
+                    "description": "We couldn't start the virtual desktop due to an error"
+                },
+                "start-quota": {
+                    "title": "Error",
+                    "description": "You are using too many desktops at the same time"
+                },
+                "start-timeout": {
+                    "title": "Timeout",
+                    "description": "The desktop is starting, this might take a few minutes"
+                },
+                "open-error": {
+                    "title": "Error",
+                    "description": "We couldn't open the virtual desktop due to an error"
+                },
+                "stop-error": {
+                    "title": "Error",
+                    "description": "We couldn't stop the virtual desktop due to an error"
+                },
+                "stop-timeout": {
+                    "title": "Timeout",
+                    "description": "The desktop is stopping, this might take a few minutes"
+                },
+                "delete-error": {
+                    "title": "Error",
+                    "description": "We couldn't delete the virtual desktop due to an error"
+                }
+            },
+            "status": {
+                "notCreated": {
+                    "action": "Create"
+                },
+                "failed": {
+                    "text": "Failed"
+                },
+                "started": {
+                    "text": "Started",
+                    "action": "Stop"
+                },
+                "stopped": {
+                    "text": "Stopped",
+                    "action": "Start"
+                }
+            }
         },
         "welcome": {
-            "title": "Welcome to Isard, virtual desktops service",
+            "title": "Welcome to IsardVDI, virtual desktops service",
             "button": "Login"
         }
     }

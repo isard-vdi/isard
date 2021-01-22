@@ -5,6 +5,6 @@
 <style>
 #logo {
   margin-top: 20px;
-  max-width: 400px;
+  max-width: 250px;
 }
 </style>

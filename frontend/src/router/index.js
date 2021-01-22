@@ -1,15 +1,13 @@
+import ErrorPage from '@/views/ErrorPage.vue'
+import ExpiredSession from '@/views/ExpiredSession.vue'
+import Login from '@/views/Login.vue'
+import Maintenance from '@/views/Maintenance.vue'
+import NotFound from '@/views/NotFound.vue'
+import Register from '@/views/Register.vue'
+import SelectTemplate from '@/views/SelectTemplate.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { auth } from './auth'
-import Maintenance from '@/views/Maintenance.vue'
-import SelectTemplate from '@/views/SelectTemplate.vue'
-import Creating from '@/views/Creating.vue'
-import CreateError from '@/views/CreateError.vue'
-import Landing from '@/views/Landing.vue'
-import ErrorPage from '@/views/ErrorPage.vue'
-import NotFound from '@/views/NotFound.vue'
-import Login from '@/views/Login.vue'
-import Register from '@/views/Register.vue'
 
 Vue.use(VueRouter)
 
@@ -39,30 +37,6 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/creating',
-      name: 'Creating',
-      component: Creating,
-      meta: {
-        requiresAuth: true
-      }
-    },
-    {
-      path: '/create_error',
-      name: 'CreateError',
-      component: CreateError,
-      meta: {
-        requiresAuth: true
-      }
-    },
-    {
-      path: '/landing',
-      name: 'Landing',
-      component: Landing,
-      meta: {
-        requiresAuth: true
-      }
-    },
-    {
       path: '/error/:code',
       name: 'Error',
       component: ErrorPage
@@ -76,12 +50,12 @@ const router = new VueRouter({
       path: '/maintenance',
       name: 'Maintenance',
       component: Maintenance
+    },
+    {
+      path: '/expired_session',
+      name: 'ExpiredSession',
+      component: ExpiredSession
     }
-    // {
-    //   path: '/expired_session',
-    //   name: 'ExpiredSession',
-    //   component: ExpiredSession
-    // }
   ],
   mode: 'history'
 })

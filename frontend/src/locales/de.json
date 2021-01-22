@@ -5,47 +5,20 @@
             "title": "Derzeit wird Isard gewartet",
             "sorry": "Entschuldigung für die Unannehmlichkeiten"
         },
-        "landing": {
-            "title": {
-                "view-guide": "Verwenden Sie IsardVDI (Fernarbeitsoberflächedienst) zum ersten Mal? Klicken Sie hier, um eine Anleitung anzuzeigen."
-            },
-            "buttons": {
-                "local": {
-                    "description": "(empfohlene Version) Öffnen Sie die Arbeitsoberfläche mit dem lokalen Client",
-                    "title": "Lokaler Client"
-                },
-                "logout": {
-                    "description": "Arbeitsoberflächesitzung schließen",
-                    "title": "Beenden"
-                },
-                "browser": {
-                    "description": "Öffnen Sie die Arbeitsoberfläche im Browser",
-                    "title": "Browser"
-                }
-            },
-            "notification": {
-                "opened": {
-                    "title": "Geöffnet",
-                    "description": "Die Arbeitsoberfläche wurde erfolgreich geöffnet."
-                },
-                "error": {
-                    "description": "Die Arbeitsoberfläche wurde nicht richtig geöffnet.",
-                    "title": "Fehler"
-                },
-                "downloaded": {
-                    "description": "Die Arbeitsoberfläche wurde erfolgreich heruntergeladen.",
-                    "title": "Heruntergeladen"
-                },
-                "loading": {
-                    "description": "Warten auf Serverantwort.",
-                    "title": "Lade …"
-                }
-            }
-        },
         "select-template": {
             "no-templates": {
                 "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich an den Administrator",
                 "title": "Es gibt keine Vorlagen für diesen Benutzer!"
+            },
+            "notification": {
+                "downloaded": {
+                    "description": "Die Arbeitsoberfläche wurde erfolgreich heruntergeladen",
+                    "title": "Heruntergeladen"
+                },
+                "loading": {
+                    "description": "Warten auf Serverantwort",
+                    "title": "Lade …"
+                }
             },
             "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?",
             "loading": "Laden von Vorlagen"
@@ -85,18 +58,9 @@
             "subtitle": "Melden Sie sich erneut an, um die virtuelle Arbeitsoberfläche zu verwenden",
             "title": "Die Sitzung ist abgelaufen"
         },
-        "create-error": {
-            "title": "Die virtuelle Arbeitsoberfläche konnte aufgrund eines Fehlers nicht erstellt werden",
-            "retry": "Erneut versuchen",
-            "error": "Fehler"
-        },
         "welcome": {
             "button": "Anmelden",
-            "title": "Willkommen bei Isard, dem Dienst für virtuelle Arbeitsoberflächen"
-        },
-        "creating": {
-            "subtitle": "Dies kann einige Momente dauern",
-            "title": "Erstellen der virtuellen Arbeitsoberfläche"
+            "title": "Willkommen bei IsardVDI, dem Dienst für virtuelle Arbeitsoberflächen"
         }
     },
     "components": {

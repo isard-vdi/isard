@@ -1,29 +1,28 @@
-import Vue from 'vue'
-import App from './App.vue'
-import router from './router'
-import store from './store'
-
-import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
 // Bootstrap dependencies
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 // Custom css
 import '@/assets/global.css'
-
-// Vue Snotify dependencies
-import Snotify from 'vue-snotify'
 import 'vue-snotify/styles/material.css'
 
+import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
+import { faCentos, faFedora, faGithub, faGoogle, faLinux, faUbuntu, faWindows } from '@fortawesome/free-brands-svg-icons'
+import { faDesktop, faPlay, faStop, faTrash } from '@fortawesome/free-solid-svg-icons'
+
+import App from './App.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+// Vue Snotify dependencies
+import Snotify from 'vue-snotify'
+import Vue from 'vue'
+import i18n from './i18n'
 // FontAwesome
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { faWindows, faUbuntu, faFedora, faLinux, faCentos, faGithub, faGoogle } from '@fortawesome/free-brands-svg-icons'
-import { faDesktop } from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import i18n from './i18n'
+import router from './router'
+import store from './store'
 
 console.log(i18n.locale)
 
-library.add(faDesktop, faWindows, faUbuntu, faFedora, faLinux, faCentos, faGithub, faGoogle)
+library.add(faDesktop, faPlay, faStop, faTrash, faWindows, faUbuntu, faFedora, faLinux, faCentos, faGithub, faGoogle)
 
 Vue.component('font-awesome-icon', FontAwesomeIcon)
 

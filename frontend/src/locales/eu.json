@@ -25,15 +25,6 @@
         }
     },
     "views": {
-        "create-error": {
-            "error": "Akatsa",
-            "title": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu",
-            "retry": "Saiatu berriro"
-        },
-        "creating": {
-            "title": "Mahaigain birtuala sortzen",
-            "subtitle": "Prozesu horrek segundo batzuk iraun ditzake"
-        },
         "error": {
             "title": "Akatsa",
             "codes": {
@@ -46,43 +37,6 @@
             "title": "Saioa iraungi egin da",
             "subtitle": "Mahaigain birtuala berriz erabiltzeko, berriro sesioa hasi",
             "button": "Sesioa hasi"
-        },
-        "landing": {
-            "title": {
-                "view-guide": "IsardVDI (urruneko mahaigainen zerbitzua) erabiltzen duzun lehen aldia al da? Egin klik hemen gida bat ikusteko."
-            },
-            "buttons": {
-                "local": {
-                    "title": "Tokiko bezeroa",
-                    "description": "(Bertsio gomendatua) Ireki mahaigaina bertako bezeroarekin"
-                },
-                "browser": {
-                    "title": "Nabigatzailea",
-                    "description": "Mahaigaina nabigatzailean irekitzea"
-                },
-                "logout": {
-                    "title": "Irten",
-                    "description": "Mahaigaineko saioa ixtea"
-                }
-            },
-            "notification": {
-                "error": {
-                    "description": "Mahaigaina ez da modu egokian ireki.",
-                    "title": "Akatsa"
-                },
-                "opened": {
-                    "description": "Mahaigaina arrakastaz ireki da.",
-                    "title": "Irekita"
-                },
-                "downloaded": {
-                    "description": "Mahaigana arrakataz deskargatua izan da.",
-                    "title": "Deskargatua"
-                },
-                "loading": {
-                    "description": "Zerbitzariaren erantzunaren zain.",
-                    "title": "Abiarazten"
-                }
-            }
         },
         "login": {
             "admin": "Administrazioa",
@@ -115,10 +69,20 @@
                 "subtitle": "Jarri harremanetan administratzailearekin akatsa dela uste baduzu"
             },
             "which-template": "Zein idazmahai erabili nahi duzu?",
+            "notification": {
+                "downloaded": {
+                    "description": "Mahaigana arrakataz deskargatua izan da",
+                    "title": "Deskargatua"
+                },
+                "loading": {
+                    "description": "Zerbitzariaren erantzunaren zain",
+                    "title": "Abiarazten"
+                }
+            },
             "loading": "Txantiloiak kargatzen"
         },
         "welcome": {
-            "title": "Ongi etorri Isard-era, mahaigain birtualen sistemara",
+            "title": "Ongi etorri IsardVDI-era, mahaigain birtualen sistemara",
             "button": "Identifikatu"
         }
     }

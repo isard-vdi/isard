@@ -1,5 +1,14 @@
 {
     "components": {
+        "desktop-cards": {
+            "table-header": {
+                "name": "Nombre",
+                "state": "Estado",
+                "description": "Descripción",
+                "action": "Acción",
+                "viewers": "Visores"
+            }
+        },
         "help": {
             "close-guide": "Cerrar la guía",
             "local-client": "Utilizar el cliente local (recomendado)",
@@ -28,15 +37,6 @@
         }
     },
     "views": {
-        "create-error": {
-            "error": "Error",
-            "title": "Debido a un error, no hemos podido crear el escritorio virtual",
-            "retry": "Volver a intentarlo"
-        },
-        "creating": {
-            "title": "Creando el escritorio virtual",
-            "subtitle": "Este proceso puede tardar unos segundos"
-        },
         "error": {
             "title": "Error",
             "codes": {
@@ -49,43 +49,6 @@
             "title": "La sesión ha caducado",
             "subtitle": "Para volver a utilizar el escritorio virtual, inicia sessión de nuevo",
             "button": "Iniciar sesión"
-        },
-        "landing": {
-            "title": {
-                "view-guide": "¿Es la primera vez que utilizas IsardVDI (servicio de escritorios remoto)? Haz clic aquí para ver una guía."
-            },
-            "buttons": {
-                "local": {
-                    "title": "Cliente local",
-                    "description": "(Versión recomendada) Abrir el escritorio con el cliente local"
-                },
-                "browser": {
-                    "title": "Navegador",
-                    "description": "Abrir el escritorio en el navegador"
-                },
-                "logout": {
-                    "title": "Salir",
-                    "description": "Cerrar la sesión de escritorio"
-                }
-            },
-            "notification": {
-                "loading": {
-                    "title": "Cargando",
-                    "description": "Esperando respuesta del servidor."
-                },
-                "downloaded": {
-                    "title": "Descargado",
-                    "description": "El escritorio se ha descargado correctamente."
-                },
-		"opened": {
-                    "title": "Abierto",
-                    "description": "El escritorio se ha abierto correctamente."
-                },
-                "error": {
-                    "title": "Error",
-                    "description": "El escritorio no se ha abierto correctamente."
-                }
-            }
         },
         "login": {
             "admin": "Administración",
@@ -120,10 +83,83 @@
                 "title": "No hay ninguna plantilla para éste usuario!",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
             },
-            "which-template": "¿Qué escritorio quieres usar?"
+            "which-template": "¿Qué escritorio quieres usar?",
+            "persistent": "Escritorios persistentes",
+            "volatile": "Escritorios temporales",
+            "viewers": "Visores",
+            "viewer": "Visor {name}",
+            "viewer-name": {
+                "spice": "SPICE",
+                "browser": "en el navegador"
+            },
+            "remove": "Eliminar",
+            "notification": {
+                "loading": {
+                    "title": "Cargando",
+                    "description": "Esperando la respuesta del servidor"
+                },
+                "downloaded": {
+                    "title": "Descargado",
+                    "description": "El escritorio se ha descargado correctamente"
+                }
+            },
+            "error": {
+                "create-error": {
+                    "title": "Error",
+                    "description": "No se ha podido crear el escritorio virtual debido a un error"
+                },
+                "create-quota": {
+                    "title": "Error",
+                    "description": "Dispones de demasiados escritorios"
+                },
+                "start-error": {
+                    "title": "Error",
+                    "description": "No se ha podido iniciar el escritorio virtual debido a un error"
+                },
+                "start-quota": {
+                    "title": "Error",
+                    "description": "Estás ejecutando demasiados escritorios al mismo tiempo"
+                },
+                "start-timeout": {
+                    "title": "Timeout",
+                    "description": "El escritorio se está iniciando, puede tardar varios minutos"
+                },
+                "open-error": {
+                    "title": "Error",
+                    "description": "No se ha podido abrir el escritorio virtual debido a un error"
+                },
+                "stop-error": {
+                    "title": "Error",
+                    "description": "No se ha podido parar el escritorio virtual debido a un error"
+                },
+                "stop-timeout": {
+                    "title": "Timeout",
+                    "description": "El escritorio se está parando, puede tardar varios minutos"
+                },
+                "delete-error": {
+                    "title": "Error",
+                    "description": "No se ha podido eliminar el escritorio virtual debido a un error"
+                }
+            },
+            "status": {
+                "notCreated": {
+                    "action": "Crear"
+                },
+                "failed": {
+                    "text": "Fallido"
+                },
+                "started": {
+                    "text": "Iniciado",
+                    "action": "Parar"
+                },
+                "stopped": {
+                    "text": "Parado",
+                    "action": "Iniciar"
+                }
+            }
         },
         "welcome": {
-            "title": "Bienvenido a Isard, sistema de escritorios virtuales",
+            "title": "Bienvenido a IsardVDI, sistema de escritorios virtuales",
             "button": "Identificarse"
         }
     }

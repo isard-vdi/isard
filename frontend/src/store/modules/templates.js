@@ -1,4 +1,5 @@
 import { apiAxios } from '@/router/auth'
+import router from '@/router'
 
 export default {
   state: {
@@ -20,9 +21,25 @@ export default {
     }
   },
   actions: {
-    async fetchTemplates ({ commit }) {
-      const response = await apiAxios.get('/templates')
-      commit('setTemplates', response.data)
+    fetchTemplates ({ commit }) {
+      return new Promise((resolve, reject) => {
+        apiAxios.get('/templates').then(response => {
+          commit('setTemplates', response.data)
+          resolve()
+        }).catch(e => {
+          console.log(e)
+          if (e.response.status === 503) {
+            reject(e)
+            router.push({ name: 'Maintenance' })
+          } else if (e.response.status === 401 || e.response.status === 403) {
+            this._vm.$snotify.clear()
+            reject(e)
+            router.push({ name: 'ExpiredSession' })
+          } else {
+            reject(e.response)
+          }
+        })
+      })
     }
   }
 }

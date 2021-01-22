@@ -8,8 +8,8 @@
                     <b-icon stacked icon="exclamation-triangle-fill" variant="warning"></b-icon>
                 </b-iconstack>
                 <h1 class="mt-2">{{ $t('views.expired-session.title') }}</h1>
-                <h2>{{ $t('views.exipred-session.subtitle') }}</h2>
-                <b-button class="btn mt-2" variant="primary" size="lg" :href="login_url">
+                <h2>{{ $t('views.expired-session.subtitle') }}</h2>
+                <b-button class="btn mt-2" variant="primary" size="lg" @click="redirectLogin()">
                     <b-icon icon="unlock-fill" variant="white"></b-icon>
                     {{ $t('views.expired-session.button') }}
                 </b-button>
@@ -23,13 +23,9 @@
 // @ is an alias to /src
 
 export default {
-  data () {
-    return {
-      login_url:
-                window.location.protocol +
-                '//' +
-                window.location.host +
-                '/login'
+  methods: {
+    redirectLogin: function () {
+      this.$router.push({ name: 'Login' })
     }
   }
 }
