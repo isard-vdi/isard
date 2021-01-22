@@ -79,11 +79,11 @@
 			<p class="text-muted font-13 m-b-30">
 			</p>
 			<ul>
-				<li><h2><b>Spice client app</b></h2>
+				<li><h2><b>Spice client native apps</b></h2>
 					<ul>
 					  <div class="howto-Windows" style="display:none">
-						<li>Windows 64bits: <a href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi">Install viewer </a> - <a href="https://www.spice-space.org/download/windows/usbdk/UsbDk_1.0.19_x64.msi">Install usb plug </a></li>
-						<li>Windows 32bits: <a href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi">Install viewer</a> - <a href="https://www.spice-space.org/download/windows/usbdk/UsbDk_1.0.19_x86.msi">Install usb plug </a></li>
+						<li>Windows 64bits: <a href="https://releases.pagure.org/virt-viewer/virt-viewer-x64-9.0.msi">Install viewer </a> - <a href="https://www.spice-space.org/download/windows/usbdk/UsbDk_1.0.22_x64.msi">Install usb plug </a></li>
+						<li>Windows 32bits: <a href="https://releases.pagure.org/virt-viewer/virt-viewer-x86-9.0.msi">Install viewer</a> - <a href="https://www.spice-space.org/download/windows/usbdk/UsbDk_1.0.22_x86.msi">Install usb plug </a></li>
 					  </div>
 					  <div class="howto-Linux" style="display:none">
 						<li><b>Debian/Ubuntu based distros:</b> sudo apt install virt-viewer -y</li>
@@ -93,35 +93,7 @@
 						<li>Android: <a href="https://play.google.com/store/apps/details?id=com.iiordanov.freeaSPICE">Install aSpice viewer </a></li>
 					  </div>
 					  <div class="howto-MacOS" style="display:none">
-						<li>MacOS: There is no spice client app currently. Use default VNC client option.</li>
-					  </div>
-					  <div class="howto-iOS" style="display:none">
-						<li>iOS: <a href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263">Install FlexVDI viewer</a></li>
-					  </div>
-					</ul>
-				</li>
-				<li><h2><b>Spice & VNC browser client</b></h2> Use your browser to connect without installing apps. <b>You should allow pop-up windows.</b>
-					<ul>
-						<li><b>Chrome browser:</b> Should work</li>
-						<li><b>Firefox browser:</b> If you use self signed certificates to encrypt connection it will open a second pop-up window to accept certificate before connecting. You can close that window after accepting certificate.</li>
-					</ul>
-				</li>
-				<li><h2><b>VNC client app</b></h2>
-					<ul>
-					  <div class="howto-Windows" style="display:none">
-						<li><b>RealPlayer</b> <a href="https://www.realvnc.com/en/connect/download/viewer/linux/">Install viewer </a>. When opening file in RealPlayer it will ask for password. You can copy&paste password from desktop details.</li>
-					  </div>
-					  <div class="howto-Linux" style="display:none">
-						<li><b>Linux:</b> vinagre -F console.vnc</li>
-					  </div>
-					  <div class="howto-Android" style="display:none">
-						<li><b>Android:</b> Not tested.</li>
-					  </div>
-					  <div class="howto-MacOS" style="display:none">
-						<li><b>MacOS:</b> Open downloaded console.vncloc file with default VNC client viewer app.</li>
-					  </div>
-					  <div class="howto-iOS" style="display:none">
-						<li><b>iOS:</b> Not tested</li>
+						<li>MacOS: There is no spice client app currently. Use default HTML5 browser option.</li>
 					  </div>
 					</ul>
 				</li>
@@ -160,8 +132,7 @@
     <script src="/isard-admin/static/js/restful.js"></script>
     <!-- Spice viewer -->
     <script src="/isard-admin/static/js/viewer.js"></script> 
-	<!-- Desktops sse & modals -->
-	<script src="/isard-admin/static/js/snippets/desktop_add.js"></script>
+    <!-- Desktops sse & modals -->
     <script src="/isard-admin/static/js/desktops.js"></script>
 <!--
     <script src="/isard-admin/static/js/desktops_modals.js"></script>
