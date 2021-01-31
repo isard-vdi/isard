@@ -26,8 +26,7 @@ def ownsid(fn):
                 id = myargs['pk']
             except:
                 id = myargs['id']
-            
-        if id.startswith('_'+current_user.id+'_'):
+        if id.startswith('_'+current_user.id) or (current_user.role == 'manager ' and current_user.category == id.split('-')[1]):
             return fn(*args, **kwargs)
         
         return render_template('login_category.html', category=False)
