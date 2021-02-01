@@ -7,7 +7,7 @@
 # coding=utf-8
 from flask import render_template, Response, request, redirect, url_for
 from flask_login import login_required, current_user
-from .decorators import ownsid
+from .decorators import ownsid, isAdvanced
 from webapp import app
 from ..lib.log import *
 
@@ -123,3 +123,27 @@ def jumperurl_reset(id):
 def jumperurl_disable(id):
     data = app.adminapi.jumperurl_reset(id,disabled=True)
     return json.dumps(data), 200, {'Content-Type': 'application/json'}
+
+
+## Advanced users tags
+
+@app.route('/isard-admin/desktops/tags')
+@login_required
+@isAdvanced
+def groupdesktops(nav='Domains'):
+    return render_template('pages/deployment_desktops.html', title="Deployments", nav="Deployments", icon='desktop', tags=['prova1','prova2'])
+
+@app.route('/isard-admin/desktops/tagged',methods=['GET'])
+@app.route('/isard-admin/desktops/tagged/<id>',methods=['GET'])
+@login_required
+@isAdvanced
+def advanced_tagged_domains(id=False):
+    data = app.isardapi.get_user_tagged_domains(current_user,id)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}
+
+@app.route('/isard-admin/desktops/usertags',methods=['GET'])
+@login_required
+@isAdvanced
+def advanced_usertags():
+    data=app.adminapi.get_user_deployments(current_user.id)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}

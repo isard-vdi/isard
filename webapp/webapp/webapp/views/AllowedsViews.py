@@ -7,7 +7,7 @@
 # coding=utf-8
 from flask import render_template, Response, request, redirect, url_for
 from flask_login import login_required, current_user
-from .decorators import ownsid
+from .decorators import ownsid, ownsidortag
 from webapp import app
 from ..lib.log import *
 
@@ -30,7 +30,7 @@ quotas = QuotaLimits()
     # ~ return json.dumps(app.isardapi.get_alloweds_select2(allowed))
        
 
-# Will get allowed hardware resources for current_user         
+# Will get allowed hardware resources for current_user
 @app.route('/isard-admin/domains/hardware/allowed', methods=['GET'])
 @login_required
 def domains_hardware_allowed():
@@ -81,7 +81,8 @@ def domains_hadware():
 # Who has acces to a table item     
 @app.route('/isard-admin/alloweds/table/<table>', methods=['POST'])
 @login_required
-@ownsid
+# @ownsid
+@ownsidortag
 def alloweds_table(table):
     return json.dumps(app.isardapi.get_alloweds_select2(app.adminapi.get_admin_table(table, pluck=['allowed'], id=request.get_json(force=True)['pk'], flatten=False)['allowed']))
 
