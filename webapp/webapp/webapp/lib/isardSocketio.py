@@ -74,16 +74,37 @@ class DomainsThread(threading.Thread):
                                     )
                                 except:
                                     continue
-                                    
-                        socketio.emit(event, 
-                                        json.dumps(data), 
-                                        #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
-                                        namespace='/isard-admin/sio_users', 
-                                        room='user_'+data['user'])
-                        socketio.emit('user_quota', 
-                                        json.dumps(quotas.get(data['user'])), 
-                                        namespace='/isard-admin/sio_users', 
-                                        room='user_'+data['user'])
+
+                        # original_event=event
+                        # if event=='desktop_data' and 'tag_visible' in data.keys() and data['tag_visible']==False:
+                        #         ## Should delete to user if it's connected and only show to advanced user owner
+                        #         ## We are unable to take the viewer from user, the only way is to stop all desktops as this
+                        #         ## will generate a new viewer next time they are started.
+                        #         event='desktop_delete'
+
+                        original_event=event
+                        if 'tag_visible' in data.keys() and data['tag_visible']==False:
+                            if c['old_val'] == None or ('tag_visible' in c['old_val'] and c['old_val']['tag_visible']==True):
+                                event='desktop_delete'
+                                socketio.emit(event, 
+                                                json.dumps(data), 
+                                                #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                                namespace='/isard-admin/sio_users', 
+                                                room='user_'+data['user'])
+                                socketio.emit('user_quota', 
+                                                json.dumps(quotas.get(data['user'])), 
+                                                namespace='/isard-admin/sio_users', 
+                                                room='user_'+data['user'])
+                        else:
+                            socketio.emit(event, 
+                                            json.dumps(data), 
+                                            #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                            namespace='/isard-admin/sio_users', 
+                                            room='user_'+data['user'])
+                            socketio.emit('user_quota', 
+                                            json.dumps(quotas.get(data['user'])), 
+                                            namespace='/isard-admin/sio_users', 
+                                            room='user_'+data['user'])
                         socketio.emit('user_quota', 
                                         json.dumps(quotas.get(data['user'])), 
                                         namespace='/isard-admin/sio_admins', 
@@ -91,22 +112,33 @@ class DomainsThread(threading.Thread):
                         socketio.emit('user_quota', 
                                         json.dumps(quotas.get(False,admin=True)), 
                                         namespace='/isard-admin/sio_admins', 
-                                        room='domains')                                                                          
+                                        room='domains')
                         """ socketio.emit('user_quota', 
                                         json.dumps(quotas.get('local-default-admin-admin')), 
                                         namespace='/isard-admin/sio_admins', 
                                         room='domains') """
                         ## Admins should receive all updates on /isard-admin/admin namespace
-                        socketio.emit(event, 
+                        socketio.emit(original_event, 
                                         json.dumps(data),
                                         #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
                                         namespace='/isard-admin/sio_admins', 
                                         room=data['category']+'_domains')  
-                        socketio.emit(event, 
+                        socketio.emit(original_event, 
                                         json.dumps(data),
                                         #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
                                         namespace='/isard-admin/sio_admins', 
                                         room='domains')
+
+                        ## Tagged desktops to advanced users
+                        if data['kind']=='desktop' and 'tag' in data.keys():
+                            user = data['tag'].split('_')[1]
+                            if user != data['user']:
+                                socketio.emit(original_event, 
+                                                json.dumps(data),
+                                                #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                                namespace='/isard-admin/sio_users', 
+                                                room=user+'_tagged')
+
             except ReqlDriverError:
                 print('DomainsThread: Rethink db connection lost!')
                 log.error('DomainsThread: Rethink db connection lost!')
@@ -964,7 +996,14 @@ def socketio_users_connect():
                     json.dumps(quotas.get(current_user.id)), 
                     namespace='/isard-admin/sio_users', 
                     room='user_'+current_user.id)
-    
+
+@socketio.on('join_rooms', namespace='/isard-admin/sio_users')
+def socketio_advanceds_joinrooms(join_rooms):
+    if current_user.role=='advanced':
+        if 'tagged' in join_rooms:
+            join_room(current_user.id+'_tagged')
+            
+
 @socketio.on('disconnect', namespace='/isard-admin/sio_users')
 def socketio_domains_disconnect():
     None
@@ -1029,6 +1068,39 @@ def socketio_admin_domains_add(form_data):
                     data,
                     namespace='/isard-admin/sio_admins', 
                     room=current_user.category+'_domains')                    
+
+@socketio.on('domain_add_advanced', namespace='/isard-admin/sio_users')
+def socketio_advanced_domains_add(form_data):
+    exceeded = quotas.check('NewDesktop',current_user.id)
+    if exceeded != False:
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+create_dict['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/isard-admin/sio_users', 
+                        room=current_user.id+'_tagged')
+        return        
+
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+
+    tag='_'+current_user.id+'_'+create_dict['tag']
+    if tag in current_user.tags:
+        data=json.dumps({'result':False,'title':'New deployment exists.','text':'Deployment with name '+create_dict['tag']+' already exists. ','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/isard-admin/sio_users', 
+                        room=current_user.id+'_tagged')
+        return
+    create_dict=parseHardware(create_dict)
+    create_dict=quotas.limit_user_hardware_allowed(create_dict,current_user.id)
+    res=app.isardapi.new_domains_from_tmpl(current_user, create_dict)
+    if res == True:
+        data=json.dumps({'result':True,'title':'New desktops','text':'Desktops with name'+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'New desktops','text':'Desktop with name '+create_dict['name']+' can\'t be created. '+str(res),'icon':'warning','type':'error'})
+    socketio.emit('adds_form_result',
+                    data,
+                    namespace='/isard-admin/sio_users', 
+                    room=current_user.id+'_tagged')    
 
 @socketio.on('domain_edit', namespace='/isard-admin/sio_users')
 def socketio_domain_edit(form_data):
@@ -1283,6 +1355,7 @@ def socketio_domains_viewer(data):
             default_viewer=data['kind']
         else:
             default_viewer=False
+
     viewer_data=isardviewer.viewer_data(data['pk'],get_viewer=data['kind'],default_viewer=default_viewer,current_user=current_user)
     if viewer_data:
         socketio.emit('domain_viewer',

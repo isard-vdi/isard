@@ -9,14 +9,14 @@ import sys, json
 import os
 from webapp import app
 import rethinkdb as r
-from ..lib.log import * 
+from ..lib.log import *
 
 from .flask_rethink import RethinkDB
 db = RethinkDB(app)
 db.init_app(app)
 
 from .admin_api import flatten
-from netaddr import IPNetwork, IPAddress 
+from netaddr import IPNetwork, IPAddress
 import urllib
 
 from ..lib.viewer_exc import *
@@ -36,14 +36,17 @@ class isardViewer():
 
     def viewer_data(self,id,get_viewer='spice-client',current_user=False,default_viewer=False,get_cookie=True):
         try:
-            domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options','user').run(db.conn)
-        except DomainNotFound:
+            domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options','user','tag').run(db.conn)
+        except DomainNotfound:
             raise
         if not domain["status"] in ["Started", "Shutting-down", "Stopping"]:
             raise DomainNotStarted
-             
         if current_user != False:
-            if domain['user'] != current_user.id: return False 
+            # if not owner and not his tag
+            if domain['user'] != current_user.id:
+                if not (current_user.role == 'advanced' and 'tag' in domain.keys() and domain['tag'] in current_user.tags and current_user.id == domain['tag'].split('_')[1]):
+                    return False
+
         if  'preferred' not in domain['options']['viewers'].keys() or not domain['options']['viewers']['preferred'] == default_viewer:
             r.table('domains').get(id).update({'options':{'viewers':{'preferred':default_viewer}}}).run(db.conn)
 
@@ -53,7 +56,7 @@ class isardViewer():
 
         if get_viewer == 'spice-html5':
             port=domain['viewer']['base_port']
-            if get_cookie:       
+            if get_cookie:
                 cookie = base64.b64encode(json.dumps({
                     'web_viewer': {
                         'vmName': domain['name'],
@@ -63,12 +66,12 @@ class isardViewer():
                         'port': '443',
                         'token': domain['viewer']['passwd']
                     }
-                }).encode('utf-8')).decode('utf-8')  
+                }).encode('utf-8')).decode('utf-8')
                 uri = 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
             else:
-                return 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&passwd='+domain['viewer']['passwd']
-            
+                return 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+str(port)+'&passwd='+domain['viewer']['passwd']
+
         if get_viewer == 'vnc-html5':
             vmPort=str(domain['viewer']['base_port']+self.vnc)
             port=str(domain['viewer']['html5_ext_port']) if 'html5_ext_port' in domain['viewer'].keys() else '443'
@@ -82,7 +85,7 @@ class isardViewer():
                         'port': port,
                         'token': domain['viewer']['passwd']
                     }
-                }).encode('utf-8')).decode('utf-8')  
+                }).encode('utf-8')).decode('utf-8')
                 uri = 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
             else:
@@ -93,17 +96,16 @@ class isardViewer():
             vmPort=domain['viewer']['spice_ext_port'] if 'spice_ext_port' in domain['viewer'].keys() else '80'
             consola=self.get_spice_file(domain,vmPort,port)
             if get_cookie:
-                return {'kind':'file','ext':consola[0],'mime':consola[1],'content':consola[2]} 
+                return {'kind':'file','ext':consola[0],'mime':consola[1],'content':consola[2]}
             else:
                 return consola[2]
-                
+
         if get_viewer == 'vnc-client':
             return False
         if get_viewer == 'vnc-client-macos':
             return False
-        
         return False
-        
+
     def get_rdp_file(self,ip):
         return """full address:s:%s
 """ % (ip)
@@ -113,7 +115,7 @@ class isardViewer():
             op_fscr = 1 if domain['options'] != False and domain['options']['fullscreen'] else 0
         except:
             op_fscr = 0
-                          
+
         c = '%'
         consola = """[virt-viewer]
         type=%s
@@ -148,9 +150,8 @@ class isardViewer():
             '' if domain['viewer']['tls']['host-subject'] != False else ';', domain['viewer']['tls']['host-subject'], '' if domain['viewer']['tls']['certificate'] != False else ';', domain['viewer']['tls']['certificate'])
 
         consola = consola.replace("'", "")
-        return 'vv','application/x-virt-viewer',consola                
-        
-        
+        return 'vv','application/x-virt-viewer',consola
+
 ##### VNC NOT DONE
 
     def get_domain_vnc_data(self, domain, hostnames, viewer, port):
@@ -171,10 +172,10 @@ class isardViewer():
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            log.error(exc_type, fname, exc_tb.tb_lineno)            
+            log.error(exc_type, fname, exc_tb.tb_lineno)
             log.error('Viewer for domain '+domain['name']+' exception:'+str(e))
             return False
-    
+
     # ~ def get_domain_vnc_data(self, domain, hostnames, viewer, port, tlsport, selfsigned, remote_addr=False):
         # ~ try:
             # ~ ''' VNC does not have ssl. Only in websockets is available '''
@@ -199,16 +200,15 @@ class isardViewer():
                         # ~ 'host-subject':viewer['host-subject'],
                         # ~ 'passwd': domain['viewer']['passwd'],
                         # ~ 'uri': 'http://<domain>/wsviewer/novnclite/?host='+hostname+'&port='+str(int(port))+'&password='+domain['viewer']['passwd'],
-                        # ~ 'options': domain['options']['viewers']['vnc'] if 'vnc' in domain['options']['viewers'].keys() else False}                
+                        # ~ 'options': domain['options']['viewers']['vnc'] if 'vnc' in domain['options']['viewers'].keys() else False}
             # ~ log.error('No available VNC Viewer for domain '+domain['name']+' exception:'+str(e))
             # ~ return False
         # ~ except Exception as e:
             # ~ exc_type, exc_obj, exc_tb = sys.exc_info()
             # ~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            # ~ log.error(exc_type, fname, exc_tb.tb_lineno)            
+            # ~ log.error(exc_type, fname, exc_tb.tb_lineno)
             # ~ log.error('Viewer for domain '+domain['name']+' exception:'+str(e))
             # ~ return False
-                
 
     ##### VNC FILE VIEWER
     def get_vnc_file(self, dict, id, clientos, remote_addr=False):
@@ -243,7 +243,7 @@ class isardViewer():
             """ % (hostname, dict['port'], dict['passwd'])
             consola = consola.replace("'", "")
             return 'vnc','text/plain',consola
-            
+
         if clientos in ['MacOS']:
             vnc="vnc://"+hostname+":"+dict['passwd']+"@"+hostname+":"+dict['port']
             consola="""<?xml version="1.0" encoding="UTF-8"?>
@@ -323,6 +323,4 @@ class isardViewer():
             </plist>""" % (vnc,vnc)
             consola = consola.replace("'", "")
             return 'vncloc','text/plain',consola
-        
 
- 

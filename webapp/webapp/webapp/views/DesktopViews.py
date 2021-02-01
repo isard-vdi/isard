@@ -7,7 +7,7 @@
 # coding=utf-8
 from flask import render_template, Response, request, redirect, url_for
 from flask_login import login_required, current_user
-from .decorators import ownsid
+from .decorators import ownsid, isAdvanced
 from webapp import app
 from ..lib.log import *
 
@@ -122,4 +122,22 @@ def jumperurl_reset(id):
 @ownsid
 def jumperurl_disable(id):
     data = app.adminapi.jumperurl_reset(id,disabled=True)
+    return json.dumps(data), 200, {'ContentType': 'application/json'}
+
+
+## Advanced users tags
+
+@app.route('/isard-admin/desktops/tags')
+@login_required
+@isAdvanced
+def groupdesktops(nav='Domains'):
+    #app.isardapi.filter_user_tags(current_user)
+    return render_template('pages/deployment_desktops.html', title="Desktops", nav="Domains", icon='desktop', tags=['prova1','prova2'])
+
+### Not used??
+@app.route('/isard-admin/desktops/tagged',methods=['GET'])
+@login_required
+@isAdvanced
+def advanced_tagged_domains():
+    data = app.isardapi.get_user_tagged_domains(current_user)
     return json.dumps(data), 200, {'ContentType': 'application/json'}

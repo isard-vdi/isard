@@ -54,6 +54,7 @@ class User(UserMixin):
         self.auto = dict['auto'] if 'auto' in dict.keys() else False
         self.is_admin=True if self.role=='admin' else False
         self.active = dict['active']
+        self.tags = [] if 'tags' not in dict.keys() else dict['tags']
 
     def is_active(self):
         return self.active
@@ -111,6 +112,11 @@ def user_loader(username):
         ram_users[username]=user
     return User(ram_users[username])
 
+def user_reloader(username):
+    user=app.localuser.getUser(username)
+    if user is None: return
+    ram_users[username]=user
+    return User(ram_users[username])
 '''
 LOCAL AUTHENTICATION AGAINS RETHINKDB USERS TABLE
 '''

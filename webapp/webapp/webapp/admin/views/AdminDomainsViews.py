@@ -20,11 +20,8 @@ from ...lib import trees
 template_tree = trees.TemplateTree()
 
 
-from .decorators import isAdmin, isAdminManager
+from .decorators import isAdmin, isAdminManager, isAdvanced, isAdminManagerAdvanced
 
-'''
-DOMAINS (NOT USED)
-'''
 @app.route('/isard-admin/admin/domains/render/<nav>')
 @login_required
 @isAdminManager
@@ -47,7 +44,17 @@ def admin_mdomains():
     desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
     res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
     return json.dumps({'test':1}), 200, {'ContentType': 'application/json'}
-    
+
+@app.route('/isard-admin/advanced/mdomains', methods=['POST'])
+@login_required
+@isAdminManagerAdvanced
+def admin_advanced_mdomains():
+    dict=request.get_json(force=True)
+    desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
+    ## Filter desktops if their tag is in the advanced user tags executing the action
+    res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
+    return json.dumps({'test':1}), 200, {'ContentType': 'application/json'}
+
 @app.route('/isard-admin/admin/domains/get/<kind>')
 @app.route('/isard-admin/admin/domains/get')
 @login_required

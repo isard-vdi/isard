@@ -1,0 +1,153 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+    <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
+    <!-- Ion.RangeSlider -->
+    <link href="/isard-admin/vendors/normalize-css/normalize.css" rel="stylesheet">
+    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
+        <!-- Switchery -->
+    <link href="/isard-admin/vendors/switchery/dist/switchery.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+
+<style>
+ tr.even:hover {
+     background-color: #e0e0d1;
+ } 
+
+  tr.odd:hover {
+     background-color: #ebebe0;
+ }   
+</style>
+
+<div class="right_col" role="main">
+    <div class="page-title">
+       <div class="title_left">
+          <h3><i class="fa fa-{{icon}}"></i> Deployments <small>Desktops created to other users</small></h3>
+       </div>
+       <div class="title_right">
+          <div class="col-md-5 col-sm-5 col-xs-12 form-group pull-right top_search">
+
+             </div>
+          </div>
+       </div>
+    <div class="clearfix"></div>
+    <div class="row">
+       <div class="col-md-12 col-sm-12 col-xs-12">
+          <div class="x_panel">
+             <div class="x_title">
+                <h2>List of desktops deployed<small></small></h2>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><div class="item form-group pull-right">
+                            <div id="global_actions" style="display:block">
+                               <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">Global actions: </label>
+                               <div class="col-md-5 col-sm-5 col-xs-12">
+                                 <select class="form-control" id="mactions" name="mactions" >
+                                    <option value="none">Select action</option>
+                                    <option value="soft_toggle">Soft toggle started/shutting-down state</option>
+                                    <option value="toggle">Toggle started/stopped state</option>
+                                    <!-- <option value="stop_noviewer">Stop no viewers</option> -->
+                                    <option value="shutting_down">Soft shut down</option>
+                                    <option value="stopping">Shut down</option>
+                                    <option value="force_stopped">Force Stopped state</option>
+                                    <option value="force_failed">Force Failed state</option>
+                                    <option value="delete">Delete</option>
+                                    <option value="starting_paused">Start paused (check status)</option>
+                                    <option value="toggle_visible">Toggle visible to user</option>
+                                 </select>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <li><a class="btn-add-desktop"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Create deployment</span></a>
+                    </li>                    
+                </ul>
+             <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+                <p class="text-muted font-13 m-b-30">
+                </p>
+                <div id="tableDiv"></div>
+                <table id="domains" class="table">
+                   <thead>
+                      <tr>
+                          <th></th>
+                         <th>Icon</th>
+                         <th>Deployment</th>
+                         <th>Visible</th>
+                         <th>Name</th>
+                         <th>Action</th>
+                         <th>Status</th>
+                         <th>Kind</th>
+                         <th>User</th>
+                         <th>Category</th>
+                         <th>Group</th>
+                         <th>last access</th>
+                      </tr>
+                   </thead>
+                   <tfoot>
+                      <tr>
+                          <th></th>
+                         <th>Icon</th>
+                         <th>Deployment</th>
+                         <th>Visible</th>
+                         <th>Name</th>
+                         <th>Action</th>
+                         <th>Status</th>
+                         <th>Kind</th>
+                         <th>User</th>
+                         <th>Category</th>
+                         <th>Group</th>
+                         <th>last access</th>
+                      </tr>
+                   </tfoot>
+                   <tbody>
+                   </tbody>
+                </table>
+             </div>
+          </div>
+       </div>
+    </div>
+
+    <div class="clearfix"></div>
+    {% include '/admin/pages/domains_modals.html' %}
+    {% include '/pages/desktops_modals.html' %}
+    {% include '/pages/desktops_detail.html' %}
+    {% include 'admin/pages/templates_detail.html' %}
+    {% include '/pages/desktops_viewers.html' %}
+    {% include '/snippets/alloweds_form.html' %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block pagescript %}
+   <!-- Fancytree -->
+   <script src="/isard-admin/static/vendor/fancytree/src/jquery-ui-dependencies/jquery-ui.min.js"></script>
+
+   <script src="/isard-admin/static/vendor/fancytree/dist/jquery.fancytree.min.js"></script>
+   <script src="/isard-admin/static/vendor/fancytree/src/jquery.fancytree.table.js"></script>
+   <!-- Ion.RangeSlider -->
+    <script src="/isard-admin/vendors/ion.rangeSlider/js/ion.rangeSlider.min.js"></script>
+    <!-- iCheck -->
+    <script src="/isard-admin/vendors/iCheck/icheck.min.js"></script> 
+    <!-- Switchery -->
+    <script src="/isard-admin/vendors/switchery/dist/switchery.min.js"></script>
+    <!-- Isard restful ajax calls -->
+    <script src="/isard-admin/static/js/restful.js"></script>
+    <!-- Spice viewer -->
+    <script src="/isard-admin/static/js/viewer.js"></script> 
+    <!-- Domains sse & hardware subtables -->
+    
+    <script src="/isard-admin/static/admin/js/domains_installs.js"></script>
+    <script src="/isard-admin/static/js/snippets/desktop_add.js"></script> 
+    <!--   
+    <script src="/isard-admin/static/admin/js/domains.js"></script>
+    -->
+    <script src="/isard-admin/static/js/deployment_desktops.js"></script>
+<!--
+    <script src="/isard-admin/static/admin/js/domains_subtables.js"></script>
+-->
+{% endblock %}
