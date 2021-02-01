@@ -10,4 +10,4 @@ def activate_shares():
             print("Error activating shares.\n"+str(e))
 
 activate_shares()
-
+print('Webapp docker service needs to be restarted to apply changes: docker restart isard-webapp')

@@ -67,7 +67,7 @@ class Populate(object):
                 'boots','hypervisors_events','hypervisors_status','hypervisors_status_history',
                 'disk_operations','hosts_viewers','places',
                 'scheduler_jobs','backups','config','engine',
-                'qos_net','qos_disk','remotevpn',
+                'qos_net','qos_disk','remotevpn','deployments',
                    ]
         tables_to_create=list(set(newtables) - set(dbtables))
         d = {k:v for v,k in enumerate(newtables)}
@@ -288,6 +288,34 @@ class Populate(object):
             log.info("Table remotevpn not found, creating...")
             r.table_create('remotevpn', primary_key="id").run()
         return True
+
+    '''
+    DEPLOYMENTS
+    '''
+
+    def deployments(self):
+        if not r.table_list().contains('deployments').run():
+            log.info("Table deployments not found, creating...")
+            r.table_create('deployments', primary_key="id").run()
+            self.index_create('deployments',['user'])
+        return True
+
+# {'allowed': {'groups': [], 'users': False},
+#  'description': '',
+#  'forced_hyp': ['false'],
+#  'hardware': {'boot_order': ['disk'],
+#               'diskbus': 'virtio',
+#               'graphics': ['default'],
+#               'interfaces': ['default'],
+#               'memory': 524288,
+#               'qos_id': 'unlimited',
+#               'vcpus': 1,
+#               'videos': ['default']},
+#  'hypervisors_pools': ['default'],
+#  'name': 'asdfasdf',
+#  'tag': 'asdfasdf',
+#  'tag_visible': False,
+
 
     '''
     QOS_NETWORK

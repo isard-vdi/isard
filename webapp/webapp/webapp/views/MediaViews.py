@@ -12,6 +12,8 @@ from flask_login import login_required, current_user
 
 from webapp import app
 
+from .decorators import ownsid, ownsidortag
+
 from ..lib.log import *
 
 @app.route('/isard-admin/media', methods=['GET'])

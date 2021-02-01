@@ -209,8 +209,8 @@ $(document).ready(function() {
                                 keyboard: false
                             }).modal('show');  
                         });
-        }        
-    });                
+        }
+    });
 
 
 

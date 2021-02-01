@@ -97,6 +97,7 @@ $(document).ready(function() {
             $('#roles_pannel').hide();
         }
 
+        $("#modalAddDesktop #send-block").unbind('click');
         $("#modalAddDesktop #send-block").on('click', function(e){
             var form = $('#modalAdd');
 
@@ -230,7 +231,7 @@ $(document).ready(function() {
             }
         } );
     } );
-    
+
     domains_table.on( 'click', 'tr', function () {
         $(this).toggleClass('active');
         if ($(this).hasClass('active')) {
@@ -288,8 +289,6 @@ $(document).ready(function() {
 						}).on('pnotify.cancel', function() {
                             $('#mactions option[value="none"]').prop("selected",true);
 				});
-        
-        
     } );
 
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
@@ -317,7 +316,7 @@ $(document).ready(function() {
 							icon: 'fa fa-alert-sign',
 							opacity: 1,
 							type: 'error'
-						});                 
+						});
              }else{
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
@@ -334,9 +333,9 @@ $(document).ready(function() {
                         //~ setDomainDerivates(row.data().id);
                     }
                 //}
-            }            
+            }
         }
-    } );	
+    } );
 
 
 	// DataTable buttons
@@ -396,14 +395,13 @@ $(document).ready(function() {
                                 keyboard: false
                             }).modal('show');
 						}).on('pnotify.cancel', function() {
-				});	            
-                
+				});
                 break;
             case 'btn-alloweds':
                 modalAllowedsFormShow('domains',data)
-                break;                 
+                break;
         }
-    });	
+    });
 
 
     // SocketIO
@@ -457,7 +455,7 @@ $(document).ready(function() {
         var data = JSON.parse(data);
         if(data.result){
             $('.modal').modal('hide');
-        }        
+        }
         new PNotify({
                 title: data.title,
                 text: data.text,
@@ -584,7 +582,7 @@ function actionsDomainDetail(){
                 }				
             });
 	});
-	
+
 	$('.btn-messages').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
@@ -661,7 +659,6 @@ function actionsDomainDetail(){
                             }).on('pnotify.cancel', function() {
                     });	
         });
-        
     }else{
         $('.btn-delete').remove()
         $('.btn-template').remove()
@@ -674,11 +671,7 @@ function actionsDomainDetail(){
             }).modal('show');
             populate_tree_template_delete(pk);
         });
-        
     }
-
-
-    
 
     $('.btn-jumperurl').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -708,14 +701,14 @@ function actionsDomainDetail(){
             }
         }); 
     });
-    
+
     $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#jumperurl').val()==''){
             pk=$('#modalJumperurlForm #id').val();
             
             api.ajax('/isard-admin/admin/domains/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
                 $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
-            });         
+            });
             $('#jumperurl').show();
             $('.btn-copy-jumperurl').show();
         }
@@ -751,13 +744,11 @@ function actionsDomainDetail(){
                 $('.btn-copy-jumperurl').show();
             });
         }); 
-            
 
     $('.btn-copy-jumperurl').on('click', function () {
         $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
         document.execCommand("copy");
     });
-
 
     $('.btn-forcedhyp').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -823,7 +814,7 @@ function HypervisorsDropdown(selected) {
                 $('#modalForcedhypForm #forced_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
             }
         });
-    });                      
+    });
 }
 
 function setDefaultsTemplate(id) {
@@ -836,7 +827,7 @@ function setDefaultsTemplate(id) {
 			$('.template-id').attr('data-pk', id);
             $('.template-name').val('Template '+data.name);
             $('.template-description').val(data.description);
-		}				
+		}
 	});
 }
 
@@ -863,7 +854,7 @@ function setDomainDetailButtonsStatus(id,status){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
     }
 }
-	
+
 function icon(data){
        viewer=""
        viewerIP="'No client viewer'"
@@ -874,7 +865,7 @@ function icon(data){
             return "<span class='fl-"+data.icon+" fa-2x' "+viewer+" title="+viewerIP+"></span>";
 		}       
 }
-    
+
 function renderDisplay(data){
         if(['Started', 'Shutting-down', 'Stopping'].includes(data.status)){
             return '<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
@@ -933,7 +924,7 @@ function renderAction(data){
             return '<i class="fa fa-times fa-2x"></i>';
     }
     return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
-}	
+}
 
 function populate_tree_template_delete(id){
     $("#modalDeleteTemplate .tree_template_delete").fancytree({
@@ -951,7 +942,6 @@ function populate_tree_template_delete(id){
                 dataType: "json"
             });
             },
-            
         checkbox: true,
         selectMode: 3,
         renderColumns: function(event, data) {
@@ -976,13 +966,10 @@ function populate_tree_template_delete(id){
                 $tdList.eq(5).text(node.data.category);
                 $tdList.eq(6).text(node.data.group);
             }
-
             // Rendered by row template:
     //        $tdList.eq(4).html("<input type='checkbox' name='like' value='" + node.key + "'>");
           }
-    
     });
-  
 }
 
 
@@ -1015,9 +1002,7 @@ function delete_templates(id){
 			 //~ "order": [[0, 'asc']],	
              "pageLength": 10,	
              "destroy" : true 
-	} );  
-    
-  
+	} );
 }
 
 // MODAL EDIT DESKTOP
@@ -1034,8 +1019,8 @@ function modal_edit_desktop_datatables(id){
             setHardwareDomainDefaults('#modalEditDesktop', id);
             if(data['options-viewers-spice-fullscreen']){
                 $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
-            }            
-		}				
+            }
+		}
 	});
 }
     $("#modalEditDesktop #send").on('click', function(e){

@@ -35,6 +35,8 @@ import secrets
 
 from collections import defaultdict, Mapping
 
+import csv,io
+
 from .ds import DS
 ds = DS()
 
@@ -94,6 +96,35 @@ class isardAdmin():
                 res_stopped=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn)
                 res_started=r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn)
                 return True
+            if action == 'toggle_visible':
+                domains_shown=self.multiple_check_field(table,'tag_visible',True,ids)
+                domains_hidden=self.multiple_check_field(table,'tag_visible',False,ids)
+                res_shown=r.table(table).get_all(r.args(domains_hidden)).update({'tag_visible':True,'jumperurl':self.jumperurl_gencode()}).run(db.conn)
+                res_hidden=r.table(table).get_all(r.args(domains_shown)).filter({'status':'Started'}).update({'status':'Stopping'}).run(db.conn)
+                res_hidden=r.table(table).get_all(r.args(domains_shown)).update({'tag_visible':False,'viewer':False,'jumperurl':False}).run(db.conn)
+                return True
+            if action == 'download_jumperurls':
+                data=list(r.table(table).get_all(r.args(ids)).pluck('id','user','jumperurl').has_fields('jumperurl').run(db.conn))
+                data=[d for d in data if d['jumperurl']]
+                if not len(data): return 'username,name,email,url'
+
+                users=list(r.table('users').get_all(r.args([u['user'] for u in data])).pluck('id','username','name','email').run(db.conn))
+                result=[]
+                for d in data:
+                    u=[u for u in users if u['id']==d['user']][0]
+                    result.append({'username':u['username'],
+                                    'name':u['name'],
+                                    'email':u['email'],
+                                    'url':'https://'+os.environ['WEBAPP_LETSENCRYPT_DNS']+'/vw/'+d['jumperurl']})
+
+                fieldnames=['username','name','email','url']
+                with io.StringIO() as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for row in result:
+                        writer.writerow(row)
+                    return csvfile.getvalue()
+                return data
             if action == 'delete':
                 domains_deleting=self.multiple_check_field(table,'status','Deleting',ids)
                 res=r.table(table).get_all(r.args(domains_deleting)).delete().run(db.conn) 
@@ -133,10 +164,52 @@ class isardAdmin():
                 domains=domains_stopped+domains_failed
                 res=r.table(table).get_all(r.args(domains)).update({'status':'StartingPaused'}).run(db.conn)
                 return True
+        return False
 
     def multiple_check_field(self, table, field, value, ids):
         with app.app_context():
             return [d['id'] for d in list(r.table(table).get_all(r.args(ids)).filter({field:value}).pluck('id').run(db.conn))]
+
+    def user_owns_tag_ids(self,userid,ids):
+        with app.app_context():
+            user_tags=r.table('users').get(userid).pluck('tags').run(db.conn)['tags']
+            tags= list(set([d['tag'] for d in r.table('domains').get_all(r.args(ids)).pluck('tag').run(db.conn)]))
+        for tag in tags:
+            if tag not in user_tags: return False
+        return tags
+
+    def delete_tag_if_last_domain(self,tag):
+        with app.app_context():
+            if r.table('domains').get_all(tag, index='tag').count().run(db.conn) == 0:
+                try:
+                    tags=r.table('users').get(tag.split('_')[1]).run(db.conn)['tags']
+                    tags.remove(tag)
+                    r.table('users').get(tag.split('_')[1]).update({'tags':tags}).run(db.conn)
+                except:
+                    pass
+                # r.table('users').get(tag.split('_')[1])['tags'].update(lambda doc:
+                #     {'tags': doc['tags'].difference([tag]) }
+                # ).run(db.conn)
+
+    def get_user_deployment_create_dict(self,userid,deploymentid):
+        with app.app_context():
+            return list(r.table('deployments').get_all(userid, index='user').filter({'id':deploymentid}).pluck('create_dict').run(db.conn))[0]['create_dict']
+
+    def get_user_deployments(self,userid):
+        with app.app_context():
+            return list(r.table('deployments').get_all(userid, index='user').pluck('id','name').run(db.conn))
+
+    def delete_deployment(self,userid,deploymentid):
+        with app.app_context():
+            deployments=[d['id'] for d in list(r.table('deployments').get_all(userid, index='user').pluck('id').run(db.conn))]
+        if deploymentid not in deployments:
+            return False
+        with app.app_context():
+            ids=[d['id'] for d in list(r.table('domains').get_all(deploymentid,index='tag').pluck('id').run(db.conn))]
+        self.multiple_action('domains','delete',ids)
+        with app.app_context():
+            r.table('deployments').get(deploymentid).delete().run(db.conn)
+        return True
 
     def get_group(self,id):
         with app.app_context():
@@ -413,7 +486,7 @@ class isardAdmin():
             for u in users:
                 u.update({"kind":"user","user":u['id']})
 
-            group_desktops = list(r.table("domains").get_all(group_id, index='group').filter({'kind': 'desktop'}).pluck('id','name','kind','user','status','parents').run(db.conn))
+            deployment_desktops = list(r.table("domains").get_all(group_id, index='group').filter({'kind': 'desktop'}).pluck('id','name','kind','user','status','parents').run(db.conn))
             group_templates = list(r.table("domains").get_all(r.args(['base','public_template','user_template']),index='kind').filter({'group':group_id}).pluck('id','name','kind','user','status','parents').run(db.conn))
             derivated = []
             for gt in group_templates:
@@ -421,7 +494,7 @@ class isardAdmin():
                 derivated = derivated + list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn))
                 #templates = [t for t in derivated if t['kind'] != "desktop"]
                 #desktops = [d for d in derivated if d['kind'] == "desktop"]
-        domains = groups+users+group_desktops+group_templates+derivated
+        domains = groups+users+deployment_desktops+group_templates+derivated
         return [i for n, i in enumerate(domains) if i not in domains[n + 1:]] 
     
     def group_delete(self,group_id):
@@ -1307,16 +1380,19 @@ class isardAdmin():
                 r.table('domains').get(id).update({'jumperurl':False}).run(db.conn)
             return True
         
+        code = self.jumperurl_gencode()
+        with app.app_context():
+            r.table('domains').get(id).update({'jumperurl':code}).run(db.conn)
+        return code
+
+    def jumperurl_gencode(self,length=128):
         code = False
         while code == False:
             code = secrets.token_urlsafe(length) 
             found=list(r.table('domains').filter({'jumperurl':code}).run(db.conn))
-            if len(found) == 0:            
-                with app.app_context():
-                    r.table('domains').get(id).update({'jumperurl':code}).run(db.conn)                
+            if len(found) == 0:
                 return code
         return False
-
     '''
     ENROLLMENT
     '''
