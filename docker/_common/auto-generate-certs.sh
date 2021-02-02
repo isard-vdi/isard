@@ -27,14 +27,6 @@ RND=$(( ( RANDOM % 1000 ) + 1 ))
 openssl x509 -req -days 9999 -in server-key.csr -CA ca-cert.pem -CAkey ca-key.pem \
           -set_serial $RND -sha256 -out server-cert.pem
 
-mkdir -p /certs/$HOSTNAME
-cd /certs/$HOSTNAME
-mv /certs/* /certs/$HOSTNAME
-chmod 440 *
-
 echo '#### Concatenate certs for haprox'
-cat server-cert.pem server-key.pem > /certs/chain.pem
-cp /certs/chain.pem /certs/video.pem
-
-
-cd /
+cat server-cert.pem server-key.pem > chain.pem
+chmod 440 *
