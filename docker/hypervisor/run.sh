@@ -1,4 +1,4 @@
-rm /run/libvirt/qemu/_*
+rm /run/libvirt/*
 echo "Generating selfsigned certs for spice client..."
 sh auto-generate-certs.sh
 echo "Starting libvirt daemon..."
