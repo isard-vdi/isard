@@ -18,18 +18,18 @@ services:
       - redis
     environment:
       - HYPER_REDIS_HOST=redis
-  desktopbuilder:
-    build:
-      context: .
-      dockerfile: desktopbuilder/build/package/Dockerfile
-    image: "isard/isardvdi-desktopbuilder:${VERSION-latest}"
-    restart: always
-    depends_on:
-      - postgres
-    environment:
-      - DESKTOPBUILDER_DB_HOST=postgres
-      - DESKTOPBUILDER_DB_USR=isard
-      - DESKTOPBUILDER_DB_PWD=isard
+  # desktopbuilder:
+  #   build:
+  #     context: .
+  #     dockerfile: desktopbuilder/build/package/Dockerfile
+  #   image: "isard/isardvdi-desktopbuilder:${VERSION-latest}"
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+  #   environment:
+  #     - DESKTOPBUILDER_DB_HOST=postgres
+  #     - DESKTOPBUILDER_DB_USR=isard
+  #     - DESKTOPBUILDER_DB_PWD=isard
   orchestrator:
     build:
       context: .
@@ -48,7 +48,7 @@ services:
     restart: always
     depends_on:
       - hyper
-      - desktopbuilder
+      # - desktopbuilder
       - orchestrator
   backend:
     build:
@@ -75,10 +75,6 @@ services:
     restart: always
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://isard:isard@postgres:5432/isard
-      ## enable the console served by server
-      HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
-      ## enable debugging mode. It is recommended to disable this in production
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
       HASURA_GRAPHQL_DEV_MODE: "true"
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
-      ## uncomment next line to set an admin secret
-      # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
