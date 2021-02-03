@@ -11,6 +11,7 @@
         <div class="clearfix"></div>
       </div>
       <div id="alloweds_panel" class="x_content" style="display: none;">
+                    {% if current_user.role == 'admin' %}
                         <div class="row" id="roles_pannel">
                             <div class="col-md-3 col-xs-12">
                               <label class="control-label" for="a-roles-cb">
@@ -48,6 +49,7 @@
                                 </select>
                             </div>
                         </div>
+                        {% endif %}
 
                         <div class="row">
                             <div class="col-md-3 col-xs-12">

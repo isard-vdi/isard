@@ -510,52 +510,57 @@ class isard():
     def get_all_alloweds_domains(self, user):
         with app.app_context():
             ud=r.table('users').get(user).run(db.conn)
-            data1 = r.table('domains').get_all('base', index='kind').order_by('name').pluck({'id','name','allowed','kind','group','icon','user','category''description','status'}).run(db.conn)
-            data2 = r.table('domains').filter(r.row['kind'].match("template")).order_by('name').pluck({'id','name','allowed','kind','group','icon','category','user','description','status'}).run(db.conn)
-            data = data1+data2
-            alloweds=[]
-            for d in data:
-                d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
-                if ud['role']=='admin': 
+            data = list(r.db('isard').table("domains").filter(r.row['kind'].match("template"))
+                    .eq_join("user", r.db('isard').table("users"))
+                    .without({"right": {"id": True}})
+                    .pluck({"right" : "role"}, "left")
+                    .zip()
+                    .pluck('id','name','allowed','kind','group','role','icon','category','user','description','status')
+                    .order_by('name')
+                    .run(db.conn))
+        alloweds=[]
+        for d in data:
+            d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
+            if ud['role']=='admin': 
+                alloweds.append(d)
+                continue
+            if d['user']==ud['id']:
+                alloweds.append(d)
+                continue
+            if d['allowed']['roles'] != False:
+                if len(d['allowed']['roles'])==0:
                     alloweds.append(d)
                     continue
-                if d['user']==ud['id']:
+                else:
+                    if ud['role'] in d['allowed']['roles']:
+                        alloweds.append(d)
+                        continue
+            if d['allowed']['categories'] != False:
+                if len(d['allowed']['categories'])==0:
                     alloweds.append(d)
                     continue
-                if d['allowed']['roles'] != False:
-                    if len(d['allowed']['roles'])==0:
+                else:
+                    if ud['category'] in d['allowed']['categories']:
                         alloweds.append(d)
                         continue
-                    else:
-                        if ud['role'] in d['allowed']['roles']:
-                            alloweds.append(d)
-                            continue
-                if d['allowed']['categories'] != False:
-                    if len(d['allowed']['categories'])==0:
+            if d['allowed']['groups'] != False:
+                if len(d['allowed']['groups'])==0:
+                    alloweds.append(d)
+                    continue
+                else:
+                    if ud['group'] in d['allowed']['groups']:
                         alloweds.append(d)
                         continue
-                    else:
-                        if ud['category'] in d['allowed']['categories']:
-                            alloweds.append(d)
-                            continue
-                if d['allowed']['groups'] != False:
-                    if len(d['allowed']['groups'])==0:
+            if d['allowed']['users'] != False:
+                if len(d['allowed']['users'])==0:
+                    alloweds.append(d)
+                    continue
+                else:
+                    if ud['id'] in d['allowed']['users']:
                         alloweds.append(d)
-                        continue
-                    else:
-                        if ud['group'] in d['allowed']['groups']:
-                            alloweds.append(d)
-                            continue
-                if d['allowed']['users'] != False:
-                    if len(d['allowed']['users'])==0:
-                        alloweds.append(d)
-                        continue
-                    else:
-                        if ud['id'] in d['allowed']['users']:
-                            alloweds.append(d)
-                            continue   
-            return alloweds
-
+                        continue   
+        return alloweds
+        
     def get_all_alloweds_table(self, table, user, pluck='default'):
         if pluck == 'default':
             pluck=['id','name','allowed','kind','icon','description']
@@ -799,7 +804,10 @@ class isard():
                                             'parent':parent_disk}]
 
         hardware=self.parse_media_info(form_data['create_dict'])['hardware']
-        
+
+        if 'roles' not in form_data['allowed'].keys(): form_data['allowed']['roles'] = False
+        if 'categories' not in form_data['allowed'].keys(): form_data['allowed']['categories'] = False
+
         template_dict={'id': template_id,
                   'name': form_data['name'],
                   'description': form_data['description'],

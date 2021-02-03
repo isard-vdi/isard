@@ -78,24 +78,6 @@ def domains_update():
 def domain_alloweds_select2():
     allowed=request.get_json(force=True)['allowed']
     return json.dumps(app.isardapi.get_alloweds_select2(allowed))
-       
-
-# We should remove this
-# Not used?
-@app.route('/isard-admin/desktops/filterTemplate/<kind>', methods=['GET'])
-@app.route('/isard-admin/desktops/filterTemplate/<kind>/category/<category>', methods=['GET'])
-@app.route('/isard-admin/desktops/filterTemplate/<kind>/group/<group>', methods=['GET'])
-@app.route('/isard-admin/desktops/filterTemplate/<kind>/user/<user>', methods=['GET'])
-@login_required
-def filterTemplate(kind,category=False,group=False,user=False):
-    custom_filter={}
-    if category:
-        custom_filter['category']=category
-    if group:
-        custom_filter['group']=group
-    if user:
-        custom_filter['user']=user
-    return Response(json.dumps(app.isardapi.get_alloweds_domains(current_user.id,kind, custom_filter)), mimetype='application/json')
 
 # Get all templates allowed for current_user
 @app.route('/isard-admin/desktops/getAllTemplates', methods=['GET'])
@@ -104,7 +86,7 @@ def getAllTemplates():
     templates = app.isardapi.get_all_alloweds_domains(current_user.id)
     templates = [t for t in templates if t['status']=='Stopped']
     if current_user.role != "admin":
-        templates = [t for t in templates if t['category'] == current_user.category or app.shares_templates == True]
+        templates = [t for t in templates if t['category'] == current_user.category or t['role'] == 'admin' or app.shares_templates == True]
     return Response(json.dumps(templates), mimetype='application/json')
 
 # Gets users, categories and groups

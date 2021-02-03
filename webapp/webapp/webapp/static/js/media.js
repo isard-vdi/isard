@@ -230,18 +230,9 @@ $(document).ready(function() {
                 }
             break;
         };
-
-
-        //~ $('btn-abort').on('click', function () {
-
-        //~ });
         
-        //~ $('btn-delete').on('click', function () {
+    });
 
-        //~ });
-    
-    });    
-    
     $("#modalAddMedia #send").on('click', function(e){
             var form = $('#modalAddMediaForm');
 
@@ -252,12 +243,7 @@ $(document).ready(function() {
                 data=replaceAlloweds_arrays('#modalAddMediaForm #alloweds-add',data)
                 socket.emit('media_add',data)
             }
-            
-
         });
-
-
-
 
 
     // SocketIO
@@ -271,8 +257,7 @@ $(document).ready(function() {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    
-     
+
     socket.on('user_quota', function(data) {
         var data = JSON.parse(data);
         drawUserQuota(data);
@@ -288,7 +273,6 @@ $(document).ready(function() {
         //~ $('.progress .progress-bar').progressbar();
     });
 
-    
     socket.on('media_delete', function(data){
         //~ console.log('delete')
         var data = JSON.parse(data);
@@ -352,32 +336,29 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-
-    
  } );
 
-
 function renderProgress(data){ 
-            perc = data.progress.received_percent
-            return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
-                  <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
-                  aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
-                    '+perc+'%  \
-                  </div> \
-                </<div> '
+    perc = data.progress.received_percent
+    return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
+            <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+            aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
+            '+perc+'%  \
+            </div> \
+        </<div> '
 }
 
 function renderName(data){
-		return '<div class="block_content" > \
-      			<h2 class="title" style="height: 4px; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
-                </h2> \
-      			<p class="excerpt" >'+data.description+'</p> \
-           		</div>'
+    return '<div class="block_content" > \
+            <h2 class="title" style="height: 4px; margin-top: 0px;"> \
+            <a>'+data.name+'</a> \
+            </h2> \
+            <p class="excerpt" >'+data.description+'</p> \
+            </div>'
 }
 
 function renderIcon(data){
-		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+    return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
 }
 
 function icon(name){
@@ -387,11 +368,8 @@ function icon(name){
            return "<i class='fa fa-"+name+" fa-2x '></i>";
         }else{
             return "<span class='fl-"+name+" fa-2x'></span>";
-		}       
+		}
 }
-
-
-
 
 
 // MODAL install FUNCTIONS
@@ -412,8 +390,7 @@ function initialize_modal_all_install_events(){
             $('#modalInstall #datatables-install-error-status').empty().removeClass('my-error');   //.html('Selected: '+rdata['name']+'')
             $('#modalInstall #install').val(rdata['id']);
         }
-    } );	
-        	
+    } );
 }
 
 
@@ -465,52 +442,22 @@ function modal_add_install_datatables(){
             }
         } );
     } );
-    
+
     $("#modalAddFromMedia #send").on('click', function(e){
             var form = $('#modalAddFromMedia #modalAdd');
             form.parsley().validate();
             
             if (form.parsley().isValid()){
                 install=$('#modalAddFromMedia #install').val();
-                //~ console.log('install:'+install+'XXX')
-                
-                //~ if (install !=''){console.log('install not empty')}else{console.log('install empty')}
-                
                 if (install !=''){
                     data=$('#modalAddFromMedia  #modalAdd').serializeObject();
                     socket.emit('domain_media_add',data)
                 }else{                
-                    //~ console.log('OK!!')
                         $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
                         $('#modalAddFromMedia #datatables-install-error-status').html('No OS template selected').addClass('my-error');                    
                 }
-            }        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-            //~ var form = $('#modalAddFromMedia #modalAdd');
-
-            //~ form.parsley().validate();
-
-            //~ if (form.parsley().isValid()){
-                //~ data=$('#modalAddFromMedia #modalAdd').serializeObject();
-                //~ data=replaceAlloweds_arrays(data)
-                //~ console.log(data)
-                //~ socket.emit('domain_media_add',data)
-            //~ }
-            
-
-        });    
-
+            }
+        });
 }
 
 

@@ -33,7 +33,7 @@ db.init_app(app)
 from ..auth.authentication import Password
 import secrets
 
-from collections import defaultdict
+from collections import defaultdict, Mapping
 
 from .ds import DS
 ds = DS()
@@ -159,8 +159,11 @@ class isardAdmin():
         with app.app_context():
             return r.table(table).insert(dict, conflict='update').run(db.conn)
                                         
-    def update_table_dict(self, table, id, dict):
+    def update_table_dict(self, table, id, dict, keep_missing_fields=False):
         with app.app_context():
+            if keep_missing_fields == True:
+                old_dict=r.table(table).get(id).pluck(dict.keys()).run(db.conn)
+                dict = self.merge_nested_dict(old_dict,dict)
             return self.check(r.table(table).get(id).update(dict).run(db.conn), 'replaced')
 
     def update_keyvalue(self,table,key, oldvalue, newvalue):
@@ -849,6 +852,8 @@ class isardAdmin():
                             'url-isard': False,
                             }
             dict={**partial_dict, **missing_keys}
+            if 'roles' not in dict['allowed'].keys(): dict['allowed']['roles'] = False
+            if 'categories' not in dict['allowed'].keys(): dict['allowed']['categories'] = False
             return self.insert_table_dict('media',dict)
         except Exception as e:
             log.error(str(e))
@@ -1237,6 +1242,14 @@ class isardAdmin():
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
 
+    def merge_nested_dict(self, old,new):
+        for k, v in new.items():
+            if (k in old and isinstance(old[k], dict)
+                    and isinstance(new[k], Mapping)):
+                self.merge_nested_dict(old[k], new[k])
+            else:
+                old[k] = new[k]
+        return old
 
     '''
     JUMPERURL
@@ -1268,7 +1281,6 @@ class isardAdmin():
     ENROLLMENT
     '''
 
-
     def enrollment_gen(self, length=6):
         chars = digits + ascii_lowercase
         dict = {}
@@ -1297,8 +1309,6 @@ class isardAdmin():
                     r.table('groups').get(id).update({'enrollment':{role:code}}).run(db.conn)                
                 return code
         return False
-
-
 
     def enrollment_code_check(self, code):
         with app.app_context():
