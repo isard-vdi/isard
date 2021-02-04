@@ -30,8 +30,6 @@ $(document).ready(function() {
                 },
                 { "data": "icon", "width": "10px" },
                 { "data": "name"},
-                { "data": "kind-icon"},
-                { "data": "kind"},
                 { "data": "status"},
                 //~ { "data": "pending"},
                 { "data": null, 'defaultContent': ''},
@@ -51,17 +49,6 @@ $(document).ready(function() {
                             }},
                             {
                             "targets": 3,
-                            "orderable": false,
-                            "render": function ( data, type, full, meta ) {
-                              return renderKindIcon(full);
-                            }},
-                            {
-                            "targets": 4,
-                            "render": function ( data, type, full, meta ) {
-                              return renderKind(full);
-                            }},
-                            {
-                            "targets": 5,
                             "render": function ( data, type, full, meta ) {
                               return renderStatus(full);
                             }},
@@ -71,7 +58,7 @@ $(document).ready(function() {
                               //~ return renderPending(full);
                             //~ }},
                             {
-                            "targets": 6,
+                            "targets": 4,
                             "render": function ( data, type, full, meta ) {
                                 if(full.status == 'Stopped' || full.status == 'Stopped'){
                                     return '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'
@@ -340,22 +327,6 @@ function actionsTmplDetail(){
         return data.status
     }   
     
-    function renderKindIcon(data){
-        
-        switch (data.kind) {
-            case 'Private':
-                return '<i class="fa fa-user-secret fa-2x" style="color:darksalmon"></i>';
-                break;
-            case 'Shared':
-                return '<i class="fa fa-users fa-2x" style="color:darkseagreen"></i>';
-                break;
-        }
-    }
-
-    function renderKind(data){
-        return data.kind
-    }
-
     function renderPending(data){
         status=data.status;
         if(status=='Stopped'){
