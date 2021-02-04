@@ -1,0 +1,20 @@
+{
+    "users": [
+        {
+            "id": 1000,
+            "name": "James Butt",
+            "surname1": "first",
+            "surname2": "second",
+            "avatar": "",
+            "profile": "admin"
+        },
+        {
+            "id": 900,
+            "name": "Jill Butt",
+            "surname1": "Primero",
+            "surname2": "Segundo",
+            "avatar": "",
+            "profile": "admin"
+        }
+    ]
+}

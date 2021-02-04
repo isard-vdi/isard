@@ -21,6 +21,8 @@ import Sidebar from 'primevue/sidebar';
 import { createApp } from 'vue';
 import router from './router';
 import store from './store';
+import axios from 'axios';
+import VueAxios from 'vue-axios';
 
 createApp(App)
   .use(store)
@@ -35,4 +37,5 @@ createApp(App)
   .component('Button', Button)
   .component('Card', Card)
   .component('Sidebar', Sidebar)
+  .use(VueAxios, axios)
   .mount('#app');
