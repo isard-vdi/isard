@@ -59,7 +59,13 @@ class DomainsThread(threading.Thread):
                                 event='template_data'
                                 try:
                                     # New threaded events in ds.py toggles status before it can be processed here.
-                                    data['derivates']=app.adminapi.get_admin_domains_with_derivates(id=c['new_val']['id'],kind='template')
+                                    data[
+                                        "derivates"
+                                    ] = app.adminapi.get_admin_domains_with_derivates(
+                                        id=c["new_val"]["id"], kind="template"
+                                    ).get(
+                                        "derivates"
+                                    )
                                 except:
                                     continue
                                     
