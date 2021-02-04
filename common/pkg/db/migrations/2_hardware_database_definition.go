@@ -171,19 +171,19 @@ func init() {
 			return err
 		}
 
-		if err := db.Model(&Disk{}).CreateTable(opt); err != nil {
-			return err
-		}
-
-		if err := db.Model(&HardwareInterface{}).CreateTable(opt); err != nil {
-			return err
-		}
-
 		if err := db.Model(&HardwareBase{}).CreateTable(opt); err != nil {
 			return err
 		}
 
 		if err := db.Model(&Hardware{}).CreateTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&Disk{}).CreateTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&HardwareInterface{}).CreateTable(opt); err != nil {
 			return err
 		}
 
