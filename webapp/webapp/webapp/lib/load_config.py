@@ -21,7 +21,8 @@ class loadConfig():
             
     def init_app(self, app):
         '''
-        Read RethinkDB configuration from file
+        App configuration:
+        RethinkDB, Telegram Bot, Session Cookie Name and Log Level
         '''
         try:
             app.config.setdefault('RETHINKDB_HOST', os.environ['WEBAPP_RETHINKDB_HOST'])
@@ -32,6 +33,8 @@ class loadConfig():
             app.config.setdefault('HOSTNAME', os.environ['HOSTNAME'])
             app.config.setdefault('TELEGRAM_BOT_TOKEN', os.environ['TELEGRAM_BOT_TOKEN'])
             app.config.setdefault('TELEGRAM_BOT_CHAT_ID', os.environ['TELEGRAM_BOT_CHAT_ID'])
+
+            app.config['SESSION_COOKIE_NAME'] = 'isard-admin'
 
             app.config.setdefault('LOG_LEVEL', os.environ['LOG_LEVEL'])
             app.debug=True if os.environ['LOG_LEVEL'] == 'DEBUG' else False
