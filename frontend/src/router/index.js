@@ -4,7 +4,7 @@ import Login from '@/views/Login.vue'
 import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
 import Register from '@/views/Register.vue'
-import SelectTemplate from '@/views/SelectTemplate.vue'
+import Home from '@/views/Home.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { auth } from './auth'
@@ -16,7 +16,10 @@ const router = new VueRouter({
     {
       path: '/',
       name: 'Home',
-      component: Login
+      component: Home,
+      meta: {
+        requiresAuth: true
+      }
     },
     {
       path: '/login/:category?',
@@ -27,14 +30,6 @@ const router = new VueRouter({
       path: '/register',
       name: 'Register',
       component: Register
-    },
-    {
-      path: '/select_template',
-      name: 'SelectTemplate',
-      component: SelectTemplate,
-      meta: {
-        requiresAuth: true
-      }
     },
     {
       path: '/error/:code',

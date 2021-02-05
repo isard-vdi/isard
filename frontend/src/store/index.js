@@ -54,7 +54,7 @@ export default new Vuex.Store({
     },
     login (context, data) {
       return new Promise((resolve, reject) => {
-        apiAxios.post(`/login/${data.get('category')}?provider=${data.get('provider')}&redirect=/select_template`, data, { timeout: 25000 }).then(response => {
+        apiAxios.post(`/login/${data.get('category')}?provider=${data.get('provider')}&redirect=/`, data, { timeout: 25000 }).then(response => {
           resolve()
         }).catch(e => {
           console.log(e)

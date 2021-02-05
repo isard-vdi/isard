@@ -10,7 +10,7 @@
       </b-col>
 
       <b-col>
-        <b-button v-if="configLoaded && config['show_admin_button']" :href="'/isard-admin/login/' + category" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
+        <b-button v-if="config['show_admin_button']" :href="'/isard-admin/login/' + category" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
       </b-col>
     </b-row>
     <b-row id="login" align-h="center">
@@ -110,9 +110,6 @@ export default {
     config () {
       return this.$store.getters.getConfig
     },
-    configLoaded () {
-      return this.$store.getters.getConfigLoaded
-    },
     category_by_path () {
       return this.$route.params.category !== undefined
     },
@@ -136,13 +133,13 @@ export default {
         data.append('pwd', this.pwd)
         this.$store
           .dispatch('login', data)
-          .then(() => { this.$router.push({ name: 'SelectTemplate' }) })
+          .then(() => { this.$router.push({ name: 'Home' }) })
           .catch(err => {
             this.error = this.$t('views.error.codes')[err.response.status.toString()]
             this.showDismissibleAlert = true
           })
       } else {
-        window.location = `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/select_template`
+        window.location = `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/`
       }
     }
   },

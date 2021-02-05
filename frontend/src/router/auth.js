@@ -17,7 +17,7 @@ export function auth (to, from, next) {
   const sessionCookie = cookies.getCookie(cookieName)
   // Si no la té que vagi a login
   if (isNullOrUndefined(sessionCookie)) {
-    window.location = `${window.location.protocol}//${window.location.host}/login`
+    next({ name: 'Login' })
   }
   // Si la té comprovem que sigui vàlida
   axios.get('/check').then(response => {
@@ -26,7 +26,7 @@ export function auth (to, from, next) {
     if (e.response.status === 503) {
       next({ name: 'Maintenance' })
     }
-    window.location = `${window.location.protocol}//${window.location.host}/login`
+    next({ name: 'Login' })
     throw e
   })
 

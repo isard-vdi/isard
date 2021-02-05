@@ -2,21 +2,16 @@ import { apiAxios } from '@/router/auth'
 
 export default {
   state: {
-    config: {},
-    configLoaded: false
+    config: {}
   },
   getters: {
     getConfig: state => {
       return state.config
-    },
-    getConfigLoaded: state => {
-      return state.configLoaded
     }
   },
   mutations: {
     setConfig: (state, config) => {
       state.config = config
-      state.configLoaded = true
     }
   },
   actions: {
