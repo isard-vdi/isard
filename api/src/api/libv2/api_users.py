@@ -12,7 +12,8 @@ import pprint
 from rethinkdb import RethinkDB; r = RethinkDB()
 from rethinkdb.errors import ReqlTimeoutError
 
-import logging as log
+import logging
+import traceback
 
 from .flask_rethink import RDB
 db = RDB(app)
@@ -43,10 +44,12 @@ class ApiUsers():
 
     def Exists(self,user_id):
         with app.app_context():
-            if r.table('users').get(user_id).run(db.conn) is None:
-                raise UserNotFound
+            user = r.table('users').get(user_id).run(db.conn)
+        if user is None:
+            raise UserNotFound
+        return user
 
-    def Create(self, provider, category_id, user_uid, user_username, role_id, group_id, password=False, photo='', email=''):
+    def Create(self, provider, category_id, user_uid, user_username, name, role_id, group_id, password=False, encrypted_password=False, photo='', email=''):
         # password=False generates a random password
         with app.app_context():
             id = provider+'-'+category_id+'-'+user_uid+'-'+user_username
@@ -60,15 +63,19 @@ class ApiUsers():
 
             if password == False:
                 password = _random_password()
+            else:
+                bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            if encrypted_password != False:
+                password = encrypted_password
 
             user = {'id': id,
-                    'name': user_username,
+                    'name': name,
                     'uid': user_uid,
                     'provider': provider,
                     'active': True,
                     'accessed': time.time(),
                     'username': user_username,
-                    'password': bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+                    'password': password,
                     'role': role_id,
                     'category': category_id,
                     'group': group_id,
@@ -81,9 +88,18 @@ class ApiUsers():
                 raise NewUserNotInserted #, conflict='update').run(db.conn)
         return user['id']
 
-    def Update(self, user_id, user_name, user_email='', user_photo=''):
+    def Update(self, user_id, user_name=False, user_email=False, user_photo=False):
         self.Exists(user_id)
         with app.app_context():
+            user = r.table('users').get(user_id).run(db.conn)
+            if user == None:
+                raise UserNotFound
+            if not user_name:
+                user_name = user['name']
+            if not user_email:
+                user_email = user['email']
+            if not user_photo:
+                user_photo = user['photo']
             if not _check(r.table('users').get(user_id).update({'name':user_name, 'email':user_email, 'photo':user_photo}).run(db.conn),'replaced'):
                 raise UpdateFailed
 
@@ -152,9 +168,42 @@ class ApiUsers():
                 raise UserNotFound
         try:
             with app.app_context():
-                return list(r.table('domains').get_all(user_id, index='user').filter({'kind':'desktop'}).order_by('name').pluck({'id','name','icon','user','status','description'}).run(db.conn))
-
+                desktops = list(
+                    r.table("domains")
+                    .get_all(user_id, index="user")
+                    .filter({"kind": "desktop"})
+                    .order_by("name")
+                    .pluck(
+                        {
+                            "id",
+                            "name",
+                            "icon",
+                            "image",
+                            "user",
+                            "status",
+                            "description",
+                            "parents",
+                            "persistent",
+                        }
+                    )
+                    .run(db.conn)
+                )
+            modified_desktops = []
+            for d in desktops:
+                if d["status"] not in ["Started", "Failed"]:
+                    d["status"] = "Stopped"
+                d["image"] = d.get("image", None)
+                d["from_template"] = d.get("parents", [None])[-1]
+                if d.get("persistent", True):
+                    d["type"] = "persistent"
+                else:
+                    d["type"] = "nonpersistent"
+                d["viewers"] = ["spice", "browser"]
+                modified_desktops.append(d)
+            return modified_desktops
         except Exception as e:
+            error = traceback.format_exc()
+            logging.error(error)
             raise UserDesktopsError
 
     def Delete(self,user_id):
@@ -223,10 +272,10 @@ class ApiUsers():
                         "limits": category_limits ,
                         "name": category_id ,
                         "quota": category_quota
-                    }                
-                r.table('categories').insert(category).run(db.conn)
+                    }
+                r.table('categories').insert(category, conflict='update').run(db.conn)
 
-            group = r.table('groups').get(group_id).run(db.conn)
+            group = r.table('groups').get(category_id+'-'+group_id).run(db.conn)
             if group == None:
                 group = {
                         "description": "" ,
@@ -238,7 +287,7 @@ class ApiUsers():
                         "enrollment": {'manager':False, 'advanced':False, 'user':False},
                         "quota": group_quota
                     }
-                r.table('groups').insert(group).run(db.conn)                    
+                r.table('groups').insert(group, conflict='update').run(db.conn)
         return group['quota']
 
     def CategoriesGet(self):

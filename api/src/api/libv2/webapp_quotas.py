@@ -170,8 +170,8 @@ class WebappQuotas():
             group_id=id
 
         with app.app_context():
-            group = r.table('groups').get(group_id).run(db.conn)    
-        if 'limits' not in group.keys() or group['limits'] == False : return False     
+            group = r.table('groups').get(group_id).run(db.conn)
+        if group == None or 'limits' not in group.keys() or group['limits'] == False : return False
 
         with app.app_context():
             desktops=r.table('domains').get_all(group['id'], index='group').filter({'kind': 'desktop'}).count().run(db.conn)

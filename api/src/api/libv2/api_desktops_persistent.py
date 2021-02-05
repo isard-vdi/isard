@@ -39,7 +39,9 @@ class ApiDesktopsPersistent():
             raise DesktopNotFound
         ds.delete_desktop(desktop_id, desktop['status'])
 
-    def New(self, desktop_name, user_id,  memory, vcpus, from_template_id = False, xml_id = False, xml_definition = False, disk_size = False, disk_path = False, iso = False, boot='disk'):
+    def New(self, desktop_name, user_id,  memory, vcpus, kind = 'desktop', from_template_id = False, xml_id = False, xml_definition = False, disk_size = False, disk_path = False, parent_disk_path=False, iso = False, boot='disk'):
+        if kind not in ['desktop', 'user_template']:
+            raise NewDesktopNotInserted
         parsed_name = _parse_string(desktop_name)
         hardware = {'boot_order': [boot],
                     'disks': [],
@@ -84,9 +86,14 @@ class ApiDesktopsPersistent():
                                     'size':disk_size}]   # 15G as a format   UNITS NEEDED!!!
             status = 'CreatingDiskFromScratch'
             parents = []
-        elif disk_path != False:
-            hardware['disks']=[{'file':disk_path}]
-            status = 'Creating'            
+        if disk_path:
+            if not parent_disk_path:
+                parent_disk_path = ''
+            hardware['disks'] = [{
+                'file': disk_path,
+                'parent': parent_disk_path
+            }]
+            status = 'Updating'
         else:
             hardware['disks']=[{'file':dir_disk+'/'+disk_filename,
                                                 'parent':template['create_dict']['hardware']['disks'][0]['file']}]
@@ -107,7 +114,7 @@ class ApiDesktopsPersistent():
         new_domain={'id': '_'+user_id+'-'+parsed_name,
                   'name': desktop_name,
                   'description': 'Api created',
-                  'kind': 'desktop',
+                  'kind': kind,
                   'user': user['id'],
                   'username': user['username'],
                   'status': status,
@@ -136,37 +143,27 @@ class ApiDesktopsPersistent():
             else:
                 raise DesktopExists
 
-    def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
+    def UserDesktop(self, desktop_id):
         try:
-            viewer_txt = isardviewer.viewer_data(desktop_id, protocol, get_cookie=get_cookie)
-        except DesktopNotFound:
-            raise
-        except DesktopNotStarted:
-            raise
-        except NotAllowed:
-            raise
-        except ViewerProtocolNotFound:
-            raise
-        except ViewerProtocolNotImplemented:
-            raise
-        return viewer_txt
+            with app.app_context():
+                return r.table('domains').get(desktop_id).pluck('user').run(db.conn)['user']
+        except:
+            raise DesktopNotFound
 
-    def DesktopViewerFromToken(self, token):
+    def Start(self, desktop_id):
         with app.app_context():
-            domains = list(r.table('domains').filter({'jumperurl':token}).run(db.conn))
-        if len(domains) == 0: raise DesktopNotFound
-        if len(domains) == 1:
-            if domains[0]['status'] == 'Started':
-                viewers={'vmName':domains[0]['name'],
-                        'vmDescription':domains[0]['description'],
-                        'spice-client':self.DesktopViewer(domains[0]['id'],'spice-client',get_cookie=True),
-                        'vnc-html5':self.DesktopViewer(domains[0]['id'],'vnc-html5',get_cookie=True)}
-                return viewers
-            elif domains[0]['status'] == 'Stopped':
-                ds.WaitStatus(domains[0]['id'], 'Stopped','Starting','Started')
-                viewers={'vmName':domains[0]['name'],
-                        'vmDescription':domains[0]['description'],
-                        'spice-client':self.DesktopViewer(domains[0]['id'],'spice-client',get_cookie=True),
-                        'vnc-html5':self.DesktopViewer(domains[0]['id'],'vnc-html5',get_cookie=True)}
-                return viewers
-        raise
+            desktop = r.table('domains').get(desktop_id).run(db.conn)
+        if desktop == None:
+            raise DesktopNotFound
+        # Start the domain
+        ds.WaitStatus(desktop_id, 'Any', 'Starting', 'Started')
+        return desktop_id
+
+    def Stop(self, desktop_id):
+        with app.app_context():
+            desktop = r.table('domains').get(desktop_id).run(db.conn)
+        if desktop == None:
+            raise DesktopNotFound
+        # Start the domain
+        ds.WaitStatus(desktop_id, 'Any', 'Stopping', 'Stopped')
+        return desktop_id

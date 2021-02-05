@@ -1,5 +1,14 @@
 {
     "components": {
+        "desktop-cards": {
+            "table-header": {
+                "name": "Nom",
+                "state": "Estat",
+                "description": "Descripcio",
+                "action": "Acció",
+                "viewers": "Visors"
+            }
+        },
         "help": {
             "close-guide": "Tancar la guia",
             "local-client": "Fer servir el client local (recomanat)",
@@ -28,15 +37,6 @@
         }
     },
     "views": {
-        "create-error": {
-            "error": "Error",
-            "title": "Degut a un error, no hem pogut crear l'escriptori virtual",
-            "retry": "Tornar-ho a intentar"
-        },
-        "creating": {
-            "title": "Creant l'escriptori virtual",
-            "subtitle": "Aquest procés pot trigar uns segons"
-        },
         "error": {
             "title": "Error",
             "codes": {
@@ -49,43 +49,6 @@
             "title": "La sessió ha caducat",
             "subtitle": "Per a tornar a utilitzar l'escriptori virtual, inicia sessió de nou",
             "button": "Iniciar sessió"
-        },
-        "landing": {
-            "title": {
-                "view-guide": "És el primer cop que fas servir IsardVDI (servei d'escriptori remot)? Fes clic aquí per veure una guia."
-            },
-            "buttons": {
-                "local": {
-                    "title": "Client local",
-                    "description": "(Versió recomanada) Obrir l'escriptori amb el client local"
-                },
-                "browser": {
-                    "title": "Navegador",
-                    "description": "Obrir l'escriptori al navegador"
-                },
-                "logout": {
-                    "title": "Sortir",
-                    "description": "Tancar la sessió d'escriptori"
-                }
-            },
-            "notification": {
-                "loading": {
-                    "title": "Carregant",
-                    "description": "Esperant resposta del servidor."
-                },
-                "downloaded": {
-                    "title": "Descarregat",
-                    "description": "L'escriptori ha estat descarregat correctament."
-                },
-		"opened": {
-                    "title": "Obert",
-                    "description": "L'escriptori s'ha obert correctament."
-                },
-                "error": {
-                    "title": "Error",
-                    "description": "L'escriptori no s'ha obert correctament."
-                }
-            }
         },
         "login": {
             "admin": "Administració",
@@ -115,15 +78,89 @@
             "register": "Registrar-se"
         },
         "select-template": {
+            "template": "Plantilla",
             "loading": "Carregant plantilles",
             "no-templates": {
                 "title": "No hi ha cap plantilla per a aquest usuari!",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
             },
-            "which-template": "Quin escriptori vols fer servir?"
+            "which-template": "Quin escriptori vols fer servir?",
+            "persistent": "Escriptoris persistents",
+            "volatile": "Escriptoris temporals",
+            "viewers": "Visors",
+            "viewer": "Visor {name}",
+            "viewer-name": {
+                "spice": "SPICE",
+                "browser": "al navegador"
+            },
+            "remove": "Esborrar",
+            "notification": {
+                "loading": {
+                    "title": "Carregant",
+                    "description": "Esperant resposta del servidor"
+                },
+                "downloaded": {
+                    "title": "Descarregat",
+                    "description": "L'escriptori ha estat descarregat correctament"
+                }
+            },
+            "error": {
+                "create-error": {
+                    "title": "Error",
+                    "description": "No s'ha pogut crear l'escriptori virtual degut a un error"
+                },
+                "create-quota": {
+                    "title": "Error",
+                    "description": "Disposes de massa escriptoris"
+                },
+                "start-error": {
+                    "title": "Error",
+                    "description": "No s'ha pogut inciar l'escriptori virtual degut a un error"
+                },
+                "start-quota": {
+                    "title": "Error",
+                    "description": "Estàs fent servir massa escriptoris al mateix temps"
+                },
+                "start-timeout": {
+                    "title": "Timeout",
+                    "description": "L'escriptori s'està iniciant, pot trigar uns quants minuts"
+                },
+                "open-error": {
+                    "title": "Error",
+                    "description": "No s'ha pogut obrir l'escriptori virtual degut a un error"
+                },
+                "stop-error": {
+                    "title": "Error",
+                    "description": "No s'ha pogut parar l'escriptori virtual degut a un error"
+                },
+                "stop-timeout": {
+                    "title": "Timeout",
+                    "description": "L'escriptori s'està parant, pot trigar uns quants minuts"
+                },
+                "delete-error": {
+                    "title": "Error",
+                    "description": "No s'ha pogut esborrar l'escriptori virtual degut a un error"
+                }
+            },
+            "status": {
+                "notCreated": {
+                    "action": "Crear"
+                },
+                "failed": {
+                    "text": "Fallat"
+                },
+                "started": {
+                    "text": "Iniciat",
+                    "action": "Atura"
+                },
+                "stopped": {
+                    "text": "Aturat",
+                    "action": "Iniciar"
+                }
+            }
         },
         "welcome": {
-            "title": "Benvingut a Isard, sistema d'escriptoris virtuals",
+            "title": "Benvingut a IsardVDI, sistema d'escriptoris virtuals",
             "button": "Identifiqueu-vos"
         }
     }

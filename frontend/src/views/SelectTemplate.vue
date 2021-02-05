@@ -1,45 +1,71 @@
 <template>
-  <b-container fluid class="vh-100">
-    <b-row class="h-100 d-flex justify-content-center align-items-center mt-4">
-      <b-col md="1"/>
-      <b-col md="10" class="mt-4">
+  <b-container fluid>
+    <b-row align-h="center" class="pt-4">
+      <b-col class="ml-2 mr-2">
+        <b-button-group class="float-left">
+            <b-button variant="danger" size="lg" @click="logout()">
+              <b-icon icon="power" scale="1"></b-icon>
+            </b-button>
+            <b-button variant="primary" size="lg" v-b-modal.help_modal>
+              <b-icon icon="question-circle-fill" scale="1"></b-icon>
+            </b-button>
+        </b-button-group>
+        <Help/>
+        <div class="d-flex float-right">
+          <label for="switch">
+            <b-icon-list></b-icon-list>
+          </label>
+          <b-form-checkbox id="switch" v-model="gridView" switch class="ml-2 mt-n1"></b-form-checkbox>
+          <label for="switch">
+            <b-icon-grid></b-icon-grid>
+          </label>
+        </div>
         <div v-if="!templates_loaded">
           <b-spinner/>
           <p>{{ $t('views.select-template.loading') }}</p>
         </div>
 
-        <div v-else-if="user_templates.length === 0">
+        <div v-else-if="user_templates.length === 0 && user_desktops.length === 0">
           <h1>{{ $t('views.select-template.no-templates.title') }}</h1>
           <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
         </div>
 
         <div v-else>
-          <b-iconstack font-scale="6" class="mb-4">
+          <b-iconstack font-scale="4" class="mb-4 mt-2">
             <b-icon stacked icon="question" variant="primary" shift-v="1.5"></b-icon>
             <b-icon stacked icon="tv" variant="dark" scale="2"></b-icon>
           </b-iconstack>
           <h1 class="mt-4">{{ $t('views.select-template.which-template') }}</h1>
-          <b-container fluid class="mb-4">
-              <transition-group appear name="bounce" tag="b-row">
-                <b-col class="big_button mt-2 mr-2 ml-2" v-for="template in user_templates"
-                :key="template.name" @click="chooseDesktop(template.id)">
-                  <font-awesome-icon size="6x" :icon="icons[template.icon]" />
-                  <p class="mt-4">{{ template.name }}</p>
-                </b-col>
-              </transition-group>
-          </b-container>
+          <div v-if="persistentDesktops.length > 0">
+            <h2 class="mt-2">{{ $t('views.select-template.persistent') }}</h2>
+            <DesktopsCards :templates="user_templates" :desktops="persistentDesktops"
+            :persistent="true" :gridView="gridView" :icons="icons" :status="status"/>
+          </div>
+          <div v-if="nonpersistentDesktops.length > 0">
+            <h2 class="mt-2">{{ $t('views.select-template.volatile') }}</h2>
+            <DesktopsCards :templates="user_templates" :desktops="nonpersistentDesktops"
+            :persistent="false" :gridView="gridView" :icons="icons" :status="status"/>
+          </div>
         </div>
       </b-col>
-      <b-col md="1"/>
     </b-row>
   </b-container>
 </template>
 
 <script>
 // @ is an alias to /src
+import DesktopsCards from '@/components/DesktopsCards.vue'
+import Help from '@/components/Help'
+import { mapActions } from 'vuex'
 
 export default {
+  components: {
+    DesktopsCards,
+    Help
+  },
   created () {
+    this.pollData()
+    this.$store.dispatch('fetchDesktops')
     this.$store.dispatch('fetchTemplates')
   },
   computed: {
@@ -54,13 +80,25 @@ export default {
       })
       return this.$store.getters.getTemplates
     },
+    user_desktops () {
+      this.$store.getters.getDesktops.forEach((desktop) => {
+        if (!(desktop.icon in this.icons)) {
+          desktop.icon = 'default'
+        }
+      })
+      return this.$store.getters.getDesktops
+    },
+    persistentDesktops () {
+      return this.user_desktops.filter(desktop => desktop.type === 'persistent')
+    },
+    nonpersistentDesktops () {
+      return this.user_templates.map(t => this.user_desktops.find((d) => t.id === d.template && d.type === 'nonpersistent') || t)
+    },
     templates_loaded () {
       return this.$store.getters.getTemplatesLoaded
-    }
-  },
-  methods: {
-    chooseDesktop (template) {
-      this.$router.push({ name: 'Creating', params: { template: template } })
+    },
+    desktops_loaded () {
+      return this.$store.getters.getDesktopsLoaded
     }
   },
   mounted: function () {
@@ -70,6 +108,8 @@ export default {
   },
   data () {
     return {
+      polling: null,
+      gridView: true,
       icons: {
         default: ['fas', 'desktop'],
         win: ['fab', 'windows'],
@@ -77,43 +117,35 @@ export default {
         fedora: ['fab', 'fedora'],
         linux: ['fab', 'linux'],
         centos: ['fab', 'centos']
+      },
+      status: {
+        notCreated: {
+          icon: ['fas', 'play'],
+          variant: 'success'
+        },
+        started: {
+          action: 'stop',
+          icon: ['fas', 'stop'],
+          variant: 'danger'
+        },
+        stopped: {
+          action: 'start',
+          icon: ['fas', 'play'],
+          variant: 'success'
+        }
       }
+    }
+  },
+  methods: {
+    ...mapActions([
+      'logout'
+    ]),
+    pollData () {
+      this.polling = setInterval(() => {
+        this.$store.dispatch('fetchDesktops')
+        this.$store.dispatch('fetchTemplates')
+      }, 15000)
     }
   }
 }
 </script>
-
-<style scoped>
-  .big_button {
-    background-color:white;
-    border: 5px solid #e9ecef;
-    border-radius: 2rem;
-    min-height:250px !important;
-    min-width:250px !important;
-    padding-top: 50px;
-    padding-bottom: 25px;
-  }
-
-  .big_button:hover {
-    background-color: #e9ecef;
-    cursor: pointer;
-  }
-
-  .bounce-enter-active {
-    animation: bounce-in .5s;
-  }
-  .bounce-leave-active {
-    animation: bounce-in .5s reverse;
-  }
-  @keyframes bounce-in {
-    0% {
-      transform: scale(0);
-    }
-    50% {
-      transform: scale(1.5);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-</style>

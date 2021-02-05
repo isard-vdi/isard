@@ -45,6 +45,10 @@ func (i *Isard) UserLoad(u *model.User) error {
 		return err
 	}
 
+	if err := i.UserDesktops(u); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -97,10 +101,75 @@ func (i *Isard) UserUpdate(u *model.User) error {
 	return nil
 }
 
+type userDesktopRsp struct {
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	State string `json:"state,omitempty"`
+	Type string `json:"type,omitempty"`
+	Template string `json:"template,omitempty"`
+	Viewers []string `json:"viewers,omitempty"`
+	Icon string `json:"icon,omitempty"`
+	Image string `json:"image,omitempty"`
+}
+
+func (i *Isard) UserDesktops(u *model.User) error {
+	rsp, err := http.Get(i.url("user/" + u.ID() + "/desktops"))
+	if err != nil {
+		i.sugar.Errorw("get user desktops",
+			"err", err,
+			"id", u.ID(),
+		)
+		return fmt.Errorf("get user desktops: %w", err)
+	}
+
+	defer rsp.Body.Close()
+	if rsp.StatusCode != http.StatusOK {
+		b, _ := ioutil.ReadAll(rsp.Body)
+
+		err = utils.NewHTTPCodeErr(rsp.StatusCode)
+		i.sugar.Errorw("get user desktops",
+			"err", err,
+			"code", rsp.StatusCode,
+			"body", string(b),
+			"id", u.ID(),
+		)
+
+		return fmt.Errorf("get user desktops: %w", err)
+	}
+
+	desktops := []userDesktopRsp{}
+	if err := json.NewDecoder(rsp.Body).Decode(&desktops); err != nil {
+		i.sugar.Errorw("get user desktops: decode JSON response",
+			"err", err,
+		)
+
+		return fmt.Errorf("get user desktops: decode JSON response: %w", err)
+	}
+
+	for _, t := range desktops {
+		u.Desktops = append(u.Desktops, model.Desktop{
+			ID:   t.ID,
+			Name: t.Name,
+			Description: t.Description,
+			State: t.State,
+			Type: t.Type,
+			Template: t.Template,
+			Viewers: t.Viewers,
+			Icon: t.Icon,
+			Image: t.Image,
+		})
+	}
+
+	return nil
+}
+
 type userTemplateRsp struct {
 	ID   string `json:"id,omitempty"`
 	Name string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
 	Icon string `json:"icon,omitempty"`
+	Image string `json:"image,omitempty"`
 }
 
 func (i *Isard) UserTemplates(u *model.User) error {
@@ -141,7 +210,9 @@ func (i *Isard) UserTemplates(u *model.User) error {
 		u.Templates = append(u.Templates, model.Template{
 			ID:   t.ID,
 			Name: t.Name,
+			Description: t.Description,
 			Icon: t.Icon,
+			Image: t.Image,
 		})
 	}
 

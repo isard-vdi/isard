@@ -63,7 +63,12 @@ func New(env *env.Env) *API {
 	a.Mux.HandleFunc("/api/"+version+"/check", a.isAuthenticated(a.check))
 	a.Mux.HandleFunc("/api/"+version+"/templates", a.isAuthenticated(a.templates))
 	a.Mux.HandleFunc("/api/"+version+"/create", a.isAuthenticated(a.create))
-	a.Mux.HandleFunc("/api/"+version+"/viewer", a.isAuthenticated(a.viewer))
+
+	a.Mux.HandleFunc("/api/"+version+"/desktops", a.isAuthenticated(a.desktops))
+	a.Mux.HandleFunc("/api/"+version+"/desktop/{desktop}", a.isAuthenticated(a.desktopDelete)).Methods("DELETE")
+	a.Mux.HandleFunc("/api/"+version+"/desktop/{desktop}/start", a.isAuthenticated(a.desktopStart))
+	a.Mux.HandleFunc("/api/"+version+"/desktop/{desktop}/stop", a.isAuthenticated(a.desktopStop))
+	a.Mux.HandleFunc("/api/"+version+"/desktop/{desktop}/viewer/{viewerType}", a.isAuthenticated(a.desktopViewer))
 
 	return a
 }

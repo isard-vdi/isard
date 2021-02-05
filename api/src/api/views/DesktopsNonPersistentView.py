@@ -39,8 +39,7 @@ def api_v2_desktop_new():
         log.error("Incorrect access parameters. Check your query.")
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
-    ## Delete all desktops but the ones from this template
-    # And get the desktop_id if already exists
+    # Leave only one nonpersistent desktop from this template
     try:
         desktops.DeleteOthers(user_id,template_id)
 
@@ -162,35 +161,6 @@ def api_v2_desktop_new():
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"DesktopNew general exception: " + error }), 401, {'ContentType': 'application/json'}
 
-
-@app.route('/api/v2/desktop/<desktop_id>/viewer/<protocol>', methods=['GET'])
-def api_v2_desktop_viewer(desktop_id=False, protocol=False):
-    if desktop_id == False or protocol == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
-
-    try:
-        viewer = desktops.DesktopViewer(desktop_id,protocol)
-        return json.dumps({'viewer': viewer}), 200, {'ContentType': 'application/json'}
-    except DesktopNotFound:
-        log.error("Viewer for desktop "+desktop_id+" with protocol "+protocol+", desktop not found")
-        return json.dumps({"code":1,"msg":"Desktop viewer id not found"}), 404, {'ContentType': 'application/json'}
-    except DesktopNotStarted:
-        log.error("Viewer for desktop "+desktop_id+" with protocol "+protocol+", desktop not started")
-        return json.dumps({"code":2,"msg":"Desktop viewer is not started"}), 404, {'ContentType': 'application/json'}
-    except NotAllowed:
-        log.error("Viewer for desktop "+desktop_id+" with protocol "+protocol+", viewer access not allowed")
-        return json.dumps({"code":3,"msg":"Desktop viewer id not owned by user"}), 404, {'ContentType': 'application/json'}
-    except ViewerProtocolNotFound:
-        log.error("Viewer for desktop "+desktop_id+" with protocol "+protocol+", viewer protocol not found")
-        return json.dumps({"code":4,"msg":"Desktop viewer protocol not found"}), 404, {'ContentType': 'application/json'}
-    except ViewerProtocolNotImplemented:
-        log.error("Viewer for desktop "+desktop_id+" with protocol "+protocol+", viewer protocol not implemented")
-        return json.dumps({"code":5,"msg":"Desktop viewer protocol not implemented"}), 404, {'ContentType': 'application/json'}
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"DesktopViewer general exception: " + error }), 401, {'ContentType': 'application/json'}
-
 @app.route('/api/v2/desktop/<desktop_id>', methods=['DELETE'])
 def api_v2_desktop_delete(desktop_id=False):
     if desktop_id == False:
@@ -211,72 +181,3 @@ def api_v2_desktop_delete(desktop_id=False):
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"DesktopDelete general exception: " + error }), 401, {'ContentType': 'application/json'}
-
-
-
-### PERSISTENT DESKTOP
-@app.route('/api/v2/persistent_desktop', methods=['POST'])
-def api_v2_persistent_desktop_new():
-    try:
-        name = request.form.get('name', type = str)
-        user_id = request.form.get('user_id', type = str)
-        memory = request.form.get('memory', type = float)
-        vcpus = request.form.get('vcpus', type = int)
-
-        template_id = request.form.get('template_id', type = str)
-        xml_id = request.form.get('xml_id', type = str)
-
-        disk_size = request.form.get('disk_size', type = str)
-    except Exception as e:
-        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'ContentType': 'application/json'}
-
-    if user_id == None or name == None or vcpus == None or memory == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
-
-    try:
-        quotas.DesktopCreate(user_id)
-    except QuotaUserNewDesktopExceeded:
-        log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'ContentType': 'application/json'}
-    except QuotaGroupNewDesktopExceeded:
-        log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'ContentType': 'application/json'}
-    except QuotaCategoryNewDesktopExceeded:
-        log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'ContentType': 'application/json'}
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"PersistentDesktopNew quota check general exception: " + error }), 401, {'ContentType': 'application/json'}
-
-    try:
-        now=time.time()
-        #desktop_id = app.lib.DesktopNewPersistent(name, user_id,memory,vcpus,xml_id=xml_id, disk_size=disk_size)
-        desktop_id = desktops.DesktopNewPersistent(name, user_id,memory,vcpus,from_template_id=template_id, disk_size=disk_size)
-        carbon.send({'create_and_start_time':str(round(time.time()-now,2))})
-        return json.dumps({'id': desktop_id}), 200, {'ContentType': 'application/json'}
-    except UserNotFound:
-        log.error("Desktop for user "+user_id+" from template "+template_id+", user not found")
-        return json.dumps({"code":1,"msg":"PersistentDestopNew user not found"}), 404, {'ContentType': 'application/json'}
-    except TemplateNotFound:
-        log.error("Desktop for user "+user_id+" from template "+template_id+" template not found.")
-        return json.dumps({"code":2,"msg":"PersistentDesktopNew template not found"}), 404, {'ContentType': 'application/json'}
-    except DesktopNotCreated:
-        log.error("Desktop for user "+user_id+" from template "+template_id+" creation failed.")
-        carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":1,"msg":"PersistentDestopNew not created"}), 404, {'ContentType': 'application/json'}
-    ### Needs more!
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"PersistentDesktopNew general exception: " + error }), 401, {'ContentType': 'application/json'}
-
-
-    #except DesktopStopTimeout:
-    #    log.error("Desktop delete "+desktop_id+", desktop stop timeout")
-    #    return json.dumps({"code":2,"msg":"Desktop delete stopping timeout"}), 404, {'ContentType': 'application/json'}
-    #except DesktopStopFailed:
-    #    log.error("Desktop delete "+desktop_id+", desktop stop failed")
-    #    return json.dumps({"code":3,"msg":"Desktop delete stopping failed"}), 404, {'ContentType': 'application/json'}
-    #except DesktopDeleteTimeout:
-    #    log.error("Desktop delete "+desktop_id+", desktop delete timeout")
-    #    return json.dumps({"code":4,"msg":"Desktop delete deleting timeout"}), 404, {'ContentType': 'application/json'}

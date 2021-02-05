@@ -60,17 +60,15 @@ class ApiDesktopsNonPersistent():
         ds.delete_desktop(desktop_id, desktop['status'])
         
     def DeleteOthers(self, user_id, template_id):
-        ## Will delete everything but one from this template_id (if exists)
+        '''Will leave only one nonpersistent desktops form template `template_id`
+
+        :param user_id: User ID
+        :param template_id: Template ID
+        :return: None
+        '''
         with app.app_context():
             if r.table('users').get(user_id).run(db.conn) is None:
                 raise UserNotFound
-        
-        ####### Delete all desktops not from this template
-        with app.app_context():
-            desktops = list(r.db('isard').table('domains').get_all(user_id, index='user').filter({'kind':'desktop', 'persistent':False}).run(db.conn))
-        for desktop in desktops:
-            if 'from_template' in desktop and desktop['from_template'] != template_id:
-                ds.delete_desktop(desktop['id'], desktop['status'])
 
         ####### Get how many desktops are from this template and leave only one
         with app.app_context():
@@ -149,22 +147,6 @@ class ApiDesktopsNonPersistent():
             if _check(r.table('domains').insert(new_desktop).run(db.conn),'inserted'):
                 return new_desktop['id']
         return False
-
-
-    def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
-        try:
-            viewer_txt = isardviewer.viewer_data(desktop_id, protocol, get_cookie=get_cookie)
-        except DesktopNotFound:
-            raise
-        except DesktopNotStarted:
-            raise
-        except NotAllowed:
-            raise
-        except ViewerProtocolNotFound:
-            raise
-        except ViewerProtocolNotImplemented:
-            raise
-        return viewer_txt
 
     def DesktopStart(self, desktop_id):
         ds.WaitStatus(desktop_id, 'Any','Any','Started')

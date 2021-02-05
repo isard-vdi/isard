@@ -7,7 +7,7 @@
         },
         "welcome": {
             "button": "Se connecter",
-            "title": "Bienvenue chez Isard, service de bureaux virtuels"
+            "title": "Bienvenue chez IsardVDI, service de bureaux virtuels"
         },
         "select-template": {
             "which-template": "Quel bureau voulez-vous utiliser ?",
@@ -15,88 +15,52 @@
                 "subtitle": "Si vous pensez qu’il s’agit d’une erreur, veuillez contacter l’administrateur",
                 "title": "Il n’y a pas de modèles pour cet utilisateur !"
             },
-            "loading": "Chargement des modèles"
-        },
-        "not-found": {
-            "back": "Revenir au début",
-            "title": "Nous n’avons pas trouvé l’adresse demandée"
-        },
-        "maintenance": {
-            "sorry": "Désolé pour le désagrément",
-            "the-service": "Le service sera à nouveau disponible dans quelques minutes",
-            "title": "Actuellement, le service Isard est en maintenance"
-        },
-        "login": {
-            "other-logins": "Ou connectez-vous avec",
-            "form": {
-                "login": "Se connecter",
-                "pwd": "Mot de passe",
-                "usr": "Nom d’utilisateur",
-                "select-category": "Veuillez sélectionner une option"
-            },
-            "title": "Se connecter",
-            "admin": "Administration",
-            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
-            "powered-by": "Propulsé par"
-        },
-        "landing": {
-            "buttons": {
-                "logout": {
-                    "description": "Fermer la session de bureau",
-                    "title": "Quitter"
-                },
-                "browser": {
-                    "description": "Ouvrez le bureau dans le navigateur",
-                    "title": "Navigateur"
-                },
-                "local": {
-                    "description": "(version recommandée) Ouvrez le bureau avec le client local",
-                    "title": "Client local"
-                }
-            },
-            "title": {
-                "view-guide": "Est-ce la première fois que vous utilisez IsardVDI (service de bureau à distance) ? Cliquez ici pour visualiser un guide."
-            },
             "notification": {
-                "error": {
-                    "description": "Le bureau ne s'est pas ouvert correctement.",
-                    "title": "Erreur"
-                },
-                "opened": {
-                    "description": "Le bureau a été ouvert avec succès.",
-                    "title": "Ouvert"
-                },
                 "downloaded": {
-                    "description": "Le bureau a été téléchargé avec succès.",
+                    "description": "Le bureau a été téléchargé avec succès",
                     "title": "Téléchargé"
                 },
                 "loading": {
-                    "description": "En attente d'une réponse du serveur.",
+                    "description": "En attente d'une réponse du serveur",
                     "title": "Chargement"
                 }
-            }
-        },
-        "expired-session": {
-            "button": "Se connecter",
-            "subtitle": "Pour utiliser le bureau virtuel, connectez-vous à nouveau",
-            "title": "La session a expiré"
-        },
-        "error": {
-            "codes": {
-                "500": "Erreur inattendue",
-                "403": "Vous ne disposez pas des autorisations nécessaires pour accéder à cette page",
-                "401": "Votre groupe ne dispose pas des autorisations nécessaires pour accéder à cette page"
             },
-            "title": "Erreur"
-        },
-        "creating": {
-            "subtitle": "Ceci peut prendre quelques instants",
-            "title": "Création du bureau virtuel"
-        },
-        "create-error": {
-            "retry": "Réessayer",
-            "title": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
-            "error": "Erreur"
+            "loading": "Chargement des modèles",
+            "not-found": {
+                "back": "Revenir au début",
+                "title": "Nous n’avons pas trouvé l’adresse demandée"
+            },
+            "maintenance": {
+                "sorry": "Désolé pour le désagrément",
+                "the-service": "Le service sera à nouveau disponible dans quelques minutes",
+                "title": "Actuellement, le service Isard est en maintenance"
+            },
+            "login": {
+                "other-logins": "Ou connectez-vous avec",
+                "form": {
+                    "login": "Se connecter",
+                    "pwd": "Mot de passe",
+                    "usr": "Nom d’utilisateur",
+                    "select-category": "Veuillez sélectionner une option"
+                },
+                "title": "Se connecter",
+                "admin": "Administration",
+                "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
+                "powered-by": "Propulsé par"
+            },
+            "expired-session": {
+                "button": "Se connecter",
+                "subtitle": "Pour utiliser le bureau virtuel, connectez-vous à nouveau",
+                "title": "La session a expiré"
+            },
+            "error": {
+                "codes": {
+                    "500": "Erreur inattendue",
+                    "403": "Vous ne disposez pas des autorisations nécessaires pour accéder à cette page",
+                    "401": "Votre groupe ne dispose pas des autorisations nécessaires pour accéder à cette page"
+                },
+                "title": "Erreur"
+            }
         }
     },
     "components": {

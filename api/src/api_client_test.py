@@ -45,6 +45,40 @@ def get_templates(user_id):
         return json.loads(resp.text)
     raise
 
+def start_desktop(desktop_id):
+    print("\n----------------------- DESKTOP START")
+    global auth, verifycert
+    url = base_url + "desktop/start/"+desktop_id
+    data = {}
+    print(" DATA SENT: "+str(data))
+    resp = requests.get(url, data=data, auth=auth, verify=verifycert)
+
+    print("       URL: "+url)
+    print("STATUS CODE: "+str(resp.status_code))
+    print("   RESPONSE: "+resp.text)
+    import pprint
+    pprint.pprint(json.loads(resp.text))
+    if resp.status_code == 200:
+        return json.loads(resp.text)
+    raise
+
+def stop_desktop(desktop_id):
+    print("\n----------------------- DESKTOP STOP")
+    global auth, verifycert
+    url = base_url + "desktop/stop/"+desktop_id
+    data = {}
+    print(" DATA SENT: "+str(data))
+    resp = requests.get(url, data=data, auth=auth, verify=verifycert)
+
+    print("       URL: "+url)    
+    print("STATUS CODE: "+str(resp.status_code))
+    print("   RESPONSE: "+resp.text)
+    import pprint
+    pprint.pprint(json.loads(resp.text))
+    if resp.status_code == 200:
+        return json.loads(resp.text)
+    raise
+
 def get_desktops(user_id):
     print("\n----------------------- DESKTOPS GET")
     global auth, verifycert
@@ -56,6 +90,8 @@ def get_desktops(user_id):
     print("       URL: "+url)    
     print("STATUS CODE: "+str(resp.status_code))
     print("   RESPONSE: "+resp.text)
+    import pprint
+    pprint.pprint(json.loads(resp.text))
     if resp.status_code == 200:
         return json.loads(resp.text)
     raise
@@ -167,8 +203,8 @@ def register(code):
         return json.loads(resp.text)
     raise
 
-get_html5_viewer('_local-default-admin-admin_downloaded_slax93')
-exit(1)
+#get_html5_viewer('_local-default-admin-admin_downloaded_slax93')
+#exit(1)
 
 def get_categories():
     print("\n----------------------- CATEGORIES GET")
@@ -185,8 +221,11 @@ def get_categories():
         return json.loads(resp.text)
     raise
 
+get_desktops('local-default-admin-admin')
+start_desktop('_local-default-admin-admin-asdfdsaf')
+
 ## https://localhost/viewer/8Dx9PynTHxHlSsdfk9X8VIe9M2TbFKwz6Bi_xSfdvO_u3y-H6eq2Rg
-get_jumper_viewer('8Dx9PynTHxHlSsdfk9X8VIe9M2TbFKwz6Bi_xSfdvO_u3y-H6eq2Rg')
+#get_jumper_viewer('8Dx9PynTHxHlSsdfk9X8VIe9M2TbFKwz6Bi_xSfdvO_u3y-H6eq2Rg')
 exit(0)
 
 desktop_id='_local+default+admin+admin+downloaded_tetros'
