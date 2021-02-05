@@ -59,6 +59,7 @@ func New(env *env.Env) *API {
 		provider.Callback(env, w, r)
 	})
 	a.Mux.HandleFunc("/api/"+version+"/logout", a.isAuthenticated(a.logout))
+	a.Mux.HandleFunc("/api/"+version+"/logout/remote", a.isAuthenticated(a.remoteLogout))
 
 	a.Mux.HandleFunc("/api/"+version+"/check", a.isAuthenticated(a.check))
 	a.Mux.HandleFunc("/api/"+version+"/templates", a.isAuthenticated(a.templates))

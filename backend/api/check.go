@@ -11,6 +11,7 @@ func (a *API) check(w http.ResponseWriter, r *http.Request) {
 	redirect := r.URL.Query().Get(redirectKey)
 	if redirect == "" {
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(getUsr(r.Context()).ID()))
 		return
 	}
 

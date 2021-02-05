@@ -5,9 +5,10 @@
 
 #!flask/bin/python
 # coding=utf-8
-from flask import render_template, redirect, request, flash, url_for
+from flask import render_template, redirect, request, flash, url_for, make_response, jsonify
 from webapp import app
 from flask_login import login_required, login_user, logout_user, current_user
+import requests
 
 from ..auth.authentication import *   
 from ..lib.log import *                       
@@ -35,11 +36,11 @@ def login():
     return render_template('login.html') """
 
 @app.route('/isard-admin', methods=['POST', 'GET'])
-@app.route('/isard-admin/login', methods=['POST', 'GET'])
 def redirect_to_login():
-    return redirect('/isard-admin/login/default')
+    return redirect('/')
 
 
+@app.route('/isard-admin/login', methods=['POST', 'GET'])
 @app.route('/isard-admin/login/<category>', methods=['POST', 'GET'])
 def login(category='default'):
     if request.method == 'POST':
@@ -60,18 +61,28 @@ def login(category='default'):
                 return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
             else:
                 flash('Username not found or incorrect password.','warning')
+    user = get_authenticated_user_backend()
+    if user:
+        login_user(user)
+        flash('Authenticated via backend.','success')
+        return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
     category = app.isardapi.get_category(category)
     if category != False:
         return render_template('login_category.html', category=category)
     return render_template('login_category.html', category=False )
 
+@app.route('/isard-admin/logout/remote')
+def remote_logout():
+    logout_ram_user(current_user.id)
+    logout_user()
+    return jsonify(success=True)
+
 @app.route('/isard-admin/logout')
 @login_required
 def logout():
-    category = app.isardapi.get_category(current_user.category)
-
-    logout_ram_user(current_user.id)
-    logout_user()
-
-    return redirect(url_for('login', category=category['id']))
-    
+    login_path = app.isardapi.__class__.get_login_path()
+    response = make_response(redirect(login_path))
+    if not logout_backend(response):
+        log.error(f'Error clossing backend session for user {current_user.id}')
+    remote_logout()
+    return response
