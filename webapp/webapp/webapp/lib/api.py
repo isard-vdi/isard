@@ -307,16 +307,7 @@ class isard():
     def get_user_templates(self, user):
         with app.app_context():
             dom = list(r.table('domains').get_all(user, index='user').filter(r.row['kind'].match('template')).without('viewer','xml','history_domain').run(db.conn))
-            for d in dom:
-                d['kind']=self.get_template_kind(user,d)
             return dom #self.f.table_values_bstrap(dom)
-
-    def get_template_kind(self,user,d):
-        if d['allowed']['roles'] == False and d['allowed']['categories'] == False and d['allowed']['groups'] == False:
-            if (d['allowed']['users'] and user in d['allowed']['users']) or d['allowed']['users'] == False:    
-                return 'Private'
-        return 'Shared' 
-
 
     def get_alloweds(self, user, table, pluck=[], order=False):
         with app.app_context():
