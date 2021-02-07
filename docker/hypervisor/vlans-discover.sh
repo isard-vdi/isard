@@ -5,13 +5,13 @@ if [ -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ]; then
 	exit 0
 elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ -z "$HYPERVISOR_STATIC_VLANS" ]; then
     echo "VLANS enabled for DYNAMIC discovery."
-	eth=$(ip link | awk -F: '$0 ~ "eth1@"{print $2;getline}')
+	eth=$(ip link | awk -F: '$0 ~ "vlans@"{print $2;getline}')
 	if [ -z $eth ]; then
 		echo "Trunk interface not found. Not starting vlan autodiscovery."
 		exit 0
 	fi
 	echo "Wait, scanning trunk interface for VLANS for 260 seconds..."
-	tshark -a duration:260 -i eth1 -Y "vlan" -x -V 2>&1 |grep -o " = ID: .*" |awk '{ print $NF }'  > out
+	tshark -a duration:260 -i vlans -Y "vlan" -x -V 2>&1 |grep -o " = ID: .*" |awk '{ print $NF }'  > out
 	cat out | sort -u > /root/.ssh/vlans
 	rm out
 elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ ! -z "$HYPERVISOR_STATIC_VLANS" ]; then
@@ -26,7 +26,7 @@ for VLAN in $VLANS
 do
 	echo "SETTING VLAN: $VLAN"
 	echo "Creating vlan interface v$VLAN..."
-	ip link add name v$VLAN link eth1 type vlan id $VLAN
+	ip link add name v$VLAN link vlans type vlan id $VLAN
 	ip link set v$VLAN up
 	echo "Creating bridge br-$VLAN"
 	ip link add name br-$VLAN type bridge
