@@ -1,14 +1,20 @@
 version: "3.5"
 services:
   isard-hypervisor:
-    networks:
-      - isard-network
-      - internet-vms
-networks:
-  internet-vms:
-    driver: macvlan
-    driver_opts:
-      parent: ${HYPERVISOR_HOST_TRUNK_INTERFACE}
-    ipam:
-      config:
-        - subnet: 172.30.0.0/16
+    environment:
+      - pipework_cmd=--direct-phys ${HYPERVISOR_HOST_TRUNK_INTERFACE} -i vlans isard-hypervisor 0/0
+
+  pipework:
+    image: dreamcat4/pipework
+    container_name: isard-pipework
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/docker.sock
+    privileged: true
+    pid: host # THIS REQUIRES COMPOSE v1.3.0 & DOCKER v1.6.0
+    network_mode: host
+    environment:
+      - run_mode=batch,daemon
+      - host_routes=true
+      - route_add_delay=1
+   
