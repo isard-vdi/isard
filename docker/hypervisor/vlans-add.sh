@@ -13,7 +13,7 @@ VLANS=$(echo $VLANS | tr "," " ")
 for VLAN in $VLANS
 do
        echo "Creating vlan interface v$VLAN..."
-       ip link add name v$VLAN link eth1 type vlan id $VLAN
+       ip link add name v$VLAN link vlans type vlan id $VLAN
        ip link set v$VLAN up
        echo "Creating bridge br-$VLAN"
        ip link add name br-$VLAN type bridge

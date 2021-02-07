@@ -61,11 +61,22 @@ DOCKER_IMAGE_TAG=v2.0.0-rc1
 LOG_LEVEL=INFO
 
 # HYPERVISOR
+## VLAN mapping
+## You need to map a trunk 802.1q interface with your desired vlans
+## that will be taken from the host and inserted in hypervisor.
+## (I mean you will miss this interface from the host!)
+##
+## Requirements: pipework script, arping and wget
+## - pipework: wget -O /usr/local/bin/pipework https://raw.githubusercontent.com/jpetazzo/pipework/master/pipework && sudo chmod +x /usr/local/bin/pipework
+## - packages: apt install arping wget -y
+##
 ## Uncomment to map host interface name inside hypervisor container.
 ## If static vlans are commented then hypervisor will initiate an 
 ## auto-discovery process. The discovery process will last for 260
 ## seconds and this will delay the hypervisor from being available.
 ## So it is recommended to set also the static vlans.
+## Note: It will create VlanXXX automatically on webapp. You need to
+##       assign who is allowed to use this VlanXXX interfaces.
 #HYPERVISOR_HOST_TRUNK_INTERFACE=
 
 ## This environment variable depends on previous one. When setting
