@@ -108,7 +108,7 @@ class DomainsThread(threading.Thread):
             except Exception as e:
                 print('DomainsThread internal error: \n'+traceback.format_exc())
                 log.error('DomainsThread internal error: \n'+traceback.format_exc())
-               
+
         print('DomainsThread ENDED!!!!!!!')
         log.error('DomainsThread ENDED!!!!!!!')      
 
@@ -1455,8 +1455,8 @@ def socketio_admin_resources_update(data):
 ## Alloweds
 @socketio.on('allowed_update', namespace='/isard-admin/sio_admins')
 def socketio_admin_allowed_update(data):
-    if current_user.role == 'admin' or current_user.role == 'manager': 
-        res = app.adminapi.update_table_dict(data['table'], data['id'],{'allowed':data['allowed']})
+    if current_user.role == 'admin' or current_user.role == 'manager':
+        res = app.adminapi.update_table_dict(data['table'], data['id'],{'allowed':data['allowed']}, keep_missing_fields=True)
         if res:
             data=json.dumps({'result':True,'title':'Update permissions','text':'Permissions updated for '+data['id'],'icon':'success','type':'success'})
         else:
@@ -1468,7 +1468,7 @@ def socketio_admin_allowed_update(data):
 
 @socketio.on('allowed_update', namespace='/isard-admin/sio_users')
 def socketio_allowed_update(data):
-    res = app.adminapi.update_table_dict(data['table'], data['id'],{'allowed':data['allowed']})
+    res = app.adminapi.update_table_dict(data['table'], data['id'],{'allowed':data['allowed']}, keep_missing_fields=True)
     if res:
         info=json.dumps({'result':data,'title':'Update permissions','text':'Permissions updated for '+data['id'],'icon':'success','type':'success'})
     else:
@@ -1478,9 +1478,6 @@ def socketio_allowed_update(data):
                     namespace='/isard-admin/sio_users', 
                     room='user_'+current_user.id)
 
-                
-                
-                    
 ## Admin namespace
 @socketio.on('connect', namespace='/isard-admin/sio_admins')
 def socketio_admins_connect():

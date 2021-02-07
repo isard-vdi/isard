@@ -25,10 +25,15 @@
 	}
 
 	function replaceAlloweds_arrays(parent_id,data){
-        data['allowed']={'roles':    parseAllowed(parent_id,'a-roles'),
-                        'categories':parseAllowed(parent_id,'a-categories'),
-                        'groups':parseAllowed(parent_id,'a-groups'),
-                        'users':parseAllowed(parent_id,'a-users')}
+        if(!$(parent_id+' #a-roles-cb').length ){
+            data['allowed']={   'groups':parseAllowed(parent_id,'a-groups'),
+                                'users':parseAllowed(parent_id,'a-users')}
+        }else{
+            data['allowed']={'roles':    parseAllowed(parent_id,'a-roles'),
+                            'categories':parseAllowed(parent_id,'a-categories'),
+                            'groups':parseAllowed(parent_id,'a-groups'),
+                            'users':parseAllowed(parent_id,'a-users')}
+        }
         delete data['a-roles'];
         delete data['a-categories'];
         delete data['a-groups'];
@@ -39,10 +44,9 @@
         delete data['a-users-cb'];        
         return data
     }
-        
+
     function parseAllowed(parent_id,id){
         d=$(parent_id+" #"+id).select2("val")
-        //~ console.log(d)
         if(d==null){
             if($(parent_id+' #'+id+'-cb').iCheck('update')[0].checked){
                 return [];
@@ -53,8 +57,6 @@
     }
 	
 
-
- 	
 	function setAlloweds_add(parentid){
 		ids=['a-roles','a-categories','a-groups','a-users']
 		 $.each(ids,function(idx,id) 
@@ -67,7 +69,6 @@
                   $(parentid+" #"+id).empty().trigger('change')
 			 });
 			 $(parentid+" #"+id).attr('disabled',true);
-             //~ console.log(id)
             if( id.replace('a-','') == 'groups'){
                 $(parentid+" #"+id).select2({
                     placeholder: "Empty applies to all. Type at least 2 letters to search.",
@@ -86,7 +87,6 @@
                             });
                         },
                         processResults: function (data) {
-                            console.log(data)
                             return {
                                 results: $.map(data, function (item, i) {
                                     return {
@@ -97,7 +97,7 @@
                             };
                         }
                     },
-                });	                
+                });
             }else{
                 $(parentid+" #"+id).select2({
                     placeholder: "Empty applies to all. Type at least 2 letters to search.",
@@ -155,7 +155,6 @@
                     $('#modalAllowedsForm #alloweds-add #a-'+key+'-cb').iCheck('check');
                     value.forEach(function(data)
                     {  
-                        //console.log(data)
                         if('parent_category' in data){                                
                             var newOption = new Option('['+data['parent_category']+'] '+data.name, data.id, true, true);
                         }else{
@@ -169,8 +168,6 @@
         });
 
 
-
-            
         socket.off('allowed_result');
         socket.on('allowed_result', function (data) {
             var data = JSON.parse(data);
