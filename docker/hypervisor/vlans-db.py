@@ -9,9 +9,8 @@ if len(sys.argv) < 2:
     print("Needs to specify vlan numbers as arguments. Exitting.")
     exit(1)
 
-new_vlans = [] 
 for vlan in sys.argv[1:]:
-    new_vlans.append({'id': 'v'+vlan,
+    new_vlan = {'id': 'v'+vlan,
                     'name': 'Vlan '+vlan,
                     'description': 'Infrastructure vlan',
                     'ifname': 'br-'+vlan,
@@ -24,7 +23,5 @@ for vlan in sys.argv[1:]:
                         'categories': False,
                         'groups': False,
                         'users': False}
-                    })
-
-r.db('isard').table('interfaces').insert(new_vlans, conflict='update').run()
-
+                    }
+    r.db('isard').table('interfaces').insert(new_vlan).run()
