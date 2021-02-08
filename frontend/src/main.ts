@@ -18,6 +18,8 @@ import Panel from 'primevue/panel';
 import PrimeIcons from 'primevue/config';
 import PrimeVue from 'primevue/config';
 import Sidebar from 'primevue/sidebar';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 import { createApp } from 'vue';
 import router from './router';
 import store from './store';
@@ -37,5 +39,7 @@ createApp(App)
   .component('Button', Button)
   .component('Card', Card)
   .component('Sidebar', Sidebar)
+  .component('DataTable', DataTable)
+  .component('Column', Column)
   .use(VueAxios, axios)
   .mount('#app');

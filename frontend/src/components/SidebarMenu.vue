@@ -1,13 +1,13 @@
 <template>
   <Button
     icon="pi pi-arrow-left"
-    @click="visibleLeft = !visibleLeft"
     class="p-mr-2"
+    @click="visibleLeft = !visibleLeft"
   />
   <Sidebar
     :visible="visibleLeft"
-    :autoZIndex="true"
-    :showCloseIcon="false"
+    :auto-z-index="true"
+    :show-close-icon="false"
     :modal="false"
   >
     <img id="logo" alt="IsardVDI" src="@/assets/logo.svg" />

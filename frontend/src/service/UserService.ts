@@ -1,11 +1,13 @@
-import axios from "axios";
+import axios from 'axios';
 
 export default class UserService {
   getUsers(): Promise<Types.User[]> {
-    return axios.get("assets/mockdata/users.json").then(res => res.data.users);
+    return axios
+      .get('assets/mockdata/users.json')
+      .then((res) => res.data.users);
   }
 
   getUser(): Promise<Types.User> {
-    return axios.get("assets/mockdata/users.json").then(res => res.data);
+    return axios.get('assets/mockdata/users.json').then((res) => res.data);
   }
 }

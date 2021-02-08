@@ -15,6 +15,14 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
+    path: '/templates',
+    name: 'templates',
+    component: () => import('@/components/TemplatesList.vue'),
+    meta: {
+      layout: 'MainLayout'
+    }
+  },
+  {
     path: '/entity',
     name: 'Entity',
     component: () => import('@/components/Dashboard.vue'),

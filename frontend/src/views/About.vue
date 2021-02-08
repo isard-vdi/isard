@@ -8,6 +8,7 @@
 <script lang="ts">
 import { computed } from 'vue';
 import { useStore } from 'vuex';
+
 export default {
   name: 'About',
   setup() {
