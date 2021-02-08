@@ -44,7 +44,6 @@ $(document).ready(function() {
         $('#allowed-title').html('')
         $('#alloweds_panel').css('display','block');
         setAlloweds_add('#alloweds-block');
-        console.log($('meta[id=user_data]').attr('data-role'))
         if ($('meta[id=user_data]').attr('data-role') == 'manager'){
             $('#categories_pannel').hide();
             $('#roles_pannel').hide();
@@ -60,7 +59,6 @@ $(document).ready(function() {
                 if (template !=''){
                     data=$('#modalAdd').serializeObject();
                     data=replaceAlloweds_arrays('#modalAddDesktop #alloweds-block',data)
-                    console.log(data)
                     socket.emit('domain_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
@@ -91,7 +89,7 @@ $(document).ready(function() {
             modal_add_desktop_datatables();
         }
     });
-    
+
     $("#modalTemplateDesktop #send").on('click', function(e){
             var form = $('#modalTemplateDesktopForm');
 
@@ -410,9 +408,9 @@ $(document).ready(function() {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    
+
     startClientViewerSocket(socket);
-    
+
     socket.on('user_quota', function(data) {
         console.log('Quota update')
         var data = JSON.parse(data);
@@ -424,7 +422,7 @@ $(document).ready(function() {
         dtUpdateInsert(domains_table,data,false);
         setDomainDetailButtonsStatus(data.id, data.status);
     });
-    
+
     socket.on(kind+'_delete', function(data){
         var data = JSON.parse(data);
         var row = domains_table.row('#'+data.id).remove().draw();
@@ -438,7 +436,7 @@ $(document).ready(function() {
                 type: 'success'
         });
     });
-    
+
     socket.on ('result', function (data) {
         var data = JSON.parse(data);
         if(data.result){
@@ -456,7 +454,6 @@ $(document).ready(function() {
     });
 
     socket.on('add_form_result', function (data) {
-        console.log('received result')
         var data = JSON.parse(data);
         if(data.result){
             $("#modalAddFromBuilder #modalAdd")[0].reset();
@@ -477,9 +474,7 @@ $(document).ready(function() {
         });
     });
 
-    
     socket.on('adds_form_result', function (data) {
-        console.log('received multiple add result')
         var data = JSON.parse(data);
         if(data.result){
             $("#modalAddDesktop #modalAdd")[0].reset();
