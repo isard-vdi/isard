@@ -844,34 +844,74 @@ class isard():
         selected = create_dict.pop('allowed',None)
         #if current_user.role == == 'manager'
         users=[]
-        if current_user.role == 'admin' and selected['roles'] != False:
-            if len(selected['roles']) == 0:
+
+        if current_user.role == "admin":
+            if selected["roles"] is not False:
+                if not selected["roles"]:
+                    with app.app_context():
+                        selected["roles"] = [
+                            r["id"]
+                            for r in list(r.table("roles").pluck("id").run(db.conn))
+                        ]
+                for role in selected["roles"]:
+                    # Can't use get_all as has no index in database
+                    with app.app_context():
+                        roles = list(
+                            r.table("users")
+                            .filter({"role": role})
+                            .pluck("id")
+                            .run(db.conn)
+                        )
+                    users = users + [r["id"] for r in roles]
+            if selected["categories"] is not False:
+                if not selected["categories"]:
+                    with app.app_context():
+                        selected["categories"] = [
+                            c["id"]
+                            for c in list(
+                                r.table("categories").pluck("id").run(db.conn)
+                            )
+                        ]
                 with app.app_context():
-                    selected['roles']=[r['id'] for r in list(r.table('roles').pluck('id').run(db.conn))]
-            for role in selected['roles']:
-                ''' Can't use get_all as has no index in database '''
+                    categories = list(
+                        r.table("users")
+                        .get_all(r.args(selected["categories"]), index="category")
+                        .pluck("id")
+                        .run(db.conn)
+                    )
+                users = users + [c["id"] for c in categories]
+
+        if selected["groups"] is not False:
+            if not selected["groups"]:
+                query = r.table("groups")
+                if current_user.role == "manager":
+                    query = query.get_all(
+                        current_user.category, index="parent_category"
+                    )
                 with app.app_context():
-                    roles = list(r.table('users').filter({'role':role}).pluck('id').run(db.conn))
-                users=users+[r['id'] for r in roles]
-        if current_user.role == 'admin' and selected['categories'] != False:
-            if len(selected['categories']) == 0:
-                with app.app_context():
-                    selected['categories']=[c['id'] for c in list(r.table('categories').pluck('id').run(db.conn))]            
+                    selected["groups"] = [
+                        g["id"] for g in list(query.pluck("id").run(db.conn))
+                    ]
             with app.app_context():
-                categories = list(r.table('users').get_all(r.args(selected['categories']),index='category').pluck('id').run(db.conn))
-            users=users+[c['id'] for c in categories]
-        if selected['groups'] != False:
-            if len(selected['groups']) == 0:
+                groups = list(
+                    r.table("users")
+                    .get_all(r.args(selected["groups"]), index="group")
+                    .pluck("id")
+                    .run(db.conn)
+                )
+            users = users + [g["id"] for g in groups]
+
+        if selected["users"] is not False:
+            if not selected["users"]:
+                query = r.table("users")
+                if current_user.role == "manager":
+                    query = query.get_all(current_user.category, index="category")
                 with app.app_context():
-                    selected['groups']=[g['id'] for g in list(r.table('groups').pluck('id').run(db.conn))]            
-            with app.app_context():
-                groups = list(r.table('users').get_all(r.args(selected['groups']),index='group').pluck('id').run(db.conn))
-            users=users+[g['id'] for g in groups]
-        if selected['users'] != False:
-            if len(selected['users']) == 0:
-                with app.app_context():
-                    selected['users']=[u['id'] for u in list(r.table('users').pluck('id').run(db.conn))]            
-            users=users+selected['users']
+                    selected["users"] = [
+                        u["id"] for u in list(query.pluck("id").run(db.conn))
+                    ]
+            users = users + selected["users"]
+
         '''Remove duplicates'''
         users=list(set(users))
         with app.app_context():
