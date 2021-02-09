@@ -58,8 +58,11 @@ func (i *Isard) CheckRegistrationCode(u *model.User, code string) error {
 		return fmt.Errorf("check registration code: decode JSON response: %w", err)
 	}
 
+	if u.Category != props.Category {
+		return errors.New("check registration code: registration code from other category")
+	}
+
 	u.Role = props.Role
-	u.Category = props.Category
 	u.Group = props.Group
 
 	return nil
