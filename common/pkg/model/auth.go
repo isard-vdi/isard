@@ -1,6 +1,11 @@
 package model
 
-import "time"
+import (
+	"context"
+	"time"
+
+	"github.com/go-pg/pg/v10"
+)
 
 type AuthConfig struct {
 	ID   int
@@ -16,4 +21,13 @@ type AuthConfig struct {
 	CreatedAt time.Time `pg:",notnull"`
 	UpdatedAt time.Time `pg:",notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
+}
+
+var _ pg.BeforeInsertHook = (*AuthConfig)(nil)
+
+func (a *AuthConfig) BeforeInsert(ctx context.Context) (context.Context, error) {
+	a.CreatedAt = time.Now()
+	a.UpdatedAt = time.Now()
+
+	return ctx, nil
 }

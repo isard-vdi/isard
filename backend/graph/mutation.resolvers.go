@@ -6,6 +6,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	authProv "gitlab.com/isard/isardvdi/backend/auth/provider"
@@ -15,13 +16,13 @@ import (
 	"gitlab.com/isard/isardvdi/controller/pkg/proto"
 )
 
-func (r *mutationResolver) Login(ctx context.Context, provider string, organization string, usr *string, pwd *string) (*string, error) {
+func (r *mutationResolver) Login(ctx context.Context, provider string, entityID string, usr *string, pwd *string) (*string, error) {
 	h := middleware.GetHTTP(ctx)
 	p := authProv.FromString(provider, r.Auth.Store, r.Auth.DB)
 
 	form := url.Values{}
 	form.Set("provider", p.String())
-	form.Set("organization", organization)
+	form.Set("entityID", entityID)
 
 	if usr != nil {
 		form.Set("usr", *usr)
@@ -37,8 +38,17 @@ func (r *mutationResolver) Login(ctx context.Context, provider string, organizat
 		return nil, err
 	}
 
-	// TODO: return user id
-	return nil, nil
+	w := *h.W
+	req := &http.Request{Header: http.Header{
+		"Cookie": []string{w.Header().Get("Set-Cookie")},
+	}}
+
+	session, err := req.Cookie(authProv.SessionStoreKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &session.Value, nil
 }
 
 func (r *mutationResolver) DesktopStart(ctx context.Context, id string) (*model.Viewer, error) {

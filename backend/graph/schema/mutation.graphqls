@@ -1,5 +1,5 @@
 type Mutation {
-    login(provider: String!, organization: String!, usr: String, pwd: String): String
+    login(provider: String!, entityId: String!, usr: String, pwd: String): String
 
     desktopStart(id: ID!): Viewer! @hasRole(role: USER)
     desktopStop(id: ID!): Boolean @hasRole(role: USER)

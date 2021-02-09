@@ -53,7 +53,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		DesktopStart func(childComplexity int, id string) int
 		DesktopStop  func(childComplexity int, id string) int
-		Login        func(childComplexity int, provider string, organization string, usr *string, pwd *string) int
+		Login        func(childComplexity int, provider string, entityID string, usr *string, pwd *string) int
 	}
 
 	Query struct {
@@ -75,7 +75,7 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	Login(ctx context.Context, provider string, organization string, usr *string, pwd *string) (*string, error)
+	Login(ctx context.Context, provider string, entityID string, usr *string, pwd *string) (*string, error)
 	DesktopStart(ctx context.Context, id string) (*model.Viewer, error)
 	DesktopStop(ctx context.Context, id string) (*bool, error)
 }
@@ -146,7 +146,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.Login(childComplexity, args["provider"].(string), args["organization"].(string), args["usr"].(*string), args["pwd"].(*string)), true
+		return e.complexity.Mutation.Login(childComplexity, args["provider"].(string), args["entityId"].(string), args["usr"].(*string), args["pwd"].(*string)), true
 
 	case "Query.desktops":
 		if e.complexity.Query.Desktops == nil {
@@ -260,7 +260,7 @@ enum Role {
 }
 `, BuiltIn: false},
 	{Name: "graph/schema/mutation.graphqls", Input: `type Mutation {
-    login(provider: String!, organization: String!, usr: String, pwd: String): String
+    login(provider: String!, entityId: String!, usr: String, pwd: String): String
 
     desktopStart(id: ID!): Viewer! @hasRole(role: USER)
     desktopStop(id: ID!): Boolean @hasRole(role: USER)
@@ -345,14 +345,14 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 	}
 	args["provider"] = arg0
 	var arg1 string
-	if tmp, ok := rawArgs["organization"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("organization"))
+	if tmp, ok := rawArgs["entityId"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("entityId"))
 		arg1, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["organization"] = arg1
+	args["entityId"] = arg1
 	var arg2 *string
 	if tmp, ok := rawArgs["usr"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("usr"))
@@ -522,7 +522,7 @@ func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.C
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().Login(rctx, args["provider"].(string), args["organization"].(string), args["usr"].(*string), args["pwd"].(*string))
+		return ec.resolvers.Mutation().Login(rctx, args["provider"].(string), args["entityId"].(string), args["usr"].(*string), args["pwd"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

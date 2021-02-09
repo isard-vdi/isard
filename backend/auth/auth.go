@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"gitlab.com/isard/isardvdi/backend/auth/provider"
-	"gitlab.com/isard/isardvdi/backend/model"
+	"gitlab.com/isard/isardvdi/common/pkg/model"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/go-redis/redis/v8"
@@ -52,7 +52,7 @@ func (a *Auth) GetUser(ctx context.Context, c *http.Cookie) (*model.User, error)
 	}
 
 	u := &model.User{
-		ID: val.UsrID(),
+		UUID: val.UsrID(),
 	}
 
 	// TODO: Load user

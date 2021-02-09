@@ -1,6 +1,11 @@
 package model
 
-import "time"
+import (
+	"context"
+	"time"
+
+	"github.com/go-pg/pg/v10"
+)
 
 type Group struct {
 	ID   int
@@ -20,6 +25,15 @@ type Group struct {
 	CreatedAt time.Time `pg:",notnull"`
 	UpdatedAt time.Time `pg:",notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
+}
+
+var _ pg.BeforeInsertHook = (*Group)(nil)
+
+func (g *Group) BeforeInsert(ctx context.Context) (context.Context, error) {
+	g.CreatedAt = time.Now()
+	g.UpdatedAt = time.Now()
+
+	return ctx, nil
 }
 
 type ExtraGroups struct {
