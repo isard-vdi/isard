@@ -60,3 +60,7 @@
 .select2-search, .select2-search__field {
   width: 100% !important;
 }
+
+.table > tbody > tr.active > td {
+  background-color: #ffe6e6;
+}
