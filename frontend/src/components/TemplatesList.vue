@@ -1,9 +1,13 @@
 <template>
   <div class="p-d-flex p-flex-column">
-    <div>searchbar <button @click="search">Search</button></div>
+    <div><button @click="actionIncrement">Search</button></div>
     <div>
-      hola
-      <DataTable :value="users">
+      Double
+      <h3>{{ doubleCounter }}</h3>
+    </div>
+    <div>searchbar <button @click="actionFilterSearch">Filter</button></div>
+    <div>
+      <DataTable :value="usersList">
         <Column field="name" header="Name"></Column>
         <Column field="surname1" header="Surname"></Column>
         <Column field="surname2" header="Surname 2"></Column>
@@ -15,26 +19,40 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import UserService from '../service/UserService';
-
-const userService = new UserService();
+import { computed, defineComponent, ref } from 'vue';
+import { useStore } from '../store';
+import { ActionTypes } from '@/store/actions';
+import { MutationTypes } from '../store/mutations';
 
 export default defineComponent({
-  data() {
+  setup(props, context) {
+    const store = useStore();
+
+    const increment = () => {
+      store.commit(MutationTypes.INC_COUNTER, 3);
+    };
+
+    const doubleCounter = computed(() => store.getters.doubleCounter);
+
+    const actionIncrement = () => {
+      store.dispatch(ActionTypes.INC_COUNTER, 2);
+    };
+
+    const usersList = computed(() => store.getters.searchResults);
+    const actionFilterSearch = () => {
+      store.dispatch(ActionTypes.DO_SEARCH, '');
+    };
+
     return {
-      users: [{ name: 'tony' }]
+      increment,
+      doubleCounter,
+      actionIncrement,
+      actionFilterSearch,
+      usersList
     };
   },
-  methods: {
-    search(): void {
-      const that = this;
-
-      userService.getUsers().then((response: any): any => {
-        console.log(response);
-        this.users = response;
-      });
-    }
+  data() {
+    return {};
   }
 });
 </script>

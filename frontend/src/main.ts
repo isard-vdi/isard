@@ -22,7 +22,7 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import { createApp } from 'vue';
 import router from './router';
-import store from './store';
+import { store } from './store';
 import axios from 'axios';
 import VueAxios from 'vue-axios';
 
@@ -31,6 +31,7 @@ createApp(App)
   .use(router)
   .use(PrimeVue)
   .use(PrimeIcons)
+  .use(VueAxios, axios)
   .component('AppLayout', AppLayout)
   .component('PanelMenu', PanelMenu)
   .component('Panel', Panel)
@@ -41,5 +42,4 @@ createApp(App)
   .component('Sidebar', Sidebar)
   .component('DataTable', DataTable)
   .component('Column', Column)
-  .use(VueAxios, axios)
   .mount('#app');
