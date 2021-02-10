@@ -35,6 +35,7 @@
             required
             :options="categories_select"
             v-model="category"
+            ref="select_category"
           >
             <template #first>
               <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
@@ -139,7 +140,11 @@ export default {
             this.showDismissibleAlert = true
           })
       } else {
-        window.location = `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/`
+        if (this.$refs.select_category.$el.checkValidity()) {
+          window.location = `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/`
+        } else {
+          this.$refs.select_category.$el.reportValidity()
+        }
       }
     }
   },
