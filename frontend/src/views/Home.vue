@@ -146,6 +146,9 @@ export default {
         this.$store.dispatch('fetchTemplates')
       }, 15000)
     }
+  },
+  beforeDestroy () {
+    clearInterval(this.polling)
   }
 }
 </script>
