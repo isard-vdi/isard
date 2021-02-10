@@ -40,8 +40,10 @@ type User struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
-	GroupID int    `pg:",notnull"`
-	Group   *Group `pg:"rel:has-one"`
+	EntityID int     `pg:",notnull"`
+	Entity   *Entity `pg:"rel:has-one"`
+	GroupID  int     `pg:",notnull"`
+	Group    *Group  `pg:"rel:has-one"`
 
 	AuthConfigID int         `pg:",notnull"`
 	AuthConfig   *AuthConfig `pg:"rel:has-one"`
@@ -62,12 +64,13 @@ type Group struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
-	ParentID int
-	Parent   *Group  `pg:"rel:has-one"`
-	EntityID int     `pg:",notnull"`
-	Entity   *Entity `pg:"rel:has-one"`
-	Name     string  `pg:",notnull"`
-	Users    []*User `pg:"rel:has-many"`
+	ParentID    int
+	Parent      *Group  `pg:"rel:has-one"`
+	EntityID    int     `pg:",notnull"`
+	Entity      *Entity `pg:"rel:has-one"`
+	Name        string  `pg:",notnull"`
+	Description string
+	Users       []*User `pg:"rel:has-many"`
 	// TODO: Is this really required?
 	RoleID int
 	Role   *Role `pg:"rel:has-one"`

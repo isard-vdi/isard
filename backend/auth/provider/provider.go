@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-pg/pg/v10"
 	"github.com/gorilla/sessions"
-	"gitlab.com/isard/isardvdi/backend/model"
+	"gitlab.com/isard/isardvdi/common/pkg/model"
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")

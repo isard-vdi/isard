@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"gitlab.com/isard/isardvdi/backend/model"
+	"gitlab.com/isard/isardvdi/common/pkg/model"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/gorilla/sessions"
@@ -24,20 +24,15 @@ func (Local) String() string {
 }
 
 func (l *Local) Login(w http.ResponseWriter, r *http.Request) error {
-	organization := r.FormValue("organization")
+	entityID := r.FormValue("entityID")
 	usr := r.FormValue("usr")
 	pwd := r.FormValue("pwd")
 
-	u := &model.User{
-		Organization: organization,
-		Username:     usr,
-	}
-	if err := u.LoadWithUsername(r.Context(), l.DB); err != nil {
+	u := &model.User{Username: usr}
+	if err := u.LoadWithUsername(r.Context(), l.DB, entityID); err != nil {
 		if errors.Is(err, pg.ErrNoRows) {
 			return ErrInvalidCredentials
 		}
-
-		return err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pwd)); err != nil {

@@ -13,6 +13,7 @@ require (
 	github.com/gorilla/sessions v1.2.1
 	github.com/qmuntal/stateless v1.1.5
 	github.com/rbcervilla/redisstore/v8 v8.0.0
+	github.com/rs/xid v1.2.1
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1
