@@ -10,12 +10,12 @@
           <div class="p-fluid">
             <div class="p-field">
               <label for="user">Usuario</label>
-              <InputText id="user" type="text" v-model.trim="user" />
+              <InputText id="user" v-model.trim="user" type="text" />
             </div>
             <div class="p-field">
               <label for="password">Clave</label>
               <div>
-                <InputText id="password" type="text" v-model.trim="password" />
+                <InputText id="password" v-model.trim="password" type="text" />
               </div>
             </div>
             <div class="p-field">
@@ -24,7 +24,7 @@
                 id="organization"
                 v-model="dropdownValue"
                 :options="dropdownValues"
-                optionLabel="name"
+                option-label="name"
                 :filter="true"
                 placeholder="Select an entity"
               >
@@ -36,8 +36,8 @@
                     {{ slotProps.placeholder }}
                   </span>
                 </template>
-                <template #option="slotProps">
-                  <div>
+                <template #option="slotProps"
+                  ><div>
                     <div>{{ slotProps.option.name }}</div>
                   </div>
                 </template>
@@ -45,7 +45,7 @@
             </div>
             <div class="p-field">
               <label for="regcode">Codigo</label>
-              <InputText id="regcode" type="text" v-model.trim="regcode" />
+              <InputText id="regcode" v-model.trim="regcode" type="text" />
             </div>
             <div>
               <p v-if="!formIsValid">Enter a valid user and password</p>
