@@ -137,7 +137,7 @@ export default {
             this.showDismissibleAlert = true
           })
       } else {
-        if (this.$refs.select_category.$el.checkValidity()) {
+        if (this.category) {
           window.location = `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/`
         } else {
           this.$refs.select_category.$el.reportValidity()
