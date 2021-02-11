@@ -1,16 +1,13 @@
 <template>
   <b-container fluid>
-    <b-row id="header">
-      <b-col>
-        <Language />
-      </b-col>
-
+    <b-row id="header" class="mb-4">
       <b-col>
         <Logo/>
       </b-col>
-
+    </b-row>
+    <b-row>
       <b-col>
-        <b-button v-if="config['show_admin_button']" :href="'/isard-admin/login/' + category" size="sm" variant="outline-secondary">{{ $t('views.login.admin') }}</b-button>
+        <Language class="mb-4"/>
       </b-col>
     </b-row>
     <b-row id="login" align-h="center">
@@ -189,11 +186,6 @@ export default {
 </script>
 
 <style>
-#header {
-  padding: 25px 25px 0 25px;
-  margin-bottom: 50px;
-}
-
 #powered-by {
   margin: 4rem;
 }

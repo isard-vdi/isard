@@ -301,8 +301,18 @@ class isard():
             except:
                 return False
 
-
-
+    def get_login_path():
+        with app.app_context():
+            category = (
+                r.table("categories")
+                .get(current_user.category)
+                .pluck("id", "name", "frontend")
+                .run(db.conn)
+            )
+        if category.get("frontend", False):
+            return "/login/"
+        else:
+            return "/login/" + category.get("id")
 
     def get_user_templates(self, user):
         with app.app_context():

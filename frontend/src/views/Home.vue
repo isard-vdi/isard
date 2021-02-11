@@ -9,6 +9,10 @@
             <b-button variant="primary" size="lg" v-b-modal.help_modal>
               <b-icon icon="question-circle-fill" scale="1"></b-icon>
             </b-button>
+            <b-button v-if="config['show_admin_button']" size="lg" href="/isard-admin/login" variant="outline-secondary">
+              <b-icon icon="gear" scale="1"></b-icon>
+              {{ $t('views.login.admin') }}
+            </b-button>
         </b-button-group>
         <Help/>
         <div class="d-flex float-right">
@@ -59,6 +63,9 @@ import Help from '@/components/Help'
 import { mapActions } from 'vuex'
 
 export default {
+  beforeMount: async function () {
+    this.$store.dispatch('fetchConfig')
+  },
   components: {
     DesktopsCards,
     Help
@@ -69,6 +76,9 @@ export default {
     this.$store.dispatch('fetchTemplates')
   },
   computed: {
+    config () {
+      return this.$store.getters.getConfig
+    },
     user () {
       return this.$store.getters.getUser
     },

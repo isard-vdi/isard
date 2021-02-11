@@ -6,8 +6,10 @@
 #!/usr/bin/env python
 # coding=utf-8
 import rethinkdb as r
+from flask import request
 from flask_login import LoginManager, UserMixin
 import time
+import requests
 
 from webapp import app
 from ..lib.flask_rethink import RethinkDB
@@ -58,6 +60,45 @@ class User(UserMixin):
     
     def is_anonymous(self):
         return False
+
+
+def get_authenticated_user_backend():
+    """Check if session is authenticated by backend
+
+    :returns: User object if authenticated
+    """
+    response = requests.get(
+        'http://isard-backend:8080/api/v2/check',
+        cookies={'session': request.cookies.get('session')}
+    )
+    if response.status_code == 200:
+        user = app.localuser.getUser(response.text)
+        if user:
+            return User(user)
+    return None
+
+
+def logout_backend(response):
+    """Send logout to backend
+
+    :param response: Flask response
+    :return: True if successful, otherwise False
+    """
+    cookies = {}
+    for name, value in request.cookies.items():
+        cookies[name] = value
+    backend_response = requests.get(
+        'http://isard-backend:8080/api/v2/logout/remote',
+        cookies=cookies,
+        allow_redirects=False
+    )
+    if backend_response.status_code != 200:
+        log.error('backend remote logout failed')
+        return False
+    response.set_cookie('session', expires=0)
+    response.set_cookie('isard', expires=0)
+    return True
+
 
 def logout_ram_user(username):
     del(ram_users[username])
