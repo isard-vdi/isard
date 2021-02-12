@@ -12,7 +12,7 @@ import traceback
 from uuid import uuid4
 import time,json
 import sys,os
-from flask import request
+from flask import request, jsonify
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas_exc import *
 
@@ -44,8 +44,8 @@ def api_v2_login():
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
     try:
-        users.Login(id,passwd)
-        return json.dumps({}), 200, {'ContentType': 'application/json'}
+        id_ = users.Login(id, passwd)
+        return jsonify(success=True, id=id_)
     except UserLoginFailed:
         log.error("User "+id+" login failed.")
         return json.dumps({"code":1,"msg":"User login failed"}), 403, {'ContentType': 'application/json'}

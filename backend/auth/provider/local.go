@@ -44,7 +44,7 @@ func (l Local) Login(env *env.Env, w http.ResponseWriter, r *http.Request) {
 		Category: getCategory(r),
 	}
 
-	if err := env.Isard.Login(u.ID(), pwd); err != nil {
+	if err := env.Isard.Login(u, pwd); err != nil {
 		var e *utils.ErrHTTPCode
 		if errors.As(err, &e) {
 			if e.Code == http.StatusForbidden {
