@@ -11,8 +11,11 @@ require (
 	github.com/go-redis/redis/v8 v8.3.3
 	github.com/golang/protobuf v1.4.3
 	github.com/gorilla/sessions v1.2.1
+	github.com/gorilla/websocket v1.4.2
+	github.com/hashicorp/golang-lru v0.5.1
 	github.com/qmuntal/stateless v1.1.5
 	github.com/rbcervilla/redisstore/v8 v8.0.0
+	github.com/rs/cors v1.6.0
 	github.com/rs/xid v1.2.1
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/viper v1.7.1
