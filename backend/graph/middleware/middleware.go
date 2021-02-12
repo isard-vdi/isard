@@ -22,6 +22,7 @@ func NewMiddleware(auth *auth.Auth) *Middleware {
 
 func (m *Middleware) Serve(next http.Handler) http.Handler {
 	middleware := []func(http.Handler) http.Handler{
+		m.cors,
 		m.http,
 		m.auth,
 	}
