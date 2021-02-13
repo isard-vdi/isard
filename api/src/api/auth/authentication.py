@@ -75,7 +75,7 @@ try:
 except Exception as e:
     log.warning('No ldap module found, disabling ldap authentication')
 
-# ~ from ..config.ldapauth import myLdapAuth
+from .ldapauth import myLdapAuth
 class auth(object):
     def __init__(self):
         None
@@ -151,7 +151,7 @@ class auth(object):
         cfg=r.table('config').get(1).run(db.conn)['auth']
         try:
             conn = ldap.initialize(cfg['ldap']['ldap_server'])
-            id_conn = conn.search(cfg['ldap']['bind_dn'],ldap.SCOPE_SUBTREE,"uid=%s" % username)
+            id_conn = conn.search(cfg['ldap']['bind_dn'],ldap.SCOPE_SUBTREE,"uid=%s" % username.split('-')[-1])
             tmp,info=conn.result(id_conn, 0)
             user_dn=info[0][0]
             if conn.simple_bind_s(who=user_dn,cred=password):

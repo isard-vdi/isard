@@ -3,17 +3,18 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-###
-# WARNING: Duplicated code of api/src/api/auth/ldapauth.py
-###
+##
+# WARNING: Duplicated code of webapp/webapp/webapp/config/ldapauth.py
+##
 
 import time
-import rethinkdb as r
+from rethinkdb import RethinkDB
 
-from webapp import app
-from ..lib.flask_rethink import RethinkDB
+from api import app
+from ..libv2.flask_rethink import RDB
 
-db = RethinkDB(app)
+r = RethinkDB()
+db = RDB(app)
 db.init_app(app)
 
 '''

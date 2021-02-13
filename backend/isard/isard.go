@@ -1,6 +1,7 @@
 package isard
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"path"
 
 	"github.com/isard-vdi/isard/backend/pkg/utils"
+	"github.com/isard-vdi/isard/backend/model"
 	"go.uber.org/zap"
 )
 
@@ -39,15 +41,20 @@ func (i *Isard) url(endpoint string) string {
 	return u.String()
 }
 
-func (i *Isard) Login(usr, pwd string) error {
+type loginRsp struct {
+	ID      string `json:"id,omitempty"`
+	Success bool `json:"success,omitempty"`
+}
+
+func (i *Isard) Login(usr *model.User, pwd string) error {
 	rsp, err := http.PostForm(i.url("login"), url.Values{
-		"id":     {usr},
+		"id":     {usr.ID()},
 		"passwd": {pwd},
 	})
 	if err != nil {
 		i.sugar.Errorw("login",
 			"err", err,
-			"usr", usr,
+			"usr", usr.ID(),
 		)
 
 		return fmt.Errorf("login: %w", err)
@@ -63,11 +70,20 @@ func (i *Isard) Login(usr, pwd string) error {
 			"err", err,
 			"code", rsp.StatusCode,
 			"body", string(b),
-			"usr", usr,
+			"usr", usr.ID(),
 		)
 
 		return fmt.Errorf("login: %w", err)
 	}
 
+	login := loginRsp{}
+	if err := json.NewDecoder(rsp.Body).Decode(&login); err != nil {
+		i.sugar.Errorw("login: decode JSON response",
+			"err", err,
+		)
+
+		return fmt.Errorf("login: decode JSON response: %w", err)
+	}
+	usr.LoadFromID(login.ID)
 	return nil
 }

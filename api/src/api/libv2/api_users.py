@@ -41,6 +41,7 @@ class ApiUsers():
         user=self.au._check(user_id,user_passwd)
         if user == False:
             raise UserLoginFailed
+        return user.id
 
     def Exists(self,user_id):
         with app.app_context():
