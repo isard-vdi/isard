@@ -1,0 +1,66 @@
+{
+  "views": {
+    "login": {
+      "form": {
+        "user": "Usuari",
+        "key": "Clau",
+        "entity": "Entitat",
+        "code": "Codi"
+      }
+    }
+  },
+  "primevue": {
+    "accept": "Si",
+    "reject": "No",
+    "choose": "Escull",
+    "upload": "Pujar",
+    "cancel": "Cancel·lar",
+    "dayNames": [
+      "Diumenge",
+      "Dilluns",
+      "Dimarts",
+      "Dimecres",
+      "Dijous",
+      "Divendres",
+      "Dissabte"
+    ],
+    "dayNamesShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "dayNamesMin": ["DI", "DL", "DM", "DX", "DJ", "Fr", "DS"],
+    "monthNames": [
+      "Gener",
+      "Febrer",
+      "Març",
+      "Abril",
+      "Maig",
+      "Juny",
+      "Juliol",
+      "Augost",
+      "Setembre",
+      "Octobre",
+      "Novembre",
+      "Desembre"
+    ],
+    "monthNamesShort": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "today": "Avui",
+    "weekHeader": "St",
+    "firstDayOfWeek": "1",
+    "dateFormat": "dd/mm/aa",
+    "weak": "Feble",
+    "medium": "Mig",
+    "strong": "Fort",
+    "passwordPrompt": "Introdueix una contrasenya"
+  }
+}

@@ -1,4 +1,5 @@
 <template>
+  <Language />
   <div class="p-d-flex p-jc-center">
     <div class="p-col-12 p-md-6 p-lg-4">
       <Card class="p-shadow-19">
@@ -9,17 +10,19 @@
         <template #content>
           <div class="p-fluid">
             <div class="p-field">
-              <label for="user">Usuario</label>
+              <label for="user">{{ $t('views.login.form.user') }}</label>
               <InputText id="user" v-model.trim="user" type="text" />
             </div>
             <div class="p-field">
-              <label for="password">Clave</label>
+              <label for="password">{{ $t('views.login.form.key') }}</label>
               <div>
                 <InputText id="password" v-model.trim="password" type="text" />
               </div>
             </div>
             <div class="p-field">
-              <label for="organization">Entidad</label>
+              <label for="organization">{{
+                $t('views.login.form.entity')
+              }}</label>
               <Dropdown
                 id="organization"
                 v-model="dropdownValue"
@@ -44,7 +47,7 @@
               </Dropdown>
             </div>
             <div class="p-field">
-              <label for="regcode">Codigo</label>
+              <label for="regcode">{{ $t('views.login.form.code') }}</label>
               <InputText id="regcode" v-model.trim="regcode" type="text" />
             </div>
             <div>
@@ -64,7 +67,12 @@
 </template>
 
 <script>
+import Language from '@/components/Language.vue';
+
 export default {
+  components: {
+    Language
+  },
   data() {
     return {
       user: '',
