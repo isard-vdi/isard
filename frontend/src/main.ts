@@ -10,36 +10,40 @@ import 'primeflex/primeflex.css';
 import App from './App.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Button from 'primevue/button';
+import Calendar from 'primevue/calendar';
 import Card from 'primevue/card';
+import Column from 'primevue/column';
+import DataTable from 'primevue/datatable';
 import Dropdown from 'primevue/dropdown';
 import InputText from 'primevue/inputtext';
-import PanelMenu from 'primevue/panelmenu';
 import Panel from 'primevue/panel';
+import PanelMenu from 'primevue/panelmenu';
 import PrimeIcons from 'primevue/config';
 import PrimeVue from 'primevue/config';
 import Sidebar from 'primevue/sidebar';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
+import VueAxios from 'vue-axios';
+import axios from 'axios';
 import { createApp } from 'vue';
+import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
-import axios from 'axios';
-import VueAxios from 'vue-axios';
 
-createApp(App)
-  .use(store)
-  .use(router)
-  .use(PrimeVue)
-  .use(PrimeIcons)
-  .use(VueAxios, axios)
-  .component('AppLayout', AppLayout)
-  .component('PanelMenu', PanelMenu)
-  .component('Panel', Panel)
-  .component('InputText', InputText)
-  .component('Dropdown', Dropdown)
-  .component('Button', Button)
-  .component('Card', Card)
-  .component('Sidebar', Sidebar)
-  .component('DataTable', DataTable)
-  .component('Column', Column)
-  .mount('#app');
+const app = createApp(App);
+app.use(store);
+app.use(router);
+app.use(i18n);
+app.use(PrimeVue);
+app.use(PrimeIcons);
+app.use(VueAxios, axios);
+app.component('AppLayout', AppLayout);
+app.component('PanelMenu', PanelMenu);
+app.component('Panel', Panel);
+app.component('Calendar', Calendar);
+app.component('InputText', InputText);
+app.component('Dropdown', Dropdown);
+app.component('Button', Button);
+app.component('Card', Card);
+app.component('Sidebar', Sidebar);
+app.component('DataTable', DataTable);
+app.component('Column', Column);
+app.mount('#app');

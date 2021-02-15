@@ -1,0 +1,66 @@
+{
+  "views": {
+    "login": {
+      "form": {
+        "user": "Usuario",
+        "key": "Clave",
+        "entity": "Entidad",
+        "code": "Código"
+      }
+    }
+  },
+  "primevue": {
+    "accept": "Si",
+    "reject": "No",
+    "choose": "Elegir",
+    "upload": "Subir",
+    "cancel": "Cancelar",
+    "dayNames": [
+      "Domingo",
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes",
+      "Sábado"
+    ],
+    "dayNamesShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "dayNamesMin": ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+    "monthNames": [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Augosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Deciembre"
+    ],
+    "monthNamesShort": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "today": "Hoy",
+    "weekHeader": "Wk",
+    "firstDayOfWeek": "1",
+    "dateFormat": "dd/mm/aa",
+    "weak": "Débil",
+    "medium": "Medio",
+    "strong": "Fuerte",
+    "passwordPrompt": "Introduce una contraseña"
+  }
+}
