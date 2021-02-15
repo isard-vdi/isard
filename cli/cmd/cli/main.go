@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
-
 	"github.com/rs/xid"
 	"gitlab.com/isard/isardvdi/common/pkg/db"
 	"gitlab.com/isard/isardvdi/common/pkg/model"
@@ -11,15 +9,15 @@ import (
 )
 
 func main() {
-	if _, err := exec.Command("dropdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
-		panic(err)
-	}
+	// if _, err := exec.Command("dropdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
+	// 	panic(err)
+	// }
 
-	if _, err := exec.Command("createdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
-		panic(err)
-	}
+	// if _, err := exec.Command("createdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
+	// 	panic(err)
+	// }
 
-	db, err := db.New("localhost:5432", "dev", "dev", "isard")
+	db, err := db.New("127.0.0.1:5433", "isard", "isard", "isard")
 	if err != nil {
 		panic(err)
 	}
