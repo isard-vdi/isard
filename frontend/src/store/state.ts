@@ -5,22 +5,9 @@ export interface State {
 }
 
 export interface Auth {
-  user: User;
-  tocken: string;
+  user: Types.User;
+  token: string;
   loggedIn: boolean;
-}
-
-export interface User {
-  userName: string;
-  email: string;
-  name: string;
-  surname1: string;
-  surname2: string;
-  status: string;
-  organizationId: string;
-  roles: string[];
-  lastAttempt: string;
-  creationDate: string;
 }
 
 export const state: State = {
@@ -50,9 +37,13 @@ export const state: State = {
       organizationId: '',
       roles: [],
       lastAttempt: '',
-      creationDate: ''
+      creationDate: '',
+      uuid: '',
+      id: '',
+      avatar: '',
+      profile: ''
     },
-    tocken: '',
+    token: '',
     loggedIn: false
   }
 };

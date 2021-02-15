@@ -1,21 +1,23 @@
-import { User } from '@/store/state';
-
 export default class UsersUtils {
-  static cleanUsers(items: any[]): User[] {
-    // type as UserSearchItem
+  static cleanUsers(items: any[]): Types.User[] {
+    console.log(items, 'items');
     return items.map(
-      (item: any): User => {
+      (item: any): Types.User => {
         return {
-          userName: '',
+          userName: item.username,
+          name: item.name,
+          surname1: item.surname,
           email: '',
-          name: '',
-          surname1: '',
           surname2: '',
           status: '',
           organizationId: '',
           roles: [],
           lastAttempt: '',
-          creationDate: ''
+          creationDate: '',
+          uuid: item.uuid,
+          id: '',
+          avatar: '',
+          profile: ''
         };
       }
     );

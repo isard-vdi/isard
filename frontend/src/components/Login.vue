@@ -59,7 +59,7 @@
           </div>
         </template>
         <template #footer>
-          <Button label="Login" icon="pi pi-check" @click="login" />
+          <Button label="Login" icon="pi pi-check" @click="buttLogin" />
         </template>
       </Card>
     </div>
@@ -68,17 +68,45 @@
 
 <script>
 import Language from '@/components/Language.vue';
+import { ref } from 'vue';
+import { useStore } from 'vuex';
+import { ActionTypes } from '@/store/actions';
 
 export default {
   components: {
     Language
   },
+  setup(props, context) {
+    const store = useStore();
+
+    const user = ref('');
+    const password = ref('');
+    const organization = ref('');
+    const formIsValid = ref(true);
+
+    const buttLogin = () => {
+      formIsValid.value = true;
+      if (user.value === '' || password.value.length < 3) {
+        formIsValid.value = false;
+        return;
+      }
+      store.dispatch(ActionTypes.DO_LOCAL_LOGIN, {
+        usr: user.value,
+        psw: password.value,
+        entity: 'c0l4994tdj5ubibc7c30'
+      });
+    };
+
+    return {
+      buttLogin,
+      formIsValid,
+      user,
+      password
+    };
+  },
   data() {
     return {
-      user: '',
-      password: '',
       regcode: '',
-      formIsValid: true,
       mode: 'login',
       dropdownValue: null,
       dropdownValues: [
@@ -89,14 +117,7 @@ export default {
     };
   },
   methods: {
-    login() {
-      this.formIsValid = true;
-      if (this.user === '' || this.password.length < 3) {
-        this.formIsValid = false;
-        return;
-      }
-      this.$router.push({ name: 'Admin' });
-    }
+    login() {}
   }
 };
 </script>

@@ -1,6 +1,21 @@
 export const menu = [
   {
     label: 'Desktops',
+    icon: 'pi pi-fw pi-desktop',
+    url: 'desktops'
+  },
+  {
+    label: 'Templates',
+    icon: 'pi pi-fw pi-desktop',
+    url: 'templates'
+  },
+  {
+    label: 'Users',
+    icon: 'pi pi-fw pi-desktop',
+    url: 'users'
+  },
+  {
+    label: 'Desktops',
     icon: 'pi pi-fw pi-desktop'
   },
   {
