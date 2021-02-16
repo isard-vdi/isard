@@ -18,11 +18,14 @@ export default {
   },
   mutations: {
     setUser (state) {
-      const isard = JSON.parse(atob(cookies.get('isard')))
+      const cookie = cookies.get('isard')
+      if (cookie) {
+        const isard = JSON.parse(atob(cookie))
 
-      state.user = {
-        name: isard.name,
-        templates: isard.templates
+        state.user = {
+          name: isard.name,
+          templates: isard.templates
+        }
       }
     }
   }
