@@ -1,16 +1,11 @@
 <template>
   <div class="p-d-flex p-flex-column">
-    <div><button @click="actionIncrement">Search</button></div>
-    <div>
-      Double
-      <h3>{{ doubleCounter }}</h3>
-    </div>
     <div>searchbar <button @click="actionFilterSearch">Filter</button></div>
     <div>
-      <DataTable :value="usersList">
+      <DataTable :value="itemsList">
         <Column field="name" header="Name"></Column>
         <Column field="surname1" header="Surname"></Column>
-        <Column field="surname2" header="Surname 2"></Column>
+        <Column field="userName" header="Username"></Column>
         <Column field="profile" header="Profile"></Column>
       </DataTable>
     </div>
@@ -20,9 +15,9 @@
 
 <script lang="ts">
 import { computed, defineComponent, ref } from 'vue';
-import { useStore } from '../store';
+import { useStore } from '../../store';
 import { ActionTypes } from '@/store/actions';
-import { MutationTypes } from '../store/mutations';
+import { MutationTypes } from '../../store/mutations';
 
 export default defineComponent({
   setup(props, context) {
@@ -38,7 +33,7 @@ export default defineComponent({
       store.dispatch(ActionTypes.INC_COUNTER, 2);
     };
 
-    const usersList = computed(() => store.getters.searchResults);
+    const itemsList = computed(() => store.getters.searchResults);
     const actionFilterSearch = () => {
       store.dispatch(ActionTypes.DO_SEARCH, {
         section: '',
@@ -52,7 +47,7 @@ export default defineComponent({
       doubleCounter,
       actionIncrement,
       actionFilterSearch,
-      usersList
+      itemsList
     };
   },
   data() {

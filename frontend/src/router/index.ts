@@ -3,7 +3,12 @@ import { RouteRecordRaw, createRouter, createWebHistory } from 'vue-router';
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'Login',
+    name: 'Root',
+    component: () => import('@/components/Login.vue')
+  },
+  {
+    path: '/login',
+    name: 'login',
     component: () => import('@/components/Login.vue')
   },
   {
@@ -20,6 +25,15 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/components/TemplatesList.vue'),
     meta: {
       layout: 'MainLayout'
+    }
+  },
+  {
+    path: '/users',
+    name: 'users-list',
+    component: () => import('@/components/search/Search.vue'),
+    meta: {
+      layout: 'MainLayout',
+      needsAuth: true
     }
   },
   {

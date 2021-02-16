@@ -27,8 +27,24 @@ import { createApp } from 'vue';
 import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
+import { createClient } from 'villus';
+
+export const villusClient = createClient({
+  url: 'http://192.168.129.125:8080/v1/graphql'
+});
+
+router.beforeEach((to, from, next) => {
+  const loggedIn = store.getters.loginToken;
+  if (to.meta.needsAuth && !loggedIn) {
+    console.log('redirect login');
+    router.push({ name: 'login' });
+  } else {
+    next();
+  }
+});
 
 const app = createApp(App);
+
 app.use(store);
 app.use(router);
 app.use(i18n);
