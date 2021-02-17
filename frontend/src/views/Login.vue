@@ -11,7 +11,8 @@
       </b-col>
     </b-row>
     <b-row id="login" align-h="center">
-      <b-col sm="10" md="6" lg="5" xl="4">
+      <b-spinner v-if="loading" />
+      <b-col v-else sm="10" md="6" lg="5" xl="4">
         <h1 v-if="categories.length || config['social_logins']">{{ $t('views.login.title') }}</h1>
         <h3 v-if="category_by_path">{{ category_name }}</h3>
 
@@ -92,6 +93,7 @@ export default {
   },
   data () {
     return {
+      loading: false,
       categories_select: [],
       category: '',
       usr: '',
@@ -124,6 +126,7 @@ export default {
   methods: {
     login (provider) {
       if (provider === 'local') {
+        this.loading = true
         const data = new FormData()
         data.append('category', this.category)
         data.append('provider', provider)
@@ -135,6 +138,7 @@ export default {
           .catch(err => {
             this.error = this.$t('views.error.codes')[err.response.status.toString()]
             this.showDismissibleAlert = true
+            this.loading = false
           })
       } else {
         if (this.category) {
