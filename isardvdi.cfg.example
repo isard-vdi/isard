@@ -4,6 +4,13 @@
 ## the system paths. If you have a domain set it here
 HOSTNAME=localhost
 
+## SPICE PROXY PORT
+## Port sent to users via vv file to be used by SPICE proxy
+## If you change this port you need to redirect external connections to
+## internal port 80 but keeping the port 80 accessible externally
+## E.g.: firewall-cmd --zone=public --add-forward-port=port=8080:proto=tcp:toport=80
+SPICE_PROXY_PORT=80
+
 ## Frontend Administration Button
 ## With this variable you can control if there is a button in the simplified
 ## interface (frontend) to go to administration login.
