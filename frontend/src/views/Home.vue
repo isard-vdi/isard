@@ -71,7 +71,6 @@ export default {
     Help
   },
   created () {
-    this.pollData()
     this.$store.dispatch('fetchDesktops')
     this.$store.dispatch('fetchTemplates')
   },
@@ -118,7 +117,6 @@ export default {
   },
   data () {
     return {
-      polling: null,
       gridView: true,
       icons: {
         default: ['fas', 'desktop'],
@@ -149,16 +147,7 @@ export default {
   methods: {
     ...mapActions([
       'logout'
-    ]),
-    pollData () {
-      this.polling = setInterval(() => {
-        this.$store.dispatch('fetchDesktops')
-        this.$store.dispatch('fetchTemplates')
-      }, 15000)
-    }
-  },
-  beforeDestroy () {
-    clearInterval(this.polling)
+    ])
   }
 }
 </script>
