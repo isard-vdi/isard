@@ -78,6 +78,7 @@
             "register": "Registrarse"
         },
         "select-template": {
+            "template": "Plantilla",
             "loading": "Cargando plantillas",
             "no-templates": {
                 "title": "No hay ninguna plantilla para éste usuario!",
