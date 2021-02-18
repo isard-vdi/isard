@@ -88,9 +88,9 @@ class DS():
         try:
             result = future.result()
         except ReqlTimeoutError:
-            raise DesktopStartTimeout   
+            raise DesktopActionTimeout
         except DesktopWaitFailed:
-            raise DesktopStartFailed
+            raise DesktopActionFailed
         return True
 
     def _wait_for_domain_status(self, desktop_id, original_status, transition_status, final_status):

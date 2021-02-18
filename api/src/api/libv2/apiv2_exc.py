@@ -30,16 +30,10 @@ class DesktopNotCreated(Exception):
 class DesktopWaitFailed(Exception):
     pass
 
-class DesktopStartTimeout(Exception):
-    pass    
-
-class DesktopStopTimeout(Exception):
+class DesktopActionTimeout(Exception):
     pass
 
-class DesktopStartFailed(Exception):
-    pass
-
-class DesktopStopFailed(Exception):
+class DesktopActionFailed(Exception):
     pass
 
 class DesktopNotFound(Exception):

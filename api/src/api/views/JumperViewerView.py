@@ -47,7 +47,7 @@ def api_v2_viewer(token):
         log.error("Jumper viewer desktop not started")
         return render_template('error.html', error='Desktop could not be started. Try again in a while...')
         #return json.dumps({"code":2,"msg":"Jumper viewer desktop is not started"}), 404, {'ContentType': 'application/json'}
-    except DesktopStartTimeout:
+    except DesktopActionTimeout:
         log.error("Jumper viewer desktop start timeout.")
         carbon.send({'create_and_start_time':'100'})
         return render_template('error.html', error='Desktop start timed out. Try again in a while...')

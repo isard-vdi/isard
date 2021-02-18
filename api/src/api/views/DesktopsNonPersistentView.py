@@ -149,11 +149,11 @@ def api_v2_desktop_new():
         log.error("Desktop for user "+user_id+" from template "+template_id+" creation failed.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":1,"msg":"DestopNew not created"}), 404, {'ContentType': 'application/json'}
-    except DesktopStartTimeout:
+    except DesktopActionTimeout:
         log.error("Desktop for user "+user_id+" from template "+template_id+" start timeout.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":2,"msg":"DestopNew start timeout"}), 404, {'ContentType': 'application/json'}
-    except DesktopStartFailed:
+    except DesktopActionFailed:
         log.error("Desktop for user "+user_id+" from template "+template_id+" start failed.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":3,"msg":"DestopNew start failed"}), 404, {'ContentType': 'application/json'}
