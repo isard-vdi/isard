@@ -5,10 +5,10 @@ import (
 	"sync"
 
 	"gitlab.com/isard/isardvdi/controller/controller"
-	"gitlab.com/isard/isardvdi/controller/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	proto "gitlab.com/isard/isardvdi/pkg/proto/controller"
 
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	gRPC "google.golang.org/grpc"
 )
 

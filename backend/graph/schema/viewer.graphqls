@@ -1,12 +1,12 @@
 type Viewer {
-    Spice: ViewerSpice!
-    VNC_HTML: ViewerVNC_HTML!
+    spice: ViewerSpice
+    vncHtml: ViewerVncHtml
 }
 
 type ViewerSpice {
-    FileContent: String!
+    file: String!
 }
 
-type ViewerVNC_HTML {
-    URL: String!
+type ViewerVncHtml {
+    url: String!
 }

@@ -19,7 +19,8 @@ RUN go mod download
 
 WORKDIR /
 
-COPY . /build
+COPY pkg /build/pkg
+COPY hyper /build/hyper
 
 WORKDIR /build/hyper
 

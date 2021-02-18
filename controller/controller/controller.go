@@ -6,18 +6,18 @@ import (
 	"fmt"
 
 	"gitlab.com/isard/isardvdi/controller/cfg"
+	"gitlab.com/isard/isardvdi/pkg/pool"
+	"gitlab.com/isard/isardvdi/pkg/proto/common"
+	desktopBuilderProto "gitlab.com/isard/isardvdi/pkg/proto/desktopbuilder"
+	hyperProto "gitlab.com/isard/isardvdi/pkg/proto/hyper"
+	orchestratorProto "gitlab.com/isard/isardvdi/pkg/proto/orchestrator"
 
-	"gitlab.com/isard/isardvdi/common/pkg/pool"
-	"gitlab.com/isard/isardvdi/common/pkg/proto"
-	desktopBuilderProto "gitlab.com/isard/isardvdi/desktopbuilder/pkg/proto"
-	hyperProto "gitlab.com/isard/isardvdi/hyper/pkg/proto"
-	orchestratorProto "gitlab.com/isard/isardvdi/orchestrator/pkg/proto"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/xds" // Add support for xDS
 )
 
 type Interface interface {
-	DesktopStart(ctx context.Context, id string) (*proto.Viewer, error)
+	DesktopStart(ctx context.Context, id string) (*common.Viewer, error)
 }
 
 type Controller struct {
@@ -53,7 +53,7 @@ func (c *Controller) Close() error {
 	return c.orchestratorConn.Close()
 }
 
-func (c *Controller) DesktopStart(ctx context.Context, id string) (*proto.Viewer, error) {
+func (c *Controller) DesktopStart(ctx context.Context, id string) (*common.Viewer, error) {
 	var xml string
 
 	// Check if the desktop is already started

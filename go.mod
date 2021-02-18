@@ -21,6 +21,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/vektah/gqlparser/v2 v2.1.0
 	golang.org/x/crypto v0.0.0-20201012173705-84dcc777aaee
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0
 	libvirt.org/libvirt-go v6.8.0+incompatible

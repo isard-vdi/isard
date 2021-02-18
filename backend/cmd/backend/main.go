@@ -7,13 +7,13 @@ import (
 	"os/signal"
 	"sync"
 
-	"gitlab.com/isard/isardvdi/backend/auth"
 	"gitlab.com/isard/isardvdi/backend/cfg"
 	"gitlab.com/isard/isardvdi/backend/transport/http"
+	"gitlab.com/isard/isardvdi/pkg/db"
+	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/proto/auth"
 
-	"gitlab.com/isard/isardvdi/common/pkg/db"
-	"gitlab.com/isard/isardvdi/common/pkg/log"
-	"gitlab.com/isard/isardvdi/common/pkg/redis"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -24,27 +24,28 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	redis := redis.New(cfg.Redis.Cluster, cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Usr, cfg.Redis.Pwd)
-	if err := redis.Ping(ctx).Err(); err != nil {
-		log.Fatal().Err(err).Msg("connect to redis")
-	}
-
 	db, err := db.New(fmt.Sprintf("%s:%d", cfg.DB.Host, cfg.DB.Port), cfg.DB.Usr, cfg.DB.Pwd, cfg.DB.DB)
 	if err != nil {
 		log.Fatal().Err(err).Msg("connect to the database")
 	}
 
-	auth, err := auth.New(ctx, redis, db)
+	authConn, err := grpc.Dial(cfg.ClientsAddr.Auth, grpc.WithInsecure())
 	if err != nil {
-		log.Fatal().Err(err).Msg("create auth config")
+		log.Fatal().Err(err).Msg("dial auth")
 	}
+	auth := auth.NewAuthClient(authConn)
 
 	http := &http.BackendServer{
 		Addr: fmt.Sprintf("%s:%d", cfg.GraphQL.Host, cfg.GraphQL.Port),
-		Log:  log,
-		WG:   &wg,
+
+		DB:       db,
+		AuthConn: authConn,
+		Auth:     auth,
+
+		Log: log,
+		WG:  &wg,
 	}
-	go http.Serve(ctx, auth)
+	go http.Serve(ctx)
 	wg.Add(1)
 
 	stop := make(chan os.Signal, 1)

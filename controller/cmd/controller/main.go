@@ -10,8 +10,7 @@ import (
 	"gitlab.com/isard/isardvdi/controller/cfg"
 	"gitlab.com/isard/isardvdi/controller/controller"
 	"gitlab.com/isard/isardvdi/controller/transport/grpc"
-
-	"gitlab.com/isard/isardvdi/common/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/log"
 )
 
 func main() {

@@ -9,62 +9,172 @@ import (
 )
 
 type Desktop struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	Hardware    *Hardware `json:"hardware"`
+}
+
+type DesktopCreateInput struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+type DesktopCreatePayload struct {
+	RecordID *string  `json:"recordId"`
+	Record   *Desktop `json:"record"`
+}
+
+type DesktopDeletePayload struct {
+	RecordID *string  `json:"recordId"`
+	Record   *Desktop `json:"record"`
+}
+
+type DesktopDerivateInput struct {
+	TemplateID  string  `json:"templateId"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+type DesktopDerivatePayload struct {
+	RecordID *string  `json:"recordId"`
+	Record   *Desktop `json:"record"`
+}
+
+type DesktopMutations struct {
+	Start    *DesktopStartPayload    `json:"start"`
+	Stop     *DesktopStopPayload     `json:"stop"`
+	Delete   *DesktopDeletePayload   `json:"delete"`
+	Template *DesktopTemplatePayload `json:"template"`
+	Create   *DesktopCreatePayload   `json:"create"`
+	Derivate *DesktopDerivatePayload `json:"derivate"`
+}
+
+type DesktopQueries struct {
+	List   []*Desktop `json:"list"`
+	Get    *Desktop   `json:"get"`
+	Viewer *Viewer    `json:"viewer"`
+}
+
+type DesktopStartPayload struct {
+	RecordID *string  `json:"recordId"`
+	Record   *Desktop `json:"record"`
+	Viewer   *Viewer  `json:"viewer"`
+}
+
+type DesktopStopPayload struct {
+	RecordID *string  `json:"recordId"`
+	Record   *Desktop `json:"record"`
+}
+
+type DesktopTemplateInput struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+type DesktopTemplatePayload struct {
+	RecordID *string   `json:"recordId"`
+	Record   *Template `json:"record"`
+}
+
+type Disk struct {
+	ID       string   `json:"id"`
+	Type     DiskType `json:"type"`
+	Enable   *bool    `json:"enable"`
+	ReadOnly *bool    `json:"readOnly"`
+}
+
+type Hardware struct {
+	Base      *HardwareBase `json:"base"`
+	Vcpus     int           `json:"vcpus"`
+	MemoryMax int           `json:"memoryMax"`
+	MemoryMin int           `json:"memoryMin"`
+	Disks     []*Disk       `json:"disks"`
+}
+
+type HardwareBase struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	Os          string  `json:"os"`
+	OsVariant   *string `json:"osVariant"`
+	XML         string  `json:"xml"`
+}
+
+type Template struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Hardware    *Hardware `json:"hardware"`
+}
+
+type TemplateDeletePayload struct {
+	RecordID *string   `json:"recordId"`
+	Record   *Template `json:"record"`
+}
+
+type TemplateMutations struct {
+	Delete *TemplateDeletePayload `json:"delete"`
+}
+
+type TemplateQueries struct {
+	List []*Template `json:"list"`
+	Get  *Template   `json:"get"`
 }
 
 type Viewer struct {
-	Spice   *ViewerSpice   `json:"Spice"`
-	VncHTML *ViewerVncHTML `json:"VNC_HTML"`
+	Spice   *ViewerSpice   `json:"spice"`
+	VncHTML *ViewerVncHTML `json:"vncHtml"`
 }
 
 type ViewerSpice struct {
-	FileContent string `json:"FileContent"`
+	File string `json:"file"`
 }
 
 type ViewerVncHTML struct {
-	URL string `json:"URL"`
+	URL string `json:"url"`
 }
 
-type Role string
+type DiskType string
 
 const (
-	RoleAdmin    Role = "ADMIN"
-	RoleAdvanced Role = "ADVANCED"
-	RoleUser     Role = "USER"
+	DiskTypeUnknown DiskType = "UNKNOWN"
+	DiskTypeQcow2   DiskType = "QCOW2"
+	DiskTypeRaw     DiskType = "RAW"
 )
 
-var AllRole = []Role{
-	RoleAdmin,
-	RoleAdvanced,
-	RoleUser,
+var AllDiskType = []DiskType{
+	DiskTypeUnknown,
+	DiskTypeQcow2,
+	DiskTypeRaw,
 }
 
-func (e Role) IsValid() bool {
+func (e DiskType) IsValid() bool {
 	switch e {
-	case RoleAdmin, RoleAdvanced, RoleUser:
+	case DiskTypeUnknown, DiskTypeQcow2, DiskTypeRaw:
 		return true
 	}
 	return false
 }
 
-func (e Role) String() string {
+func (e DiskType) String() string {
 	return string(e)
 }
 
-func (e *Role) UnmarshalGQL(v interface{}) error {
+func (e *DiskType) UnmarshalGQL(v interface{}) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
 	}
 
-	*e = Role(str)
+	*e = DiskType(str)
 	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid Role", str)
+		return fmt.Errorf("%s is not a valid DiskType", str)
 	}
 	return nil
 }
 
-func (e Role) MarshalGQL(w io.Writer) {
+func (e DiskType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

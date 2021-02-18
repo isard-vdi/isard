@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"os"
 
+	"gitlab.com/isard/isardvdi/pkg/pool"
+	"gitlab.com/isard/isardvdi/pkg/state"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/qmuntal/stateless"
-	"gitlab.com/isard/isardvdi/common/pkg/pool"
-	"gitlab.com/isard/isardvdi/common/pkg/state"
 	"libvirt.org/libvirt-go"
 )
 

@@ -2,10 +2,11 @@
 
 package graph
 
+//go:generate go run github.com/99designs/gqlgen
+
 import (
-	"gitlab.com/isard/isardvdi/backend/auth"
-	"gitlab.com/isard/isardvdi/controller/pkg/proto"
-	"google.golang.org/grpc"
+	protoAuth "gitlab.com/isard/isardvdi/pkg/proto/auth"
+	protoController "gitlab.com/isard/isardvdi/pkg/proto/controller"
 )
 
 // This file will not be regenerated automatically.
@@ -13,8 +14,6 @@ import (
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 type Resolver struct {
-	controllerConn *grpc.ClientConn
-	controller     proto.ControllerClient
-
-	Auth *auth.Auth
+	Controller protoController.ControllerClient
+	Auth       protoAuth.AuthClient
 }

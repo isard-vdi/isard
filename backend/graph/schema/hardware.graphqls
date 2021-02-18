@@ -1,0 +1,29 @@
+type Hardware {
+    base: HardwareBase!
+    vcpus: Int!
+    memoryMax: Int!
+    memoryMin: Int!
+    disks: [Disk!]!
+}
+
+type HardwareBase {
+    id: ID!
+    name: String!
+    description: String
+    os: String!
+    osVariant: String
+    xml: String!
+}
+
+type Disk {
+    id: ID!
+    type: DiskType!
+    enable: Boolean
+    readOnly: Boolean
+}
+
+enum DiskType {
+    UNKNOWN
+    QCOW2
+    RAW
+}

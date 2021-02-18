@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/hyper"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"libvirt.org/libvirt-go"
 )
 
 // DesktopStop stops a running desktop in the hypervisor
-func (h *HyperServer) DesktopStop(ctx context.Context, req *proto.DesktopStopRequest) (*proto.DesktopStopResponse, error) {
+func (h *HyperServer) DesktopStop(ctx context.Context, req *hyper.DesktopStopRequest) (*hyper.DesktopStopResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"id": &req.Id,
 	}); err != nil {
@@ -38,5 +38,5 @@ func (h *HyperServer) DesktopStop(ctx context.Context, req *proto.DesktopStopReq
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	return &proto.DesktopStopResponse{}, nil
+	return &hyper.DesktopStopResponse{}, nil
 }

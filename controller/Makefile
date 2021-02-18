@@ -1,16 +1,6 @@
 all: gen test build docker
 
 gen:
-	protoc \
-		-I . \
-		-I ../common/pkg/proto \
-		--go_out=. \
-		--go_opt=paths=source_relative \
-		--go-grpc_out=. \
-		--go-grpc_opt=paths=source_relative \
-		--go-grpc-mock_out=. \
-		--go-grpc-mock_opt=paths=source_relative \
-	pkg/proto/controller.proto
 
 test:
 	go test -cover -race ./...

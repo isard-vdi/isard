@@ -16,7 +16,8 @@ RUN go mod download
 
 WORKDIR /
 
-COPY . /build
+COPY pkg /build/pkg
+COPY controller /build/controller
 
 WORKDIR /build/controller
 

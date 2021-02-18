@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"gitlab.com/isard/isardvdi/hyper/hyper"
-	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	proto "gitlab.com/isard/isardvdi/pkg/proto/hyper"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"libvirt.org/libvirt-go"

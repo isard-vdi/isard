@@ -1,4 +1,73 @@
+type DesktopQueries {
+    list: [Desktop!]!
+    get(id: ID!): Desktop
+    viewer(id: ID!): Viewer
+}
+
+type DesktopMutations {
+    start(id: ID!): DesktopStartPayload
+    stop(id: ID!): DesktopStopPayload
+    # TODO: Update!
+    delete(id: ID!): DesktopDeletePayload
+    template(input: DesktopTemplateInput!): DesktopTemplatePayload
+    create(input: DesktopCreateInput!): DesktopCreatePayload
+    derivate(input: DesktopDerivateInput!): DesktopDerivatePayload
+}
+
+type DesktopStartPayload {
+    recordId: ID
+    record: Desktop
+    viewer: Viewer
+}
+
+type DesktopStopPayload {
+    recordId: ID
+    record: Desktop
+}
+
+type DesktopDeletePayload {
+    recordId: ID
+    record: Desktop
+}
+
+input DesktopTemplateInput {
+    id: ID!
+    name: String!
+    description: String
+}
+
+type DesktopTemplatePayload {
+    # TODO: Should this return the desktop or the template?
+    recordId: ID
+    record: Template
+}
+
+input DesktopCreateInput {
+    name: String!
+    description: String
+    # TODO: Hardware
+    # hardware: Hardware!
+}
+
+type DesktopCreatePayload {
+    recordId: ID
+    record: Desktop
+}
+
+input DesktopDerivateInput {
+    templateId: ID!
+    name: String!
+    description: String
+}
+
+type DesktopDerivatePayload {
+    recordId: ID
+    record: Desktop
+}
+
 type Desktop {
     id: ID!
     name: String!
+    description: String
+    hardware: Hardware!
 }

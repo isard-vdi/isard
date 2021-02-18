@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/hyper"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"libvirt.org/libvirt-go"
 )
 
 // DesktopSave saves a desktop in the hypervisor
-func (h *HyperServer) DesktopSave(ctx context.Context, req *proto.DesktopSaveRequest) (*proto.DesktopSaveResponse, error) {
+func (h *HyperServer) DesktopSave(ctx context.Context, req *hyper.DesktopSaveRequest) (*hyper.DesktopSaveResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"id":   &req.Id,
 		"path": &req.Path,
@@ -39,5 +39,5 @@ func (h *HyperServer) DesktopSave(ctx context.Context, req *proto.DesktopSaveReq
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	return &proto.DesktopSaveResponse{}, nil
+	return &hyper.DesktopSaveResponse{}, nil
 }

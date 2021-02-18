@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/pkg/pool"
+	"gitlab.com/isard/isardvdi/pkg/state"
+
 	"github.com/go-redis/redis/v8"
-	"gitlab.com/isard/isardvdi/common/pkg/pool"
-	"gitlab.com/isard/isardvdi/common/pkg/state"
 )
 
 var ErrNoAvailableHyper = errors.New("no hypervisor with the capabilities requested is available")

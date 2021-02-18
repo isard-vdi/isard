@@ -16,7 +16,8 @@ RUN go mod download
 
 WORKDIR /
 
-COPY . /build
+COPY pkg /build/pkg
+COPY backend /build/backend
 
 WORKDIR /build/backend
 

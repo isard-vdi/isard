@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+
+	"gitlab.com/isard/isardvdi/pkg/db"
+	"gitlab.com/isard/isardvdi/pkg/model"
+
 	"github.com/rs/xid"
-	"gitlab.com/isard/isardvdi/common/pkg/db"
-	"gitlab.com/isard/isardvdi/common/pkg/model"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,7 +19,7 @@ func main() {
 	// 	panic(err)
 	// }
 
-	db, err := db.New("127.0.0.1:5433", "isard", "isard", "isard")
+	db, err := db.New("172.18.0.3:5432", "isard", "isard", "isard")
 	if err != nil {
 		panic(err)
 	}
