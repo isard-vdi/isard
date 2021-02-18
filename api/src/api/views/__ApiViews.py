@@ -311,11 +311,11 @@ def api_v2_desktop_new():
         log.error("Desktop for user "+user_id+" from template "+template+" creation failed.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":1,"msg":"DestopNew not created"}), 404, {'ContentType': 'application/json'}
-    except DesktopStartTimeout:
+    except DesktopActionTimeout:
         log.error("Desktop for user "+user_id+" from template "+template+" start timeout.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":2,"msg":"DestopNew start timeout"}), 404, {'ContentType': 'application/json'}
-    except DesktopStartFailed:
+    except DesktopActionFailed:
         log.error("Desktop for user "+user_id+" from template "+template+" start failed.")
         carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":3,"msg":"DestopNew start failed"}), 404, {'ContentType': 'application/json'}
@@ -493,10 +493,10 @@ def api_v2_template_new():
         return json.dumps({"code":9,"msg":"TemplateNew general exception: " + str(e) }), 401, {'ContentType': 'application/json'}
 
 
-    #except DesktopStopTimeout:
+    #except DesktopActionTimeout:
     #    log.error("Desktop delete "+desktop_id+", desktop stop timeout")
     #    return json.dumps({"code":2,"msg":"Desktop delete stopping timeout"}), 404, {'ContentType': 'application/json'}
-    #except DesktopStopFailed:
+    #except DesktopActionFailed:
     #    log.error("Desktop delete "+desktop_id+", desktop stop failed")
     #    return json.dumps({"code":3,"msg":"Desktop delete stopping failed"}), 404, {'ContentType': 'application/json'}
     #except DesktopDeleteTimeout:

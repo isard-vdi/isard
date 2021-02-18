@@ -153,6 +153,10 @@ class ApiDesktopsPersistent():
     def Start(self, desktop_id):
         with app.app_context():
             desktop = r.table('domains').get(desktop_id).run(db.conn)
+            if desktop['status'] == 'Started':
+                return desktop_id
+            if desktop['status'] not in ['Stopped', 'Failed']:
+                raise DesktopActionFailed
         if desktop == None:
             raise DesktopNotFound
         # Start the domain
@@ -162,6 +166,10 @@ class ApiDesktopsPersistent():
     def Stop(self, desktop_id):
         with app.app_context():
             desktop = r.table('domains').get(desktop_id).run(db.conn)
+            if desktop['status'] == 'Stopped':
+                return desktop_id
+            if desktop['status'] != 'Started':
+                raise DesktopActionFailed
         if desktop == None:
             raise DesktopNotFound
         # Start the domain
