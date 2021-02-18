@@ -23,6 +23,7 @@
 # ~ import base64
 
 import sys,base64,json
+import os
 from api import app
 from ..libv2.log import * 
 
@@ -152,7 +153,7 @@ class isardViewer():
         c = '%'
         consola = """[virt-viewer]
         type=%s
-        proxy=http://%s:80
+        proxy=http://%s:%s
         host=%s
         password=%s
         tls-port=%s
@@ -163,7 +164,17 @@ class isardViewer():
         delete-this-file=1
         usb-filter=-1,-1,-1,-1,0
         tls-ciphers=DEFAULT
-        """ % ('spice',domain['viewer']['proxy_video'],domain['viewer']['proxy_hyper_host'],domain['viewer']['passwd'],port,op_fscr,domain['name']+' (TLS)', c)
+        """ % (
+            'spice',
+            domain['viewer']['proxy_video'],
+            os.environ.get('SPICE_PROXY_PORT', 80),
+            domain['viewer']['proxy_hyper_host'],
+            domain['viewer']['passwd'],
+            port,
+            op_fscr,
+            domain['name']+' (TLS)',
+            c
+        )
 
         consola = consola + """%shost-subject=%s
         %sca=%r
