@@ -13,7 +13,7 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/admin',
-    name: 'Admin',
+    name: 'admin',
     component: () => import('@/components/Dashboard.vue'),
     meta: {
       layout: 'MainLayout'
@@ -23,6 +23,14 @@ const routes: Array<RouteRecordRaw> = [
     path: '/templates',
     name: 'templates',
     component: () => import('@/components/TemplatesList.vue'),
+    meta: {
+      layout: 'MainLayout'
+    }
+  },
+  {
+    path: '/config',
+    name: 'config',
+    component: () => import('@/components/Configuration.vue'),
     meta: {
       layout: 'MainLayout'
     }
@@ -41,7 +49,7 @@ const routes: Array<RouteRecordRaw> = [
     name: 'Entity',
     component: () => import('@/components/Dashboard.vue'),
     meta: {
-      layout: 'EntityLayout'
+      layout: 'MainLayout'
     }
   },
   {

@@ -30,7 +30,7 @@ export default defineComponent({
       lang: ref(i18n.locale),
       langs: [
         { name: 'Castellano', code: 'es' },
-        { name: 'Català', code: 'ca' },
+        { name: 'Català', code: 'cat' },
         { name: 'Deutsch', code: 'de' },
         { name: 'English', code: 'en' },
         { name: 'Euskara', code: 'eu' },

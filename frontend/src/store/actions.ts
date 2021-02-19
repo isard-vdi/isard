@@ -1,11 +1,12 @@
-import UserService from '@/service/UserService';
-import SearchService from '@/service/SearchService';
 import { ActionContext, ActionTree } from 'vuex';
-import { Mutations, MutationTypes } from './mutations';
+import { MutationTypes, Mutations } from './mutations';
+
+import LoginService from '@/service/LoginService';
+import SearchService from '@/service/SearchService';
 import { State } from './state';
+import UserService from '@/service/UserService';
 import UsersUtils from '@/utils/UsersUtils';
 import router from '@/router';
-import LoginService from '@/service/LoginService';
 import { store } from '.';
 
 const loginService = new LoginService();
@@ -24,7 +25,13 @@ export enum ActionTypes {
   DO_LOCAL_LOGIN = 'DO_LOCAL_LOGIN',
   INC_COUNTER = 'SET_COUNTER',
   DO_SEARCH = 'DO_SEARCH',
-  GO_SEARCH = 'GO_SEARCH'
+  GO_SEARCH = 'GO_SEARCH',
+  TOGGLE_MENU = 'TOGGLE_MENU',
+  CHANGE_MENU_TYPE = 'CHANGE_MENU_TYPE',
+  CHANGE_MENU_COLOR_MODE = 'CHANGE_MENU_COLOR_MODE',
+  CHANGE_MENU_OVERLAY_ACTIVE = 'CHANGE_MENU_OVERLAY_ACTIVE',
+  CHANGE_MENU_MOBILE_ACTIVE = 'CHANGE_MENU_MOBILE_ACTIVE',
+  CHANGE_MENU_STATIC_INACTIVE = 'CHANGE_MENU_STATIC_INACTIVE'
 }
 
 /* Action Types*/
@@ -52,6 +59,36 @@ export interface Actions {
       queryParams: string[];
       editmode: boolean;
     }
+  ): void;
+
+  [ActionTypes.TOGGLE_MENU](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
+
+  [ActionTypes.CHANGE_MENU_TYPE](
+    { commit }: AugmentedActionContext,
+    payload: string
+  ): void;
+
+  [ActionTypes.CHANGE_MENU_COLOR_MODE](
+    { commit }: AugmentedActionContext,
+    payload: string
+  ): void;
+
+  [ActionTypes.CHANGE_MENU_OVERLAY_ACTIVE](
+    { commit }: AugmentedActionContext,
+    payload: boolean
+  ): void;
+
+  [ActionTypes.CHANGE_MENU_MOBILE_ACTIVE](
+    { commit }: AugmentedActionContext,
+    payload: boolean
+  ): void;
+
+  [ActionTypes.CHANGE_MENU_STATIC_INACTIVE](
+    { commit }: AugmentedActionContext,
+    payload: boolean
   ): void;
 }
 
@@ -82,5 +119,29 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.GO_SEARCH]({ commit }) {
     router.push({ name: 'users-list' });
+  },
+
+  [ActionTypes.TOGGLE_MENU]({ commit }) {
+    commit(MutationTypes.TOGGLE_MENU, {});
+  },
+
+  [ActionTypes.CHANGE_MENU_TYPE]({ commit }, payload: string) {
+    commit(MutationTypes.CHANGE_MENU_TYPE, payload);
+  },
+
+  [ActionTypes.CHANGE_MENU_COLOR_MODE]({ commit }, payload: string) {
+    commit(MutationTypes.CHANGE_MENU_COLOR_MODE, payload);
+  },
+
+  [ActionTypes.CHANGE_MENU_OVERLAY_ACTIVE]({ commit }, payload: boolean) {
+    commit(MutationTypes.CHANGE_MENU_OVERLAY_ACTIVE, payload);
+  },
+
+  [ActionTypes.CHANGE_MENU_MOBILE_ACTIVE]({ commit }, payload: boolean) {
+    commit(MutationTypes.CHANGE_MENU_MOBILE_ACTIVE, payload);
+  },
+
+  [ActionTypes.CHANGE_MENU_STATIC_INACTIVE]({ commit }, payload: boolean) {
+    commit(MutationTypes.CHANGE_MENU_STATIC_INACTIVE, payload);
   }
 };
