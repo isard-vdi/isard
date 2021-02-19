@@ -22,21 +22,10 @@
 import { computed, defineComponent, ref } from 'vue';
 import { useStore } from '../store';
 import { ActionTypes } from '@/store/actions';
-import { MutationTypes } from '../store/mutations';
 
 export default defineComponent({
   setup(props, context) {
     const store = useStore();
-
-    const increment = () => {
-      store.commit(MutationTypes.INC_COUNTER, 3);
-    };
-
-    const doubleCounter = computed(() => store.getters.doubleCounter);
-
-    const actionIncrement = () => {
-      store.dispatch(ActionTypes.INC_COUNTER, 2);
-    };
 
     const usersList = computed(() => store.getters.searchResults);
     const actionFilterSearch = () => {
@@ -48,9 +37,6 @@ export default defineComponent({
     };
 
     return {
-      increment,
-      doubleCounter,
-      actionIncrement,
       actionFilterSearch,
       usersList
     };

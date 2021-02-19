@@ -37,7 +37,7 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/users',
-    name: 'users-list',
+    name: 'users',
     component: () => import('@/components/search/Search.vue'),
     meta: {
       layout: 'MainLayout',
