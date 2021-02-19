@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
     <!--
@@ -19,11 +18,8 @@
 
     <meta charset="utf-8">
 
-    <!-- Always force latest IE rendering engine (even in intranet) &
-                Chrome Frame. Remove this if you use the .htaccess -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-
     <style>
+
         body {
             margin: 0;
             background-color: dimgrey;
@@ -31,7 +27,6 @@
             display: flex;
             flex-direction: column;
         }
-
         html {
             height: 100%;
         }
@@ -43,11 +38,9 @@
             padding: 6px 5px 4px 5px;
             border-bottom: 1px outset;
         }
-
         #status {
             text-align: center;
         }
-
         #statusDesktopName {
             position: fixed;
             top: 0px;            
@@ -55,8 +48,8 @@
             padding: 5px 5px 4px 5px;
         }
 
-        #sendCtrlAltDelButton,
-        #toggleFullscreen {
+        #toggleFullscreen,
+        #sendCtrlAltDelButton {
             position: fixed;
             top: 0px;
             border: 1px outset;
@@ -73,8 +66,7 @@
         }
 
         #screen {
-            flex: 1;
-            /* fill remaining space */
+            flex: 1; /* fill remaining space */
             overflow: hidden;
         }
     </style>
@@ -159,13 +151,6 @@
     <script src="../spice-web-client/keymaps/keymap.js"></script>
     <script src="../spice-web-client/application/WorkerProcess.js"></script>
 
-    <!-- Promise polyfill for IE11 -->
-    <script src="./src/vendor/promise.js"></script>
-
-    <!-- ES2015/ES6 modules polyfill -->
-    <script nomodule src="./src/vendor/browser-es-module-loader/dist/browser-es-module-loader.js"></script>
-
-    <!-- actual script modules -->
     <script type="module" crossorigin="anonymous">
         // RFB holds the API to connect and communicate with a VNC server
         import RFB from './src/core/rfb.js';
@@ -185,14 +170,14 @@
             if (e.detail.clean) {
                 status("Disconnected");
             } else {
-                status("Something went wrong, connection closed");
+                status("Something went wrong, connection is closed");
             }
         }
 
         // When this function is called, the server requires
         // credentials to authenticate
         function credentialsAreRequired(e) {
-            const password = prompt("Password:");
+            const password = prompt("Password Required:");
             rfb.sendCredentials({ password: password });
         }
 
@@ -252,6 +237,9 @@
             document.getElementById('statusDesktopName').textContent = text;
         }
 
+        // This function extracts the value of one variable from the
+        // query string. If the variable isn't defined in the URL
+        // it returns the default value instead.
         function readQueryVariable(name, defaultValue) {
             // A URL with a query parameter can look like this:
             // https://www.example.com?myqueryparam=myvalue
@@ -259,7 +247,8 @@
             // Note that we use location.href instead of location.search
             // because Firefox < 53 has a bug w.r.t location.search
             const re = new RegExp('.*[?&]' + name + '=([^&#]*)'),
-                match = document.location.href.match(re);
+                  match = document.location.href.match(re);
+
             if (match) {
                 // We have to decode the URL since want the cleartext value
                 return decodeURIComponent(match[1]);
@@ -303,7 +292,8 @@
             });
         }
 
-        document.getElementById('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
+        document.getElementById('sendCtrlAltDelButton')
+            .onclick = sendCtrlAltDel;
         document.getElementById('toggleFullscreen').onclick = toggleFullscreen;
 
         // Read parameters specified in the URL query string
@@ -313,13 +303,13 @@
         const port = getParameter('port') === false || getParameter('port') === undefined ? '' : ':' + getParameter('port');
         const vmHost = getParameter('vmHost') || readQueryVariable('vmHost');
         const vmPort = (getParameter('vmPort') || readQueryVariable('vmPort'));
-        const token = getParameter('token') || readQueryVariable('passwd');
+        const password = getParameter('token') || readQueryVariable('passwd');
 
         // | | |         | | |
         // | | | Connect | | |
         // v v v         v v v
 
-        status("Connecting...");
+        status("Connecting");
 
         resize()
 
@@ -328,10 +318,10 @@
 
         // Creating a new RFB object will start a new connection
         rfb = new RFB(document.getElementById('screen'), url,
-            { credentials: { password: token } });
+                      { credentials: { password: password } });
 
         // Add listeners to important events from the RFB module
-        rfb.addEventListener("connect", connectedToServer);
+        rfb.addEventListener("connect",  connectedToServer);
         rfb.addEventListener("disconnect", disconnectedFromServer);
         rfb.addEventListener("credentialsrequired", credentialsAreRequired);
         rfb.addEventListener("desktopname", updateDesktopName);
@@ -359,5 +349,4 @@
         <!-- This is where the remote screen will appear -->
     </div>
 </body>
-
 </html>
