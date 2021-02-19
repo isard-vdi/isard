@@ -2,11 +2,10 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
-	"gitlab.com/isard/isardvdi/backend/auth"
-	"gitlab.com/isard/isardvdi/backend/model"
+	"gitlab.com/isard/isardvdi/pkg/model"
+	"gitlab.com/isard/isardvdi/pkg/proto/auth"
 )
 
 const cookieName = "auth"
@@ -21,14 +20,18 @@ func (m *Middleware) auth(next http.Handler) http.Handler {
 			return
 		}
 
-		u, err := m.Auth.GetUser(r.Context(), c)
+		rsp, err := m.Auth.GetUserID(r.Context(), &auth.GetUserIDRequest{
+			Token: c.Value,
+		})
 		if err != nil {
-			if errors.Is(err, auth.ErrNotAuthenticated) {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
+			// TODO
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-			// TODO: Should this error be sent to the user?
+		u := &model.User{ID: int(rsp.Id)}
+		if err := u.Load(r.Context(), m.DB); err != nil {
+			// TODO
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

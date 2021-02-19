@@ -3,7 +3,9 @@ package middleware
 import (
 	"net/http"
 
-	"gitlab.com/isard/isardvdi/backend/auth"
+	"gitlab.com/isard/isardvdi/pkg/proto/auth"
+
+	"github.com/go-pg/pg/v10"
 )
 
 type contextKey struct {
@@ -11,11 +13,13 @@ type contextKey struct {
 }
 
 type Middleware struct {
-	Auth *auth.Auth
+	DB   *pg.DB
+	Auth auth.AuthClient
 }
 
-func NewMiddleware(auth *auth.Auth) *Middleware {
+func NewMiddleware(db *pg.DB, auth auth.AuthClient) *Middleware {
 	return &Middleware{
+		DB:   db,
 		Auth: auth,
 	}
 }

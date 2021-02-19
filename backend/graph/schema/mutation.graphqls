@@ -1,6 +1,6 @@
 type Mutation {
     login(provider: String!, entityId: String!, usr: String, pwd: String): String
 
-    desktopStart(id: ID!): Viewer! @hasRole(role: USER)
-    desktopStop(id: ID!): Boolean @hasRole(role: USER)
+    desktop: DesktopMutations
+    template: TemplateMutations
 }

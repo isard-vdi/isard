@@ -1,7 +1,7 @@
 package cfg
 
 import (
-	"gitlab.com/isard/isardvdi/common/pkg/cfg"
+	"gitlab.com/isard/isardvdi/pkg/cfg"
 )
 
 type Cfg struct {

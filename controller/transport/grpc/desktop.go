@@ -3,13 +3,14 @@ package grpc
 import (
 	"context"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
-	"gitlab.com/isard/isardvdi/controller/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/controller"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (c *ControllerServer) DesktopStart(ctx context.Context, req *proto.DesktopStartRequest) (*proto.DesktopStartResponse, error) {
+func (c *ControllerServer) DesktopStart(ctx context.Context, req *controller.DesktopStartRequest) (*controller.DesktopStartResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"id": &req.Id,
 	}); err != nil {
@@ -21,5 +22,5 @@ func (c *ControllerServer) DesktopStart(ctx context.Context, req *proto.DesktopS
 		return nil, status.Errorf(codes.Unknown, "start desktop: %v", err)
 	}
 
-	return &proto.DesktopStartResponse{Viewer: viewer}, nil
+	return &controller.DesktopStartResponse{Viewer: viewer}, nil
 }

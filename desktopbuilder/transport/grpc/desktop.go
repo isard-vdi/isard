@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/desktopbuilder"
+
 	"github.com/go-pg/pg/v10"
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
-	"gitlab.com/isard/isardvdi/desktopbuilder/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (d *DesktopBuilderServer) XMLGet(ctx context.Context, req *proto.XMLGetRequest) (*proto.XMLGetResponse, error) {
+func (d *DesktopBuilderServer) XMLGet(ctx context.Context, req *desktopbuilder.XMLGetRequest) (*desktopbuilder.XMLGetResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"id": &req.Id,
 	}); err != nil {
@@ -28,5 +29,5 @@ func (d *DesktopBuilderServer) XMLGet(ctx context.Context, req *proto.XMLGetRequ
 
 	}
 
-	return &proto.XMLGetResponse{Xml: xml}, nil
+	return &desktopbuilder.XMLGetResponse{Xml: xml}, nil
 }

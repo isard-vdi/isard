@@ -1,3 +1,4 @@
 type Query {
-    desktops: [Desktop!]! @hasRole(role: USER)
+    desktop: DesktopQueries
+    template: TemplateQueries
 }

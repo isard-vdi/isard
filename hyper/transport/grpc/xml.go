@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/hyper"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"libvirt.org/libvirt-go"
 )
 
 // DesktopXMLGet returns the XML definition of a running desktop
-func (h *HyperServer) DesktopXMLGet(ctx context.Context, req *proto.DesktopXMLGetRequest) (*proto.DesktopXMLGetResponse, error) {
+func (h *HyperServer) DesktopXMLGet(ctx context.Context, req *hyper.DesktopXMLGetRequest) (*hyper.DesktopXMLGetResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"id": &req.Id,
 	}); err != nil {
@@ -39,5 +39,5 @@ func (h *HyperServer) DesktopXMLGet(ctx context.Context, req *proto.DesktopXMLGe
 		return nil, status.Errorf(codes.Unknown, err.Error())
 	}
 
-	return &proto.DesktopXMLGetResponse{Xml: xml}, nil
+	return &hyper.DesktopXMLGetResponse{Xml: xml}, nil
 }

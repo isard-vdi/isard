@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/hyper"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"libvirt.org/libvirt-go"
 )
 
 // DesktopMigrate live migrates a running desktop to another hypervisor
-func (h *HyperServer) DesktopMigrate(ctx context.Context, req *proto.DesktopMigrateRequest) (*proto.DesktopMigrateResponse, error) {
+func (h *HyperServer) DesktopMigrate(ctx context.Context, req *hyper.DesktopMigrateRequest) (*hyper.DesktopMigrateResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"id":    &req.Id,
 		"hyper": &req.Hyper,
@@ -39,5 +39,5 @@ func (h *HyperServer) DesktopMigrate(ctx context.Context, req *proto.DesktopMigr
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	return &proto.DesktopMigrateResponse{}, nil
+	return &hyper.DesktopMigrateResponse{}, nil
 }

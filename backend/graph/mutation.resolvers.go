@@ -6,63 +6,42 @@ package graph
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 
-	authProv "gitlab.com/isard/isardvdi/backend/auth/provider"
 	"gitlab.com/isard/isardvdi/backend/graph/generated"
-	"gitlab.com/isard/isardvdi/backend/graph/middleware"
 	"gitlab.com/isard/isardvdi/backend/graph/model"
-	"gitlab.com/isard/isardvdi/controller/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/proto/auth"
 )
 
 func (r *mutationResolver) Login(ctx context.Context, provider string, entityID string, usr *string, pwd *string) (*string, error) {
-	h := middleware.GetHTTP(ctx)
-	p := authProv.FromString(provider, r.Auth.Store, r.Auth.DB)
-
-	form := url.Values{}
-	form.Set("provider", p.String())
-	form.Set("entityID", entityID)
-
+	u := ""
 	if usr != nil {
-		form.Set("usr", *usr)
+		u = *usr
 	}
 
+	p := ""
 	if pwd != nil {
-		form.Set("pwd", *pwd)
+		p = *pwd
 	}
 
-	h.R.Form = form
-
-	if err := p.Login(*h.W, h.R); err != nil {
-		return nil, err
-	}
-
-	w := *h.W
-	req := &http.Request{Header: http.Header{
-		"Cookie": []string{w.Header().Get("Set-Cookie")},
-	}}
-
-	session, err := req.Cookie(authProv.SessionStoreKey)
+	// TODO: Redirect
+	rsp, err := r.Auth.Login(ctx, &auth.LoginRequest{
+		Provider: provider,
+		EntityId: entityID,
+		Usr:      u,
+		Pwd:      p,
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("login: %w", err)
 	}
 
-	return &session.Value, nil
+	return &rsp.Token, nil
 }
 
-func (r *mutationResolver) DesktopStart(ctx context.Context, id string) (*model.Viewer, error) {
-	_, err := r.controller.DesktopStart(ctx, &proto.DesktopStartRequest{Id: id})
-	if err != nil {
-		return nil, fmt.Errorf("desktop start: %w", err)
-	}
-
-	panic("not implemented")
-
-	return nil, nil
+func (r *mutationResolver) Desktop(ctx context.Context) (*model.DesktopMutations, error) {
+	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *mutationResolver) DesktopStop(ctx context.Context, id string) (*bool, error) {
+func (r *mutationResolver) Template(ctx context.Context) (*model.TemplateMutations, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 

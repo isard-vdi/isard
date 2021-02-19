@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
-	"gitlab.com/isard/isardvdi/orchestrator/pkg/proto"
 	"gitlab.com/isard/isardvdi/orchestrator/provider"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/orchestrator"
 
 	"github.com/rs/zerolog"
 	gRPC "google.golang.org/grpc"
@@ -19,11 +19,11 @@ type OrchestratorServer struct {
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
 
-	proto.UnimplementedOrchestratorServer
+	orchestrator.UnimplementedOrchestratorServer
 }
 
 func (o *OrchestratorServer) Serve(ctx context.Context) {
 	grpc.Serve(ctx, o.Log, o.WG, func(s *gRPC.Server) {
-		proto.RegisterOrchestratorServer(s, o)
+		orchestrator.RegisterOrchestratorServer(s, o)
 	}, o.Addr)
 }

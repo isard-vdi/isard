@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/isard/isardvdi/common/pkg/model"
+	"gitlab.com/isard/isardvdi/pkg/model"
+
 	libvirtxml "libvirt.org/libvirt-go-xml"
 )
 

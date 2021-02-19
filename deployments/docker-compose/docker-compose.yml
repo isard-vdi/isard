@@ -54,6 +54,20 @@ services:
       - hyper
       # - desktopbuilder
       - orchestrator
+  auth:
+    build:
+      context: .
+      dockerfile: auth/build/package/Dockerfile
+    image: "isard/isardvdi-auth:${VERSION-latest}"
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - AUTH_REDIS_HOST=redis
+      - AUTH_DB_HOST=postgres
+      - AUTH_DB_USR=isard
+      - AUTH_DB_PWD=isard
   backend:
     build:
       context: .
@@ -64,9 +78,9 @@ services:
       - "1312:1312"
     depends_on:
       - postgres
+      - auth
       - controller
     environment:
-      - BACKEND_REDIS_HOST=redis
       - BACKEND_DB_HOST=postgres
       - BACKEND_DB_USR=isard
       - BACKEND_DB_PWD=isard
@@ -80,5 +94,7 @@ services:
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgres://isard:isard@postgres:5432/isard
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_ADMIN_SECRET: "isard"
       HASURA_GRAPHQL_DEV_MODE: "true"
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      HASURA_GRAPHQL_AUTH_HOOK: "http://auth:1313/webhook"

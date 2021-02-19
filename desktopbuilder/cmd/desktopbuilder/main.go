@@ -10,9 +10,8 @@ import (
 	"gitlab.com/isard/isardvdi/desktopbuilder/cfg"
 	"gitlab.com/isard/isardvdi/desktopbuilder/desktopbuilder"
 	"gitlab.com/isard/isardvdi/desktopbuilder/transport/grpc"
-
-	"gitlab.com/isard/isardvdi/common/pkg/db"
-	"gitlab.com/isard/isardvdi/common/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/db"
+	"gitlab.com/isard/isardvdi/pkg/log"
 )
 
 func main() {

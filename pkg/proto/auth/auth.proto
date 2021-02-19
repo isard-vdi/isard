@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package com.gitlab.isard.isardvdi.auth;
+option go_package = "gitlab.com/isard/isardvdi/pkg/proto/auth";
+
+service Auth {
+    rpc Login(LoginRequest) returns (LoginResponse) {}
+    // rpc LoginCallback(LoginCallbackRequest) returns (LoginCallbackResponse) {}
+    rpc Logout(LogoutRequest) returns (LogoutResponse) {}
+    rpc Check(CheckRequest) returns (CheckResponse) {}
+    rpc Refresh(RefreshRequest) returns (RefreshRequest) {}
+    rpc GetUserID(GetUserIDRequest) returns (GetUserIDResponse) {}
+}
+
+message LoginRequest {
+    string provider = 1;
+    string entity_id = 2;
+
+    // Local login
+    string usr = 4;
+    string pwd = 5;
+}
+
+message LoginResponse {
+    string token = 1;
+    string redirect = 2;
+}
+
+message LogoutRequest {
+    string token = 1;
+}
+
+message LogoutResponse {
+    string redirect = 2;
+}
+
+message CheckRequest {
+    string token = 1;
+}
+
+message CheckResponse {}
+
+message RefreshRequest {
+    string token = 1;
+}
+
+message RefreshResponse {
+    string token = 1;
+}
+
+message GetUserIDRequest {
+    string token = 1;
+}
+
+message GetUserIDResponse {
+    int64 id = 1;
+}

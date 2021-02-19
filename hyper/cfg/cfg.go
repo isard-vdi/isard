@@ -1,8 +1,9 @@
 package cfg
 
 import (
+	"gitlab.com/isard/isardvdi/pkg/cfg"
+
 	"github.com/spf13/viper"
-	"gitlab.com/isard/isardvdi/common/pkg/cfg"
 )
 
 type Cfg struct {

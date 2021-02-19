@@ -10,9 +10,8 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/provider"
 	"gitlab.com/isard/isardvdi/orchestrator/transport/grpc"
-
-	"gitlab.com/isard/isardvdi/common/pkg/log"
-	"gitlab.com/isard/isardvdi/common/pkg/redis"
+	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/redis"
 )
 
 func main() {

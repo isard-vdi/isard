@@ -3,15 +3,15 @@ package grpc
 import (
 	"context"
 
-	"gitlab.com/isard/isardvdi/desktopbuilder/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/common"
+	"gitlab.com/isard/isardvdi/pkg/proto/desktopbuilder"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
-	cmnProto "gitlab.com/isard/isardvdi/common/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func (d *DesktopBuilderServer) ViewerGet(ctx context.Context, req *proto.ViewerGetRequest) (*proto.ViewerGetResponse, error) {
+func (d *DesktopBuilderServer) ViewerGet(ctx context.Context, req *desktopbuilder.ViewerGetRequest) (*desktopbuilder.ViewerGetResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"xml": &req.Xml,
 	}); err != nil {
@@ -23,12 +23,12 @@ func (d *DesktopBuilderServer) ViewerGet(ctx context.Context, req *proto.ViewerG
 		return nil, status.Errorf(codes.Unknown, "get desktop viewer: %v", err)
 	}
 
-	rsp := &proto.ViewerGetResponse{
-		Viewer: &cmnProto.Viewer{},
+	rsp := &desktopbuilder.ViewerGetResponse{
+		Viewer: &common.Viewer{},
 	}
 
 	for _, s := range v.Spice {
-		rsp.Viewer.Spice = append(rsp.Viewer.Spice, &cmnProto.Viewer_Spice{
+		rsp.Viewer.Spice = append(rsp.Viewer.Spice, &common.Viewer_Spice{
 			Pwd:     s.Pwd,
 			Port:    int32(s.Port),
 			TlsPort: int32(s.TLSPort),
@@ -36,7 +36,7 @@ func (d *DesktopBuilderServer) ViewerGet(ctx context.Context, req *proto.ViewerG
 	}
 
 	for _, v := range v.VNC {
-		rsp.Viewer.Vnc = append(rsp.Viewer.Vnc, &cmnProto.Viewer_Vnc{
+		rsp.Viewer.Vnc = append(rsp.Viewer.Vnc, &common.Viewer_Vnc{
 			Pwd:           v.Pwd,
 			Port:          int32(v.Port),
 			WebsocketPort: int32(v.WebsocketPort),

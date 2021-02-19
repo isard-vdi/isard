@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"gitlab.com/isard/isardvdi/hyper/pkg/proto"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/proto/hyper"
 
-	"gitlab.com/isard/isardvdi/common/pkg/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"libvirt.org/libvirt-go"
 )
 
 // DesktopResume resumes a suspended desktop in the hypervisor
-func (h *HyperServer) DesktopSuspend(ctx context.Context, req *proto.DesktopSuspendRequest) (*proto.DesktopSuspendResponse, error) {
+func (h *HyperServer) DesktopSuspend(ctx context.Context, req *hyper.DesktopSuspendRequest) (*hyper.DesktopSuspendResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
 		"id": &req.Id,
 	}); err != nil {
@@ -38,5 +38,5 @@ func (h *HyperServer) DesktopSuspend(ctx context.Context, req *proto.DesktopSusp
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	return &proto.DesktopSuspendResponse{}, nil
+	return &hyper.DesktopSuspendResponse{}, nil
 }

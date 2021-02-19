@@ -3,8 +3,9 @@ package desktopbuilder
 import (
 	"context"
 
+	"gitlab.com/isard/isardvdi/pkg/model"
+
 	"github.com/go-pg/pg/v10"
-	"gitlab.com/isard/isardvdi/common/pkg/model"
 )
 
 type Interface interface {

@@ -6,8 +6,9 @@ import (
 	"math/rand"
 	"time"
 
+	"gitlab.com/isard/isardvdi/pkg/pool"
+
 	"github.com/go-redis/redis/v8"
-	"gitlab.com/isard/isardvdi/common/pkg/pool"
 )
 
 type Random struct {
