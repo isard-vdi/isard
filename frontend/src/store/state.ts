@@ -2,6 +2,18 @@ export interface State {
   counter: number;
   search: object[];
   auth: Auth;
+  ui: Ui;
+}
+
+export interface Ui {
+  menu: {
+    show: boolean;
+    type: string;
+    colorMode: string;
+    staticInactive: boolean;
+    overlayActive: boolean;
+    mobileActive: boolean;
+  };
 }
 
 export interface Auth {
@@ -45,5 +57,15 @@ export const state: State = {
     },
     token: '',
     loggedIn: false
+  },
+  ui: {
+    menu: {
+      show: true,
+      type: 'static',
+      colorMode: 'dark',
+      staticInactive: false,
+      overlayActive: false,
+      mobileActive: false
+    }
   }
 };

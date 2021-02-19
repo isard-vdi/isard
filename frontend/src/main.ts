@@ -6,6 +6,7 @@ import 'primevue/resources/primevue.min.css';
 import 'primeicons/primeicons.css';
 import 'primevue/resources/themes/bootstrap4-light-blue/theme.css';
 import 'primeflex/primeflex.css';
+import '@/assets/layout/layout.scss';
 
 import App from './App.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -20,14 +21,15 @@ import Panel from 'primevue/panel';
 import PanelMenu from 'primevue/panelmenu';
 import PrimeIcons from 'primevue/config';
 import PrimeVue from 'primevue/config';
+import RadioButton from 'primevue/radiobutton';
 import Sidebar from 'primevue/sidebar';
 import VueAxios from 'vue-axios';
 import axios from 'axios';
 import { createApp } from 'vue';
+import { createClient } from 'villus';
 import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
-import { createClient } from 'villus';
 
 export const villusClient = createClient({
   url: 'http://192.168.129.125:8080/v1/graphql'
@@ -44,15 +46,16 @@ router.beforeEach((to, from, next) => {
 });
 
 const app = createApp(App);
-
 app.use(store);
 app.use(router);
 app.use(i18n);
 app.use(PrimeVue);
 app.use(PrimeIcons);
 app.use(VueAxios, axios);
+
 app.component('AppLayout', AppLayout);
 app.component('PanelMenu', PanelMenu);
+app.component('RadioButton', RadioButton);
 app.component('Panel', Panel);
 app.component('Calendar', Calendar);
 app.component('InputText', InputText);
