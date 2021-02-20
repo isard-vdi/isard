@@ -19,9 +19,9 @@ columns= [
 				{ "data": "icon" },
                 { "data": "hyp_started", "width": "100px"},
 				{ "data": "name"},
+				{ "data": "description"},
 				{ "data": null},
 				{ "data": "status"},
-				{ "data": "kind"},
 				{ "data": "username"},
 				{ "data": "category"},
 				{ "data": "group"},
@@ -166,7 +166,7 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
 			"columns": columns,
-			 "order": [[4, 'asc']],
+			 "order": [[5, 'asc']],
 			 "columnDefs": [ {
 							"targets": 1,
 							"render": function ( data, type, full, meta ) {
@@ -183,13 +183,13 @@ $(document).ready(function() {
 							  //~ return renderName(full);
 							//~ }},
 							{
-							"targets": 4,
+							"targets": 5,
                             "width": "100px",
 							"render": function ( data, type, full, meta ) {
 							  return renderAction(full)+renderDisplay(full);
 							}},
 							{
-							"targets": 5,
+							"targets": 6,
 							"render": function ( data, type, full, meta ) {
 							  return renderStatus(full);
 							}},
