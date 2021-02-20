@@ -21,7 +21,6 @@ columns= [
 				{ "data": "name"},
 				{ "data": null},
 				{ "data": "status"},
-				{ "data": "kind"},
 				{ "data": "username"},
 				{ "data": "category"},
 				{ "data": "group"},
@@ -194,7 +193,7 @@ $(document).ready(function() {
 							  return renderStatus(full);
 							}},
 							{
-							"targets": 10,
+							"targets": 9,
 							"render": function ( data, type, full, meta ) {
                               if ( type === 'display' || type === 'filter' ) {
                                   return moment.unix(full.accessed).fromNow();
