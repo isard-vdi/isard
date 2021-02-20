@@ -1,0 +1,18 @@
+version: "3.5"
+services:
+  isard-toolbox:
+    container_name: isard-toolbox
+    image: ${DOCKER_IMAGE_PREFIX}toolbox:${DOCKER_IMAGE_TAG-latest}
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      #- /opt/isard-local/sockets/:/var/run/libvirt/
+      - /opt/isard-local/logs:/isard/logs:rw
+      - /opt/isard/templates:/isard/templates:rw
+      - /opt/isard/groups:/isard/groups:rw
+      - /opt/isard/toolbox:/isard/toolbox:rw
+      - /opt/isard/media:/mnt/media:rw
+    env_file:
+      - .env
