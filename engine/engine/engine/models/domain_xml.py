@@ -431,6 +431,11 @@ class DomainXML(object):
             element = etree.parse(StringIO('<vcpu placement=\'{}\'>{}</vcpu>'.format(placement, vcpus))).getroot()
             self.tree.xpath('/domain/name')[0].addnext(element)
 
+        #with machine=pc-q35 we need to parse vcpus in cpu entry
+        if self.tree.xpath('/domain/cpu'):
+            element = etree.parse(StringIO(f"<topology sockets='1' dies='1' cores='{vcpus}' threads='1'/>")).getroot()
+            self.tree.xpath('/domain/cpu')[0].append(element)
+
     def add_to_domain(self, xpath_same, element_tree, xpath_next='', xpath_previous='', xpath_parent='/domain'):
         if self.tree.xpath(xpath_parent):
             if self.tree.xpath(xpath_same):
@@ -581,11 +586,35 @@ class DomainXML(object):
         if len(cpu_old) == 1:
             domain.remove(cpu_old[0])
 
+        num_vcpus = int(self.tree.xpath('/domain/vcpu')[0].text)
+        element = etree.parse(StringIO(f"<topology sockets='1' dies='1' cores='{num_vcpus}' threads='1'/>")).getroot()
+        cpu.append(element)
+
         #insert new cpu section
         xpath_same = '/domain/cpu'
         xpath_previous = '/domain/features'
         xpath_next = '/domain/clock'
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
+
+    def add_shared_folder(self):
+        webdav_xml = """  <channel type='spiceport'>
+                 <source channel='org.spice-space.webdav.0'/>
+                 <target type='virtio' name='org.spice-space.webdav.0'/>
+            </channel>"""
+        element = etree.parse(StringIO(webdav_xml)).getroot()
+
+        #remove webdav if exists
+        source_elements = self.tree.xpath("/domain/devices/channel[@type='spiceport']/source[@channel='org.spice-space.webdav.0']")
+        if len(source_elements) > 0:
+            for s in source_elements:
+                parent = s.getparent()
+                parent.getparent().remove(parent)
+
+        xpath_same = "/domain/devices/channel[@type='spiceport']"
+        xpath_previous = '/domain/devices/redirdev'
+        xpath_next = '/domain/devices/memballoon'
+        self.add_device(xpath_same, element, xpath_next, xpath_previous)
+
 
     def set_video_type(self, type_video):
         self.tree.xpath('/domain/devices/video/model')[0].set('type', type_video)
@@ -941,6 +970,8 @@ def create_template_from_dict(dict_template_new):
 def update_xml_from_dict_domain(id_domain, xml=None):
     d = get_domain(id_domain)
     hw = d['hardware']
+    flags = d['create_dict']['flags']
+
     if xml is None:
         v = DomainXML(d['xml'])
     else:
@@ -1054,6 +1085,11 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     v.randomize_vm()
     v.remove_selinux_options()
     v.remove_boot_order_and_danger_options_from_disks()
+
+    ##FLAGS:
+    if "shared_folder" in flags:
+        v.add_shared_folder()
+
     # v.print_xml()
     xml_raw = v.return_xml()
     #VERIFING HARDWARE FROM XML
