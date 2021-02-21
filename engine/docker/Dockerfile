@@ -19,7 +19,9 @@ RUN apk add --no-cache \
     curl \
     openssh-client \
     sshpass \
-    supervisor
+    supervisor \
+    pciutils-libs \
+    hwids-pci
 
 RUN apk add --no-cache --virtual .build_deps \
     build-base \

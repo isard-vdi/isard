@@ -18,10 +18,15 @@ from io import StringIO
 from collections import deque
 from statistics import mean
 import time
+import uuid
 
 import libvirt
 import paramiko
 from lxml import etree
+import xmltodict
+from flatten_dict import flatten
+from libpci import LibPCI
+
 # ~ import pandas as pd
 
 from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
@@ -32,6 +37,8 @@ from engine.services.log import *
 from engine.config import *
 from engine.services.lib.functions import exec_remote_cmd
 from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list
+from engine.models.nvidia_models import NVIDIA_MODELS
+from engine.services.lib.functions import execute_commands
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = 4 #int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
@@ -78,6 +85,8 @@ class hyp(object):
         self.info_stats = {}
         self.capture_events = capture_events
         self.id_hyp_rethink = None
+        self.has_nvidia = False
+        self.gpus = {}
 
         self.create_stats_vars()
 
@@ -125,7 +134,7 @@ class hyp(object):
                 ssh.close()
             except paramiko.SSHException as e:
                 log.error("host {} with ip {} can't connect with ssh without password. Paramiko except Reason: {}".format(self.hostname,
-                                                                                                          self.ip, e))
+                                                                                                                          self.ip, e))
                 log.error("")
                 # message when host not found or key format not supported: not found in known_hosts
                 self.fail_connected_reason = 'ssh authentication fail when connect: {}'.format(e)
@@ -322,6 +331,118 @@ class hyp(object):
         else:
             self.info['virtualization_capabilities'] = False
 
+        # read_gpu
+        self.get_nvidia_capabilities()
+
+    def get_nvidia_available_instances_of_type(self,vgpu_id):
+        self.get_nvidia_capabilities(only_get_availables=True)
+        d_available = {}
+        for pci_id,info_nvidia in self.info['nvidia'].items():
+            d_available[pci_id] = info_nvidia['types'][vgpu_id]['available']
+        return d_available
+
+
+    def get_nvidia_capabilities(self,only_get_availables=False):
+        d_info_nvidia = {}
+        mdev_names = self.conn.listDevices('mdev_types')
+        mdev_devices = [a for a in self.conn.listAllDevices() if a.name() in mdev_names]
+        if len(mdev_devices) > 0:
+            l_dict_mdev = [xmltodict.parse(a.XMLDesc()) for a in mdev_devices]
+            l_nvidia_devices = [a for a in l_dict_mdev if a['device']['driver']['name'] == 'nvidia']
+            if len(l_nvidia_devices) > 0:
+                self.has_nvidia = True
+                for d in l_nvidia_devices:
+                    info_nvidia = {}
+                    try:
+                        max_count = d['device']['capability']['capability'][0]['@maxCount']
+                        name = d['device']['name']
+                        path = d['device']['path']
+                        parent = d['device']['parent']
+                        vendor_pci_id = int(d['device']['capability']['vendor']['@id'],base=0)
+                        device_pci_id = int(d['device']['capability']['product']['@id'],base=0)
+                        if only_get_availables is False:
+                            pci = LibPCI()
+                            device_name = pci.lookup_device_name(vendor_pci_id,device_pci_id)
+                        else:
+                            device_name = self.info['nvidia'].get(name,'')
+                    except:
+                        max_count = 0
+                    try:
+                        #only Q-Series Virtual GPU Types (Required license edition: vWS)
+                        l_types = [dict(a) for a in d['device']['capability']['capability'][1]['type'] if a['name'][-1] == 'Q']
+                        for a in l_types:
+                            a['name'] =a['name'].replace('GRID ','')
+                        l_types.sort(key=lambda r: int(r['availableInstances']),reverse=True)
+                        type_max_gpus = l_types[0]['name']
+                        d_types = {a['name']:{'id':a['@id'],
+                                              'available':int(a['availableInstances']),
+                                              'memory':NVIDIA_MODELS.get(a['name'],{}).get('mb'),
+                                              'max':NVIDIA_MODELS.get(a['name'],{}).get('max'),
+                                              } for a in l_types}
+                    except:
+                        d_types = {}
+                    info_nvidia['types'] = d_types
+                    info_nvidia['type_max_gpus'] = type_max_gpus
+                    info_nvidia['device_name'] = device_name
+                    info_nvidia['pci_id'] = name
+                    info_nvidia['path'] = path
+                    info_nvidia['parent'] = parent
+                    info_nvidia['max_count'] = max_count
+                    info_nvidia['max_gpus'] = d_types[type_max_gpus]['max']
+                    info_nvidia['model'] = type_max_gpus.split('-')[0]
+                    d_info_nvidia[name] = info_nvidia
+        self.info['nvidia'] = d_info_nvidia
+
+    def create_uuids(self,d_info_gpu):
+        d_uids = {}
+        for name,d_type in d_info_gpu['types'].items():
+            d = {}
+            for i in range(d_type['max']):
+                uid = str(uuid.uuid4())
+                d[uid] = {'created':False,
+                          'started':False}
+            d_uids[name] = d
+        return d_uids
+
+    def delete_and_create_devices_if_not_exist(self,gpu_id,d_uids,info_nvidia,selected_gpu_type):
+        cmds1 = list()
+        path = info_nvidia['path']
+        for type in d_uids.keys():
+            id_type = info_nvidia['types'][type]['id']
+            dir = f'{path}/mdev_supported_types/{id_type}'
+            cmds1.append({'title': f'{type}', 'cmd': f'ls "{dir}/devices"'})
+
+        array_out_err = execute_commands(self.hostname, cmds1, port=self.port, dict_mode=True)
+        uids_in_hyp_now = {d['title']:d['out'].splitlines() for d in array_out_err}
+
+        # DELETE  UUIDS
+        cmds1 = list()
+        for type,l_uids_now in uids_in_hyp_now.items():
+            id_type = info_nvidia['types'][type]['id']
+            dir = f'{path}/mdev_supported_types/{id_type}'
+
+            for uid_now in l_uids_now:
+                if (type != selected_gpu_type) or ((type == selected_gpu_type) and (uid_now not in d_uids[type])):
+                        cmds1.append({'title': f'remove uuid to {type}: {uid_now}', 'cmd': f'echo "1" > "{dir}/devices/{uid_now}/remove"'})
+        # CREATE  UUIDS
+        for type,l_uids_now in uids_in_hyp_now.items():
+            id_type = info_nvidia['types'][type]['id']
+            dir = f'{path}/mdev_supported_types/{id_type}'
+            if type == selected_gpu_type:
+                for uid in d_uids[type]:
+                    if uid not in l_uids_now:
+                        cmds1.append({'title': f'create uuid to {type}: {uid}', 'cmd': f'echo "{uid}" > "{dir}/create"'})
+
+        if len(cmds1) > 0:
+            array_out_err = execute_commands(self.hostname, cmds1, port=self.port, dict_mode=True)
+            if len([d['err'] for d in array_out_err if len(d['err'])>0]) > 0:
+                print('errors creating uids')
+                return False
+            return True
+        else:
+            return True
+
+
 
     def define_and_start_paused_xml(self, xml_text):
         # todo alberto: faltan todas las excepciones, y mensajes de log,
@@ -432,10 +553,10 @@ class hyp(object):
             try:
                 # l_stats = self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
                 raw_stats['domains'] = {l[0].name(): {'stats': l[1],
-                                                    'state': l[0].state(),
-                                                    'd'    : l[0]}
-                                      for l in
-                                      self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE)}
+                                                      'state': l[0].state(),
+                                                      'd'    : l[0]}
+                                        for l in
+                                        self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE)}
 
                 raw_stats['time_utc'] = time.time()
 
@@ -458,7 +579,7 @@ class hyp(object):
     def     process_hypervisor_stats(self, raw_stats):
         return True
         # ~ if len(self.info) == 0:
-            # ~ self.get_hyp_info()
+        # ~ self.get_hyp_info()
 
         # ~ now_raw_stats_hyp = {}
         # ~ now_raw_stats_hyp['cpu_stats'] = raw_stats['cpu']
@@ -469,66 +590,66 @@ class hyp(object):
         # ~ self.stats_raw_hyp.append(now_raw_stats_hyp)
 
         # ~ sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, \
-            # ~ sum_disk_rd, sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx, \
-            # ~ mean_vcpu_load, mean_vcpu_iowait= self.process_domains_stats(raw_stats)
+        # ~ sum_disk_rd, sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx, \
+        # ~ mean_vcpu_load, mean_vcpu_iowait= self.process_domains_stats(raw_stats)
 
         # ~ if len(self.stats_raw_hyp) > 1:
-            # ~ hyp_stats = {}
+        # ~ hyp_stats = {}
 
-            # ~ if self.stats_hyp['started'] == False:
-                # ~ self.stats_hyp['started'] = timestamp
+        # ~ if self.stats_hyp['started'] == False:
+        # ~ self.stats_hyp['started'] = timestamp
 
-            # ~ hyp_stats['num_domains'] = sum_domains
+        # ~ hyp_stats['num_domains'] = sum_domains
 
-            # ~ cpu_percents = calcule_cpu_hyp_stats(self.stats_raw_hyp[-2]['cpu_stats'],self.stats_raw_hyp[-1]['cpu_stats'])[0]
+        # ~ cpu_percents = calcule_cpu_hyp_stats(self.stats_raw_hyp[-2]['cpu_stats'],self.stats_raw_hyp[-1]['cpu_stats'])[0]
 
-            # ~ hyp_stats['cpu_load'] = round(cpu_percents['used'],2)
-            # ~ hyp_stats['cpu_iowait'] = round(cpu_percents['iowait'],2)
-            # ~ hyp_stats['vcpus'] = sum_vcpus
-            # ~ hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']) * 100, 2)
+        # ~ hyp_stats['cpu_load'] = round(cpu_percents['used'],2)
+        # ~ hyp_stats['cpu_iowait'] = round(cpu_percents['iowait'],2)
+        # ~ hyp_stats['vcpus'] = sum_vcpus
+        # ~ hyp_stats['vcpu_cpu_rate'] = round((sum_vcpus / self.info['cpu_threads']) * 100, 2)
 
-            # ~ hyp_stats['mem_load_rate']    = round(((raw_stats['memory']['total'] -
-                                              # ~ raw_stats['memory']['free'] -
-                                              # ~ raw_stats['memory']['cached']) / raw_stats['memory']['total'] ) * 100, 2)
-            # ~ hyp_stats['mem_cached_rate']  = round(raw_stats['memory']['cached'] / raw_stats['memory']['total'] * 100, 2)
-            # ~ hyp_stats['mem_free_gb'] = round((raw_stats['memory']['cached'] + raw_stats['memory']['free']) / 1024 / 1024 , 2)
+        # ~ hyp_stats['mem_load_rate']    = round(((raw_stats['memory']['total'] -
+        # ~ raw_stats['memory']['free'] -
+        # ~ raw_stats['memory']['cached']) / raw_stats['memory']['total'] ) * 100, 2)
+        # ~ hyp_stats['mem_cached_rate']  = round(raw_stats['memory']['cached'] / raw_stats['memory']['total'] * 100, 2)
+        # ~ hyp_stats['mem_free_gb'] = round((raw_stats['memory']['cached'] + raw_stats['memory']['free']) / 1024 / 1024 , 2)
 
-            # ~ hyp_stats['mem_domains_gb'] = round(sum_memory, 3)
-            # ~ hyp_stats['mem_domains_max_gb'] = round(sum_memory_max, 3)
-            # ~ if sum_memory_max > 0:
-                # ~ hyp_stats['mem_balloon_rate'] = round(sum_memory / sum_memory_max * 100, 2)
-            # ~ else:
-                # ~ hyp_stats['mem_balloon_rate'] = 0
+        # ~ hyp_stats['mem_domains_gb'] = round(sum_memory, 3)
+        # ~ hyp_stats['mem_domains_max_gb'] = round(sum_memory_max, 3)
+        # ~ if sum_memory_max > 0:
+        # ~ hyp_stats['mem_balloon_rate'] = round(sum_memory / sum_memory_max * 100, 2)
+        # ~ else:
+        # ~ hyp_stats['mem_balloon_rate'] = 0
 
-            # ~ hyp_stats['disk_wr'] = sum_disk_wr
-            # ~ hyp_stats['disk_rd'] = sum_disk_rd
-            # ~ hyp_stats['disk_wr_reqs'] = sum_disk_wr_reqs
-            # ~ hyp_stats['disk_rd_reqs'] = sum_disk_rd_reqs
-            # ~ hyp_stats['net_tx'] = sum_net_tx
-            # ~ hyp_stats['net_rx'] = sum_net_rx
-            # ~ hyp_stats['vcpus_load'] = mean_vcpu_load
-            # ~ hyp_stats['vcpus_iowait'] = mean_vcpu_iowait
-            # ~ hyp_stats['timestamp_utc'] = now_raw_stats_hyp['time_utc']
+        # ~ hyp_stats['disk_wr'] = sum_disk_wr
+        # ~ hyp_stats['disk_rd'] = sum_disk_rd
+        # ~ hyp_stats['disk_wr_reqs'] = sum_disk_wr_reqs
+        # ~ hyp_stats['disk_rd_reqs'] = sum_disk_rd_reqs
+        # ~ hyp_stats['net_tx'] = sum_net_tx
+        # ~ hyp_stats['net_rx'] = sum_net_rx
+        # ~ hyp_stats['vcpus_load'] = mean_vcpu_load
+        # ~ hyp_stats['vcpus_iowait'] = mean_vcpu_iowait
+        # ~ hyp_stats['timestamp_utc'] = now_raw_stats_hyp['time_utc']
 
-            # ~ self.stats_hyp_now = hyp_stats.copy()
+        # ~ self.stats_hyp_now = hyp_stats.copy()
 
-            # ~ fields = ['num_domains', 'vcpus', 'vcpu_cpu_rate', 'cpu_load', 'cpu_iowait',
-                      # ~ 'mem_load_rate', 'mem_free_gb', 'mem_cached_rate',
-                      # ~ 'mem_balloon_rate', 'mem_domains_gb', 'mem_domains_max_gb',
-                      # ~ 'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
-                      # ~ 'net_tx', 'net_rx', 'vcpus_load', 'vcpus_iowait']
+        # ~ fields = ['num_domains', 'vcpus', 'vcpu_cpu_rate', 'cpu_load', 'cpu_iowait',
+        # ~ 'mem_load_rate', 'mem_free_gb', 'mem_cached_rate',
+        # ~ 'mem_balloon_rate', 'mem_domains_gb', 'mem_domains_max_gb',
+        # ~ 'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
+        # ~ 'net_tx', 'net_rx', 'vcpus_load', 'vcpus_iowait']
 
-            # ~ # (id_hyp,hyp_stats,timestamp)
+        # ~ # (id_hyp,hyp_stats,timestamp)
 
-            # ~ #time_delta = timestamp - self.stats_hyp['started']
-            # ~ self.stats_hyp['near_df'] = self.stats_hyp['near_df'].append(pd.DataFrame(hyp_stats,
-                                                                # ~ columns=fields,
-                                                                # ~ index=[timestamp]))
+        # ~ #time_delta = timestamp - self.stats_hyp['started']
+        # ~ self.stats_hyp['near_df'] = self.stats_hyp['near_df'].append(pd.DataFrame(hyp_stats,
+        # ~ columns=fields,
+        # ~ index=[timestamp]))
 
     def process_domains_stats(self, raw_stats):
         return True
         # ~ if len(self.info) == 0:
-            # ~ self.get_hyp_info()
+        # ~ self.get_hyp_info()
         # ~ d_all_domain_stats = raw_stats['domains']
 
         # ~ previous_domains = set(self.stats_domains.keys())
@@ -537,33 +658,33 @@ class hyp(object):
         # ~ remove_domains   = previous_domains.difference(current_domains)
 
         # ~ for d in remove_domains:
-            # ~ del self.stats_domains[d]
-            # ~ del self.stats_raw_domains[d]
-            # ~ del self.stats_domains_now[d]
-            # ~ # TODO: buen momento para asegurarse que la máquina se quedó en Stopped,
-            # ~ # podríamos ahorrarnos esa  comprobación en el thread broom ??
+        # ~ del self.stats_domains[d]
+        # ~ del self.stats_raw_domains[d]
+        # ~ del self.stats_domains_now[d]
+        # ~ # TODO: buen momento para asegurarse que la máquina se quedó en Stopped,
+        # ~ # podríamos ahorrarnos esa  comprobación en el thread broom ??
 
-            # ~ #TODO: también es el momento de guardar en histórico las estadísticas de ese dominio,
-            # ~ # esto nos permite hacer análisis posterior
+        # ~ #TODO: también es el momento de guardar en histórico las estadísticas de ese dominio,
+        # ~ # esto nos permite hacer análisis posterior
 
         # ~ for d in add_domains:
-            # ~ self.stats_domains[d] = {
-                # ~ 'started'              : datetime.utcfromtimestamp(raw_stats['time_utc']),
-                # ~ 'near_df'              : pd.DataFrame(),
-                # ~ 'medium_df'            : pd.DataFrame(),
-                # ~ 'long_df'              : pd.DataFrame(),
-                # ~ 'boot_df'              : pd.DataFrame(),
-                # ~ 'last_timestamp_near'  : False,
-                # ~ 'last_timestamp_medium': False,
-                # ~ 'last_timestamp_long'  : False,
-                # ~ 'means_near'           : False,
-                # ~ 'means_medium'         : False,
-                # ~ 'means_long'           : False,
-                # ~ 'means_all'            : False,
-                # ~ 'means_boot'           : False
-            # ~ }
-            # ~ self.stats_raw_domains[d] = deque(maxlen=self.stats_queue_lenght_domains_raw_stats)
-            # ~ self.stats_domains_now[d] = dict()
+        # ~ self.stats_domains[d] = {
+        # ~ 'started'              : datetime.utcfromtimestamp(raw_stats['time_utc']),
+        # ~ 'near_df'              : pd.DataFrame(),
+        # ~ 'medium_df'            : pd.DataFrame(),
+        # ~ 'long_df'              : pd.DataFrame(),
+        # ~ 'boot_df'              : pd.DataFrame(),
+        # ~ 'last_timestamp_near'  : False,
+        # ~ 'last_timestamp_medium': False,
+        # ~ 'last_timestamp_long'  : False,
+        # ~ 'means_near'           : False,
+        # ~ 'means_medium'         : False,
+        # ~ 'means_long'           : False,
+        # ~ 'means_all'            : False,
+        # ~ 'means_boot'           : False
+        # ~ }
+        # ~ self.stats_raw_domains[d] = deque(maxlen=self.stats_queue_lenght_domains_raw_stats)
+        # ~ self.stats_domains_now[d] = dict()
 
         # ~ sum_vcpus = 0
         # ~ sum_memory = 0
@@ -580,134 +701,134 @@ class hyp(object):
 
         # ~ for d, raw in d_all_domain_stats.items():
 
-            # ~ raw['stats']['now_utc_time'] = raw_stats['time_utc']
-            # ~ raw['stats']['now_datetime'] = datetime.utcfromtimestamp(raw_stats['time_utc'])
+        # ~ raw['stats']['now_utc_time'] = raw_stats['time_utc']
+        # ~ raw['stats']['now_datetime'] = datetime.utcfromtimestamp(raw_stats['time_utc'])
 
-            # ~ self.stats_raw_domains[d].append(raw['stats'])
+        # ~ self.stats_raw_domains[d].append(raw['stats'])
 
 
-            # ~ if len(self.stats_raw_domains[d]) > 1:
+        # ~ if len(self.stats_raw_domains[d]) > 1:
 
-                # ~ sum_domains += 1
+        # ~ sum_domains += 1
 
-                # ~ d_stats = {}
+        # ~ d_stats = {}
 
-                # ~ current = self.stats_raw_domains[d][-1]
-                # ~ previous = self.stats_raw_domains[d][-2]
+        # ~ current = self.stats_raw_domains[d][-1]
+        # ~ previous = self.stats_raw_domains[d][-2]
 
-                # ~ delta = current['now_utc_time'] - previous['now_utc_time']
-                # ~ if delta == 0:
-                    # ~ log.error('same value in now_utc_time, must call get_stats_from_libvirt')
-                    # ~ break
+        # ~ delta = current['now_utc_time'] - previous['now_utc_time']
+        # ~ if delta == 0:
+        # ~ log.error('same value in now_utc_time, must call get_stats_from_libvirt')
+        # ~ break
 
-                # ~ timestamp = datetime.utcfromtimestamp(current['now_utc_time'])
-                # ~ d_stats['time_utc'] = current['now_utc_time']
+        # ~ timestamp = datetime.utcfromtimestamp(current['now_utc_time'])
+        # ~ d_stats['time_utc'] = current['now_utc_time']
 
-                # ~ sum_vcpus += current['vcpu.current']
+        # ~ sum_vcpus += current['vcpu.current']
 
-                # ~ #d_stats['cpu_load'] = round(((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'])*100,3)
-                # ~ if current.get('cpu.time') and previous.get('cpu.time'):
-                    # ~ d_stats['cpu_load'] = round((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'],3)
+        # ~ #d_stats['cpu_load'] = round(((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'])*100,3)
+        # ~ if current.get('cpu.time') and previous.get('cpu.time'):
+        # ~ d_stats['cpu_load'] = round((current['cpu.time'] - previous['cpu.time']) / 1000000000 / self.info['cpu_threads'],3)
 
-                # ~ d_balloon={k:v/1024 for k,v in current.items() if k[:5] == 'ballo' }
+        # ~ d_balloon={k:v/1024 for k,v in current.items() if k[:5] == 'ballo' }
 
-                # ~ # balloon is running and monitorized if balloon.unused key is disposable
-                # ~ if 'balloon.unused' in d_balloon.keys():
-                    # ~ mem_used    = round((d_balloon['balloon.current']-d_balloon['balloon.unused'])/1024.0, 3)
-                    # ~ mem_balloon = round(d_balloon['balloon.current'] / 1024.0, 3)
-                    # ~ mem_max = round(d_balloon['balloon.maximum'] / 1024.0, 3)
+        # ~ # balloon is running and monitorized if balloon.unused key is disposable
+        # ~ if 'balloon.unused' in d_balloon.keys():
+        # ~ mem_used    = round((d_balloon['balloon.current']-d_balloon['balloon.unused'])/1024.0, 3)
+        # ~ mem_balloon = round(d_balloon['balloon.current'] / 1024.0, 3)
+        # ~ mem_max = round(d_balloon['balloon.maximum'] / 1024.0, 3)
 
-                # ~ elif 'balloon.maximum' in d_balloon.keys():
-                    # ~ mem_used =    round(d_balloon['balloon.maximum'] / 1024.0 ,3)
-                    # ~ mem_balloon = round(d_balloon['balloon.maximum'] / 1024.0, 3)
-                    # ~ mem_max = round(d_balloon['balloon.maximum'] / 1024.0, 3)
+        # ~ elif 'balloon.maximum' in d_balloon.keys():
+        # ~ mem_used =    round(d_balloon['balloon.maximum'] / 1024.0 ,3)
+        # ~ mem_balloon = round(d_balloon['balloon.maximum'] / 1024.0, 3)
+        # ~ mem_max = round(d_balloon['balloon.maximum'] / 1024.0, 3)
 
-                # ~ else:
-                    # ~ mem_used = 0
-                    # ~ mem_balloon = 0
-                    # ~ mem_max = 0
+        # ~ else:
+        # ~ mem_used = 0
+        # ~ mem_balloon = 0
+        # ~ mem_max = 0
 
-                # ~ d_stats['mem_load']    = round(mem_used / (self.info['memory_in_MB']/1024), 2)
-                # ~ d_stats['mem_used']    = mem_used
-                # ~ d_stats['mem_balloon'] = mem_balloon
-                # ~ d_stats['mem_max']     = mem_max
+        # ~ d_stats['mem_load']    = round(mem_used / (self.info['memory_in_MB']/1024), 2)
+        # ~ d_stats['mem_used']    = mem_used
+        # ~ d_stats['mem_balloon'] = mem_balloon
+        # ~ d_stats['mem_max']     = mem_max
 
-                # ~ sum_memory += mem_used
-                # ~ sum_memory_max += mem_max
+        # ~ sum_memory += mem_used
+        # ~ sum_memory_max += mem_max
 
-                # ~ vcpu_total_time = 0
-                # ~ vcpu_total_wait = 0
+        # ~ vcpu_total_time = 0
+        # ~ vcpu_total_wait = 0
 
-                # ~ for n in range(current['vcpu.current']):
-                    # ~ try:
-                        # ~ vcpu_total_time += current['vcpu.' +str(n)+ '.time'] - previous['vcpu.' +str(n)+ '.time']
-                        # ~ vcpu_total_wait += current['vcpu.' +str(n)+ '.wait'] - previous['vcpu.' +str(n)+ '.wait']
-                    # ~ except KeyError:
-                        # ~ vcpu_total_time = 0
-                        # ~ vcpu_total_wait = 0
+        # ~ for n in range(current['vcpu.current']):
+        # ~ try:
+        # ~ vcpu_total_time += current['vcpu.' +str(n)+ '.time'] - previous['vcpu.' +str(n)+ '.time']
+        # ~ vcpu_total_wait += current['vcpu.' +str(n)+ '.wait'] - previous['vcpu.' +str(n)+ '.wait']
+        # ~ except KeyError:
+        # ~ vcpu_total_time = 0
+        # ~ vcpu_total_wait = 0
 
-                # ~ d_stats['vcpu_load'] = round((vcpu_total_time / (delta * 1e9) / current['vcpu.current'])*100,2)
-                # ~ d_stats['vcpu_iowait'] = round((vcpu_total_wait / (delta * 1e9) / current['vcpu.current'])*100,2)
+        # ~ d_stats['vcpu_load'] = round((vcpu_total_time / (delta * 1e9) / current['vcpu.current'])*100,2)
+        # ~ d_stats['vcpu_iowait'] = round((vcpu_total_wait / (delta * 1e9) / current['vcpu.current'])*100,2)
 
-                # ~ total_block_wr = 0
-                # ~ total_block_wr_reqs = 0
-                # ~ total_block_rd = 0
-                # ~ total_block_rd_reqs = 0
+        # ~ total_block_wr = 0
+        # ~ total_block_wr_reqs = 0
+        # ~ total_block_rd = 0
+        # ~ total_block_rd_reqs = 0
 
-                # ~ if 'block.count' in current.keys():
-                    # ~ for n in range(current['block.count']):
-                        # ~ try:
-                            # ~ total_block_wr += current['block.'+str(n)+'.wr.bytes'] - previous['block.'+str(n)+'.wr.bytes']
-                            # ~ total_block_rd += current['block.'+str(n)+'.rd.bytes'] - previous['block.'+str(n)+'.rd.bytes']
-                            # ~ total_block_wr_reqs += current['block.'+str(n)+'.wr.reqs'] - previous['block.'+str(n)+'.wr.reqs']
-                            # ~ total_block_rd_reqs += current['block.'+str(n)+'.rd.reqs'] - previous['block.'+str(n)+'.rd.reqs']
-                        # ~ except KeyError:
-                            # ~ total_block_wr = 0
-                            # ~ total_block_wr_reqs = 0
-                            # ~ total_block_rd = 0
-                            # ~ total_block_rd_reqs = 0
+        # ~ if 'block.count' in current.keys():
+        # ~ for n in range(current['block.count']):
+        # ~ try:
+        # ~ total_block_wr += current['block.'+str(n)+'.wr.bytes'] - previous['block.'+str(n)+'.wr.bytes']
+        # ~ total_block_rd += current['block.'+str(n)+'.rd.bytes'] - previous['block.'+str(n)+'.rd.bytes']
+        # ~ total_block_wr_reqs += current['block.'+str(n)+'.wr.reqs'] - previous['block.'+str(n)+'.wr.reqs']
+        # ~ total_block_rd_reqs += current['block.'+str(n)+'.rd.reqs'] - previous['block.'+str(n)+'.rd.reqs']
+        # ~ except KeyError:
+        # ~ total_block_wr = 0
+        # ~ total_block_wr_reqs = 0
+        # ~ total_block_rd = 0
+        # ~ total_block_rd_reqs = 0
 
-                # ~ #KB/s
-                # ~ d_stats['disk_wr'] = round(total_block_wr / delta / 1024,3)
-                # ~ d_stats['disk_rd'] = round(total_block_rd / delta / 1024,3)
-                # ~ d_stats['disk_wr_reqs'] = round(total_block_wr_reqs / delta,3)
-                # ~ d_stats['disk_rd_reqs'] = round(total_block_rd_reqs / delta,3)
-                # ~ sum_disk_wr      += d_stats['disk_wr']
-                # ~ sum_disk_rd      += d_stats['disk_rd']
-                # ~ sum_disk_wr_reqs += d_stats['disk_wr_reqs']
-                # ~ sum_disk_rd_reqs += d_stats['disk_rd_reqs']
+        # ~ #KB/s
+        # ~ d_stats['disk_wr'] = round(total_block_wr / delta / 1024,3)
+        # ~ d_stats['disk_rd'] = round(total_block_rd / delta / 1024,3)
+        # ~ d_stats['disk_wr_reqs'] = round(total_block_wr_reqs / delta,3)
+        # ~ d_stats['disk_rd_reqs'] = round(total_block_rd_reqs / delta,3)
+        # ~ sum_disk_wr      += d_stats['disk_wr']
+        # ~ sum_disk_rd      += d_stats['disk_rd']
+        # ~ sum_disk_wr_reqs += d_stats['disk_wr_reqs']
+        # ~ sum_disk_rd_reqs += d_stats['disk_rd_reqs']
 
-                # ~ total_net_tx = 0
-                # ~ total_net_rx = 0
+        # ~ total_net_tx = 0
+        # ~ total_net_rx = 0
 
-                # ~ if 'net.count' in current.keys():
-                    # ~ for n in range(current['net.count']):
-                        # ~ try:
-                            # ~ total_net_tx += current['net.' +str(n)+ '.tx.bytes'] - previous['net.' +str(n)+ '.tx.bytes']
-                            # ~ total_net_rx += current['net.' +str(n)+ '.rx.bytes'] - previous['net.' +str(n)+ '.rx.bytes']
-                        # ~ except KeyError:
-                            # ~ total_net_tx = 0
-                            # ~ total_net_rx = 0
+        # ~ if 'net.count' in current.keys():
+        # ~ for n in range(current['net.count']):
+        # ~ try:
+        # ~ total_net_tx += current['net.' +str(n)+ '.tx.bytes'] - previous['net.' +str(n)+ '.tx.bytes']
+        # ~ total_net_rx += current['net.' +str(n)+ '.rx.bytes'] - previous['net.' +str(n)+ '.rx.bytes']
+        # ~ except KeyError:
+        # ~ total_net_tx = 0
+        # ~ total_net_rx = 0
 
-                # ~ d_stats['net_tx'] = round(total_net_tx / delta / 1000, 3)
-                # ~ d_stats['net_rx'] = round(total_net_rx / delta / 1000, 3)
-                # ~ sum_net_tx += d_stats['net_tx']
-                # ~ sum_net_rx += d_stats['net_rx']
+        # ~ d_stats['net_tx'] = round(total_net_tx / delta / 1000, 3)
+        # ~ d_stats['net_rx'] = round(total_net_rx / delta / 1000, 3)
+        # ~ sum_net_tx += d_stats['net_tx']
+        # ~ sum_net_rx += d_stats['net_rx']
 
-                # ~ self.stats_domains_now[d] = d_stats.copy()
-                # ~ self.update_domain_means_and_data_frames(d, d_stats, timestamp)
+        # ~ self.stats_domains_now[d] = d_stats.copy()
+        # ~ self.update_domain_means_and_data_frames(d, d_stats, timestamp)
 
 
         # ~ if len(self.stats_domains_now) > 0:
-            # ~ try:
-                # ~ mean_vcpu_load = sum([j['vcpu_load'] for j in self.stats_domains_now.values()]) / len(self.stats_domains_now)
-                # ~ mean_vcpu_iowait   = sum([j['vcpu_iowait'] for j in self.stats_domains_now.values()]) / len(self.stats_domains_now)
-            # ~ except KeyError:
-                # ~ mean_vcpu_iowait = 0.0
-                # ~ mean_vcpu_load = 0.0
+        # ~ try:
+        # ~ mean_vcpu_load = sum([j['vcpu_load'] for j in self.stats_domains_now.values()]) / len(self.stats_domains_now)
+        # ~ mean_vcpu_iowait   = sum([j['vcpu_iowait'] for j in self.stats_domains_now.values()]) / len(self.stats_domains_now)
+        # ~ except KeyError:
+        # ~ mean_vcpu_iowait = 0.0
+        # ~ mean_vcpu_load = 0.0
 
         # ~ return sum_vcpus, sum_memory, sum_domains, sum_memory_max, sum_disk_wr, sum_disk_rd, \
-               # ~ sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx, mean_vcpu_load, mean_vcpu_iowait
+        # ~ sum_disk_wr_reqs, sum_disk_rd_reqs, sum_net_tx, sum_net_rx, mean_vcpu_load, mean_vcpu_iowait
 
     def update_domain_means_and_data_frames(self, d, d_stats, timestamp):
         return True
@@ -715,16 +836,16 @@ class hyp(object):
         # ~ time_delta_now = timestamp - started
 
         # ~ fields = "vcpu_load / vcpu_iowait / mem_load / mem_used / mem_balloon / mem_max / " + \
-                 # ~ "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
+        # ~ "disk_wr / disk_rd / disk_wr_reqs / disk_rd_reqs / net_tx / net_rx"
         # ~ fields = [s.strip() for s in fields.split('/')]
 
         # ~ self.stats_domains[d]['near_df'] = self.stats_domains[d]['near_df'].append(pd.DataFrame(d_stats,
-                                                                          # ~ columns=fields,
-                                                                          # ~ index=[time_delta_now]))
+        # ~ columns=fields,
+        # ~ index=[time_delta_now]))
         # ~ if self.stats_domains[d]['means_boot'] is False:
-            # ~ if time_delta_now.seconds > self.stats_booting_time:
-                # ~ self.stats_domains[d]['boot_df'] = self.stats_domains[d]['near_df'].copy()
-                # ~ self.stats_domains[d]['means_boot'] = self.stats_domains[d]['boot_df'].mean().to_dict()
+        # ~ if time_delta_now.seconds > self.stats_booting_time:
+        # ~ self.stats_domains[d]['boot_df'] = self.stats_domains[d]['near_df'].copy()
+        # ~ self.stats_domains[d]['means_boot'] = self.stats_domains[d]['boot_df'].mean().to_dict()
 
         # ~ # delete samples from near > stats_near_size_window
         # ~ last_time_delta = self.stats_domains[d]['near_df'].tail(1).index[0]
@@ -735,57 +856,57 @@ class hyp(object):
 
         # ~ # insert new values in medium_df
         # ~ if len(self.stats_domains[d]['medium_df']) == 0:
-            # ~ self.stats_domains[d]['means_long'] = self.stats_domains[d]['means_medium'].copy()
-            # ~ self.stats_domains[d]['means_total'] = self.stats_domains[d]['means_medium'].copy()
-            # ~ if int(time_delta_now.seconds / self.stats_medium_sample_period) >= 1:
-                # ~ self.stats_domains[d]['medium_df'] = self.stats_domains[d]['medium_df'].append(
-                    # ~ pd.DataFrame(self.stats_domains[d]['means_medium'],
-                                 # ~ columns=fields,
-                                 # ~ index=[
-                                     # ~ time_delta_now]))
+        # ~ self.stats_domains[d]['means_long'] = self.stats_domains[d]['means_medium'].copy()
+        # ~ self.stats_domains[d]['means_total'] = self.stats_domains[d]['means_medium'].copy()
+        # ~ if int(time_delta_now.seconds / self.stats_medium_sample_period) >= 1:
+        # ~ self.stats_domains[d]['medium_df'] = self.stats_domains[d]['medium_df'].append(
+        # ~ pd.DataFrame(self.stats_domains[d]['means_medium'],
+        # ~ columns=fields,
+        # ~ index=[
+        # ~ time_delta_now]))
         # ~ else:
-            # ~ last_time_delta_medium = self.stats_domains[d]['medium_df'].tail(1).index[0]
+        # ~ last_time_delta_medium = self.stats_domains[d]['medium_df'].tail(1).index[0]
 
-            # ~ if int(time_delta_now.seconds / self.stats_medium_sample_period) > int(
-                            # ~ last_time_delta_medium.seconds / self.stats_medium_sample_period):
+        # ~ if int(time_delta_now.seconds / self.stats_medium_sample_period) > int(
+        # ~ last_time_delta_medium.seconds / self.stats_medium_sample_period):
 
-                # ~ self.stats_domains[d]['medium_df'] = self.stats_domains[d]['medium_df'].append(
-                    # ~ pd.DataFrame(self.stats_domains[d]['means_medium'],
-                                 # ~ columns=fields,
-                                 # ~ index=[
-                                     # ~ time_delta_now]))
+        # ~ self.stats_domains[d]['medium_df'] = self.stats_domains[d]['medium_df'].append(
+        # ~ pd.DataFrame(self.stats_domains[d]['means_medium'],
+        # ~ columns=fields,
+        # ~ index=[
+        # ~ time_delta_now]))
 
-                # ~ index_medium_to_delete = self.stats_domains[d]['medium_df'][:last_time_delta_medium - pd.offsets.Second(self.stats_medium_size_window)].index
-                # ~ self.stats_domains[d]['medium_df'].drop(index=index_medium_to_delete, inplace=True)
+        # ~ index_medium_to_delete = self.stats_domains[d]['medium_df'][:last_time_delta_medium - pd.offsets.Second(self.stats_medium_size_window)].index
+        # ~ self.stats_domains[d]['medium_df'].drop(index=index_medium_to_delete, inplace=True)
 
-                # ~ self.stats_domains[d]['means_long'] = self.stats_domains[d]['medium_df'].mean().to_dict()
+        # ~ self.stats_domains[d]['means_long'] = self.stats_domains[d]['medium_df'].mean().to_dict()
 
-                # ~ if len(self.stats_domains[d]['long_df']) == 0:
-                    # ~ self.stats_domains[d]['means_total'] = self.stats_domains[d]['means_long'].copy()
+        # ~ if len(self.stats_domains[d]['long_df']) == 0:
+        # ~ self.stats_domains[d]['means_total'] = self.stats_domains[d]['means_long'].copy()
 
-                    # ~ if int(time_delta_now.seconds / self.stats_long_sample_period) >= 1:
-                        # ~ self.stats_domains[d]['long_df'] = self.stats_domains[d]['long_df'].append(
-                                # ~ pd.DataFrame(self.stats_domains[d]['means_long'],
-                                             # ~ columns=fields,
-                                             # ~ index=[
-                                                 # ~ time_delta_now]))
-                # ~ else:
-                    # ~ last_time_delta_long = self.stats_domains[d]['long_df'].tail(1).index[0]
+        # ~ if int(time_delta_now.seconds / self.stats_long_sample_period) >= 1:
+        # ~ self.stats_domains[d]['long_df'] = self.stats_domains[d]['long_df'].append(
+        # ~ pd.DataFrame(self.stats_domains[d]['means_long'],
+        # ~ columns=fields,
+        # ~ index=[
+        # ~ time_delta_now]))
+        # ~ else:
+        # ~ last_time_delta_long = self.stats_domains[d]['long_df'].tail(1).index[0]
 
-                    # ~ if int(time_delta_now.seconds / self.stats_long_sample_period) > int(
-                                    # ~ last_time_delta_long.seconds / self.stats_long_sample_period):
-                        # ~ self.stats_domains[d]['long_df'] = self.stats_domains[d]['long_df'].append(
-                                # ~ pd.DataFrame(self.stats_domains[d]['means_long'],
-                                             # ~ columns=fields,
-                                             # ~ index=[
-                                                 # ~ time_delta_now]))
+        # ~ if int(time_delta_now.seconds / self.stats_long_sample_period) > int(
+        # ~ last_time_delta_long.seconds / self.stats_long_sample_period):
+        # ~ self.stats_domains[d]['long_df'] = self.stats_domains[d]['long_df'].append(
+        # ~ pd.DataFrame(self.stats_domains[d]['means_long'],
+        # ~ columns=fields,
+        # ~ index=[
+        # ~ time_delta_now]))
 
-                        # ~ index_long_to_delete = self.stats_domains[d][
-                            # ~ 'long_df'][: last_time_delta_long - pd.offsets.Second(
-                            # ~ self.stats_long_size_window)].index
-                        # ~ self.stats_domains[d]['long_df'].drop(index=index_long_to_delete, inplace=True)
+        # ~ index_long_to_delete = self.stats_domains[d][
+        # ~ 'long_df'][: last_time_delta_long - pd.offsets.Second(
+        # ~ self.stats_long_size_window)].index
+        # ~ self.stats_domains[d]['long_df'].drop(index=index_long_to_delete, inplace=True)
 
-                        # ~ self.stats_domains[d]['means_total'] = self.stats_domains[d]['long_df'].mean().to_dict()
+        # ~ self.stats_domains[d]['means_total'] = self.stats_domains[d]['long_df'].mean().to_dict()
 
 
     def create_stats_vars(self,testing=True):
@@ -805,16 +926,16 @@ class hyp(object):
         # ~ self.stats_long_sample_period = 1800
 
         # ~ if testing is True:
-            # ~ self.stats_polling_interval = 1
+        # ~ self.stats_polling_interval = 1
 
-            # ~ self.stats_booting_time = 20
-            # ~ self.stats_near_size_window = 30
-            # ~ self.stats_medium_size_window = 120
-            # ~ self.stats_long_size_window = 240
+        # ~ self.stats_booting_time = 20
+        # ~ self.stats_near_size_window = 30
+        # ~ self.stats_medium_size_window = 120
+        # ~ self.stats_long_size_window = 240
 
-            # ~ self.stats_near_sample_period = self.stats_polling_interval
-            # ~ self.stats_medium_sample_period = 10
-            # ~ self.stats_long_sample_period = 60
+        # ~ self.stats_near_sample_period = self.stats_polling_interval
+        # ~ self.stats_medium_sample_period = 10
+        # ~ self.stats_long_sample_period = 60
 
 
         # ~ self.stats_hyp_now = dict()
@@ -824,13 +945,13 @@ class hyp(object):
 
         # ~ #Pandas dataframe
         # ~ self.stats_hyp = {
-            # ~ 'started'     : False,
-            # ~ 'near_df'     : pd.DataFrame(),
-            # ~ 'medium_df'   : pd.DataFrame(),
-            # ~ 'long_df'     : pd.DataFrame(),
-            # ~ 'means_near'  : False,
-            # ~ 'means_medium': False,
-            # ~ 'means_long'  : False,
+        # ~ 'started'     : False,
+        # ~ 'near_df'     : pd.DataFrame(),
+        # ~ 'medium_df'   : pd.DataFrame(),
+        # ~ 'long_df'     : pd.DataFrame(),
+        # ~ 'means_near'  : False,
+        # ~ 'means_medium': False,
+        # ~ 'means_long'  : False,
         # ~ }
 
         # ~ #Dictionary of pandas dataframes

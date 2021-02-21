@@ -532,3 +532,27 @@ def update_db_hyp_info(id, hyp_info):
         update({'info': hyp_info}). \
         run(r_conn)
     close_rethink_connection(r_conn)
+
+def get_hyp(hyp_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+
+    out = rtable.get(hyp_id). \
+        run(r_conn)
+    close_rethink_connection(r_conn)
+    return out
+
+def update_db_default_gpu_models(hyp_id,default_gpu_models):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+    out = rtable.get(hyp_id).update({'default_gpu_models': default_gpu_models}).run(r_conn)
+    close_rethink_connection(r_conn)
+    return out
+
+def update_uids_for_nvidia_id(hyp_id,gpu_id,d_uids):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+    out = rtable.get(hyp_id).update({'nvidia_uids': ''}).run(r_conn)
+    out = rtable.get(hyp_id).update({'nvidia_uids': {gpu_id:d_uids}}).run(r_conn)
+    close_rethink_connection(r_conn)
+    return out
