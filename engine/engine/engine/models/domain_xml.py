@@ -33,7 +33,7 @@ DEFAULT_SPICE_VIDEO_COMPRESSION = 'auto_glz'
 
 CPU_MODEL_FALLBACK = 'qemu64'
 
-DEFAULT_BALLOON = 0.80
+DEFAULT_BALLOON = 1
 
 BUS_TYPES =  ['sata', 'ide', 'virtio']
 
@@ -396,17 +396,18 @@ class DomainXML(object):
             element = etree.parse(StringIO('<memory unit=\'{}\'>{}</memory>'.format(unit, memory)))
             self.tree.xpath('/domain/name')[0].addnext(element)
 
-#        if current > 0:
-#            if self.tree.xpath('/domain/currentMemory'):
-#                self.tree.xpath('/domain/currentMemory')[0].set('unit', unit)
-#                self.tree.xpath('/domain/currentMemory')[0].text = str(current)
-#            else:
-#                element = etree.parse(StringIO('<currentMemory unit=\'{}\'>{}</currentMemory>'.format(unit, current)))
-#                self.tree.xpath('/domain/memory')[0].addnext(element)
-#
-#        else:
-#            if self.tree.xpath('/domain/currentMemory'):
-#                self.remove_branch('/domain/currentMemory')
+        if current <= 0:
+            current_size = memory
+        else:
+            current_size = current
+
+        if self.tree.xpath('/domain/currentMemory'):
+            self.tree.xpath('/domain/currentMemory')[0].set('unit', unit)
+            self.tree.xpath('/domain/currentMemory')[0].text = str(current_size)
+        else:
+            element = etree.parse(StringIO('<currentMemory unit=\'{}\'>{}</currentMemory>'.format(unit, current_size)))
+            self.tree.xpath('/domain/memory')[0].addnext(element)
+
 
         if max > 0:
             if self.tree.xpath('/domain/maxMemory'):
