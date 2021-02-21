@@ -431,6 +431,11 @@ class DomainXML(object):
             element = etree.parse(StringIO('<vcpu placement=\'{}\'>{}</vcpu>'.format(placement, vcpus))).getroot()
             self.tree.xpath('/domain/name')[0].addnext(element)
 
+        #with machine=pc-q35 we need to parse vcpus in cpu entry
+        if self.tree.xpath('/domain/cpu'):
+            element = etree.parse(StringIO(f"<topology sockets='1' dies='1' cores='{vcpus}' threads='1'/>")).getroot()
+            self.tree.xpath('/domain/cpu')[0].append(element)
+
     def add_to_domain(self, xpath_same, element_tree, xpath_next='', xpath_previous='', xpath_parent='/domain'):
         if self.tree.xpath(xpath_parent):
             if self.tree.xpath(xpath_same):
@@ -580,6 +585,10 @@ class DomainXML(object):
         cpu_old = domain.xpath('cpu')
         if len(cpu_old) == 1:
             domain.remove(cpu_old[0])
+
+        num_vcpus = int(self.tree.xpath('/domain/vcpu')[0].text)
+        element = etree.parse(StringIO(f"<topology sockets='1' dies='1' cores='{num_vcpus}' threads='1'/>")).getroot()
+        cpu.append(element)
 
         #insert new cpu section
         xpath_same = '/domain/cpu'
