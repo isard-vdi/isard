@@ -89,6 +89,7 @@ $(document).ready(function() {
                 },
             { "data": "enabled", "width": "10px" },
             { "data": "status", "width": "10px" },
+            { "data": "hypervisor_number" , "width": "5px" },
             { "data": "id" , "width": "10px" },
             { "data": "hostname" , "width": "100px" },
             { "data": "info-qemu_version" , "width": "10px", "defaultContent": 'NaN'},
@@ -118,17 +119,17 @@ $(document).ready(function() {
                               return renderStatus(full);
                             }},
                             {
-                            "targets": 8,
+                            "targets": 9,
                             "render": function ( data, type, full, meta ) {
                                 return Math.round(data/1024 * 10) / 10 +'GB';
                             }},
                             {
-                            "targets": 9,
+                            "targets": 10,
                             "render": function ( data, type, full, meta ) {
                                 return full['info-cpu_cores']*full['info-threads_x_core'];
                             }},                                                           
                             {
-                            "targets": 15,
+                            "targets": 16,
                             "render": function ( data, type, full, meta ) {
                               return moment.unix(full.status_time).fromNow();
                             }}                          
@@ -161,6 +162,7 @@ $(document).ready(function() {
         if ( row.child.isShown() ) {
             // This row is already open - close it
             row.child.hide();
+            row.child.remove();
             tr.removeClass('shown');
         }
         else {
@@ -175,7 +177,6 @@ $(document).ready(function() {
             tableHypervisorDomains(row.data().id);
             setHypervisorDetailButtonsStatus(row.data().id,row.data().status)
             actionsHyperDetail();
-
         }
     } );
 
@@ -471,6 +472,13 @@ function actionsHyperDetail(){
                 $('#modalEditHyper #modalEdit #id').val(pk);
                 $('#modalEditHyper #modalEdit #fake_id').val(pk);
                 $('#modalEditHyper #modalEdit #description').val(hyp.description);
+                if(hyp.id == 'isard-hypervisor'){
+                    $('#modalEditHyper #modalEdit #hypervisor_number').val(0);
+                    $('#modalEditHyper #modalEdit #hypervisor_number').prop( "disabled", true );
+                }else{
+                    $('#modalEditHyper #modalEdit #hypervisor_number').val(hyp.hypervisor_number);
+                    $('#modalEditHyper #modalEdit #hypervisor_number').prop( "disabled", false );
+                }
                 $('#modalEditHyper #modalEdit #hostname').val(hyp.hostname);
                 $('#modalEditHyper #modalEdit #user').val(hyp.user);
                 $('#modalEditHyper #modalEdit #port').val(hyp.port);

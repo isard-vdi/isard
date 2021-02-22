@@ -62,27 +62,10 @@ class isardViewer():
                 raise NotAllowed 
         if  'preferred' not in domain['options']['viewers'].keys() or not domain['options']['viewers']['preferred'] == default_viewer:
             r.table('domains').get(id).update({'options':{'viewers':{'preferred':default_viewer}}}).run(db.conn)
+ 
+        if get_viewer == 'rdp-client':
+            return {'kind':'file','name':'isard-rdp','ext':'rdp','mime':'application/x-rdp','content':self.get_rdp_file(domain['viewer']['guest_ip'])} 
 
-        # ~ try:
-            # ~ hypervisor = r.table('hypervisors').get(domain['hyp_started').pluck('viewer_static_host','viewer_proxy_video','viewer_hyper_host','').run(db.conn)
-        # ~ except  HypervisorPoolNotFound:
-            # ~ raise
-
-        # ~ try:
-            # ~ certificate = r.table('hypervisors_pools').get(domain['hypervisors_pools'][0]).run(db.conn)['viewer']
-        # ~ except  HypervisorPoolNotFound:
-            # ~ raise
-                       
-        # ~ dict_viewer = { 'static':   False,
-                        # ~ 'proxy_video':   False,
-                        # ~ 'proxy_hyper_host':  False,
-                        # ~ 'base_port':     spice if spice is not False else False,
-                        # ~ 'passwd':       passwd if passwd is not False else False,
-                        # ~ 'client_addr':  False,
-                        # ~ 'client_since': False,
-                        # ~ 'tls': False
-                        # ~ }  
-        
         if get_viewer == 'spice-html5':
             if get_cookie:       
                 cookie = base64.b64encode(json.dumps({
@@ -122,7 +105,7 @@ class isardViewer():
             port=domain['viewer']['base_port']+self.spice_tls
             consola=self.get_spice_file(domain,port)
             if get_cookie:
-                return {'kind':'file','ext':consola[0],'mime':consola[1],'content':consola[2]} 
+                return {'kind':'file','name':'isard-spice','ext':consola[0],'mime':consola[1],'content':consola[2]} 
             else:
                 return consola[2]
                 
@@ -132,7 +115,10 @@ class isardViewer():
             raise ViewerProtocolNotImplemented
         
         return ViewerProtocolNotFound
-        
+
+    def get_rdp_file(self,ip):
+        return """full address:s:%s
+""" % (ip)
 
     def get_spice_file(self, domain, port):
         try:

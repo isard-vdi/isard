@@ -17,16 +17,14 @@ from .lib import *
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 10
-### Upgrade is 9!!!
-tables=['config','hypervisors','hypervisors_pools','domains','media','graphics','users','roles','groups']
+release_version = 11
+### Upgrade is 10!!!
+tables=['config','hypervisors','hypervisors_pools','domains','media','graphics','users','roles','groups','interfaces']
 
 
 class Upgrade(object):
     def __init__(self):
-        
-        # ~ self.rele = 9
-        
+
         cfg=loadConfig()
         self.conf=cfg.cfg()
         
@@ -279,7 +277,7 @@ class Upgrade(object):
                 # ~ except Exception as e:
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
                     # ~ log.error('Error detail: '+str(e))                    
-                                                   
+
 
         if version == 8:
             for d in data:
@@ -327,7 +325,41 @@ class Upgrade(object):
                 except Exception as e:
                     log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
                     log.error('Error detail: '+str(e))                    
-                                                    
+
+        if version == 11:
+            for d in data:
+                id=d['id']
+                d.pop('id',None)                
+
+                ''' CONVERSION FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):  
+                        ##### CONVERSION FIELDS
+                        # ~ cfg['field']={}
+                        # ~ r.table(table).update(cfg).run()  
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
+                    # ~ log.error('Error detail: '+str(e))
+   
+                ''' NEW FIELDS PRE CHECKS '''   
+                try: 
+                    if id == 'isard-hypervisor':
+                        if not self.check_done( d,
+                                            ['hypervisor_number'],
+                                            []):                                     
+                            ##### NEW FIELDS
+                            self.add_keys(  table, 
+                            [{'hypervisor_number':0}], id=id)
+                except Exception as e:
+                    log.error('Could not update table '+table+' add fields for db version '+str(version)+'!')
+                    log.error('Error detail: '+str(e))
+
+                
+                ''' REMOVE FIELDS PRE CHECKS ''' 
+                   
+
         return True
     '''
     HYPERVISORS_POOLS TABLE UPGRADES
@@ -704,7 +736,7 @@ class Upgrade(object):
                                                             'isos_disk_max': 5000000},
                                                 'hardware': {'vcpus': 6,
                                                                 'memory': 6000000}},  # 6GB
-                                        }).run()           
+                                        }).run()
             #~ for d in data:
                 #~ id=d['id']
                 #~ d.pop('id',None)                
@@ -745,6 +777,70 @@ class Upgrade(object):
                     # ~ log.error('Error detail: '+str(e))                    
          
         return True
+
+    '''
+    INTERFACES TABLE UPGRADES
+    '''
+    def interfaces(self,version):
+        table='interfaces'
+        log.info('UPGRADING '+table+' VERSION '+str(version))
+        if version == 11:
+            wg = r.table(table).get('wireguard').run()
+            if wg == None:
+                r.table(table).insert([{"allowed": {"categories": False ,
+                                            "groups": False ,
+                                            "roles": ["admin"] ,
+                                            "users": False} ,
+                                        "description": "Allows direct access to guest IP" ,
+                                        "id": "wireguard" ,
+                                        "ifname": "wireguard" ,
+                                        "kind": "network" ,
+                                        "model": "virtio" ,
+                                        "name": "Wireguard VPN" ,
+                                        "net": "wireguard" ,
+                                        "qos_id": "unlimited"}]).run()
+
+            #~ for d in data:
+                #~ id=d['id']
+                #~ d.pop('id',None)                
+                #~ ''' CONVERSION FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):  
+                        ##### CONVERSION FIELDS
+                        # ~ cfg['field']={}
+                        # ~ r.table(table).update(cfg).run()  
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
+                    # ~ log.error('Error detail: '+str(e))
+   
+                #~ ''' NEW FIELDS PRE CHECKS '''   
+                #~ try: 
+                    #~ if not self.check_done( d,
+                                        #~ ['preferences'],
+                                        #~ []):                                     
+                        #~ ##### NEW FIELDS
+                        #~ self.add_keys(  table, 
+                                        #~ [   {'options': {'viewers':{'spice':{'fullscreen':False}}}}],
+                                            #~ id=id)
+                #~ except Exception as e:
+                    #~ log.error('Could not update table '+table+' add fields for db version '+str(version)+'!')
+                    #~ log.error('Error detail: '+str(e))
+                
+                #~ ''' REMOVE FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):   
+                        #### REMOVE FIELDS
+                        # ~ self.del_keys(TABLE,[])
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
+                    # ~ log.error('Error detail: '+str(e))                    
+         
+        return True
+
 
     '''
     Upgrade general actions

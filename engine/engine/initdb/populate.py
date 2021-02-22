@@ -481,7 +481,8 @@ class Populate(object):
                                                                 'categories': False,
                                                                 'groups': False,
                                                                 'users': False}
-                                                            }]).run())                                                                                                                                                                                                                                                
+                                                            }]).run())
+
             self.index_create('interfaces',['roles','categories','groups','users'])
             return True
 

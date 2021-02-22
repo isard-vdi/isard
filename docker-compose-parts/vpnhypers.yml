@@ -1,0 +1,23 @@
+version: "3.5"
+services:
+  isard-vpnhypers:
+    container_name: isard-vpnhypers 
+    image: ${DOCKER_IMAGE_PREFIX}vpn:${DOCKER_IMAGE_TAG:-latest}     
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE  
+    networks:
+      isard-network: {}
+      isard-vpn:
+        ipv4_address: ${WG_HYPER_NET_WG_PEER}
+    ports:
+      - published: 4443
+        target: 4443
+        protocol: udp
+    privileged: true
+    volumes:
+      - /sys:/sys:rw
+      - /opt/isard-local/wireguard/certs:/certs
+    restart: unless-stopped
+    env_file:
+      - .env  

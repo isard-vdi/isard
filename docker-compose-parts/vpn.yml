@@ -1,0 +1,30 @@
+version: "3.5"
+services:
+  isard-vpn:
+    container_name: isard-vpn 
+    image: ${DOCKER_IMAGE_PREFIX}vpn:${DOCKER_IMAGE_TAG:-latest}     
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE  
+    networks:
+      isard-network: {}
+      isard-vpn:
+    ports:
+      - published: ${WG_USERS_PORT}
+        target: 443
+        protocol: udp
+      - published: ${WG_HYPERS_PORT}
+        target: 4443
+        protocol: udp
+    privileged: true
+    volumes:
+      - /sys:/sys:rw
+      - /opt/isard-local/wireguard/certs:/certs
+    restart: unless-stopped
+    env_file:
+      - .env  
+
+networks:
+  isard-vpn:
+    external: false
+    name: isard-vpn

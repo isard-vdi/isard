@@ -1,6 +1,15 @@
 rm -rf /run/libvirt/*
+rm -r /var/lib/libvirt/dnsmasq
 echo "Generating selfsigned certs for spice client..."
 sh auto-generate-certs.sh
+
+echo "Setting wireguard.xml network for $WG_HYPER_GUESTNET"
+python3 wireguard.py
+
+#ip r a $WG_USERS_NET via ${WG_HYPER_NET_WG_PEER}
+
+env > /tmp/env
+
 echo "Starting libvirt daemon..."
 chown root:kvm /dev/kvm
 /usr/sbin/virtlogd &
@@ -9,6 +18,7 @@ sleep 2
 sleep 1
 #/usr/bin/virsh net-start default
 sh -c "/vlans-discover.sh"
+
 FILES=/etc/libvirt/qemu/networks/*
 for f in $FILES
 do

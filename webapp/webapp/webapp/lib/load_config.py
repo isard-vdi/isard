@@ -80,6 +80,7 @@ class loadConfig():
         sysconfig = r.db('isard').table('config').get(1).run(conn)
         app.shares_templates = sysconfig.get('shares', {}).get('templates', False)
         app.shares_isos = sysconfig.get('shares', {}).get('isos', False)
+        app.wireguard_users_keys = sysconfig.get('vpn_users', {}).get('wireguard', {}).get('keys', False)
             
 
 def load_config():

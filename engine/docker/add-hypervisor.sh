@@ -1,4 +1,4 @@
-apk add sshpass
+#apk add sshpass
 if [[ -z $HYPERVISOR || -z $PASSWORD ]]
 then
     echo "You should add environment variables:"
@@ -54,10 +54,3 @@ then
    sed -i '/'"$HYPERVISOR"'/d' /root/.ssh/known_hosts 
    exit 1
 fi
-
-cp /root/.ssh/known_hosts /root/.ssh/known_hosts.bak
-echo "Access to $USER@$HYPERVISOR:$PORT granted and found libvirtd service running."
-echo "Adding hyper to Isard..."
-/usr/bin/python3 /add-hyper-rethink.py -u $USER -a $HYPERVISOR -p $PORT -i $ID
-
-

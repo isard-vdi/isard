@@ -1,0 +1,26 @@
+version: "3.5"
+services:
+  isard-vpnc:
+    container_name: isard-vpnc 
+    image: ${DOCKER_IMAGE_PREFIX}vpnc:${DOCKER_IMAGE_TAG:-latest}     
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE  
+    networks:
+      isard-network: {}
+      isard-vpn:
+    ports:
+      - published: 443
+        target: 443
+        protocol: udp
+    privileged: true
+    volumes:
+      - /sys:/sys:rw
+    restart: unless-stopped
+    env_file:
+      - .env  
+
+networks:
+  isard-vpn:
+    external: false
+    name: isard-vpn

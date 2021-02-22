@@ -5,6 +5,7 @@ services:
     image: ${DOCKER_IMAGE_PREFIX}hypervisor:${DOCKER_IMAGE_TAG-latest}
     networks:
       isard-network: {}
+      isard-vpn:
     ports:
       - "2022:22"
     privileged: true

@@ -46,7 +46,11 @@ class isardViewer():
             if domain['user'] != current_user.id: return False 
         if  'preferred' not in domain['options']['viewers'].keys() or not domain['options']['viewers']['preferred'] == default_viewer:
             r.table('domains').get(id).update({'options':{'viewers':{'preferred':default_viewer}}}).run(db.conn)
-        
+
+        if get_viewer == 'rdp-client':
+            return {'kind':'file','name':'isard-rdp','ext':'rdp','mime':'application/x-rdp','content':self.get_rdp_file(domain['viewer']['guest_ip'])} 
+
+
         if get_viewer == 'spice-html5':
             port=domain['viewer']['base_port']
             if get_cookie:       
@@ -98,6 +102,9 @@ class isardViewer():
         
         return False
         
+    def get_rdp_file(self,ip):
+        return """full address:s:%s
+""" % (ip)
 
     def get_spice_file(self, domain, port):
         try:

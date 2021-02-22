@@ -1,5 +1,6 @@
 
 import json
+import os
 from time import sleep
 
 from flask import Blueprint, jsonify
@@ -103,6 +104,9 @@ def stop_thread_event():
     app.m.t_events.stop = True
     app.t_events.q_event_register.put({'type': 'del_hyp_to_receive_events', 'hyp_id': ''})
 
+@api.route('/engine_restart', methods=['GET'])
+def engine_restart():
+    os.system('supervisorctl -c /etc/supervisord.conf restart engine')
 
 @api.route('/engine_info', methods=['GET'])
 def engine_info():
