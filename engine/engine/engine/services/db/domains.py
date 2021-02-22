@@ -497,7 +497,7 @@ def get_domain_force_update(domain_id):
 
 
 def get_domain_forced_hyp(id_domain):
-    r_conn = new_rethink_connection()
+    fr_conn = new_rethink_connection()
     rtable = r.table('domains')
 
     try:
@@ -508,6 +508,8 @@ def get_domain_forced_hyp(id_domain):
     if isinstance(forced_hyp,list) and len(forced_hyp)>0:
         ## By now, even the webapp will update it as a list, only lets
         ## to set one forced_hyp
+        if forced_hyp[0] == 'false':
+            return False
         return forced_hyp[0]
     return False
 
@@ -526,6 +528,14 @@ def get_domain_hardware_dict(id_domain):
     result = rtable.get(id_domain).pluck('hardware').run(r_conn)
     close_rethink_connection(r_conn)
     return result['hardware']
+
+def get_create_dict(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    result = rtable.get(id_domain).pluck('create_dict').run(r_conn)
+    close_rethink_connection(r_conn)
+    return result['create_dict']
 
 def get_domain_status(id):
     r_conn = new_rethink_connection()

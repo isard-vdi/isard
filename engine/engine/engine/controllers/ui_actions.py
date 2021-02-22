@@ -14,7 +14,7 @@ from os.path import dirname as extract_dir_path
 from time import sleep
 
 from engine.models.domain_xml import DomainXML, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
-from engine.models.domain_xml import recreate_xml_to_start, BUS_TYPES
+from engine.models.domain_xml import recreate_xml_to_start, BUS_TYPES, recreate_xml_if_gpu
 from engine.services.db import update_domain_viewer_started_values, update_table_field, \
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
@@ -82,10 +82,13 @@ class UiActions(object):
 
         failed = False
         if pool_id in self.manager.pools.keys():
-            next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
+            next_hyp,extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain)
             log.debug('//////////////////////')
             if next_hyp is not False:
                 log.debug('next_hyp={}'.format(next_hyp))
+                #TODO GPU hay que mirar el extra_info y modificar xml si es nvidia
+
+
                 dict_action = {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain}
                 # if start_after_created is True:
                 #     dict_action['start_after_created'] = True
@@ -132,13 +135,21 @@ class UiActions(object):
                 hyps_in_pool = get_hypers_in_pool(pool_id, only_online=False)
                 if forced_hyp in hyps_in_pool:
                     next_hyp = forced_hyp
+                    xml,msg = recreate_xml_if_gpu(id_domain,xml,next_hyp)
+                    if xml is False:
+                        failed = True
+                        next_hyp = False
+                        log.error(f'force hypervisor failed for domain {id_domain} in \
+                                   hypervisor {next_hyp} can not start desktops with gpu: {msg}')
                 else:
-                    log.error('force hypervisor failed for doomain {}: {}  not in hypervisors pool {}'.format(id_domain,
+                    log.error('force hypervisor failed for domain {}: {}  not in hypervisors pool {}'.format(id_domain,
                                                                                                               forced_hyp,
                                                                                                               pool_id))
-                    next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
+                    failed = True
+                    next_hyp = False
+                    #next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
             else:
-                next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
+                next_hyp,extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain)
 
             if next_hyp is not False:
                 # update_domain_status(status='Starting',
@@ -146,7 +157,9 @@ class UiActions(object):
                 #                      hyp_id=next_hyp,
                 #                      detail='desktop starting paused in pool {} on hypervisor {}'.format(pool_id,
                 #                                                                                          next_hyp))
-
+                #TODO GPU - ahora si tiene gpu habría que parsear el xml
+                if extra_info.get('nvidia',False) is True:
+                    pass
                 if LOG_LEVEL == 'DEBUG':
                     print(f'%%%% DOMAIN: {id_domain} -- XML TO START IN HYPERVISOR: {next_hyp} %%%%')
                     ##print(xml)

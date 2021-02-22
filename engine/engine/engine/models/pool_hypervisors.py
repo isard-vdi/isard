@@ -12,7 +12,8 @@ from time import sleep
 from traceback import format_exc
 
 from engine.services.balancers.balancer_factory import BalancerFactory
-from engine.services.db.hypervisors import get_hypers_in_pool,get_pool_hypers_conf
+from engine.services.db.hypervisors import get_hypers_in_pool,get_pool_hypers_conf,get_hypers_info
+from engine.services.db.domains import get_domain_hardware_dict
 from engine.services.log import logs
 
 class Balancer_no_stats():
@@ -80,4 +81,57 @@ class PoolHypervisors():
         kwargs = {'to_create_disk': to_create_disk,
                 'path_selected': path_selected,
                 'domain_id':domain_id}
-        return self.balancer.get_next(**kwargs)
+        if domain_id is not None:
+            # try:
+                hw_dict = get_domain_hardware_dict(domain_id)
+                if hw_dict['video']['type'].find('nvidia') == 0:
+                    type = hw_dict['video']['type']
+                    next_hyp,next_available_uid,next_id_pci,next_model = self.get_next_hyp_with_gpu(type)
+                    #TODO ALBERTO
+                    # FALTA modificar el xml para que arranque o pasarle de alguna manera el uuid
+                    extra = {'nvidia': True,
+                             'uid':    next_available_uid,
+                             'id_pci': next_id_pci,
+                             'model':  next_model}
+                    return next_hyp,extra
+            # except:
+            #     pass
+        return self.balancer.get_next(**kwargs),{}
+
+    def get_next_hyp_with_gpu(self,type):
+        hypers_online = get_hypers_info(id_pool=self.id_pool)
+        if len(hypers_online) == 0:
+            return False
+        hypers_online_with_gpu = [h for h in hypers_online if len(h.get('default_gpu_models',{})) > 0]
+        if len(hypers_online_with_gpu) == 0:
+            return False
+        available_uids = {}
+        max_available = 0
+        next_hyp = False
+        next_available_uid = False
+        next_id_pci = False
+        next_model = False
+        for d_hyper in hypers_online_with_gpu:
+            d_uids = d_hyper['nvidia_uids']
+            for id_pci,d in d_uids.items():
+                if type == 'nvidia':
+                    model = d_hyper['default_gpu_models'][id_pci]
+                else:
+                    model = type.split('nvidia_')[0]
+                if model in d.keys():
+                    available_uids[id_pci] = [k for k,v in d[model].items() if v['started'] is False]
+                    #TODO falta verificar realmente cuantos hay disponibles con libvirt
+                    if len(available_uids[id_pci]) > max_available:
+                        max_available = len(available_uids[id_pci])
+                        next_hyp = d_hyper['id']
+                        next_available_uid = available_uids[id_pci][0]
+                        next_id_pci = id_pci
+                        next_model = model
+        return next_hyp,next_available_uid,next_id_pci,next_model
+
+
+
+
+
+        pass
+
