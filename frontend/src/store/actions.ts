@@ -23,7 +23,6 @@ type AugmentedActionContext = {
 
 export enum ActionTypes {
   DO_LOCAL_LOGIN = 'DO_LOCAL_LOGIN',
-  INC_COUNTER = 'SET_COUNTER',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
   TOGGLE_MENU = 'TOGGLE_MENU',
@@ -39,11 +38,6 @@ export interface Actions {
   [ActionTypes.DO_LOCAL_LOGIN](
     { commit }: AugmentedActionContext,
     payload: { usr: string; psw: string; entity: string }
-  ): void;
-
-  [ActionTypes.INC_COUNTER](
-    { commit }: AugmentedActionContext,
-    payload: number
   ): void;
 
   [ActionTypes.DO_SEARCH](
@@ -101,12 +95,8 @@ export const actions: ActionTree<State, State> & Actions = {
         const payload = { token: response };
         commit(MutationTypes.LOGIN_SUCCESS, payload);
         console.log('go users');
-        router.push({ name: 'users-list' });
+        router.push({ name: 'users' });
       });
-  },
-
-  [ActionTypes.INC_COUNTER]({ commit }, payload: number) {
-    commit(MutationTypes.INC_COUNTER, payload);
   },
 
   [ActionTypes.DO_SEARCH]({ commit }, payload) {
@@ -118,7 +108,7 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   [ActionTypes.GO_SEARCH]({ commit }) {
-    router.push({ name: 'users-list' });
+    router.push({ name: 'users' });
   },
 
   [ActionTypes.TOGGLE_MENU]({ commit }) {

@@ -14,15 +14,7 @@ export default {
   setup() {
     const store = useStore();
 
-    const counter = computed(() => {
-      return store.state.counter;
-    });
-
-    function addOne() {
-      store.commit('increment');
-      console.log('Hola');
-    }
-    return { addOne, counter };
+    return {};
   }
 };
 </script>

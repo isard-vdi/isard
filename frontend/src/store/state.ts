@@ -1,5 +1,4 @@
 export interface State {
-  counter: number;
   search: object[];
   auth: Auth;
   ui: Ui;
@@ -23,7 +22,6 @@ export interface Auth {
 }
 
 export const state: State = {
-  counter: 0,
   search: [
     {
       name: 'Test',
