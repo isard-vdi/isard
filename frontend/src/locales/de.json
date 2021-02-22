@@ -21,7 +21,64 @@
                 }
             },
             "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?",
-            "loading": "Laden von Vorlagen"
+            "loading": "Laden von Vorlagen",
+            "status": {
+                "stopped": {
+                    "action": "Starten",
+                    "text": "Angehalten"
+                },
+                "started": {
+                    "action": "Anhalten",
+                    "text": "Gestartet"
+                },
+                "failed": {
+                    "text": "Fehlgeschlagen"
+                },
+                "notCreated": {
+                    "action": "Erstellen"
+                }
+            },
+            "error": {
+                "delete-error": {
+                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht löschen",
+                    "title": "Fehler"
+                },
+                "stop-timeout": {
+                    "description": "Der Desktop wird angehalten, dies kann einige Minuten dauern",
+                    "title": "Zeitüberschreitung"
+                },
+                "stop-error": {
+                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht anhalten",
+                    "title": "Fehler"
+                },
+                "open-error": {
+                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht öffnen",
+                    "title": "Fehler"
+                },
+                "start-timeout": {
+                    "description": "Der Desktop startet, dies kann einige Minuten dauern",
+                    "title": "Zeitüberschreitung"
+                },
+                "start-quota": {
+                    "description": "Sie benutzen zu viele Desktops gleichzeitig",
+                    "title": "Fehler"
+                },
+                "start-error": {
+                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht starten",
+                    "title": "Fehler"
+                },
+                "create-quota": {
+                    "description": "Sie haben zu viele Desktops",
+                    "title": "Fehler"
+                },
+                "create-error": {
+                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht erstellen",
+                    "title": "Fehler"
+                }
+            },
+            "remove": "Entfernen",
+            "volatile": "Temporäre Desktops",
+            "template": "Vorlage"
         },
         "error": {
             "codes": {
@@ -89,6 +146,15 @@
         },
         "title": {
             "logo-alt": "Logo"
+        },
+        "desktop-cards": {
+            "table-header": {
+                "viewers": "Anzeigeprogramme",
+                "action": "Aktion",
+                "description": "Beschreibung",
+                "state": "Status",
+                "name": "Name"
+            }
         }
     }
 }
