@@ -23,20 +23,21 @@
                     <ul v-on:click.stop>
                         <li>
                             <b>Windows 64bits (Windows 10):</b>
-                            <a
+                            <b-button
+                                variant="outline-primary"
                                 href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi"
-                                style="text-align: right"
                             >
-                                <b>{{ $t('components.help.install') }}</b>
-                            </a>
+                                {{ $t('components.help.install') }}
+                            </b-button>
                         </li>
                         <li>
                             <b>Windows 32bits ({{ $t('components.help.other-windows-versions') }}):</b>
-                            <a
+                            <b-button
+                                variant="outline-primary"
                                 href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi"
                             >
-                                <b>{{ $t('components.help.install') }}</b>
-                            </a>
+                                {{ $t('components.help.install') }}
+                            </b-button>
                         </li>
                     </ul>
                 </div>
@@ -58,11 +59,12 @@
                     <ul v-on:click.stop>
                         <li>
                             <b>Android:</b>
-                            <a
+                            <b-button
+                                variant="outline-primary"
                                 href="https://play.google.com/store/apps/details?id=com.iiordanov.freeaSPICE"
                             >
-                                <b>{{ $t('components.help.install') }}</b>
-                            </a>
+                                {{ $t('components.help.install') }}
+                            </b-button>
                         </li>
                     </ul>
                 </div>
@@ -71,9 +73,11 @@
                     <ul v-on:click.stop>
                         <li>
                             <b>iOS:</b>
-                            <a href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263">
-                                <b>{{ $t('components.help.install') }}</b>
-                            </a>
+                            <b-button
+                                variant="outline-primary"
+                                href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263">
+                                {{ $t('components.help.install') }}
+                            </b-button>
                         </li>
                     </ul>
                 </div>
