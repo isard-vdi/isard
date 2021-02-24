@@ -8,6 +8,7 @@ import (
 
 type Cfg struct {
 	Log         cfg.Log
+	Redis       cfg.Redis
 	GRPC        cfg.GRPC
 	ClientsAddr ClientsAddr
 }
@@ -31,5 +32,6 @@ func setDefaults() {
 		"orchestrator":   "orchestrator:1312",
 	})
 
+	cfg.SetRedisDefaults()
 	cfg.SetGRPCDefaults()
 }

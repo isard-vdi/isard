@@ -43,7 +43,7 @@ func (u *User) BeforeInsert(ctx context.Context) (context.Context, error) {
 
 func (u *User) Load(ctx context.Context, db *pg.DB) error {
 	if err := db.Model(u).
-		Where("id = ?", u.ID).
+		WherePK().
 		Limit(1).Select(); err != nil {
 		return fmt.Errorf("load user from db: %w", err)
 	}

@@ -9,7 +9,12 @@ import (
 
 	"gitlab.com/isard/isardvdi/backend/graph/generated"
 	"gitlab.com/isard/isardvdi/backend/graph/model"
+	"gitlab.com/isard/isardvdi/backend/viewer"
+	cmnModel "gitlab.com/isard/isardvdi/pkg/model"
 	"gitlab.com/isard/isardvdi/pkg/proto/auth"
+	"gitlab.com/isard/isardvdi/pkg/proto/controller"
+
+	"github.com/rs/xid"
 )
 
 func (r *mutationResolver) Login(ctx context.Context, provider string, entityID string, usr *string, pwd *string) (*string, error) {
@@ -37,11 +42,93 @@ func (r *mutationResolver) Login(ctx context.Context, provider string, entityID 
 	return &rsp.Token, nil
 }
 
-func (r *mutationResolver) Desktop(ctx context.Context) (*model.DesktopMutations, error) {
+func (r *mutationResolver) DesktopStart(ctx context.Context, id string) (*model.DesktopStartPayload, error) {
+	rsp, err := r.Controller.DesktopStart(ctx, &controller.DesktopStartRequest{
+		Id: id,
+	})
+	if err != nil {
+		// TODO: Change this
+		panic(err)
+	}
+
+	v := &model.Viewer{}
+	for _, s := range rsp.Viewer.Spice {
+		v.Spice = &model.ViewerSpice{
+			File: viewer.GenSpice(s.Host, int(s.TlsPort), s.Pwd),
+		}
+	}
+	for range rsp.Viewer.Vnc {
+		v.VncHTML = &model.ViewerVncHTML{
+			URL: "TODO",
+		}
+	}
+
+	return &model.DesktopStartPayload{
+		RecordID: &id,
+		Viewer:   v,
+	}, nil
+}
+
+func (r *mutationResolver) DesktopStop(ctx context.Context, id string) (*model.DesktopStopPayload, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *mutationResolver) Template(ctx context.Context) (*model.TemplateMutations, error) {
+func (r *mutationResolver) DesktopDelete(ctx context.Context, id string) (*model.DesktopDeletePayload, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *mutationResolver) DesktopTemplate(ctx context.Context, input model.DesktopTemplateInput) (*model.DesktopTemplatePayload, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.DesktopCreateInput) (*model.DesktopCreatePayload, error) {
+	b := &cmnModel.HardwareBase{UUID: input.Hardware.BaseID}
+	if err := b.LoadWithUUID(ctx, r.DB); err != nil {
+		// TODO: Change this
+		panic(err)
+	}
+
+	h := &cmnModel.Hardware{
+		BaseID:    b.ID,
+		VCPUs:     input.Hardware.Vcpus,
+		MemoryMin: input.Hardware.MemoryMin,
+		MemoryMax: input.Hardware.MemoryMax,
+	}
+	_, err := r.DB.Model(h).Returning("id").Insert()
+	if err != nil {
+		// TODO: Change this
+		panic(err)
+	}
+
+	d := &cmnModel.Desktop{
+		Name:       input.Name,
+		UUID:       xid.New().String(),
+		HardwareID: h.ID,
+	}
+	if input.Description != nil {
+		d.Description = *input.Description
+	}
+
+	_, err = r.DB.Model(d).Insert()
+	if err != nil {
+		// TODO: Change this
+		panic(err)
+	}
+
+	return &model.DesktopCreatePayload{
+		RecordID: &d.UUID,
+	}, nil
+}
+
+func (r *mutationResolver) DesktopDerivate(ctx context.Context, input model.DesktopDerivateInput) (*model.DesktopDerivatePayload, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *mutationResolver) TemplateDelete(ctx context.Context, id string) (*model.TemplateDeletePayload, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (r *mutationResolver) HardwareBaseCreate(ctx context.Context, input model.HardwareBaseCreateInput) (*model.HardwareBaseCreatePayload, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 

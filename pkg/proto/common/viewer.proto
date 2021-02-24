@@ -5,9 +5,10 @@ option go_package = "gitlab.com/isard/isardvdi/pkg/proto/common";
 
 message Viewer {
     message Spice {
-        string pwd = 1;
-        int32 port = 2;
-        int32 tls_port = 3;
+        string host = 1;
+        string pwd = 2;
+        int32 port = 3;
+        int32 tls_port = 4;
     }
     message Vnc {
         string pwd = 1;

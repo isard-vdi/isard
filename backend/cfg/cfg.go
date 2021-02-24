@@ -15,7 +15,8 @@ type Cfg struct {
 }
 
 type ClientsAddr struct {
-	Auth string
+	Auth       string
+	Controller string
 }
 
 type GraphQL struct {
@@ -38,7 +39,8 @@ func setDefaults() {
 	})
 
 	viper.SetDefault("clientsaddr", map[string]string{
-		"auth": "auth:1312",
+		"auth":       "auth:1312",
+		"controller": "controller:1312",
 	})
 
 	cfg.SetDBDefaults()

@@ -1,4 +1,11 @@
 type Query {
-    desktop: DesktopQueries
-    template: TemplateQueries
+    desktopList: [Desktop!]!
+    desktopGet(id: ID!): Desktop
+    desktopViewer(id: ID!): Viewer
+
+    templateList: [Template!]!
+    templateGet(id: ID!): Template
+
+    hardwareBaseList: [HardwareBase!]!
+    hardwareBaseGet(id: ID!): HardwareBase
 }

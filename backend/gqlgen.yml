@@ -43,38 +43,6 @@ autobind:
 # modelgen, the others will be allowed when binding to fields. Configure them to
 # your liking
 models:
-  DesktopQueries:
-    fields:
-      list:
-        resolver: true
-      get:
-        resolver: true
-      viewer:
-        resolver: true
-  DesktopMutations:
-    fields:
-      start:
-        resolver: true
-      stop:
-        resolver: true
-      delete:
-        resolver: true
-      template:
-        resolver: true
-      create:
-        resolver: true
-      derivate:
-        resolver: true
-  TemplateQueries:
-    fields:
-      list:
-        resolver: true
-      get:
-          resolver: true
-  TemplateMutations:
-    fields:
-      delete:
-        resolver: true
   ID:
     model:
       - github.com/99designs/gqlgen/graphql.ID

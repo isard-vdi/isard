@@ -10,6 +10,7 @@ import (
 	"gitlab.com/isard/isardvdi/backend/graph/generated"
 	"gitlab.com/isard/isardvdi/backend/graph/middleware"
 	"gitlab.com/isard/isardvdi/pkg/proto/auth"
+	"gitlab.com/isard/isardvdi/pkg/proto/controller"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -25,9 +26,11 @@ import (
 type BackendServer struct {
 	Addr string
 
-	DB       *pg.DB
-	AuthConn *grpc.ClientConn
-	Auth     auth.AuthClient
+	DB             *pg.DB
+	AuthConn       *grpc.ClientConn
+	Auth           auth.AuthClient
+	ControllerConn *grpc.ClientConn
+	Controller     controller.ControllerClient
 
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
@@ -35,7 +38,11 @@ type BackendServer struct {
 
 func (b *BackendServer) Serve(ctx context.Context) {
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{
-		Resolvers: &graph.Resolver{Auth: b.Auth},
+		Resolvers: &graph.Resolver{
+			Auth:       b.Auth,
+			Controller: b.Controller,
+			DB:         b.DB,
+		},
 		// Directives: generated.DirectiveRoot(graph.NewDirective()),
 	}))
 

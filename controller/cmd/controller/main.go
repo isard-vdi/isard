@@ -11,6 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/controller/controller"
 	"gitlab.com/isard/isardvdi/controller/transport/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/redis"
 )
 
 func main() {
@@ -21,7 +22,12 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	controller, err := controller.New(cfg)
+	redis := redis.New(cfg.Redis.Cluster, cfg.Redis.Host, cfg.Redis.Port, cfg.Redis.Usr, cfg.Redis.Pwd)
+	if err := redis.Ping(ctx).Err(); err != nil {
+		log.Fatal().Err(err).Msg("connect to redis")
+	}
+
+	controller, err := controller.New(ctx, cfg, redis)
 	if err != nil {
 		log.Fatal().Err(err).Msg("create controller")
 	}

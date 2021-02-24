@@ -13,7 +13,7 @@ type Hardware struct {
 
 	BaseID     int                  `pg:",notnull"`
 	Base       *HardwareBase        `pg:"rel:has-one"`
-	Interfaces []*HardwareInterface ``
+	Interfaces []*HardwareInterface `pg:"rel:has-many"`
 
 	VCPUs     int     `pg:",notnull"`
 	MemoryMin int     `pg:",notnull"`
@@ -29,7 +29,7 @@ type HardwareBase struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
-	Name        string `pg:"notnull"`
+	Name        string `pg:",notnull"`
 	Description string
 	OS          string `pg:",notnull"`
 	OSVariant   string
