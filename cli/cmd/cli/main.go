@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
+	"strings"
 
 	"gitlab.com/isard/isardvdi/pkg/db"
 	"gitlab.com/isard/isardvdi/pkg/model"
@@ -19,7 +21,12 @@ func main() {
 	// 	panic(err)
 	// }
 
-	db, err := db.New("172.18.0.3:5432", "isard", "isard", "isard")
+	out, err := exec.Command("docker", "inspect", "-f", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", "isardvdi_postgres_1").CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+
+	db, err := db.New(strings.Replace(strings.TrimSpace(string(out)), "'", "", -1)+":5432", "isard", "isard", "isard")
 	if err != nil {
 		panic(err)
 	}
@@ -97,4 +104,37 @@ func main() {
 	fmt.Println("Usuari insertada")
 	fmt.Println(result.RowsAffected())
 
+	b := &model.HardwareBase{
+		UUID: xid.New().String(),
+
+		Name:        "Simple",
+		Description: "Simple DesktopBase",
+
+		OS:        "linux",
+		OSVariant: "ubuntu",
+		XML: `<domain type="kvm">
+    <name>test</name>
+    <memory unit="G">2</memory>
+    <vcpu placement="static">2</vcpu>
+    <os>
+        <type machine="q35">hvm</type>
+    </os>
+    <devices>
+        <input type="keyboard" bus="ps2"></input>
+        <graphics type="spice" listen="0.0.0.0"></graphics>
+        <video>
+        <model type="qxl"></model>
+        </video>
+        <controller type='pci' index='0' model='pcie-root'>
+        <alias name='pci.0'/>
+        </controller>
+    </devices>
+</domain>`,
+	}
+	result, err = db.Model(b).Returning("id").Insert()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("HardwareBase insertada")
+	fmt.Println(result.RowsAffected())
 }

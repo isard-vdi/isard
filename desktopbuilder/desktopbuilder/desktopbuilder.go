@@ -24,9 +24,8 @@ func New(db *pg.DB) *DesktopBuilder {
 }
 
 func (d *DesktopBuilder) XMLGet(ctx context.Context, id string) (string, error) {
-	desktop := &model.Desktop{ID: id}
-	if err := d.db.WithContext(ctx).Model(desktop).WherePK().Select(); err != nil {
-		// TODO: Handle this`
+	desktop := &model.Desktop{UUID: id}
+	if err := desktop.LoadWithUUID(ctx, d.db); err != nil {
 		panic(err)
 	}
 

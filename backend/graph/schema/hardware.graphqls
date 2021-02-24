@@ -27,3 +27,25 @@ enum DiskType {
     QCOW2
     RAW
 }
+
+# type HardwareBaseQueries {
+#     list: [HardwareBase!]!
+#     get(id: ID!): HardwareBase
+# }
+
+# type HardwareBaseMutations {
+#     create(input: HardwareBaseCreateInput!): HardwareBaseCreatePayload
+# }
+
+input HardwareBaseCreateInput {
+    name: String!
+    description: String
+    os: String!
+    osVariant: String
+    xml: String!
+}
+
+type HardwareBaseCreatePayload {
+    recordId: ID
+    record: HardwareBase
+}

@@ -22,18 +22,18 @@ services:
       - redis
     environment:
       - HYPER_REDIS_HOST=redis
-  # desktopbuilder:
-  #   build:
-  #     context: .
-  #     dockerfile: desktopbuilder/build/package/Dockerfile
-  #   image: "isard/isardvdi-desktopbuilder:${VERSION-latest}"
-  #   restart: always
-  #   depends_on:
-  #     - postgres
-  #   environment:
-  #     - DESKTOPBUILDER_DB_HOST=postgres
-  #     - DESKTOPBUILDER_DB_USR=isard
-  #     - DESKTOPBUILDER_DB_PWD=isard
+  desktopbuilder:
+    build:
+      context: .
+      dockerfile: desktopbuilder/build/package/Dockerfile
+    image: "isard/isardvdi-desktopbuilder:${VERSION-latest}"
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      - DESKTOPBUILDER_DB_HOST=postgres
+      - DESKTOPBUILDER_DB_USR=isard
+      - DESKTOPBUILDER_DB_PWD=isard
   orchestrator:
     build:
       context: .
@@ -52,8 +52,11 @@ services:
     restart: always
     depends_on:
       - hyper
-      # - desktopbuilder
+      - desktopbuilder
       - orchestrator
+      - redis
+    environment:
+      - CONTROLLER_REDIS_HOST=redis
   auth:
     build:
       context: .

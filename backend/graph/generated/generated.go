@@ -35,12 +35,8 @@ type Config struct {
 }
 
 type ResolverRoot interface {
-	DesktopMutations() DesktopMutationsResolver
-	DesktopQueries() DesktopQueriesResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
-	TemplateMutations() TemplateMutationsResolver
-	TemplateQueries() TemplateQueriesResolver
 }
 
 type DirectiveRoot struct {
@@ -67,21 +63,6 @@ type ComplexityRoot struct {
 	DesktopDerivatePayload struct {
 		Record   func(childComplexity int) int
 		RecordID func(childComplexity int) int
-	}
-
-	DesktopMutations struct {
-		Create   func(childComplexity int, input model.DesktopCreateInput) int
-		Delete   func(childComplexity int, id string) int
-		Derivate func(childComplexity int, input model.DesktopDerivateInput) int
-		Start    func(childComplexity int, id string) int
-		Stop     func(childComplexity int, id string) int
-		Template func(childComplexity int, input model.DesktopTemplateInput) int
-	}
-
-	DesktopQueries struct {
-		Get    func(childComplexity int, id string) int
-		List   func(childComplexity int) int
-		Viewer func(childComplexity int, id string) int
 	}
 
 	DesktopStartPayload struct {
@@ -124,15 +105,31 @@ type ComplexityRoot struct {
 		XML         func(childComplexity int) int
 	}
 
+	HardwareBaseCreatePayload struct {
+		Record   func(childComplexity int) int
+		RecordID func(childComplexity int) int
+	}
+
 	Mutation struct {
-		Desktop  func(childComplexity int) int
-		Login    func(childComplexity int, provider string, entityID string, usr *string, pwd *string) int
-		Template func(childComplexity int) int
+		DesktopCreate      func(childComplexity int, input model.DesktopCreateInput) int
+		DesktopDelete      func(childComplexity int, id string) int
+		DesktopDerivate    func(childComplexity int, input model.DesktopDerivateInput) int
+		DesktopStart       func(childComplexity int, id string) int
+		DesktopStop        func(childComplexity int, id string) int
+		DesktopTemplate    func(childComplexity int, input model.DesktopTemplateInput) int
+		HardwareBaseCreate func(childComplexity int, input model.HardwareBaseCreateInput) int
+		Login              func(childComplexity int, provider string, entityID string, usr *string, pwd *string) int
+		TemplateDelete     func(childComplexity int, id string) int
 	}
 
 	Query struct {
-		Desktop  func(childComplexity int) int
-		Template func(childComplexity int) int
+		DesktopGet       func(childComplexity int, id string) int
+		DesktopList      func(childComplexity int) int
+		DesktopViewer    func(childComplexity int, id string) int
+		HardwareBaseGet  func(childComplexity int, id string) int
+		HardwareBaseList func(childComplexity int) int
+		TemplateGet      func(childComplexity int, id string) int
+		TemplateList     func(childComplexity int) int
 	}
 
 	Template struct {
@@ -145,15 +142,6 @@ type ComplexityRoot struct {
 	TemplateDeletePayload struct {
 		Record   func(childComplexity int) int
 		RecordID func(childComplexity int) int
-	}
-
-	TemplateMutations struct {
-		Delete func(childComplexity int, id string) int
-	}
-
-	TemplateQueries struct {
-		Get  func(childComplexity int, id string) int
-		List func(childComplexity int) int
 	}
 
 	Viewer struct {
@@ -170,34 +158,25 @@ type ComplexityRoot struct {
 	}
 }
 
-type DesktopMutationsResolver interface {
-	Start(ctx context.Context, obj *model.DesktopMutations, id string) (*model.DesktopStartPayload, error)
-	Stop(ctx context.Context, obj *model.DesktopMutations, id string) (*model.DesktopStopPayload, error)
-	Delete(ctx context.Context, obj *model.DesktopMutations, id string) (*model.DesktopDeletePayload, error)
-	Template(ctx context.Context, obj *model.DesktopMutations, input model.DesktopTemplateInput) (*model.DesktopTemplatePayload, error)
-	Create(ctx context.Context, obj *model.DesktopMutations, input model.DesktopCreateInput) (*model.DesktopCreatePayload, error)
-	Derivate(ctx context.Context, obj *model.DesktopMutations, input model.DesktopDerivateInput) (*model.DesktopDerivatePayload, error)
-}
-type DesktopQueriesResolver interface {
-	List(ctx context.Context, obj *model.DesktopQueries) ([]*model.Desktop, error)
-	Get(ctx context.Context, obj *model.DesktopQueries, id string) (*model.Desktop, error)
-	Viewer(ctx context.Context, obj *model.DesktopQueries, id string) (*model.Viewer, error)
-}
 type MutationResolver interface {
 	Login(ctx context.Context, provider string, entityID string, usr *string, pwd *string) (*string, error)
-	Desktop(ctx context.Context) (*model.DesktopMutations, error)
-	Template(ctx context.Context) (*model.TemplateMutations, error)
+	DesktopStart(ctx context.Context, id string) (*model.DesktopStartPayload, error)
+	DesktopStop(ctx context.Context, id string) (*model.DesktopStopPayload, error)
+	DesktopDelete(ctx context.Context, id string) (*model.DesktopDeletePayload, error)
+	DesktopTemplate(ctx context.Context, input model.DesktopTemplateInput) (*model.DesktopTemplatePayload, error)
+	DesktopCreate(ctx context.Context, input model.DesktopCreateInput) (*model.DesktopCreatePayload, error)
+	DesktopDerivate(ctx context.Context, input model.DesktopDerivateInput) (*model.DesktopDerivatePayload, error)
+	TemplateDelete(ctx context.Context, id string) (*model.TemplateDeletePayload, error)
+	HardwareBaseCreate(ctx context.Context, input model.HardwareBaseCreateInput) (*model.HardwareBaseCreatePayload, error)
 }
 type QueryResolver interface {
-	Desktop(ctx context.Context) (*model.DesktopQueries, error)
-	Template(ctx context.Context) (*model.TemplateQueries, error)
-}
-type TemplateMutationsResolver interface {
-	Delete(ctx context.Context, obj *model.TemplateMutations, id string) (*model.TemplateDeletePayload, error)
-}
-type TemplateQueriesResolver interface {
-	List(ctx context.Context, obj *model.TemplateQueries) ([]*model.Template, error)
-	Get(ctx context.Context, obj *model.TemplateQueries, id string) (*model.Template, error)
+	DesktopList(ctx context.Context) ([]*model.Desktop, error)
+	DesktopGet(ctx context.Context, id string) (*model.Desktop, error)
+	DesktopViewer(ctx context.Context, id string) (*model.Viewer, error)
+	TemplateList(ctx context.Context) ([]*model.Template, error)
+	TemplateGet(ctx context.Context, id string) (*model.Template, error)
+	HardwareBaseList(ctx context.Context) ([]*model.HardwareBase, error)
+	HardwareBaseGet(ctx context.Context, id string) (*model.HardwareBase, error)
 }
 
 type executableSchema struct {
@@ -284,109 +263,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.DesktopDerivatePayload.RecordID(childComplexity), true
-
-	case "DesktopMutations.create":
-		if e.complexity.DesktopMutations.Create == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopMutations_create_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopMutations.Create(childComplexity, args["input"].(model.DesktopCreateInput)), true
-
-	case "DesktopMutations.delete":
-		if e.complexity.DesktopMutations.Delete == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopMutations_delete_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopMutations.Delete(childComplexity, args["id"].(string)), true
-
-	case "DesktopMutations.derivate":
-		if e.complexity.DesktopMutations.Derivate == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopMutations_derivate_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopMutations.Derivate(childComplexity, args["input"].(model.DesktopDerivateInput)), true
-
-	case "DesktopMutations.start":
-		if e.complexity.DesktopMutations.Start == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopMutations_start_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopMutations.Start(childComplexity, args["id"].(string)), true
-
-	case "DesktopMutations.stop":
-		if e.complexity.DesktopMutations.Stop == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopMutations_stop_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopMutations.Stop(childComplexity, args["id"].(string)), true
-
-	case "DesktopMutations.template":
-		if e.complexity.DesktopMutations.Template == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopMutations_template_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopMutations.Template(childComplexity, args["input"].(model.DesktopTemplateInput)), true
-
-	case "DesktopQueries.get":
-		if e.complexity.DesktopQueries.Get == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopQueries_get_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopQueries.Get(childComplexity, args["id"].(string)), true
-
-	case "DesktopQueries.list":
-		if e.complexity.DesktopQueries.List == nil {
-			break
-		}
-
-		return e.complexity.DesktopQueries.List(childComplexity), true
-
-	case "DesktopQueries.viewer":
-		if e.complexity.DesktopQueries.Viewer == nil {
-			break
-		}
-
-		args, err := ec.field_DesktopQueries_viewer_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.DesktopQueries.Viewer(childComplexity, args["id"].(string)), true
 
 	case "DesktopStartPayload.record":
 		if e.complexity.DesktopStartPayload.Record == nil {
@@ -542,12 +418,103 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.HardwareBase.XML(childComplexity), true
 
-	case "Mutation.desktop":
-		if e.complexity.Mutation.Desktop == nil {
+	case "HardwareBaseCreatePayload.record":
+		if e.complexity.HardwareBaseCreatePayload.Record == nil {
 			break
 		}
 
-		return e.complexity.Mutation.Desktop(childComplexity), true
+		return e.complexity.HardwareBaseCreatePayload.Record(childComplexity), true
+
+	case "HardwareBaseCreatePayload.recordId":
+		if e.complexity.HardwareBaseCreatePayload.RecordID == nil {
+			break
+		}
+
+		return e.complexity.HardwareBaseCreatePayload.RecordID(childComplexity), true
+
+	case "Mutation.desktopCreate":
+		if e.complexity.Mutation.DesktopCreate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_desktopCreate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DesktopCreate(childComplexity, args["input"].(model.DesktopCreateInput)), true
+
+	case "Mutation.desktopDelete":
+		if e.complexity.Mutation.DesktopDelete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_desktopDelete_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DesktopDelete(childComplexity, args["id"].(string)), true
+
+	case "Mutation.desktopDerivate":
+		if e.complexity.Mutation.DesktopDerivate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_desktopDerivate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DesktopDerivate(childComplexity, args["input"].(model.DesktopDerivateInput)), true
+
+	case "Mutation.desktopStart":
+		if e.complexity.Mutation.DesktopStart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_desktopStart_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DesktopStart(childComplexity, args["id"].(string)), true
+
+	case "Mutation.desktopStop":
+		if e.complexity.Mutation.DesktopStop == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_desktopStop_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DesktopStop(childComplexity, args["id"].(string)), true
+
+	case "Mutation.desktopTemplate":
+		if e.complexity.Mutation.DesktopTemplate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_desktopTemplate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DesktopTemplate(childComplexity, args["input"].(model.DesktopTemplateInput)), true
+
+	case "Mutation.hardwareBaseCreate":
+		if e.complexity.Mutation.HardwareBaseCreate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_hardwareBaseCreate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.HardwareBaseCreate(childComplexity, args["input"].(model.HardwareBaseCreateInput)), true
 
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
@@ -561,26 +528,86 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.Login(childComplexity, args["provider"].(string), args["entityId"].(string), args["usr"].(*string), args["pwd"].(*string)), true
 
-	case "Mutation.template":
-		if e.complexity.Mutation.Template == nil {
+	case "Mutation.templateDelete":
+		if e.complexity.Mutation.TemplateDelete == nil {
 			break
 		}
 
-		return e.complexity.Mutation.Template(childComplexity), true
+		args, err := ec.field_Mutation_templateDelete_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
 
-	case "Query.desktop":
-		if e.complexity.Query.Desktop == nil {
+		return e.complexity.Mutation.TemplateDelete(childComplexity, args["id"].(string)), true
+
+	case "Query.desktopGet":
+		if e.complexity.Query.DesktopGet == nil {
 			break
 		}
 
-		return e.complexity.Query.Desktop(childComplexity), true
+		args, err := ec.field_Query_desktopGet_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
 
-	case "Query.template":
-		if e.complexity.Query.Template == nil {
+		return e.complexity.Query.DesktopGet(childComplexity, args["id"].(string)), true
+
+	case "Query.desktopList":
+		if e.complexity.Query.DesktopList == nil {
 			break
 		}
 
-		return e.complexity.Query.Template(childComplexity), true
+		return e.complexity.Query.DesktopList(childComplexity), true
+
+	case "Query.desktopViewer":
+		if e.complexity.Query.DesktopViewer == nil {
+			break
+		}
+
+		args, err := ec.field_Query_desktopViewer_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.DesktopViewer(childComplexity, args["id"].(string)), true
+
+	case "Query.hardwareBaseGet":
+		if e.complexity.Query.HardwareBaseGet == nil {
+			break
+		}
+
+		args, err := ec.field_Query_hardwareBaseGet_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.HardwareBaseGet(childComplexity, args["id"].(string)), true
+
+	case "Query.hardwareBaseList":
+		if e.complexity.Query.HardwareBaseList == nil {
+			break
+		}
+
+		return e.complexity.Query.HardwareBaseList(childComplexity), true
+
+	case "Query.templateGet":
+		if e.complexity.Query.TemplateGet == nil {
+			break
+		}
+
+		args, err := ec.field_Query_templateGet_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.TemplateGet(childComplexity, args["id"].(string)), true
+
+	case "Query.templateList":
+		if e.complexity.Query.TemplateList == nil {
+			break
+		}
+
+		return e.complexity.Query.TemplateList(childComplexity), true
 
 	case "Template.description":
 		if e.complexity.Template.Description == nil {
@@ -623,37 +650,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.TemplateDeletePayload.RecordID(childComplexity), true
-
-	case "TemplateMutations.delete":
-		if e.complexity.TemplateMutations.Delete == nil {
-			break
-		}
-
-		args, err := ec.field_TemplateMutations_delete_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.TemplateMutations.Delete(childComplexity, args["id"].(string)), true
-
-	case "TemplateQueries.get":
-		if e.complexity.TemplateQueries.Get == nil {
-			break
-		}
-
-		args, err := ec.field_TemplateQueries_get_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.TemplateQueries.Get(childComplexity, args["id"].(string)), true
-
-	case "TemplateQueries.list":
-		if e.complexity.TemplateQueries.List == nil {
-			break
-		}
-
-		return e.complexity.TemplateQueries.List(childComplexity), true
 
 	case "Viewer.spice":
 		if e.complexity.Viewer.Spice == nil {
@@ -747,21 +743,21 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "graph/schema/desktop.graphqls", Input: `type DesktopQueries {
-    list: [Desktop!]!
-    get(id: ID!): Desktop
-    viewer(id: ID!): Viewer
-}
+	{Name: "graph/schema/desktop.graphqls", Input: `# type DesktopQueries {
+#     list: [Desktop!]!
+#     get(id: ID!): Desktop
+#     viewer(id: ID!): Viewer
+# }
 
-type DesktopMutations {
-    start(id: ID!): DesktopStartPayload
-    stop(id: ID!): DesktopStopPayload
-    # TODO: Update!
-    delete(id: ID!): DesktopDeletePayload
-    template(input: DesktopTemplateInput!): DesktopTemplatePayload
-    create(input: DesktopCreateInput!): DesktopCreatePayload
-    derivate(input: DesktopDerivateInput!): DesktopDerivatePayload
-}
+# type DesktopMutations {
+#     start(id: ID!): DesktopStartPayload
+#     stop(id: ID!): DesktopStopPayload
+#     # TODO: Update!
+#     delete(id: ID!): DesktopDeletePayload
+#     template(input: DesktopTemplateInput!): DesktopTemplatePayload
+#     create(input: DesktopCreateInput!): DesktopCreatePayload
+#     derivate(input: DesktopDerivateInput!): DesktopDerivatePayload
+# }
 
 type DesktopStartPayload {
     recordId: ID
@@ -795,7 +791,16 @@ input DesktopCreateInput {
     name: String!
     description: String
     # TODO: Hardware
-    # hardware: Hardware!
+    hardware: DesktopCreateInputHardware!
+}
+
+input DesktopCreateInputHardware {
+    baseId: ID!
+    vcpus: Int!
+    memoryMax: Int!
+    memoryMin: Int!
+    # TODO: Disks
+    # disks: [Disk!]!
 }
 
 type DesktopCreatePayload {
@@ -849,28 +854,67 @@ enum DiskType {
     UNKNOWN
     QCOW2
     RAW
+}
+
+# type HardwareBaseQueries {
+#     list: [HardwareBase!]!
+#     get(id: ID!): HardwareBase
+# }
+
+# type HardwareBaseMutations {
+#     create(input: HardwareBaseCreateInput!): HardwareBaseCreatePayload
+# }
+
+input HardwareBaseCreateInput {
+    name: String!
+    description: String
+    os: String!
+    osVariant: String
+    xml: String!
+}
+
+type HardwareBaseCreatePayload {
+    recordId: ID
+    record: HardwareBase
 }`, BuiltIn: false},
 	{Name: "graph/schema/mutation.graphqls", Input: `type Mutation {
     login(provider: String!, entityId: String!, usr: String, pwd: String): String
 
-    desktop: DesktopMutations
-    template: TemplateMutations
+    desktopStart(id: ID!): DesktopStartPayload
+    desktopStop(id: ID!): DesktopStopPayload
+    # TODO: Update!
+    desktopDelete(id: ID!): DesktopDeletePayload
+    desktopTemplate(input: DesktopTemplateInput!): DesktopTemplatePayload
+    desktopCreate(input: DesktopCreateInput!): DesktopCreatePayload
+    desktopDerivate(input: DesktopDerivateInput!): DesktopDerivatePayload
+
+    # TODO: Update
+    templateDelete(id: ID!): TemplateDeletePayload
+
+    hardwareBaseCreate(input: HardwareBaseCreateInput!): HardwareBaseCreatePayload
 }
 `, BuiltIn: false},
 	{Name: "graph/schema/query.graphqls", Input: `type Query {
-    desktop: DesktopQueries
-    template: TemplateQueries
+    desktopList: [Desktop!]!
+    desktopGet(id: ID!): Desktop
+    desktopViewer(id: ID!): Viewer
+
+    templateList: [Template!]!
+    templateGet(id: ID!): Template
+
+    hardwareBaseList: [HardwareBase!]!
+    hardwareBaseGet(id: ID!): HardwareBase
 }
 `, BuiltIn: false},
-	{Name: "graph/schema/template.graphqls", Input: `type TemplateQueries {
-    list: [Template!]!
-    get(id: ID!): Template
-}
+	{Name: "graph/schema/template.graphqls", Input: `# type TemplateQueries {
+#     list: [Template!]!
+#     get(id: ID!): Template
+# }
 
-type TemplateMutations {
-    # TODO: Update
-    delete(id: ID!): TemplateDeletePayload
-}
+# type TemplateMutations {
+#     # TODO: Update
+#     delete(id: ID!): TemplateDeletePayload
+# }
 
 type TemplateDeletePayload {
     recordId: ID
@@ -903,7 +947,7 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_DesktopMutations_create_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_desktopCreate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 model.DesktopCreateInput
@@ -918,7 +962,7 @@ func (ec *executionContext) field_DesktopMutations_create_args(ctx context.Conte
 	return args, nil
 }
 
-func (ec *executionContext) field_DesktopMutations_delete_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_desktopDelete_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
@@ -933,7 +977,7 @@ func (ec *executionContext) field_DesktopMutations_delete_args(ctx context.Conte
 	return args, nil
 }
 
-func (ec *executionContext) field_DesktopMutations_derivate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_desktopDerivate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 model.DesktopDerivateInput
@@ -948,7 +992,7 @@ func (ec *executionContext) field_DesktopMutations_derivate_args(ctx context.Con
 	return args, nil
 }
 
-func (ec *executionContext) field_DesktopMutations_start_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_desktopStart_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
@@ -963,7 +1007,7 @@ func (ec *executionContext) field_DesktopMutations_start_args(ctx context.Contex
 	return args, nil
 }
 
-func (ec *executionContext) field_DesktopMutations_stop_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_desktopStop_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
@@ -978,7 +1022,7 @@ func (ec *executionContext) field_DesktopMutations_stop_args(ctx context.Context
 	return args, nil
 }
 
-func (ec *executionContext) field_DesktopMutations_template_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_desktopTemplate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 model.DesktopTemplateInput
@@ -993,33 +1037,18 @@ func (ec *executionContext) field_DesktopMutations_template_args(ctx context.Con
 	return args, nil
 }
 
-func (ec *executionContext) field_DesktopQueries_get_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Mutation_hardwareBaseCreate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+	var arg0 model.HardwareBaseCreateInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNHardwareBaseCreateInput2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBaseCreateInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_DesktopQueries_viewer_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["id"] = arg0
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -1065,6 +1094,21 @@ func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawAr
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_templateDelete_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -1080,7 +1124,7 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
-func (ec *executionContext) field_TemplateMutations_delete_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Query_desktopGet_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
@@ -1095,7 +1139,37 @@ func (ec *executionContext) field_TemplateMutations_delete_args(ctx context.Cont
 	return args, nil
 }
 
-func (ec *executionContext) field_TemplateQueries_get_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Query_desktopViewer_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_hardwareBaseGet_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_templateGet_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
@@ -1475,353 +1549,6 @@ func (ec *executionContext) _DesktopDerivatePayload_record(ctx context.Context, 
 	res := resTmp.(*model.Desktop)
 	fc.Result = res
 	return ec.marshalODesktop2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktop(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopMutations_start(ctx context.Context, field graphql.CollectedField, obj *model.DesktopMutations) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopMutations",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopMutations_start_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopMutations().Start(rctx, obj, args["id"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.DesktopStartPayload)
-	fc.Result = res
-	return ec.marshalODesktopStartPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopStartPayload(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopMutations_stop(ctx context.Context, field graphql.CollectedField, obj *model.DesktopMutations) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopMutations",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopMutations_stop_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopMutations().Stop(rctx, obj, args["id"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.DesktopStopPayload)
-	fc.Result = res
-	return ec.marshalODesktopStopPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopStopPayload(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopMutations_delete(ctx context.Context, field graphql.CollectedField, obj *model.DesktopMutations) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopMutations",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopMutations_delete_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopMutations().Delete(rctx, obj, args["id"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.DesktopDeletePayload)
-	fc.Result = res
-	return ec.marshalODesktopDeletePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopDeletePayload(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopMutations_template(ctx context.Context, field graphql.CollectedField, obj *model.DesktopMutations) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopMutations",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopMutations_template_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopMutations().Template(rctx, obj, args["input"].(model.DesktopTemplateInput))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.DesktopTemplatePayload)
-	fc.Result = res
-	return ec.marshalODesktopTemplatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopTemplatePayload(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopMutations_create(ctx context.Context, field graphql.CollectedField, obj *model.DesktopMutations) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopMutations",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopMutations_create_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopMutations().Create(rctx, obj, args["input"].(model.DesktopCreateInput))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.DesktopCreatePayload)
-	fc.Result = res
-	return ec.marshalODesktopCreatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreatePayload(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopMutations_derivate(ctx context.Context, field graphql.CollectedField, obj *model.DesktopMutations) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopMutations",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopMutations_derivate_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopMutations().Derivate(rctx, obj, args["input"].(model.DesktopDerivateInput))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.DesktopDerivatePayload)
-	fc.Result = res
-	return ec.marshalODesktopDerivatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopDerivatePayload(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopQueries_list(ctx context.Context, field graphql.CollectedField, obj *model.DesktopQueries) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopQueries",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopQueries().List(rctx, obj)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.Desktop)
-	fc.Result = res
-	return ec.marshalNDesktop2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopQueries_get(ctx context.Context, field graphql.CollectedField, obj *model.DesktopQueries) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopQueries",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopQueries_get_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopQueries().Get(rctx, obj, args["id"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.Desktop)
-	fc.Result = res
-	return ec.marshalODesktop2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktop(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _DesktopQueries_viewer(ctx context.Context, field graphql.CollectedField, obj *model.DesktopQueries) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "DesktopQueries",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_DesktopQueries_viewer_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.DesktopQueries().Viewer(rctx, obj, args["id"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.Viewer)
-	fc.Result = res
-	return ec.marshalOViewer2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewer(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _DesktopStartPayload_recordId(ctx context.Context, field graphql.CollectedField, obj *model.DesktopStartPayload) (ret graphql.Marshaler) {
@@ -2561,6 +2288,70 @@ func (ec *executionContext) _HardwareBase_xml(ctx context.Context, field graphql
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _HardwareBaseCreatePayload_recordId(ctx context.Context, field graphql.CollectedField, obj *model.HardwareBaseCreatePayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "HardwareBaseCreatePayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RecordID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _HardwareBaseCreatePayload_record(ctx context.Context, field graphql.CollectedField, obj *model.HardwareBaseCreatePayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "HardwareBaseCreatePayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Record, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.HardwareBase)
+	fc.Result = res
+	return ec.marshalOHardwareBase2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBase(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2600,7 +2391,7 @@ func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.C
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Mutation_desktop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_desktopStart(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2616,9 +2407,16 @@ func (ec *executionContext) _Mutation_desktop(ctx context.Context, field graphql
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_desktopStart_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().Desktop(rctx)
+		return ec.resolvers.Mutation().DesktopStart(rctx, args["id"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2627,12 +2425,12 @@ func (ec *executionContext) _Mutation_desktop(ctx context.Context, field graphql
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.DesktopMutations)
+	res := resTmp.(*model.DesktopStartPayload)
 	fc.Result = res
-	return ec.marshalODesktopMutations2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopMutations(ctx, field.Selections, res)
+	return ec.marshalODesktopStartPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopStartPayload(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Mutation_template(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_desktopStop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2648,9 +2446,16 @@ func (ec *executionContext) _Mutation_template(ctx context.Context, field graphq
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_desktopStop_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().Template(rctx)
+		return ec.resolvers.Mutation().DesktopStop(rctx, args["id"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2659,12 +2464,246 @@ func (ec *executionContext) _Mutation_template(ctx context.Context, field graphq
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.TemplateMutations)
+	res := resTmp.(*model.DesktopStopPayload)
 	fc.Result = res
-	return ec.marshalOTemplateMutations2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateMutations(ctx, field.Selections, res)
+	return ec.marshalODesktopStopPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopStopPayload(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_desktop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_desktopDelete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_desktopDelete_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DesktopDelete(rctx, args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.DesktopDeletePayload)
+	fc.Result = res
+	return ec.marshalODesktopDeletePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopDeletePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_desktopTemplate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_desktopTemplate_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DesktopTemplate(rctx, args["input"].(model.DesktopTemplateInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.DesktopTemplatePayload)
+	fc.Result = res
+	return ec.marshalODesktopTemplatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopTemplatePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_desktopCreate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_desktopCreate_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DesktopCreate(rctx, args["input"].(model.DesktopCreateInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.DesktopCreatePayload)
+	fc.Result = res
+	return ec.marshalODesktopCreatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreatePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_desktopDerivate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_desktopDerivate_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DesktopDerivate(rctx, args["input"].(model.DesktopDerivateInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.DesktopDerivatePayload)
+	fc.Result = res
+	return ec.marshalODesktopDerivatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopDerivatePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_templateDelete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_templateDelete_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().TemplateDelete(rctx, args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.TemplateDeletePayload)
+	fc.Result = res
+	return ec.marshalOTemplateDeletePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateDeletePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_hardwareBaseCreate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_hardwareBaseCreate_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().HardwareBaseCreate(rctx, args["input"].(model.HardwareBaseCreateInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.HardwareBaseCreatePayload)
+	fc.Result = res
+	return ec.marshalOHardwareBaseCreatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBaseCreatePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_desktopList(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2682,7 +2721,49 @@ func (ec *executionContext) _Query_desktop(ctx context.Context, field graphql.Co
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Desktop(rctx)
+		return ec.resolvers.Query().DesktopList(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Desktop)
+	fc.Result = res
+	return ec.marshalNDesktop2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_desktopGet(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_desktopGet_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().DesktopGet(rctx, args["id"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2691,12 +2772,51 @@ func (ec *executionContext) _Query_desktop(ctx context.Context, field graphql.Co
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.DesktopQueries)
+	res := resTmp.(*model.Desktop)
 	fc.Result = res
-	return ec.marshalODesktopQueries2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopQueries(ctx, field.Selections, res)
+	return ec.marshalODesktop2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktop(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_template(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_desktopViewer(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_desktopViewer_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().DesktopViewer(rctx, args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Viewer)
+	fc.Result = res
+	return ec.marshalOViewer2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewer(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_templateList(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2714,7 +2834,49 @@ func (ec *executionContext) _Query_template(ctx context.Context, field graphql.C
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Template(rctx)
+		return ec.resolvers.Query().TemplateList(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Template)
+	fc.Result = res
+	return ec.marshalNTemplate2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_templateGet(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_templateGet_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().TemplateGet(rctx, args["id"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2723,9 +2885,83 @@ func (ec *executionContext) _Query_template(ctx context.Context, field graphql.C
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.TemplateQueries)
+	res := resTmp.(*model.Template)
 	fc.Result = res
-	return ec.marshalOTemplateQueries2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateQueries(ctx, field.Selections, res)
+	return ec.marshalOTemplate2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplate(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_hardwareBaseList(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().HardwareBaseList(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.HardwareBase)
+	fc.Result = res
+	return ec.marshalNHardwareBase2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBaseᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_hardwareBaseGet(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_hardwareBaseGet_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().HardwareBaseGet(rctx, args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.HardwareBase)
+	fc.Result = res
+	return ec.marshalOHardwareBase2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBase(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2990,119 +3226,6 @@ func (ec *executionContext) _TemplateDeletePayload_record(ctx context.Context, f
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return obj.Record, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.Template)
-	fc.Result = res
-	return ec.marshalOTemplate2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplate(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _TemplateMutations_delete(ctx context.Context, field graphql.CollectedField, obj *model.TemplateMutations) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "TemplateMutations",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_TemplateMutations_delete_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.TemplateMutations().Delete(rctx, obj, args["id"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.TemplateDeletePayload)
-	fc.Result = res
-	return ec.marshalOTemplateDeletePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateDeletePayload(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _TemplateQueries_list(ctx context.Context, field graphql.CollectedField, obj *model.TemplateQueries) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "TemplateQueries",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.TemplateQueries().List(rctx, obj)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.Template)
-	fc.Result = res
-	return ec.marshalNTemplate2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _TemplateQueries_get(ctx context.Context, field graphql.CollectedField, obj *model.TemplateQueries) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "TemplateQueries",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_TemplateQueries_get_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.TemplateQueries().Get(rctx, obj, args["id"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4359,6 +4482,58 @@ func (ec *executionContext) unmarshalInputDesktopCreateInput(ctx context.Context
 			if err != nil {
 				return it, err
 			}
+		case "hardware":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hardware"))
+			it.Hardware, err = ec.unmarshalNDesktopCreateInputHardware2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreateInputHardware(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDesktopCreateInputHardware(ctx context.Context, obj interface{}) (model.DesktopCreateInputHardware, error) {
+	var it model.DesktopCreateInputHardware
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "baseId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("baseId"))
+			it.BaseID, err = ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "vcpus":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("vcpus"))
+			it.Vcpus, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "memoryMax":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memoryMax"))
+			it.MemoryMax, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "memoryMin":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memoryMin"))
+			it.MemoryMin, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4428,6 +4603,58 @@ func (ec *executionContext) unmarshalInputDesktopTemplateInput(ctx context.Conte
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
 			it.Description, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputHardwareBaseCreateInput(ctx context.Context, obj interface{}) (model.HardwareBaseCreateInput, error) {
+	var it model.HardwareBaseCreateInput
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "description":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			it.Description, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "os":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("os"))
+			it.Os, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "osVariant":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("osVariant"))
+			it.OsVariant, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "xml":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("xml"))
+			it.XML, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4551,152 +4778,6 @@ func (ec *executionContext) _DesktopDerivatePayload(ctx context.Context, sel ast
 			out.Values[i] = ec._DesktopDerivatePayload_recordId(ctx, field, obj)
 		case "record":
 			out.Values[i] = ec._DesktopDerivatePayload_record(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalids > 0 {
-		return graphql.Null
-	}
-	return out
-}
-
-var desktopMutationsImplementors = []string{"DesktopMutations"}
-
-func (ec *executionContext) _DesktopMutations(ctx context.Context, sel ast.SelectionSet, obj *model.DesktopMutations) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, desktopMutationsImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	var invalids uint32
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("DesktopMutations")
-		case "start":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopMutations_start(ctx, field, obj)
-				return res
-			})
-		case "stop":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopMutations_stop(ctx, field, obj)
-				return res
-			})
-		case "delete":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopMutations_delete(ctx, field, obj)
-				return res
-			})
-		case "template":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopMutations_template(ctx, field, obj)
-				return res
-			})
-		case "create":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopMutations_create(ctx, field, obj)
-				return res
-			})
-		case "derivate":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopMutations_derivate(ctx, field, obj)
-				return res
-			})
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalids > 0 {
-		return graphql.Null
-	}
-	return out
-}
-
-var desktopQueriesImplementors = []string{"DesktopQueries"}
-
-func (ec *executionContext) _DesktopQueries(ctx context.Context, sel ast.SelectionSet, obj *model.DesktopQueries) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, desktopQueriesImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	var invalids uint32
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("DesktopQueries")
-		case "list":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopQueries_list(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
-				return res
-			})
-		case "get":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopQueries_get(ctx, field, obj)
-				return res
-			})
-		case "viewer":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._DesktopQueries_viewer(ctx, field, obj)
-				return res
-			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4917,6 +4998,32 @@ func (ec *executionContext) _HardwareBase(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var hardwareBaseCreatePayloadImplementors = []string{"HardwareBaseCreatePayload"}
+
+func (ec *executionContext) _HardwareBaseCreatePayload(ctx context.Context, sel ast.SelectionSet, obj *model.HardwareBaseCreatePayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, hardwareBaseCreatePayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("HardwareBaseCreatePayload")
+		case "recordId":
+			out.Values[i] = ec._HardwareBaseCreatePayload_recordId(ctx, field, obj)
+		case "record":
+			out.Values[i] = ec._HardwareBaseCreatePayload_record(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -4934,10 +5041,22 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = graphql.MarshalString("Mutation")
 		case "login":
 			out.Values[i] = ec._Mutation_login(ctx, field)
-		case "desktop":
-			out.Values[i] = ec._Mutation_desktop(ctx, field)
-		case "template":
-			out.Values[i] = ec._Mutation_template(ctx, field)
+		case "desktopStart":
+			out.Values[i] = ec._Mutation_desktopStart(ctx, field)
+		case "desktopStop":
+			out.Values[i] = ec._Mutation_desktopStop(ctx, field)
+		case "desktopDelete":
+			out.Values[i] = ec._Mutation_desktopDelete(ctx, field)
+		case "desktopTemplate":
+			out.Values[i] = ec._Mutation_desktopTemplate(ctx, field)
+		case "desktopCreate":
+			out.Values[i] = ec._Mutation_desktopCreate(ctx, field)
+		case "desktopDerivate":
+			out.Values[i] = ec._Mutation_desktopDerivate(ctx, field)
+		case "templateDelete":
+			out.Values[i] = ec._Mutation_templateDelete(ctx, field)
+		case "hardwareBaseCreate":
+			out.Values[i] = ec._Mutation_hardwareBaseCreate(ctx, field)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4964,7 +5083,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
-		case "desktop":
+		case "desktopList":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -4972,10 +5091,13 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_desktop(ctx, field)
+				res = ec._Query_desktopList(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
 				return res
 			})
-		case "template":
+		case "desktopGet":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -4983,7 +5105,68 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_template(ctx, field)
+				res = ec._Query_desktopGet(ctx, field)
+				return res
+			})
+		case "desktopViewer":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_desktopViewer(ctx, field)
+				return res
+			})
+		case "templateList":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_templateList(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "templateGet":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_templateGet(ctx, field)
+				return res
+			})
+		case "hardwareBaseList":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_hardwareBaseList(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "hardwareBaseGet":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_hardwareBaseGet(ctx, field)
 				return res
 			})
 		case "__type":
@@ -5058,86 +5241,6 @@ func (ec *executionContext) _TemplateDeletePayload(ctx context.Context, sel ast.
 			out.Values[i] = ec._TemplateDeletePayload_recordId(ctx, field, obj)
 		case "record":
 			out.Values[i] = ec._TemplateDeletePayload_record(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalids > 0 {
-		return graphql.Null
-	}
-	return out
-}
-
-var templateMutationsImplementors = []string{"TemplateMutations"}
-
-func (ec *executionContext) _TemplateMutations(ctx context.Context, sel ast.SelectionSet, obj *model.TemplateMutations) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, templateMutationsImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	var invalids uint32
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("TemplateMutations")
-		case "delete":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._TemplateMutations_delete(ctx, field, obj)
-				return res
-			})
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalids > 0 {
-		return graphql.Null
-	}
-	return out
-}
-
-var templateQueriesImplementors = []string{"TemplateQueries"}
-
-func (ec *executionContext) _TemplateQueries(ctx context.Context, sel ast.SelectionSet, obj *model.TemplateQueries) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, templateQueriesImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	var invalids uint32
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("TemplateQueries")
-		case "list":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._TemplateQueries_list(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
-				return res
-			})
-		case "get":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._TemplateQueries_get(ctx, field, obj)
-				return res
-			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5541,6 +5644,11 @@ func (ec *executionContext) unmarshalNDesktopCreateInput2gitlabᚗcomᚋisardᚋ
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNDesktopCreateInputHardware2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreateInputHardware(ctx context.Context, v interface{}) (*model.DesktopCreateInputHardware, error) {
+	res, err := ec.unmarshalInputDesktopCreateInputHardware(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNDesktopDerivateInput2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopDerivateInput(ctx context.Context, v interface{}) (model.DesktopDerivateInput, error) {
 	res, err := ec.unmarshalInputDesktopDerivateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -5618,6 +5726,43 @@ func (ec *executionContext) marshalNHardware2ᚖgitlabᚗcomᚋisardᚋisardvdi�
 	return ec._Hardware(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNHardwareBase2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBaseᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.HardwareBase) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNHardwareBase2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBase(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNHardwareBase2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBase(ctx context.Context, sel ast.SelectionSet, v *model.HardwareBase) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -5626,6 +5771,11 @@ func (ec *executionContext) marshalNHardwareBase2ᚖgitlabᚗcomᚋisardᚋisard
 		return graphql.Null
 	}
 	return ec._HardwareBase(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNHardwareBaseCreateInput2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBaseCreateInput(ctx context.Context, v interface{}) (model.HardwareBaseCreateInput, error) {
+	res, err := ec.unmarshalInputHardwareBaseCreateInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface{}) (string, error) {
@@ -6001,20 +6151,6 @@ func (ec *executionContext) marshalODesktopDerivatePayload2ᚖgitlabᚗcomᚋisa
 	return ec._DesktopDerivatePayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalODesktopMutations2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopMutations(ctx context.Context, sel ast.SelectionSet, v *model.DesktopMutations) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._DesktopMutations(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalODesktopQueries2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopQueries(ctx context.Context, sel ast.SelectionSet, v *model.DesktopQueries) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._DesktopQueries(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalODesktopStartPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopStartPayload(ctx context.Context, sel ast.SelectionSet, v *model.DesktopStartPayload) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -6034,6 +6170,20 @@ func (ec *executionContext) marshalODesktopTemplatePayload2ᚖgitlabᚗcomᚋisa
 		return graphql.Null
 	}
 	return ec._DesktopTemplatePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHardwareBase2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBase(ctx context.Context, sel ast.SelectionSet, v *model.HardwareBase) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._HardwareBase(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHardwareBaseCreatePayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBaseCreatePayload(ctx context.Context, sel ast.SelectionSet, v *model.HardwareBaseCreatePayload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._HardwareBaseCreatePayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
@@ -6087,20 +6237,6 @@ func (ec *executionContext) marshalOTemplateDeletePayload2ᚖgitlabᚗcomᚋisar
 		return graphql.Null
 	}
 	return ec._TemplateDeletePayload(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOTemplateMutations2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateMutations(ctx context.Context, sel ast.SelectionSet, v *model.TemplateMutations) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._TemplateMutations(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOTemplateQueries2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplateQueries(ctx context.Context, sel ast.SelectionSet, v *model.TemplateQueries) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._TemplateQueries(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOViewer2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐViewer(ctx context.Context, sel ast.SelectionSet, v *model.Viewer) graphql.Marshaler {

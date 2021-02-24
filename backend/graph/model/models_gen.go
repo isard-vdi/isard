@@ -16,8 +16,16 @@ type Desktop struct {
 }
 
 type DesktopCreateInput struct {
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
+	Name        string                      `json:"name"`
+	Description *string                     `json:"description"`
+	Hardware    *DesktopCreateInputHardware `json:"hardware"`
+}
+
+type DesktopCreateInputHardware struct {
+	BaseID    string `json:"baseId"`
+	Vcpus     int    `json:"vcpus"`
+	MemoryMax int    `json:"memoryMax"`
+	MemoryMin int    `json:"memoryMin"`
 }
 
 type DesktopCreatePayload struct {
@@ -39,21 +47,6 @@ type DesktopDerivateInput struct {
 type DesktopDerivatePayload struct {
 	RecordID *string  `json:"recordId"`
 	Record   *Desktop `json:"record"`
-}
-
-type DesktopMutations struct {
-	Start    *DesktopStartPayload    `json:"start"`
-	Stop     *DesktopStopPayload     `json:"stop"`
-	Delete   *DesktopDeletePayload   `json:"delete"`
-	Template *DesktopTemplatePayload `json:"template"`
-	Create   *DesktopCreatePayload   `json:"create"`
-	Derivate *DesktopDerivatePayload `json:"derivate"`
-}
-
-type DesktopQueries struct {
-	List   []*Desktop `json:"list"`
-	Get    *Desktop   `json:"get"`
-	Viewer *Viewer    `json:"viewer"`
 }
 
 type DesktopStartPayload struct {
@@ -102,6 +95,19 @@ type HardwareBase struct {
 	XML         string  `json:"xml"`
 }
 
+type HardwareBaseCreateInput struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	Os          string  `json:"os"`
+	OsVariant   *string `json:"osVariant"`
+	XML         string  `json:"xml"`
+}
+
+type HardwareBaseCreatePayload struct {
+	RecordID *string       `json:"recordId"`
+	Record   *HardwareBase `json:"record"`
+}
+
 type Template struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -112,15 +118,6 @@ type Template struct {
 type TemplateDeletePayload struct {
 	RecordID *string   `json:"recordId"`
 	Record   *Template `json:"record"`
-}
-
-type TemplateMutations struct {
-	Delete *TemplateDeletePayload `json:"delete"`
-}
-
-type TemplateQueries struct {
-	List []*Template `json:"list"`
-	Get  *Template   `json:"get"`
 }
 
 type Viewer struct {

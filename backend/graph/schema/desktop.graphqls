@@ -1,18 +1,18 @@
-type DesktopQueries {
-    list: [Desktop!]!
-    get(id: ID!): Desktop
-    viewer(id: ID!): Viewer
-}
+# type DesktopQueries {
+#     list: [Desktop!]!
+#     get(id: ID!): Desktop
+#     viewer(id: ID!): Viewer
+# }
 
-type DesktopMutations {
-    start(id: ID!): DesktopStartPayload
-    stop(id: ID!): DesktopStopPayload
-    # TODO: Update!
-    delete(id: ID!): DesktopDeletePayload
-    template(input: DesktopTemplateInput!): DesktopTemplatePayload
-    create(input: DesktopCreateInput!): DesktopCreatePayload
-    derivate(input: DesktopDerivateInput!): DesktopDerivatePayload
-}
+# type DesktopMutations {
+#     start(id: ID!): DesktopStartPayload
+#     stop(id: ID!): DesktopStopPayload
+#     # TODO: Update!
+#     delete(id: ID!): DesktopDeletePayload
+#     template(input: DesktopTemplateInput!): DesktopTemplatePayload
+#     create(input: DesktopCreateInput!): DesktopCreatePayload
+#     derivate(input: DesktopDerivateInput!): DesktopDerivatePayload
+# }
 
 type DesktopStartPayload {
     recordId: ID
@@ -46,7 +46,16 @@ input DesktopCreateInput {
     name: String!
     description: String
     # TODO: Hardware
-    # hardware: Hardware!
+    hardware: DesktopCreateInputHardware!
+}
+
+input DesktopCreateInputHardware {
+    baseId: ID!
+    vcpus: Int!
+    memoryMax: Int!
+    memoryMin: Int!
+    # TODO: Disks
+    # disks: [Disk!]!
 }
 
 type DesktopCreatePayload {

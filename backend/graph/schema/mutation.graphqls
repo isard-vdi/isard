@@ -1,6 +1,16 @@
 type Mutation {
     login(provider: String!, entityId: String!, usr: String, pwd: String): String
 
-    desktop: DesktopMutations
-    template: TemplateMutations
+    desktopStart(id: ID!): DesktopStartPayload
+    desktopStop(id: ID!): DesktopStopPayload
+    # TODO: Update!
+    desktopDelete(id: ID!): DesktopDeletePayload
+    desktopTemplate(input: DesktopTemplateInput!): DesktopTemplatePayload
+    desktopCreate(input: DesktopCreateInput!): DesktopCreatePayload
+    desktopDerivate(input: DesktopDerivateInput!): DesktopDerivatePayload
+
+    # TODO: Update
+    templateDelete(id: ID!): TemplateDeletePayload
+
+    hardwareBaseCreate(input: HardwareBaseCreateInput!): HardwareBaseCreatePayload
 }

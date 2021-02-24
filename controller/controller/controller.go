@@ -12,6 +12,7 @@ import (
 	hyperProto "gitlab.com/isard/isardvdi/pkg/proto/hyper"
 	orchestratorProto "gitlab.com/isard/isardvdi/pkg/proto/orchestrator"
 
+	"github.com/go-redis/redis/v8"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/xds" // Add support for xDS
 )
@@ -29,9 +30,11 @@ type Controller struct {
 	orchestrator       orchestratorProto.OrchestratorClient
 }
 
-func New(cfg cfg.Cfg) (*Controller, error) {
+func New(ctx context.Context, cfg cfg.Cfg, redis redis.UniversalClient) (*Controller, error) {
 	var err error
 	c := &Controller{}
+
+	c.desktops = pool.NewDesktopPool(ctx, redis)
 
 	c.desktopBuilderConn, err = grpc.Dial(cfg.ClientsAddr.DesktopBuilder, grpc.WithInsecure())
 	if err != nil {
@@ -43,7 +46,7 @@ func New(cfg cfg.Cfg) (*Controller, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dial orchestrator: %w", err)
 	}
-	c.orchestrator = orchestratorProto.NewOrchestratorClient(c.desktopBuilderConn)
+	c.orchestrator = orchestratorProto.NewOrchestratorClient(c.orchestratorConn)
 
 	return c, nil
 }

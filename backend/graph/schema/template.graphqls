@@ -1,12 +1,12 @@
-type TemplateQueries {
-    list: [Template!]!
-    get(id: ID!): Template
-}
+# type TemplateQueries {
+#     list: [Template!]!
+#     get(id: ID!): Template
+# }
 
-type TemplateMutations {
-    # TODO: Update
-    delete(id: ID!): TemplateDeletePayload
-}
+# type TemplateMutations {
+#     # TODO: Update
+#     delete(id: ID!): TemplateDeletePayload
+# }
 
 type TemplateDeletePayload {
     recordId: ID
