@@ -130,26 +130,12 @@ class UiActions(object):
     def start_domain_from_xml(self, xml, id_domain, pool_id='default'):
         failed = False
         if pool_id in self.manager.pools.keys():
-            forced_hyp = get_domain_forced_hyp(id_domain)
-            if forced_hyp is not False:
-                hyps_in_pool = get_hypers_in_pool(pool_id, only_online=False)
-                if forced_hyp in hyps_in_pool:
-                    next_hyp = forced_hyp
-                    xml,msg = recreate_xml_if_gpu(id_domain,xml,next_hyp)
-                    if xml is False:
-                        failed = True
-                        next_hyp = False
-                        log.error(f'force hypervisor failed for domain {id_domain} in \
-                                   hypervisor {next_hyp} can not start desktops with gpu: {msg}')
-                else:
-                    log.error('force hypervisor failed for domain {}: {}  not in hypervisors pool {}'.format(id_domain,
-                                                                                                              forced_hyp,
-                                                                                                              pool_id))
-                    failed = True
-                    next_hyp = False
-                    #next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
-            else:
-                next_hyp,extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain)
+            forced_hyp,preferred_hyp = get_domain_forced_hyp(id_domain)
+            next_hyp,extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain,
+                                                                       force_hyp=forced_hyp,
+                                                                       preferred_hyp=preferred_hyp)
+
+
 
             if next_hyp is not False:
                 # update_domain_status(status='Starting',
@@ -159,7 +145,8 @@ class UiActions(object):
                 #                                                                                          next_hyp))
                 #TODO GPU - ahora si tiene gpu habría que parsear el xml
                 if extra_info.get('nvidia',False) is True:
-                    pass
+                    xml = recreate_xml_if_gpu(id_domain,xml,next_hyp,extra_info)
+
                 if LOG_LEVEL == 'DEBUG':
                     print(f'%%%% DOMAIN: {id_domain} -- XML TO START IN HYPERVISOR: {next_hyp} %%%%')
                     ##print(xml)
@@ -302,7 +289,7 @@ class UiActions(object):
                                                                                                                  id_domain))
                         return False
 
-                    forced_hyp = get_domain_forced_hyp(id_domain)
+                    forced_hyp,preferred_hyp = get_domain_forced_hyp(id_domain)
                     if forced_hyp is not False:
                         hyps_in_pool = get_hypers_in_pool(pool_id, only_online=False)
                         if forced_hyp in hyps_in_pool:

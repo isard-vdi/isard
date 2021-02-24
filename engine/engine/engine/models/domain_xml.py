@@ -1341,7 +1341,27 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
 
     return xml
 
-def recreate_xml_if_gpu(id_domain,xml,next_hyp):
+def recreate_xml_if_gpu(id_domain,xml,next_hyp,extras,remove_graphics=False):
     xml = xml
-    msg='ok'
-    return xml,msg
+
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error('Exception when parse xml in recreate_xml_if_gpu: {}'.format(e))
+        log.error('xml that fail: \n{}'.format(xml))
+        log.error('Traceback: {}'.format(traceback.format_exc()))
+        #return False
+
+    uid = extras['uid']
+    xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
+    <source>
+      <address uuid='{uid}'/>
+    </source>
+  </hostdev>"""
+    xpath_parent = '/domain/devices'
+
+    element_tree = etree.parse(StringIO(xml_hostdev)).getroot()
+    tree.xpath(xpath_parent)[0].insert(-1, element_tree)
+    xml_output = indent(etree.tostring(tree, encoding='unicode'))
+    return xml_output

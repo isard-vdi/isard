@@ -77,7 +77,9 @@ class PoolHypervisors():
             hyps_obj[hyp_id] = manager.t_status[hyp_id].status_obj.hyp_obj
         return hyps_obj
 
-    def get_next(self, domain_id=None, to_create_disk=False, path_selected=''):
+    def get_next(self, domain_id=None, to_create_disk=False, path_selected='',
+                 force_hyp=False,
+                 preferred_hyp=False):
         kwargs = {'to_create_disk': to_create_disk,
                 'path_selected': path_selected,
                 'domain_id':domain_id}
@@ -86,7 +88,7 @@ class PoolHypervisors():
                 hw_dict = get_domain_hardware_dict(domain_id)
                 if hw_dict['video']['type'].find('nvidia') == 0:
                     type = hw_dict['video']['type']
-                    next_hyp,next_available_uid,next_id_pci,next_model = self.get_next_hyp_with_gpu(type)
+                    next_hyp,next_available_uid,next_id_pci,next_model = self.get_next_hyp_with_gpu(type,force_hyp,preferred_hyp)
                     #TODO ALBERTO
                     # FALTA modificar el xml para que arranque o pasarle de alguna manera el uuid
                     extra = {'nvidia': True,
@@ -94,15 +96,45 @@ class PoolHypervisors():
                              'id_pci': next_id_pci,
                              'model':  next_model}
                     return next_hyp,extra
-            # except:
+                else:
+                    hypers_online = get_hypers_info(id_pool=self.id_pool)
+
+                    if force_hyp != False:
+                        if force_hyp in hypers_online:
+                            return force_hyp,{}
+                        else:
+                            logs.hmlog.error(f'force hypervisor {preferred_hyp} is not online, desktop will not start')
+                            return False,{}
+
+                    if preferred_hyp != False:
+                        if force_hyp in hypers_online:
+                            return preferred_hyp,{}
+                        else:
+                            logs.hmlog.info(f'preferred hypervisor {preferred_hyp} is no online, trying other hypervisor online in pool')
+        # except:
             #     pass
         return self.balancer.get_next(**kwargs),{}
 
-    def get_next_hyp_with_gpu(self,type):
+    def get_next_hyp_with_gpu(self,type,force_hyp=False,preferred_hyp=False):
         hypers_online = get_hypers_info(id_pool=self.id_pool)
         if len(hypers_online) == 0:
             return False
         hypers_online_with_gpu = [h for h in hypers_online if len(h.get('default_gpu_models',{})) > 0]
+        ids_hypers_online_with_gpu = [h['id'] for h in hypers_online_with_gpu]
+        if force_hyp != False:
+            if force_hyp in ids_hypers_online_with_gpu:
+                hypers_online_with_gpu = [h for h in hypers_online_with_gpu if h['id'] == force_hyp]
+            else:
+                logs.hmlog.error(f'force hypervisor {preferred_hyp} is not online, desktop will not start')
+                return False,False,False,False
+
+        if preferred_hyp != False:
+            if preferred_hyp in ids_hypers_online_with_gpu:
+                hypers_online_with_gpu = [h for h in hypers_online_with_gpu if h['id'] == preferred_hyp]
+            else:
+                logs.hmlog.info(f'preferred hypervisor {preferred_hyp} is no online, trying other hypervisor online in pool')
+                return False,False,False,False
+
         if len(hypers_online_with_gpu) == 0:
             return False
         available_uids = {}
