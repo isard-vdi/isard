@@ -1,15 +1,10 @@
 #!/bin/sh
 set -e
 
-# Set debug path password
-PASSWD=$(python3 -c 'import os,crypt,getpass; print(crypt.crypt(os.environ["WEBAPP_ADMIN_PWD"], crypt.mksalt(crypt.METHOD_SHA512)))')
-sed -i "/^    user admin password/c\    user admin password $PASSWD" /usr/local/etc/haproxy/haproxy.cfg
+prepare.sh
 
-/bin/sh /letsencrypt.sh
-
-if [[ ! -e "/certs/chain.pem" ]]
-then
-   /bin/sh /auto-generate-certs.sh
+if [ ! -f /certs/chain.pem ]; then
+        auto-generate-certs.sh
 fi
 
 # first arg is `-f` or `--some-option`

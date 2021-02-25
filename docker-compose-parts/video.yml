@@ -14,6 +14,7 @@ services:
         target: 8888
     restart: unless-stopped
     volumes:
+      - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
       - /opt/isard/certs/default/${HOSTNAME}:/certs:rw
     env_file:
       - .env
