@@ -1,10 +1,7 @@
 package model
 
 import (
-	"context"
 	"time"
-
-	"github.com/go-pg/pg/v10"
 )
 
 type AuthConfig struct {
@@ -18,16 +15,7 @@ type AuthConfig struct {
 	Type        string  `pg:",notnull"`
 	Config      string
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
-}
-
-var _ pg.BeforeInsertHook = (*AuthConfig)(nil)
-
-func (a *AuthConfig) BeforeInsert(ctx context.Context) (context.Context, error) {
-	a.CreatedAt = time.Now()
-	a.UpdatedAt = time.Now()
-
-	return ctx, nil
 }

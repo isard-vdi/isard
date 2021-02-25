@@ -27,18 +27,9 @@ type User struct {
 	Surname string
 	Email   string
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
-}
-
-var _ pg.BeforeInsertHook = (*User)(nil)
-
-func (u *User) BeforeInsert(ctx context.Context) (context.Context, error) {
-	u.CreatedAt = time.Now()
-	u.UpdatedAt = time.Now()
-
-	return ctx, nil
 }
 
 func (u *User) Load(ctx context.Context, db *pg.DB) error {

@@ -1,10 +1,7 @@
 package model
 
 import (
-	"context"
 	"time"
-
-	"github.com/go-pg/pg/v10"
 )
 
 type Group struct {
@@ -22,21 +19,12 @@ type Group struct {
 	RoleID int
 	Role   *Role `pg:"rel:has-one"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
-var _ pg.BeforeInsertHook = (*Group)(nil)
-
-func (g *Group) BeforeInsert(ctx context.Context) (context.Context, error) {
-	g.CreatedAt = time.Now()
-	g.UpdatedAt = time.Now()
-
-	return ctx, nil
-}
-
-type ExtraGroups struct {
+type GroupExtra struct {
 	UserID  int    `pg:",pk,notnull"`
 	User    *User  `pg:"rel:has-one"`
 	GroupID int    `pg:",pk,notnull"`
@@ -44,7 +32,7 @@ type ExtraGroups struct {
 	RoleID  int    `pg:",notnull"`
 	Role    *Role  `pg:"rel:has-one"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
