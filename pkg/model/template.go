@@ -12,7 +12,7 @@ type Template struct {
 	HardwareID  int       `pg:",notnull"`
 	Hardware    *Hardware `pg:"rel:has-one"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }

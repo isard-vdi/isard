@@ -15,23 +15,14 @@ type Hardware struct {
 	Base       *HardwareBase        `pg:"rel:has-one"`
 	Interfaces []*HardwareInterface `pg:"rel:has-many"`
 
-	VCPUs     int     `pg:",notnull"`
+	VCPUs     int     `pg:"vcpus,notnull"`
 	MemoryMin int     `pg:",notnull"`
 	MemoryMax int     `pg:",notnull"`
 	Disks     []*Disk `pg:"rel:has-many"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
-}
-
-var _ pg.BeforeInsertHook = (*Hardware)(nil)
-
-func (h *Hardware) BeforeInsert(ctx context.Context) (context.Context, error) {
-	h.CreatedAt = time.Now()
-	h.UpdatedAt = time.Now()
-
-	return ctx, nil
 }
 
 type HardwareBase struct {
@@ -44,18 +35,9 @@ type HardwareBase struct {
 	OSVariant   string
 	XML         string `pg:",notnull"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
-}
-
-var _ pg.BeforeInsertHook = (*HardwareBase)(nil)
-
-func (h *HardwareBase) BeforeInsert(ctx context.Context) (context.Context, error) {
-	h.CreatedAt = time.Now()
-	h.UpdatedAt = time.Now()
-
-	return ctx, nil
 }
 
 func (h *HardwareBase) LoadWithUUID(ctx context.Context, db *pg.DB) error {
@@ -72,11 +54,12 @@ type HardwareInterface struct {
 	InterfaceID int        `pg:",pk,notnull"`
 	Interface   *Interface `pg:"rel:has-one"`
 	HardwareID  int        `pg:",pk,notnull"`
+	Hardware    *Hardware  `pg:"rel:has-one"`
 
 	MAC   string `pg:",notnull"`
 	Order int
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }

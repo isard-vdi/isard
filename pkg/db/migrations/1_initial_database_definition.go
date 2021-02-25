@@ -15,8 +15,8 @@ type Entity struct {
 	Description string
 	AuthConfigs []*AuthConfig `pg:"rel:has-many"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -31,8 +31,8 @@ type AuthConfig struct {
 	Type        string  `pg:",notnull"`
 	Config      string
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -55,8 +55,8 @@ type User struct {
 	Surname string
 	Email   string
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -75,12 +75,12 @@ type Group struct {
 	RoleID int
 	Role   *Role `pg:"rel:has-one"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
-type ExtraGroups struct {
+type GroupExtra struct {
 	UserID  int    `pg:",pk,notnull"`
 	User    *User  `pg:"rel:has-one"`
 	GroupID int    `pg:",pk,notnull"`
@@ -88,8 +88,8 @@ type ExtraGroups struct {
 	RoleID  int    `pg:",notnull"`
 	Role    *Role  `pg:"rel:has-one"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -103,8 +103,8 @@ type Role struct {
 	Entity      *Entity           `pg:"rel:has-one"`
 	Permissions []*RolePermission `pg:"rel:has-many"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -113,8 +113,8 @@ type RolePermission struct {
 	Role         *Role `pg:"rel:has-one"`
 	PermissionID int   `pg:",pk,notnull"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -145,10 +145,14 @@ func init() {
 			return err
 		}
 
-		return db.Model(&ExtraGroups{}).CreateTable(opt)
+		return db.Model(&GroupExtra{}).CreateTable(opt)
 		// DOWN
 	}, func(db migrations.DB) error {
 		opt := &orm.DropTableOptions{}
+		if err := db.Model(&GroupExtra{}).DropTable(opt); err != nil {
+			return err
+		}
+
 		if err := db.Model(&User{}).DropTable(opt); err != nil {
 			return err
 		}

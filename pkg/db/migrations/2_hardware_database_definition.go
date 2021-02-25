@@ -1,7 +1,6 @@
 package migrations
 
 import (
-	"errors"
 	"time"
 
 	"github.com/go-pg/migrations/v8"
@@ -15,13 +14,13 @@ type Hardware struct {
 	Base       *HardwareBase        `pg:"rel:has-one"`
 	Interfaces []*HardwareInterface `pg:"rel:has-many"`
 
-	VCPUs     int     `pg:",notnull"`
+	VCPUs     int     `pg:"vcpus,notnull"`
 	MemoryMin int     `pg:",notnull"`
 	MemoryMax int     `pg:",notnull"`
 	Disks     []*Disk `pg:"rel:has-many"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -35,8 +34,8 @@ type HardwareBase struct {
 	OSVariant   string
 	XML         string `pg:",notnull"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -44,12 +43,13 @@ type HardwareInterface struct {
 	InterfaceID int        `pg:",pk,notnull"`
 	Interface   *Interface `pg:"rel:has-one"`
 	HardwareID  int        `pg:",pk,notnull"`
+	Hardware    *Hardware  `pg:"rel:has-one"`
 
 	MAC   string `pg:",notnull"`
 	Order int
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -63,8 +63,8 @@ type Template struct {
 	HardwareID  int       `pg:",notnull"`
 	Hardware    *Hardware `pg:"rel:has-one"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -77,8 +77,8 @@ type Desktop struct {
 	HardwareID  int       `pg:",notnull"`
 	Hardware    *Hardware `pg:"rel:has-one"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -98,8 +98,8 @@ type Disk struct {
 	Order    int
 	Config   string
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -124,8 +124,8 @@ type Interface struct {
 	Description string
 	Config      string `pg:",notnull"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -137,8 +137,8 @@ type InterfaceQOS struct {
 	Description string
 	Config      string `pg:",notnull"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -150,8 +150,8 @@ type Network struct {
 	Description string
 	Config      string `pg:",notnull"`
 
-	CreatedAt time.Time `pg:",notnull"`
-	UpdatedAt time.Time `pg:",notnull"`
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
@@ -195,6 +195,39 @@ func init() {
 
 		// DOWN
 	}, func(db migrations.DB) error {
-		return errors.New("not implamented")
+		opt := &orm.DropTableOptions{}
+		if err := db.Model(&Desktop{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&Template{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&HardwareInterface{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&Disk{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&Hardware{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&HardwareBase{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&Interface{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&InterfaceQOS{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		return db.Model(&Network{}).DropTable(&orm.DropTableOptions{})
 	})
 }
