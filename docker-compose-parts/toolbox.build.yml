@@ -1,0 +1,7 @@
+version: "3.5"
+services:
+  isard-toolbox:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/toolbox/Dockerfile
+      target: production

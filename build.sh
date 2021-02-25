@@ -124,6 +124,10 @@ flavour hypervisor \
 	stats \
 	vpnc \
 
+flavour toolbox \
+        network \
+	toolbox \
+
 flavour hypervisor-standalone \
 	network \
 	hypervisor \
