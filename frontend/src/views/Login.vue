@@ -227,7 +227,7 @@ export default {
   border-color: #2a75f3 !important;
 }
 
-a {
+#powered-by a {
   color: inherit !important;
   text-decoration: none !important;
 }
