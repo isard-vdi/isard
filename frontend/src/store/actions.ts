@@ -8,6 +8,7 @@ import UserService from '@/service/UserService';
 import UsersUtils from '@/utils/UsersUtils';
 import router from '@/router';
 import { store } from '.';
+import { refreshClient } from '@/main';
 
 const loginService = new LoginService();
 const searchService = new SearchService();
@@ -23,6 +24,7 @@ type AugmentedActionContext = {
 
 export enum ActionTypes {
   DO_LOCAL_LOGIN = 'DO_LOCAL_LOGIN',
+  REFRESH_CLIENT_TOKEN = 'REFRESH_CLIENT_TOKEN',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
   TOGGLE_MENU = 'TOGGLE_MENU',
@@ -42,7 +44,20 @@ export interface Actions {
 
   [ActionTypes.DO_SEARCH](
     { commit }: AugmentedActionContext,
-    payload: { section: string; query: string; queryParams: string[] }
+    payload: {
+      section: string;
+      query: string;
+      queryParams: string[];
+      size: number;
+      start: number;
+    }
+  ): void;
+
+  [ActionTypes.REFRESH_CLIENT_TOKEN](
+    { commit }: AugmentedActionContext,
+    payload: {
+      token: string;
+    }
   ): void;
 
   [ActionTypes.GO_SEARCH](
@@ -93,15 +108,27 @@ export const actions: ActionTree<State, State> & Actions = {
       .doLogin(payload.usr, payload.psw, 'local', payload.entity)
       .then((response: any): any => {
         const payload = { token: response };
-        commit(MutationTypes.LOGIN_SUCCESS, payload);
-        console.log('go users');
+
+        store.dispatch(ActionTypes.REFRESH_CLIENT_TOKEN, payload);
+
         router.push({ name: 'users' });
       });
   },
 
+  [ActionTypes.REFRESH_CLIENT_TOKEN]({ commit }, payload) {
+    refreshClient(payload.token);
+    commit(MutationTypes.LOGIN_SUCCESS, payload);
+  },
+
   [ActionTypes.DO_SEARCH]({ commit }, payload) {
     searchService
-      .listSearch(payload.section, payload.query, payload.queryParams)
+      .listSearch(
+        payload.section,
+        payload.query,
+        payload.queryParams,
+        payload.size,
+        payload.start
+      )
       .then((response: any): any => {
         commit(MutationTypes.LOAD_LIST_ITEMS, UsersUtils.cleanUsers(response));
       });
