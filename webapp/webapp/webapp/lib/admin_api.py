@@ -200,6 +200,12 @@ class isardAdmin():
             user['auto']=desktops['auto']        
 
         user['id']='local-'+user['category']+'-'+user['uid']+'-'+user['username']
+        if not user['group'].startswith(f"{user['category']}-"):
+            log.error(
+                "Cannot create a user with a group of other category, "
+                f"user: {user['id']}, category: {user['category']}, group: {user['group']}"
+            )
+            return False
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
     def users_add(self,users):

@@ -35,8 +35,21 @@ $(document).ready(function() {
             ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
             a.dispatchEvent(ev);  
 	});
-    
-    
+
+    $("#add-category").on('change', function () {
+        let category = $(this).val()
+        $('#add-group').find('option').each(function () {
+            if (this.value.startsWith(category + "-")) {
+                this.disabled = false
+            } else {
+                this.disabled = true
+                if (this.selected) {
+                    $(this).prop('selected', false)
+                }
+            }
+        })
+    })
+
     $("#modalAddUser #send").on('click', function(e){
         var form = $('#modalAddUserForm');
         formdata = form.serializeObject()
@@ -460,6 +473,6 @@ function setModalUser(){
                 }
                 $("."+key+' option[value="local"]').prop("selected",true);
         });
-            
+        $('#add-category').trigger("change")
     });       
 }
