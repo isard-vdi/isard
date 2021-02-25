@@ -34,7 +34,7 @@
             <h2>Check URL</h2>
             <br><br><hr>
             {% else %}
-            <form id="login-form" action="{{ category.id }}" method="POST" novalidate>
+            <form id="login-form" action="{{ url_for('login') }}" method="POST" novalidate>
               <h1>{{ category.name }}</h1>
               <h3>{{ category.description }}</h3>
               <h2>Virtual Desktop Admin login</h2>
