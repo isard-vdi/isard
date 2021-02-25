@@ -1,7 +1,14 @@
 import { villusClient } from '@/main';
+import { useQuery } from 'villus';
 
 export default class SearchService {
-  listSearch(section: string, query: string, queryParams: string[]): any {
+  listSearch(
+    section: string,
+    query: string,
+    queryParams: string[],
+    size: number,
+    start: number
+  ): any {
     const usersQuery: string = `
     query Users {
       user {

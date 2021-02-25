@@ -26,14 +26,34 @@ import Sidebar from 'primevue/sidebar';
 import VueAxios from 'vue-axios';
 import axios from 'axios';
 import { createApp } from 'vue';
-import { createClient } from 'villus';
+import { createClient, defaultPlugins, definePlugin } from 'villus';
 import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
 
-export const villusClient = createClient({
-  url: 'http://192.168.129.125:8080/v1/graphql'
+// function authPlugin({ opContext }: { opContext: any }) {
+//   opContext.headers.authorization = 'Bearer <token>';
+// }
+
+const authPluginWithConfig = (config: { token: string }) => {
+  // opContext will be automatically typed
+  return definePlugin(({ opContext }) => {
+    // Add auth headers with configurable prefix
+    opContext.headers.authorization = `${config.token}`;
+  });
+};
+
+export let villusClient = createClient({
+  url: 'http://192.168.129.125:8080/v1/graphql', // To env file
+  use: [authPluginWithConfig({ token: 'hola' }), ...defaultPlugins()]
 });
+
+export const refreshClient = (token: string) => {
+  villusClient = createClient({
+    url: 'http://192.168.129.125:8080/v1/graphql', // To env file
+    use: [authPluginWithConfig({ token }), ...defaultPlugins()]
+  });
+};
 
 router.beforeEach((to, from, next) => {
   const loggedIn = store.getters.loginToken;

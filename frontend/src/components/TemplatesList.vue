@@ -22,6 +22,7 @@
 import { computed, defineComponent, ref } from 'vue';
 import { useStore } from '../store';
 import { ActionTypes } from '@/store/actions';
+import { DEFAULT_SEARCH_SIZE } from '@/config/constants';
 
 export default defineComponent({
   setup(props, context) {
@@ -32,7 +33,9 @@ export default defineComponent({
       store.dispatch(ActionTypes.DO_SEARCH, {
         section: '',
         query: '',
-        queryParams: []
+        queryParams: [],
+        size: DEFAULT_SEARCH_SIZE,
+        start: 0
       });
     };
 
