@@ -6,6 +6,8 @@ sh auto-generate-certs.sh
 echo "Setting wireguard.xml network for $WG_HYPER_GUESTNET"
 python3 wireguard.py
 
+cp /networks/* /etc/libvirt/qemu/networks/
+
 #ip r a $WG_USERS_NET via ${WG_HYPER_NET_WG_PEER}
 
 env > /tmp/env

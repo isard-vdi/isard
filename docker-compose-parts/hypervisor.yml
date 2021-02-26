@@ -17,5 +17,6 @@ services:
       - /opt/isard/hypervisor/sshd_keys:/usr/local/etc/ssh:rw
       - /opt/isard:/isard:rw
       - /opt/isard-local/sockets/:/var/run/libvirt/
+      - /opt/isard/hypervisor/networks:/networks
     env_file:
       - .env
