@@ -14,6 +14,7 @@ docker-build:
     - docker-compose -f docker-compose.build.yml build
     - docker-compose -f docker-compose.video-standalone.build.yml build isard-video
     - docker-compose -f docker-compose.hypervisor.build.yml build isard-vpnc
+    - docker-compose -f docker-compose.toolbox.build.yml build isard-toolbox
     - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push
   artifacts:
     paths:
