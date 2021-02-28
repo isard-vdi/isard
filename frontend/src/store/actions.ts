@@ -47,7 +47,6 @@ export interface Actions {
   [ActionTypes.DO_SEARCH](
     { commit }: AugmentedActionContext,
     payload: {
-      query: string;
       queryParams: string[];
       size: number;
       start: number;
@@ -132,16 +131,10 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {
-    const section = getters.section;
-    // query
+    const section: string = getters.section;
+    const query: string = sections[section].config?.query.search;
     searchService
-      .listSearch(
-        section,
-        payload.query,
-        payload.queryParams,
-        payload.size,
-        payload.start
-      )
+      .listSearch(query, payload.queryParams, payload.size, payload.start)
       .then((response: any): any => {
         commit(
           MutationTypes.LOAD_LIST_ITEMS,

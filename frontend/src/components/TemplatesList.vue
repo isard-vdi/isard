@@ -31,7 +31,6 @@ export default defineComponent({
     const usersList = computed(() => store.getters.searchResults);
     const actionFilterSearch = () => {
       store.dispatch(ActionTypes.DO_SEARCH, {
-        query: '',
         queryParams: [],
         size: DEFAULT_SEARCH_SIZE,
         start: 0

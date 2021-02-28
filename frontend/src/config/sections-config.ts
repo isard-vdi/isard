@@ -15,7 +15,7 @@ export interface SectionModelMap {
 }
 
 export interface SectionModel {
-  config?: SectionConfig;
+  config: SectionConfig;
   tabs?: Tabs;
   defaultTab?: string;
   stepper?: any;

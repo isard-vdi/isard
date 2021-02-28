@@ -52,7 +52,6 @@ export default defineComponent({
 
     const actionFilterSearch = () => {
       store.dispatch(ActionTypes.DO_SEARCH, {
-        query: '',
         queryParams: [],
         size: DEFAULT_SEARCH_SIZE,
         start: 0
