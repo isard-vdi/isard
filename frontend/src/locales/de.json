@@ -81,7 +81,8 @@
             "template": "Vorlage",
             "persistent": "Dauerhafte Arbeitsoberflächen",
             "viewer-name": {
-                "spice": "SPICE"
+                "spice": "SPICE",
+                "browser": "Browser"
             },
             "viewer": "{name}-Anzeigeprogramm",
             "viewers": "Anzeigeprogramme"
