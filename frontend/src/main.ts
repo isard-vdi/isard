@@ -30,6 +30,7 @@ import { createClient, defaultPlugins, definePlugin } from 'villus';
 import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
+import { ActionTypes } from './store/actions';
 
 // function authPlugin({ opContext }: { opContext: any }) {
 //   opContext.headers.authorization = 'Bearer <token>';
@@ -44,8 +45,8 @@ const authPluginWithConfig = (config: { token: string }) => {
 };
 
 export let villusClient = createClient({
-  url: 'http://192.168.129.125:8080/v1/graphql', // To env file
-  use: [authPluginWithConfig({ token: 'hola' }), ...defaultPlugins()]
+  url: 'http://192.168.129.125:1312/graphql', // To env file
+  use: [...defaultPlugins()]
 });
 
 export const refreshClient = (token: string) => {
@@ -54,16 +55,6 @@ export const refreshClient = (token: string) => {
     use: [authPluginWithConfig({ token }), ...defaultPlugins()]
   });
 };
-
-router.beforeEach((to, from, next) => {
-  const loggedIn = store.getters.loginToken;
-  if (to.meta.needsAuth && !loggedIn) {
-    console.log('redirect login');
-    router.push({ name: 'login' });
-  } else {
-    next();
-  }
-});
 
 const app = createApp(App);
 app.use(store);
@@ -86,3 +77,18 @@ app.component('Sidebar', Sidebar);
 app.component('DataTable', DataTable);
 app.component('Column', Column);
 app.mount('#app');
+
+router.beforeEach((to, from, next) => {
+  const loggedIn = store.getters.loginToken;
+  if (to.meta.needsAuth && !loggedIn) {
+    router.push({ name: 'login' });
+  } else {
+    store.dispatch(ActionTypes.NAVIGATE, {
+      section: to.name,
+      url: to.fullPath,
+      queryParams: [],
+      editmode: false
+    });
+    next();
+  }
+});

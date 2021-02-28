@@ -19,7 +19,11 @@ export interface SectionModel {
   tabs?: Tabs;
   defaultTab?: string;
   stepper?: any;
-  search?: any;
+  search?: SearchModel;
+}
+
+export interface SearchModel {
+  cleaner: any;
 }
 
 export interface Tabs {

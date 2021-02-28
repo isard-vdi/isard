@@ -44,15 +44,14 @@ export default defineComponent({
     const route = useRoute();
 
     // LifeCycle Hooks
-    const section: string = route.name as string;
-    const sectionConfig: SectionConfig | null =
-      sections[`${section}`].config || null;
+    const section: string = store.getters.section;
+    const sectionConfig: SectionConfig | {} =
+      (section && sections[`${section}`].config) || {};
 
     const itemsList = computed(() => store.getters.searchResults);
 
     const actionFilterSearch = () => {
       store.dispatch(ActionTypes.DO_SEARCH, {
-        section: '',
         query: '',
         queryParams: [],
         size: DEFAULT_SEARCH_SIZE,
@@ -70,9 +69,6 @@ export default defineComponent({
       sectionConfig,
       f_delete
     };
-  },
-  data() {
-    return {};
   }
 });
 </script>
