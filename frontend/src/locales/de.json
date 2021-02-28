@@ -79,7 +79,12 @@
             "remove": "Entfernen",
             "volatile": "Temporäre Arbeitsoberflächen",
             "template": "Vorlage",
-            "persistent": "Dauerhafte Arbeitsoberflächen"
+            "persistent": "Dauerhafte Arbeitsoberflächen",
+            "viewer-name": {
+                "spice": "SPICE"
+            },
+            "viewer": "{name}-Anzeigeprogramm",
+            "viewers": "Anzeigeprogramme"
         },
         "error": {
             "codes": {
