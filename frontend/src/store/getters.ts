@@ -10,6 +10,7 @@ export type Getters = {
   menuStaticInactive(state: State): boolean;
   menuOverlayActive(state: State): boolean;
   menuMobileActive(state: State): boolean;
+  section(state: State): string;
 };
 
 export const getters: GetterTree<State, State> & Getters = {
@@ -37,5 +38,8 @@ export const getters: GetterTree<State, State> & Getters = {
   },
   menuMobileActive: (state) => {
     return state.ui.menu.mobileActive;
+  },
+  section: (state) => {
+    return state.router.section;
   }
 };

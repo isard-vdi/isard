@@ -1,14 +1,12 @@
 import { ActionContext, ActionTree } from 'vuex';
 import { MutationTypes, Mutations } from './mutations';
-
 import LoginService from '@/service/LoginService';
 import SearchService from '@/service/SearchService';
 import { State } from './state';
-import UserService from '@/service/UserService';
-import UsersUtils from '@/utils/UsersUtils';
 import router from '@/router';
 import { store } from '.';
-import { refreshClient } from '@/main';
+import { refreshClientToken } from '@/main';
+import { sections } from '@/config/sections';
 
 const loginService = new LoginService();
 const searchService = new SearchService();
@@ -25,6 +23,7 @@ type AugmentedActionContext = {
 export enum ActionTypes {
   DO_LOCAL_LOGIN = 'DO_LOCAL_LOGIN',
   REFRESH_CLIENT_TOKEN = 'REFRESH_CLIENT_TOKEN',
+  NAVIGATE = 'NAVIGATE',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
   TOGGLE_MENU = 'TOGGLE_MENU',
@@ -45,8 +44,6 @@ export interface Actions {
   [ActionTypes.DO_SEARCH](
     { commit }: AugmentedActionContext,
     payload: {
-      section: string;
-      query: string;
       queryParams: string[];
       size: number;
       start: number;
@@ -57,6 +54,16 @@ export interface Actions {
     { commit }: AugmentedActionContext,
     payload: {
       token: string;
+    }
+  ): void;
+
+  [ActionTypes.NAVIGATE](
+    { commit }: AugmentedActionContext,
+    payload: {
+      section: string;
+      url: string;
+      queryParams: string[];
+      editmode: boolean;
     }
   ): void;
 
@@ -116,26 +123,29 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   [ActionTypes.REFRESH_CLIENT_TOKEN]({ commit }, payload) {
-    refreshClient(payload.token);
+    refreshClientToken(payload.token);
     commit(MutationTypes.LOGIN_SUCCESS, payload);
   },
 
-  [ActionTypes.DO_SEARCH]({ commit }, payload) {
+  [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {
+    const section: string = getters.section;
+    const query: string = sections[section].config?.query.search;
     searchService
-      .listSearch(
-        payload.section,
-        payload.query,
-        payload.queryParams,
-        payload.size,
-        payload.start
-      )
+      .listSearch(query, payload.queryParams, payload.size, payload.start)
       .then((response: any): any => {
-        commit(MutationTypes.LOAD_LIST_ITEMS, UsersUtils.cleanUsers(response));
+        commit(
+          MutationTypes.LOAD_LIST_ITEMS,
+          sections[section].search?.cleaner.parse(response)
+        );
       });
   },
 
-  [ActionTypes.GO_SEARCH]({ commit }) {
-    router.push({ name: 'users' });
+  [ActionTypes.GO_SEARCH]({ commit }, payload) {
+    router.push({ name: payload.section });
+  },
+
+  [ActionTypes.NAVIGATE]({ commit }, payload) {
+    commit(MutationTypes.CHANGE_SECTION, payload);
   },
 
   [ActionTypes.TOGGLE_MENU]({ commit }) {

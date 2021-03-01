@@ -9,7 +9,8 @@ export enum MutationTypes {
   CHANGE_MENU_COLOR_MODE = 'CHANGE_MENU_COLOR_MODE',
   CHANGE_MENU_OVERLAY_ACTIVE = 'CHANGE_MENU_OVERLAY_ACTIVE',
   CHANGE_MENU_MOBILE_ACTIVE = 'CHANGE_MENU_MOBILE_ACTIVE',
-  CHANGE_MENU_STATIC_INACTIVE = 'CHANGE_MENU_STATIC_INACTIVE'
+  CHANGE_MENU_STATIC_INACTIVE = 'CHANGE_MENU_STATIC_INACTIVE',
+  CHANGE_SECTION = 'CHANGE_SECTION'
 }
 
 export type Mutations<S = State> = {
@@ -21,6 +22,7 @@ export type Mutations<S = State> = {
   [MutationTypes.CHANGE_MENU_OVERLAY_ACTIVE](state: S, payload: boolean): void;
   [MutationTypes.CHANGE_MENU_MOBILE_ACTIVE](state: S, payload: boolean): void;
   [MutationTypes.CHANGE_MENU_STATIC_INACTIVE](state: S, payload: boolean): void;
+  [MutationTypes.CHANGE_SECTION](state: S, payload: { section: string }): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
@@ -28,10 +30,6 @@ export const mutations: MutationTree<State> & Mutations = {
     state.search = payload;
   },
   [MutationTypes.LOGIN_SUCCESS](state: State, payload) {
-    // state = {
-    //   ...state,
-    //   auth: { ...state.auth, token: payload.token, loggedIn: true }
-    // };
     state.auth.token = payload.token;
     state.auth.loggedIn = true;
   },
@@ -52,5 +50,8 @@ export const mutations: MutationTree<State> & Mutations = {
   },
   [MutationTypes.CHANGE_MENU_STATIC_INACTIVE](state: State, payload) {
     state.ui.menu.staticInactive = payload;
+  },
+  [MutationTypes.CHANGE_SECTION](state: State, payload) {
+    state.router.section = payload.section;
   }
 };

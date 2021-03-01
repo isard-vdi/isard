@@ -1,7 +1,10 @@
+import { Router } from 'vue-router';
+
 export interface State {
   search: object[];
   auth: Auth;
   ui: Ui;
+  router: RouterState;
 }
 
 export interface Ui {
@@ -19,6 +22,12 @@ export interface Auth {
   user: Types.User;
   token: string;
   loggedIn: boolean;
+}
+
+export interface RouterState {
+  layout: string;
+  section: string;
+  queryParams: string[];
 }
 
 export const state: State = {
@@ -65,5 +74,10 @@ export const state: State = {
       overlayActive: false,
       mobileActive: false
     }
+  },
+  router: {
+    layout: '',
+    section: '',
+    queryParams: []
   }
 };
