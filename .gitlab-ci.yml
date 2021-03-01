@@ -1,0 +1,99 @@
+stages:
+ - merge
+ - unit-test
+ - docker
+ - deploy-merge
+ - deploy-branch
+
+.cache:
+  variables:
+    GOPATH: $CI_PROJECT_DIR/.go
+  before_script:
+  cache:
+    paths:
+      - .go/pkg/mod/
+      - frontend/.npm/
+merge:
+  stage: merge
+  script:
+    - git ls-remote | grep refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME | awk '{ print  $1 }' | xargs git checkout
+    - git ls-remote | grep $CI_MERGE_REQUEST_REF_PATH | awk '{ print  $1 }' | xargs git merge
+  only:
+    - merge_requests
+
+unit-test:
+  stage: unit-test
+  extends: .cache
+  only:
+    - merge_requests
+  image: golang:1.16
+  before_script:
+    - apt-get update && apt-get -y install curl build-essential libvirt-dev
+    - curl -sL https://deb.nodesource.com/setup_14.x | bash -
+    - apt-get -y install nodejs
+    - mkdir -p .go
+    - cd frontend && npm ci --cache .npm --prefer-offline && cd -
+    - git ls-remote | grep refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME | awk '{ print  $1 }' | xargs git checkout
+    - git ls-remote | grep $CI_MERGE_REQUEST_REF_PATH | awk '{ print  $1 }' | xargs git merge
+    - make deps
+  script:
+    - make test
+
+docker:
+  stage: docker
+  only:
+    - merge_requests
+    - branches
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - apk add --no-cache git make
+  script:
+    - git ls-remote | grep refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME | awk '{ print  $1 }' | xargs git checkout
+    - git ls-remote | grep $CI_MERGE_REQUEST_REF_PATH | awk '{ print  $1 }' | xargs git merge
+    - make docker
+    - |-
+      docker images --format="{{.Repository}}:{{.Tag}}" | grep "isard/isardvdi" | awk -v registry="$CI_REGISTRY_IMAGE" -v iid="$CI_MERGE_REQUEST_IID" -v slug="$CI_COMMIT_BRANCH" -F "[-:]" '{ print $0, registry "/" $2 ":" ((length(iid) == 0) ? slug : iid) }' | xargs -n2 docker tag
+    - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push
+
+deploy-merge:
+  stage: deploy-merge
+  only:
+    - merge_requests
+  script:
+    - |-
+      generate_post_data()
+      {
+        cat <<EOF
+      {
+          "type": "mr",
+          "target_repo": "https://gitlab.com/isard/isardvdi",
+          "target_branch": "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME",
+          "mr_source_repo": "$CI_MERGE_REQUEST_SOURCE_PROJECT_URL",
+          "mr_source_commit": "$CI_COMMIT_SHA"
+      }
+      EOF
+      }
+    - |-
+      curl --header "Content-Type: application/json" --request POST --data "$(generate_post_data)" https://cd.isardvdi.com/new
+
+deploy-branch:
+  stage: deploy-branch
+  only:
+    - branches
+  script:
+    - |-
+      generate_post_data()
+      {
+        cat <<EOF
+      {
+          "type": "branch",
+          "target_repo": "https://gitlab.com/isard/isardvdi",
+          "target_branch": "$CI_COMMIT_BRANCH",
+      }
+      EOF
+      }
+    - |-
+      curl --header "Content-Type: application/json" --request POST --data "$(generate_post_data)" https://cd.isardvdi.com/new

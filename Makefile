@@ -1,26 +1,27 @@
 VERSION := 3.0.0-rc0
 export VERSION
 
-MICROSERVICES = hyper desktopbuilder orchestrator controller auth backend
+MICROSERVICES = hyper desktopbuilder orchestrator controller auth backend frontend
 
-all: tidy gen test build docker
+all: deps gen test build docker
 .PHONY: all
 
-tidy:
+deps:
 	go mod tidy
+	$(MAKE) -C frontend deps
 
-gen: tidy
+gen:
 	$(MAKE) -C pkg gen
-	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) gen;)
+	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) gen || exit 1;)
 
-test: gen tidy
+test:
 	$(MAKE) -C pkg test
-	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) test;)
+	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) test || exit 1;)
 
 build: test
-	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) build;)
+	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) build || exit 1;)
 
-docker: gen
+docker:
 	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) docker;)
 
 docker-compose-up:
