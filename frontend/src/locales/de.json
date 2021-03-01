@@ -40,45 +40,46 @@
             },
             "error": {
                 "delete-error": {
-                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht löschen",
+                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht löschen",
                     "title": "Fehler"
                 },
                 "stop-timeout": {
-                    "description": "Der Desktop wird angehalten, dies kann einige Minuten dauern",
+                    "description": "Die Arbeitsoberfläche wird angehalten, dies kann einige Minuten dauern",
                     "title": "Zeitüberschreitung"
                 },
                 "stop-error": {
-                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht anhalten",
+                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht anhalten",
                     "title": "Fehler"
                 },
                 "open-error": {
-                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht öffnen",
+                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht öffnen",
                     "title": "Fehler"
                 },
                 "start-timeout": {
-                    "description": "Der Desktop startet, dies kann einige Minuten dauern",
+                    "description": "Die Arbeitsoberfläche startet, dies kann einige Minuten dauern",
                     "title": "Zeitüberschreitung"
                 },
                 "start-quota": {
-                    "description": "Sie benutzen zu viele Desktops gleichzeitig",
+                    "description": "Sie benutzen zu viele Arbeitsoberflächen gleichzeitig",
                     "title": "Fehler"
                 },
                 "start-error": {
-                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht starten",
+                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht starten",
                     "title": "Fehler"
                 },
                 "create-quota": {
-                    "description": "Sie haben zu viele Desktops",
+                    "description": "Sie haben zu viele Arbeitsoberflächen",
                     "title": "Fehler"
                 },
                 "create-error": {
-                    "description": "Wir konnten den virtuellen Desktop aufgrund eines Fehlers nicht erstellen",
+                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht erstellen",
                     "title": "Fehler"
                 }
             },
             "remove": "Entfernen",
-            "volatile": "Temporäre Desktops",
-            "template": "Vorlage"
+            "volatile": "Temporäre Arbeitsoberflächen",
+            "template": "Vorlage",
+            "persistent": "Dauerhafte Arbeitsoberflächen"
         },
         "error": {
             "codes": {
@@ -149,7 +150,7 @@
         },
         "desktop-cards": {
             "table-header": {
-                "viewers": "Anzeigeprogramme",
+                "viewers": "Bildbetrachter",
                 "action": "Aktion",
                 "description": "Beschreibung",
                 "state": "Status",
