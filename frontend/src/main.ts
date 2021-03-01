@@ -49,7 +49,7 @@ export let villusClient = createClient({
   use: [...defaultPlugins()]
 });
 
-export const refreshClient = (token: string) => {
+export const refreshClientToken = (token: string) => {
   villusClient = createClient({
     url: 'http://192.168.129.125:8080/v1/graphql', // To env file
     use: [authPluginWithConfig({ token }), ...defaultPlugins()]

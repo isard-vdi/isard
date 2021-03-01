@@ -1,14 +1,11 @@
 import { ActionContext, ActionTree } from 'vuex';
 import { MutationTypes, Mutations } from './mutations';
-
 import LoginService from '@/service/LoginService';
 import SearchService from '@/service/SearchService';
 import { State } from './state';
-import UserService from '@/service/UserService';
-import UsersUtils from '@/utils/UsersUtils';
 import router from '@/router';
 import { store } from '.';
-import { refreshClient } from '@/main';
+import { refreshClientToken } from '@/main';
 import { sections } from '@/config/sections';
 
 const loginService = new LoginService();
@@ -126,7 +123,7 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   [ActionTypes.REFRESH_CLIENT_TOKEN]({ commit }, payload) {
-    refreshClient(payload.token);
+    refreshClientToken(payload.token);
     commit(MutationTypes.LOGIN_SUCCESS, payload);
   },
 
