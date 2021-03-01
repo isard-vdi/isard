@@ -129,7 +129,7 @@
             "title": "Nous n’avons pas pu trouver l’adresse demandée"
         },
         "maintenance": {
-            "sorry": "Désolé pour le désagrément.",
+            "sorry": "Désolé pour le désagrément",
             "the-service": "Le service sera de nouveau disponible dans quelques minutes",
             "title": "Actuellement, le service Isard est en maintenance"
         },
