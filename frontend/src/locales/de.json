@@ -84,8 +84,8 @@
                 "spice": "SPICE",
                 "browser": "Browser"
             },
-            "viewer": "{name}-Anzeigeprogramm",
-            "viewers": "Anzeigeprogramme"
+            "viewer": "{name}-Bildbetrachter",
+            "viewers": "Bildbetrachter"
         },
         "error": {
             "codes": {
