@@ -45,13 +45,13 @@ const authPluginWithConfig = (config: { token: string }) => {
 };
 
 export let villusClient = createClient({
-  url: 'http://192.168.129.125:1312/graphql', // To env file
+  url: process.env.VUE_APP_REALTIME_URL,
   use: [...defaultPlugins()]
 });
 
 export const refreshClientToken = (token: string) => {
   villusClient = createClient({
-    url: 'http://192.168.129.125:8080/v1/graphql', // To env file
+    url: process.env.VUE_APP_API_URL,
     use: [authPluginWithConfig({ token }), ...defaultPlugins()]
   });
 };
