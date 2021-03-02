@@ -100,7 +100,10 @@ $(document).ready(function() {
 			}).modal('show');
             $('#modalAddCategoryForm')[0].reset();
             //~ setModalAddUser();
-            
+            // https://github.com/dargullin/icheck/issues/159
+            $('#modalAddCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
+            $('#modalAddCategoryForm #ephimeral-data').hide();
+            $('#modalAddCategoryForm #auto-desktops-data').hide()
              $('#modalAddCategoryForm #auto-desktops').select2({
                 minimumInputLength: 2,
                 multiple: true,
