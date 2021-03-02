@@ -110,6 +110,12 @@
     filter: invert(0);
   }
 
+  p {
+    color: black;
+    text-align: center;
+    font-weight: bold;
+  }
+
   .layout-menu {
     > li {
       > a {
@@ -156,6 +162,12 @@
   .layout-logo {
     -webkit-filter: invert(1);
     filter: invert(1);
+  }
+
+  p {
+    color: white;
+    text-align: center;
+    font-weight: bold;
   }
 
   .layout-menu {

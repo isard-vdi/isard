@@ -10,9 +10,7 @@
             <img alt="Logo" width="50" src="@/assets/logo.svg" />
           </router-link>
         </div>
-        <div style="color: white; text-align: center">
-          <b>ISARDVDI</b>
-        </div>
+        <p>ISARDVDI</p>
 
         <AppProfile />
         <AppMenu :menu="menu" />
