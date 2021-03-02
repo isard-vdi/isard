@@ -7,9 +7,7 @@ import router from '@/router';
 import { store } from '.';
 import { refreshClientToken } from '@/main';
 import { sections } from '@/config/sections';
-
-const loginService = new LoginService();
-const searchService = new SearchService();
+import { DEFAULT_PAGE } from '@/config/constants';
 
 type AugmentedActionContext = {
   commit<K extends keyof Mutations>(
@@ -19,7 +17,6 @@ type AugmentedActionContext = {
 } & Omit<ActionContext<State, State>, 'commit'>;
 
 /* Action Enum*/
-
 export enum ActionTypes {
   DO_LOCAL_LOGIN = 'DO_LOCAL_LOGIN',
   REFRESH_CLIENT_TOKEN = 'REFRESH_CLIENT_TOKEN',
@@ -111,15 +108,17 @@ export interface Actions {
 /****** ACTIONS ****/
 export const actions: ActionTree<State, State> & Actions = {
   [ActionTypes.DO_LOCAL_LOGIN]({ commit }, payload) {
-    loginService
-      .doLogin(payload.usr, payload.psw, 'local', payload.entity)
-      .then((response: any): any => {
-        const payload = { token: response };
+    LoginService.doLogin(
+      payload.usr,
+      payload.psw,
+      'local',
+      payload.entity
+    ).then((response: any): any => {
+      const payload = { token: response.login };
 
-        store.dispatch(ActionTypes.REFRESH_CLIENT_TOKEN, payload);
-
-        router.push({ name: 'users' });
-      });
+      store.dispatch(ActionTypes.REFRESH_CLIENT_TOKEN, payload);
+      router.push({ name: DEFAULT_PAGE });
+    });
   },
 
   [ActionTypes.REFRESH_CLIENT_TOKEN]({ commit }, payload) {
@@ -130,14 +129,21 @@ export const actions: ActionTree<State, State> & Actions = {
   [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {
     const section: string = getters.section;
     const query: string = sections[section].config?.query.search;
-    searchService
-      .listSearch(query, payload.queryParams, payload.size, payload.start)
-      .then((response: any): any => {
-        commit(
-          MutationTypes.LOAD_LIST_ITEMS,
-          sections[section].search?.cleaner.parse(response)
-        );
-      });
+    SearchService.listSearch(
+      query,
+      payload.queryParams,
+      payload.size,
+      payload.start
+    ).then((response: any): any => {
+      const sectionConfig = sections[section];
+
+      commit(
+        MutationTypes.LOAD_LIST_ITEMS,
+        sectionConfig.search?.cleaner.parse(
+          response[sectionConfig.search.apiSegment]
+        )
+      );
+    });
   },
 
   [ActionTypes.GO_SEARCH]({ commit }, payload) {

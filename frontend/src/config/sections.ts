@@ -8,13 +8,15 @@ export const sections: SectionModelMap = {
   users: {
     config: SectionUsers,
     search: {
-      cleaner: SearchUserParser
+      cleaner: SearchUserParser,
+      apiSegment: 'user'
     }
   },
   entities: {
     config: SectionEntities,
     search: {
-      cleaner: SearchEntitiesParser
+      cleaner: SearchEntitiesParser,
+      apiSegment: 'entity'
     }
   }
 };

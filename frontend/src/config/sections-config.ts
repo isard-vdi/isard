@@ -24,6 +24,7 @@ export interface SectionModel {
 
 export interface SearchModel {
   cleaner: any;
+  apiSegment: string;
 }
 
 export interface Tabs {

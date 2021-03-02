@@ -1,18 +1,15 @@
 import { sections } from '@/config/sections';
 import { villusClient } from '@/main';
 import { useQuery } from 'villus';
+import ConnectionService from './ConnectionService';
 
 export default class SearchService {
-  listSearch(
+  static listSearch(
     query: string,
     queryParams: string[],
     size: number,
     start: number
   ): any {
-    return villusClient
-      .executeQuery({
-        query: query
-      })
-      .then((res) => res.data.user);
+    return ConnectionService.executeQuery(query);
   }
 }
