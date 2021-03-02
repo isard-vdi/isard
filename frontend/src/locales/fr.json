@@ -59,8 +59,105 @@
                     "403": "Vous ne disposez pas des autorisations nécessaires pour accéder à cette page",
                     "401": "Votre groupe ne dispose pas des autorisations nécessaires pour accéder à cette page"
                 },
-                "title": "Erreur"
-            }
+                "title": "Erreur",
+                "delete-error": {
+                    "description": "Nous n’avons pas pu supprimer le bureau virtuel en raison d’une erreur",
+                    "title": "Erreur"
+                },
+                "stop-timeout": {
+                    "description": "Le bureau s’arrête ; ceci peut prendre quelques minutes",
+                    "title": "Délai d’expiration"
+                },
+                "stop-error": {
+                    "description": "Nous n’avons pas pu arrêter le bureau virtuel en raison d’une erreur",
+                    "title": "Erreur"
+                },
+                "open-error": {
+                    "description": "Nous n’avons pas pu ouvrir le bureau virtuel en raison d’une erreur",
+                    "title": "Erreur"
+                },
+                "start-timeout": {
+                    "description": "Le bureau démarre ; ceci peut prendre quelques minutes",
+                    "title": "Délai d’expiration"
+                },
+                "start-quota": {
+                    "description": "Vous utilisez trop de postes de travail en même temps",
+                    "title": "Erreur"
+                },
+                "start-error": {
+                    "description": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
+                    "title": "Erreur"
+                },
+                "create-quota": {
+                    "description": "Vous avez trop de bureaux",
+                    "title": "Erreur"
+                },
+                "create-error": {
+                    "description": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
+                    "title": "Erreur"
+                }
+            },
+            "status": {
+                "notCreated": {
+                    "action": "Créer"
+                },
+                "stopped": {
+                    "action": "Démarrer",
+                    "text": "Arrêté"
+                },
+                "started": {
+                    "action": "Arrêter",
+                    "text": "Démarré"
+                },
+                "failed": {
+                    "text": "Échec"
+                }
+            },
+            "remove": "Retirer",
+            "viewer-name": {
+                "browser": "Navigateur",
+                "spice": "SPICE"
+            },
+            "viewer": "Visionneuse {name}",
+            "viewers": "Visionneuses",
+            "volatile": "Bureaux temporaires",
+            "persistent": "Bureaux permanents",
+            "template": "Modèle"
+        },
+        "not-found": {
+            "back": "Revenir au début",
+            "title": "Nous n’avons pas pu trouver l’adresse demandée"
+        },
+        "maintenance": {
+            "sorry": "Désolé pour le désagrément.",
+            "the-service": "Le service sera de nouveau disponible dans quelques minutes",
+            "title": "Actuellement, le service Isard est en maintenance"
+        },
+        "expired-session": {
+            "subtitle": "Pour utiliser le bureau virtuel, connectez-vous à nouveau",
+            "title": "La session a expiré",
+            "button": "Se connecter"
+        },
+        "error": {
+            "codes": {
+                "500": "Erreur inattendue",
+                "403": "Vous n’avez pas l’autorisation d’accéder à cette page",
+                "401": "Votre groupe n’a pas l’autorisation d’accéder à cette page"
+            },
+            "title": "Erreur"
+        },
+        "login": {
+            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
+            "powered-by": "Propulsé par",
+            "other-logins": "Ou se connecter avec",
+            "form": {
+                "login": "Se connecter",
+                "pwd": "Mot de passe",
+                "usr": "Nom d’utilisateur",
+                "select-category": "Veuillez sélectionner une option"
+            },
+            "title": "Se connecter",
+            "admin": "Administration"
         }
     },
     "components": {
@@ -89,6 +186,15 @@
         },
         "title": {
             "logo-alt": "Logo"
+        },
+        "desktop-cards": {
+            "table-header": {
+                "viewers": "Visionneuses",
+                "action": "Action",
+                "description": "Description",
+                "state": "État",
+                "name": "Nom"
+            }
         }
     }
 }
