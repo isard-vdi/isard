@@ -292,7 +292,8 @@ $('.btn-enrollment').on('click', function () {
                 $('#manager-check').iCheck('check');
                 $('#manager-key').val(data.enrollment.manager);
             }else{
-                $('#manager-check').iCheck('uncheck');
+                // https://github.com/dargullin/icheck/issues/159
+                $('#manager-check').iCheck('uncheck').iCheck('update');
                 $('#manager-key').hide();
                 $('.btn-copy-manager').hide();
             }
@@ -303,7 +304,8 @@ $('.btn-enrollment').on('click', function () {
                 $('#advanced-check').iCheck('check');
                 $('#advanced-key').val(data.enrollment.advanced);
             }else{
-                $('#advanced-check').iCheck('uncheck');
+                // https://github.com/dargullin/icheck/issues/159
+                $('#advanced-check').iCheck('uncheck').iCheck('update');
                 $('#advanced-key').hide();
                 $('.btn-copy-advanced').hide();
             }
@@ -314,7 +316,8 @@ $('.btn-enrollment').on('click', function () {
                 $('#user-check').iCheck('check');
                 $('#user-key').val(data.enrollment.user);
             }else{
-                $('#user-check').iCheck('uncheck');
+                // https://github.com/dargullin/icheck/issues/159
+                $('#user-check').iCheck('uncheck').iCheck('update');
                 $('#user-key').hide();
                 $('.btn-copy-user').hide();
             }
