@@ -18,7 +18,8 @@ from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.db import update_table_field
 from engine.services.db.domains import update_domain_status, update_domain_parents
 from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
-    update_hypervisor_failed_connection, update_db_hyp_info
+    update_hypervisor_failed_connection, update_db_hyp_info, get_hyp, update_db_default_gpu_models, \
+    update_uids_for_nvidia_id
 from engine.services.lib.functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str, \
     execute_commands, \
     execute_command_with_progress, get_tid
@@ -390,19 +391,41 @@ def try_hyp_connection(hyp_id, hostname, port, user):
     log.debug('hostname: {} , reason: {}'.format(hostname, hyp_obj.fail_connected_reason))
     try:
         reason = hyp_obj.fail_connected_reason
+        update_hypervisor_failed_connection(hyp_id, reason)
     except Exception as e:
         log.error('try hyp {}, error: {}'.format(hyp_id, e))
         reason = 'no reason available'
+        update_hypervisor_failed_connection(hyp_id, reason)
 
-    update_hypervisor_failed_connection(hyp_id, reason)
     if hyp_obj.connected is True:
         log.debug('hypervisor {} libvirt connection ready'.format(hyp_id))
         hyp_obj.get_kvm_mod()
         hyp_obj.get_hyp_info()
         update_db_hyp_info(hyp_id,hyp_obj.info)
+        d_hyp = get_hyp(hyp_id)
+        default_gpu_models = d_hyp.get('default_gpu_models',{})
+        uuids_gpu = d_hyp.get('nvidia_uids',{})
+
+        if len(hyp_obj.info['nvidia']) > 0:
+            if len(default_gpu_models) < len(hyp_obj.info['nvidia']):
+                pass
+            default_gpu_models = {k:a['type_max_gpus'] for k,a in hyp_obj.info['nvidia'].items()}
+            update_db_default_gpu_models(hyp_id,default_gpu_models)
+
+            for gpu_id,d_info_gpu in hyp_obj.info['nvidia'].items():
+                if gpu_id not in uuids_gpu.keys():
+                    d_uids = hyp_obj.create_uuids(d_info_gpu)
+                    update_uids_for_nvidia_id(hyp_id,gpu_id,d_uids)
+
+            d_hyp = get_hyp(hyp_id)
+            for gpu_id,d_uids in d_hyp['nvidia_uids'].items():
+                selected_gpu_type = default_gpu_models[gpu_id]
+                info_nvidia = d_hyp['info']['nvidia'][gpu_id]
+                hyp_obj.delete_and_create_devices_if_not_exist(gpu_id,d_uids,info_nvidia,selected_gpu_type)
+
         if hyp_obj.info['kvm_module'] == 'intel' or  hyp_obj.info['kvm_module'] == 'amd':
-            ok = True
-            update_hyp_status(hyp_id, 'ReadyToStart')
+                ok = True
+                update_hyp_status(hyp_id, 'ReadyToStart')
         else:
             ok = False
             log.error('hypervisor {} has not virtualization support (VT-x for Intel processors and AMD-V for AMD processors). '.format(hyp_id))
