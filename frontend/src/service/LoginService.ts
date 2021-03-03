@@ -1,8 +1,12 @@
-import { villusClient } from '@/main';
-
+import ConnectionService from './ConnectionService';
 export default class LoginService {
-  doLogin(usr: string, pwd: string, provider: string, entityId: string): any {
-    const loginMutation = `
+  static doLogin(
+    usr: string,
+    pwd: string,
+    provider: string,
+    entityId: string
+  ): any {
+    const mutation = `
     mutation LoginMutation {
       login (
         usr: "${usr}"
@@ -12,13 +16,6 @@ export default class LoginService {
       )
     }`;
 
-    return villusClient
-      .executeMutation({
-        query: loginMutation
-      })
-      .then((res) => {
-        console.log(res);
-        return res.data.login;
-      });
+    return ConnectionService.executeMutation(mutation);
   }
 }
