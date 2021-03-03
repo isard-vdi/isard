@@ -5,7 +5,7 @@ import SearchService from '@/service/SearchService';
 import { State } from './state';
 import router from '@/router';
 import { store } from '.';
-import { refreshClientToken } from '@/main';
+import { initClientToken, refreshClientToken } from '@/main';
 import { sections } from '@/config/sections';
 import { DEFAULT_PAGE } from '@/config/constants';
 
@@ -19,6 +19,7 @@ type AugmentedActionContext = {
 /* Action Enum*/
 export enum ActionTypes {
   DO_LOCAL_LOGIN = 'DO_LOCAL_LOGIN',
+  DO_LOGOUT = 'DO_LOGOUT',
   REFRESH_CLIENT_TOKEN = 'REFRESH_CLIENT_TOKEN',
   NAVIGATE = 'NAVIGATE',
   DO_SEARCH = 'DO_SEARCH',
@@ -36,6 +37,11 @@ export interface Actions {
   [ActionTypes.DO_LOCAL_LOGIN](
     { commit }: AugmentedActionContext,
     payload: { usr: string; psw: string; entity: string }
+  ): void;
+
+  [ActionTypes.DO_LOGOUT](
+    { commit }: AugmentedActionContext,
+    payload: {}
   ): void;
 
   [ActionTypes.DO_SEARCH](
@@ -119,6 +125,12 @@ export const actions: ActionTree<State, State> & Actions = {
       store.dispatch(ActionTypes.REFRESH_CLIENT_TOKEN, payload);
       router.push({ name: DEFAULT_PAGE });
     });
+  },
+
+  [ActionTypes.DO_LOGOUT]({ commit }, payload) {
+    initClientToken();
+    commit(MutationTypes.LOGOUT, payload);
+    router.push({ name: 'login' });
   },
 
   [ActionTypes.REFRESH_CLIENT_TOKEN]({ commit }, payload) {
