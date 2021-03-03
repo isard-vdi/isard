@@ -26,7 +26,7 @@ import Sidebar from 'primevue/sidebar';
 import VueAxios from 'vue-axios';
 import axios from 'axios';
 import { createApp } from 'vue';
-import { createClient, defaultPlugins, definePlugin } from 'villus';
+import { createClient, defaultPlugins, definePlugin, Client } from 'villus';
 import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
@@ -44,10 +44,7 @@ const authPluginWithConfig = (config: { token: string }) => {
   });
 };
 
-export let villusClient = createClient({
-  url: process.env.VUE_APP_REALTIME_URL,
-  use: [...defaultPlugins()]
-});
+export let villusClient: Client;
 
 export const refreshClientToken = (token: string) => {
   villusClient = createClient({
@@ -55,6 +52,15 @@ export const refreshClientToken = (token: string) => {
     use: [authPluginWithConfig({ token }), ...defaultPlugins()]
   });
 };
+
+export const initClientToken = () => {
+  villusClient = createClient({
+    url: process.env.VUE_APP_REALTIME_URL,
+    use: [...defaultPlugins()]
+  });
+};
+
+initClientToken();
 
 const app = createApp(App);
 app.use(store);

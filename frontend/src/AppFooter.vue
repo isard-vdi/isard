@@ -3,7 +3,7 @@
     <img
       src="@/assets/logo.svg"
       alt="IsardVDI"
-      width="25"
+      width="20"
       style="margin-right: 15px"
     />
     <b class="footer-text">IsardVDI</b>
