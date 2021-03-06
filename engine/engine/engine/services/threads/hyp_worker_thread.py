@@ -162,6 +162,21 @@ class HypWorkerThread(threading.Thread):
                         update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=("Exception when starting domain: " + str(e)))
                         logs.workers.debug('exception in starting domain {}: '.format(e))
 
+
+                ## STOP DOMAIN
+                elif action['type'] == 'shutdown_domain':
+                    logs.workers.debug('action shutdown domain: {}'.format(action['id_domain'][30:100]))
+                    try:
+                        domain_handler=self.h.conn.lookupByName(action['id_domain'])
+                        domain_handler.shutdown()
+                        logs.workers.debug('SHUTTING-DOWN domain {}'.format(action['id_domain']))
+                        update_domain_status('Shutting-down', action['id_domain'], hyp_id=hyp_id)
+                    except Exception as e:
+                        logs.workers.error('Exception in domain {} when shutdown action in hypervisor {}'.format(action['id_domain'],hyp_id))
+                        logs.workers.error(f'Exception: {e}')
+
+
+
                 ## STOP DOMAIN
                 elif action['type'] == 'stop_domain':
                     logs.workers.debug('action stop domain: {}'.format(action['id_domain'][30:100]))

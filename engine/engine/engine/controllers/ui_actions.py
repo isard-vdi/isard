@@ -204,6 +204,22 @@ class UiActions(object):
         else:
             self.stop_domain(id, hyp_id)
 
+    def shutdown_domain(self, id_domain, hyp_id, delete_after_stopped=False):
+
+
+        from pprint import pprint
+        action = {'type': 'shutdown_domain',
+                  'id_domain': id_domain,
+                  'delete_after_stopped': delete_after_stopped}
+
+        self.manager.q.workers[hyp_id].put(action)
+        update_domain_status(status='Shutdown',
+                             id_domain=id_domain,
+                             hyp_id=hyp_id,
+                             detail='desktop in queue to soft off with shutdown action in hyp {}'.format(hyp_id))
+        return True
+
+
     def stop_domain(self, id_domain, hyp_id, delete_after_stopped=False):
         update_domain_status(status='Stopping',
                              id_domain=id_domain,
