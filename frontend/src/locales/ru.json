@@ -87,6 +87,14 @@
         },
         "title": {
             "logo-alt": "Лого"
+        },
+        "desktop-cards": {
+            "table-header": {
+                "state": "Статус",
+                "description": "Описание",
+                "action": "Действие",
+                "viewers": "Зрители"
+            }
         }
     }
 }
