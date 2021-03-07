@@ -5,9 +5,10 @@ import SearchService from '@/service/SearchService';
 import { State } from './state';
 import router from '@/router';
 import { store } from '.';
-import { initClientToken, refreshClientToken } from '@/main';
 import { sections } from '@/config/sections';
 import { DEFAULT_PAGE } from '@/config/constants';
+import { remove, setCookie } from 'tiny-cookie';
+import ConnectionService from '@/service/ConnectionService';
 
 type AugmentedActionContext = {
   commit<K extends keyof Mutations>(
@@ -21,6 +22,7 @@ export enum ActionTypes {
   DO_LOCAL_LOGIN = 'DO_LOCAL_LOGIN',
   DO_LOGOUT = 'DO_LOGOUT',
   REFRESH_CLIENT_TOKEN = 'REFRESH_CLIENT_TOKEN',
+  REFRESH_TOKEN_FROM_SESSION = 'REFRESH_TOKEN_FROM_SESSION',
   NAVIGATE = 'NAVIGATE',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
@@ -37,6 +39,11 @@ export interface Actions {
   [ActionTypes.DO_LOCAL_LOGIN](
     { commit }: AugmentedActionContext,
     payload: { usr: string; psw: string; entity: string }
+  ): void;
+
+  [ActionTypes.REFRESH_TOKEN_FROM_SESSION](
+    { commit }: AugmentedActionContext,
+    payload: { token: string }
   ): void;
 
   [ActionTypes.DO_LOGOUT](
@@ -127,15 +134,22 @@ export const actions: ActionTree<State, State> & Actions = {
     });
   },
 
+  [ActionTypes.REFRESH_TOKEN_FROM_SESSION]({ commit }, payload) {
+    ConnectionService.setClientHasura(payload.token);
+    commit(MutationTypes.SET_LOGIN_DATA, payload);
+  },
+
   [ActionTypes.DO_LOGOUT]({ commit }, payload) {
-    initClientToken();
+    ConnectionService.setClientBackend();
+    remove('token');
     commit(MutationTypes.LOGOUT, payload);
     router.push({ name: 'login' });
   },
 
   [ActionTypes.REFRESH_CLIENT_TOKEN]({ commit }, payload) {
-    refreshClientToken(payload.token);
-    commit(MutationTypes.LOGIN_SUCCESS, payload);
+    ConnectionService.setClientHasura(payload.token);
+    setCookie('token', payload.token, { expires: '1h' });
+    commit(MutationTypes.SET_LOGIN_DATA, payload);
   },
 
   [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {

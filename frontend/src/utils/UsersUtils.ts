@@ -15,7 +15,7 @@ export default class UsersUtils {
           lastAttempt: '',
           creationDate: '',
           uuid: item.uuid,
-          id: '',
+          id: item.id,
           avatar: '',
           profile: ''
         };

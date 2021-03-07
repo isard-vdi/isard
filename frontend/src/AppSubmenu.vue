@@ -73,7 +73,8 @@ export default {
   name: 'AppSubmenu',
   props: {
     items: {
-      type: Array
+      type: Array,
+      default: () => []
     },
     root: {
       type: Boolean,

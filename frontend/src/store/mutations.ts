@@ -3,7 +3,7 @@ import { State } from './state';
 
 export enum MutationTypes {
   LOAD_LIST_ITEMS = 'LOAD_LIST_ITEMS',
-  LOGIN_SUCCESS = 'LOGIN',
+  SET_LOGIN_DATA = 'SET_LOGIN_DATA',
   LOGOUT = 'LOGOUT',
   TOGGLE_MENU = 'TOGGLE_MENU',
   CHANGE_MENU_TYPE = 'CHANGE_MENU_TYPE',
@@ -16,7 +16,7 @@ export enum MutationTypes {
 
 export type Mutations<S = State> = {
   [MutationTypes.LOAD_LIST_ITEMS](state: S, payload: Types.User[]): void;
-  [MutationTypes.LOGIN_SUCCESS](state: S, payload: { token: string }): void;
+  [MutationTypes.SET_LOGIN_DATA](state: S, payload: { token: string }): void;
   [MutationTypes.LOGOUT](state: S, payload: {}): void;
   [MutationTypes.TOGGLE_MENU](state: S, payload: {}): void;
   [MutationTypes.CHANGE_MENU_TYPE](state: S, payload: string): void;
@@ -31,7 +31,7 @@ export const mutations: MutationTree<State> & Mutations = {
   [MutationTypes.LOAD_LIST_ITEMS](state: State, payload) {
     state.search = payload;
   },
-  [MutationTypes.LOGIN_SUCCESS](state: State, payload) {
+  [MutationTypes.SET_LOGIN_DATA](state: State, payload) {
     state.auth.token = payload.token;
     state.auth.loggedIn = true;
   },
