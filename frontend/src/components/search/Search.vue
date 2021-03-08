@@ -60,6 +60,10 @@ export default defineComponent({
 
     const f_edit = (data: any) => {
       console.log(data, 'data');
+      store.dispatch(ActionTypes.GET_ITEM, {
+        section: 'users',
+        params: { id: data.id }
+      });
     };
 
     const f_delete = (user: Types.User) => {

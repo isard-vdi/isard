@@ -73,9 +73,8 @@ router.beforeEach((to, from, next) => {
   const toSection = urlSegments[1];
 
   if (!loggedIn) {
-    // logged out
     if (tokenCookie && tokenCookie != 'null' && tokenCookie != '') {
-      // Has token
+      // Has token, check if it's valid or refresh!!!!!
       console.log('****** logged out y Hay token *****');
       store.dispatch(ActionTypes.REFRESH_TOKEN_FROM_SESSION, {
         token: tokenCookie
@@ -94,7 +93,7 @@ router.beforeEach((to, from, next) => {
       router.push({ name: 'login' });
     } else {
       // no token && no auth
-      console.log(to, '**** Abierto **** toUrl ****');
+      console.log(to, '**** Open ****');
       store.dispatch(ActionTypes.NAVIGATE, {
         section: to.name,
         url: to.fullPath,

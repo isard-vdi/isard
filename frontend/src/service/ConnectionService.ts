@@ -3,10 +3,11 @@ import { Client, createClient, defaultPlugins, definePlugin } from 'villus';
 export let villusClient: Client;
 
 export default class ConnectionService {
-  static executeQuery(query: string): any {
+  static executeQuery(query: string, params: Object): any {
     return villusClient
       .executeQuery({
-        query: query
+        query: query,
+        variables: params
       })
       .then((res) => res.data);
   }

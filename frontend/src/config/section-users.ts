@@ -5,7 +5,7 @@ export const SectionUsers: SectionConfig = {
   baseUrl: '',
   query: {
     search: `
-    query Users {
+    query UsersList {
       user {
         created_at
         email
@@ -16,7 +16,18 @@ export const SectionUsers: SectionConfig = {
         uuid
       }
     }`,
-    detail: ''
+    detail: `query UserDetail($id: bigint) {
+      user(where: {id: {_eq: $id}}) {
+        email
+        id
+        name
+        surname
+        entity {
+          id
+          name
+        }
+      }
+    }`
   },
   table: {
     columns: [

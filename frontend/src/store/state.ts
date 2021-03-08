@@ -5,6 +5,7 @@ export interface State {
   auth: Auth;
   ui: Ui;
   router: RouterState;
+  detail?: any;
 }
 
 export interface Ui {

@@ -26,6 +26,7 @@ export enum ActionTypes {
   NAVIGATE = 'NAVIGATE',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
+  GET_ITEM = 'GET_ITEM',
   TOGGLE_MENU = 'TOGGLE_MENU',
   CHANGE_MENU_TYPE = 'CHANGE_MENU_TYPE',
   CHANGE_MENU_COLOR_MODE = 'CHANGE_MENU_COLOR_MODE',
@@ -84,6 +85,14 @@ export interface Actions {
       url: string;
       queryParams: string[];
       editmode: boolean;
+    }
+  ): void;
+
+  [ActionTypes.GET_ITEM](
+    { commit }: AugmentedActionContext,
+    payload: {
+      section: string;
+      params: any;
     }
   ): void;
 
@@ -170,6 +179,20 @@ export const actions: ActionTree<State, State> & Actions = {
         )
       );
     });
+  },
+
+  [ActionTypes.GET_ITEM]({ commit, getters }, payload) {
+    const section: string = getters.section;
+    const query: string = sections[section].config?.query.detail;
+    SearchService.detailSearch(query, payload.params).then(
+      (response: any): any => {
+        const dataItem =
+          (response && response[Object.keys(response)[0]][0]) || {};
+        console.log(dataItem, 'dataItem');
+        commit(MutationTypes.GET_ITEM, dataItem);
+        router.push({ name: 'users-detail', params: payload.params });
+      }
+    );
   },
 
   [ActionTypes.GO_SEARCH]({ commit }, payload) {
