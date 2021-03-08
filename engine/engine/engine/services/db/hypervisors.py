@@ -220,6 +220,16 @@ def get_hyp_hostnames_online():
 #     close_rethink_connection(r_conn)
 #     return out
 
+def update_hyp_only_forced(hyp_id, only_forced=True):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+    if only_forced != True:
+        only_forced = False
+    out = rtable.get(hyp_id). \
+        update({'only_forced': only_forced}). \
+        run(r_conn)
+    close_rethink_connection(r_conn)
+    return out
 
 def update_uri_hyp(hyp_id, uri):
     r_conn = new_rethink_connection()
@@ -465,34 +475,53 @@ def get_pool_hypers_conf(id_pool='default'):
     close_rethink_connection(r_conn)
     return result
 
-def get_hypers_in_pool(id_pool='default', only_online=True):
+def get_hypers_in_pool(id_pool='default', only_online=True, exclude_hyp_only_forced=False):
     r_conn = new_rethink_connection()
     rtable = r.table('hypervisors')
-    return_operations = []
+
+    l_forced = []
+    if exclude_hyp_only_forced is True:
+        if only_online:
+            l_forced = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                 filter({'status': 'Online','only_forced': True}).pluck('id').run(r_conn))
+        else:
+            l_forced = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                     filter({'only_forced': True}).pluck('id').run(r_conn))
 
     if only_online:
         l = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
-             filter({'status': 'Online'}).pluck('id').run(r_conn))
+                 filter({'status': 'Online'}).pluck('id').run(r_conn))
     else:
         l = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
                  pluck('id').run(r_conn))
 
-    hyp_ids = [a['id'] for a in l]
+    hyps_id = [a['id'] for a in l]
+    hyps_forced = [a['id'] for a in l_forced]
+    removed = [hyps_id.remove(i) for i in hyps_forced]
 
     close_rethink_connection(r_conn)
-    return hyp_ids
+    return hyps_id
 
-def get_hypers_info(id_pool='default', pluck=None):
+def get_hypers_info(id_pool='default', pluck=None, exclude_only_forced=False):
     r_conn = new_rethink_connection()
     rtable = r.table('hypervisors')
-    return_operations = []
-    if not pluck:
-        results = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
-             filter({'status': 'Online'}).run(r_conn))
-    else:
-        results = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
-                 filter({'status': 'Online'}).pluck(pluck).run(r_conn))
+    l_only_forced = []
+    if exclude_only_forced is True:
+        if not pluck:
+            l_only_forced = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                 filter({'status': 'Online','only_forced': True}).run(r_conn))
+        else:
+            l_only_forced = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                     filter({'status': 'Online','only_forced': True}).pluck(pluck).run(r_conn))
 
+    if not pluck:
+        l_all = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                       filter({'status': 'Online'}).run(r_conn))
+    else:
+        l_all = list(rtable.filter(r.row['hypervisors_pools'].contains(id_pool)). \
+                       filter({'status': 'Online'}).pluck(pluck).run(r_conn))
+
+    results = [a for a in l_all if a['id'] not in [b['id'] for b in l_only_forced]]
     close_rethink_connection(r_conn)
     return results
 

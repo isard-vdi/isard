@@ -17,21 +17,26 @@ from engine.services.db.domains import get_domain_hardware_dict
 from engine.services.log import logs
 
 class Balancer_no_stats():
-    def __init__(self,hyps_id):
+    def __init__(self,hyps_id,id_pool):
         assert type(hyps_id) is list
         assert len(hyps_id) >= 1
         self.hyps = hyps_id
         self.index_round_robin = 0
+        self.id_pool = id_pool
     # args = {'to_create_disk': to_create_disk,
     #         'path_selected': path_selected,
     #         'domain_id': domain_id}
 
     def get_next(self, **kwargs):
+        self.hyps = get_hypers_in_pool(self.id_pool,exclude_hyp_only_forced=True)
         #return self.hyps[randint(0,len(self.hyps)-1)]
         self.index_round_robin += 1
         if self.index_round_robin >= len(self.hyps):
             self.index_round_robin = 0
-        return self.hyps[self.index_round_robin]
+        if len(self.hyps) > 0:
+            return self.hyps[self.index_round_robin]
+        else:
+            return False
 
 class PoolHypervisors():
     def __init__(self, id_pool, manager, hyps_ready_count, with_status_threads=True):
@@ -60,7 +65,7 @@ class PoolHypervisors():
             while (len(hyps_id) < hyps_ready_count):
                 sleep(2)
                 hyps_id = get_hypers_in_pool(self.id_pool)
-            self.balancer = Balancer_no_stats(hyps_id)
+            self.balancer = Balancer_no_stats(hyps_id,self.id_pool)
 
 
     def get_hyps_obj(self, manager, hyps_ready_count):
@@ -98,16 +103,17 @@ class PoolHypervisors():
                     return next_hyp,extra
                 else:
                     hypers_online = get_hypers_info(id_pool=self.id_pool)
+                    hypers_online_exclude_only_forced = get_hypers_info(id_pool=self.id_pool,exclude_only_forced=True)
 
                     if force_hyp != False:
-                        if force_hyp in hypers_online:
+                        if force_hyp in [a['id'] for a in hypers_online]:
                             return force_hyp,{}
                         else:
-                            logs.hmlog.error(f'force hypervisor {preferred_hyp} is not online, desktop will not start')
+                            logs.hmlog.error(f'force hypervisor {force_hyp} is not online, desktop will not start')
                             return False,{}
 
                     if preferred_hyp != False:
-                        if force_hyp in hypers_online:
+                        if preferred_hyp in [a['id'] for a in hypers_online_exclude_only_forced]:
                             return preferred_hyp,{}
                         else:
                             logs.hmlog.info(f'preferred hypervisor {preferred_hyp} is no online, trying other hypervisor online in pool')
@@ -117,26 +123,31 @@ class PoolHypervisors():
 
     def get_next_hyp_with_gpu(self,type,force_hyp=False,preferred_hyp=False):
         hypers_online = get_hypers_info(id_pool=self.id_pool)
+        hypers_online_exclude_only_forced = get_hypers_info(id_pool=self.id_pool,exclude_only_forced=True)
         if len(hypers_online) == 0:
             return False
         hypers_online_with_gpu = [h for h in hypers_online if len(h.get('default_gpu_models',{})) > 0]
         ids_hypers_online_with_gpu = [h['id'] for h in hypers_online_with_gpu]
+        hypers_online_with_gpu_excluded_only_forced = [h for h in hypers_online_exclude_only_forced if len(h.get('default_gpu_models',{})) > 0]
+        ids_hypers_online_with_gpu_excluded_only_forced = [h['id'] for h in hypers_online_with_gpu_excluded_only_forced]
         if force_hyp != False:
             if force_hyp in ids_hypers_online_with_gpu:
                 hypers_online_with_gpu = [h for h in hypers_online_with_gpu if h['id'] == force_hyp]
             else:
                 logs.hmlog.error(f'force hypervisor {preferred_hyp} is not online, desktop will not start')
                 return False,False,False,False
+        else:
+            hypers_online_with_gpu = hypers_online_with_gpu_excluded_only_forced
 
         if preferred_hyp != False:
-            if preferred_hyp in ids_hypers_online_with_gpu:
+            if preferred_hyp in hypers_online_with_gpu:
                 hypers_online_with_gpu = [h for h in hypers_online_with_gpu if h['id'] == preferred_hyp]
             else:
                 logs.hmlog.info(f'preferred hypervisor {preferred_hyp} is no online, trying other hypervisor online in pool')
-                return False,False,False,False
+                pass
 
         if len(hypers_online_with_gpu) == 0:
-            return False
+            return False,False,False,False
         available_uids = {}
         max_available = 0
         next_hyp = False
@@ -161,9 +172,4 @@ class PoolHypervisors():
                         next_model = model
         return next_hyp,next_available_uid,next_id_pci,next_model
 
-
-
-
-
-        pass
 
