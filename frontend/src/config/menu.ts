@@ -22,7 +22,7 @@ export const menu = [
   {
     label: 'Entities',
     icon: 'pi pi-fw pi-sitemap',
-    to: { name: '' }
+    to: { name: 'entities' }
   },
   {
     label: 'Groups',

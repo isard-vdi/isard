@@ -16,6 +16,10 @@ export const SectionEntities: SectionConfig = {
     detail: ''
   },
   table: {
-    columns: [{ field: 'name', header: 'Name' }]
+    columns: [
+      { field: 'uuid', header: 'Uuid' },
+      { field: 'name', header: 'Name' },
+      { field: 'created_at', header: 'Created' }
+    ]
   }
 };

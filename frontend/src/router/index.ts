@@ -57,6 +57,15 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
+    path: '/entities',
+    name: 'entities',
+    component: () => import('@/components/search/Search.vue'),
+    meta: {
+      layout: 'MainLayout',
+      needsAuth: true
+    }
+  },
+  {
     path: '/entity',
     name: 'Entity',
     component: () => import('@/components/Dashboard.vue'),

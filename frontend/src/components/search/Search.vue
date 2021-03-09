@@ -30,7 +30,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, watch } from 'vue';
 import { useStore } from '../../store';
 import { ActionTypes } from '@/store/actions';
 import { useRoute } from 'vue-router';
@@ -44,9 +44,21 @@ export default defineComponent({
     const route = useRoute();
 
     // LifeCycle Hooks
-    const section: string = store.getters.section;
-    const sectionConfig: SectionConfig | {} =
-      (section && sections[`${section}`].config) || {};
+    const section = computed(() => store.getters.section);
+    const sectionConfig: SectionConfig | {} = computed(
+      () => (section.value && sections[`${section.value}`].config) || {}
+    );
+
+    watch(
+      () => store.getters.section,
+      () => {
+        store.dispatch(ActionTypes.DO_SEARCH, {
+          queryParams: [],
+          size: DEFAULT_SEARCH_SIZE,
+          start: 0
+        });
+      }
+    );
 
     const itemsList = computed(() => store.getters.searchResults);
 
