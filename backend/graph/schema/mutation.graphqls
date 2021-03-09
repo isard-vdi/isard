@@ -1,5 +1,5 @@
 type Mutation {
-    login(provider: String!, entityId: String!, usr: String, pwd: String): String
+    login(input: LoginInput!): LoginPayload
 
     desktopStart(id: ID!): DesktopStartPayload
     desktopStop(id: ID!): DesktopStopPayload
@@ -13,4 +13,18 @@ type Mutation {
     templateDelete(id: ID!): TemplateDeletePayload
 
     hardwareBaseCreate(input: HardwareBaseCreateInput!): HardwareBaseCreatePayload
+}
+
+input LoginInput {
+    provider: String!
+    entityId: String!
+    usr: String
+    pwd: String
+}
+
+type LoginPayload {
+    token: String!
+    id: String!
+    name: String!
+    surname: String!
 }

@@ -108,6 +108,20 @@ type HardwareBaseCreatePayload struct {
 	Record   *HardwareBase `json:"record"`
 }
 
+type LoginInput struct {
+	Provider string  `json:"provider"`
+	EntityID string  `json:"entityId"`
+	Usr      *string `json:"usr"`
+	Pwd      *string `json:"pwd"`
+}
+
+type LoginPayload struct {
+	Token   string `json:"token"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Surname string `json:"surname"`
+}
+
 type Template struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`

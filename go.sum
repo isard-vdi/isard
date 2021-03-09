@@ -324,6 +324,7 @@ gitlab.com/isard/isardvdi/backend v0.0.0-20210213113954-a04b7bfff0a5 h1:bxYFFL5A
 gitlab.com/isard/isardvdi/backend v0.0.0-20210222134252-033040d59946 h1:acwBVrW+kPYm/+odkGoTolPXlRfY6s5VBdXsqXAI+p4=
 gitlab.com/isard/isardvdi/backend v0.0.0-20210224105658-ff491876b08d h1:NfCEEN2DjnaMgcZSR4o1oOvMplAm6hnypq/QMMPzQdc=
 gitlab.com/isard/isardvdi/backend v0.0.0-20210225153243-80d70227f415 h1:1k1JtZL0yWYhiX9EYNq+X1oC14NsFc5U2xe8pjwM9aY=
+gitlab.com/isard/isardvdi/backend v0.0.0-20210308080356-b34776c56297 h1:K2kSosMelq0MOOPoBR9097rAB3ThZCOA0bzuLw0lJ4M=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=

@@ -14,16 +14,20 @@ service Auth {
 
 message LoginRequest {
     string provider = 1;
-    string entity_id = 2;
+    string entity_uuid = 2;
 
     // Local login
-    string usr = 4;
-    string pwd = 5;
+    string usr = 3;
+    string pwd = 4;
 }
 
 message LoginResponse {
-    string token = 1;
-    string redirect = 2;
+    string redirect = 1;
+
+    string token = 2;
+    string uuid = 3;
+    string name = 4;
+    string surname = 5;
 }
 
 message LogoutRequest {
@@ -31,7 +35,7 @@ message LogoutRequest {
 }
 
 message LogoutResponse {
-    string redirect = 2;
+    string redirect = 1;
 }
 
 message CheckRequest {

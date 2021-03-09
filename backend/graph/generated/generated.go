@@ -110,6 +110,13 @@ type ComplexityRoot struct {
 		RecordID func(childComplexity int) int
 	}
 
+	LoginPayload struct {
+		ID      func(childComplexity int) int
+		Name    func(childComplexity int) int
+		Surname func(childComplexity int) int
+		Token   func(childComplexity int) int
+	}
+
 	Mutation struct {
 		DesktopCreate      func(childComplexity int, input model.DesktopCreateInput) int
 		DesktopDelete      func(childComplexity int, id string) int
@@ -118,7 +125,7 @@ type ComplexityRoot struct {
 		DesktopStop        func(childComplexity int, id string) int
 		DesktopTemplate    func(childComplexity int, input model.DesktopTemplateInput) int
 		HardwareBaseCreate func(childComplexity int, input model.HardwareBaseCreateInput) int
-		Login              func(childComplexity int, provider string, entityID string, usr *string, pwd *string) int
+		Login              func(childComplexity int, input model.LoginInput) int
 		TemplateDelete     func(childComplexity int, id string) int
 	}
 
@@ -159,7 +166,7 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	Login(ctx context.Context, provider string, entityID string, usr *string, pwd *string) (*string, error)
+	Login(ctx context.Context, input model.LoginInput) (*model.LoginPayload, error)
 	DesktopStart(ctx context.Context, id string) (*model.DesktopStartPayload, error)
 	DesktopStop(ctx context.Context, id string) (*model.DesktopStopPayload, error)
 	DesktopDelete(ctx context.Context, id string) (*model.DesktopDeletePayload, error)
@@ -432,6 +439,34 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.HardwareBaseCreatePayload.RecordID(childComplexity), true
 
+	case "LoginPayload.id":
+		if e.complexity.LoginPayload.ID == nil {
+			break
+		}
+
+		return e.complexity.LoginPayload.ID(childComplexity), true
+
+	case "LoginPayload.name":
+		if e.complexity.LoginPayload.Name == nil {
+			break
+		}
+
+		return e.complexity.LoginPayload.Name(childComplexity), true
+
+	case "LoginPayload.surname":
+		if e.complexity.LoginPayload.Surname == nil {
+			break
+		}
+
+		return e.complexity.LoginPayload.Surname(childComplexity), true
+
+	case "LoginPayload.token":
+		if e.complexity.LoginPayload.Token == nil {
+			break
+		}
+
+		return e.complexity.LoginPayload.Token(childComplexity), true
+
 	case "Mutation.desktopCreate":
 		if e.complexity.Mutation.DesktopCreate == nil {
 			break
@@ -526,7 +561,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.Login(childComplexity, args["provider"].(string), args["entityId"].(string), args["usr"].(*string), args["pwd"].(*string)), true
+		return e.complexity.Mutation.Login(childComplexity, args["input"].(model.LoginInput)), true
 
 	case "Mutation.templateDelete":
 		if e.complexity.Mutation.TemplateDelete == nil {
@@ -878,7 +913,7 @@ type HardwareBaseCreatePayload {
     record: HardwareBase
 }`, BuiltIn: false},
 	{Name: "graph/schema/mutation.graphqls", Input: `type Mutation {
-    login(provider: String!, entityId: String!, usr: String, pwd: String): String
+    login(input: LoginInput!): LoginPayload
 
     desktopStart(id: ID!): DesktopStartPayload
     desktopStop(id: ID!): DesktopStopPayload
@@ -893,7 +928,20 @@ type HardwareBaseCreatePayload {
 
     hardwareBaseCreate(input: HardwareBaseCreateInput!): HardwareBaseCreatePayload
 }
-`, BuiltIn: false},
+
+input LoginInput {
+    provider: String!
+    entityId: String!
+    usr: String
+    pwd: String
+}
+
+type LoginPayload {
+    token: String!
+    id: String!
+    name: String!
+    surname: String!
+}`, BuiltIn: false},
 	{Name: "graph/schema/query.graphqls", Input: `type Query {
     desktopList: [Desktop!]!
     desktopGet(id: ID!): Desktop
@@ -1055,42 +1103,15 @@ func (ec *executionContext) field_Mutation_hardwareBaseCreate_args(ctx context.C
 func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["provider"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("provider"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+	var arg0 model.LoginInput
+	if tmp, ok := rawArgs["input"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+		arg0, err = ec.unmarshalNLoginInput2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐLoginInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["provider"] = arg0
-	var arg1 string
-	if tmp, ok := rawArgs["entityId"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("entityId"))
-		arg1, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["entityId"] = arg1
-	var arg2 *string
-	if tmp, ok := rawArgs["usr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("usr"))
-		arg2, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["usr"] = arg2
-	var arg3 *string
-	if tmp, ok := rawArgs["pwd"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pwd"))
-		arg3, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["pwd"] = arg3
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -2352,6 +2373,146 @@ func (ec *executionContext) _HardwareBaseCreatePayload_record(ctx context.Contex
 	return ec.marshalOHardwareBase2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBase(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _LoginPayload_token(ctx context.Context, field graphql.CollectedField, obj *model.LoginPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "LoginPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Token, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _LoginPayload_id(ctx context.Context, field graphql.CollectedField, obj *model.LoginPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "LoginPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _LoginPayload_name(ctx context.Context, field graphql.CollectedField, obj *model.LoginPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "LoginPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _LoginPayload_surname(ctx context.Context, field graphql.CollectedField, obj *model.LoginPayload) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "LoginPayload",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Surname, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2377,7 +2538,7 @@ func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.C
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().Login(rctx, args["provider"].(string), args["entityId"].(string), args["usr"].(*string), args["pwd"].(*string))
+		return ec.resolvers.Mutation().Login(rctx, args["input"].(model.LoginInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2386,9 +2547,9 @@ func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.C
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(*model.LoginPayload)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOLoginPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐLoginPayload(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_desktopStart(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -4664,6 +4825,50 @@ func (ec *executionContext) unmarshalInputHardwareBaseCreateInput(ctx context.Co
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj interface{}) (model.LoginInput, error) {
+	var it model.LoginInput
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "provider":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("provider"))
+			it.Provider, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "entityId":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("entityId"))
+			it.EntityID, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "usr":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("usr"))
+			it.Usr, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "pwd":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pwd"))
+			it.Pwd, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -5013,6 +5218,48 @@ func (ec *executionContext) _HardwareBaseCreatePayload(ctx context.Context, sel 
 			out.Values[i] = ec._HardwareBaseCreatePayload_recordId(ctx, field, obj)
 		case "record":
 			out.Values[i] = ec._HardwareBaseCreatePayload_record(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var loginPayloadImplementors = []string{"LoginPayload"}
+
+func (ec *executionContext) _LoginPayload(ctx context.Context, sel ast.SelectionSet, obj *model.LoginPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, loginPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("LoginPayload")
+		case "token":
+			out.Values[i] = ec._LoginPayload_token(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "id":
+			out.Values[i] = ec._LoginPayload_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "name":
+			out.Values[i] = ec._LoginPayload_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "surname":
+			out.Values[i] = ec._LoginPayload_surname(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5808,6 +6055,11 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
+func (ec *executionContext) unmarshalNLoginInput2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐLoginInput(ctx context.Context, v interface{}) (model.LoginInput, error) {
+	res, err := ec.unmarshalInputLoginInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6199,6 +6451,13 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 		return graphql.Null
 	}
 	return graphql.MarshalID(*v)
+}
+
+func (ec *executionContext) marshalOLoginPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐLoginPayload(ctx context.Context, sel ast.SelectionSet, v *model.LoginPayload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._LoginPayload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
