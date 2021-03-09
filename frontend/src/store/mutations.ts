@@ -3,7 +3,7 @@ import { State } from './state';
 
 export enum MutationTypes {
   LOAD_LIST_ITEMS = 'LOAD_LIST_ITEMS',
-  LOGIN_SUCCESS = 'LOGIN',
+  SET_LOGIN_DATA = 'SET_LOGIN_DATA',
   LOGOUT = 'LOGOUT',
   TOGGLE_MENU = 'TOGGLE_MENU',
   CHANGE_MENU_TYPE = 'CHANGE_MENU_TYPE',
@@ -11,12 +11,13 @@ export enum MutationTypes {
   CHANGE_MENU_OVERLAY_ACTIVE = 'CHANGE_MENU_OVERLAY_ACTIVE',
   CHANGE_MENU_MOBILE_ACTIVE = 'CHANGE_MENU_MOBILE_ACTIVE',
   CHANGE_MENU_STATIC_INACTIVE = 'CHANGE_MENU_STATIC_INACTIVE',
-  CHANGE_SECTION = 'CHANGE_SECTION'
+  CHANGE_SECTION = 'CHANGE_SECTION',
+  GET_ITEM = 'MutationTypes.GET_ITEM'
 }
 
 export type Mutations<S = State> = {
   [MutationTypes.LOAD_LIST_ITEMS](state: S, payload: Types.User[]): void;
-  [MutationTypes.LOGIN_SUCCESS](state: S, payload: { token: string }): void;
+  [MutationTypes.SET_LOGIN_DATA](state: S, payload: { token: string }): void;
   [MutationTypes.LOGOUT](state: S, payload: {}): void;
   [MutationTypes.TOGGLE_MENU](state: S, payload: {}): void;
   [MutationTypes.CHANGE_MENU_TYPE](state: S, payload: string): void;
@@ -25,13 +26,14 @@ export type Mutations<S = State> = {
   [MutationTypes.CHANGE_MENU_MOBILE_ACTIVE](state: S, payload: boolean): void;
   [MutationTypes.CHANGE_MENU_STATIC_INACTIVE](state: S, payload: boolean): void;
   [MutationTypes.CHANGE_SECTION](state: S, payload: { section: string }): void;
+  [MutationTypes.GET_ITEM](state: S, payload: { item: any }): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
   [MutationTypes.LOAD_LIST_ITEMS](state: State, payload) {
     state.search = payload;
   },
-  [MutationTypes.LOGIN_SUCCESS](state: State, payload) {
+  [MutationTypes.SET_LOGIN_DATA](state: State, payload) {
     state.auth.token = payload.token;
     state.auth.loggedIn = true;
   },
@@ -75,5 +77,8 @@ export const mutations: MutationTree<State> & Mutations = {
   },
   [MutationTypes.CHANGE_SECTION](state: State, payload) {
     state.router.section = payload.section;
+  },
+  [MutationTypes.GET_ITEM](state: State, payload) {
+    state.detail = payload;
   }
 };

@@ -48,6 +48,15 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
+    path: '/users/:id',
+    name: 'users-detail',
+    component: () => import('@/components/details/User.vue'),
+    meta: {
+      layout: 'MainLayout',
+      needsAuth: true
+    }
+  },
+  {
     path: '/entity',
     name: 'Entity',
     component: () => import('@/components/Dashboard.vue'),

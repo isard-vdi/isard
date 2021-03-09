@@ -58,14 +58,23 @@ export default defineComponent({
       });
     };
 
-    const f_delete = (data: any) => {
+    const f_edit = (data: any) => {
       console.log(data, 'data');
+      store.dispatch(ActionTypes.GET_ITEM, {
+        section: 'users',
+        params: { id: data.id }
+      });
+    };
+
+    const f_delete = (user: Types.User) => {
+      console.log(user, 'data');
     };
 
     return {
       actionFilterSearch,
       itemsList,
       sectionConfig,
+      f_edit,
       f_delete
     };
   }

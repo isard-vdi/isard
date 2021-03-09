@@ -1,6 +1,4 @@
-import { sections } from '@/config/sections';
-import { villusClient } from '@/main';
-import { useQuery } from 'villus';
+import { stringifyQuery } from 'vue-router';
 import ConnectionService from './ConnectionService';
 
 export default class SearchService {
@@ -10,6 +8,10 @@ export default class SearchService {
     size: number,
     start: number
   ): any {
-    return ConnectionService.executeQuery(query);
+    return ConnectionService.executeQuery(query, {});
+  }
+
+  static detailSearch(query: string, params: any) {
+    return ConnectionService.executeQuery(query, params);
   }
 }
