@@ -17,7 +17,7 @@ var (
 )
 
 type Provider interface {
-	Login(ctx context.Context, entityID string, args map[string]interface{}) (string, string, error)
+	Login(ctx context.Context, entityID string, args map[string]interface{}) (*model.User, string, string, error)
 	Logout(ctx context.Context, session *sessions.Session) (string, error)
 	Get(ctx context.Context, u *model.User) error
 	String() string
@@ -40,8 +40,8 @@ func (Unknown) String() string {
 	return "unknown"
 }
 
-func (Unknown) Login(context.Context, string, map[string]interface{}) (string, string, error) {
-	return "", "", errUnknownIDP
+func (Unknown) Login(context.Context, string, map[string]interface{}) (*model.User, string, string, error) {
+	return nil, "", "", errUnknownIDP
 }
 
 func (Unknown) Logout(context.Context, *sessions.Session) (string, error) {

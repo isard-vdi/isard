@@ -57,30 +57,30 @@ func parseLocalLoginArgs(args map[string]interface{}) (*localLoginArgs, bool) {
 	}, true
 }
 
-func (l *Local) Login(ctx context.Context, entityID string, args map[string]interface{}) (string, string, error) {
+func (l *Local) Login(ctx context.Context, entityID string, args map[string]interface{}) (*model.User, string, string, error) {
 	a, ok := parseLocalLoginArgs(args)
 	if !ok {
-		return "", "", errors.New("invalid arguments")
+		return nil, "", "", errors.New("invalid arguments")
 	}
 
 	u := &model.User{Username: a.Usr}
 	if err := u.LoadWithUsername(ctx, l.DB, entityID); err != nil {
 		if errors.Is(err, pg.ErrNoRows) {
-			return "", "", ErrInvalidCredentials
+			return nil, "", "", ErrInvalidCredentials
 		}
 
-		return "", "", fmt.Errorf("load DB user: %w", err)
+		return nil, "", "", fmt.Errorf("load DB user: %w", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(a.Pwd)); err != nil {
-		return "", "", ErrInvalidCredentials
+		return nil, "", "", ErrInvalidCredentials
 	}
 
 	r := store.BuildHTTPRequest(ctx, "")
 
 	s, err := l.Store.New(r, store.SessionStoreKey)
 	if err != nil {
-		return "", "", fmt.Errorf("create session: %w", err)
+		return nil, "", "", fmt.Errorf("create session: %w", err)
 	}
 
 	val := store.NewStoreValues(nil)
@@ -92,15 +92,15 @@ func (l *Local) Login(ctx context.Context, entityID string, args map[string]inte
 
 	w := store.BuildHTTPResponseWriter()
 	if err := s.Save(r, w); err != nil {
-		return "", "", fmt.Errorf("save session: %w", err)
+		return nil, "", "", fmt.Errorf("save session: %w", err)
 	}
 
 	token, err := store.GetToken(w)
 	if err != nil {
-		return "", "", fmt.Errorf("get token: %w", err)
+		return nil, "", "", fmt.Errorf("get token: %w", err)
 	}
 
-	return token, "", nil
+	return u, token, "", nil
 }
 
 func (l *Local) Logout(ctx context.Context, s *sessions.Session) (string, error) {

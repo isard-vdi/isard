@@ -7,39 +7,43 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rs/xid"
 	"gitlab.com/isard/isardvdi/backend/graph/generated"
 	"gitlab.com/isard/isardvdi/backend/graph/model"
 	"gitlab.com/isard/isardvdi/backend/viewer"
 	cmnModel "gitlab.com/isard/isardvdi/pkg/model"
 	"gitlab.com/isard/isardvdi/pkg/proto/auth"
 	"gitlab.com/isard/isardvdi/pkg/proto/controller"
-
-	"github.com/rs/xid"
 )
 
-func (r *mutationResolver) Login(ctx context.Context, provider string, entityID string, usr *string, pwd *string) (*string, error) {
+func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.LoginPayload, error) {
 	u := ""
-	if usr != nil {
-		u = *usr
+	if input.Usr != nil {
+		u = *input.Usr
 	}
 
 	p := ""
-	if pwd != nil {
-		p = *pwd
+	if input.Pwd != nil {
+		p = *input.Pwd
 	}
 
 	// TODO: Redirect
 	rsp, err := r.Auth.Login(ctx, &auth.LoginRequest{
-		Provider: provider,
-		EntityId: entityID,
-		Usr:      u,
-		Pwd:      p,
+		Provider:   input.Provider,
+		EntityUuid: input.EntityID,
+		Usr:        u,
+		Pwd:        p,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("login: %w", err)
 	}
 
-	return &rsp.Token, nil
+	return &model.LoginPayload{
+		Token:   rsp.Token,
+		ID:      rsp.Uuid,
+		Name:    rsp.Name,
+		Surname: rsp.Surname,
+	}, nil
 }
 
 func (r *mutationResolver) DesktopStart(ctx context.Context, id string) (*model.DesktopStartPayload, error) {

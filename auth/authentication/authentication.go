@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/isard/isardvdi/auth/authentication/provider"
 	"gitlab.com/isard/isardvdi/auth/authentication/store"
+	"gitlab.com/isard/isardvdi/pkg/model"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/go-redis/redis/v8"
@@ -16,7 +17,7 @@ import (
 )
 
 type Interface interface {
-	Login(ctx context.Context, provider string, entityID string, args map[string]interface{}) (string, string, error)
+	Login(ctx context.Context, provider string, entityID string, args map[string]interface{}) (*model.User, string, string, error)
 	Logout(ctx context.Context, token string) (string, error)
 	Check(ctx context.Context, token string) (string, error)
 	Refresh(ctx context.Context, token string) (string, error)
@@ -39,7 +40,7 @@ func New(ctx context.Context, redis redis.UniversalClient, db *pg.DB) (*Authenti
 	}, nil
 }
 
-func (a *Authentication) Login(ctx context.Context, p string, entityID string, args map[string]interface{}) (token, redirect string, err error) {
+func (a *Authentication) Login(ctx context.Context, p string, entityID string, args map[string]interface{}) (usr *model.User, token, redirect string, err error) {
 	provider := provider.FromString(p, a.store, a.db)
 	return provider.Login(ctx, entityID, args)
 }

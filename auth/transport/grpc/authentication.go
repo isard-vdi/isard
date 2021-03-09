@@ -9,13 +9,13 @@ import (
 
 func (a *AuthServer) Login(ctx context.Context, req *auth.LoginRequest) (*auth.LoginResponse, error) {
 	if err := grpc.Required(grpc.RequiredParams{
-		"provider": &req.Provider,
-		"entityID": &req.EntityId,
+		"provider":   &req.Provider,
+		"entityUUID": &req.EntityUuid,
 	}); err != nil {
 		return nil, err
 	}
 
-	token, redirect, err := a.Authentication.Login(ctx, req.Provider, req.EntityId, map[string]interface{}{
+	u, token, redirect, err := a.Authentication.Login(ctx, req.Provider, req.EntityUuid, map[string]interface{}{
 		"usr": req.Usr,
 		"pwd": req.Pwd,
 	})
@@ -24,7 +24,10 @@ func (a *AuthServer) Login(ctx context.Context, req *auth.LoginRequest) (*auth.L
 	}
 
 	return &auth.LoginResponse{
-		Token:    token,
 		Redirect: redirect,
+		Token:    token,
+		Uuid:     u.UUID,
+		Name:     u.Name,
+		Surname:  u.Surname,
 	}, nil
 }
