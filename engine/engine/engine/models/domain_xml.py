@@ -597,6 +597,10 @@ class DomainXML(object):
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
     def set_video_type(self, type_video):
+        if type_video.find('nvidia') == 0:
+            type_video = 'none'
+        if type_video.find('nvidia-with-qxl') == 0:
+            type_video = 'qxl'
         self.tree.xpath('/domain/devices/video/model')[0].set('type', type_video)
 
     def add_vlc_with_websockets(self):
@@ -1067,7 +1071,8 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     xml_raw = v.return_xml()
     #VERIFING HARDWARE FROM XML
     hw_updated = v.dict_from_xml()
-
+    if hw['video']['type'].find('nvidia') == 0:
+        hw_updated['video'] = hw['video'].copy()
     #pprint diffs between hardware and hardware from xml
     try:
         flatten_hw = flatten(hw, enumerate_types=(list,))
@@ -1329,6 +1334,8 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     x.remove_boot_order_and_danger_options_from_disks()
 
     x.dict_from_xml()
+    if dict_domain['hardware']['video']['type'].find('nvidia') == 0:
+        x.vm_dict['video'] = dict_domain['hardware']['video'].copy()
     # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
     update_domain_dict_hardware(id, x.vm_dict, xml=xml)
     if 'viewer_passwd' in x.__dict__.keys():
@@ -1342,3 +1349,28 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     # log.debug('#####################################################')
 
     return xml
+
+def recreate_xml_if_gpu(id_domain,xml,next_hyp,extras,remove_graphics=False):
+    xml = xml
+
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        log.error('Exception when parse xml in recreate_xml_if_gpu: {}'.format(e))
+        log.error('xml that fail: \n{}'.format(xml))
+        log.error('Traceback: {}'.format(traceback.format_exc()))
+        #return False
+
+    uid = extras['uid']
+    xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
+    <source>
+      <address uuid='{uid}'/>
+    </source>
+  </hostdev>"""
+    xpath_parent = '/domain/devices'
+
+    element_tree = etree.parse(StringIO(xml_hostdev)).getroot()
+    tree.xpath(xpath_parent)[0].insert(-1, element_tree)
+    xml_output = indent(etree.tostring(tree, encoding='unicode'))
+    return xml_output

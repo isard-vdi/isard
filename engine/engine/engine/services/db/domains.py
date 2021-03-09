@@ -501,15 +501,29 @@ def get_domain_forced_hyp(id_domain):
     rtable = r.table('domains')
 
     try:
-        forced_hyp = rtable.get(id_domain).pluck('forced_hyp').run(r_conn)['forced_hyp']
+        d = rtable.get(id_domain).pluck('forced_hyp','preferred_hyp').run(r_conn)
         close_rethink_connection(r_conn)
     except:
-        return False
+        return False,False
+    forced_hyp = d.get('forced_hyp',False)
+    preferred_hyp = d.get('preferred_hyp',False)
     if isinstance(forced_hyp,list) and len(forced_hyp)>0:
         ## By now, even the webapp will update it as a list, only lets
         ## to set one forced_hyp
-        return forced_hyp[0]
-    return False
+        if forced_hyp[0] == 'false':
+            forced_hyp = False
+        else:
+            forced_hyp = forced_hyp[0]
+    elif forced_hyp == 'false':
+        forced_hyp = False
+    if isinstance(preferred_hyp,list) and len(preferred_hyp)>0:
+        ## By now, even the webapp will update it as a list, only lets
+        ## to set one forced_hyp
+        if preferred_hyp[0] == 'false':
+            preferred_hyp = False
+    elif preferred_hyp == 'false':
+        preferred_hyp = False
+    return forced_hyp,preferred_hyp
 
 def get_domain(id):
     r_conn = new_rethink_connection()
@@ -526,6 +540,14 @@ def get_domain_hardware_dict(id_domain):
     result = rtable.get(id_domain).pluck('hardware').run(r_conn)
     close_rethink_connection(r_conn)
     return result['hardware']
+
+def get_create_dict(id_domain):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    result = rtable.get(id_domain).pluck('create_dict').run(r_conn)
+    close_rethink_connection(r_conn)
+    return result['create_dict']
 
 def get_domain_status(id):
     r_conn = new_rethink_connection()
