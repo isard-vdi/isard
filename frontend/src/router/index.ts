@@ -16,7 +16,8 @@ const routes: Array<RouteRecordRaw> = [
     name: 'admin',
     component: () => import('@/components/Dashboard.vue'),
     meta: {
-      layout: 'MainLayout'
+      layout: 'MainLayout',
+      needsAuth: true
     }
   },
   {
@@ -24,7 +25,8 @@ const routes: Array<RouteRecordRaw> = [
     name: 'templates',
     component: () => import('@/components/TemplatesList.vue'),
     meta: {
-      layout: 'MainLayout'
+      layout: 'MainLayout',
+      needsAuth: true
     }
   },
   {
@@ -32,7 +34,8 @@ const routes: Array<RouteRecordRaw> = [
     name: 'config',
     component: () => import('@/components/Configuration.vue'),
     meta: {
-      layout: 'MainLayout'
+      layout: 'MainLayout',
+      needsAuth: true
     }
   },
   {
@@ -49,7 +52,8 @@ const routes: Array<RouteRecordRaw> = [
     name: 'Entity',
     component: () => import('@/components/Dashboard.vue'),
     meta: {
-      layout: 'MainLayout'
+      layout: 'MainLayout',
+      needsAuth: true
     }
   },
   {
@@ -57,7 +61,8 @@ const routes: Array<RouteRecordRaw> = [
     name: 'User',
     component: () => import('@/components/Desktops.vue'),
     meta: {
-      layout: 'UserLayout'
+      layout: 'UserLayout',
+      needsAuth: true
     }
   },
   {
