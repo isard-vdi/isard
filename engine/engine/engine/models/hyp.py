@@ -372,7 +372,7 @@ class hyp(object):
                         l_types = [dict(a) for a in d['device']['capability']['capability'][1]['type'] if a['name'][-1] == 'Q']
                         for a in l_types:
                             a['name'] =a['name'].replace('GRID ','')
-                        l_types.sort(key=lambda r: int(r['availableInstances']),reverse=True)
+                        l_types.sort(key=lambda r: int(r['name'].split('Q')[0].split('-')[-1]))
                         type_max_gpus = l_types[0]['name']
                         d_types = {a['name']:{'id':a['@id'],
                                               'available':int(a['availableInstances']),
