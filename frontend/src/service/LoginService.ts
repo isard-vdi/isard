@@ -8,12 +8,17 @@ export default class LoginService {
   ): any {
     const mutation = `
     mutation LoginMutation {
-      login (
-        usr: "${usr}"
-        pwd: "${pwd}"
-        provider: "${provider}"
+      login (input: {
+        usr: "${usr}",
+        pwd: "${pwd}",
+        provider: "${provider}",
         entityId: "${entityId}"
-      )
+      }){
+        id
+        name
+        token
+        surname
+      }
     }`;
 
     return ConnectionService.executeMutation(mutation);
