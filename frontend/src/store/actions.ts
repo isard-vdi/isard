@@ -45,7 +45,7 @@ export interface Actions {
 
   [ActionTypes.REFRESH_TOKEN_FROM_SESSION](
     { commit }: AugmentedActionContext,
-    payload: { token: string }
+    payload: { token: string; userId: string }
   ): void;
 
   [ActionTypes.DO_LOGOUT](
@@ -67,6 +67,7 @@ export interface Actions {
     { commit }: AugmentedActionContext,
     payload: {
       token: string;
+      userId: string;
     }
   ): void;
 
@@ -149,7 +150,11 @@ export const actions: ActionTree<State, State> & Actions = {
       'local',
       payload.entity
     ).then((response: any): any => {
-      const payload = { token: response.login };
+      console.log(response);
+      const payload = {
+        token: response.login.token,
+        userId: response.login.id
+      };
 
       store.dispatch(ActionTypes.REFRESH_CLIENT_TOKEN, payload);
       router.push({ name: DEFAULT_PAGE });
@@ -171,6 +176,7 @@ export const actions: ActionTree<State, State> & Actions = {
   [ActionTypes.REFRESH_CLIENT_TOKEN]({ commit }, payload) {
     ConnectionService.setClientHasura(payload.token);
     setCookie('token', payload.token, { expires: '1h' });
+    setCookie('userId', payload.userId, { expires: '1h' });
     commit(MutationTypes.SET_LOGIN_DATA, payload);
   },
 
