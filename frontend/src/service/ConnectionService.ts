@@ -27,7 +27,6 @@ export default class ConnectionService {
   };
 
   static setClientBackend() {
-    console.log('Set backend client');
     villusClient = createClient({
       url: process.env.VUE_APP_REALTIME_URL,
       use: [...defaultPlugins()]
@@ -35,7 +34,6 @@ export default class ConnectionService {
   }
 
   static setClientHasura(token: string) {
-    console.log('Set hasura client');
     villusClient = createClient({
       url: process.env.VUE_APP_API_URL,
       use: [

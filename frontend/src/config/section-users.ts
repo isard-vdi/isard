@@ -25,6 +25,7 @@ export const SectionUsers: SectionConfig = {
         entity {
           id
           name
+          uuid
         }
       }
     }`

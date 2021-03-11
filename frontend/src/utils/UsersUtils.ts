@@ -1,6 +1,5 @@
 export default class UsersUtils {
   static cleanUsers(items: any[]): Types.User[] {
-    console.log(items, 'items');
     return items.map(
       (item: any): Types.User => {
         return {

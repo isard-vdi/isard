@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export default class UserService {
+export default class MockUserService {
   getUsers(): Promise<Types.User[]> {
     return axios
       .get('assets/mockdata/users.json')
