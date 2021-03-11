@@ -1,20 +1,9 @@
 <template>
-  <div class="about">
-    <h1>{{ counter }}</h1>
-    <button @click="addOne">Add 1</button>
-  </div>
+  <h1>About</h1>
 </template>
 
 <script lang="ts">
-import { computed } from 'vue';
-import { useStore } from 'vuex';
-
 export default {
-  name: 'About',
-  setup() {
-    const store = useStore();
-
-    return {};
-  }
+  name: 'About'
 };
 </script>

@@ -13,7 +13,7 @@ export interface Ui {
     show: boolean;
     type: string;
     colorMode: string;
-    staticInactive: boolean;
+    staticActive: boolean;
     overlayActive: boolean;
     mobileActive: boolean;
   };
@@ -71,7 +71,7 @@ export const state: State = {
       show: true,
       type: 'static',
       colorMode: 'dark',
-      staticInactive: false,
+      staticActive: false,
       overlayActive: false,
       mobileActive: false
     }

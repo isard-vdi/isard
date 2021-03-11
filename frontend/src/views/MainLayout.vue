@@ -3,7 +3,7 @@
     <AppTopBar />
 
     <transition name="layout-sidebar">
-      <div v-show="menuVisible" :class="sidebarClass">
+      <div v-show="isMenuVisible" :class="sidebarClass">
         <Language />
         <div class="layout-logo">
           <router-link :to="{ name: 'admin' }">
@@ -26,10 +26,10 @@
 </template>
 
 <script>
-import AppTopBar from '@/AppTopbar.vue';
-import AppProfile from '@/AppProfile.vue';
-import AppMenu from '@/AppMenu.vue';
-import AppFooter from '@/AppFooter.vue';
+import AppTopBar from '@/components/shared/AppTopbar.vue';
+import AppProfile from '@/components/shared/AppProfile.vue';
+import AppMenu from '@/components/shared/AppMenu.vue';
+import AppFooter from '@/components/shared/AppFooter.vue';
 import Language from '@/components/Language.vue';
 import { menu } from '@/config/menu';
 
@@ -50,7 +50,7 @@ export default {
   setup() {
     const store = useStore();
 
-    const menuVisible = computed(() => store.getters.menuVisible);
+    const isMenuVisible = computed(() => store.getters.isMenuVisible);
 
     const containerClass = computed(() => [
       'layout-wrapper',
@@ -58,11 +58,11 @@ export default {
         'layout-overlay': store.getters.menuType === 'overlay',
         'layout-static': store.getters.menuType === 'static',
         'layout-static-sidebar-inactive':
-          !store.getters.menuVisible && store.getters.menuType === 'static',
+          !store.getters.isMenuVisible && store.getters.menuType === 'static',
         'layout-overlay-sidebar-active':
-          store.getters.menuOverlayActive &&
+          store.getters.isMenuOverlayActive &&
           store.getters.menuType === 'overlay',
-        'layout-mobile-sidebar-active': store.getters.menuMobileActive
+        'layout-mobile-sidebar-active': store.getters.isMenuMobileActive
       }
     ]);
 
@@ -76,7 +76,7 @@ export default {
 
     return {
       menu,
-      menuVisible,
+      isMenuVisible,
       containerClass,
       sidebarClass
     };

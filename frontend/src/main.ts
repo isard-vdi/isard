@@ -9,7 +9,7 @@ import 'primeflex/primeflex.css';
 import '@/assets/layout/layout.scss';
 
 import App from './App.vue';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AppLayout from '@/views/AppLayout.vue';
 import Button from 'primevue/button';
 import Calendar from 'primevue/calendar';
 import Card from 'primevue/card';
