@@ -59,42 +59,45 @@ app.mount('#app');
 router.beforeEach((to, from, next) => {
   const loggedIn = store.getters.loginToken;
   const tokenCookie: string = getCookie('token') || '';
-  console.log(
-    to,
-    `****** Token value: ${tokenCookie ? 'string' : 'es nulo'} *****`
-  );
 
+  // Parse Url
   const urlParts = to.fullPath.split('?');
-  console.log(urlParts, 'urlParts');
-  const url = urlParts[0];
-  const urlParams = urlParts[1];
+  const url = urlParts[0]; // Url without params
+  const urlParams = urlParts[1]; // Params to use in search
 
   const urlSegments = url.split('/');
-  const toSection = urlSegments[1];
+  const detailId = urlSegments.length > 2 ? urlSegments[2] : '';
+  const section = urlSegments[1];
 
   if (!loggedIn) {
     if (tokenCookie && tokenCookie != 'null' && tokenCookie != '') {
       // Has token, check if it's valid or refresh!!!!!
-      console.log('****** logged out y Hay token *****');
-      store.dispatch(ActionTypes.REFRESH_TOKEN_FROM_SESSION, {
-        token: tokenCookie
-      });
+
       store
-        .dispatch(ActionTypes.NAVIGATE, {
-          section: toSection,
-          url: toSection,
-          queryParams: [],
-          editmode: false
+        .dispatch(ActionTypes.REFRESH_TOKEN_FROM_SESSION, {
+          token: tokenCookie
         })
-        .then(() => next());
+        .then(() => {
+          if (detailId && detailId.length > 0) {
+            store.dispatch(ActionTypes.GET_ITEM, {
+              section,
+              params: { id: detailId }
+            });
+          } else {
+            store.dispatch(ActionTypes.NAVIGATE, {
+              section,
+              params: { id: detailId }
+            });
+          }
+        });
     } else if (to.meta.needsAuth) {
       // No token && needs auth
-      console.log('No hay token!!!');
+      console.log('***** No hay token && needs auth *****');
       router.push({ name: 'login' });
     } else {
       // no token && no auth
       console.log(to, '**** Open ****');
-      store.dispatch(ActionTypes.NAVIGATE, {
+      store.dispatch(ActionTypes.SET_NAVIGATION_DATA, {
         section: to.name,
         url: to.fullPath,
         queryParams: [],
@@ -104,9 +107,11 @@ router.beforeEach((to, from, next) => {
     }
   } else {
     // logged in
-    store.dispatch(ActionTypes.NAVIGATE, {
-      section: to.name,
-      url: to.fullPath,
+    console.log(to, '***** Logged in *****');
+    store.dispatch(ActionTypes.SET_NAVIGATION_DATA, {
+      section,
+      params: { id: detailId },
+      url: to.path,
       queryParams: [],
       editmode: false
     });

@@ -11,7 +11,7 @@ export enum MutationTypes {
   CHANGE_MENU_OVERLAY_ACTIVE = 'CHANGE_MENU_OVERLAY_ACTIVE',
   CHANGE_MENU_MOBILE_ACTIVE = 'CHANGE_MENU_MOBILE_ACTIVE',
   CHANGE_MENU_STATIC_INACTIVE = 'CHANGE_MENU_STATIC_INACTIVE',
-  CHANGE_SECTION = 'CHANGE_SECTION',
+  SET_NAVIGATION_DATA = 'SET_NAVIGATION_DATA',
   GET_ITEM = 'MutationTypes.GET_ITEM'
 }
 
@@ -25,7 +25,10 @@ export type Mutations<S = State> = {
   [MutationTypes.CHANGE_MENU_OVERLAY_ACTIVE](state: S, payload: boolean): void;
   [MutationTypes.CHANGE_MENU_MOBILE_ACTIVE](state: S, payload: boolean): void;
   [MutationTypes.CHANGE_MENU_STATIC_INACTIVE](state: S, payload: boolean): void;
-  [MutationTypes.CHANGE_SECTION](state: S, payload: { section: string }): void;
+  [MutationTypes.SET_NAVIGATION_DATA](
+    state: S,
+    payload: { section: string }
+  ): void;
   [MutationTypes.GET_ITEM](state: S, payload: { item: any }): void;
 };
 
@@ -75,7 +78,7 @@ export const mutations: MutationTree<State> & Mutations = {
   [MutationTypes.CHANGE_MENU_STATIC_INACTIVE](state: State, payload) {
     state.ui.menu.staticInactive = payload;
   },
-  [MutationTypes.CHANGE_SECTION](state: State, payload) {
+  [MutationTypes.SET_NAVIGATION_DATA](state: State, payload) {
     state.router.section = payload.section;
   },
   [MutationTypes.GET_ITEM](state: State, payload) {

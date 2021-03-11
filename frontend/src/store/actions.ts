@@ -23,6 +23,7 @@ export enum ActionTypes {
   DO_LOGOUT = 'DO_LOGOUT',
   REFRESH_CLIENT_TOKEN = 'REFRESH_CLIENT_TOKEN',
   REFRESH_TOKEN_FROM_SESSION = 'REFRESH_TOKEN_FROM_SESSION',
+  SET_NAVIGATION_DATA = 'SET_NAVIGATION_DATA',
   NAVIGATE = 'NAVIGATE',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
@@ -58,6 +59,7 @@ export interface Actions {
       queryParams: string[];
       size: number;
       start: number;
+      section?: string;
     }
   ): void;
 
@@ -68,13 +70,24 @@ export interface Actions {
     }
   ): void;
 
-  [ActionTypes.NAVIGATE](
+  [ActionTypes.SET_NAVIGATION_DATA](
     { commit }: AugmentedActionContext,
     payload: {
       section: string;
       url: string;
       queryParams: string[];
       editmode: boolean;
+    }
+  ): void;
+
+  [ActionTypes.NAVIGATE](
+    { commit }: AugmentedActionContext,
+    payload: {
+      section: string;
+      params: any;
+      url: string;
+      queryParams: string[];
+      editMode: boolean;
     }
   ): void;
 
@@ -162,7 +175,7 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {
-    const section: string = getters.section;
+    const section: string = getters.section ? getters.section : payload.section;
     const query: string = sections[section].config?.query.search;
     SearchService.listSearch(
       query,
@@ -182,15 +195,14 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   [ActionTypes.GET_ITEM]({ commit, getters }, payload) {
-    const section: string = getters.section;
+    const section: string = getters.section ? getters.section : payload.section;
     const query: string = sections[section].config?.query.detail;
     SearchService.detailSearch(query, payload.params).then(
       (response: any): any => {
         const dataItem =
           (response && response[Object.keys(response)[0]][0]) || {};
-        console.log(dataItem, 'dataItem');
         commit(MutationTypes.GET_ITEM, dataItem);
-        router.push({ name: 'users-detail', params: payload.params });
+        router.push({ name: `${section}-detail`, params: payload.params });
       }
     );
   },
@@ -199,8 +211,21 @@ export const actions: ActionTree<State, State> & Actions = {
     router.push({ name: payload.section });
   },
 
+  [ActionTypes.SET_NAVIGATION_DATA]({ commit }, payload) {
+    const namedUrl = payload.section;
+    const section =
+      namedUrl.indexOf('-') > -1 ? namedUrl.split('-')[0] : namedUrl;
+
+    commit(MutationTypes.SET_NAVIGATION_DATA, {
+      section
+    });
+  },
+
   [ActionTypes.NAVIGATE]({ commit }, payload) {
-    commit(MutationTypes.CHANGE_SECTION, payload);
+    const { section, params, queryParams, editMode, url } = payload;
+
+    commit(MutationTypes.SET_NAVIGATION_DATA, { section });
+    router.push({ name: url, params });
   },
 
   [ActionTypes.TOGGLE_MENU]({ commit }) {

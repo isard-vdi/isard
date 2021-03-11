@@ -1,5 +1,6 @@
 import { GetterTree } from 'vuex';
 import { State } from './state';
+import { cloneDeep } from 'lodash';
 
 export type Getters = {
   loginToken(state: State): string;
@@ -11,6 +12,7 @@ export type Getters = {
   menuOverlayActive(state: State): boolean;
   menuMobileActive(state: State): boolean;
   section(state: State): string;
+  detailForUpdate(state: State): any;
 };
 
 export const getters: GetterTree<State, State> & Getters = {
@@ -18,7 +20,6 @@ export const getters: GetterTree<State, State> & Getters = {
     return state.auth.token;
   },
   searchResults: (state) => {
-    console.log(state.search && state.search.length > 0 && state.search[1]);
     return state.search && state.search.map((item) => item);
   },
   menuVisible: (state) => {
@@ -41,5 +42,8 @@ export const getters: GetterTree<State, State> & Getters = {
   },
   section: (state) => {
     return state.router.section;
+  },
+  detailForUpdate: (state) => {
+    return cloneDeep(state.detail);
   }
 };

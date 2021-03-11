@@ -57,6 +57,9 @@ export default defineComponent({
           size: DEFAULT_SEARCH_SIZE,
           start: 0
         });
+      },
+      {
+        immediate: true
       }
     );
 
@@ -71,9 +74,8 @@ export default defineComponent({
     };
 
     const f_edit = (data: any) => {
-      console.log(data, 'data');
       store.dispatch(ActionTypes.GET_ITEM, {
-        section: 'users',
+        section: section.value,
         params: { id: data.id }
       });
     };

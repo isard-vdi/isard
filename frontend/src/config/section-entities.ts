@@ -13,11 +13,23 @@ export const SectionEntities: SectionConfig = {
         uuid
       }
     }`,
-    detail: ''
+    detail: `query EntityDetail($id: bigint) {
+      entity(where: {id: {_eq: $id}}) {
+        id
+        name
+        uuid
+        users {
+          name
+          surname
+          uuid
+        }
+      }
+    }`
   },
   table: {
     columns: [
-      { field: 'uuid', header: 'Uuid' },
+      { field: 'id', header: 'ID' },
+      { field: 'uuid', header: 'UUID' },
       { field: 'name', header: 'Name' },
       { field: 'created_at', header: 'Created' }
     ]
