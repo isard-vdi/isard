@@ -229,7 +229,7 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.NAVIGATE]({ commit }, payload) {
     const { section, params, queryParams, editMode, url } = payload;
-
+    console.log(url, 'url');
     commit(MutationTypes.SET_NAVIGATION_DATA, { section });
     router.push({ name: url, params });
   },
