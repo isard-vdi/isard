@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import DefaultLayout from '@/layouts/DefaultLayout.vue';
+import DefaultLayout from '@/views/DefaultLayout.vue';
 import { shallowRef, watch } from 'vue';
 import routes from '@/router';
 export default {
@@ -14,9 +14,9 @@ export default {
     const layout = shallowRef();
     watch(
       routes.currentRoute,
-      async route => {
+      async (route) => {
         try {
-          const component = await import(`@/layouts/${route.meta.layout}.vue`);
+          const component = await import(`@/views/${route.meta.layout}.vue`);
           layout.value = component?.default || DefaultLayout;
         } catch (e) {
           layout.value = DefaultLayout;

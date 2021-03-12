@@ -26,7 +26,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/templates',
     name: 'templates',
-    component: () => import('@/components/TemplatesList.vue'),
+    component: () => import('@/components/search/Search.vue'),
     meta: {
       layout: 'MainLayout',
       needsAuth: true
@@ -89,7 +89,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/user',
     name: 'User',
-    component: () => import('@/components/Desktops.vue'),
+    component: () => import('@/components/search/Search.vue'),
     meta: {
       layout: 'UserLayout',
       needsAuth: true

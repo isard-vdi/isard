@@ -34,13 +34,13 @@ export default {
 
           store.dispatch(
             ActionTypes.CHANGE_MENU_OVERLAY_ACTIVE,
-            !store.getters.menuOverlayActive
+            !store.getters.isMenuOverlayActive
           );
           store.dispatch(ActionTypes.CHANGE_MENU_MOBILE_ACTIVE, false);
         } else if (store.getters.menuType === 'static') {
           store.dispatch(
-            ActionTypes.CHANGE_MENU_STATIC_INACTIVE,
-            !store.getters.staticMenuInactive
+            ActionTypes.CHANGE_MENU_STATIC_ACTIVE,
+            store.getters.isMenuStaticActive
           );
         }
       } else {

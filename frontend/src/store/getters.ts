@@ -5,12 +5,12 @@ import { cloneDeep } from 'lodash';
 export type Getters = {
   loginToken(state: State): string;
   searchResults(state: State): any[];
-  menuVisible(state: State): boolean;
   menuType(state: State): string;
   menuColorMode(state: State): string;
-  menuStaticInactive(state: State): boolean;
-  menuOverlayActive(state: State): boolean;
-  menuMobileActive(state: State): boolean;
+  isMenuVisible(state: State): boolean;
+  isMenuStaticActive(state: State): boolean;
+  isMenuOverlayActive(state: State): boolean;
+  isMenuMobileActive(state: State): boolean;
   section(state: State): string;
   detailForUpdate(state: State): any;
 };
@@ -22,22 +22,22 @@ export const getters: GetterTree<State, State> & Getters = {
   searchResults: (state) => {
     return state.search && state.search.map((item) => item);
   },
-  menuVisible: (state) => {
-    return state.ui.menu.show;
-  },
   menuType: (state) => {
     return state.ui.menu.type;
   },
   menuColorMode: (state) => {
     return state.ui.menu.colorMode;
   },
-  menuStaticInactive: (state) => {
-    return state.ui.menu.staticInactive;
+  isMenuVisible: (state) => {
+    return state.ui.menu.show;
   },
-  menuOverlayActive: (state) => {
+  isMenuStaticActive: (state) => {
+    return state.ui.menu.staticActive;
+  },
+  isMenuOverlayActive: (state) => {
     return state.ui.menu.overlayActive;
   },
-  menuMobileActive: (state) => {
+  isMenuMobileActive: (state) => {
     return state.ui.menu.mobileActive;
   },
   section: (state) => {

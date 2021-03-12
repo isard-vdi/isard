@@ -26,7 +26,7 @@ export default {
     const menuColorMode = computed(() => store.getters.menuColorMode);
 
     const f_changeMenuType = () => {
-      if (store.getters.menuVisible) store.dispatch(ActionTypes.TOGGLE_MENU);
+      if (store.getters.isMenuVisible) store.dispatch(ActionTypes.TOGGLE_MENU);
 
       store.dispatch(
         ActionTypes.CHANGE_MENU_TYPE,
@@ -47,6 +47,6 @@ export default {
       f_changeMenuType,
       f_changeMenuColorMode
     };
-  },
+  }
 };
 </script>
