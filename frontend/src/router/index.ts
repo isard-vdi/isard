@@ -1,3 +1,6 @@
+import { store } from '@/store';
+import { ActionTypes } from '@/store/actions';
+import { getCookie } from 'tiny-cookie';
 import { RouteRecordRaw, createRouter, createWebHistory } from 'vue-router';
 
 const routes: Array<RouteRecordRaw> = [
@@ -106,6 +109,74 @@ const routes: Array<RouteRecordRaw> = [
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes
+});
+
+router.beforeEach((to, from, next) => {
+  const loggedIn = store.getters.loginToken;
+  const tokenCookie: string = getCookie('token') || '';
+  const userIdCookie: string = getCookie('userId') || '';
+
+  // Parse Url
+  const urlParts = to.fullPath.split('?');
+  const url = urlParts[0]; // Url without params
+  const urlParams = urlParts[1]; // Params to use in search
+
+  const urlSegments = url.split('/');
+  const detailId = urlSegments.length > 2 ? urlSegments[2] : '';
+  const section = urlSegments[1];
+
+  if (to.meta.needsAuth) {
+    if (!loggedIn) {
+      console.log('*** Logged OUT ***');
+      if (tokenCookie && tokenCookie != 'null' && tokenCookie != '') {
+        // Has token, check if it's valid or refresh!!!!!
+        console.log(to, '*** Has token ***');
+        store
+          .dispatch(ActionTypes.REFRESH_TOKEN_FROM_SESSION, {
+            token: tokenCookie,
+            userId: userIdCookie
+          })
+          .then(() => {
+            if (detailId && detailId.length > 0) {
+              store.dispatch(ActionTypes.GET_ITEM, {
+                section,
+                params: { id: detailId }
+              });
+            } else {
+              store.dispatch(ActionTypes.NAVIGATE, {
+                section,
+                params: { id: detailId },
+                url: to.name
+              });
+            }
+          });
+      } else {
+        // No token && needs auth
+        console.log('*** Logged OUT and NO Token ***');
+        router.push({ name: 'login' });
+      }
+    } else {
+      // logged in
+      console.log(to, '***** Logged in *****');
+      store.dispatch(ActionTypes.SET_NAVIGATION_DATA, {
+        section,
+        params: { id: detailId },
+        url: to.path,
+        queryParams: [],
+        editmode: false
+      });
+      next();
+    }
+  } else {
+    console.log(to, '**** Open ****');
+    store.dispatch(ActionTypes.SET_NAVIGATION_DATA, {
+      section: to.name,
+      url: to.fullPath,
+      queryParams: [],
+      editmode: false
+    });
+    next();
+  }
 });
 
 export default router;
