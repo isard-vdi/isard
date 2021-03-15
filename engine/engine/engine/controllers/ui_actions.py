@@ -662,7 +662,7 @@ class UiActions(object):
 
         # INFO TO DEVELOPER DEBERÍA SER UN FOR PARA CADA DISCO
         # y si el disco no tiene backing_chain, crear un disco vacío
-        # del tamño que marcase
+        # del tamaño que marcase
         # d['hardware']['disks'][0]['size']
         # el backing_file debería estar asociado a cada disco:
         # d['hardware']['disks'][0]['backing_file']

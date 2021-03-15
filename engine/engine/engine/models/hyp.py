@@ -354,7 +354,10 @@ class hyp(object):
                 for d in l_nvidia_devices:
                     info_nvidia = {}
                     try:
-                        max_count = d['device']['capability']['capability'][0]['@maxCount']
+                        try:
+                            max_count = d['device']['capability']['capability'][0]['@maxCount']
+                        except:
+                            max_count = 0
                         name = d['device']['name']
                         path = d['device']['path']
                         parent = d['device']['parent']
@@ -369,7 +372,11 @@ class hyp(object):
                         max_count = 0
                     try:
                         #only Q-Series Virtual GPU Types (Required license edition: vWS)
-                        l_types = [dict(a) for a in d['device']['capability']['capability'][1]['type'] if a['name'][-1] == 'Q']
+                        if type(d['device']['capability']['capability']) is list:  ## T4
+                            types = d['device']['capability']['capability'][1]['type']
+                        else:
+                            types = d['device']['capability']['capability']['type']
+                        l_types = [dict(a) for a in types if a['name'][-1] == 'Q']
                         for a in l_types:
                             a['name'] =a['name'].replace('GRID ','')
                         l_types.sort(key=lambda r: int(r['name'].split('Q')[0].split('-')[-1]))
