@@ -20,7 +20,7 @@ from ...lib import trees
 template_tree = trees.TemplateTree()
 
 
-from .decorators import isAdmin, isAdminManager, isAdvanced
+from .decorators import isAdmin, isAdminManager, isAdvanced, isAdminManagerAdvanced
 
 @app.route('/isard-admin/admin/domains/render/<nav>')
 @login_required
@@ -40,11 +40,22 @@ def admin_domains(nav='Domains'):
 @login_required
 @isAdminManager
 def admin_mdomains():
+    print('manager')
     dict=request.get_json(force=True)
     desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
     res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
     return json.dumps({'test':1}), 200, {'ContentType': 'application/json'}
-    
+
+@app.route('/isard-admin/advanced/mdomains', methods=['POST'])
+@login_required
+@isAdminManagerAdvanced
+def admin_advanced_mdomains():
+    print('advanced')
+    dict=request.get_json(force=True)
+    desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
+    res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
+    return json.dumps({'test':1}), 200, {'ContentType': 'application/json'}
+
 @app.route('/isard-admin/admin/domains/get/<kind>')
 @app.route('/isard-admin/admin/domains/get')
 @login_required

@@ -43,3 +43,12 @@ def isAdvanced(fn):
         logout_user()
         return render_template('login_category.html', category=False)
     return decorated_view
+
+def isAdminManagerAdvanced(fn):
+    @wraps(fn)
+    def decorated_view(*args, **kwargs):
+        if current_user.is_admin or current_user.role == "manager" or current_user.role == "advanced":
+            return fn(*args, **kwargs)
+        logout_user()
+        return render_template('login_category.html', category=False)
+    return decorated_view

@@ -1060,12 +1060,14 @@ def socketio_advanced_domains_add(form_data):
 
     create_dict=app.isardapi.f.unflatten_dict(form_data)
 
-    if create_dict['tag'] in current_user.tags:
-        data=json.dumps({'result':False,'title':'New label exists.','text':'Label '+create_dict['tag']+' already exists. ','icon':'warning','type':'error'})
+    tag='_'+current_user.id+'_'+create_dict['tag']
+    if tag in current_user.tags:
+        data=json.dumps({'result':False,'title':'New deployment exists.','text':'Deployment with name '+create_dict['tag']+' already exists. ','icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/isard-admin/sio_users', 
                         room=current_user.id+'_tagged')
+        return
     create_dict=parseHardware(create_dict)
     create_dict=quotas.limit_user_hardware_allowed(create_dict,current_user.id)
 
@@ -1335,6 +1337,7 @@ def socketio_domains_viewer(data):
             default_viewer=False
 
     viewer_data=isardviewer.viewer_data(data['pk'],get_viewer=data['kind'],default_viewer=default_viewer,current_user=current_user)
+    print('viewer data:'+str(viewer_data))
     if viewer_data:
         socketio.emit('domain_viewer',
                         json.dumps(viewer_data),

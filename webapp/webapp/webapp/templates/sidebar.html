@@ -32,13 +32,17 @@
                   <li><a href="/isard-admin/media"><i class="fa fa-circle-o"></i> Media</span></a>
                   </li>
                   {% endif %}
-                </ul>
                 {% if current_user.role == 'advanced' %}
-                <h3>Deployments</h3>
-                <ul class="nav side-menu">
-                  <li><a href="/isard-admin/desktops/tags"><i class="fa fa-desktop"></i> List</a></li>
-                </ul>
-            {% endif %}                
+                  <li><a href="/isard-admin/desktops/tags"><i class="fa fa-copy"></i> Deployments</a></li>
+                  {% if tags is defined %}
+                    <ul class="nav child_menu">
+                      {% for tag in tags %}
+                      <li><a href="/isard-admin/desktops/tags/{{ tag }}"><i class="fa fa-desktop"></i> {{ tag }}  </a></li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                {% endif %}
+              </ul>
                 {% if current_user.role == 'manager' %}
                 <h3>Manager</h3>
                 <ul class="nav side-menu">

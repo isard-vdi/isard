@@ -388,7 +388,7 @@ class isardAdmin():
             for u in users:
                 u.update({"kind":"user","user":u['id']})
 
-            group_desktops = list(r.table("domains").get_all(group_id, index='group').filter({'kind': 'desktop'}).pluck('id','name','kind','user','status','parents').run(db.conn))
+            deployment_desktops = list(r.table("domains").get_all(group_id, index='group').filter({'kind': 'desktop'}).pluck('id','name','kind','user','status','parents').run(db.conn))
             group_templates = list(r.table("domains").get_all(r.args(['base','public_template','user_template']),index='kind').filter({'group':group_id}).pluck('id','name','kind','user','status','parents').run(db.conn))
             derivated = []
             for gt in group_templates:
@@ -396,7 +396,7 @@ class isardAdmin():
                 derivated = derivated + list(r.table('domains').pluck('id','name','kind','user','status','parents').filter(lambda derivates: derivates['parents'].contains(id)).run(db.conn))
                 #templates = [t for t in derivated if t['kind'] != "desktop"]
                 #desktops = [d for d in derivated if d['kind'] == "desktop"]
-        domains = groups+users+group_desktops+group_templates+derivated
+        domains = groups+users+deployment_desktops+group_templates+derivated
         return [i for n, i in enumerate(domains) if i not in domains[n + 1:]] 
     
     def group_delete(self,group_id):

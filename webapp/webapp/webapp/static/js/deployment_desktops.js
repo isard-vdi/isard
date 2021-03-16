@@ -13,6 +13,7 @@ columns= [
 $(document).ready(function() {
 
     $template_domain = $(".template-detail-domain");
+    $('#mactions option[value="none"]').prop("selected",true);
 
     $('#domains tfoot th').each( function () {
         var title = $(this).text();
@@ -134,6 +135,69 @@ $(document).ready(function() {
         $(this).toggleClass('active');
     } );
 
+    $('#mactions').on('change', function () {
+        action=$(this).val();
+        names=''
+        ids=[]
+        deployments=[]
+        if(table.rows('.active').data().length){
+            $.each(table.rows('.active').data(),function(key, value){
+                names+=value['name']+'\n';
+                ids.push(value['id']);
+                deployments.push(value['tag'])
+            });
+            var text = "You are about to "+action+" these desktops:\n\n "+names
+        }else{ 
+            $.each(table.rows({filter: 'applied'}).data(),function(key, value){
+                ids.push(value['id']);
+                deployments.push(value['tag'])
+            });
+            var text = "You are about to "+action+" "+table.rows({filter: 'applied'}).data().length+" desktops!\n All the desktops in list!"
+        }
+
+        if(ids.length != deployments.length){
+            new PNotify({
+                title: "Deployment actions error!",
+                    text: "Desktop in action without tag",
+                    hide: true,
+                    delay: 3000,
+                    icon: 'fa fa-alert-sign',
+                    opacity: 1,
+                    type: 'error'
+                });
+        }else{
+            text=text+', from this deployments:\n'
+            unique_deployments = deployments.filter(onlyUnique)
+            $.each(unique_deployments,function(key,value){
+                text=text+value.split("_").slice(-1)[0]+'\n'
+            });
+            new PNotify({
+                    title: 'Warning!',
+                        text: text,
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function() {
+                    console.log('mactions')
+                    api.ajax('/isard-admin/advanced/mdomains','POST',{'ids':ids,'action':action}).done(function(data) {
+                        $('#mactions option[value="none"]').prop("selected",true);
+                    }); 
+                }).on('pnotify.cancel', function() {
+                    $('#mactions option[value="none"]').prop("selected",true);
+                });
+            }
+    } );
+    
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = table.row( tr );
@@ -318,17 +382,16 @@ $(document).ready(function() {
     countdown ={}
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
-        console.log('desktop_data')
         if(data.status =='Started' && table.row('#'+data.id).data().status != 'Started'){
-            if('preferred' in data['options']['viewers'] && data['options']['viewers']['preferred']){
-                socket.emit('domain_viewer',{'pk':data.id,'kind':data['options']['viewers']['preferred'],'os':getOS()});
-            }else{
-                 setViewerButtons(data.id,socket);
-                    $('#modalOpenViewer').modal({
-                        backdrop: 'static',
-                        keyboard: false
-                    }).modal('show');
-            }
+            // if('preferred' in data['options']['viewers'] && data['options']['viewers']['preferred']){
+            //     socket.emit('domain_viewer',{'pk':data.id,'kind':data['options']['viewers']['preferred'],'os':getOS()});
+            // }else{
+            //      setViewerButtons(data.id,socket);
+            //         $('#modalOpenViewer').modal({
+            //             backdrop: 'static',
+            //             keyboard: false
+            //         }).modal('show');
+            // }
         }else{
             //~ if('ephimeral' in data && !countdown[data.id]){
                 clearInterval(countdown[data.id])
@@ -786,3 +849,7 @@ function renderDisplay(data){
     }
     return ''
 }
+
+function onlyUnique(value, index, self) {
+    return self.indexOf(value) === index;
+  }

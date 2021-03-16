@@ -132,7 +132,7 @@ def jumperurl_disable(id):
 @isAdvanced
 def groupdesktops(nav='Domains'):
     #app.isardapi.filter_user_tags(current_user)
-    return render_template('pages/tagged_desktops.html', title="Desktops", nav="Domains", icon='desktop')
+    return render_template('pages/deployment_desktops.html', title="Desktops", nav="Domains", icon='desktop', tags=['prova1','prova2'])
 
 ### Not used??
 @app.route('/isard-admin/desktops/tagged',methods=['GET'])

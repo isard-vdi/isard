@@ -44,6 +44,12 @@
                                <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">Global actions: </label>
                                <div class="col-md-5 col-sm-5 col-xs-12">
                                    <select class="form-control" id="mactions" name="mactions" >
+                                    <option value="none">Select action</option>
+                                    <option value="toggle">Toggle status</option>
+                                    <!-- <option value="stop_noviewer">Stop no viewers</option> -->
+                                    <option value="force_stopped">Force Stopped</option>
+                                    <!-- <option value="force_failed">Force Failed</option> -->
+                                    <option value="delete">Delete</option>                                      
                                     </select>
                                 </div>
                             </div>                          
@@ -133,7 +139,7 @@
     <!--   
     <script src="/isard-admin/static/admin/js/domains.js"></script>
     -->
-    <script src="/isard-admin/static/js/group_desktops.js"></script>
+    <script src="/isard-admin/static/js/deployment_desktops.js"></script>
 <!--
     <script src="/isard-admin/static/admin/js/domains_subtables.js"></script>
 -->
