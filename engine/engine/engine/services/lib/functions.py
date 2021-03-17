@@ -18,6 +18,7 @@ from time import sleep
 import libvirt
 import paramiko
 import xmltodict
+from copy import deepcopy
 
 from engine.services.db.config import get_config, table_config_created_and_populated
 from engine.services.db.disk_operations import insert_disk_operation, update_disk_operation
@@ -1110,3 +1111,5 @@ def pop_key_if_zero(d):
     for k in pop_elements:
         d.pop(k)
     return d
+
+

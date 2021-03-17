@@ -32,7 +32,7 @@ from libpci import LibPCI
 from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
 from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
-from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain
+from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain, update_info_nvidia_hyp_domain
 from engine.services.log import *
 from engine.config import *
 from engine.services.lib.functions import exec_remote_cmd
@@ -153,7 +153,6 @@ class hyp(object):
             log.error('socket error, try if ssh is listen in hostname {} with ip address {} and port {}'.format(self.hostname,self.ip,self.port))
 
     def connect_to_hyp(self):
-
         try:
             self.ip = socket.gethostbyname(self.hostname)
 
@@ -163,7 +162,11 @@ class hyp(object):
             if self.ssh_autologin_fail is False:
                 try:
                     self.uri = hostname_to_uri(self.hostname, user=self.user, port=self.port)
-
+                    if self.id_hyp_rethink is None:
+                        try:
+                            self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
+                        except Exception as e:
+                            log.error('error when hypervisor have not rethink id. {}'.format(e))
                     timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
                     self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
 
@@ -407,6 +410,7 @@ class hyp(object):
             for i in range(d_type['max']):
                 uid = str(uuid.uuid4())
                 d[uid] = {'created':False,
+                          'reserved':False,
                           'started':False}
             d_uids[name] = d
         return d_uids
@@ -432,6 +436,7 @@ class hyp(object):
                 if (type != selected_gpu_type) or ((type == selected_gpu_type) and (uid_now not in d_uids[type])):
                         cmds1.append({'title': f'remove uuid to {type}: {uid_now}', 'cmd': f'echo "1" > "{dir}/devices/{uid_now}/remove"'})
         # CREATE  UUIDS
+        created = []
         for type,l_uids_now in uids_in_hyp_now.items():
             id_type = info_nvidia['types'][type]['id']
             dir = f'{path}/mdev_supported_types/{id_type}'
@@ -439,9 +444,19 @@ class hyp(object):
                 for uid in d_uids[type]:
                     if uid not in l_uids_now:
                         cmds1.append({'title': f'create uuid to {type}: {uid}', 'cmd': f'echo "{uid}" > "{dir}/create"'})
+                    else:
+                        created.append(uid)
 
         if len(cmds1) > 0:
             array_out_err = execute_commands(self.hostname, cmds1, port=self.port, dict_mode=True)
+            output_ok = [d['title'] for d in array_out_err if len(d['err']) == 0]
+            append_uids = [a.split(':')[1].strip() for a in output_ok if a.find('create uuid')==0]
+            remove_uids = [a.split(':')[1].strip() for a in output_ok if a.find('remove uuid')==0]
+            if len(remove_uids) > 0:
+                ok = update_info_nvidia_hyp_domain('removed',remove_uids,self.id_hyp_rethink)
+            created += append_uids
+            if len(created) > 0:
+                ok = update_info_nvidia_hyp_domain('created',created,self.id_hyp_rethink)
             if len([d['err'] for d in array_out_err if len(d['err'])>0]) > 0:
                 print('errors creating uids')
                 return False
@@ -449,7 +464,8 @@ class hyp(object):
         else:
             return True
 
-
+    def update_started_uids(self):
+        pass
 
     def define_and_start_paused_xml(self, xml_text):
         # todo alberto: faltan todas las excepciones, y mensajes de log,

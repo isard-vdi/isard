@@ -15,13 +15,13 @@ from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
 
 from engine.models.hyp import hyp
 from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, \
-    update_domains_started_in_hyp_to_unknown, update_table_field, get_engine, update_domain_hw_stats
+    update_domains_started_in_hyp_to_unknown, update_table_field, get_engine, update_domain_hw_stats, update_info_nvidia_hyp_domain
 from engine.services.lib.functions import get_tid, engine_restart
 from engine.services.log import logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_action_disk, RETRIES_HYP_IS_ALIVE, \
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE, launch_delete_media, launch_killall_curl
 from engine.models.domain_xml import DomainXML
-from engine.services.db import update_domain_viewer_started_values
+from engine.services.db import update_domain_viewer_started_values, domain_stopped_update_nvidia_uids_status
 from engine.services.db import get_domain_hardware_dict
 from engine.models.domain_xml import XML_SNIPPET_CDROM, XML_SNIPPET_DISK_VIRTIO, XML_SNIPPET_DISK_CUSTOM
 
@@ -59,6 +59,9 @@ class HypWorkerThread(threading.Thread):
                     logs.workers.debug('xml to start paused some lines...: {}'.format(action['xml'][30:100]))
                     try:
                         self.h.conn.createXML(action['xml'], flags=VIR_DOMAIN_START_PAUSED)
+                        nvidia_uid = action.get('nvidia_uid',False)
+                        if nvidia_uid is not False:
+                            ok = update_info_nvidia_hyp_domain('started',nvidia_uid,hyp_id,action['id_domain'])
                         # 32 is the constant for domains paused
                         # reference: https://libvirt.org/html/libvirt-libvirt-domain.html#VIR_CONNECT_LIST_DOMAINS_PAUSED
 
@@ -77,13 +80,16 @@ class HypWorkerThread(threading.Thread):
                                     domain.isActive()
                                 except Exception as e:
                                     logs.workers.debug('verified domain {} is destroyed'.format(action['id_domain']))
+                                    if nvidia_uid is not False:
+                                        ok = update_info_nvidia_hyp_domain('started',nvidia_uid,hyp_id,action['id_domain'])
                                 domain_active = False
 
                             except libvirtError as e:
                                 from pprint import pformat
                                 error_msg = pformat(e.get_error_message())
 
-                                update_domain_status('FailedCreatingDomain', action['id_domain'], hyp_id=self.hyp_id,
+                                # update_domain_status('FailedCreatingDomain', action['id_domain'], hyp_id=self.hyp_id,
+                                update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id,
                                                      detail='domain {} failed when try to destroy from paused domain in hypervisor {}. creating domain operation is aborted')
                                 logs.workers.error(
                                         'Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} '.format(
@@ -118,7 +124,8 @@ class HypWorkerThread(threading.Thread):
                         from pprint import pformat
                         error_msg = pformat(e.get_error_message())
 
-                        update_domain_status('FailedCreatingDomain', action['id_domain'], hyp_id=self.hyp_id,
+                        # update_domain_status('FailedCreatingDomain', action['id_domain'], hyp_id=self.hyp_id,
+                        update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id,
                                              detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
                         logs.workers.error(
                             'Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} '.format(
@@ -147,6 +154,9 @@ class HypWorkerThread(threading.Thread):
                         update_domain_viewer_started_values(dom_id, hyp_id=self.hyp_id,
                                                             spice=spice, spice_tls=spice_tls,
                                                             vnc=vnc, vnc_websocket=vnc_websocket)
+                        nvidia_uid = action.get('nvidia_uid',False)
+                        if nvidia_uid is not False:
+                            ok = update_info_nvidia_hyp_domain('started',nvidia_uid,hyp_id,dom_id)
                         #logs.status.info(
                         print(
                             f'DOMAIN STARTED INFO WORKER - {dom_id} in {self.hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})')
@@ -197,6 +207,8 @@ class HypWorkerThread(threading.Thread):
 
                     try:
                         domain_handler.destroy()
+                        #updated in events_recolector
+                        domain_stopped_update_nvidia_uids_status(action['id_domain'],self.hyp_id)
 
                         logs.workers.debug('STOPPED domain {}'.format(action['id_domain']))
 

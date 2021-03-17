@@ -2,9 +2,11 @@ import json
 import logging
 import sys
 import time
+import flatten_dict
 
 import rethinkdb as r
 from rethinkdb import ReqlNonExistenceError
+from copy import deepcopy
 
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import new_rethink_connection, \
@@ -12,6 +14,19 @@ from engine.services.db import new_rethink_connection, \
 from engine.services.db.db import new_rethink_connection, close_rethink_connection
 from engine.services.db.domains_status import stop_last_domain_status
 
+def dict_merge(a, b):
+    '''recursively merges dict's. not just simple a['key'] = b['key'], if
+    both a and bhave a key who's value is a dict then dict_merge is called
+    on both values and the result stored in the returned dictionary.'''
+    if not isinstance(b, dict):
+        return b
+    result = deepcopy(a)
+    for k, v in b.items():
+        if k in result and isinstance(result[k], dict):
+            result[k] = dict_merge(result[k], v)
+        else:
+            result[k] = deepcopy(v)
+    return result
 
 def delete_domain(id):
     r_conn = new_rethink_connection()
@@ -823,5 +838,88 @@ def update_domains_started_in_hyp_to_unknown(hyp_id):
     rtable = r.table('domains')
 
     result = rtable.get_all(hyp_id, index='hyp_started').update({'status': 'Unknown'}).run(r_conn)
+    close_rethink_connection(r_conn)
+    return result
+
+
+def update_info_nvidia_hyp_domain(status,nvidia_uid,hyp_id,dom_id=False):
+    """status: created,started,stopped,removed"""
+    if status not in ["created", "reserved", "started", "stopped", "removed"]:
+        return False
+    r_conn = new_rethink_connection()
+    #rtable_dom = r.table('domains')
+    rtable_hyp = r.table('hypervisors')
+    if type(nvidia_uid) is not list:
+        nvidia_uids = [nvidia_uid]
+    else:
+        nvidia_uids = nvidia_uid
+
+    d = dict(rtable_hyp.get(hyp_id).pluck('nvidia_uids').run(r_conn))
+    result = False
+    if len(d) > 0:
+        d_uids = d['nvidia_uids']
+        if len(d_uids) > 0:
+            d_uids_flatten = flatten_dict.flatten(d_uids)
+            d_update_merged={}
+            for nvidia_uid in nvidia_uids:
+                d_update = {}
+                l = [i for i in d_uids_flatten if nvidia_uid in i]
+                if len(l) > 0:
+                    values = l[0]
+                    pci_id = values[0]
+                    model = values[1]
+                    if status in ['started','reserved']:
+                        d_update = {pci_id:{model:{nvidia_uid:{'started':dom_id}}}}
+                    elif status in ['stopped']:
+                        d_update = {pci_id:{model:{nvidia_uid:{'started':False,'reserved':False}}}}
+                    elif status in ['removed']:
+                        d_update = {pci_id:{model:{nvidia_uid:{'created':False,'started':False,'reserved':False}}}}
+                    elif status in ['created']:
+                        d_update = {pci_id:{model:{nvidia_uid:{'created':True,'started':False,'reserved':False}}}}
+                if len(d_update) > 0:
+                    d_update_merged = dict_merge(d_update_merged,d_update)
+            if len(d_update_merged) > 0:
+                result = rtable_hyp.get(hyp_id).update({'nvidia_uids': d_update_merged}).run(r_conn)
+
+    close_rethink_connection(r_conn)
+    return result
+
+def domain_stopped_update_nvidia_uids_status(domain_id,hyp_id):
+    r_conn = new_rethink_connection()
+    rtable_dom = r.table('domains')
+    rtable_hyp = r.table('hypervisors')
+
+
+    d = dict(rtable_dom.get(domain_id).pluck({'create_dict':{'hardware':'videos'}}).run(r_conn))
+    try:
+        video = d['create_dict']['hardware']['videos'][0]
+    except:
+        close_rethink_connection(r_conn)
+        return False
+    result = False
+    if video.find('nvidia') == 0 or video.find('gpu_default'):
+        d = dict(rtable_hyp.get(hyp_id).pluck('nvidia_uids').run(r_conn))
+        if len(d) > 0:
+            d_uids = d['nvidia_uids']
+            if len(d_uids) > 0:
+                d_uids_flatten = flatten_dict.flatten(d_uids)
+                d_update_merged={}
+                d_uids_domains = {k:v for k,v in d_uids_flatten.items() if type(v) is not bool}
+                nvidia_uids = set([k[2] for k,v in d_uids_domains.items() if domain_id in v])
+
+                for nvidia_uid in nvidia_uids:
+                    d_update = {}
+                    l = [i for i in d_uids_flatten if nvidia_uid in i]
+                    if len(l) > 0:
+                        values = l[0]
+                        pci_id = values[0]
+                        model = values[1]
+                        #status = 'stopped'
+                        d_update = {pci_id:{model:{nvidia_uid:{'started':False,'reserved':False}}}}
+                    if len(d_update) > 0:
+                        d_update_merged = dict_merge(d_update_merged,d_update)
+                if len(d_update_merged) > 0:
+                    result = rtable_hyp.get(hyp_id).update({'nvidia_uids': d_update_merged}).run(r_conn)
+
     close_rethink_connection(r_conn)
     return result

@@ -13,7 +13,7 @@ from traceback import format_exc
 
 from engine.services.balancers.balancer_factory import BalancerFactory
 from engine.services.db.hypervisors import get_hypers_in_pool,get_pool_hypers_conf,get_hypers_info
-from engine.services.db.domains import get_domain_hardware_dict
+from engine.services.db.domains import get_create_dict
 from engine.services.log import logs
 
 class Balancer_no_stats():
@@ -90,9 +90,10 @@ class PoolHypervisors():
                 'domain_id':domain_id}
         if domain_id is not None:
             # try:
-                hw_dict = get_domain_hardware_dict(domain_id)
-                if hw_dict['video']['type'].find('nvidia') == 0:
-                    type = hw_dict['video']['type']
+                create_dict = get_create_dict(domain_id)
+                if create_dict['hardware']['videos'][0].find('nvidia') == 0 or \
+                        create_dict['hardware']['videos'][0].find('gpu-default') == 0 :
+                    type = create_dict['hardware']['videos'][0]
                     next_hyp,next_available_uid,next_id_pci,next_model = self.get_next_hyp_with_gpu(type,force_hyp,preferred_hyp)
                     #TODO ALBERTO
                     # FALTA modificar el xml para que arranque o pasarle de alguna manera el uuid
@@ -157,12 +158,12 @@ class PoolHypervisors():
         for d_hyper in hypers_online_with_gpu:
             d_uids = d_hyper['nvidia_uids']
             for id_pci,d in d_uids.items():
-                if type == 'nvidia':
+                if type == 'nvidia' or type == 'nvidia-with-qxl' or type == 'gpu-default':
                     model = d_hyper['default_gpu_models'][id_pci]
                 else:
                     model = type.split('nvidia_')[0]
                 if model in d.keys():
-                    available_uids[id_pci] = [k for k,v in d[model].items() if v['started'] is False]
+                    available_uids[id_pci] = [k for k,v in d[model].items() if v['started'] is False and v['reserved'] is False]
                     #TODO falta verificar realmente cuantos hay disponibles con libvirt
                     if len(available_uids[id_pci]) > max_available:
                         max_available = len(available_uids[id_pci])

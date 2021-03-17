@@ -422,6 +422,8 @@ def try_hyp_connection(hyp_id, hostname, port, user):
                 selected_gpu_type = default_gpu_models[gpu_id]
                 info_nvidia = d_hyp['info']['nvidia'][gpu_id]
                 hyp_obj.delete_and_create_devices_if_not_exist(gpu_id,d_uids,info_nvidia,selected_gpu_type)
+            if len(d_hyp['nvidia_uids']) > 0:
+                hyp_obj.update_started_uids()
 
         if hyp_obj.info['kvm_module'] == 'intel' or  hyp_obj.info['kvm_module'] == 'amd':
                 ok = True
