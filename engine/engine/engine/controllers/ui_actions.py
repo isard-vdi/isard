@@ -162,6 +162,15 @@ class UiActions(object):
                 if extra_info.get('nvidia',False) is True:
                     dict_action['nvidia_uid'] = extra_info.get('uid',False)
 
+                if action == 'start_paused_domain':
+                    update_domain_status(status='CreatingDomain',
+                                         id_domain=id_domain,
+                                         hyp_id=False,
+                                         detail='Waiting to try starting paused in hypervisor {} in pool {} ({} operations in queue)'.format(
+                                             next_hyp,
+                                             pool_id,
+                                             self.manager.q.workers[next_hyp].qsize()))
+
                 self.manager.q.workers[next_hyp].put(dict_action)
 
             else:
