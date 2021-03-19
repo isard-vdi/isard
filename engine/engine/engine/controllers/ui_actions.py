@@ -289,7 +289,6 @@ class UiActions(object):
     # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
 
     def deleting_disks_from_domain(self, id_domain, force=False):
-        # ALBERTO FALTA ACABAR
 
         dict_domain = get_domain(id_domain)
 
@@ -322,6 +321,9 @@ class UiActions(object):
                     else:
                         next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
 
+                    if type(next_hyp) is tuple:
+                        h=next_hyp[0]
+                        next_hyp = h
                     log.debug('hypervisor where delete disk {}: {}'.format(disk_path, next_hyp))
                     cmds = create_cmds_delete_disk(disk_path)
 
