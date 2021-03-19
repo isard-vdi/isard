@@ -23,15 +23,16 @@ import PrimeIcons from 'primevue/config';
 import PrimeVue from 'primevue/config';
 import RadioButton from 'primevue/radiobutton';
 import Sidebar from 'primevue/sidebar';
+import Tooltip from 'primevue/tooltip';
 import VueAxios from 'vue-axios';
 import axios from 'axios';
 import { createApp } from 'vue';
 import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
-import { ActionTypes } from './store/actions';
-import { getCookie } from 'tiny-cookie';
 import ConnectionService from './service/ConnectionService';
+import IsardInputText from '@/components/shared/forms/IsardInputText.vue';
+import IsardButton from '@/components/shared/forms/IsardButton.vue';
 
 ConnectionService.setClientBackend();
 const app = createApp(App);
@@ -54,4 +55,12 @@ app.component('Card', Card);
 app.component('Sidebar', Sidebar);
 app.component('DataTable', DataTable);
 app.component('Column', Column);
+app.component('IsardInputText', IsardInputText);
+app.component('IsardButton', IsardButton);
+
+// Workaround for bug https://github.com/primefaces/primevue/issues/877 not fixed in 3.3.5
+// eslint-disable-next-line
+// @ts-ignore
+app.directive('Tooltip', Tooltip);
+
 app.mount('#app');

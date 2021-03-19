@@ -13,6 +13,7 @@ export type Getters = {
   isMenuMobileActive(state: State): boolean;
   section(state: State): string;
   detailForUpdate(state: State): any;
+  editMode(state: State): boolean;
 };
 
 export const getters: GetterTree<State, State> & Getters = {
@@ -45,5 +46,8 @@ export const getters: GetterTree<State, State> & Getters = {
   },
   detailForUpdate: (state) => {
     return cloneDeep(state.detail);
+  },
+  editMode: (state) => {
+    return state.ui.editMode;
   }
 };

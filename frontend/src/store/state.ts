@@ -9,6 +9,8 @@ export interface State {
 }
 
 export interface Ui {
+  editMode: boolean;
+  isLoading: boolean;
   menu: {
     show: boolean;
     type: string;
@@ -67,6 +69,8 @@ export const state: State = {
     loggedIn: false
   },
   ui: {
+    editMode: false,
+    isLoading: false,
     menu: {
       show: true,
       type: 'static',

@@ -2,38 +2,33 @@
   <div class="p-grid p-fluid">
     <div class="p-col-12 p-md-12">
       <div class="card">
-        <h2>User Detail</h2>
+        <h2>Entity Detail</h2>
         <div class="p-grid p-formgrid">
-          <div class="p-col-12 p-mb-2 p-lg-4 p-mb-lg-0">
-            <label for="entityid">ID</label>
-            <InputText
-              id="entityid"
-              v-model="entity.id"
-              type="text"
-              placeholder="ID"
-              :disabled="true"
-            ></InputText>
-          </div>
-          <div class="p-col-12 p-mb-2 p-lg-4 p-mb-lg-0">
-            <label for="entityname">Name</label>
-            <InputText
-              id="entityname"
-              v-model="entity.name"
-              type="text"
-              placeholder="Name"
-            ></InputText>
-          </div>
+          <isard-input-text
+            id="entityid"
+            v-model="entity.id"
+            type="text"
+            placeholder="ID"
+            :disabled="true"
+            label="ID"
+          ></isard-input-text>
 
-          <div class="p-col-12 p-mb-2 p-lg-4 p-mb-lg-0">
-            <label for="entityuuid">UUID</label>
-            <InputText
-              id="entityuuid"
-              v-model="entity.uuid"
-              type="text"
-              placeholder="UUID"
-              class="p-error"
-            />
-          </div>
+          <isard-input-text
+            id="entityname"
+            v-model="entity.name"
+            type="text"
+            placeholder="Name"
+            label="Name"
+          ></isard-input-text>
+
+          <isard-input-text
+            id="entityuuid"
+            v-model="entity.uuid"
+            type="text"
+            placeholder="UUID"
+            class="p-error"
+            label="UUID"
+          ></isard-input-text>
         </div>
       </div>
       <br />
@@ -54,6 +49,7 @@
 <script lang="ts">
 import { store } from '@/store';
 import { defineComponent } from 'vue';
+import Tooltip from 'primevue/tooltip';
 
 export default defineComponent({
   setup() {},
