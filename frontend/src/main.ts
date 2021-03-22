@@ -31,6 +31,7 @@ import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
 import ConnectionService from './service/ConnectionService';
+import MainFormButtons from '@/components/shared/forms/MainFormButtons.vue';
 import IsardInputText from '@/components/shared/forms/IsardInputText.vue';
 import IsardButton from '@/components/shared/forms/IsardButton.vue';
 
@@ -55,6 +56,7 @@ app.component('Card', Card);
 app.component('Sidebar', Sidebar);
 app.component('DataTable', DataTable);
 app.component('Column', Column);
+app.component('MainFormButtons', MainFormButtons);
 app.component('IsardInputText', IsardInputText);
 app.component('IsardButton', IsardButton);
 

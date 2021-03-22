@@ -34,7 +34,9 @@ export enum ActionTypes {
   CHANGE_MENU_OVERLAY_ACTIVE = 'CHANGE_MENU_OVERLAY_ACTIVE',
   CHANGE_MENU_MOBILE_ACTIVE = 'CHANGE_MENU_MOBILE_ACTIVE',
   CHANGE_MENU_STATIC_ACTIVE = 'CHANGE_MENU_STATIC_ACTIVE',
-  ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE'
+  ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE',
+  END_EDIT_MODE = 'END_EDIT_MODE',
+  SAVE_ITEM = 'SAVE_ITEM'
 }
 
 /* Action Types*/
@@ -106,7 +108,7 @@ export interface Actions {
   [ActionTypes.GET_ITEM](
     { commit }: AugmentedActionContext,
     payload: {
-      section: string;
+      section: string; // TODO: retrieve inside action?
       params: any;
     }
   ): void;
@@ -144,6 +146,18 @@ export interface Actions {
   [ActionTypes.ACTIVATE_EDIT_MODE](
     { commit }: AugmentedActionContext,
     payload: {}
+  ): void;
+
+  [ActionTypes.END_EDIT_MODE](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
+
+  [ActionTypes.SAVE_ITEM](
+    { commit }: AugmentedActionContext,
+    payload: {
+      form: any;
+    }
   ): void;
 }
 
@@ -219,6 +233,14 @@ export const actions: ActionTree<State, State> & Actions = {
     );
   },
 
+  [ActionTypes.SAVE_ITEM]({ commit, getters }, payload) {
+    console.log(payload);
+    const section: string = getters.section;
+    // const mutation: string = sections[section].config?.query.update;
+
+    // call villus and then mutation
+  },
+
   [ActionTypes.GO_SEARCH]({ commit }, payload) {
     router.push({ name: payload.section });
   },
@@ -264,7 +286,11 @@ export const actions: ActionTree<State, State> & Actions = {
     commit(MutationTypes.CHANGE_MENU_STATIC_ACTIVE, payload);
   },
 
-  [ActionTypes.ACTIVATE_EDIT_MODE]({ commit }, payload: boolean) {
-    commit(MutationTypes.ACTIVATE_EDIT_MODE, payload);
+  [ActionTypes.ACTIVATE_EDIT_MODE]({ commit }) {
+    commit(MutationTypes.ACTIVATE_EDIT_MODE, {});
+  },
+
+  [ActionTypes.END_EDIT_MODE]({ commit }, payload: boolean) {
+    commit(MutationTypes.END_EDIT_MODE, payload);
   }
 };

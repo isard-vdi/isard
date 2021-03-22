@@ -125,6 +125,10 @@ router.beforeEach((to, from, next) => {
   const detailId = urlSegments.length > 2 ? urlSegments[2] : '';
   const section = urlSegments[1];
 
+  if (store.getters.editMode) {
+    store.dispatch(ActionTypes.END_EDIT_MODE);
+  }
+
   if (to.meta.needsAuth) {
     if (!loggedIn) {
       console.log('*** Logged OUT ***');

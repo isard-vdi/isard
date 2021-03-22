@@ -42,21 +42,26 @@
           </DataTable>
         </div>
       </div>
+      <main-form-buttons />
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { store } from '@/store';
-import { defineComponent } from 'vue';
-import Tooltip from 'primevue/tooltip';
+import { defineComponent, reactive } from 'vue';
+import { useStore } from '@/store';
+import { cloneDeep } from 'lodash';
+
+const store = useStore();
 
 export default defineComponent({
-  setup() {},
+  setup() {
+    const entity = reactive(cloneDeep(store.getters.detail));
+
+    return entity;
+  },
   data() {
-    return {
-      entity: store.getters.detailForUpdate
-    };
+    return {};
   }
 });
 </script>

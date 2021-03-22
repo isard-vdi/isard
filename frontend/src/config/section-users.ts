@@ -28,7 +28,16 @@ export const SectionUsers: SectionConfig = {
           uuid
         }
       }
-    }`
+    }`,
+    update: `
+    mutation UpdateMutation($id: bigint, $mail: String, $name: String) {
+      update_user(where: {id: {_eq: $id}}, _set: {email: $mail, name: $name}) {
+        returning {
+          id
+        }
+      }
+    }
+    `
   },
   table: {
     columns: [

@@ -1,12 +1,6 @@
 <template>
   <div
-    :class="[
-      'p-col-12',
-      'p-mb-2',
-      'p-lg-' + (colspan || 3),
-      'p-md-6',
-      'p-mb-lg-0'
-    ]"
+    :class="['p-col-12', 'p-mb-2', 'p-lg-' + colspan, 'p-md-6', 'p-mb-lg-0']"
   >
     <label>{{ label }}</label>
     <InputText v-bind="$attrs" />
@@ -20,8 +14,9 @@ export default {
       required: true
     },
     colspan: {
-      type: Number,
-      required: true
+      type: String,
+      required: false,
+      default: '3'
     }
   }
 };
