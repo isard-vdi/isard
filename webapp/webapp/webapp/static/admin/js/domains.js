@@ -49,6 +49,7 @@ $(document).ready(function() {
             $('#roles_pannel').hide();
         }
 
+        $("#modalAddDesktop #send-block").unbind('click');
         $("#modalAddDesktop #send-block").on('click', function(e){
             var form = $('#modalAdd');
 

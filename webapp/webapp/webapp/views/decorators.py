@@ -38,3 +38,12 @@ def checkRole(fn):
         if current_user.role == 'user': return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
         return fn(*args, **kwargs)
     return decorated_view
+
+def isAdvanced(fn):
+    @wraps(fn)
+    def decorated_view(*args, **kwargs):
+        if current_user.role == "advanced":
+            return fn(*args, **kwargs)
+        logout_user()
+        return render_template('login_category.html', category=False)
+    return decorated_view

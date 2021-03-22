@@ -18,7 +18,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from .admin_api import flatten
-from ..auth.authentication import Password  
+from ..auth.authentication import Password, user_reloader
 
 from netaddr import IPNetwork, IPAddress 
 from ..lib.quotas import QuotaLimits
@@ -181,12 +181,32 @@ class isard():
             user=self.f.flatten_dict(r.table('users').get(user).run(db.conn))
             user['password']=''
         return user
-                
+
     def get_user_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
             domains=list(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml','history_domain','allowed').run(db.conn))
         return domains
+
+    def get_user_tagged_domains(self,current_user):
+        self.filter_user_tags(current_user)
+        with app.app_context():
+            domains=list(r.table('domains').get_all(r.args(current_user.tags), index='tag').run(db.conn))
+        return domains
+
+    def filter_user_tags(self,current_user):
+        with app.app_context():
+            domains=list(r.table('domains').get_all(r.args(current_user.tags), index='tag').run(db.conn))
+        domains_tags=[t['tag'] for t in domains]
+        new_tags = [t for t in current_user.tags if t in domains_tags]
+        
+        if len(new_tags) != len(domains_tags):
+            r.table('users').get(current_user.id).update({'tags':new_tags}).run(db.conn)
+            user_reloader(current_user.id)
+        return True
+        ## Dropdown. Not used
+        ## result = [{"id": t, "name":t.split('_')[2]} for t in new_tags]
+        ##return result
 
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
@@ -932,8 +952,14 @@ class isard():
         if len(existing_desktops):
             lst_existing_desktops=[ed['user'].split('-')[-1] for ed in existing_desktops]
             return 'This users already have a desktop with the same name: '+', '.join(lst_existing_desktops)
+        if 'tag' in create_dict.keys():
+            create_dict['tag']='_'+current_user.id+'_'+create_dict['tag']
+            with app.app_context():
+                r.table('users').get(current_user.id).update({"tags": r.row["tags"].default([]).append(create_dict['tag'])}).run(db.conn)
+            user_reloader(current_user.id)
         for user in users:
             self.new_domain_from_tmpl(user,create_dict)
+
         return True
 
 
@@ -963,6 +989,7 @@ class isard():
         new_domain={'id': '_'+user+'-'+parsed_name,
                   'name': create_dict['name'],
                   'description': create_dict['description'],
+                  'tag':create_dict['tag'] if 'tag' in create_dict.keys() else False,
                   'kind': 'desktop',
                   'user': userObj['id'],
                   'username': userObj['username'],
