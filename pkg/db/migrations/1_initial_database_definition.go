@@ -7,20 +7,7 @@ import (
 	"github.com/go-pg/pg/v10/orm"
 )
 
-type Entity struct {
-	ID   int
-	UUID string `pg:",notnull,unique"`
-
-	Name        string `pg:",notnull"`
-	Description string
-	AuthConfigs []*AuthConfig `pg:"rel:has-many"`
-
-	CreatedAt time.Time `pg:"default:now(),notnull"`
-	UpdatedAt time.Time `pg:"default:now(),notnull"`
-	DeletedAt time.Time `pg:",soft_delete"`
-}
-
-type AuthConfig struct {
+type IdentityProvider struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
@@ -36,24 +23,13 @@ type AuthConfig struct {
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
-type User struct {
+type Entity struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
-	EntityID int     `pg:",notnull"`
-	Entity   *Entity `pg:"rel:has-one"`
-	GroupID  int     `pg:",notnull"`
-	Group    *Group  `pg:"rel:has-one"`
-
-	AuthConfigID int         `pg:",notnull"`
-	AuthConfig   *AuthConfig `pg:"rel:has-one"`
-	// Local login
-	Username string
-	Password string
-
-	Name    string `pg:",notnull"`
-	Surname string
-	Email   string
+	Name              string `pg:",notnull"`
+	Description       string
+	IdentityProviders []*IdentityProvider `pg:"rel:has-many"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
@@ -70,27 +46,58 @@ type Group struct {
 	Entity      *Entity `pg:"rel:has-one"`
 	Name        string  `pg:",notnull"`
 	Description string
-	Users       []*User `pg:"rel:has-many"`
-	// TODO: Is this really required?
-	RoleID int
-	Role   *Role `pg:"rel:has-one"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
-type GroupExtra struct {
-	UserID  int    `pg:",pk,notnull"`
-	User    *User  `pg:"rel:has-one"`
-	GroupID int    `pg:",pk,notnull"`
-	Group   *Group `pg:"rel:has-one"`
-	RoleID  int    `pg:",notnull"`
-	Role    *Role  `pg:"rel:has-one"`
+type User struct {
+	ID   int
+	UUID string `pg:",notnull,unique"`
+
+	Entities []Entity       `pg:"many2many:isardvdi_user_to_entity"`        // an user has to be in, at least an entity
+	Groups   []Group        `pg:"many2many:isardvdi_user_to_group"`         // an user can be at 0+ groups
+	Roles    []Role         `pg:"many2many:isardvdi_user_to_role"`          // an user can only have one role per entity
+	Quotas   []QuotaProfile `pg:"many2many:isardvdi_user_to_quota_profile"` // an user can only have one quota profile per entity
+
+	AuthConfig string `pg:",notnull,type:jsonb"`
+
+	Name    string `pg:",notnull"`
+	Surname string
+	Email   string
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
+}
+
+type UserToEntity struct {
+	UserID   int     `pg:",pk"`
+	User     *User   `pg:"rel:has-one"`
+	EntityID int     `pg:",pk"`
+	Entity   *Entity `pg:"rel:has-one"`
+}
+
+type UserToGroup struct {
+	UserID  int    `pg:",pk"`
+	User    *User  `pg:"rel:has-one"`
+	GroupID int    `pg:",pk"`
+	Group   *Group `pg:"rel:has-one"`
+}
+
+type UserToRole struct {
+	UserID int   `pg:",pk"`
+	User   *User `pg:"rel:has-one"`
+	RoleID int   `pg:",pk"`
+	Role   *Role `pg:"rel:has-one"`
+}
+
+type UserToQuotaProfile struct {
+	UserID         int           `pg:",pk"`
+	User           *User         `pg:"rel:has-one"`
+	QuotaProfileID int           `pg:",pk"`
+	QuotaProfile   *QuotaProfile `pg:"rel:has-one"`
 }
 
 type Role struct {
@@ -118,7 +125,41 @@ type RolePermission struct {
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
+type QuotaProfile struct {
+	ID   int
+	UUID string `pg:",notnull,unique"`
+
+	Name        string `pg:",notnull"`
+	Description string
+	EntityID    int      `pg:",notnull"`
+	Entity      *Entity  `pg:"rel:has-one"`
+	Quotas      []*Quota `pg:"rel:has-many"`
+
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
+	DeletedAt time.Time `pg:",soft_delete"`
+}
+
+type Quota struct {
+	QuotaProfileID int           `pg:",pk,notnull"`
+	QuotaProfile   *QuotaProfile `pg:"rel:has-one"`
+	QuotaID        int           `pg:",pk,notnull"`
+	Value          string        `pg:",notnull"`
+
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
+	DeletedAt time.Time `pg:",soft_delete"`
+}
+
 func init() {
+	orm.SetTableNameInflector(func(s string) string {
+		return "isardvdi_" + s
+	})
+	orm.RegisterTable(&UserToEntity{})
+	orm.RegisterTable(&UserToGroup{})
+	orm.RegisterTable(&UserToRole{})
+	orm.RegisterTable(&UserToQuotaProfile{})
+
 	// UP
 	migrations.MustRegisterTx(func(db migrations.DB) error {
 		opt := &orm.CreateTableOptions{FKConstraints: true}
@@ -126,7 +167,7 @@ func init() {
 			return err
 		}
 
-		if err := db.Model(&AuthConfig{}).CreateTable(opt); err != nil {
+		if err := db.Model(&IdentityProvider{}).CreateTable(opt); err != nil {
 			return err
 		}
 
@@ -137,19 +178,53 @@ func init() {
 		if err := db.Model(&RolePermission{}).CreateTable(opt); err != nil {
 			return err
 		}
-		if err := db.Model(&Group{}).CreateTable(opt); err != nil {
+
+		if err := db.Model(&QuotaProfile{}).CreateTable(opt); err != nil {
 			return err
 		}
 
+		if err := db.Model(&Quota{}).CreateTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&Group{}).CreateTable(opt); err != nil {
+			return err
+		}
 		if err := db.Model(&User{}).CreateTable(opt); err != nil {
 			return err
 		}
 
-		return db.Model(&GroupExtra{}).CreateTable(opt)
+		if err := db.Model(&UserToEntity{}).CreateTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&UserToGroup{}).CreateTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&UserToRole{}).CreateTable(opt); err != nil {
+			return err
+		}
+
+		return db.Model(&UserToQuotaProfile{}).CreateTable(opt)
+
 		// DOWN
 	}, func(db migrations.DB) error {
 		opt := &orm.DropTableOptions{}
-		if err := db.Model(&GroupExtra{}).DropTable(opt); err != nil {
+
+		if err := db.Model(&UserToQuotaProfile{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&UserToRole{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&UserToGroup{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&UserToEntity{}).DropTable(opt); err != nil {
 			return err
 		}
 
@@ -161,6 +236,13 @@ func init() {
 			return err
 		}
 
+		if err := db.Model(&Quota{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&QuotaProfile{}).DropTable(opt); err != nil {
+			return err
+		}
 		if err := db.Model(&RolePermission{}).DropTable(opt); err != nil {
 			return err
 		}
@@ -169,7 +251,7 @@ func init() {
 			return err
 		}
 
-		if err := db.Model(&AuthConfig{}).DropTable(opt); err != nil {
+		if err := db.Model(&IdentityProvider{}).DropTable(opt); err != nil {
 			return err
 		}
 

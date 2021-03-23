@@ -11,14 +11,16 @@ import (
 type Hardware struct {
 	ID int
 
-	BaseID     int                  `pg:",notnull"`
-	Base       *HardwareBase        `pg:"rel:has-one"`
-	Interfaces []*HardwareInterface `pg:"rel:has-many"`
+	BaseID int           `pg:",notnull"`
+	Base   *HardwareBase `pg:"rel:has-one"`
 
-	VCPUs     int     `pg:"vcpus,notnull"`
-	MemoryMin int     `pg:",notnull"`
-	MemoryMax int     `pg:",notnull"`
-	Disks     []*Disk `pg:"rel:has-many"`
+	// Resources
+	Interfaces []*HardwareInterface `pg:"rel:has-many"`
+	Disks      []*HardwareDisk      `pg:"rel:has-many"`
+
+	BootOrder []BootType
+	VCPUs     int `pg:"vcpus,notnull"`
+	Memory    int `pg:",notnull"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
@@ -58,6 +60,21 @@ type HardwareInterface struct {
 
 	MAC   string `pg:",notnull"`
 	Order int
+
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
+	DeletedAt time.Time `pg:",soft_delete"`
+}
+
+type HardwareDisk struct {
+	DiskID     int       `pg:",pk,notnull"`
+	Disk       *Disk     `pg:"rel:has-one"`
+	HardwareID int       `pg:",pk,notnull"`
+	Hardware   *Hardware `pg:"rel:has-one"`
+
+	Order    int
+	ReadOnly bool
+	// Config   string
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`

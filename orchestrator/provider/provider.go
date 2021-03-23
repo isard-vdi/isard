@@ -22,7 +22,7 @@ type GetHyperOpts struct {
 	GPU        bool
 }
 
-func New(ctx context.Context, provider string, redis redis.Cmdable) (Provider, error) {
+func New(ctx context.Context, provider string, redis redis.UniversalClient) (Provider, error) {
 	switch provider {
 	case "random":
 		return NewRandom(ctx, redis), nil

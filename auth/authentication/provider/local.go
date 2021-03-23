@@ -63,7 +63,7 @@ func (l *Local) Login(ctx context.Context, entityID string, args map[string]inte
 		return nil, "", "", errors.New("invalid arguments")
 	}
 
-	u := &model.User{Username: a.Usr}
+	u := &model.User{}
 	if err := u.LoadWithUsername(ctx, l.DB, entityID); err != nil {
 		if errors.Is(err, pg.ErrNoRows) {
 			return nil, "", "", ErrInvalidCredentials

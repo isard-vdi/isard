@@ -11,6 +11,10 @@ type Template struct {
 	Description string
 	HardwareID  int       `pg:",notnull"`
 	Hardware    *Hardware `pg:"rel:has-one"`
+	UserID      int       `pg:",notnull"`
+	User        *User     `pg:"rel:has-one"`
+	EntityID    int       `pg:",notnull"`
+	Entity      *Entity   `pg:"rel:has-one"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`

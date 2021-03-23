@@ -10,19 +10,22 @@ import (
 type Hardware struct {
 	ID int
 
-	BaseID     int                  `pg:",notnull"`
-	Base       *HardwareBase        `pg:"rel:has-one"`
-	Interfaces []*HardwareInterface `pg:"rel:has-many"`
+	BaseID int           `pg:",notnull"`
+	Base   *HardwareBase `pg:"rel:has-one"`
 
-	VCPUs     int     `pg:"vcpus,notnull"`
-	MemoryMin int     `pg:",notnull"`
-	MemoryMax int     `pg:",notnull"`
-	Disks     []*Disk `pg:"rel:has-many"`
+	// Resources
+	Interfaces []*HardwareInterface `pg:"rel:has-many"`
+	Disks      []*HardwareDisk      `pg:"rel:has-many"`
+
+	BootOrder []BootType
+	VCPUs     int `pg:"vcpus,notnull"`
+	Memory    int `pg:",notnull"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
 }
+type BootType int
 
 type HardwareBase struct {
 	ID   int
@@ -53,6 +56,21 @@ type HardwareInterface struct {
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
+type HardwareDisk struct {
+	DiskID     int       `pg:",pk,notnull"`
+	Disk       *Disk     `pg:"rel:has-one"`
+	HardwareID int       `pg:",pk,notnull"`
+	Hardware   *Hardware `pg:"rel:has-one"`
+
+	Order    int
+	ReadOnly bool
+	// Config   string
+
+	CreatedAt time.Time `pg:"default:now(),notnull"`
+	UpdatedAt time.Time `pg:"default:now(),notnull"`
+	DeletedAt time.Time `pg:",soft_delete"`
+}
+
 type Template struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
@@ -62,6 +80,10 @@ type Template struct {
 	Description string
 	HardwareID  int       `pg:",notnull"`
 	Hardware    *Hardware `pg:"rel:has-one"`
+	UserID      int       `pg:",notnull"`
+	User        *User     `pg:"rel:has-one"`
+	EntityID    int       `pg:",notnull"`
+	Entity      *Entity   `pg:"rel:has-one"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
@@ -76,6 +98,10 @@ type Desktop struct {
 	Description string
 	HardwareID  int       `pg:",notnull"`
 	Hardware    *Hardware `pg:"rel:has-one"`
+	UserID      int       `pg:",notnull"`
+	User        *User     `pg:"rel:has-one"`
+	EntityID    int       `pg:",notnull"`
+	Entity      *Entity   `pg:"rel:has-one"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
@@ -86,17 +112,17 @@ type Disk struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
-	ParentID   int       `pg:",notnull"`
-	Parent     *Disk     `pg:"rel:has-one"`
-	HardwareID int       `pg:",notnull"`
-	Hardware   *Hardware `pg:"rel:has-one"`
-
 	Type     DiskType `pg:",notnull"`
-	Path     string   `pg:",notnull"`
-	Enable   bool
-	ReadOnly bool
-	Order    int
-	Config   string
+	ParentID int
+	Parent   *Disk   `pg:"rel:has-one"`
+	EntityID int     `pg:",notnull"`
+	Entity   *Entity `pg:"rel:has-one"`
+	UserID   int     `pg:",notnull"`
+	User     *User   `pg:"rel:has-one"`
+	// TODO: Size?
+
+	Name        string `pg:",notnull"`
+	Description string
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
@@ -104,12 +130,6 @@ type Disk struct {
 }
 
 type DiskType int
-
-const (
-	DiskTypeUnknown DiskType = iota
-	DiskTypeQcow2
-	DiskTypeRaw
-)
 
 type Interface struct {
 	ID   int
@@ -187,6 +207,10 @@ func init() {
 			return err
 		}
 
+		if err := db.Model(&HardwareDisk{}).CreateTable(opt); err != nil {
+			return err
+		}
+
 		if err := db.Model(&Template{}).CreateTable(opt); err != nil {
 			return err
 		}
@@ -201,6 +225,10 @@ func init() {
 		}
 
 		if err := db.Model(&Template{}).DropTable(opt); err != nil {
+			return err
+		}
+
+		if err := db.Model(&HardwareDisk{}).DropTable(opt); err != nil {
 			return err
 		}
 

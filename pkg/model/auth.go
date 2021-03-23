@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type AuthConfig struct {
+type IdentityProvider struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 

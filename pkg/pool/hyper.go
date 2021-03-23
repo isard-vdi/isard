@@ -39,7 +39,7 @@ type HyperPool struct {
 	pool *pool
 }
 
-func NewHyperPool(ctx context.Context, cli redis.Cmdable) *HyperPool {
+func NewHyperPool(ctx context.Context, cli redis.UniversalClient) *HyperPool {
 	h := &HyperPool{}
 
 	h.pool = newPool(hyperStreamName, cli, state.NewHyperState, h.marshal, h.unmarshal, h.onErr)
