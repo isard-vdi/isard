@@ -22,6 +22,9 @@
         "not-found": {
             "title": "Eskatutako helbidea ez dugu aurkitu",
             "home": "Hasierara itzuli"
+        },
+        "title": {
+            "logo-alt": "Logotipoa"
         }
     },
     "views": {
@@ -47,7 +50,8 @@
                 "pwd": "Pasahitza",
                 "login": "Saioa hasi"
             },
-            "other-logins": "edo honako hauek erabiliz hasi:"
+            "other-logins": "edo honako hauek erabiliz hasi:",
+            "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da."
         },
         "maintenance": {
             "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
