@@ -33,7 +33,8 @@ export enum ActionTypes {
   CHANGE_MENU_COLOR_MODE = 'CHANGE_MENU_COLOR_MODE',
   CHANGE_MENU_OVERLAY_ACTIVE = 'CHANGE_MENU_OVERLAY_ACTIVE',
   CHANGE_MENU_MOBILE_ACTIVE = 'CHANGE_MENU_MOBILE_ACTIVE',
-  CHANGE_MENU_STATIC_ACTIVE = 'CHANGE_MENU_STATIC_ACTIVE'
+  CHANGE_MENU_STATIC_ACTIVE = 'CHANGE_MENU_STATIC_ACTIVE',
+  ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE'
 }
 
 /* Action Types*/
@@ -138,6 +139,11 @@ export interface Actions {
   [ActionTypes.CHANGE_MENU_STATIC_ACTIVE](
     { commit }: AugmentedActionContext,
     payload: boolean
+  ): void;
+
+  [ActionTypes.ACTIVATE_EDIT_MODE](
+    { commit }: AugmentedActionContext,
+    payload: {}
   ): void;
 }
 
@@ -256,5 +262,9 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.CHANGE_MENU_STATIC_ACTIVE]({ commit }, payload: boolean) {
     commit(MutationTypes.CHANGE_MENU_STATIC_ACTIVE, payload);
+  },
+
+  [ActionTypes.ACTIVATE_EDIT_MODE]({ commit }, payload: boolean) {
+    commit(MutationTypes.ACTIVATE_EDIT_MODE, payload);
   }
 };
