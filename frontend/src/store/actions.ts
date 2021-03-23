@@ -9,6 +9,7 @@ import { sections } from '@/config/sections';
 import { DEFAULT_PAGE } from '@/config/constants';
 import { remove, setCookie } from 'tiny-cookie';
 import ConnectionService from '@/service/ConnectionService';
+import UpdateUtils from '@/utils/UpdateUtils';
 
 type AugmentedActionContext = {
   commit<K extends keyof Mutations>(
@@ -156,7 +157,7 @@ export interface Actions {
   [ActionTypes.SAVE_ITEM](
     { commit }: AugmentedActionContext,
     payload: {
-      form: any;
+      persistenceObject: any;
     }
   ): void;
 }
@@ -170,7 +171,6 @@ export const actions: ActionTree<State, State> & Actions = {
       'local',
       payload.entity
     ).then((response: any): any => {
-      console.log(response);
       const payload = {
         token: response.login.token,
         userId: response.login.id
@@ -234,11 +234,19 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   [ActionTypes.SAVE_ITEM]({ commit, getters }, payload) {
-    console.log(payload);
     const section: string = getters.section;
-    // const mutation: string = sections[section].config?.query.update;
+    const mutation: string = sections[section].config?.query.update || '';
+    const persistenceObject: any = payload.persistenceObject;
 
-    // call villus and then mutation
+    // loading spinner open action
+    ConnectionService.executeMutation(mutation, persistenceObject)
+      .then(() => {
+        // loading spinner close action
+        //goto list?
+      })
+      .catch(() => {
+        // catch errors
+      });
   },
 
   [ActionTypes.GO_SEARCH]({ commit }, payload) {
@@ -257,7 +265,6 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.NAVIGATE]({ commit }, payload) {
     const { section, params, queryParams, editMode, url } = payload;
-    console.log(url, 'url');
     commit(MutationTypes.SET_NAVIGATION_DATA, { section });
     router.push({ name: url, params });
   },

@@ -80,7 +80,7 @@
       <main-form-buttons
         :edit-enabled="editEnabled"
         :form-changed="formChanged"
-        @saveButtonPressed="saveItem"
+        @savebuttonPressed="saveItem"
       />
     </div>
     <!-- end cols -->
@@ -91,8 +91,9 @@
 <script lang="ts">
 import { useStore } from '@/store';
 import { ActionTypes } from '@/store/actions';
+import UpdateUtils from '@/utils/UpdateUtils';
 import { cloneDeep } from 'lodash';
-import { computed, ComputedRef, defineComponent, reactive, ref } from 'vue';
+import { computed, ComputedRef, defineComponent, reactive } from 'vue';
 import MainFormButtons from '../shared/forms/MainFormButtons.vue';
 
 export default defineComponent({
@@ -108,7 +109,11 @@ export default defineComponent({
     );
 
     function saveItem(): void {
-      const payload = { form: '' };
+      const persistenceObject = UpdateUtils.getUpdateObject(
+        cloneDeep(user),
+        cloneDeep(store.getters.detail)
+      );
+      const payload = { persistenceObject: persistenceObject };
       store.dispatch(ActionTypes.SAVE_ITEM, payload);
     }
 

@@ -6,7 +6,7 @@
       v-if="editMode"
       label="Save"
       :disabled="!formChanged"
-      @click="formChanged && this.$emit('saveButtonPressed')"
+      @click="formChanged && $emit('savebutton-pressed')"
     />
     <isard-button
       v-if="!editMode"
@@ -27,9 +27,18 @@ export default {
   components: { IsardButton },
   props: {
     editEnabled: Boolean,
-    formChanged: Boolean
+    formChanged: Boolean,
+    hola: Boolean
   },
-  setup(props) {
+  emits: ['savebutton-pressed'],
+  setup(
+    props: Readonly<
+      {
+        editEnabled: boolean;
+        formChanged: boolean;
+      } & {}
+    >
+  ) {
     const store = useStore();
     const editMode = computed(() => store.getters.editMode);
 
