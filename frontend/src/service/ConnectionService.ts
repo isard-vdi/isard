@@ -7,13 +7,14 @@ export default class ConnectionService {
     return villusClient
       .executeQuery({
         query: query,
-        variables: params
+        variables: params,
+        cachePolicy: 'network-only'
       })
       .then((res) => res.data);
   }
 
-  static executeMutation(query: string) {
-    return villusClient.executeMutation({ query }).then((res) => {
+  static executeMutation(query: string, variables?: any) {
+    return villusClient.executeMutation({ query, variables }).then((res) => {
       return res.data;
     });
   }

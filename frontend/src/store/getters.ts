@@ -12,7 +12,7 @@ export type Getters = {
   isMenuOverlayActive(state: State): boolean;
   isMenuMobileActive(state: State): boolean;
   section(state: State): string;
-  detailForUpdate(state: State): any;
+  detail(state: State): any;
   editMode(state: State): boolean;
 };
 
@@ -44,8 +44,8 @@ export const getters: GetterTree<State, State> & Getters = {
   section: (state) => {
     return state.router.section;
   },
-  detailForUpdate: (state) => {
-    return cloneDeep(state.detail);
+  detail: (state) => {
+    return state.detail;
   },
   editMode: (state) => {
     return state.ui.editMode;

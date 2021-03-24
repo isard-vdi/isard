@@ -13,7 +13,8 @@ export enum MutationTypes {
   CHANGE_MENU_STATIC_ACTIVE = 'CHANGE_MENU_STATIC_INACTIVE',
   SET_NAVIGATION_DATA = 'SET_NAVIGATION_DATA',
   GET_ITEM = 'GET_ITEM',
-  ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE'
+  ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE',
+  END_EDIT_MODE = 'END_EDIT_MODE'
 }
 
 export type Mutations<S = State> = {
@@ -35,6 +36,7 @@ export type Mutations<S = State> = {
   ): void;
   [MutationTypes.GET_ITEM](state: S, payload: { item: any }): void;
   [MutationTypes.ACTIVATE_EDIT_MODE](state: S, payload: {}): void;
+  [MutationTypes.END_EDIT_MODE](state: S, payload: {}): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
@@ -92,5 +94,8 @@ export const mutations: MutationTree<State> & Mutations = {
   },
   [MutationTypes.ACTIVATE_EDIT_MODE](state: State, payload) {
     state.ui.editMode = true;
+  },
+  [MutationTypes.END_EDIT_MODE](state: State, payload) {
+    state.ui.editMode = false;
   }
 };

@@ -20,6 +20,7 @@
             v-tooltip="'Enter your username'"
             type="text"
             placeholder="Name"
+            :disabled="!editMode"
             label="Name"
             colspan="4"
           ></isard-input-text>
@@ -29,6 +30,7 @@
             v-model="user.surname"
             type="text"
             placeholder="Surnamne"
+            :disabled="!editMode"
             class="p-error"
             label="Surname"
             colspan="4"
@@ -37,7 +39,6 @@
         <!-- end grid -->
       </div>
       <!-- end card -->
-
       <br />
       <h4>Entity</h4>
       <div class="card">
@@ -57,6 +58,7 @@
             v-model="user.entity.name"
             type="text"
             placeholder="Name"
+            :disabled="!editMode"
             label="Name"
             colspan="4"
           ></isard-input-text>
@@ -66,6 +68,7 @@
             v-model="user.entity.uuid"
             type="text"
             placeholder="uiid"
+            :disabled="!editMode"
             class="p-error"
             label="uiid"
             colspan="4"
@@ -74,13 +77,11 @@
         <!-- end grid -->
       </div>
       <!-- end card -->
-      <div class="p-grid p-jc-end p-m-2">
-        <!-- buttons -->
-        <isard-button v-if="editMode" label="Cancel" />
-        <isard-button v-if="editMode" label="Save" />
-        <isard-button v-if="!editMode" label="Edit" @click="goToEditMode" />
-      </div>
-      <!-- end buttons -->
+      <main-form-buttons
+        :edit-enabled="editEnabled"
+        :form-changed="formChanged"
+        @savebuttonPressed="saveItem"
+      />
     </div>
     <!-- end cols -->
   </div>
@@ -88,29 +89,45 @@
 </template>
 
 <script lang="ts">
-import { store } from '@/store';
+import { useStore } from '@/store';
 import { ActionTypes } from '@/store/actions';
-import { computed, defineComponent } from 'vue';
-import IsardButton from '../shared/forms/IsardButton.vue';
+import UpdateUtils from '@/utils/UpdateUtils';
+import { cloneDeep } from 'lodash';
+import { computed, ComputedRef, defineComponent, reactive } from 'vue';
+import MainFormButtons from '../shared/forms/MainFormButtons.vue';
 
 export default defineComponent({
-  components: { IsardButton },
+  components: { MainFormButtons },
   setup() {
-    const editMode = computed(() => store.getters.editMode);
+    const store = useStore();
+    const editEnabled = true;
+    const editMode: ComputedRef<any> = computed(() => store.getters.editMode);
+    const user = reactive(cloneDeep(store.getters.detail));
 
-    function goToEditMode() {
-      console.log('goToEditMode');
-      store.dispatch(ActionTypes.ACTIVATE_EDIT_MODE);
+    const formChanged: ComputedRef<boolean> = computed(
+      () => JSON.stringify(user) !== JSON.stringify(store.getters.detail)
+    );
+
+    function saveItem(): void {
+      const persistenceObject = UpdateUtils.getUpdateObject(
+        cloneDeep(user),
+        cloneDeep(store.getters.detail)
+      );
+      const payload = { persistenceObject: persistenceObject };
+      store.dispatch(ActionTypes.SAVE_ITEM, payload);
     }
 
     return {
+      user,
+      formChanged,
+      editEnabled,
       editMode,
-      goToEditMode
+      saveItem
     };
   },
   data() {
     return {
-      user: store.getters.detailForUpdate
+      // user: store.getters.detail
     };
   }
 });

@@ -4,6 +4,7 @@ export interface SectionConfig {
   query: {
     search: string;
     detail: string;
+    update?: string;
   };
   table: {
     columns: { field: string; header: string }[];

@@ -9,6 +9,7 @@ import { sections } from '@/config/sections';
 import { DEFAULT_PAGE } from '@/config/constants';
 import { remove, setCookie } from 'tiny-cookie';
 import ConnectionService from '@/service/ConnectionService';
+import UpdateUtils from '@/utils/UpdateUtils';
 
 type AugmentedActionContext = {
   commit<K extends keyof Mutations>(
@@ -34,7 +35,9 @@ export enum ActionTypes {
   CHANGE_MENU_OVERLAY_ACTIVE = 'CHANGE_MENU_OVERLAY_ACTIVE',
   CHANGE_MENU_MOBILE_ACTIVE = 'CHANGE_MENU_MOBILE_ACTIVE',
   CHANGE_MENU_STATIC_ACTIVE = 'CHANGE_MENU_STATIC_ACTIVE',
-  ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE'
+  ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE',
+  END_EDIT_MODE = 'END_EDIT_MODE',
+  SAVE_ITEM = 'SAVE_ITEM'
 }
 
 /* Action Types*/
@@ -106,7 +109,7 @@ export interface Actions {
   [ActionTypes.GET_ITEM](
     { commit }: AugmentedActionContext,
     payload: {
-      section: string;
+      section: string; // TODO: retrieve inside action?
       params: any;
     }
   ): void;
@@ -145,6 +148,18 @@ export interface Actions {
     { commit }: AugmentedActionContext,
     payload: {}
   ): void;
+
+  [ActionTypes.END_EDIT_MODE](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
+
+  [ActionTypes.SAVE_ITEM](
+    { commit }: AugmentedActionContext,
+    payload: {
+      persistenceObject: any;
+    }
+  ): void;
 }
 
 /****** ACTIONS ****/
@@ -156,7 +171,6 @@ export const actions: ActionTree<State, State> & Actions = {
       'local',
       payload.entity
     ).then((response: any): any => {
-      console.log(response);
       const payload = {
         token: response.login.token,
         userId: response.login.id
@@ -219,6 +233,22 @@ export const actions: ActionTree<State, State> & Actions = {
     );
   },
 
+  [ActionTypes.SAVE_ITEM]({ commit, getters }, payload) {
+    const section: string = getters.section;
+    const mutation: string = sections[section].config?.query.update || '';
+    const persistenceObject: any = payload.persistenceObject;
+
+    // loading spinner open action
+    ConnectionService.executeMutation(mutation, persistenceObject)
+      .then(() => {
+        // loading spinner close action
+        //goto list?
+      })
+      .catch(() => {
+        // catch errors
+      });
+  },
+
   [ActionTypes.GO_SEARCH]({ commit }, payload) {
     router.push({ name: payload.section });
   },
@@ -235,7 +265,6 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.NAVIGATE]({ commit }, payload) {
     const { section, params, queryParams, editMode, url } = payload;
-    console.log(url, 'url');
     commit(MutationTypes.SET_NAVIGATION_DATA, { section });
     router.push({ name: url, params });
   },
@@ -264,7 +293,11 @@ export const actions: ActionTree<State, State> & Actions = {
     commit(MutationTypes.CHANGE_MENU_STATIC_ACTIVE, payload);
   },
 
-  [ActionTypes.ACTIVATE_EDIT_MODE]({ commit }, payload: boolean) {
-    commit(MutationTypes.ACTIVATE_EDIT_MODE, payload);
+  [ActionTypes.ACTIVATE_EDIT_MODE]({ commit }) {
+    commit(MutationTypes.ACTIVATE_EDIT_MODE, {});
+  },
+
+  [ActionTypes.END_EDIT_MODE]({ commit }, payload: boolean) {
+    commit(MutationTypes.END_EDIT_MODE, payload);
   }
 };
