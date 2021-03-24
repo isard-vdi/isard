@@ -20,7 +20,7 @@ func BuildDesktop(desktop *model.Desktop) (string, error) {
 	dom.Memory = &libvirtxml.DomainMemory{
 		Unit: "MiB",
 		// TODO: Max & min RAM
-		Value: uint(desktop.Hardware.MemoryMin),
+		Value: uint(desktop.Hardware.Memory),
 	}
 	// TODO: Disks & interfaces, OS variant
 	return dom.Marshal()

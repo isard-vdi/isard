@@ -7,12 +7,15 @@ import (
 	"github.com/go-pg/pg/v10/orm"
 )
 
-func Run(db migrations.DB) error {
-	// Don't pluralize tables
+func init() {
+	// Don't pluralize tables and set prefix
 	orm.SetTableNameInflector(func(s string) string {
-		return s
+		return "isardvdi_" + s
 	})
+}
 
+func Run(db migrations.DB) error {
+	migrations.SetTableName("isardvdi_gopg_migration")
 	old, new, err := migrations.Run(db, "init")
 	if err != nil {
 		return fmt.Errorf("initialize db migrations system: %w", err)

@@ -93,10 +93,9 @@ func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.Deskto
 	}
 
 	h := &cmnModel.Hardware{
-		BaseID:    b.ID,
-		VCPUs:     input.Hardware.Vcpus,
-		MemoryMin: input.Hardware.MemoryMin,
-		MemoryMax: input.Hardware.MemoryMax,
+		BaseID: b.ID,
+		VCPUs:  input.Hardware.Vcpus,
+		Memory: input.Hardware.MemoryMin,
 	}
 	_, err := r.DB.Model(h).Returning("id").Insert()
 	if err != nil {

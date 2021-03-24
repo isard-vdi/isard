@@ -6,6 +6,7 @@ type Interface struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
+	// TODO: Should this belong to an entity?
 	NetworkID      int           `pg:",notnull"`
 	Network        *Network      `pg:"rel:has-one"`
 	InterfaceQOSId int           `pg:",notnull"`
