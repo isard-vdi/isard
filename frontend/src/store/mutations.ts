@@ -14,7 +14,9 @@ export enum MutationTypes {
   SET_NAVIGATION_DATA = 'SET_NAVIGATION_DATA',
   GET_ITEM = 'GET_ITEM',
   ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE',
-  END_EDIT_MODE = 'END_EDIT_MODE'
+  END_EDIT_MODE = 'END_EDIT_MODE',
+  START_LOADING = 'START_LOADING',
+  STOP_LOADING = 'STOP_LOADING'
 }
 
 export type Mutations<S = State> = {
@@ -37,6 +39,8 @@ export type Mutations<S = State> = {
   [MutationTypes.GET_ITEM](state: S, payload: { item: any }): void;
   [MutationTypes.ACTIVATE_EDIT_MODE](state: S, payload: {}): void;
   [MutationTypes.END_EDIT_MODE](state: S, payload: {}): void;
+  [MutationTypes.START_LOADING](state: S, payload: {}): void;
+  [MutationTypes.STOP_LOADING](state: S, payload: {}): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
@@ -95,7 +99,15 @@ export const mutations: MutationTree<State> & Mutations = {
   [MutationTypes.ACTIVATE_EDIT_MODE](state: State, payload) {
     state.ui.editMode = true;
   },
-  [MutationTypes.END_EDIT_MODE](state: State, payload) {
+  [MutationTypes.END_EDIT_MODE](state: State) {
     state.ui.editMode = false;
+  },
+
+  [MutationTypes.START_LOADING](state: State) {
+    state.ui.isLoading = true;
+  },
+
+  [MutationTypes.STOP_LOADING](state: State) {
+    state.ui.isLoading = false;
   }
 };

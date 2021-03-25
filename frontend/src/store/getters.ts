@@ -14,6 +14,7 @@ export type Getters = {
   section(state: State): string;
   detail(state: State): any;
   editMode(state: State): boolean;
+  isLoading(state: State): boolean;
 };
 
 export const getters: GetterTree<State, State> & Getters = {
@@ -49,5 +50,8 @@ export const getters: GetterTree<State, State> & Getters = {
   },
   editMode: (state) => {
     return state.ui.editMode;
+  },
+  isLoading: (state) => {
+    return state.ui.isLoading;
   }
 };
