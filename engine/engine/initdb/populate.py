@@ -19,7 +19,6 @@ class Populate(object):
         cfg=loadConfig()
         self.cfg=cfg.cfg()
         try:
-            print(self.cfg['RETHINKDB_HOST'])
             self.conn = r.connect( self.cfg['RETHINKDB_HOST'],self.cfg['RETHINKDB_PORT'],self.cfg['RETHINKDB_DB']).repl()
         except Exception as e:
             log.error('Database not reacheable at '+self.cfg['RETHINKDB_HOST']+':'+self.cfg['RETHINKDB_PORT'])
@@ -39,7 +38,7 @@ class Populate(object):
     '''
 
     def is_database_created(self):
-        print(self.update_virtinstalls())
+        self.update_virtinstalls()
         try:
             if not r.db_list().contains(self.cfg['RETHINKDB_DB']).run():
                 log.warning('Database {} not found, creating new one.'.format(self.cfg['RETHINKDB_DB']))
@@ -48,6 +47,7 @@ class Populate(object):
                 self.check_integrity()
                 return True
             log.info('Database {} found.'.format(self.cfg['RETHINKDB_DB']))
+            self.check_integrity()
             return True
         except Exception as e:
             exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -67,13 +67,15 @@ class Populate(object):
                 'boots','hypervisors_events','hypervisors_status','hypervisors_status_history',
                 'disk_operations','hosts_viewers','places',
                 'scheduler_jobs','backups','config','engine',
-                'qos_net','qos_disk',
+                'qos_net','qos_disk','remotevpn',
                    ]
         tables_to_create=list(set(newtables) - set(dbtables))
         d = {k:v for v,k in enumerate(newtables)}
         tables_to_create.sort(key=d.get)
         tables_to_delete=list(set(dbtables) - set(newtables))
-        print(tables_to_create)
+        print("TABLES TO BE CREATED: "+','.join(tables_to_create))
+        log.info("TABLES TO BE CREATED: "+','.join(tables_to_create))
+        log.info("TABLES TO BE DELETED: "+','.join(tables_to_delete))
         if not commit:
             return {'tables_to_create':tables_to_create,'tables_to_delete':tables_to_delete}
         else:
@@ -276,6 +278,16 @@ class Populate(object):
                                                        'quota': False,
                                                        'limits': False
                                                        }]).run())                                                                                                              
+        return True
+
+    '''
+    REMOTE_VPN
+    '''
+
+    def remotevpn(self):
+        if not r.table_list().contains('remotevpn').run():
+            log.info("Table remotevpn not found, creating...")
+            r.table_create('remotevpn', primary_key="id").run()
         return True
 
     '''

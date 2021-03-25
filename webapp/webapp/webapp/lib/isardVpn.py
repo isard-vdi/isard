@@ -20,13 +20,14 @@ class isardVpn():
     def __init__(self):
         pass
 
-    def vpn_data(self,vpn,kind,os,current_user=False):
+    def vpn_data(self,vpn,kind,os,id=False):
         if vpn == 'users':
-            if current_user == False: return False
-            wgdata = r.table('users').get(current_user.id).pluck('vpn').run(db.conn) 
+            if id == False: return False
+            wgdata = r.table('users').get(id).pluck('vpn').run(db.conn)
+        elif vpn == 'remotevpn':
+            wgdata = r.table('remotevpn').get(id).pluck('vpn').run(db.conn)
         elif vpn == 'hypers':
-            if current_user.role != 'admin': return False
-            wgdata = r.table('hypervisors').get(current_user.id).pluck('vpn').run(db.conn)
+            wgdata = r.table('hypervisors').get(id).pluck('vpn').run(db.conn)
         else:
             return False
         if wgdata == None or 'vpn' not in wgdata.keys():
@@ -38,9 +39,14 @@ class isardVpn():
         if app.wireguard_users_keys == False:
             log.error('There are no wireguard keys in webapp config yet. Try again in a few seconds...')
             return False
-        endpoints=list(r.table('hypervisors').pluck({'viewer': 'static'}).run(db.conn))
-        if len(endpoints):
-            endpoint = endpoints[0]['viewer']['static']
+        endpoints=list(r.table('hypervisors').pluck('id',{'viewer': 'static'}).run(db.conn))
+        default_endpoint = [e for e in endpoints if e['id'] == 'isard-hypervisor']
+        if len(default_endpoint):
+            endpoint = default_endpoint[0]['viewer']['static']
+        elif len(endpoints):
+            endpoint = endpoint[0]['viewer']['static']
+        else:
+            return False
         if kind == 'config':
             return {'kind':'file','name':'isard-vpn','ext':'conf','mime':'text/plain','content':self.get_wireguard_file(endpoint,wgdata)} 
         elif kind == 'install':

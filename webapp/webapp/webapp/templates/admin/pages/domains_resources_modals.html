@@ -474,3 +474,66 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="modalRemotevpn" tabindex="-1" role="dialog" 
+     aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">   
+                <button type="button" class="close" 
+                   data-dismiss="modal">
+                       <span aria-hidden="true">&times;</span>
+                       <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-picture-o"> </i> Add new VPN client
+                </h4>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                
+              <form id="modalRemotevpnForm" class="form-horizontal form-label-left">
+                     
+			  <div class="x_panel" style="padding: 5px;">
+                  <p style="font-size: 18px;margin-bottom:0px;">Set client parameters</p>
+					<div class="x_content" style="padding: 0px;">
+                        <div class="row">
+                            <input id="id" name="id" value="" hidden/>
+                            <div class="col-md-4 col-xs-12">
+                                <label class="control-label" for="name">Name <span class="required">*</span>
+                                </label>
+                                  <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                            </div>
+                            <div class="col-md-8 col-xs-12">
+                                <label class="control-label" for="description">Description 
+                                </label>
+                                <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                           <div class="col-md-12 col-xs-12">
+                              <label class="control-label" for="type">Optional extra Routed Hosts/Networks 
+                              </label>
+                              <input id="nets" class="roundbox" maxlength="80" pattern="[/.,0-9]+$" data-parsley-length="[4, 40]" name="nets" placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
+                           </div>
+                        </div>
+				</div>
+			  </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                     <div class="form-group">
+                        <div class="col-md-6 col-md-offset-3">
+                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                           <button id="send" type="button" class="btn btn-success">Add VPN client</button></li>
+                        </div>
+                     </div>
+            </div>
+            </form>
+            </div>
+        </div>
+    </div>
+</div>

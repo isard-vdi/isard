@@ -290,7 +290,8 @@ class ResourcesThread(threading.Thread):
                             r.table('interfaces').merge({'table':'interfaces'}).changes(include_initial=False).union(
                             r.table('qos_net').merge({'table':'qos_net'}).changes(include_initial=False).union(
                             r.table('qos_disk').merge({'table':'qos_disk'}).changes(include_initial=False).union(
-                            r.table('boots').merge({'table':'boots'}).changes(include_initial=False)))))).run(db.conn):
+                            r.table('remotevpn').merge({'table':'remotevpn'}).changes(include_initial=False).union(
+                            r.table('boots').merge({'table':'boots'}).changes(include_initial=False))))))).run(db.conn):
                         if self.stop==True: break
                         if c['new_val'] == None:
                             data={'table':c['old_val']['table'],'data':c['old_val']}
@@ -1317,7 +1318,7 @@ def socketio_admin_domains_viewer(data):
 @socketio.on('vpn', namespace='/isard-admin/sio_users')
 def socketio_vpn(data):
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
-    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],current_user=current_user)
+    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],id=current_user.id)
     if vpn_data:
         socketio.emit('vpn',
                         json.dumps(vpn_data),
@@ -1336,7 +1337,9 @@ def socketio_vpn(data):
 @socketio.on('vpn', namespace='/isard-admin/sio_admins')
 def socketio_admin_vpn(data):
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
-    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],current_user=current_user)
+    if current_user.role != 'admin': return False
+    id=current_user.id if data['vpn'] == 'users' else data['id']
+    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],id=id)
     if vpn_data:
         socketio.emit('vpn',
                         json.dumps(vpn_data),
@@ -1524,6 +1527,11 @@ def socketio_admin_resources_update(data):
                         data,
                         namespace='/isard-admin/sio_admins', 
                         room='user_'+current_user.id)
+
+@socketio.on('resources_delete', namespace='/isard-admin/sio_admins')
+def socketio_admin_resources_delete(data):
+    if current_user.role == 'admin': 
+        res = app.adminapi.delete_table_key(data['table'],data['id'])
 
 ## Alloweds
 @socketio.on('allowed_update', namespace='/isard-admin/sio_admins')

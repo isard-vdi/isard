@@ -9,6 +9,141 @@
 $(document).ready(function() {
     $('.admin-status').show()
 
+    remotevpn_table=$('#table-remotevpn').DataTable({
+        "ajax": {
+            "url": "/isard-admin/admin/load/remotevpn/post",
+            "contentType": "application/json",
+            "type": 'POST',
+            "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+        },
+        "sAjaxDataProp": "",
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+        "columns": [
+            {
+            "className":      'details-control',
+            "orderable":      false,
+            "data":           null,
+            "defaultContent": '' //'<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+            },
+            { "data": "name"},
+            { "data": "description"},
+            { "data": null},
+            { "data": null},
+            {
+            "className":      'actions-control',
+            "orderable":      false,
+            "data":           null,
+            "defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
+                                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> \
+                                <button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkgreen"></i></button>'
+                               //<button id="btn-edit" class="btn btn-xs btn-edit-interface" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+            },
+            ],
+         "order": [[1, 'asc']],
+         "columnDefs": [ {
+            "targets": 3,
+            "render": function ( data, type, full, meta ) {
+                if('vpn' in data){
+                    return data['vpn']['wireguard']['Address']
+                }else{
+                    return '-'
+                }
+            }},
+            {
+            "targets": 4,
+            "render": function ( data, type, full, meta ) {
+                if('vpn' in data){
+                    return data['vpn']['wireguard']['extra_client_nets']
+                }else{
+                    return '-'
+                }
+            }},
+            ]
+    } );
+
+    $('#table-remotevpn').find(' tbody').on( 'click', 'button', function () {
+        var data = remotevpn_table.row( $(this).parents('tr') ).data();
+        switch($(this).attr('id')){
+            case 'btn-alloweds':        
+                modalAllowedsFormShow('remotevpn',data)
+            break;
+            case 'btn-edit':
+                $("#modalRemotevpnForm")[0].reset();
+                $('#modalRemotevpn').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
+                $('#modalRemotevpn #modalRemotevpnForm').parsley();
+                api.ajax('/isard-admin/admin/load/remotevpn/post','POST',{'id':data.id}).done(function(remotevpn) {
+                    $('#modalRemotevpnForm #name').val(remotevpn.name).attr("disabled",true);
+                    $('#modalRemotevpnForm #id').val(remotevpn.id);
+                    $('#modalRemotevpnForm #description').val(remotevpn.description);
+                    $.each(remotevpn,function(key,value){
+                        $('#modalRemotevpnForm #'+key).val(value)
+                    });             
+                });
+            break;
+            case 'btn-delete':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                        text: "Are you sure you want to delete client VPN: "+data['name']+"?",
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center'
+                    }).get().on('pnotify.confirm', function() {
+                        data['table']='remotevpn'
+                        socket.emit('resources_delete',data)
+                    }).on('pnotify.cancel', function() {
+            });	
+            break;
+            case 'btn-download':
+                socket.emit('vpn',{'vpn':'remotevpn','kind':'config','id':data['id'],'os':getOS()});
+            break;
+        }
+    });
+
+    $('.add-new-remotevpn').on( 'click', function () {
+            $('#modalRemotevpnForm #name').attr("disabled",false);
+            $("#modalRemotevpnForm")[0].reset();
+            $('#modalRemotevpn').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            $('#modalRemotevpn #modalRemotevpnForm').parsley();
+    });
+
+    $("#modalRemotevpn #send").on('click', function(e){
+        var form = $('#modalRemotevpnForm');
+        data = form.serializeObject()
+        form.parsley().validate();
+        if (form.parsley().isValid()){  
+            if(data['id']==""){
+                //Insert
+                data['id']=false;
+                data['allowed']={'roles':false,'categories':false,'groups':false,'users':false}
+            }else{
+                //Update
+                    data['name']=$('#modalRemotevpnForm #name').val();
+                }
+            data['table']='remotevpn'
+            socket.emit('resources_insert_update',data)
+        }
+        });
+
         // QOS NET
         qosnet_table=$('#table-qos-net').DataTable({
             "ajax": {
@@ -125,7 +260,6 @@ $(document).ready(function() {
             data['table']='qos_net'                   
             socket.emit('resources_insert_update',data)
         }
-            
     });
     
         
@@ -420,10 +554,8 @@ $(document).ready(function() {
                     //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
                 //~ }
             //~ }
-        });   
-        
-        
-         
+        });
+
     // VIDEOS
     videos_table=$('#videos').DataTable({
 			"ajax": {
@@ -601,10 +733,10 @@ $(document).ready(function() {
                 break;
             case 'videos':
                 dtUpdateInsert(videos_table,dict['data'],false);
-                break;                
+                break;
             case 'interfaces':
                 dtUpdateInsert(int_table,dict['data'],false);
-                break;                    
+                break;
             case 'boots':
                 dtUpdateInsert(boots_table,dict['data'],false);
                 break;
@@ -613,9 +745,28 @@ $(document).ready(function() {
                 break;
             case 'qos_disk':
                 dtUpdateInsert(qosdisk_table,dict['data'],false);
-                break;                                    
+                break;
+            case 'remotevpn':
+                dtUpdateInsert(remotevpn_table,dict['data'],false);
+                break;
         }  
 
+    });
+
+    socket.on('vpn', function (data) {
+        var data = JSON.parse(data);
+        if(data['kind']=='url'){
+            window.open(data['url'], '_blank');            
+        }
+        if(data['kind']=='file'){
+            var vpnFile = new Blob([data['content']], {type: data['mime']});
+            var a = document.createElement('a');
+                a.download = data['name']+'.'+data['ext'];
+                a.href = window.URL.createObjectURL(vpnFile);
+            var ev = document.createEvent("MouseEvents");
+                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                a.dispatchEvent(ev);              
+        }
     });
 
     socket.on('add_form_result', function (data) {
@@ -674,7 +825,10 @@ $(document).ready(function() {
                 break;
             case 'qos_disk':
                 var row = qosdisk_table.row('#'+data.id).remove().draw();
-                break;                                    
+                break;
+            case 'remotevpn':
+                var row = remotevpn_table.row('#'+data.id).remove().draw();
+                break;
         }        
         new PNotify({
                 title: "Resource deleted",

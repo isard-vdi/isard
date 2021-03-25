@@ -1,6 +1,3 @@
-
-from pprint import pprint
-
 import os
 from rethinkdb import RethinkDB; r = RethinkDB()
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
@@ -9,6 +6,7 @@ from subprocess import check_call, check_output
 import ipaddress
 import traceback
 
+import logging as log
 # Chain system. Not working when removing user when his last desktop
 # is stopped
 #from user_iptools import UserIpTools
@@ -80,8 +78,6 @@ class Keys(object):
                 exit(1)            
         self.skeys={'private':actual_private_key,
                     'public':actual_public_key}
-        print(update_clients)
-        self.update_clients=update_clients
 
         
 class Wg(object):
@@ -106,11 +102,8 @@ class Wg(object):
         # Get existing users wireguard config and generate new one's if not exist.
         self.init_server()
         self.init_peers(reset_client_certs)
-        #for user_id,peer in self.peers.items():
-        #    print(self.client_config(peer))
 
-        if table == 'users':
-            self.uipt=UserIpTools()
+        self.uipt=UserIpTools()
 
     def init_server(self):
         ## Server config
@@ -127,18 +120,20 @@ class Wg(object):
         check_output(('/usr/bin/wg-quick', 'up', self.interface), text=True).strip()
         ## End server config
 
-    def init_peers(self,reset):
+    def init_peers(self,reset=False):
         # This will reset all vpn config on restart.
         if reset == True:
             print('Reset '+self.table+' peer certificates...')
             r.table(self.table).replace(r.row.without('vpn')).run()
-        #####r.table('hypervisors').replace(r.row.without('vpn')).run()
+            if self.table == 'users': r.table('remotevpn').replace(r.row.without('vpn')).run()
+
         print('Initializing peers...')
         if self.table == 'hypervisors':
             wglist = list(r.table(self.table).pluck('id','vpn','hypervisor_number').run())
             wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
         elif self.table == 'users':
             wglist = list(r.table(self.table).pluck('id','vpn').run())
+            wglist_remotevpn = list(r.table('remotevpn').pluck('id','vpn').run())
 
         self.clients_reserved_ips=self.clients_reserved_ips+[p['vpn']['wireguard']['Address'] for p in wglist if 'vpn' in p.keys() and 'wireguard' in p['vpn'].keys()]
 
@@ -160,8 +155,43 @@ class Wg(object):
                 self.up_peer(new_peer)
             #if self.table=='users':
             #    self.uipt.add_user(peer['id'],peer['vpn']['wireguard']['Address'])
-        #pprint(create_peers)
+
         r.table(self.table).insert(create_peers, conflict='update').run()
+
+        ##### The same for remotevpn table
+        if self.table=='users':
+            self.clients_reserved_ips = self.clients_reserved_ips + [
+                a
+                for a in [
+                    p.get("vpn", {}).get("wireguard", {}).get("Address")
+                    for p in wglist_remotevpn
+                ]
+                if a
+            ]
+
+            create_peers=[]
+            if self.keys.update_clients == True:
+                print('Server key changed. Generating new client keys for all remotevpn...')
+            for peer in wglist_remotevpn:
+                new_peer=False
+                if self.keys.update_clients == True and peer.get("vpn", {}).get(
+                    "wireguard"
+                ):
+                    new_peer=peer
+                    new_peer['vpn']['wireguard']['keys']=self.keys.new_client_keys()
+                    create_peers.append(new_peer)
+                if 'vpn' not in peer.keys():
+                    if 'nets' in peer.keys() and peer['nets'] != '':
+                        extra_client_nets=peer['nets']
+                    else:
+                        extra_client_nets=None
+                    new_peer=self.gen_new_peer(peer,extra_client_nets=extra_client_nets)
+                    create_peers.append(new_peer)
+                if new_peer == False:
+                    self.up_peer(peer)
+                else:
+                    self.up_peer(new_peer)
+            r.table('remotevpn').insert(create_peers, conflict='update').run()
 
     def get_hyper_subnet(self,hypervisor_number):
         network=os.environ['WG_GUESTS_NETS']
@@ -174,13 +204,11 @@ class Wg(object):
 
         return dhcpsubnets[hypervisor_number]
 
-    def gen_new_peer(self,peer):
+    def gen_new_peer(self,peer,extra_client_nets=None):
         if self.table == 'hypervisors':
             if 'hypervisor_number' not in peer.keys():
                 peer['hypervisor_number'] = 1
             extra_client_nets=str(self.get_hyper_subnet(peer['hypervisor_number']))
-        else:
-            extra_client_nets=None
         return {'id':peer['id'],
                 'vpn':{ 'iptables':[],
                         'wireguard':
@@ -194,24 +222,40 @@ class Wg(object):
             address=peer['vpn']['wireguard']['Address']+','+peer['vpn']['wireguard']['extra_client_nets']
         else:
             address=peer['vpn']['wireguard']['Address']
-        check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'allowed-ips', address), text=True).strip()  
-        if self.table == 'hypervisors':
-            pass
-            # There seems to be a bug because the route is not applied so we need to force again...
-            check_output(('/usr/bin/wg-quick','save','hypers'), text=True).strip()
-            check_output(('/usr/bin/wg-quick','down','hypers'), text=True).strip()
-            check_output(('/usr/bin/wg-quick','up','hypers'), text=True).strip()
+        try:
+            check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'allowed-ips', address), text=True).strip()  
+            if self.table == 'hypervisors':
+                pass
+                # There seems to be a bug because the route is not applied so we need to force again...
+                check_output(('/usr/bin/wg-quick','save','hypers'), text=True).strip()
+                check_output(('/usr/bin/wg-quick','down','hypers'), text=True).strip()
+                check_output(('/usr/bin/wg-quick','up','hypers'), text=True).strip()
+            return True
+        except Exception as e:
+            log.error('New peer up peer error: \n'+traceback.format_exc())
+            return False
 
-    def add_peer(self,peer):
-        new_peer = self.gen_new_peer(peer)
-        self.up_peer(new_peer)
-        #if self.table=='users':
-        #    self.uipt.add_user(peer['id'],new_peer['vpn']['wireguard']['Address'])
-        r.table(self.table).insert(new_peer, conflict='update').run()
+    def add_peer(self,peer,table=False):
+        if 'nets' in peer.keys() and peer['nets'] != '':
+            extra_client_nets=peer['nets']
+        else:
+            extra_client_nets=None
+        new_peer = self.gen_new_peer(peer,extra_client_nets=extra_client_nets)
+        if self.up_peer(new_peer) == True:
+            #if self.table=='users':
+            #    self.uipt.add_user(peer['id'],new_peer['vpn']['wireguard']['Address'])
+            if table==False: table=self.table
+            r.table(table).insert(new_peer, conflict='update').run()
+            if table == 'remotevpn': r.table(table).get(new_peer['id']).replace(r.row.without('nets')).run()
+        else:
+            if table==False: table=self.table
+            r.table(table).get(new_peer['id']).delete().run()
 
-    def remove_peer(self,peer):
+    def remove_peer(self,peer,table=False):
+        if table==False: table=self.table
         if 'vpn' in peer.keys() and 'wireguard' in peer['vpn'].keys():
             check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'remove'), text=True).strip()  
+        self.uipt.remove_matching_rules(peer)
         #if self.table=='users':
         #    self.uipt.del_user(peer['id'],peer['vpn']['wireguard']['Address'])
 
