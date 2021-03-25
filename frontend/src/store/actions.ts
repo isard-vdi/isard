@@ -242,7 +242,7 @@ export const actions: ActionTree<State, State> & Actions = {
     ConnectionService.executeMutation(mutation, persistenceObject)
       .then(() => {
         // loading spinner close action
-        //goto list?
+        router.push({ name: section });
       })
       .catch(() => {
         // catch errors
