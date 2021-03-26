@@ -46,5 +46,6 @@ export const SectionUsers: SectionConfig = {
       { field: 'userName', header: 'Username' },
       { field: 'profile', header: 'Profile' }
     ]
-  }
+  },
+  detail: 'User'
 };

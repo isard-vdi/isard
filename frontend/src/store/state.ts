@@ -9,6 +9,7 @@ export interface State {
 }
 
 export interface Ui {
+  createMode: boolean;
   editMode: boolean;
   isLoading: boolean;
   menu: {
@@ -31,6 +32,7 @@ export interface RouterState {
   layout: string;
   section: string;
   queryParams: string[];
+  routeName: string;
 }
 
 export const state: State = {
@@ -69,6 +71,7 @@ export const state: State = {
     loggedIn: false
   },
   ui: {
+    createMode: false,
     editMode: false,
     isLoading: false,
     menu: {
@@ -83,6 +86,7 @@ export const state: State = {
   router: {
     layout: '',
     section: '',
-    queryParams: []
+    queryParams: [],
+    routeName: ''
   }
 };

@@ -9,7 +9,6 @@ import { sections } from '@/config/sections';
 import { DEFAULT_PAGE } from '@/config/constants';
 import { remove, setCookie } from 'tiny-cookie';
 import ConnectionService from '@/service/ConnectionService';
-import UpdateUtils from '@/utils/UpdateUtils';
 
 type AugmentedActionContext = {
   commit<K extends keyof Mutations>(
@@ -28,6 +27,7 @@ export enum ActionTypes {
   NAVIGATE = 'NAVIGATE',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
+  GO_CREATE = 'GO_CREATE',
   GET_ITEM = 'GET_ITEM',
   TOGGLE_MENU = 'TOGGLE_MENU',
   CHANGE_MENU_TYPE = 'CHANGE_MENU_TYPE',
@@ -84,6 +84,8 @@ export interface Actions {
       url: string;
       queryParams: string[];
       editmode: boolean;
+      params: string[];
+      routeName: string;
     }
   ): void;
 
@@ -92,6 +94,7 @@ export interface Actions {
     payload: {
       section: string;
       params: any;
+      routeName: string;
       url: string;
       queryParams: string[];
       editMode: boolean;
@@ -189,7 +192,7 @@ export const actions: ActionTree<State, State> & Actions = {
       };
 
       store.dispatch(ActionTypes.REFRESH_CLIENT_TOKEN, payload);
-      router.push({ name: DEFAULT_PAGE });
+      router.push({ name: DEFAULT_PAGE, params: { section: 'users' } });
     });
   },
 
@@ -214,7 +217,8 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {
     const section: string = getters.section ? getters.section : payload.section;
-    const query: string = sections[section].config?.query.search;
+    const query: string =
+      sections[section] && sections[section].config?.query.search;
     SearchService.listSearch(
       query,
       payload.queryParams,
@@ -236,6 +240,7 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.GET_ITEM]({ commit, getters }, payload) {
     const section: string = getters.section ? getters.section : payload.section;
+    console.log(section, 'section');
     const query: string = sections[section].config?.query.detail;
 
     store.dispatch(ActionTypes.START_LOADING, payload);
@@ -245,7 +250,7 @@ export const actions: ActionTree<State, State> & Actions = {
           (response && response[Object.keys(response)[0]][0]) || {};
         commit(MutationTypes.GET_ITEM, dataItem);
         store.dispatch(ActionTypes.STOP_LOADING, payload);
-        router.push({ name: `${section}-detail`, params: payload.params });
+        router.push({ name: 'detail', params: { ...payload.params, section } });
       }
     );
   },
@@ -258,8 +263,7 @@ export const actions: ActionTree<State, State> & Actions = {
     store.dispatch(ActionTypes.START_LOADING, payload);
     ConnectionService.executeMutation(mutation, persistenceObject)
       .then(() => {
-        //store.dispatch(ActionTypes.STOP_LOADING, payload);
-        router.push({ name: section });
+        router.push({ name: 'search', params: { section } });
       })
       .catch(() => {
         // catch errors
@@ -270,20 +274,24 @@ export const actions: ActionTree<State, State> & Actions = {
     router.push({ name: payload.section });
   },
 
+  [ActionTypes.GO_CREATE]({ commit }, payload) {
+    router.push({ name: 'login' });
+  },
+
   [ActionTypes.SET_NAVIGATION_DATA]({ commit }, payload) {
-    const namedUrl = payload.section;
-    const section =
-      namedUrl.indexOf('-') > -1 ? namedUrl.split('-')[0] : namedUrl;
+    const { section, params, queryParams, url, routeName } = payload;
 
     commit(MutationTypes.SET_NAVIGATION_DATA, {
+      routeName,
       section
     });
   },
 
   [ActionTypes.NAVIGATE]({ commit }, payload) {
-    const { section, params, queryParams, editMode, url } = payload;
-    commit(MutationTypes.SET_NAVIGATION_DATA, { section });
-    router.push({ name: url, params });
+    const { section, params, queryParams, editMode, url, routeName } = payload;
+    commit(MutationTypes.SET_NAVIGATION_DATA, { routeName, section });
+
+    router.push({ name: routeName, params });
   },
 
   [ActionTypes.TOGGLE_MENU]({ commit }) {

@@ -1,6 +1,5 @@
 import { GetterTree } from 'vuex';
 import { State } from './state';
-import { cloneDeep } from 'lodash';
 
 export type Getters = {
   loginToken(state: State): string;
@@ -15,6 +14,8 @@ export type Getters = {
   detail(state: State): any;
   editMode(state: State): boolean;
   isLoading(state: State): boolean;
+  createMode(state: State): boolean;
+  routeName(state: State): string;
 };
 
 export const getters: GetterTree<State, State> & Getters = {
@@ -53,5 +54,11 @@ export const getters: GetterTree<State, State> & Getters = {
   },
   isLoading: (state) => {
     return state.ui.isLoading;
+  },
+  createMode: (state) => {
+    return state.ui.createMode;
+  },
+  routeName: (state) => {
+    return state.router.routeName;
   }
 };

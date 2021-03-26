@@ -4,7 +4,7 @@
     <div>
       <DataTable :value="itemsList" class="p-datatable-striped">
         <Column
-          v-for="col of sectionConfig.table.columns"
+          v-for="col of sectionConfig.table?.columns"
           :key="col.field"
           :field="col.field"
           :header="col.header"
@@ -26,6 +26,7 @@
       </DataTable>
     </div>
     <div>pagination component</div>
+    <list-buttons></list-buttons>
   </div>
 </template>
 
@@ -37,26 +38,39 @@ import { useRoute } from 'vue-router';
 import { sections } from '@/config/sections';
 import { SectionConfig } from '@/config/sections-config';
 import { DEFAULT_SEARCH_SIZE } from '@/config/constants';
+import ListButtons from '@/components/shared/lists/ListButtons.vue';
+import routes from '@/router';
+import { cloneDeep } from 'lodash';
 
 export default defineComponent({
+  components: { ListButtons },
   setup(props, context) {
     const store = useStore();
-    const route = useRoute();
 
     // LifeCycle Hooks
     const section = computed(() => store.getters.section);
+    const sectionAndRoute = computed(
+      () => `${store.getters.routeName}:${store.getters.section}`
+    );
     const sectionConfig: SectionConfig | {} = computed(
-      () => (section.value && sections[`${section.value}`].config) || {}
+      () =>
+        (section.value &&
+          sections[`${section.value}`] &&
+          sections[`${section.value}`].config) ||
+        {}
     );
 
     watch(
-      () => store.getters.section,
-      () => {
-        store.dispatch(ActionTypes.DO_SEARCH, {
-          queryParams: [],
-          size: DEFAULT_SEARCH_SIZE,
-          start: 0
-        });
+      sectionAndRoute,
+      (sectionAndRoute) => {
+        console.log(sectionAndRoute, 'Routenamecomputed');
+        if (sectionAndRoute.split(':')[0] === 'search') {
+          store.dispatch(ActionTypes.DO_SEARCH, {
+            queryParams: [],
+            size: DEFAULT_SEARCH_SIZE,
+            start: 0
+          });
+        }
       },
       {
         immediate: true
