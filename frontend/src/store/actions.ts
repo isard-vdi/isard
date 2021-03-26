@@ -37,7 +37,9 @@ export enum ActionTypes {
   CHANGE_MENU_STATIC_ACTIVE = 'CHANGE_MENU_STATIC_ACTIVE',
   ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE',
   END_EDIT_MODE = 'END_EDIT_MODE',
-  SAVE_ITEM = 'SAVE_ITEM'
+  SAVE_ITEM = 'SAVE_ITEM',
+  START_LOADING = 'START_LOADING',
+  STOP_LOADING = 'STOP_LOADING'
 }
 
 /* Action Types*/
@@ -160,6 +162,16 @@ export interface Actions {
       persistenceObject: any;
     }
   ): void;
+
+  [ActionTypes.START_LOADING](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
+
+  [ActionTypes.STOP_LOADING](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
 }
 
 /****** ACTIONS ****/
@@ -217,17 +229,22 @@ export const actions: ActionTree<State, State> & Actions = {
           response[sectionConfig.search.apiSegment]
         )
       );
+
+      store.dispatch(ActionTypes.STOP_LOADING, payload);
     });
   },
 
   [ActionTypes.GET_ITEM]({ commit, getters }, payload) {
     const section: string = getters.section ? getters.section : payload.section;
     const query: string = sections[section].config?.query.detail;
+
+    store.dispatch(ActionTypes.START_LOADING, payload);
     SearchService.detailSearch(query, payload.params).then(
       (response: any): any => {
         const dataItem =
           (response && response[Object.keys(response)[0]][0]) || {};
         commit(MutationTypes.GET_ITEM, dataItem);
+        store.dispatch(ActionTypes.STOP_LOADING, payload);
         router.push({ name: `${section}-detail`, params: payload.params });
       }
     );
@@ -238,11 +255,11 @@ export const actions: ActionTree<State, State> & Actions = {
     const mutation: string = sections[section].config?.query.update || '';
     const persistenceObject: any = payload.persistenceObject;
 
-    // loading spinner open action
+    store.dispatch(ActionTypes.START_LOADING, payload);
     ConnectionService.executeMutation(mutation, persistenceObject)
       .then(() => {
-        // loading spinner close action
-        //goto list?
+        //store.dispatch(ActionTypes.STOP_LOADING, payload);
+        router.push({ name: section });
       })
       .catch(() => {
         // catch errors
@@ -299,5 +316,13 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.END_EDIT_MODE]({ commit }, payload: boolean) {
     commit(MutationTypes.END_EDIT_MODE, payload);
+  },
+
+  [ActionTypes.START_LOADING]({ commit }, payload: boolean) {
+    commit(MutationTypes.START_LOADING, payload);
+  },
+
+  [ActionTypes.STOP_LOADING]({ commit }, payload: boolean) {
+    commit(MutationTypes.STOP_LOADING, payload);
   }
 };

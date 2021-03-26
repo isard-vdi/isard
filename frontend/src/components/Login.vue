@@ -93,7 +93,7 @@ export default {
       store.dispatch(ActionTypes.DO_LOCAL_LOGIN, {
         usr: user.value,
         psw: password.value,
-        entity: 'c150974tdj5pb2ktf6u0'
+        entity: 'c1e67m4tdj5omoqonvfg'
       });
     };
 
