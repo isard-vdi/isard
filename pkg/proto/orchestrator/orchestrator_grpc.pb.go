@@ -61,7 +61,7 @@ type UnsafeOrchestratorServer interface {
 	mustEmbedUnimplementedOrchestratorServer()
 }
 
-func RegisterOrchestratorServer(s grpc.ServiceRegistrar, srv OrchestratorServer) {
+func RegisterOrchestratorServer(s *grpc.Server, srv OrchestratorServer) {
 	s.RegisterService(&_Orchestrator_serviceDesc, srv)
 }
 

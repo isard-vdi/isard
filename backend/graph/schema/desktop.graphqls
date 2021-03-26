@@ -45,15 +45,14 @@ type DesktopTemplatePayload {
 input DesktopCreateInput {
     name: String!
     description: String
-    # TODO: Hardware
     hardware: DesktopCreateInputHardware!
 }
 
 input DesktopCreateInputHardware {
     baseId: ID!
+    # TODO: Boot order
     vcpus: Int!
-    memoryMax: Int!
-    memoryMin: Int!
+    memory: Int!
     # TODO: Disks
     # disks: [Disk!]!
 }

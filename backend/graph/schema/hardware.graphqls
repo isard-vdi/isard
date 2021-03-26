@@ -1,9 +1,8 @@
 type Hardware {
     base: HardwareBase!
     vcpus: Int!
-    memoryMax: Int!
-    memoryMin: Int!
-    disks: [Disk!]!
+    memory: Int!
+    # disks: [Disk!]!
 }
 
 type HardwareBase {
@@ -15,18 +14,18 @@ type HardwareBase {
     xml: String!
 }
 
-type Disk {
-    id: ID!
-    type: DiskType!
-    enable: Boolean
-    readOnly: Boolean
-}
+# type Disk {
+#     id: ID!
+#     type: DiskType!
+#     enable: Boolean
+#     readOnly: Boolean
+# }
 
-enum DiskType {
-    UNKNOWN
-    QCOW2
-    RAW
-}
+# enum DiskType {
+#     UNKNOWN
+#     QCOW2
+#     RAW
+# }
 
 # type HardwareBaseQueries {
 #     list: [HardwareBase!]!

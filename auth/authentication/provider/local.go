@@ -86,9 +86,11 @@ func (l *Local) Login(ctx context.Context, entityID string, args map[string]inte
 		return nil, "", "", fmt.Errorf("create session: %w", err)
 	}
 
-	val := store.NewStoreValues(nil)
+	val := store.NewValues(nil)
 	val.SetProvider(l.String())
-	val.SetUsrID(u.UUID)
+	val.SetUsrID(u.ID)
+	val.SetUsrUUID(u.UUID)
+	val.SetEntityID(u.Entities[0].ID)
 	val.SetTime(time.Now())
 
 	s.Values = val.Values()

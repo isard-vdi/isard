@@ -58,4 +58,5 @@ message GetUserIDRequest {
 
 message GetUserIDResponse {
     int64 id = 1;
+    int64 entity_id = 2;
 }
