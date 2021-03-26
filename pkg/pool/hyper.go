@@ -71,8 +71,8 @@ func (h *HyperPool) onErr(err error) {
 	// TODO: Handle errors?
 }
 
-func (h *HyperPool) Get(host string) (*Hyper, error) {
-	hyper, err := h.pool.get(host)
+func (h *HyperPool) Get(ctx context.Context, host string) (*Hyper, error) {
+	hyper, err := h.pool.get(ctx, host)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +84,8 @@ func (h *HyperPool) Set(ctx context.Context, hyper *Hyper) error {
 	return h.pool.set(ctx, hyper)
 }
 
-func (h *HyperPool) List() ([]*Hyper, error) {
-	val, err := h.pool.list()
+func (h *HyperPool) List(ctx context.Context) ([]*Hyper, error) {
+	val, err := h.pool.list(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (h *HyperPool) List() ([]*Hyper, error) {
 }
 
 func (h *HyperPool) Remove(ctx context.Context, host string) error {
-	hyper, err := h.Get(host)
+	hyper, err := h.Get(ctx, host)
 	if err != nil {
 		return err
 	}

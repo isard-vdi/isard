@@ -63,8 +63,8 @@ func (d *DesktopPool) onErr(err error) {
 	// TODO: Handle errors?
 }
 
-func (d *DesktopPool) Get(id string) (*Desktop, error) {
-	desktop, err := d.pool.get(id)
+func (d *DesktopPool) Get(ctx context.Context, id string) (*Desktop, error) {
+	desktop, err := d.pool.get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -76,8 +76,8 @@ func (d *DesktopPool) Set(ctx context.Context, desktop *Desktop) error {
 	return d.pool.set(ctx, desktop)
 }
 
-func (d *DesktopPool) List() ([]*Desktop, error) {
-	val, err := d.pool.list()
+func (d *DesktopPool) List(ctx context.Context) ([]*Desktop, error) {
+	val, err := d.pool.list(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (d *DesktopPool) List() ([]*Desktop, error) {
 }
 
 func (d *DesktopPool) Remove(ctx context.Context, id string) error {
-	desktop, err := d.Get(id)
+	desktop, err := d.Get(ctx, id)
 	if err != nil {
 		return err
 	}

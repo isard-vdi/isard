@@ -14,7 +14,7 @@ import (
 var ErrNoAvailableHyper = errors.New("no hypervisor with the capabilities requested is available")
 
 type Provider interface {
-	GetHyper(*GetHyperOpts) (string, error)
+	GetHyper(context.Context, *GetHyperOpts) (string, error)
 }
 
 type GetHyperOpts struct {

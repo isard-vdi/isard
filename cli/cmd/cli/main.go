@@ -6,30 +6,29 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/rs/xid"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	"gitlab.com/isard/isardvdi/pkg/model"
 	"golang.org/x/crypto/bcrypt"
-
-	"github.com/rs/xid"
 )
 
 func main() {
-	if _, err := exec.Command("dropdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
-		panic(err)
-	}
-
-	if _, err := exec.Command("createdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
-		panic(err)
-	}
-
-	// out, err := exec.Command("docker", "inspect", "-f", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", "isardvdi_postgres_1").CombinedOutput()
-	// if err != nil {
+	// if _, err := exec.Command("dropdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
 	// 	panic(err)
 	// }
 
-	out := ""
+	// if _, err := exec.Command("createdb", "isard", "-h", "/var/run/postgresql").CombinedOutput(); err != nil {
+	// 	panic(err)
+	// }
 
-	db, err := db.New(strings.Replace(strings.TrimSpace(string(out)), "'", "", -1)+":5432", "dev", "dev", "isard")
+	out, err := exec.Command("docker", "inspect", "-f", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", "isardvdi_postgres_1").CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+
+	// out := ""
+
+	db, err := db.New(strings.Replace(strings.TrimSpace(string(out)), "'", "", -1)+":5432", "isard", "isard", "isard")
 	if err != nil {
 		panic(err)
 	}
@@ -88,8 +87,21 @@ func main() {
 		UUID:    xid.New().String(),
 		Name:    "Néfix",
 		Surname: "Estrada",
-		// AuthConfig: `"` + string(pwd) + `"`,
-		AuthConfig: `{"usr": "nefix", "pwd": "` + string(pwd) + `"}`,
+		AuthConfig: map[string]model.AuthConfig{
+			a.UUID: map[string]interface{}{
+				"usr": "nefix",
+				"pwd": pwd,
+			},
+		},
+		// AuthConfig: map[string]model.AuthConfig{
+		// 	Type:                 a.Type,
+		// 	IdentityProviderUUID: a.UUID,
+		// 	EntityUUID:           e.UUID,
+		// 	Config: map[string]interface{}{
+		// 		"usr": "nefix",
+		// 		"pwd": string(pwd),
+		// 	},
+		// }},
 	}
 
 	result, err = db.Model(u).Returning("id").Insert()
@@ -100,10 +112,17 @@ func main() {
 	fmt.Println("Usuari insertada")
 	fmt.Println(result.RowsAffected())
 
-	user := model.User{}
-	fmt.Println(user.LoadLocalLogin(context.Background(), db, e.UUID, "nefix"))
+	if _, err := db.Model(&model.UserToEntity{
+		UserID:   u.ID,
+		EntityID: e.ID,
+	}).Insert(); err != nil {
+		panic(err)
+	}
+
+	user := &model.User{}
+	fmt.Println(user.LoadWithAuthLocal(context.Background(), db, "c1eube1kpk69e62flseg", "nefix"))
 	fmt.Println(user.Name)
-	fmt.Println(user.Entities)
+	fmt.Println(user.Entities[0].Name)
 
 	// 	b := &model.HardwareBase{
 	// 		UUID: xid.New().String(),

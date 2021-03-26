@@ -21,8 +21,8 @@ func NewRandom(ctx context.Context, redis redis.UniversalClient) *Random {
 	}
 }
 
-func (r *Random) GetHyper(opts *GetHyperOpts) (string, error) {
-	hypers, err := r.hypers.List()
+func (r *Random) GetHyper(ctx context.Context, opts *GetHyperOpts) (string, error) {
+	hypers, err := r.hypers.List(ctx)
 	if err != nil {
 		return "", fmt.Errorf("get hypers list: %w", err)
 	}

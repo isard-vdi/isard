@@ -64,7 +64,8 @@ func (l *Local) Login(ctx context.Context, entityID string, args map[string]inte
 	}
 
 	u := &model.User{}
-	if err := u.LoadWithUsername(ctx, l.DB, entityID); err != nil {
+	idpUUID, err := u.LoadWithAuthLocal(ctx, l.DB, entityID, a.Usr)
+	if err != nil {
 		if errors.Is(err, pg.ErrNoRows) {
 			return nil, "", "", ErrInvalidCredentials
 		}
@@ -72,7 +73,9 @@ func (l *Local) Login(ctx context.Context, entityID string, args map[string]inte
 		return nil, "", "", fmt.Errorf("load DB user: %w", err)
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(a.Pwd)); err != nil {
+	cfg := model.GenerateAuthConfigLocal(u.AuthConfig[idpUUID]) // we can be sure that the value will exist, since it's returned from the DB directly
+
+	if err := bcrypt.CompareHashAndPassword([]byte(cfg.Pwd), []byte(a.Pwd)); err != nil {
 		return nil, "", "", ErrInvalidCredentials
 	}
 

@@ -61,7 +61,7 @@ func (c *Controller) DesktopStart(ctx context.Context, id string) (*common.Viewe
 
 	// Check if the desktop is already started
 	// TODO: What if the desktop is in an invalid state?
-	d, err := c.desktops.Get(id)
+	d, err := c.desktops.Get(ctx, id)
 	if err != nil {
 		if !errors.Is(err, pool.ErrValueNotFound) {
 			panic(err)

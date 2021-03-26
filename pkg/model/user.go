@@ -9,23 +9,16 @@ import (
 	"github.com/go-pg/pg/v10/orm"
 )
 
-func init() {
-	orm.RegisterTable(&UserToEntity{})
-	orm.RegisterTable(&UserToGroup{})
-	orm.RegisterTable(&UserToRole{})
-	orm.RegisterTable(&UserToQuotaProfile{})
-}
-
 type User struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
-	Entities []Entity       `pg:"many2many:isardvdi_user_to_entity"`        // an user has to be in, at least an entity
-	Groups   []Group        `pg:"many2many:isardvdi_user_to_group"`         // an user can be at 0+ groups
-	Roles    []Role         `pg:"many2many:isardvdi_user_to_role"`          // an user can only have one role per entity
-	Quotas   []QuotaProfile `pg:"many2many:isardvdi_user_to_quota_profile"` // an user can only have one quota profile per entity
+	Entities []*Entity       `pg:"many2many:isardvdi_user_to_entity"`        // an user has to be in, at least an entity
+	Groups   []*Group        `pg:"many2many:isardvdi_user_to_group"`         // an user can be at 0+ groups
+	Roles    []*Role         `pg:"many2many:isardvdi_user_to_role"`          // an user can only have one role per entity
+	Quotas   []*QuotaProfile `pg:"many2many:isardvdi_user_to_quota_profile"` // an user can only have one quota profile per entity
 
-	AuthConfig string `pg:",notnull,type:jsonb"`
+	AuthConfig map[string]AuthConfig `pg:",notnull,type:jsonb"`
 
 	Name    string `pg:",notnull"`
 	Surname string
@@ -56,16 +49,29 @@ func (u *User) LoadWithUUID(ctx context.Context, db *pg.DB) error {
 	return nil
 }
 
-func (u *User) LoadLocalLogin(ctx context.Context, db *pg.DB, entityUUID, usr string) error {
-	// isard=# SELECT * FROM users JOIN user_to_entities ON users.id = user_to_entities.user_id JOIN entities ON user_to_entities.entity_id = entities.id WHERE users.auth_config ->> 'usr' = 'nefix' AND entities.uuid = 'c1dfng4tdj5qjj1b5e3g';
-	if err := db.Model(u).
-		Relation("Entities").
-		Where(`auth_config ->> 'usr' = ?`, usr).
-		Limit(1).Select(); err != nil {
-		return fmt.Errorf("load user from db: %w", err)
+func (u *User) LoadWithAuthLocal(ctx context.Context, db *pg.DB, entityUUID, usr string) (string, error) {
+	i := &IdentityProvider{}
+	if err := db.Model(i).Column("identity_provider.uuid").Relation("Entity.uuid", func(q *orm.Query) (*orm.Query, error) {
+		return q.Where("entity.uuid = ?", entityUUID).Where("identity_provider.type = 'local'"), nil
+	}).Select(); err != nil {
+		return "", fmt.Errorf("load entity provider from db: %w", err)
 	}
 
-	return nil
+	e := &Entity{}
+	if err := db.Model(e).Relation("Users", func(q *orm.Query) (*orm.Query, error) {
+		return q.Where(`auth_config -> ? ->> 'usr' = ?`, i.UUID, usr).Limit(1), nil
+	}).Where("uuid = ?", entityUUID).Select(); err != nil {
+		return "", fmt.Errorf("load user from db: %w", err)
+	}
+
+	if len(e.Users) == 0 {
+		return "", fmt.Errorf("load user from db: %w", pg.ErrNoRows)
+	}
+
+	*u = *e.Users[0]
+	u.Entities = append(u.Entities, e)
+
+	return i.UUID, nil
 }
 
 // func (u *User) LoadWithUsername(ctx context.Context, db *pg.DB, entityUUID string) error {
