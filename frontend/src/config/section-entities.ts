@@ -33,5 +33,6 @@ export const SectionEntities: SectionConfig = {
       { field: 'name', header: 'Name' },
       { field: 'created_at', header: 'Created' }
     ]
-  }
+  },
+  detail: 'Entity'
 };

@@ -34,7 +34,7 @@ export type Mutations<S = State> = {
   [MutationTypes.CHANGE_MENU_STATIC_ACTIVE](state: S, payload: boolean): void;
   [MutationTypes.SET_NAVIGATION_DATA](
     state: S,
-    payload: { section: string }
+    payload: { routeName: string; section: string }
   ): void;
   [MutationTypes.GET_ITEM](state: S, payload: { item: any }): void;
   [MutationTypes.ACTIVATE_EDIT_MODE](state: S, payload: {}): void;
@@ -91,6 +91,7 @@ export const mutations: MutationTree<State> & Mutations = {
     state.ui.menu.staticActive = payload;
   },
   [MutationTypes.SET_NAVIGATION_DATA](state: State, payload) {
+    state.router.routeName = payload.routeName;
     state.router.section = payload.section;
   },
   [MutationTypes.GET_ITEM](state: State, payload) {

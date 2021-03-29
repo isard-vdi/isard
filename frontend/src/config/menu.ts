@@ -2,32 +2,32 @@ export const menu = [
   {
     label: 'Desktops',
     icon: 'pi pi-fw pi-desktop',
-    to: { name: 'templates' }
+    to: { name: 'search', params: { section: 'Desktops' } }
   },
   {
     label: 'Templates',
     icon: 'pi pi-fw pi-clone',
-    to: { name: 'templates' }
+    to: { name: 'search', params: { section: 'Templates' } }
   },
   {
     label: 'Media',
     icon: 'pi pi-fw pi-circle-off',
-    to: { name: 'templates' }
+    to: { name: 'search', params: { section: 'Templates' } }
   },
   {
     label: 'Users',
     icon: 'pi pi-fw pi-users',
-    to: { name: 'users' }
+    to: { name: 'search', params: { section: 'users' } }
   },
   {
     label: 'Entities',
     icon: 'pi pi-fw pi-sitemap',
-    to: { name: 'entities' }
+    to: { name: 'search', params: { section: 'entities' } }
   },
   {
     label: 'Groups',
     icon: 'pi pi-fw pi-list',
-    to: { name: '' }
+    to: { name: 'search', params: { section: 'Groups' } }
   },
   {
     label: 'Resources',
@@ -62,7 +62,7 @@ export const menu = [
     label: 'Configuration',
     icon: 'pi pi-fw pi-cog',
     items: [
-      { label: 'General', to: { name: '' } },
+      { label: 'General', to: { name: 'config' } },
       { label: 'Roles', to: { name: '' } },
       { label: 'Job Schedulers', to: { name: '' } },
       { label: 'Database Backups', to: { name: '' } },

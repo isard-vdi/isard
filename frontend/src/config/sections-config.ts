@@ -9,6 +9,7 @@ export interface SectionConfig {
   table: {
     columns: { field: string; header: string }[];
   };
+  detail: string;
 }
 
 export interface SectionModelMap {

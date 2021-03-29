@@ -94,7 +94,7 @@ import { ActionTypes } from '@/store/actions';
 import UpdateUtils from '@/utils/UpdateUtils';
 import { cloneDeep } from 'lodash';
 import { computed, ComputedRef, defineComponent, reactive } from 'vue';
-import MainFormButtons from '../shared/forms/MainFormButtons.vue';
+import MainFormButtons from '@/components/shared/forms/MainFormButtons.vue';
 
 export default defineComponent({
   components: { MainFormButtons },

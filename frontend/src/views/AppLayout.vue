@@ -21,7 +21,7 @@
 
 <script lang="ts">
 import DefaultLayout from '@/views/DefaultLayout.vue';
-import { computed, ComputedRef, ref, shallowRef, watch } from 'vue';
+import { computed, ComputedRef, shallowRef, watch } from 'vue';
 import routes from '@/router';
 import Dialog from 'primevue/dialog';
 import ProgressSpinner from 'primevue/progressspinner';
