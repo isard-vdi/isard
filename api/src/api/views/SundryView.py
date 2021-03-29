@@ -35,19 +35,19 @@ def api_v2_guest_addr():
         ip = request.form.get('ip', type = str)
         mac = request.form.get('mac', type = str)
     except Exception as e:
-        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'ContentType': 'application/json'}
+        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
 
     if domain_id == None or ip == None:
         log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
 
     try:
         api_sundry.UpdateGuestAddr(domain_id,{'viewer':{'guest_ip':ip}})
-        return json.dumps({}), 200, {'ContentType': 'application/json'}
+        return json.dumps({}), 200, {'Content-Type': 'application/json'}
     except UpdateFailed:
         log.error("Desktop for user "+user_id+" from template "+template_id+", user not found")
-        return json.dumps({"code":1,"msg":"DestopNew user not found"}), 404, {'ContentType': 'application/json'}
+        return json.dumps({"code":1,"msg":"DestopNew user not found"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         log.error("GuestAddr general exception" + error)
-        return json.dumps({"code":9,"msg":"GuestAddr general exception: " + error }), 401, {'ContentType': 'application/json'}
+        return json.dumps({"code":9,"msg":"GuestAddr general exception: " + error }), 401, {'Content-Type': 'application/json'}

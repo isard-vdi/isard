@@ -53,12 +53,12 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
                 {"code": 8, "msg": "Incorrect access parameters. Check your query."}
             ),
             401,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
 
     try:
         viewer = common.DesktopViewer(desktop_id, protocol)
-        return json.dumps({"viewer": viewer}), 200, {"ContentType": "application/json"}
+        return json.dumps({"viewer": viewer}), 200, {"Content-Type": "application/json"}
     except DesktopNotFound:
         log.error(
             "Viewer for desktop "
@@ -70,7 +70,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
         return (
             json.dumps({"code": 1, "msg": "Desktop viewer id not found"}),
             404,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
     except DesktopNotStarted:
         log.error(
@@ -83,7 +83,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
         return (
             json.dumps({"code": 2, "msg": "Desktop viewer is not started"}),
             404,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
     except NotAllowed:
         log.error(
@@ -96,7 +96,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
         return (
             json.dumps({"code": 3, "msg": "Desktop viewer id not owned by user"}),
             404,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
     except ViewerProtocolNotFound:
         log.error(
@@ -109,7 +109,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
         return (
             json.dumps({"code": 4, "msg": "Desktop viewer protocol not found"}),
             404,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
     except ViewerProtocolNotImplemented:
         log.error(
@@ -122,12 +122,12 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
         return (
             json.dumps({"code": 5, "msg": "Desktop viewer protocol not implemented"}),
             404,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
             json.dumps({"code": 9, "msg": "DesktopViewer general exception: " + error}),
             401,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
