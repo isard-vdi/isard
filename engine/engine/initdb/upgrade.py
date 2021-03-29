@@ -17,8 +17,7 @@ from .lib import *
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 12
-### Upgrade is 11!!!
+release_version = 13
 tables=['config','hypervisors','hypervisors_pools','domains','media','videos','graphics','users','roles','groups','interfaces']
 
 
@@ -748,7 +747,22 @@ class Upgrade(object):
                 # ~ except Exception as e:
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
                     # ~ log.error('Error detail: '+str(e))                    
-         
+
+        if version == 13:
+            # Change False value to empty string of admin photo field
+            # to not break golang unmarshal of json
+            # backend/isard/user.go
+            if (
+                not r.table(table)
+                .get("local-default-admin-admin")
+                .pluck("photo")
+                .run()
+                .get("photo", True)
+            ):
+                r.table(table).get("local-default-admin-admin").update(
+                    {"photo": ""}
+                ).run()
+
         return True
 
     '''

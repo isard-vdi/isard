@@ -13,15 +13,15 @@ type User struct {
 	Provider string
 
 	Category string
-	Role     string
-	Group    string
+	Role     string `json:"role"`
+	Group    string `json:"group"`
 
 	Desktops []Desktop
 	Templates []Template
 
-	Name  string
-	Email string
-	Photo string
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Photo string `json:"photo"`
 }
 
 func (u *User) ID() string {

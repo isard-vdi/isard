@@ -188,7 +188,7 @@ class Populate(object):
                            'role': 'admin',
                            'group': 'default-default',
                            'email': 'admin@isard.io',
-                           'photo': False,
+                           'photo': "",
                            'quota': False
                            }]
                     self.result(r.table('users').insert(usr, conflict='update').run())

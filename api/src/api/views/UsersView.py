@@ -109,9 +109,9 @@ def api_v2_user_update(id=False):
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'ContentType': 'application/json'}
 
     try:
-        name = request.form.get('name', False)
-        email = request.form.get('email', False)
-        photo = request.form.get('photo', False)
+        name = request.form.get("name", "")
+        email = request.form.get("email", "")
+        photo = request.form.get("photo", "")
     except Exception as e:
         return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'ContentType': 'application/json'}
 
