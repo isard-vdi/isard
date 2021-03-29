@@ -226,10 +226,9 @@ class ApiUsers():
                 d["viewers"] = ["spice", "browser"]
                 if d["status"] == "Started":
                     d["ip"] = d.get("viewer", {}).get("guest_ip")
-                    if (
-                        not d["ip"]
-                        and "wireguard" in d["create_dict"]["hardware"]["interfaces"]
-                    ):
+                    if d["ip"]:
+                        d["viewers"].append("rdp")
+                    elif "wireguard" in d["create_dict"]["hardware"]["interfaces"]:
                         d["status"] = "WaitingIP"
                 modified_desktops.append(d)
             return modified_desktops
