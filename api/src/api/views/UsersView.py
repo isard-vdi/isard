@@ -290,7 +290,21 @@ def api_v2_user_desktops(id=False):
 
     try:
         desktops = users.Desktops(id)
-        dropdown_desktops = [{'id':d['id'],'name':d['name'],'state':d['status'],'type':d['type'],'template':d['from_template'],'viewers':d['viewers'],'icon':d['icon'],'image':d['image'],'description':d['description']} for d in desktops]
+        dropdown_desktops = [
+            {
+                "id": d["id"],
+                "name": d["name"],
+                "state": d["status"],
+                "type": d["type"],
+                "template": d["from_template"],
+                "viewers": d["viewers"],
+                "icon": d["icon"],
+                "image": d["image"],
+                "description": d["description"],
+                "ip": d.get("ip"),
+            }
+            for d in desktops
+        ]
         return json.dumps(dropdown_desktops), 200, {'ContentType': 'application/json'}
     except UserNotFound:
         log.error("User "+id+" not in database.")

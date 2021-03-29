@@ -108,18 +108,6 @@ func (i *Isard) UserUpdate(u *model.User) error {
 	return nil
 }
 
-type userDesktopRsp struct {
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	State string `json:"state,omitempty"`
-	Type string `json:"type,omitempty"`
-	Template string `json:"template,omitempty"`
-	Viewers []string `json:"viewers,omitempty"`
-	Icon string `json:"icon,omitempty"`
-	Image string `json:"image,omitempty"`
-}
-
 func (i *Isard) UserDesktops(u *model.User) error {
 	rsp, err := http.Get(i.url("user/" + u.ID() + "/desktops"))
 	if err != nil {
@@ -145,27 +133,12 @@ func (i *Isard) UserDesktops(u *model.User) error {
 		return fmt.Errorf("get user desktops: %w", err)
 	}
 
-	desktops := []userDesktopRsp{}
-	if err := json.NewDecoder(rsp.Body).Decode(&desktops); err != nil {
+	if err := json.NewDecoder(rsp.Body).Decode(&u.Desktops); err != nil {
 		i.sugar.Errorw("get user desktops: decode JSON response",
 			"err", err,
 		)
 
 		return fmt.Errorf("get user desktops: decode JSON response: %w", err)
-	}
-
-	for _, t := range desktops {
-		u.Desktops = append(u.Desktops, model.Desktop{
-			ID:   t.ID,
-			Name: t.Name,
-			Description: t.Description,
-			State: t.State,
-			Type: t.Type,
-			Template: t.Template,
-			Viewers: t.Viewers,
-			Icon: t.Icon,
-			Image: t.Image,
-		})
 	}
 
 	return nil
