@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("connect to the hypervisor")
 	}
-	defer h.Close()
+	defer h.Close(ctx)
 
 	grpc := &grpc.HyperServer{
 		Hyper: h,

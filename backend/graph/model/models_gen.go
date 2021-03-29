@@ -2,12 +2,6 @@
 
 package model
 
-import (
-	"fmt"
-	"io"
-	"strconv"
-)
-
 type Desktop struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -22,10 +16,9 @@ type DesktopCreateInput struct {
 }
 
 type DesktopCreateInputHardware struct {
-	BaseID    string `json:"baseId"`
-	Vcpus     int    `json:"vcpus"`
-	MemoryMax int    `json:"memoryMax"`
-	MemoryMin int    `json:"memoryMin"`
+	BaseID string `json:"baseId"`
+	Vcpus  int    `json:"vcpus"`
+	Memory int    `json:"memory"`
 }
 
 type DesktopCreatePayload struct {
@@ -71,19 +64,10 @@ type DesktopTemplatePayload struct {
 	Record   *Template `json:"record"`
 }
 
-type Disk struct {
-	ID       string   `json:"id"`
-	Type     DiskType `json:"type"`
-	Enable   *bool    `json:"enable"`
-	ReadOnly *bool    `json:"readOnly"`
-}
-
 type Hardware struct {
-	Base      *HardwareBase `json:"base"`
-	Vcpus     int           `json:"vcpus"`
-	MemoryMax int           `json:"memoryMax"`
-	MemoryMin int           `json:"memoryMin"`
-	Disks     []*Disk       `json:"disks"`
+	Base   *HardwareBase `json:"base"`
+	Vcpus  int           `json:"vcpus"`
+	Memory int           `json:"memory"`
 }
 
 type HardwareBase struct {
@@ -145,47 +129,4 @@ type ViewerSpice struct {
 
 type ViewerVncHTML struct {
 	URL string `json:"url"`
-}
-
-type DiskType string
-
-const (
-	DiskTypeUnknown DiskType = "UNKNOWN"
-	DiskTypeQcow2   DiskType = "QCOW2"
-	DiskTypeRaw     DiskType = "RAW"
-)
-
-var AllDiskType = []DiskType{
-	DiskTypeUnknown,
-	DiskTypeQcow2,
-	DiskTypeRaw,
-}
-
-func (e DiskType) IsValid() bool {
-	switch e {
-	case DiskTypeUnknown, DiskTypeQcow2, DiskTypeRaw:
-		return true
-	}
-	return false
-}
-
-func (e DiskType) String() string {
-	return string(e)
-}
-
-func (e *DiskType) UnmarshalGQL(v interface{}) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = DiskType(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid DiskType", str)
-	}
-	return nil
-}
-
-func (e DiskType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
 }

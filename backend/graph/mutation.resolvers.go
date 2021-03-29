@@ -9,6 +9,7 @@ import (
 
 	"github.com/rs/xid"
 	"gitlab.com/isard/isardvdi/backend/graph/generated"
+	"gitlab.com/isard/isardvdi/backend/graph/middleware"
 	"gitlab.com/isard/isardvdi/backend/graph/model"
 	"gitlab.com/isard/isardvdi/backend/viewer"
 	cmnModel "gitlab.com/isard/isardvdi/pkg/model"
@@ -47,6 +48,10 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 }
 
 func (r *mutationResolver) DesktopStart(ctx context.Context, id string) (*model.DesktopStartPayload, error) {
+	if err := middleware.IsAuthenticated(ctx); err != nil {
+		return nil, err
+	}
+
 	rsp, err := r.Controller.DesktopStart(ctx, &controller.DesktopStartRequest{
 		Id: id,
 	})
@@ -86,6 +91,10 @@ func (r *mutationResolver) DesktopTemplate(ctx context.Context, input model.Desk
 }
 
 func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.DesktopCreateInput) (*model.DesktopCreatePayload, error) {
+	if err := middleware.IsAuthenticated(ctx); err != nil {
+		return nil, err
+	}
+
 	b := &cmnModel.HardwareBase{UUID: input.Hardware.BaseID}
 	if err := b.LoadWithUUID(ctx, r.DB); err != nil {
 		// TODO: Change this
@@ -95,7 +104,7 @@ func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.Deskto
 	h := &cmnModel.Hardware{
 		BaseID: b.ID,
 		VCPUs:  input.Hardware.Vcpus,
-		Memory: input.Hardware.MemoryMin,
+		Memory: input.Hardware.Memory,
 	}
 	_, err := r.DB.Model(h).Returning("id").Insert()
 	if err != nil {
@@ -103,10 +112,14 @@ func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.Deskto
 		panic(err)
 	}
 
+	u, eID := middleware.AuthForContext(ctx)
+
 	d := &cmnModel.Desktop{
 		Name:       input.Name,
 		UUID:       xid.New().String(),
 		HardwareID: h.ID,
+		UserID:     u.ID,
+		EntityID:   eID,
 	}
 	if input.Description != nil {
 		d.Description = *input.Description

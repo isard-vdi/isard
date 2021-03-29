@@ -21,6 +21,7 @@ type Interface interface {
 	Logout(ctx context.Context, token string) (string, error)
 	Check(ctx context.Context, token string) (string, error)
 	Refresh(ctx context.Context, token string) (string, error)
+	Get(ctx context.Context, token string) (int, int, error)
 }
 
 type Authentication struct {
@@ -40,23 +41,31 @@ func New(ctx context.Context, redis redis.UniversalClient, db *pg.DB) (*Authenti
 	}, nil
 }
 
+func (a *Authentication) get(ctx context.Context, token string) (*sessions.Session, *store.Values, error) {
+	r := store.BuildHTTPRequest(ctx, token)
+	session, err := a.store.Get(r, store.SessionStoreKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get the session: %w", err)
+	}
+
+	if session.IsNew {
+		return nil, nil, provider.ErrNotAuthenticated
+	}
+
+	return session, store.NewValues(session.Values), nil
+}
+
 func (a *Authentication) Login(ctx context.Context, p string, entityID string, args map[string]interface{}) (usr *model.User, token, redirect string, err error) {
 	provider := provider.FromString(p, a.store, a.db)
 	return provider.Login(ctx, entityID, args)
 }
 
 func (a *Authentication) Logout(ctx context.Context, token string) (string, error) {
-	r := store.BuildHTTPRequest(ctx, token)
-	session, err := a.store.Get(r, store.SessionStoreKey)
+	session, values, err := a.get(ctx, token)
 	if err != nil {
-		return "", fmt.Errorf("get the session: %w", err)
+		return "", nil
 	}
 
-	if session.IsNew {
-		return "", provider.ErrNotAuthenticated
-	}
-
-	values := store.NewStoreValues(session.Values)
 	provider := provider.FromString(values.Provider(), a.store, a.db)
 
 	redirect, err := provider.Logout(ctx, session)
@@ -68,26 +77,28 @@ func (a *Authentication) Logout(ctx context.Context, token string) (string, erro
 }
 
 func (a *Authentication) Check(ctx context.Context, token string) (string, error) {
-	fmt.Println(token)
-	r := store.BuildHTTPRequest(ctx, token)
-	session, err := a.store.Get(r, store.SessionStoreKey)
+	_, values, err := a.get(ctx, token)
 	if err != nil {
-		return "", fmt.Errorf("get the session: %w", err)
+		return "", err
 	}
 
-	if session.IsNew {
-		return "", provider.ErrNotAuthenticated
-	}
-
-	values := store.NewStoreValues(session.Values)
 	// TODO: Change token lifespan
 	if values.Time().Add(1 * time.Hour).Before(time.Now()) {
-		return values.UsrID(), provider.ErrExpiredToken
+		return values.UsrUUID(), provider.ErrExpiredToken
 	}
 
-	return values.UsrID(), nil
+	return values.UsrUUID(), nil
 }
 
 func (a *Authentication) Refresh(ctx context.Context, token string) (string, error) {
 	return "", errors.New("not implemented yet")
+}
+
+func (a *Authentication) Get(ctx context.Context, token string) (int, int, error) {
+	_, values, err := a.get(ctx, token)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return values.UsrID(), values.EntityID(), nil
 }

@@ -4,52 +4,70 @@ import "time"
 
 const (
 	UsrIDStoreKey    = "id"
+	UsrUUIDStoreKey  = "uuid"
+	EntityIDStoreKey = "entity_id"
 	ProviderStoreKey = "provider"
 	TimeStoreKey     = "time"
 )
 
-type StoreValues struct {
+type Values struct {
 	val map[interface{}]interface{}
 }
 
-func NewStoreValues(val map[interface{}]interface{}) *StoreValues {
+func NewValues(val map[interface{}]interface{}) *Values {
 	if val == nil {
 		val = map[interface{}]interface{}{}
 	}
 
-	return &StoreValues{
+	return &Values{
 		val: val,
 	}
 }
 
-func (s *StoreValues) Len() int {
+func (s *Values) Len() int {
 	return len(s.val)
 }
 
-func (s *StoreValues) SetUsrID(id string) {
+func (s *Values) SetUsrUUID(id string) {
+	s.val[UsrUUIDStoreKey] = id
+}
+
+func (s *Values) SetUsrID(id int) {
 	s.val[UsrIDStoreKey] = id
 }
 
-func (s *StoreValues) UsrID() string {
-	return s.val[UsrIDStoreKey].(string)
+func (s *Values) UsrID() int {
+	return s.val[UsrIDStoreKey].(int)
 }
 
-func (s *StoreValues) SetProvider(p string) {
+func (s *Values) UsrUUID() string {
+	return s.val[UsrUUIDStoreKey].(string)
+}
+
+func (s *Values) SetEntityID(id int) {
+	s.val[EntityIDStoreKey] = id
+}
+
+func (s *Values) EntityID() int {
+	return s.val[EntityIDStoreKey].(int)
+}
+
+func (s *Values) SetProvider(p string) {
 	s.val[ProviderStoreKey] = p
 }
 
-func (s *StoreValues) Provider() string {
+func (s *Values) Provider() string {
 	return s.val[ProviderStoreKey].(string)
 }
 
-func (s *StoreValues) SetTime(t time.Time) {
+func (s *Values) SetTime(t time.Time) {
 	s.val[TimeStoreKey] = t.Unix()
 }
 
-func (s StoreValues) Time() time.Time {
+func (s Values) Time() time.Time {
 	return time.Unix(s.val[TimeStoreKey].(int64), 0)
 }
 
-func (s *StoreValues) Values() map[interface{}]interface{} {
+func (s *Values) Values() map[interface{}]interface{} {
 	return s.val
 }

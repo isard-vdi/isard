@@ -12,7 +12,7 @@ import (
 )
 
 func (o *OrchestratorServer) GetHyper(ctx context.Context, req *orchestrator.GetHyperRequest) (*orchestrator.GetHyperResponse, error) {
-	hyper, err := o.Provider.GetHyper(&provider.GetHyperOpts{
+	hyper, err := o.Provider.GetHyper(ctx, &provider.GetHyperOpts{
 		Persistent: req.Persistent,
 		GPU:        req.Gpu,
 	})

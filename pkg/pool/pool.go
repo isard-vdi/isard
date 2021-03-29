@@ -143,8 +143,8 @@ func (p *pool) listen(ctx context.Context) {
 	}
 }
 
-func (p *pool) ensureLatestData() (*redislock.Lock, error) {
-	lock, err := p.locker.Obtain(p.name+"_lock", 100*time.Millisecond, &redislock.Options{})
+func (p *pool) ensureLatestData(ctx context.Context) (*redislock.Lock, error) {
+	lock, err := p.locker.Obtain(ctx, p.name+"_lock", 100*time.Millisecond, &redislock.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("obtain '%s' stream lock: %w", p.name, err)
 	}
@@ -194,13 +194,13 @@ func (p *pool) sendMsg(ctx context.Context, action poolAction, b []byte) error {
 	return nil
 }
 
-func (p *pool) get(id string) (interface{}, error) {
-	lock, err := p.ensureLatestData()
+func (p *pool) get(ctx context.Context, id string) (interface{}, error) {
+	lock, err := p.ensureLatestData(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	defer lock.Release()
+	defer lock.Release(ctx)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -214,11 +214,11 @@ func (p *pool) get(id string) (interface{}, error) {
 }
 
 func (p *pool) set(ctx context.Context, item poolItem) error {
-	lock, err := p.ensureLatestData()
+	lock, err := p.ensureLatestData(ctx)
 	if err != nil {
 		return err
 	}
-	defer lock.Release()
+	defer lock.Release(ctx)
 
 	b, err := p.marshal(item)
 	if err != nil {
@@ -228,12 +228,12 @@ func (p *pool) set(ctx context.Context, item poolItem) error {
 	return p.sendMsg(ctx, poolActionSet, b)
 }
 
-func (p *pool) list() ([]interface{}, error) {
-	lock, err := p.ensureLatestData()
+func (p *pool) list(ctx context.Context) ([]interface{}, error) {
+	lock, err := p.ensureLatestData(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer lock.Release()
+	defer lock.Release(ctx)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -247,11 +247,11 @@ func (p *pool) list() ([]interface{}, error) {
 }
 
 func (p *pool) remove(ctx context.Context, item poolItem) error {
-	lock, err := p.ensureLatestData()
+	lock, err := p.ensureLatestData(ctx)
 	if err != nil {
 		return err
 	}
-	defer lock.Release()
+	defer lock.Release(ctx)
 
 	b, err := p.marshal(item)
 	if err != nil {

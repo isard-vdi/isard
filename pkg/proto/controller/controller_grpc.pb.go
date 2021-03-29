@@ -103,7 +103,7 @@ type UnsafeControllerServer interface {
 	mustEmbedUnimplementedControllerServer()
 }
 
-func RegisterControllerServer(s grpc.ServiceRegistrar, srv ControllerServer) {
+func RegisterControllerServer(s *grpc.Server, srv ControllerServer) {
 	s.RegisterService(&_Controller_serviceDesc, srv)
 }
 

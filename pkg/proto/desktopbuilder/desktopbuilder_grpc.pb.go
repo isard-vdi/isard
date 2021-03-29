@@ -75,7 +75,7 @@ type UnsafeDesktopBuilderServer interface {
 	mustEmbedUnimplementedDesktopBuilderServer()
 }
 
-func RegisterDesktopBuilderServer(s grpc.ServiceRegistrar, srv DesktopBuilderServer) {
+func RegisterDesktopBuilderServer(s *grpc.Server, srv DesktopBuilderServer) {
 	s.RegisterService(&_DesktopBuilder_serviceDesc, srv)
 }
 

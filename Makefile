@@ -9,7 +9,7 @@ all: tidy gen test build docker
 tidy:
 	go mod tidy
 
-gen:
+gen: tidy
 	$(MAKE) -C pkg gen
 	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) gen;)
 
@@ -20,7 +20,7 @@ test: gen tidy
 build: test
 	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) build;)
 
-docker:
+docker: gen
 	$(foreach microservice,$(MICROSERVICES),$(MAKE) -C $(microservice) docker;)
 
 docker-compose-up:

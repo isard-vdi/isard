@@ -3,14 +3,12 @@ services:
   redis:
     image: "redis:6"
   postgres:
-    image: "postgres:12"
+    image: "postgres:13"
     environment:
       - POSTGRES_USER=isard
       - POSTGRES_PASSWORD=isard
     ports:
       - "5433:5432"
-    volumes:
-      - "/var/lib/postgresql/dockerdata:/var/lib/postgresql/data"
   hyper:
     build:
       context: .

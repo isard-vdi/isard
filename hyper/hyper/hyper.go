@@ -48,7 +48,7 @@ type Interface interface {
 	Migrate(desktop *libvirt.Domain, hyperURI string) error
 
 	// Close closes the libvirt connection with the hypervisor
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // Hyper is the implementation of the hyper Interface
@@ -125,7 +125,7 @@ func New(ctx context.Context, redis redis.UniversalClient, uri, host string) (*H
 			dState = state.DesktopStateUnknown
 		}
 
-		desktop, err := h.desktops.Get(id)
+		desktop, err := h.desktops.Get(ctx, id)
 		if err != nil {
 			if !errors.Is(err, pool.ErrValueNotFound) {
 				panic(err)
@@ -169,12 +169,12 @@ func New(ctx context.Context, redis redis.UniversalClient, uri, host string) (*H
 }
 
 // Close closes the libvirt connection with the hypervisor
-func (h *Hyper) Close() error {
+func (h *Hyper) Close(ctx context.Context) error {
 	h.conn.DomainEventDeregister(h.domEventID)
 
 	h.conn.Close()
 
-	hyper, err := h.hypers.Get(h.host)
+	hyper, err := h.hypers.Get(ctx, h.host)
 	if err != nil {
 		return err
 	}

@@ -23,6 +23,8 @@ type IdentityProvider struct {
 	DeletedAt time.Time `pg:",soft_delete"`
 }
 
+type AuthConfig interface{}
+
 type Entity struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
@@ -30,6 +32,8 @@ type Entity struct {
 	Name              string `pg:",notnull"`
 	Description       string
 	IdentityProviders []*IdentityProvider `pg:"rel:has-many"`
+
+	Users []*User `pg:"many2many:isardvdi_user_to_entity"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
@@ -47,6 +51,8 @@ type Group struct {
 	Name        string  `pg:",notnull"`
 	Description string
 
+	Users []*User `pg:"many2many:isardvdi_user_to_group"`
+
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
@@ -56,12 +62,12 @@ type User struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
 
-	Entities []Entity       `pg:"many2many:isardvdi_user_to_entity"`        // an user has to be in, at least an entity
-	Groups   []Group        `pg:"many2many:isardvdi_user_to_group"`         // an user can be at 0+ groups
-	Roles    []Role         `pg:"many2many:isardvdi_user_to_role"`          // an user can only have one role per entity
-	Quotas   []QuotaProfile `pg:"many2many:isardvdi_user_to_quota_profile"` // an user can only have one quota profile per entity
+	Entities []*Entity       `pg:"many2many:isardvdi_user_to_entity"`        // an user has to be in, at least an entity
+	Groups   []*Group        `pg:"many2many:isardvdi_user_to_group"`         // an user can be at 0+ groups
+	Roles    []*Role         `pg:"many2many:isardvdi_user_to_role"`          // an user can only have one role per entity
+	Quotas   []*QuotaProfile `pg:"many2many:isardvdi_user_to_quota_profile"` // an user can only have one quota profile per entity
 
-	AuthConfig string `pg:",notnull,type:jsonb"`
+	AuthConfig map[string]AuthConfig `pg:",notnull,type:jsonb"`
 
 	Name    string `pg:",notnull"`
 	Surname string
@@ -110,6 +116,8 @@ type Role struct {
 	Entity      *Entity           `pg:"rel:has-one"`
 	Permissions []*RolePermission `pg:"rel:has-many"`
 
+	Users []*User `pg:"many2many:isardvdi_user_to_role"`
+
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
 	DeletedAt time.Time `pg:",soft_delete"`
@@ -134,6 +142,8 @@ type QuotaProfile struct {
 	EntityID    int      `pg:",notnull"`
 	Entity      *Entity  `pg:"rel:has-one"`
 	Quotas      []*Quota `pg:"rel:has-many"`
+
+	Users []*User `pg:"many2many:isardvdi_user_to_quota_profile"`
 
 	CreatedAt time.Time `pg:"default:now(),notnull"`
 	UpdatedAt time.Time `pg:"default:now(),notnull"`
