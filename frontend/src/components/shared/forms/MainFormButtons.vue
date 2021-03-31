@@ -9,10 +9,15 @@
       @click="formChanged && $emit('savebutton-pressed')"
     />
     <isard-button
-      v-if="!editMode"
+      v-if="!editMode && !createMode"
       label="Edit"
       :disabled="!editEnabled"
       @click="goToEditMode"
+    />
+    <isard-button
+      v-if="createMode"
+      label="Save New"
+      @click="$emit('savenewbutton-pressed')"
     />
   </div>
 </template>
@@ -28,14 +33,15 @@ export default {
   props: {
     editEnabled: Boolean,
     formChanged: Boolean,
-    hola: Boolean
+    createMode: Boolean
   },
-  emits: ['savebutton-pressed'],
+  emits: ['savebutton-pressed', 'savenewbutton-pressed'],
   setup(
     props: Readonly<
       {
         editEnabled: boolean;
         formChanged: boolean;
+        createMode: boolean;
       } & {}
     >
   ) {

@@ -5,7 +5,7 @@
         <h2>Entity Detail</h2>
         <div class="p-grid p-formgrid">
           <isard-input-text
-            id="entityid"
+            id="id"
             v-model="entity.id"
             type="text"
             placeholder="ID"
@@ -14,28 +14,38 @@
           ></isard-input-text>
 
           <isard-input-text
-            id="entityname"
+            id="name"
             v-model="entity.name"
             type="text"
             placeholder="Name"
-            :disabled="!editMode"
+            :disabled="!editMode && !createMode"
             label="Name"
           ></isard-input-text>
 
           <isard-input-text
-            id="entityuuid"
+            id="description"
+            v-model="entity.description"
+            type="text"
+            placeholder="Decription"
+            :disabled="!editMode && !createMode"
+            label="Description"
+          ></isard-input-text>
+
+          <isard-input-text
+            id="uuid"
             v-model="entity.uuid"
             type="text"
             placeholder="UUID"
-            :disabled="!editMode"
+            :disabled="!editMode && !createMode"
             class="p-error"
             label="UUID"
           ></isard-input-text>
         </div>
       </div>
       <br />
-      <h4>Users</h4>
-      <div class="card">
+
+      <div v-if="!createMode" class="card">
+        <h4>Users</h4>
         <div class="p-grid p-formgrid">
           <DataTable :value="entity.users">
             <Column field="name" header="Name"></Column>
@@ -47,7 +57,9 @@
       <main-form-buttons
         :edit-enabled="editEnabled"
         :form-changed="formChanged"
-        @savebuttonPressed="saveItem"
+        :create-mode="createMode"
+        @savebuttonPressed="f_saveItem"
+        @savenewbuttonPressed="f_saveNewItem"
       />
     </div>
   </div>
@@ -65,20 +77,35 @@ export default defineComponent({
     const store = useStore();
     const entity = reactive(cloneDeep(store.getters.detail));
     const editMode: ComputedRef<any> = computed(() => store.getters.editMode);
+    const createMode: ComputedRef<any> = computed(
+      () => store.getters.createMode
+    );
     const editEnabled = true;
 
     const formChanged: ComputedRef<boolean> = computed(
       () => JSON.stringify(entity) !== JSON.stringify(store.getters.detail)
     );
 
-    function saveItem(): void {
+    function f_saveItem(): void {
+      let persistenceObject = UpdateUtils.getUpdateObject(
+        cloneDeep(entity),
+        cloneDeep(store.getters.detail)
+      );
+
+      persistenceObject.id = entity.id;
+
+      const payload = { persistenceObject };
+      store.dispatch(ActionTypes.SAVE_ITEM, payload);
+    }
+
+    function f_saveNewItem(): void {
       const persistenceObject = UpdateUtils.getUpdateObject(
         cloneDeep(entity),
         cloneDeep(store.getters.detail)
       );
 
       const payload = { persistenceObject };
-      store.dispatch(ActionTypes.SAVE_ITEM, payload);
+      store.dispatch(ActionTypes.SAVE_NEW_ITEM, payload);
     }
 
     return {
@@ -86,11 +113,10 @@ export default defineComponent({
       formChanged,
       editEnabled,
       editMode,
-      saveItem
+      createMode,
+      f_saveItem,
+      f_saveNewItem
     };
-  },
-  data() {
-    return {};
   }
 });
 </script>

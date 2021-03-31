@@ -1,3 +1,4 @@
+import { ROUTE_CREATE, ROUTE_DETAIL } from '@/config/constants';
 import { store } from '@/store';
 import { ActionTypes } from '@/store/actions';
 import { getCookie } from 'tiny-cookie';
@@ -60,8 +61,17 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
-    path: '/:section/:id',
+    path: '/:section/:id(\\d+)', // only numeric ids
     name: 'detail',
+    component: () => import('@/components/details/Detail.vue'),
+    meta: {
+      layout: 'MainLayout',
+      needsAuth: true
+    }
+  },
+  {
+    path: '/:section/new',
+    name: 'create',
     component: () => import('@/components/details/Detail.vue'),
     meta: {
       layout: 'MainLayout',
@@ -88,6 +98,7 @@ router.beforeEach((to, from, next) => {
   const tokenCookie: string = getCookie('token') || '';
   const userIdCookie: string = getCookie('userId') || '';
 
+  console.log(to, 'RouteObject beforeEach');
   // Parse Url
   const urlParts = to.fullPath.split('?');
   const url = urlParts[0]; // Url without params
@@ -97,8 +108,17 @@ router.beforeEach((to, from, next) => {
   const detailId = urlSegments.length > 2 ? urlSegments[2] : '';
   const section = urlSegments[1];
 
+  store.dispatch(ActionTypes.SET_NAVIGATION_DATA, {
+    routeName: to.name,
+    section
+  });
+
   if (store.getters.editMode) {
     store.dispatch(ActionTypes.END_EDIT_MODE);
+  }
+
+  if (store.getters.createMode && to.name !== 'create') {
+    store.dispatch(ActionTypes.END_CREATE_MODE);
   }
 
   if (to.meta.needsAuth) {
@@ -113,20 +133,31 @@ router.beforeEach((to, from, next) => {
             userId: userIdCookie
           })
           .then(() => {
-            if (detailId && detailId.length > 0) {
-              store.dispatch(ActionTypes.GET_ITEM, {
-                name: 'detail',
-                params: { id: detailId },
-                section
-              });
+            if (to.name === ROUTE_DETAIL) {
+              store
+                .dispatch(ActionTypes.GET_ITEM, {
+                  name: ROUTE_DETAIL,
+                  params: { id: detailId },
+                  section
+                })
+                .then(() => {
+                  next();
+                });
+            } else if (to.name === ROUTE_CREATE) {
+              store
+                .dispatch(ActionTypes.GO_CREATE_MODE, {
+                  section,
+                  routeName: to.name,
+                  params: { section },
+                  url: to.path,
+                  queryParams: [],
+                  editmode: false
+                })
+                .then(() => {
+                  next();
+                });
             } else {
-              console.log(to, 'to');
-              store.dispatch(ActionTypes.NAVIGATE, {
-                section,
-                params: { id: detailId, section },
-                routeName: to.name,
-                url: to.name
-              });
+              next();
             }
           });
       } else {
@@ -137,14 +168,6 @@ router.beforeEach((to, from, next) => {
     } else {
       // logged in
       console.log(to, '***** Logged in *****');
-      store.dispatch(ActionTypes.SET_NAVIGATION_DATA, {
-        section,
-        routeName: to.name,
-        params: { id: detailId, section },
-        url: to.path,
-        queryParams: [],
-        editmode: false
-      });
       next();
     }
   } else {

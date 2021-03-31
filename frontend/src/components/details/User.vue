@@ -109,10 +109,13 @@ export default defineComponent({
     );
 
     function saveItem(): void {
-      const persistenceObject = UpdateUtils.getUpdateObject(
+      let persistenceObject = UpdateUtils.getUpdateObject(
         cloneDeep(user),
         cloneDeep(store.getters.detail)
       );
+
+      persistenceObject.id = user.id;
+
       const payload = { persistenceObject: persistenceObject };
       store.dispatch(ActionTypes.SAVE_ITEM, payload);
     }
