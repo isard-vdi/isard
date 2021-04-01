@@ -1,5 +1,4 @@
 stages:
- - merge
  - unit-test
  - docker
  - deploy-merge
@@ -13,13 +12,6 @@ stages:
     paths:
       - .go/pkg/mod/
       - frontend/.npm/
-merge:
-  stage: merge
-  script:
-    - git ls-remote | grep refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME | awk '{ print  $1 }' | xargs git checkout
-    - git ls-remote | grep $CI_MERGE_REQUEST_REF_PATH | awk '{ print  $1 }' | xargs git merge
-  only:
-    - merge_requests
 
 unit-test:
   stage: unit-test
@@ -33,8 +25,6 @@ unit-test:
     - apt-get -y install nodejs
     - mkdir -p .go
     - cd frontend && npm ci --cache .npm --prefer-offline && cd -
-    - git ls-remote | grep refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME | awk '{ print  $1 }' | xargs git checkout
-    - git ls-remote | grep $CI_MERGE_REQUEST_REF_PATH | awk '{ print  $1 }' | xargs git merge
     - make deps
   script:
     - make test
@@ -51,8 +41,6 @@ docker:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - apk add --no-cache git make
   script:
-    - git ls-remote | grep refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME | awk '{ print  $1 }' | xargs git checkout
-    - git ls-remote | grep $CI_MERGE_REQUEST_REF_PATH | awk '{ print  $1 }' | xargs git merge
     - make docker
     - |-
       docker images --format="{{.Repository}}:{{.Tag}}" | grep "isard/isardvdi" | awk -v registry="$CI_REGISTRY_IMAGE" -v iid="$CI_MERGE_REQUEST_IID" -v slug="$CI_COMMIT_BRANCH" -F "[-:]" '{ print $0, registry "/" $2 ":" ((length(iid) == 0) ? slug : iid) }' | xargs -n2 docker tag
