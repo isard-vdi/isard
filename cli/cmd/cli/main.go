@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -20,7 +21,14 @@ func main() {
 	// 	panic(err)
 	// }
 
-	out, err := exec.Command("docker", "inspect", "-f", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", "isardvdi_postgres_1").CombinedOutput()
+	var name string
+	if len(os.Args) > 1 {
+		name = os.Args[1]
+	} else {
+		name = "isardvdi"
+	}
+
+	out, err := exec.Command("docker", "inspect", "-f", "'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'", name+"_postgres_1").CombinedOutput()
 	if err != nil {
 		panic(err)
 	}
