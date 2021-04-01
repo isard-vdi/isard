@@ -30,7 +30,7 @@ export const SectionUsers: SectionConfig = {
       }
     }`,
     update: `
-    mutation UpdateMutation($id: bigint, $mail: String, $name: String) {
+    mutation UpdateUser($id: bigint, $mail: String, $name: String) {
       update_user(where: {id: {_eq: $id}}, _set: {email: $mail, name: $name}) {
         returning {
           id

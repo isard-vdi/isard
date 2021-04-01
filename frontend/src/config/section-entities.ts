@@ -7,10 +7,11 @@ export const SectionEntities: SectionConfig = {
     search: `
     query Entities {
       entity {
-        created_at
         id
+        created_at
         name
         uuid
+        description
       }
     }`,
     detail: `query EntityDetail($id: bigint) {
@@ -20,19 +21,38 @@ export const SectionEntities: SectionConfig = {
         uuid
         users {
           name
-          surname
           uuid
         }
       }
-    }`
+    }`,
+    update: `
+    mutation UpdateEntity($id: bigint, $description: String, $name: String) {
+      update_entity(where: {id: {_eq: $id}}, _set: {description: $description, name: $name}) {
+        returning {
+          id
+        }
+      }
+    }
+    `,
+    create: `
+    mutation CreateEntity($description: String, $name: String, $uuid: String) {
+      insert_entity(objects: {name: $name, description: $description, uuid: $uuid}) {
+        returning {
+          id
+        }
+      }
+    }
+    `
   },
   table: {
     columns: [
       { field: 'id', header: 'ID' },
       { field: 'uuid', header: 'UUID' },
       { field: 'name', header: 'Name' },
-      { field: 'created_at', header: 'Created' }
+      { field: 'description', header: 'Description' },
+      { field: 'creationdate', header: 'Created' }
     ]
   },
-  detail: 'Entity'
+  detail: 'Entity',
+  defaultValues: { id: '', name: 'default name', description: '', uuid: '' }
 };

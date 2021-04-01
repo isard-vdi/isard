@@ -4,9 +4,10 @@ export default class EntitiesUtils {
       (item: any): Types.Entity => {
         return {
           name: item.name,
-          creationDate: item.created_at,
+          creationdate: item.created_at,
           uuid: item.uuid,
-          id: item.id
+          id: item.id,
+          description: item.description
         };
       }
     );

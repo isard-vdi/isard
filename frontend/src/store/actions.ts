@@ -6,7 +6,7 @@ import { State } from './state';
 import router from '@/router';
 import { store } from '.';
 import { sections } from '@/config/sections';
-import { DEFAULT_PAGE } from '@/config/constants';
+import { DEFAULT_PAGE, ROUTE_CREATE, ROUTE_SEARCH } from '@/config/constants';
 import { remove, setCookie } from 'tiny-cookie';
 import ConnectionService from '@/service/ConnectionService';
 
@@ -27,7 +27,9 @@ export enum ActionTypes {
   NAVIGATE = 'NAVIGATE',
   DO_SEARCH = 'DO_SEARCH',
   GO_SEARCH = 'GO_SEARCH',
-  GO_CREATE = 'GO_CREATE',
+  NAVIGATE_CREATE = 'NAVIGATE_CREATE',
+  GO_CREATE_MODE = 'GO_CREATE_MODE',
+  NAVIGATE_DETAIL = 'NAVIGATE_DETAIL',
   GET_ITEM = 'GET_ITEM',
   TOGGLE_MENU = 'TOGGLE_MENU',
   CHANGE_MENU_TYPE = 'CHANGE_MENU_TYPE',
@@ -37,7 +39,10 @@ export enum ActionTypes {
   CHANGE_MENU_STATIC_ACTIVE = 'CHANGE_MENU_STATIC_ACTIVE',
   ACTIVATE_EDIT_MODE = 'ACTIVATE_EDIT_MODE',
   END_EDIT_MODE = 'END_EDIT_MODE',
+  ACTIVATE_CREATE_MODE = 'ACTIVATE_CREATE_MODE',
+  END_CREATE_MODE = 'END_CREATE_MODE',
   SAVE_ITEM = 'SAVE_ITEM',
+  SAVE_NEW_ITEM = 'SAVE_NEW_ITEM',
   START_LOADING = 'START_LOADING',
   STOP_LOADING = 'STOP_LOADING'
 }
@@ -111,12 +116,30 @@ export interface Actions {
     }
   ): void;
 
+  [ActionTypes.NAVIGATE_DETAIL](
+    { commit }: AugmentedActionContext,
+    payload: {
+      section: string; // TODO: retrieve inside action?
+      params: any;
+    }
+  ): void;
+
   [ActionTypes.GET_ITEM](
     { commit }: AugmentedActionContext,
     payload: {
       section: string; // TODO: retrieve inside action?
       params: any;
     }
+  ): void;
+
+  [ActionTypes.NAVIGATE_CREATE](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
+
+  [ActionTypes.GO_CREATE_MODE](
+    { commit }: AugmentedActionContext,
+    payload: { section: string }
   ): void;
 
   [ActionTypes.TOGGLE_MENU](
@@ -159,7 +182,24 @@ export interface Actions {
     payload: {}
   ): void;
 
+  [ActionTypes.ACTIVATE_CREATE_MODE](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
+
+  [ActionTypes.END_CREATE_MODE](
+    { commit }: AugmentedActionContext,
+    payload: {}
+  ): void;
+
   [ActionTypes.SAVE_ITEM](
+    { commit }: AugmentedActionContext,
+    payload: {
+      persistenceObject: any;
+    }
+  ): void;
+
+  [ActionTypes.SAVE_NEW_ITEM](
     { commit }: AugmentedActionContext,
     payload: {
       persistenceObject: any;
@@ -179,8 +219,8 @@ export interface Actions {
 
 /****** ACTIONS ****/
 export const actions: ActionTree<State, State> & Actions = {
-  [ActionTypes.DO_LOCAL_LOGIN]({ commit }, payload) {
-    LoginService.doLogin(
+  async [ActionTypes.DO_LOCAL_LOGIN]({ commit }, payload) {
+    await LoginService.doLogin(
       payload.usr,
       payload.psw,
       'local',
@@ -196,13 +236,13 @@ export const actions: ActionTree<State, State> & Actions = {
     });
   },
 
-  [ActionTypes.REFRESH_TOKEN_FROM_SESSION]({ commit }, payload) {
-    ConnectionService.setClientHasura(payload.token);
+  async [ActionTypes.REFRESH_TOKEN_FROM_SESSION]({ commit }, payload) {
+    await ConnectionService.setClientHasura(payload.token);
     commit(MutationTypes.SET_LOGIN_DATA, payload);
   },
 
-  [ActionTypes.DO_LOGOUT]({ commit }, payload) {
-    ConnectionService.setClientBackend();
+  async [ActionTypes.DO_LOGOUT]({ commit }, payload) {
+    await ConnectionService.setClientBackend();
     remove('token');
     commit(MutationTypes.LOGOUT, payload);
     router.push({ name: 'login' });
@@ -238,32 +278,53 @@ export const actions: ActionTree<State, State> & Actions = {
     });
   },
 
-  [ActionTypes.GET_ITEM]({ commit, getters }, payload) {
+  [ActionTypes.NAVIGATE_DETAIL]({ commit, getters }, payload) {
+    const section: string = payload.section;
+
+    store.dispatch(ActionTypes.GET_ITEM, payload).then(() => {
+      router.push({ name: 'detail', params: { ...payload.params, section } });
+    });
+  },
+
+  async [ActionTypes.GET_ITEM]({ commit, getters }, payload) {
     const section: string = getters.section ? getters.section : payload.section;
-    console.log(section, 'section');
     const query: string = sections[section].config?.query.detail;
 
     store.dispatch(ActionTypes.START_LOADING, payload);
-    SearchService.detailSearch(query, payload.params).then(
+    await SearchService.detailSearch(query, payload.params).then(
       (response: any): any => {
         const dataItem =
           (response && response[Object.keys(response)[0]][0]) || {};
-        commit(MutationTypes.GET_ITEM, dataItem);
+        commit(MutationTypes.LOAD_ITEM, dataItem);
         store.dispatch(ActionTypes.STOP_LOADING, payload);
-        router.push({ name: 'detail', params: { ...payload.params, section } });
       }
     );
   },
 
-  [ActionTypes.SAVE_ITEM]({ commit, getters }, payload) {
+  async [ActionTypes.SAVE_ITEM]({ commit, getters }, payload) {
     const section: string = getters.section;
     const mutation: string = sections[section].config?.query.update || '';
     const persistenceObject: any = payload.persistenceObject;
 
     store.dispatch(ActionTypes.START_LOADING, payload);
-    ConnectionService.executeMutation(mutation, persistenceObject)
+    await ConnectionService.executeMutation(mutation, persistenceObject)
       .then(() => {
-        router.push({ name: 'search', params: { section } });
+        router.push({ name: ROUTE_SEARCH, params: { section } });
+      })
+      .catch(() => {
+        // catch errors
+      });
+  },
+
+  async [ActionTypes.SAVE_NEW_ITEM]({ commit, getters }, payload) {
+    const section: string = getters.section;
+    const mutation: string = sections[section].config?.query.create || '';
+    const persistenceObject: any = payload.persistenceObject;
+
+    store.dispatch(ActionTypes.START_LOADING, payload);
+    await ConnectionService.executeMutation(mutation, persistenceObject)
+      .then(() => {
+        router.push({ name: ROUTE_SEARCH, params: { section } });
       })
       .catch(() => {
         // catch errors
@@ -274,8 +335,20 @@ export const actions: ActionTree<State, State> & Actions = {
     router.push({ name: payload.section });
   },
 
-  [ActionTypes.GO_CREATE]({ commit }, payload) {
-    router.push({ name: 'login' });
+  [ActionTypes.NAVIGATE_CREATE]({ commit, getters }, payload) {
+    const section: string = getters.section;
+    store.dispatch(ActionTypes.GO_CREATE_MODE, { section });
+    router.push({ name: ROUTE_CREATE, params: { section } });
+  },
+
+  [ActionTypes.GO_CREATE_MODE]({ commit, getters }, payload) {
+    const section: string = getters.section
+      ? getters.section
+      : payload.section || '';
+    const defaults: any = sections[section].config?.defaultValues;
+
+    store.dispatch(ActionTypes.ACTIVATE_CREATE_MODE, {});
+    commit(MutationTypes.LOAD_ITEM, defaults);
   },
 
   [ActionTypes.SET_NAVIGATION_DATA]({ commit }, payload) {
@@ -324,6 +397,14 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.END_EDIT_MODE]({ commit }, payload: boolean) {
     commit(MutationTypes.END_EDIT_MODE, payload);
+  },
+
+  [ActionTypes.ACTIVATE_CREATE_MODE]({ commit }) {
+    commit(MutationTypes.ACTIVATE_CREATE_MODE, {});
+  },
+
+  [ActionTypes.END_CREATE_MODE]({ commit }, payload: boolean) {
+    commit(MutationTypes.END_CREATE_MODE, payload);
   },
 
   [ActionTypes.START_LOADING]({ commit }, payload: boolean) {

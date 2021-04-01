@@ -5,11 +5,13 @@ export interface SectionConfig {
     search: string;
     detail: string;
     update?: string;
+    create?: string;
   };
   table: {
     columns: { field: string; header: string }[];
   };
-  detail: string;
+  detail?: string;
+  defaultValues?: any;
 }
 
 export interface SectionModelMap {

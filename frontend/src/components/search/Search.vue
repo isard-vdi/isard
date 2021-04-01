@@ -26,7 +26,10 @@
       </DataTable>
     </div>
     <div>pagination component</div>
-    <list-buttons></list-buttons>
+    <list-buttons
+      :create-enabled="true"
+      @createbuttonPressed="f_create"
+    ></list-buttons>
   </div>
 </template>
 
@@ -34,13 +37,10 @@
 import { computed, defineComponent, watch } from 'vue';
 import { useStore } from '../../store';
 import { ActionTypes } from '@/store/actions';
-import { useRoute } from 'vue-router';
 import { sections } from '@/config/sections';
 import { SectionConfig } from '@/config/sections-config';
 import { DEFAULT_SEARCH_SIZE } from '@/config/constants';
 import ListButtons from '@/components/shared/lists/ListButtons.vue';
-import routes from '@/router';
-import { cloneDeep } from 'lodash';
 
 export default defineComponent({
   components: { ListButtons },
@@ -63,7 +63,6 @@ export default defineComponent({
     watch(
       sectionAndRoute,
       (sectionAndRoute) => {
-        console.log(sectionAndRoute, 'Routenamecomputed');
         if (sectionAndRoute.split(':')[0] === 'search') {
           store.dispatch(ActionTypes.DO_SEARCH, {
             queryParams: [],
@@ -88,7 +87,7 @@ export default defineComponent({
     };
 
     const f_edit = (data: any) => {
-      store.dispatch(ActionTypes.GET_ITEM, {
+      store.dispatch(ActionTypes.NAVIGATE_DETAIL, {
         section: section.value,
         params: { id: data.id }
       });
@@ -98,12 +97,20 @@ export default defineComponent({
       console.log(user, 'data');
     };
 
+    const f_create = () => {
+      store.dispatch(ActionTypes.NAVIGATE_CREATE, {
+        section: section.value,
+        params: {}
+      });
+    };
+
     return {
       actionFilterSearch,
       itemsList,
       sectionConfig,
       f_edit,
-      f_delete
+      f_delete,
+      f_create
     };
   }
 });

@@ -13,7 +13,6 @@ import routes from '@/router';
 export default {
   name: 'Detail',
   setup() {
-    console.log('entra setup detail');
     const store = useStore();
     const detailComponent = shallowRef();
 
@@ -23,7 +22,8 @@ export default {
       routes.currentRoute,
       async (route) => {
         try {
-          const componentName: string = sections[section.value].config?.detail;
+          const componentName: string =
+            sections[section.value].config?.detail || 'DefaultDetail';
           const component = await import(
             `@/components/details/${componentName}.vue`
           );
