@@ -119,7 +119,7 @@ type UnsafeAuthServer interface {
 	mustEmbedUnimplementedAuthServer()
 }
 
-func RegisterAuthServer(s *grpc.Server, srv AuthServer) {
+func RegisterAuthServer(s grpc.ServiceRegistrar, srv AuthServer) {
 	s.RegisterService(&_Auth_serviceDesc, srv)
 }
 

@@ -1,7 +1,7 @@
 #
 # Build phase
 #
-FROM golang:1.15-alpine as build
+FROM golang:1.16-alpine as build
 
 RUN apk add --no-cache \
     git \
@@ -30,7 +30,7 @@ RUN make build
 #
 # Hyper
 #
-FROM alpine:3.12
+FROM alpine:3.13
 
 RUN apk add --no-cache \
 	qemu-system-x86_64 \

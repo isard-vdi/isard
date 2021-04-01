@@ -201,7 +201,7 @@ type UnsafeHyperServer interface {
 	mustEmbedUnimplementedHyperServer()
 }
 
-func RegisterHyperServer(s *grpc.Server, srv HyperServer) {
+func RegisterHyperServer(s grpc.ServiceRegistrar, srv HyperServer) {
 	s.RegisterService(&_Hyper_serviceDesc, srv)
 }
 
