@@ -12,23 +12,21 @@ from logging.handlers import RotatingFileHandler
 ## Moved populate & upgrade from webapp
 from initdb.populate import Populate
 from initdb.upgrade import Upgrade
-
-
-
+import traceback
 
 try:
     p=Populate()
 except Exception as e:
-    print(e)
+    print(traceback.format_exc())
     print('Error populating...')
     exit(1)
 
 try:
     u=Upgrade()
 except Exception as e:
-    print(e)
+    print(traceback.format_exc())
     print('Error Upgrading...')
-    exit(1)    
+    exit(1)
 ## End
 
 from engine.services.lib.functions import check_tables_populated

@@ -17,14 +17,13 @@ from .lib import *
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 11
-### Upgrade is 10!!!
-tables=['config','hypervisors','hypervisors_pools','domains','media','graphics','users','roles','groups','interfaces']
+release_version = 12
+### Upgrade is 11!!!
+tables=['config','hypervisors','hypervisors_pools','domains','media','videos','graphics','users','roles','groups','interfaces']
 
 
 class Upgrade(object):
     def __init__(self):
-
         cfg=loadConfig()
         self.conf=cfg.cfg()
         
@@ -58,6 +57,8 @@ class Upgrade(object):
         None
 
     def upgrade_if_needed(self):
+        print(release_version)
+        print(self.cfg['version'])
         if not release_version > self.cfg['version']:
             return False
         apply_upgrades=[i for i in range(self.cfg['version']+1,release_version+1)]
@@ -607,9 +608,7 @@ class Upgrade(object):
                     #~ if not self.check_done( d,
                                         #~ ['preferences'],
                                         #~ []):                                     
-                        #~ ##### NEW FIELDS
-                        #~ self.add_keys(  table, 
-                                        #~ [   {'options': {'viewers':{'spice':{'fullscreen':False}}}}],
+                        #        #~ data=list(r.table(table).run())               #~ [   {'options': {'viewers':{'spice':{'fullscreen':False}}}}],
                                             #~ id=id)
                 #~ except Exception as e:
                     #~ log.error('Could not update table '+table+' add fields for db version '+str(version)+'!')
@@ -626,6 +625,44 @@ class Upgrade(object):
                     # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
                     # ~ log.error('Error detail: '+str(e))                    
          
+        return True
+
+    '''
+    DOMAINS TABLE VIDEOS
+    '''
+    def videos(self,version):
+        table='videos'
+        log.info('UPGRADING '+table+' VERSION '+str(version))
+        if version == 12:
+            r.table('videos').insert([
+                {"allowed": {
+                    "categories": False,
+                    "groups": False,
+                    "roles": False ,
+                    "users": False
+                } ,
+                "description": "nvidia with qxl only used to install drivers" ,
+                "heads": 1 ,
+                "id": "nvidia-with-qxl" ,
+                "model": "qxl" ,
+                "name": "NVIDIA with QXL" ,
+                "ram": 65536 ,
+                "vram": 65536},
+                {"allowed": {
+                    "categories": False,
+                    "groups": False,
+                    "roles": False ,
+                    "users": False
+                } ,
+                "description": "Nvidia default profile" ,
+                "heads": 1 ,
+                "id": "gpu-default" ,
+                "model": "nvidia" ,
+                "name": "gpu-default" ,
+                "ram": 1048576 ,
+                "vram": 1048576}
+            ]).run()
+
         return True
 
     '''
