@@ -153,7 +153,7 @@ class UiActions(object):
                 if LOG_LEVEL == 'DEBUG':
                     print(f'%%%% DOMAIN: {id_domain} -- action: {action} %%%%')
                     print(f'%%%% DOMAIN: {id_domain} -- XML TO START IN HYPERVISOR: {next_hyp} %%%%')
-                    ##print(xml)
+                    print(xml)
                     update_table_field('domains',id_domain,'xml_to_start',xml)
                     print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
 
