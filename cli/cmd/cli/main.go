@@ -8,6 +8,7 @@ import (
 	"github.com/rs/xid"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	"gitlab.com/isard/isardvdi/pkg/model"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -31,96 +32,82 @@ func main() {
 		panic(err)
 	}
 
-	// e := &model.Entity{
-	// 	UUID: xid.New().String(),
+	e := &model.Entity{
+		UUID: xid.New().String(),
 
-	// 	Name:        "Entitat",
-	// 	Description: "Això és una entitat",
-	// }
+		Name:        "Entitat",
+		Description: "Això és una entitat",
+	}
 
-	// result, err := db.Model(e).Returning("id").Insert()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	result, err := db.Model(e).Returning("id").Insert()
+	if err != nil {
+		panic(err)
+	}
 
-	// fmt.Println("Entitat insertada")
-	// fmt.Println(result.RowsAffected())
+	fmt.Println("Entitat insertada")
+	fmt.Println(result.RowsAffected())
 
-	// g := &model.Group{
-	// 	UUID: xid.New().String(),
+	g := &model.Group{
+		UUID: xid.New().String(),
 
-	// 	EntityID: e.ID,
+		EntityID: e.ID,
 
-	// 	Name:        "Grup",
-	// 	Description: "Això és un grup",
-	// }
+		Name:        "Grup",
+		Description: "Això és un grup",
+	}
 
-	// result, err = db.Model(g).Returning("id").Insert()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	result, err = db.Model(g).Returning("id").Insert()
+	if err != nil {
+		panic(err)
+	}
 
-	// fmt.Println("Grup insertada")
-	// fmt.Println(result.RowsAffected())
-	// a := &model.IdentityProvider{
-	// 	UUID: xid.New().String(),
+	fmt.Println("Grup insertada")
+	fmt.Println(result.RowsAffected())
+	a := &model.IdentityProvider{
+		UUID: xid.New().String(),
 
-	// 	EntityID: e.ID,
-	// 	Type:     "local",
+		EntityID: e.ID,
+		Type:     "local",
 
-	// 	Name:        "Identity Provider",
-	// 	Description: "Això és una Identity Provider",
-	// }
-	// result, err = db.Model(a).Returning("id").Insert()
-	// if err != nil {
-	// 	panic(err)
-	// }
+		Name:        "Identity Provider",
+		Description: "Això és una Identity Provider",
+	}
+	result, err = db.Model(a).Returning("id").Insert()
+	if err != nil {
+		panic(err)
+	}
 
-	// pwd, err := bcrypt.GenerateFromPassword([]byte("password"), 1)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	pwd, err := bcrypt.GenerateFromPassword([]byte("password"), 1)
+	if err != nil {
+		panic(err)
+	}
 
-	// u := &model.User{
-	// 	UUID:    xid.New().String(),
-	// 	Name:    "Néfix",
-	// 	Surname: "Estrada",
-	// 	AuthConfig: map[string]model.AuthConfig{
-	// 		a.UUID: map[string]interface{}{
-	// 			"usr": "nefix",
-	// 			"pwd": pwd,
-	// 		},
-	// 	},
-	// 	// AuthConfig: map[string]model.AuthConfig{
-	// 	// 	Type:                 a.Type,
-	// 	// 	IdentityProviderUUID: a.UUID,
-	// 	// 	EntityUUID:           e.UUID,
-	// 	// 	Config: map[string]interface{}{
-	// 	// 		"usr": "nefix",
-	// 	// 		"pwd": string(pwd),
-	// 	// 	},
-	// 	// }},
-	// }
+	u := &model.User{
+		UUID:    xid.New().String(),
+		Name:    "Néfix",
+		Surname: "Estrada",
+		AuthConfig: map[string]model.AuthConfig{
+			a.UUID: map[string]interface{}{
+				"usr": "nefix",
+				"pwd": string(pwd),
+			},
+		},
+	}
 
-	// result, err = db.Model(u).Returning("id").Insert()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	result, err = db.Model(u).Returning("id").Insert()
+	if err != nil {
+		panic(err)
+	}
 
-	// fmt.Println("Usuari insertada")
-	// fmt.Println(result.RowsAffected())
+	fmt.Println("Usuari insertada")
+	fmt.Println(result.RowsAffected())
 
-	// if _, err := db.Model(&model.UserToEntity{
-	// 	UserID:   u.ID,
-	// 	EntityID: e.ID,
-	// }).Insert(); err != nil {
-	// 	panic(err)
-	// }
-
-	// user := &model.User{}
-	// fmt.Println(user.LoadWithAuthLocal(context.Background(), db, "c1eube1kpk69e62flseg", "nefix"))
-	// fmt.Println(user.Name)
-	// fmt.Println(user.Entities[0].Name)
+	if _, err := db.Model(&model.UserToEntity{
+		UserID:   u.ID,
+		EntityID: e.ID,
+	}).Insert(); err != nil {
+		panic(err)
+	}
 
 	b := &model.HardwareBase{
 		UUID: xid.New().String(),
@@ -149,7 +136,7 @@ func main() {
 	    </devices>
 	</domain>`,
 	}
-	result, err := db.Model(b).Returning("id").Insert()
+	result, err = db.Model(b).Returning("id").Insert()
 	if err != nil {
 		panic(err)
 	}

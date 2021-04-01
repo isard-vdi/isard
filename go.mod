@@ -9,7 +9,7 @@ require (
 	github.com/go-pg/pg/extra/pgdebug v0.2.0
 	github.com/go-pg/pg/v10 v10.9.0
 	github.com/go-redis/redis/v8 v8.8.0
-	github.com/golang/protobuf v1.5.1 // indirect
+	github.com/golang/protobuf v1.5.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/mitchellh/mapstructure v1.4.1

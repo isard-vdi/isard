@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const cookieName = "auth"
+const headerName = "Authorization"
 
 var (
 	usrCtxKey           = &contextKey{"usr"}
@@ -21,14 +21,14 @@ var (
 
 func (m *Middleware) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie(cookieName)
-		if err != nil || c == nil {
+		h := r.Header.Get(headerName)
+		if h == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		rsp, err := m.Auth.GetUserID(r.Context(), &auth.GetUserIDRequest{
-			Token: c.Value,
+			Token: h,
 		})
 		if err != nil {
 			if status.Code(err) == codes.Unauthenticated {
