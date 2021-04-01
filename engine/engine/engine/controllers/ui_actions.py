@@ -14,14 +14,15 @@ from os.path import dirname as extract_dir_path
 from time import sleep
 
 from engine.models.domain_xml import DomainXML, update_xml_from_dict_domain, populate_dict_hardware_from_create_dict
-from engine.models.domain_xml import recreate_xml_to_start, BUS_TYPES
+from engine.models.domain_xml import recreate_xml_to_start, BUS_TYPES, recreate_xml_if_gpu
 from engine.services.db import update_domain_viewer_started_values, update_table_field, \
     get_interface, update_domain_hyp_started, update_domain_hyp_stopped, get_domain_hyp_started, \
     update_domain_dict_hardware, remove_disk_template_created_list_in_domain, remove_dict_new_template_from_domain, \
     create_disk_template_created_list_in_domain, get_pool_from_domain, get_domain, insert_domain, delete_domain, \
     update_domain_status, get_domain_forced_hyp, get_hypers_in_pool, get_domain_kind, get_if_delete_after_stop, \
     get_dict_from_item_in_table, update_domain_dict_create_dict, update_origin_and_parents_to_new_template, \
-    get_custom_dict_from_domain, update_domain_forced_hyp, get_domain_force_update, update_domain_force_update
+    get_custom_dict_from_domain, update_domain_forced_hyp, get_domain_force_update, update_domain_force_update, \
+    update_info_nvidia_hyp_domain
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import create_cmd_disk_from_virtbuilder, get_host_long_operations_from_path
 from engine.services.lib.qcow import create_cmds_disk_from_base, create_cmds_delete_disk, get_path_to_disk, \
@@ -77,83 +78,101 @@ class UiActions(object):
             hyp = self.start_domain_from_xml(xml, id_domain, pool_id=pool_id)
             return hyp
 
-    def start_paused_domain_from_xml(self, xml, id_domain, pool_id):
+    def start_paused_domain_from_xml(self, xml, id_domain, pool_id='default'):
     #def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
+        return self.start_domain_from_xml(xml,
+                                          id_domain,
+                                          pool_id,
+                                          action='start_paused_domain')
 
+        #
+        # failed = False
+        # if pool_id in self.manager.pools.keys():
+        #     forced_hyp,preferred_hyp = get_domain_forced_hyp(id_domain)
+        #     next_hyp,extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain,
+        #                                                                force_hyp=forced_hyp,
+        #                                                                preferred_hyp=preferred_hyp)
+        #
+        #     if next_hyp is not False:
+        #         log.debug('next_hyp={}'.format(next_hyp))
+        #         if extra_info.get('nvidia',False) is True:
+        #             xml = recreate_xml_if_gpu(id_domain,xml,next_hyp,extra_info)
+        #
+        #         dict_action = {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain}
+        #         # if start_after_created is True:
+        #         #     dict_action['start_after_created'] = True
+        #         #else:
+        #
+        #         if LOG_LEVEL == 'DEBUG':
+        #             print(f'%%%% DOMAIN CREATING:{id_domain} -- XML TO START PAUSED IN HYPERVISOR {next_hyp} %%%%')
+        #             print(xml)
+        #             update_table_field('domains', id_domain, 'xml_to_start', xml)
+        #             print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+        #
+        #         self.manager.q.workers[next_hyp].put(
+        #             dict_action)
+        #         update_domain_status(status='CreatingDomain',
+        #                              id_domain=id_domain,
+        #                              hyp_id=False,
+        #                              detail='Waiting to try starting paused in hypervisor {} in pool {} ({} operations in queue)'.format(
+        #                                  next_hyp,
+        #                                  pool_id,
+        #                                  self.manager.q.workers[next_hyp].qsize()))
+        #     else:
+        #         log.error('get next hypervisor in pool {} failed'.format(pool_id))
+        #         failed = True
+        # else:
+        #     log.error('pool_id {} does not exists??'.format(pool_id))
+        #     failed = True
+        #
+        # if failed is True:
+        #     #update_domain_status(status='FailedCreatingDomain',
+        #     update_domain_status(status='Failed',
+        #                          id_domain=id_domain,
+        #                          hyp_id=next_hyp,
+        #                          detail='desktop not started: no hypervisors online in pool {}'.format(pool_id))
+        #
+        #     log.error('desktop not started: no hypervisors online in pool {}'.format(pool_id))
+        #     return False
+        # else:
+        #     return next_hyp
+
+    def start_domain_from_xml(self, xml, id_domain, pool_id='default',action='start_domain'):
         failed = False
         if pool_id in self.manager.pools.keys():
-            next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
-            log.debug('//////////////////////')
+            forced_hyp,preferred_hyp = get_domain_forced_hyp(id_domain)
+            next_hyp,extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain,
+                                                                       force_hyp=forced_hyp,
+                                                                       preferred_hyp=preferred_hyp)
             if next_hyp is not False:
-                log.debug('next_hyp={}'.format(next_hyp))
-                dict_action = {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain}
-                # if start_after_created is True:
-                #     dict_action['start_after_created'] = True
-                #else:
+                if extra_info.get('nvidia',False) is True:
+                    xml = recreate_xml_if_gpu(id_domain,xml,next_hyp,extra_info)
+                    nvidia_uid = extra_info['uid']
+                    ok = update_info_nvidia_hyp_domain('reserved',nvidia_uid,next_hyp,id_domain)
 
                 if LOG_LEVEL == 'DEBUG':
-                    print(f'%%%% DOMAIN CREATING:{id_domain} -- XML TO START PAUSED IN HYPERVISOR {next_hyp} %%%%')
-                    print(xml)
-                    update_table_field('domains', id_domain, 'xml_to_start', xml)
-                    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-
-                self.manager.q.workers[next_hyp].put(
-                    dict_action)
-                update_domain_status(status='CreatingDomain',
-                                     id_domain=id_domain,
-                                     hyp_id=False,
-                                     detail='Waiting to try starting paused in hypervisor {} in pool {} ({} operations in queue)'.format(
-                                         next_hyp,
-                                         pool_id,
-                                         self.manager.q.workers[next_hyp].qsize()))
-            else:
-                log.error('get next hypervisor in pool {} failed'.format(pool_id))
-                failed = True
-        else:
-            log.error('pool_id {} does not exists??'.format(pool_id))
-            failed = True
-
-        if failed is True:
-            update_domain_status(status='FailedCreatingDomain',
-                                 id_domain=id_domain,
-                                 hyp_id=next_hyp,
-                                 detail='desktop not started: no hypervisors online in pool {}'.format(pool_id))
-
-            log.error('desktop not started: no hypervisors online in pool {}'.format(pool_id))
-            return False
-        else:
-            return next_hyp
-
-    def start_domain_from_xml(self, xml, id_domain, pool_id='default'):
-        failed = False
-        if pool_id in self.manager.pools.keys():
-            forced_hyp = get_domain_forced_hyp(id_domain)
-            if forced_hyp is not False:
-                hyps_in_pool = get_hypers_in_pool(pool_id, only_online=False)
-                if forced_hyp in hyps_in_pool:
-                    next_hyp = forced_hyp
-                else:
-                    log.error('force hypervisor failed for doomain {}: {}  not in hypervisors pool {}'.format(id_domain,
-                                                                                                              forced_hyp,
-                                                                                                              pool_id))
-                    next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
-            else:
-                next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
-
-            if next_hyp is not False:
-                # update_domain_status(status='Starting',
-                #                      id_domain=id_domain,
-                #                      hyp_id=next_hyp,
-                #                      detail='desktop starting paused in pool {} on hypervisor {}'.format(pool_id,
-                #                                                                                          next_hyp))
-
-                if LOG_LEVEL == 'DEBUG':
+                    print(f'%%%% DOMAIN: {id_domain} -- action: {action} %%%%')
                     print(f'%%%% DOMAIN: {id_domain} -- XML TO START IN HYPERVISOR: {next_hyp} %%%%')
-                    ##print(xml)
+                    #print(xml)
                     update_table_field('domains',id_domain,'xml_to_start',xml)
                     print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
 
-                self.manager.q.workers[next_hyp].put({'type': 'start_domain', 'xml': xml, 'id_domain': id_domain})
+                dict_action = {'type': action, 'xml': xml, 'id_domain': id_domain}
+
+                if extra_info.get('nvidia',False) is True:
+                    dict_action['nvidia_uid'] = extra_info.get('uid',False)
+
+                if action == 'start_paused_domain':
+                    update_domain_status(status='CreatingDomain',
+                                         id_domain=id_domain,
+                                         hyp_id=False,
+                                         detail='Waiting to try starting paused in hypervisor {} in pool {} ({} operations in queue)'.format(
+                                             next_hyp,
+                                             pool_id,
+                                             self.manager.q.workers[next_hyp].qsize()))
+
+                self.manager.q.workers[next_hyp].put(dict_action)
+
             else:
                 log.error('get next hypervisor in pool {} failed'.format(pool_id))
                 failed = True
@@ -270,7 +289,6 @@ class UiActions(object):
     # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
 
     def deleting_disks_from_domain(self, id_domain, force=False):
-        # ALBERTO FALTA ACABAR
 
         dict_domain = get_domain(id_domain)
 
@@ -289,7 +307,7 @@ class UiActions(object):
                                                                                                                  id_domain))
                         return False
 
-                    forced_hyp = get_domain_forced_hyp(id_domain)
+                    forced_hyp,preferred_hyp = get_domain_forced_hyp(id_domain)
                     if forced_hyp is not False:
                         hyps_in_pool = get_hypers_in_pool(pool_id, only_online=False)
                         if forced_hyp in hyps_in_pool:
@@ -303,6 +321,9 @@ class UiActions(object):
                     else:
                         next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
 
+                    if type(next_hyp) is tuple:
+                        h=next_hyp[0]
+                        next_hyp = h
                     log.debug('hypervisor where delete disk {}: {}'.format(disk_path, next_hyp))
                     cmds = create_cmds_delete_disk(disk_path)
 
@@ -662,7 +683,7 @@ class UiActions(object):
 
         # INFO TO DEVELOPER DEBERÍA SER UN FOR PARA CADA DISCO
         # y si el disco no tiene backing_chain, crear un disco vacío
-        # del tamño que marcase
+        # del tamaño que marcase
         # d['hardware']['disks'][0]['size']
         # el backing_file debería estar asociado a cada disco:
         # d['hardware']['disks'][0]['backing_file']
