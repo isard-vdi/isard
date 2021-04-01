@@ -79,7 +79,7 @@ deploy-branch:
       {
           "type": "branch",
           "target_repo": "https://gitlab.com/isard/isardvdi",
-          "target_branch": "$CI_COMMIT_BRANCH",
+          "target_branch": "$CI_COMMIT_BRANCH"
       }
       EOF
       }
