@@ -208,7 +208,7 @@ class ApiUsers():
                             "parents",
                             "persistent",
                             {"viewer": "guest_ip"},
-                            {"create_dict": {"hardware": "interfaces"}},
+                            {"create_dict": {"hardware": ["interfaces", "videos"]}},
                         ]
                     )
                     .run(db.conn)
@@ -223,7 +223,14 @@ class ApiUsers():
                     d["type"] = "persistent"
                 else:
                     d["type"] = "nonpersistent"
-                d["viewers"] = ["spice", "browser"]
+                d["viewers"] = []
+                if not any(
+                    [
+                        video.startswith("gpu")
+                        for video in d["create_dict"]["hardware"]["videos"]
+                    ]
+                ):
+                    d["viewers"].extend(["spice", "browser"])
                 if d["status"] == "Started":
                     d["ip"] = d.get("viewer", {}).get("guest_ip")
                     if d["ip"]:
