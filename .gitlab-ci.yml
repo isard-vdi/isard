@@ -7,6 +7,10 @@ docker-build:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - apk add bash git docker-compose
+    # Use docker compose < 1.27 to avoid depends_on issue
+    # https://github.com/isard-vdi/isard/issues/390
+    - apk add py3-pip
+    - pip install docker-compose~=1.26.0
     - cp isardvdi.cfg.example isardvdi.cfg
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
