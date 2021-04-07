@@ -2,11 +2,11 @@
   <div class="p-grid p-fluid">
     <div class="p-col-12 p-md-12">
       <div class="card">
-        <h2>Entity Detail</h2>
+        <h2>Desktop Detail</h2>
         <div class="p-grid p-formgrid">
           <isard-input-text
             id="id"
-            v-model="entity.id"
+            v-model="desktop.id"
             type="text"
             placeholder="ID"
             :disabled="true"
@@ -15,7 +15,7 @@
 
           <isard-input-text
             id="name"
-            v-model="entity.name"
+            v-model="desktop.name"
             type="text"
             placeholder="Name"
             :disabled="!editMode && !createMode"
@@ -24,7 +24,7 @@
 
           <isard-input-text
             id="description"
-            v-model="entity.description"
+            v-model="desktop.description"
             type="text"
             placeholder="Decription"
             :disabled="!editMode && !createMode"
@@ -33,7 +33,7 @@
 
           <isard-input-text
             id="uuid"
-            v-model="entity.uuid"
+            v-model="desktop.uuid"
             type="text"
             placeholder="UUID"
             :disabled="!editMode && !createMode"
@@ -44,16 +44,6 @@
       </div>
       <br />
 
-      <div v-if="!createMode" class="card">
-        <h4>Users</h4>
-        <div class="p-grid p-formgrid">
-          <DataTable :value="entity.users">
-            <Column field="name" header="Name"></Column>
-            <Column field="surname" header="Surname"></Column>
-            <Column field="uuid" header="UUID"></Column>
-          </DataTable>
-        </div>
-      </div>
       <main-form-buttons
         :edit-enabled="editEnabled"
         :form-changed="formChanged"
@@ -71,16 +61,11 @@ import { useStore } from '@/store';
 import { cloneDeep } from 'lodash';
 import UpdateUtils from '@/utils/UpdateUtils';
 import { ActionTypes } from '@/store/actions';
-import EntitiesUtils from '@/utils/EntitiesUtils';
 
 export default defineComponent({
   setup() {
     const store = useStore();
-    const entityImage = EntitiesUtils.detailCleaner(
-      cloneDeep(store.getters.detail)
-    );
-    const entity = reactive(cloneDeep(entityImage));
-
+    const desktop = reactive(cloneDeep(store.getters.detail));
     const editMode: ComputedRef<any> = computed(() => store.getters.editMode);
     const createMode: ComputedRef<any> = computed(
       () => store.getters.createMode
@@ -88,24 +73,25 @@ export default defineComponent({
     const editEnabled = true;
 
     const formChanged: ComputedRef<boolean> = computed(
-      () => JSON.stringify(entity) !== JSON.stringify(entityImage)
+      () => JSON.stringify(desktop) !== JSON.stringify(store.getters.detail)
     );
 
     function f_saveItem(): void {
       let persistenceObject = UpdateUtils.getUpdateObject(
-        cloneDeep(entity),
-        cloneDeep(entityImage)
+        cloneDeep(desktop),
+        cloneDeep(store.getters.detail)
       );
 
-      persistenceObject.id = entity.id;
+      persistenceObject.id = desktop.id;
 
       const payload = { persistenceObject };
       store.dispatch(ActionTypes.SAVE_ITEM, payload);
     }
 
     function f_saveNewItem(): void {
+      console.log('**** f_saveNewItem ***');
       const persistenceObject = UpdateUtils.getUpdateObject(
-        cloneDeep(entity),
+        cloneDeep(desktop),
         cloneDeep(store.getters.detail)
       );
 
@@ -114,7 +100,7 @@ export default defineComponent({
     }
 
     return {
-      entity,
+      desktop,
       formChanged,
       editEnabled,
       editMode,

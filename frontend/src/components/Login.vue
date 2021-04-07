@@ -71,6 +71,7 @@ import Language from '@/components/Language.vue';
 import { ref } from 'vue';
 import { useStore } from 'vuex';
 import { ActionTypes } from '@/store/actions';
+import { LOGIN_ENTITY } from '@/config/constants';
 
 export default {
   components: {
@@ -93,7 +94,7 @@ export default {
       store.dispatch(ActionTypes.DO_LOCAL_LOGIN, {
         usr: user.value,
         psw: password.value,
-        entity: 'c1e67m4tdj5omoqonvfg'
+        entity: LOGIN_ENTITY
       });
     };
 

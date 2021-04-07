@@ -2,7 +2,7 @@ export const menu = [
   {
     label: 'Desktops',
     icon: 'pi pi-fw pi-desktop',
-    to: { name: 'search', params: { section: 'Desktops' } }
+    to: { name: 'search', params: { section: 'desktops' } }
   },
   {
     label: 'Templates',

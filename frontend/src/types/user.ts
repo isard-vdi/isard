@@ -6,7 +6,6 @@ namespace Types {
     surname2: string;
     avatar: string;
     profile: string;
-    userName: string;
     email: string;
     status: string;
     organizationId: string;
@@ -14,5 +13,6 @@ namespace Types {
     lastAttempt: string;
     creationDate: string;
     uuid: string;
+    entities?: Entity[];
   }
 }

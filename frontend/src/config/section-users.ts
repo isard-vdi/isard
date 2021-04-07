@@ -1,3 +1,4 @@
+import { TABLE_PREFIX } from './constants';
 import { SectionConfig } from './sections-config';
 
 export const SectionUsers: SectionConfig = {
@@ -6,32 +7,37 @@ export const SectionUsers: SectionConfig = {
   query: {
     search: `
     query UsersList {
-      user {
+      ${TABLE_PREFIX}user {
         created_at
         email
         id
         name
         surname
-        username
         uuid
       }
     }`,
     detail: `query UserDetail($id: bigint) {
-      user(where: {id: {_eq: $id}}) {
+      ${TABLE_PREFIX}user(where: {id: {_eq: $id}}) {
         email
-        id
         name
         surname
-        entity {
-          id
-          name
-          uuid
+        id
+        uuid
+        created_at
+        ${TABLE_PREFIX}user_to_entities {
+          ${TABLE_PREFIX}entity {
+            id
+            description
+            created_at
+            name
+            uuid
+          }
         }
       }
     }`,
     update: `
     mutation UpdateUser($id: bigint, $mail: String, $name: String) {
-      update_user(where: {id: {_eq: $id}}, _set: {email: $mail, name: $name}) {
+      update_${TABLE_PREFIX}user(where: {id: {_eq: $id}}, _set: {email: $mail, name: $name}) {
         returning {
           id
         }

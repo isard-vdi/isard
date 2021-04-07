@@ -39,44 +39,19 @@
         <!-- end grid -->
       </div>
       <!-- end card -->
+
       <br />
-      <h4>Entity</h4>
-      <div class="card">
+
+      <div v-if="!createMode" class="card">
+        <h4>Entities</h4>
         <div class="p-grid p-formgrid">
-          <isard-input-text
-            id="userentityid"
-            v-model="user.entity.id"
-            type="text"
-            placeholder="ID"
-            :disabled="true"
-            label="ID"
-            colspan="4"
-          ></isard-input-text>
-
-          <isard-input-text
-            id="entityName"
-            v-model="user.entity.name"
-            type="text"
-            placeholder="Name"
-            :disabled="!editMode"
-            label="Name"
-            colspan="4"
-          ></isard-input-text>
-
-          <isard-input-text
-            id="entityuuid"
-            v-model="user.entity.uuid"
-            type="text"
-            placeholder="uiid"
-            :disabled="!editMode"
-            class="p-error"
-            label="uiid"
-            colspan="4"
-          ></isard-input-text>
+          <DataTable :value="user.entities">
+            <Column field="description" header="Description"></Column>
+            <Column field="name" header="Name"></Column>
+            <Column field="uuid" header="UUID"></Column>
+          </DataTable>
         </div>
-        <!-- end grid -->
       </div>
-      <!-- end card -->
       <main-form-buttons
         :edit-enabled="editEnabled"
         :form-changed="formChanged"
@@ -95,6 +70,7 @@ import UpdateUtils from '@/utils/UpdateUtils';
 import { cloneDeep } from 'lodash';
 import { computed, ComputedRef, defineComponent, reactive } from 'vue';
 import MainFormButtons from '@/components/shared/forms/MainFormButtons.vue';
+import UsersUtils from '@/utils/UsersUtils';
 
 export default defineComponent({
   components: { MainFormButtons },
@@ -102,7 +78,12 @@ export default defineComponent({
     const store = useStore();
     const editEnabled = true;
     const editMode: ComputedRef<any> = computed(() => store.getters.editMode);
-    const user = reactive(cloneDeep(store.getters.detail));
+    const user = reactive(
+      UsersUtils.detailCleaner(cloneDeep(store.getters.detail))
+    );
+    const userStatic = UsersUtils.detailCleaner(
+      cloneDeep(store.getters.detail)
+    );
 
     const formChanged: ComputedRef<boolean> = computed(
       () => JSON.stringify(user) !== JSON.stringify(store.getters.detail)
@@ -111,7 +92,7 @@ export default defineComponent({
     function saveItem(): void {
       let persistenceObject = UpdateUtils.getUpdateObject(
         cloneDeep(user),
-        cloneDeep(store.getters.detail)
+        userStatic
       );
 
       persistenceObject.id = user.id;

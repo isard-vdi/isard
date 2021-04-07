@@ -1,3 +1,4 @@
+import { TABLE_PREFIX } from './constants';
 import { SectionConfig } from './sections-config';
 
 export const SectionEntities: SectionConfig = {
@@ -6,7 +7,7 @@ export const SectionEntities: SectionConfig = {
   query: {
     search: `
     query Entities {
-      entity {
+      ${TABLE_PREFIX}entity {
         id
         created_at
         name
@@ -15,19 +16,27 @@ export const SectionEntities: SectionConfig = {
       }
     }`,
     detail: `query EntityDetail($id: bigint) {
-      entity(where: {id: {_eq: $id}}) {
+      ${TABLE_PREFIX}entity(where: {id: {_eq: $id}}) {
+        created_at
+        description
         id
         name
         uuid
-        users {
-          name
-          uuid
+        ${TABLE_PREFIX}user_to_entities {
+          ${TABLE_PREFIX}user {
+            created_at
+            email
+            id
+            name
+            surname
+            uuid
+          }
         }
       }
     }`,
     update: `
     mutation UpdateEntity($id: bigint, $description: String, $name: String) {
-      update_entity(where: {id: {_eq: $id}}, _set: {description: $description, name: $name}) {
+      update_${TABLE_PREFIX}entity(where: {id: {_eq: $id}}, _set: {description: $description, name: $name}) {
         returning {
           id
         }
@@ -36,7 +45,7 @@ export const SectionEntities: SectionConfig = {
     `,
     create: `
     mutation CreateEntity($description: String, $name: String, $uuid: String) {
-      insert_entity(objects: {name: $name, description: $description, uuid: $uuid}) {
+      insert_${TABLE_PREFIX}entity(objects: {name: $name, description: $description, uuid: $uuid}) {
         returning {
           id
         }
@@ -50,7 +59,7 @@ export const SectionEntities: SectionConfig = {
       { field: 'uuid', header: 'UUID' },
       { field: 'name', header: 'Name' },
       { field: 'description', header: 'Description' },
-      { field: 'creationdate', header: 'Created' }
+      { field: 'creationDate', header: 'Created' }
     ]
   },
   detail: 'Entity',
