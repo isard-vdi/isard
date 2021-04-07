@@ -10,6 +10,7 @@
             }
         },
         "help": {
+            "title": "Ajuda",
             "close-guide": "Tancar la guia",
             "local-client": "Fer servir el client local (recomanat)",
             "best-performance": "És l'opció amb el millor rendiment",

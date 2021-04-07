@@ -1,83 +1,64 @@
 <template>
-  <b-container fluid>
-    <b-row align-h="center" class="pt-4">
-      <b-col class="ml-2 mr-2">
-        <b-button-group class="float-left">
-            <b-button variant="danger" size="lg" @click="logout()">
-              <b-icon icon="power" scale="1"></b-icon>
-            </b-button>
-            <b-button variant="primary" size="lg" v-b-modal.help_modal>
-              <b-icon icon="question-circle-fill" scale="1"></b-icon>
-            </b-button>
-            <b-button v-if="config['show_admin_button']" size="lg" href="/isard-admin/login" variant="outline-secondary">
-              <b-icon icon="gear" scale="1"></b-icon>
-              {{ $t('views.login.admin') }}
-            </b-button>
-        </b-button-group>
-        <Help/>
-        <div class="d-flex float-right">
-          <label for="switch">
-            <b-icon-list></b-icon-list>
-          </label>
-          <b-form-checkbox id="switch" v-model="gridView" switch class="ml-2 mt-n1"></b-form-checkbox>
-          <label for="switch">
-            <b-icon-grid></b-icon-grid>
-          </label>
-        </div>
-        <div v-if="!templates_loaded">
-          <b-spinner/>
-          <p>{{ $t('views.select-template.loading') }}</p>
-        </div>
-
-        <div v-else-if="user_templates.length === 0 && user_desktops.length === 0">
-          <h1>{{ $t('views.select-template.no-templates.title') }}</h1>
-          <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
-        </div>
-
-        <div v-else>
-          <b-iconstack font-scale="4" class="mb-4 mt-2">
-            <b-icon stacked icon="question" variant="primary" shift-v="1.5"></b-icon>
-            <b-icon stacked icon="tv" variant="dark" scale="2"></b-icon>
-          </b-iconstack>
-          <h1 class="mt-4">{{ $t('views.select-template.which-template') }}</h1>
-          <div v-if="persistentDesktops.length > 0">
-            <h2 class="mt-2">{{ $t('views.select-template.persistent') }}</h2>
-            <DesktopsCards :templates="user_templates" :desktops="persistentDesktops"
-            :persistent="true" :gridView="gridView" :icons="icons" :status="status"/>
+  <div>
+    <Navbar/>
+    <b-container fluid>
+      <b-row align-h="center" class="pt-4">
+        <b-col>
+          <div class="d-flex float-right">
+            <label for="switch">
+              <b-icon-list></b-icon-list>
+            </label>
+            <b-form-checkbox id="switch" v-model="gridView" switch class="ml-2 mt-n1"></b-form-checkbox>
+            <label for="switch">
+              <b-icon-grid></b-icon-grid>
+            </label>
           </div>
-          <div v-if="nonpersistentDesktops.length > 0">
-            <h2 class="mt-2">{{ $t('views.select-template.volatile') }}</h2>
-            <DesktopsCards :templates="user_templates" :desktops="nonpersistentDesktops"
-            :persistent="false" :gridView="gridView" :icons="icons" :status="status"/>
+          <div v-if="!templates_loaded">
+            <b-spinner/>
+            <p>{{ $t('views.select-template.loading') }}</p>
           </div>
-        </div>
-      </b-col>
-    </b-row>
-  </b-container>
+
+          <div v-else-if="user_templates.length === 0 && user_desktops.length === 0">
+            <h1>{{ $t('views.select-template.no-templates.title') }}</h1>
+            <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
+          </div>
+
+          <div v-else>
+            <h1>
+              {{ $t('views.select-template.which-template') }}
+            </h1>
+            <div v-if="persistentDesktops.length > 0">
+              <h2 class="mt-2">{{ $t('views.select-template.persistent') }}</h2>
+              <DesktopsCards :templates="user_templates" :desktops="persistentDesktops"
+              :persistent="true" :gridView="gridView" :icons="icons" :status="status"/>
+            </div>
+            <div v-if="nonpersistentDesktops.length > 0">
+              <h2 class="mt-2">{{ $t('views.select-template.volatile') }}</h2>
+              <DesktopsCards :templates="user_templates" :desktops="nonpersistentDesktops"
+              :persistent="false" :gridView="gridView" :icons="icons" :status="status"/>
+            </div>
+          </div>
+        </b-col>
+      </b-row>
+    </b-container>
+  </div>
 </template>
 
 <script>
 // @ is an alias to /src
 import DesktopsCards from '@/components/DesktopsCards.vue'
-import Help from '@/components/Help'
-import { mapActions } from 'vuex'
+import Navbar from '../components/Navbar.vue'
 
 export default {
-  beforeMount: async function () {
-    this.$store.dispatch('fetchConfig')
-  },
   components: {
     DesktopsCards,
-    Help
+    Navbar
   },
   created () {
     this.$store.dispatch('fetchDesktops')
     this.$store.dispatch('fetchTemplates')
   },
   computed: {
-    config () {
-      return this.$store.getters.getConfig
-    },
     user () {
       return this.$store.getters.getUser
     },
@@ -110,11 +91,6 @@ export default {
       return this.$store.getters.getDesktopsLoaded
     }
   },
-  mounted: function () {
-    if (this.user && this.user.templates && this.user.templates.length === 1) {
-      this.$router.push({ name: 'Creating', params: { template: this.user.templates[0].id } })
-    }
-  },
   data () {
     return {
       gridView: true,
@@ -143,11 +119,6 @@ export default {
         }
       }
     }
-  },
-  methods: {
-    ...mapActions([
-      'logout'
-    ])
   }
 }
 </script>

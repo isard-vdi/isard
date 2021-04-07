@@ -21,6 +21,8 @@ export function auth (to, from, next) {
   }
   // Si la té comprovem que sigui vàlida
   axios.get('/check').then(response => {
+    // Si es vàlida demanem les dades de l'usuari
+    store.dispatch('setUser')
     next()
   }).catch(e => {
     if (e.response.status === 503) {
@@ -29,8 +31,6 @@ export function auth (to, from, next) {
     next({ name: 'Login' })
     throw e
   })
-
-  store.dispatch('setUser')
 }
 
 function isNullOrUndefined (arg) {
