@@ -20,10 +20,15 @@ RUN apk add --no-cache --virtual .build_deps \
     git
 
 # python-iptables
-RUN git clone git://git.netfilter.org/iptables && cd iptables && \
-    ./autogen.sh && \
-    ./configure --prefix=/tmp/iptables && \
-    make && make install && cd .. && rm -rf iptables
+# Avoid temporary build errors of iptables master branch by setting iptables version.
+RUN git clone -b v1.8.7 git://git.netfilter.org/iptables
+WORKDIR /iptables
+RUN ./autogen.sh
+RUN ./configure --prefix=/tmp/iptables
+RUN make
+RUN make install
+WORKDIR /
+RUN rm -rf iptables
 
 ENV IPTABLES_LIBDIR=/tmp/iptables/lib
 ENV XTABLES_LIBDIR=/tmp/iptables/lib/xtables
