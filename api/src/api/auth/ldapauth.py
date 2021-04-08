@@ -60,7 +60,7 @@ class myLdapAuth(object):
                     'category': category,
                     'group': category+'-'+group,
                     'email': info[1]['mail'][0].decode('utf-8'),
-                    'photo': None,
+                    'photo': "",
                     'default_templates':[],
                     'quota': self._setQuota(self._setUserRole(username), category, group),
                     'group_uid': category+'-'+group

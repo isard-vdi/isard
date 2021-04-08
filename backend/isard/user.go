@@ -41,6 +41,13 @@ func (i *Isard) UserLoad(u *model.User) error {
 		return fmt.Errorf("get user: %w", err)
 	}
 
+	if err := json.NewDecoder(rsp.Body).Decode(&u); err != nil {
+		i.sugar.Errorw("get user: decode JSON response",
+			"err", err,
+		)
+		return fmt.Errorf("get user: decode JSON response: %w", err)
+	}
+
 	if err := i.UserTemplates(u); err != nil {
 		return err
 	}
