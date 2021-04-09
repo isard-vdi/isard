@@ -51,8 +51,8 @@ export const SectionDesktops: SectionConfig = {
       }
     }`,
     create: `
-    mutation CreateDesktop {
-      desktopCreate(input: {hardware: {baseId: "c1iprlstdj5tchj3i7tg", memory: 1024, vcpus: 1}, name: "Test1xy"}) {
+    mutation CreateDesktop($name: String!) {
+      desktopCreate(input: {hardware: {baseId: "c1njso4tdj5q83bo02qg", memory: 1024, vcpus: 1}, name: $name}) {
         recordId
       }
     }
@@ -71,7 +71,7 @@ export const SectionDesktops: SectionConfig = {
   defaultValues: {
     id: '',
     name: 'default name',
-    description: 'Defaul description',
+    description: 'Default description',
     uuid: 'Def, UUID'
   }
 };

@@ -1,4 +1,4 @@
-export const LOGIN_ENTITY = 'c1iprlstdj5tchj3i7rg';
+export const LOGIN_ENTITY = 'c1njso4tdj5q83bo02og';
 
 export const DEFAULT_SEARCH_SIZE = 25;
 export const DEFAULT_PAGE = 'search';

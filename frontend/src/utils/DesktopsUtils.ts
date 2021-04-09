@@ -12,4 +12,14 @@ export default class DesktopsUtils {
       }
     );
   }
+
+  static detailCleaner(item: any): Types.Desktop {
+    return {
+      description: item.description,
+      name: item.name,
+      creationDate: '',
+      uuid: item.uuid,
+      id: item.id
+    };
+  }
 }

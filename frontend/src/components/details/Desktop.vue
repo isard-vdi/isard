@@ -89,11 +89,7 @@ export default defineComponent({
     }
 
     function f_saveNewItem(): void {
-      console.log('**** f_saveNewItem ***');
-      const persistenceObject = UpdateUtils.getUpdateObject(
-        cloneDeep(desktop),
-        cloneDeep(store.getters.detail)
-      );
+      const persistenceObject = cloneDeep(desktop);
 
       const payload = { persistenceObject };
       store.dispatch(ActionTypes.SAVE_NEW_ITEM, payload);
