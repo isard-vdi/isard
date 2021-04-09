@@ -59,7 +59,7 @@ export const mutations: MutationTree<State> & Mutations = {
   [MutationTypes.LOGOUT](state: State, payload) {
     state.auth.token = '';
     state.auth.user = {
-      userName: '',
+      // userName: '',
       email: '',
       name: '',
       surname1: '',

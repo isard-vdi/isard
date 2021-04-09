@@ -36,23 +36,10 @@ export interface RouterState {
 }
 
 export const state: State = {
-  search: [
-    {
-      name: 'Test',
-      surname1: 'surname',
-      surname2: 'surname2',
-      profile: 'admin'
-    },
-    {
-      name: 'OtroTest',
-      surname1: 'Otro surname',
-      surname2: 'otro surname2',
-      profile: 'manager'
-    }
-  ],
+  search: [],
   auth: {
     user: {
-      userName: '',
+      // userName: '',
       email: '',
       name: '',
       surname1: '',

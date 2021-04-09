@@ -255,11 +255,11 @@ export const actions: ActionTree<State, State> & Actions = {
     commit(MutationTypes.SET_LOGIN_DATA, payload);
   },
 
-  [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {
+  async [ActionTypes.DO_SEARCH]({ commit, getters }, payload) {
     const section: string = getters.section ? getters.section : payload.section;
     const query: string =
       sections[section] && sections[section].config?.query.search;
-    SearchService.listSearch(
+    await SearchService.listSearch(
       query,
       payload.queryParams,
       payload.size,
@@ -317,6 +317,7 @@ export const actions: ActionTree<State, State> & Actions = {
   },
 
   async [ActionTypes.SAVE_NEW_ITEM]({ commit, getters }, payload) {
+    console.log('***** SAVE_NEW_ITEM ******');
     const section: string = getters.section;
     const mutation: string = sections[section].config?.query.create || '';
     const persistenceObject: any = payload.persistenceObject;

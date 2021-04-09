@@ -2,9 +2,10 @@ namespace Types {
   export interface Entity {
     id: string;
     name: string;
-    creationdate: string;
+    creationDate: string;
     uuid: string;
     description: string;
+    users?: User[];
     //TODO: Añadir atributos
   }
 }

@@ -1,23 +1,23 @@
 <template>
   <div class="p-grid p-jc-end p-m-2">
     <!-- buttons -->
-    <isard-button v-if="editMode" label="Cancel" @click="endEditMode" />
+    <isard-button v-if="editMode" label="Cancel" @click.stop="endEditMode" />
     <isard-button
       v-if="editMode"
       label="Save"
       :disabled="!formChanged"
-      @click="formChanged && $emit('savebutton-pressed')"
+      @click.stop="formChanged && $emit('savebutton-pressed')"
     />
     <isard-button
       v-if="!editMode && !createMode"
       label="Edit"
       :disabled="!editEnabled"
-      @click="goToEditMode"
+      @click.stop="goToEditMode"
     />
     <isard-button
       v-if="createMode"
       label="Save New"
-      @click="$emit('savenewbutton-pressed')"
+      @click.stop="$emit('savenewbutton-pressed')"
     />
   </div>
 </template>

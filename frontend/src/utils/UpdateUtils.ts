@@ -11,7 +11,7 @@ export default class UpdateUtils {
     var rst: any = {};
     for (var k in tgt) {
       // visit all fields
-      if (typeof src[k] === 'object') {
+      if (src && src[k] && typeof src[k] === 'object') {
         // if field contains object (or array because arrays are objects too)
         rst[k] = this.getUpdateObject(tgt[k], src[k]); // diff the contents
         if (Object.keys(rst[k]).length === 0) {
