@@ -11,6 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/backend/graph/middleware"
 	"gitlab.com/isard/isardvdi/pkg/proto/auth"
 	"gitlab.com/isard/isardvdi/pkg/proto/controller"
+	"gitlab.com/isard/isardvdi/pkg/proto/diskoperations"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -23,25 +24,30 @@ import (
 	"google.golang.org/grpc"
 )
 
+// BackendServer is the the GraphQL HTTP server
 type BackendServer struct {
 	Addr string
 
-	DB             *pg.DB
-	AuthConn       *grpc.ClientConn
-	Auth           auth.AuthClient
-	ControllerConn *grpc.ClientConn
-	Controller     controller.ControllerClient
+	DB                 *pg.DB
+	AuthConn           *grpc.ClientConn
+	Auth               auth.AuthClient
+	ControllerConn     *grpc.ClientConn
+	Controller         controller.ControllerClient
+	DiskOperationsConn *grpc.ClientConn
+	DiskOperations     diskoperations.DiskOperationsClient
 
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
 }
 
+// Serve starts the HTTP server
 func (b *BackendServer) Serve(ctx context.Context) {
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{
 		Resolvers: &graph.Resolver{
-			Auth:       b.Auth,
-			Controller: b.Controller,
-			DB:         b.DB,
+			Auth:           b.Auth,
+			Controller:     b.Controller,
+			DiskOperations: b.DiskOperations,
+			DB:             b.DB,
 		},
 		// Directives: generated.DirectiveRoot(graph.NewDirective()),
 	}))
@@ -95,5 +101,7 @@ func (b *BackendServer) Serve(ctx context.Context) {
 
 	s.Shutdown(timeout)
 	b.AuthConn.Close()
+	b.ControllerConn.Close()
+	b.DiskOperationsConn.Close()
 	b.WG.Done()
 }

@@ -2,8 +2,15 @@
 
 package model
 
-import "time"
+import (
+	"context"
+	"fmt"
+	"time"
 
+	"github.com/go-pg/pg/v10"
+)
+
+// Disk is a disk represented in the DB
 type Disk struct {
 	ID   int
 	UUID string `pg:",notnull,unique"`
@@ -33,4 +40,13 @@ const (
 	DiskTypeRaw
 	DiskTypeISO
 	DiskTypeFloppy
+	DiskTypeUSB
 )
+
+func (d *Disk) LoadWithUUID(ctx context.Context, db *pg.DB) error {
+	if err := loadWithUUID(ctx, db, d, d.UUID); err != nil {
+		return fmt.Errorf("load disk from the db: %w", err)
+	}
+
+	return nil
+}

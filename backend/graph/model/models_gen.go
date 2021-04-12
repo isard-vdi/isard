@@ -2,6 +2,12 @@
 
 package model
 
+import (
+	"fmt"
+	"io"
+	"strconv"
+)
+
 type Desktop struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -16,9 +22,18 @@ type DesktopCreateInput struct {
 }
 
 type DesktopCreateInputHardware struct {
-	BaseID string `json:"baseId"`
-	Vcpus  int    `json:"vcpus"`
-	Memory int    `json:"memory"`
+	BaseID string                            `json:"baseId"`
+	Vcpus  int                               `json:"vcpus"`
+	Memory int                               `json:"memory"`
+	Disks  []*DesktopCreateInputHardwareDisk `json:"disks"`
+}
+
+type DesktopCreateInputHardwareDisk struct {
+	ID          *string   `json:"id"`
+	Type        *DiskType `json:"type"`
+	Name        *string   `json:"name"`
+	Description *string   `json:"description"`
+	Size        *int      `json:"size"`
 }
 
 type DesktopCreatePayload struct {
@@ -64,10 +79,18 @@ type DesktopTemplatePayload struct {
 	Record   *Template `json:"record"`
 }
 
+type Disk struct {
+	ID          string   `json:"id"`
+	Type        DiskType `json:"type"`
+	Name        string   `json:"name"`
+	Description *string  `json:"description"`
+}
+
 type Hardware struct {
 	Base   *HardwareBase `json:"base"`
 	Vcpus  int           `json:"vcpus"`
 	Memory int           `json:"memory"`
+	Disks  []*Disk       `json:"disks"`
 }
 
 type HardwareBase struct {
@@ -129,4 +152,51 @@ type ViewerSpice struct {
 
 type ViewerVncHTML struct {
 	URL string `json:"url"`
+}
+
+type DiskType string
+
+const (
+	DiskTypeUnknown DiskType = "UNKNOWN"
+	DiskTypeQcow2   DiskType = "QCOW2"
+	DiskTypeRaw     DiskType = "RAW"
+	DiskTypeIso     DiskType = "ISO"
+	DiskTypeFloppy  DiskType = "FLOPPY"
+)
+
+var AllDiskType = []DiskType{
+	DiskTypeUnknown,
+	DiskTypeQcow2,
+	DiskTypeRaw,
+	DiskTypeIso,
+	DiskTypeFloppy,
+}
+
+func (e DiskType) IsValid() bool {
+	switch e {
+	case DiskTypeUnknown, DiskTypeQcow2, DiskTypeRaw, DiskTypeIso, DiskTypeFloppy:
+		return true
+	}
+	return false
+}
+
+func (e DiskType) String() string {
+	return string(e)
+}
+
+func (e *DiskType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DiskType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DiskType", str)
+	}
+	return nil
+}
+
+func (e DiskType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

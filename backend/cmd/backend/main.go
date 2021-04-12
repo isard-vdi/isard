@@ -13,6 +13,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/log"
 	"gitlab.com/isard/isardvdi/pkg/proto/auth"
 	"gitlab.com/isard/isardvdi/pkg/proto/controller"
+	"gitlab.com/isard/isardvdi/pkg/proto/diskoperations"
 
 	"google.golang.org/grpc"
 )
@@ -41,18 +42,23 @@ func main() {
 		log.Fatal().Err(err).Msg("dial controller")
 	}
 	controller := controller.NewControllerClient(controllerConn)
-	// TODO: DEfer!!!
 
-	fmt.Println(cfg.ClientsAddr.Controller)
+	diskoperationsConn, err := grpc.Dial(cfg.ClientsAddr.DiskOperations, grpc.WithInsecure())
+	if err != nil {
+		log.Fatal().Err(err).Msg("dial diskoperations")
+	}
+	diskoperations := diskoperations.NewDiskOperationsClient(diskoperationsConn)
 
 	http := &http.BackendServer{
 		Addr: fmt.Sprintf("%s:%d", cfg.GraphQL.Host, cfg.GraphQL.Port),
 
-		DB:             db,
-		AuthConn:       authConn,
-		Auth:           auth,
-		ControllerConn: controllerConn,
-		Controller:     controller,
+		DB:                 db,
+		AuthConn:           authConn,
+		Auth:               auth,
+		ControllerConn:     controllerConn,
+		Controller:         controller,
+		DiskOperationsConn: diskoperationsConn,
+		DiskOperations:     diskoperations,
 
 		Log: log,
 		WG:  &wg,

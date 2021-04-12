@@ -26,7 +26,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	d := desktopbuilder.New(db)
+	d := desktopbuilder.New(db, cfg.Storage.BasePath)
 
 	grpc := &grpc.DesktopBuilderServer{
 		DesktopBuilder: d,

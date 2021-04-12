@@ -1,6 +1,11 @@
 package model
 
-import "github.com/go-pg/pg/v10/orm"
+import (
+	"context"
+
+	"github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
+)
 
 func init() {
 	// Don't pluralize tables and set prefix
@@ -12,4 +17,11 @@ func init() {
 	orm.RegisterTable(&UserToGroup{})
 	orm.RegisterTable(&UserToRole{})
 	orm.RegisterTable(&UserToQuotaProfile{})
+}
+
+// loadWithUUID loads a model using the UUID
+func loadWithUUID(ctx context.Context, db *pg.DB, model interface{}, uuid string) error {
+	return db.ModelContext(ctx, model).
+		Where("uuid = ?", uuid).
+		Limit(1).Select()
 }

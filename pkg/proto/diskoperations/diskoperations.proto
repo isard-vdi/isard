@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package com.gitlab.isard.isardvdi.diskoperations;
+option go_package = "gitlab.com/isard/isardvdi/pkg/proto/diskoperations";
+
+service DiskOperations {
+    rpc DiskCreate(DiskCreateRequest) returns (DiskCreateResponse) {}
+}
+
+enum DiskType {
+    UNKNOWN = 0;
+    QCOW = 1;
+    RAW = 2;
+    ISO = 3;
+    FLOPPY = 4;
+    USB = 5;
+}
+
+message DiskCreateRequest {
+    DiskType type = 1;
+    int32 size = 2;
+    int64 entity_id = 3;
+    int64 user_id = 4;
+    string name = 5;
+    string description = 6;
+}
+
+message DiskCreateResponse {
+    int64 id = 1;
+}

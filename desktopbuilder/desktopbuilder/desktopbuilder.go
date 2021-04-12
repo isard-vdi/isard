@@ -1,33 +1,28 @@
+// Package desktopbuilder does everything XML-related with the desktops and libvirt;
+// from generating the desktopb boot XML to extracting the Viewer from the desktop booted XML
 package desktopbuilder
 
 import (
 	"context"
 
-	"gitlab.com/isard/isardvdi/pkg/model"
-
 	"github.com/go-pg/pg/v10"
 )
 
+// Interface has all the methods that the desktopbuilder package should publish. It's used to mock the package
 type Interface interface {
+	// XMLGet generates a XML for a desktop
 	XMLGet(ctx context.Context, id string) (string, error)
+	// ViewerGet returns a Viewer form the booted desktop XML
 	ViewerGet(xml string) (*Viewer, error)
 }
 
+// DesktopBuilder implements Interface
 type DesktopBuilder struct {
-	db *pg.DB
+	db              *pg.DB
+	storageBasePath string
 }
 
-func New(db *pg.DB) *DesktopBuilder {
-	return &DesktopBuilder{
-		db: db,
-	}
-}
-
-func (d *DesktopBuilder) XMLGet(ctx context.Context, id string) (string, error) {
-	desktop := &model.Desktop{UUID: id}
-	if err := desktop.LoadWithUUID(ctx, d.db); err != nil {
-		panic(err)
-	}
-
-	return BuildDesktop(desktop)
+// New creates a DesktopBuilder struct, using the provided database and storage base path
+func New(db *pg.DB, storageBasePath string) *DesktopBuilder {
+	return &DesktopBuilder{db, storageBasePath}
 }

@@ -12,11 +12,13 @@ var (
 	ErrNoGraphics = errors.New("the desktop has no graphics")
 )
 
+// Viewer has info from all the graphic types of a desktop
 type Viewer struct {
 	Spice []*ViewerSpice
 	VNC   []*ViewerVNC
 }
 
+// ViewerSpice has all the info to connect to a desktop using the SPICE protocol
 type ViewerSpice struct {
 	Pwd        string
 	Port       int
@@ -24,6 +26,7 @@ type ViewerSpice struct {
 	PwdValidTo string
 }
 
+// ViewerVNC has all the info to connect to a desktop using the VNC protocol
 type ViewerVNC struct {
 	Pwd           string
 	Port          int
@@ -31,6 +34,7 @@ type ViewerVNC struct {
 	PwdValidTo    string
 }
 
+// ViewerGet returns all the viewers from a desktop XML
 func (d *DesktopBuilder) ViewerGet(xml string) (*Viewer, error) {
 	desktop := &libvirtxml.Domain{}
 	if err := desktop.Unmarshal(xml); err != nil {
