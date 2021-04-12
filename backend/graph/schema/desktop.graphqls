@@ -53,8 +53,16 @@ input DesktopCreateInputHardware {
     # TODO: Boot order
     vcpus: Int!
     memory: Int!
-    # TODO: Disks
-    # disks: [Disk!]!
+    disks: [DesktopCreateInputHardwareDisk!]!
+}
+
+input DesktopCreateInputHardwareDisk {
+    id: ID # if the ID is passed, it uses an existing disk with that ID
+
+    type: DiskType
+    name: String
+    description: String
+    size: Int
 }
 
 type DesktopCreatePayload {

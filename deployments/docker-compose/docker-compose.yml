@@ -2,8 +2,10 @@ version: '3.2'
 services:
   redis:
     image: "redis:6"
+    restart: always
   postgres:
     image: "postgres:13"
+    restart: always
     environment:
       - POSTGRES_USER=isard
       - POSTGRES_PASSWORD=isard
@@ -18,6 +20,8 @@ services:
     privileged: true
     depends_on:
       - redis
+    volumes:
+      - /opt/isard/disks:/opt/isard/disks
     environment:
       - HYPER_REDIS_HOST=redis
   desktopbuilder:
@@ -32,6 +36,20 @@ services:
       - DESKTOPBUILDER_DB_HOST=postgres
       - DESKTOPBUILDER_DB_USR=isard
       - DESKTOPBUILDER_DB_PWD=isard
+  diskoperations:
+    build:
+      context: .
+      dockerfile: diskoperations/build/package/Dockerfile
+    image: "isard/isardvdi-diskoperations:${VERSION-latest}"
+    restart: always
+    depends_on:
+      - postgres
+    volumes:
+      - /opt/isard/disks:/opt/isard/disks
+    environment:
+      - DISKOPERATIONS_DB_HOST=postgres
+      - DISKOPERATIONS_DB_USR=isard
+      - DISKOPERATIONS_DB_PWD=isard
   orchestrator:
     build:
       context: .
@@ -81,6 +99,7 @@ services:
       - postgres
       - auth
       - controller
+      - diskoperations
     environment:
       - BACKEND_DB_HOST=postgres
       - BACKEND_DB_USR=isard

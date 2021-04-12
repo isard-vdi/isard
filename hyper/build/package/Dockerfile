@@ -33,10 +33,12 @@ RUN make build
 FROM alpine:3.13
 
 RUN apk add --no-cache \
+    qemu \
+	qemu-modules \
 	qemu-system-x86_64 \
 	libvirt \
 	libvirt-daemon \
-        openssl
+    openssl
 
 RUN echo -e "listen_tls = 0\n \
     listen_tcp = 1" >> /etc/libvirt/libvirtd.conf

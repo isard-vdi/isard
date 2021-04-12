@@ -141,11 +141,6 @@ func New(ctx context.Context, redis redis.UniversalClient, uri, host string) (*H
 				Hyper: h.host,
 				XML:   xml,
 			}
-			// if err := h.desktops.Set(context.Background(), desktop); err != nil {
-			// 	panic(err)
-			// }
-
-			return
 		}
 
 		desktop.SetState(dState)

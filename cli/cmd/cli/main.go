@@ -135,9 +135,6 @@ func main() {
 	    <devices>
 	        <input type="keyboard" bus="ps2"></input>
 	        <graphics type="spice" listen="0.0.0.0"></graphics>
-	        <video>
-	        <model type="qxl"></model>
-	        </video>
 	        <controller type='pci' index='0' model='pcie-root'>
 	        <alias name='pci.0'/>
 	        </controller>

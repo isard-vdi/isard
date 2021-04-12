@@ -20,7 +20,7 @@ gen:
 		--go-grpc_opt=paths=source_relative \
 		--go-grpc-mock_out=. \
 		--go-grpc-mock_opt=paths=source_relative \
-	proto/{auth,controller,desktopbuilder,hyper,orchestrator}/*.proto
+	proto/{auth,controller,desktopbuilder,hyper,orchestrator,diskoperations}/*.proto
 
 test:
 	go test -cover -race ./...

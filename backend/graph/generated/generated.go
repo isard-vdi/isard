@@ -81,8 +81,16 @@ type ComplexityRoot struct {
 		RecordID func(childComplexity int) int
 	}
 
+	Disk struct {
+		Description func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Type        func(childComplexity int) int
+	}
+
 	Hardware struct {
 		Base   func(childComplexity int) int
+		Disks  func(childComplexity int) int
 		Memory func(childComplexity int) int
 		Vcpus  func(childComplexity int) int
 	}
@@ -311,12 +319,47 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.DesktopTemplatePayload.RecordID(childComplexity), true
 
+	case "Disk.description":
+		if e.complexity.Disk.Description == nil {
+			break
+		}
+
+		return e.complexity.Disk.Description(childComplexity), true
+
+	case "Disk.id":
+		if e.complexity.Disk.ID == nil {
+			break
+		}
+
+		return e.complexity.Disk.ID(childComplexity), true
+
+	case "Disk.name":
+		if e.complexity.Disk.Name == nil {
+			break
+		}
+
+		return e.complexity.Disk.Name(childComplexity), true
+
+	case "Disk.type":
+		if e.complexity.Disk.Type == nil {
+			break
+		}
+
+		return e.complexity.Disk.Type(childComplexity), true
+
 	case "Hardware.base":
 		if e.complexity.Hardware.Base == nil {
 			break
 		}
 
 		return e.complexity.Hardware.Base(childComplexity), true
+
+	case "Hardware.disks":
+		if e.complexity.Hardware.Disks == nil {
+			break
+		}
+
+		return e.complexity.Hardware.Disks(childComplexity), true
 
 	case "Hardware.memory":
 		if e.complexity.Hardware.Memory == nil {
@@ -782,8 +825,16 @@ input DesktopCreateInputHardware {
     # TODO: Boot order
     vcpus: Int!
     memory: Int!
-    # TODO: Disks
-    # disks: [Disk!]!
+    disks: [DesktopCreateInputHardwareDisk!]!
+}
+
+input DesktopCreateInputHardwareDisk {
+    id: ID # if the ID is passed, it uses an existing disk with that ID
+
+    type: DiskType
+    name: String
+    description: String
+    size: Int
 }
 
 type DesktopCreatePayload {
@@ -813,7 +864,7 @@ type Desktop {
     base: HardwareBase!
     vcpus: Int!
     memory: Int!
-    # disks: [Disk!]!
+    disks: [Disk!]!
 }
 
 type HardwareBase {
@@ -825,18 +876,20 @@ type HardwareBase {
     xml: String!
 }
 
-# type Disk {
-#     id: ID!
-#     type: DiskType!
-#     enable: Boolean
-#     readOnly: Boolean
-# }
+type Disk {
+    id: ID!
+    type: DiskType!
+    name: String!
+    description: String
+}
 
-# enum DiskType {
-#     UNKNOWN
-#     QCOW2
-#     RAW
-# }
+enum DiskType {
+    UNKNOWN
+    QCOW2
+    RAW
+    ISO
+    FLOPPY
+}
 
 # type HardwareBaseQueries {
 #     list: [HardwareBase!]!
@@ -1743,6 +1796,143 @@ func (ec *executionContext) _DesktopTemplatePayload_record(ctx context.Context, 
 	return ec.marshalOTemplate2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐTemplate(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Disk_id(ctx context.Context, field graphql.CollectedField, obj *model.Disk) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Disk",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Disk_type(ctx context.Context, field graphql.CollectedField, obj *model.Disk) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Disk",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.DiskType)
+	fc.Result = res
+	return ec.marshalNDiskType2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Disk_name(ctx context.Context, field graphql.CollectedField, obj *model.Disk) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Disk",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Disk_description(ctx context.Context, field graphql.CollectedField, obj *model.Disk) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Disk",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Hardware_base(ctx context.Context, field graphql.CollectedField, obj *model.Hardware) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1846,6 +2036,41 @@ func (ec *executionContext) _Hardware_memory(ctx context.Context, field graphql.
 	res := resTmp.(int)
 	fc.Result = res
 	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Hardware_disks(ctx context.Context, field graphql.CollectedField, obj *model.Hardware) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Hardware",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Disks, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Disk)
+	fc.Result = res
+	return ec.marshalNDisk2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _HardwareBase_id(ctx context.Context, field graphql.CollectedField, obj *model.HardwareBase) (ret graphql.Marshaler) {
@@ -4430,6 +4655,66 @@ func (ec *executionContext) unmarshalInputDesktopCreateInputHardware(ctx context
 			if err != nil {
 				return it, err
 			}
+		case "disks":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("disks"))
+			it.Disks, err = ec.unmarshalNDesktopCreateInputHardwareDisk2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreateInputHardwareDiskᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDesktopCreateInputHardwareDisk(ctx context.Context, obj interface{}) (model.DesktopCreateInputHardwareDisk, error) {
+	var it model.DesktopCreateInputHardwareDisk
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "type":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			it.Type, err = ec.unmarshalODiskType2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			it.Name, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "description":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			it.Description, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "size":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("size"))
+			it.Size, err = ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -4809,6 +5094,45 @@ func (ec *executionContext) _DesktopTemplatePayload(ctx context.Context, sel ast
 	return out
 }
 
+var diskImplementors = []string{"Disk"}
+
+func (ec *executionContext) _Disk(ctx context.Context, sel ast.SelectionSet, obj *model.Disk) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, diskImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Disk")
+		case "id":
+			out.Values[i] = ec._Disk_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "type":
+			out.Values[i] = ec._Disk_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "name":
+			out.Values[i] = ec._Disk_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "description":
+			out.Values[i] = ec._Disk_description(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var hardwareImplementors = []string{"Hardware"}
 
 func (ec *executionContext) _Hardware(ctx context.Context, sel ast.SelectionSet, obj *model.Hardware) graphql.Marshaler {
@@ -4832,6 +5156,11 @@ func (ec *executionContext) _Hardware(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "memory":
 			out.Values[i] = ec._Hardware_memory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "disks":
+			out.Values[i] = ec._Hardware_disks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -5585,6 +5914,32 @@ func (ec *executionContext) unmarshalNDesktopCreateInputHardware2ᚖgitlabᚗcom
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNDesktopCreateInputHardwareDisk2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreateInputHardwareDiskᚄ(ctx context.Context, v interface{}) ([]*model.DesktopCreateInputHardwareDisk, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*model.DesktopCreateInputHardwareDisk, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDesktopCreateInputHardwareDisk2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreateInputHardwareDisk(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNDesktopCreateInputHardwareDisk2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopCreateInputHardwareDisk(ctx context.Context, v interface{}) (*model.DesktopCreateInputHardwareDisk, error) {
+	res, err := ec.unmarshalInputDesktopCreateInputHardwareDisk(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNDesktopDerivateInput2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopDerivateInput(ctx context.Context, v interface{}) (model.DesktopDerivateInput, error) {
 	res, err := ec.unmarshalInputDesktopDerivateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -5593,6 +5948,63 @@ func (ec *executionContext) unmarshalNDesktopDerivateInput2gitlabᚗcomᚋisard�
 func (ec *executionContext) unmarshalNDesktopTemplateInput2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDesktopTemplateInput(ctx context.Context, v interface{}) (model.DesktopTemplateInput, error) {
 	res, err := ec.unmarshalInputDesktopTemplateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDisk2ᚕᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Disk) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDisk2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDisk(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNDisk2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDisk(ctx context.Context, sel ast.SelectionSet, v *model.Disk) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Disk(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDiskType2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskType(ctx context.Context, v interface{}) (model.DiskType, error) {
+	var res model.DiskType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDiskType2gitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskType(ctx context.Context, sel ast.SelectionSet, v model.DiskType) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNHardware2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardware(ctx context.Context, sel ast.SelectionSet, v *model.Hardware) graphql.Marshaler {
@@ -6056,6 +6468,22 @@ func (ec *executionContext) marshalODesktopTemplatePayload2ᚖgitlabᚗcomᚋisa
 	return ec._DesktopTemplatePayload(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalODiskType2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskType(ctx context.Context, v interface{}) (*model.DiskType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.DiskType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalODiskType2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐDiskType(ctx context.Context, sel ast.SelectionSet, v *model.DiskType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) marshalOHardwareBase2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐHardwareBase(ctx context.Context, sel ast.SelectionSet, v *model.HardwareBase) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -6083,6 +6511,21 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 		return graphql.Null
 	}
 	return graphql.MarshalID(*v)
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return graphql.MarshalInt(*v)
 }
 
 func (ec *executionContext) marshalOLoginPayload2ᚖgitlabᚗcomᚋisardᚋisardvdiᚋbackendᚋgraphᚋmodelᚐLoginPayload(ctx context.Context, sel ast.SelectionSet, v *model.LoginPayload) graphql.Marshaler {

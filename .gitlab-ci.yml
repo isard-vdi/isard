@@ -12,6 +12,7 @@ stages:
     paths:
       - .go/pkg/mod/
       - frontend/.npm/
+      - ~/.cache/Cypress
 
 unit-test:
   stage: unit-test

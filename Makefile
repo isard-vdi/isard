@@ -1,7 +1,7 @@
 VERSION := 3.0.0-rc0
 export VERSION
 
-MICROSERVICES = hyper desktopbuilder orchestrator controller auth backend frontend
+MICROSERVICES = hyper desktopbuilder orchestrator controller auth backend diskoperations frontend
 
 all: deps gen test build docker
 .PHONY: all

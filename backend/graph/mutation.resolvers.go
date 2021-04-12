@@ -15,8 +15,10 @@ import (
 	cmnModel "gitlab.com/isard/isardvdi/pkg/model"
 	"gitlab.com/isard/isardvdi/pkg/proto/auth"
 	"gitlab.com/isard/isardvdi/pkg/proto/controller"
+	"gitlab.com/isard/isardvdi/pkg/proto/diskoperations"
 )
 
+// Login is used to authenticate the user
 func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.LoginPayload, error) {
 	u := ""
 	if input.Usr != nil {
@@ -47,6 +49,7 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 	}, nil
 }
 
+// DesktopStart starts a desktop
 func (r *mutationResolver) DesktopStart(ctx context.Context, id string) (*model.DesktopStartPayload, error) {
 	if err := middleware.IsAuthenticated(ctx); err != nil {
 		return nil, err
@@ -90,7 +93,10 @@ func (r *mutationResolver) DesktopTemplate(ctx context.Context, input model.Desk
 	panic(fmt.Errorf("not implemented"))
 }
 
+// DesktopCreate creates a new desktop from scratch
 func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.DesktopCreateInput) (*model.DesktopCreatePayload, error) {
+	// TODO: Cleanup if there's an error
+	// TOOD: Input sanitization
 	if err := middleware.IsAuthenticated(ctx); err != nil {
 		return nil, err
 	}
@@ -99,6 +105,35 @@ func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.Deskto
 	if err := b.LoadWithUUID(ctx, r.DB); err != nil {
 		// TODO: Change this
 		panic(err)
+	}
+
+	u, eID := middleware.AuthForContext(ctx)
+
+	disks := []*cmnModel.Disk{}
+	for _, d := range input.Hardware.Disks {
+		if d.ID != nil {
+			disk := &cmnModel.Disk{UUID: *d.ID}
+			if err := disk.LoadWithUUID(ctx, r.DB); err != nil {
+				panic(err)
+			}
+
+			disks = append(disks, disk)
+		} else {
+			rsp, err := r.DiskOperations.DiskCreate(ctx, &diskoperations.DiskCreateRequest{
+				Type:        diskoperations.DiskType(diskType(*d.Type)),
+				Size:        int32(*d.Size),
+				EntityId:    int64(eID),
+				UserId:      int64(u.ID),
+				Name:        *d.Name,
+				Description: *d.Description,
+			})
+			if err != nil {
+				// TODO: ERR
+				panic(err)
+			}
+
+			disks = append(disks, &cmnModel.Disk{ID: int(rsp.Id)})
+		}
 	}
 
 	h := &cmnModel.Hardware{
@@ -112,7 +147,16 @@ func (r *mutationResolver) DesktopCreate(ctx context.Context, input model.Deskto
 		panic(err)
 	}
 
-	u, eID := middleware.AuthForContext(ctx)
+	for _, d := range disks {
+		if _, err := r.DB.ModelContext(ctx, &cmnModel.HardwareDisk{
+			DiskID:     d.ID,
+			HardwareID: h.ID,
+			// TODO: Other disk parameters
+		}).Insert(); err != nil {
+			// TODO: Change this
+			panic(err)
+		}
+	}
 
 	d := &cmnModel.Desktop{
 		Name:       input.Name,
@@ -152,3 +196,14 @@ func (r *mutationResolver) HardwareBaseCreate(ctx context.Context, input model.H
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
 type mutationResolver struct{ *Resolver }
+
+// diskType translates from GraphQL disk type to the common disk type
+func diskType(d model.DiskType) cmnModel.DiskType {
+	for i, disk := range model.AllDiskType {
+		if d == disk {
+			return cmnModel.DiskType(i)
+		}
+	}
+
+	return cmnModel.DiskTypeUnknown
+}

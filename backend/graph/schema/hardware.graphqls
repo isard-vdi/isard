@@ -2,7 +2,7 @@ type Hardware {
     base: HardwareBase!
     vcpus: Int!
     memory: Int!
-    # disks: [Disk!]!
+    disks: [Disk!]!
 }
 
 type HardwareBase {
@@ -14,18 +14,21 @@ type HardwareBase {
     xml: String!
 }
 
-# type Disk {
-#     id: ID!
-#     type: DiskType!
-#     enable: Boolean
-#     readOnly: Boolean
-# }
+type Disk {
+    id: ID!
+    type: DiskType!
+    name: String!
+    description: String
+}
 
-# enum DiskType {
-#     UNKNOWN
-#     QCOW2
-#     RAW
-# }
+enum DiskType {
+    UNKNOWN
+    QCOW2
+    RAW
+    ISO
+    FLOPPY
+    USB
+}
 
 # type HardwareBaseQueries {
 #     list: [HardwareBase!]!
