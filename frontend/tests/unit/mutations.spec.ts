@@ -1,5 +1,5 @@
-import { mutations } from '@/store/mutations.ts';
-import { state } from '@/store/state.ts';
+import { mutations } from '@/store/mutations';
+import { state } from '@/store/state';
 
 describe('MUTATIONS', () => {
   it('changes menu shown status', () => {

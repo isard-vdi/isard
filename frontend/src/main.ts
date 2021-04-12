@@ -10,13 +10,11 @@ import '@/assets/layout/layout.scss';
 
 import App from './App.vue';
 import AppLayout from '@/views/AppLayout.vue';
-import Button from 'primevue/button';
 import Calendar from 'primevue/calendar';
 import Card from 'primevue/card';
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
 import Dropdown from 'primevue/dropdown';
-import InputText from 'primevue/inputtext';
 import Panel from 'primevue/panel';
 import PanelMenu from 'primevue/panelmenu';
 import PrimeIcons from 'primevue/config';
@@ -33,7 +31,6 @@ import { store } from './store';
 import ConnectionService from './service/ConnectionService';
 import MainFormButtons from '@/components/shared/forms/MainFormButtons.vue';
 import IsardInputText from '@/components/shared/forms/IsardInputText.vue';
-import IsardButton from '@/components/shared/forms/IsardButton.vue';
 
 ConnectionService.setClientBackend();
 const app = createApp(App);
@@ -49,16 +46,13 @@ app.component('PanelMenu', PanelMenu);
 app.component('RadioButton', RadioButton);
 app.component('Panel', Panel);
 app.component('Calendar', Calendar);
-app.component('InputText', InputText);
 app.component('Dropdown', Dropdown);
-app.component('Button', Button);
 app.component('Card', Card);
 app.component('Sidebar', Sidebar);
 app.component('DataTable', DataTable);
 app.component('Column', Column);
 app.component('MainFormButtons', MainFormButtons);
 app.component('IsardInputText', IsardInputText);
-app.component('IsardButton', IsardButton);
 
 // Workaround for bug https://github.com/primefaces/primevue/issues/877 not fixed in 3.3.5
 // eslint-disable-next-line

@@ -7,7 +7,12 @@
   </div>
 </template>
 <script>
+import InputText from 'primevue/inputtext';
+
 export default {
+  components: {
+    InputText
+  },
   props: {
     label: {
       type: String,
@@ -21,4 +26,3 @@ export default {
   }
 };
 </script>
-<style scoped></style>
