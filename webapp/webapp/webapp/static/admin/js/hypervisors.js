@@ -127,12 +127,17 @@ $(document).ready(function() {
                             "targets": 10,
                             "render": function ( data, type, full, meta ) {
                                 return full['info-cpu_cores']*full['info-threads_x_core'];
-                            }},                                                           
+                            }},
+                            {
+                            "targets": 14,
+                            "render": function ( data, type, full, meta ) {
+                                return full['viewer-proxy_video']+' ('+full['viewer-spice_ext_port']+','+full['viewer-html5_ext_port']+')';
+                            }},
                             {
                             "targets": 16,
                             "render": function ( data, type, full, meta ) {
                               return moment.unix(full.status_time).fromNow();
-                            }}                          
+                            }}
              ],
              //~ "initComplete": function(settings, json) {
                         //~ this.api().rows().data().each(function(r){
@@ -492,6 +497,8 @@ function actionsHyperDetail(){
                 //~ $('#modalEditHyper #modalEdit #capabilities-hypervisor').val(hyp['capabilities']['hypervisor']);
                 $('#modalEditHyper #modalEdit #viewer-static').val(hyp['viewer-static']);
                 $('#modalEditHyper #modalEdit #viewer-proxy_video').val(hyp['viewer-proxy_video']);
+                $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val(hyp['viewer-spice_ext_port']);
+                $('#modalEditHyper #modalEdit #viewer-html5_ext_port').val(hyp['viewer-html5_ext_port']);
                 $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp['viewer-proxy_hyper_host']);
                 
             });

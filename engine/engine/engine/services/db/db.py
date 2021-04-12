@@ -130,6 +130,8 @@ def update_domain_viewer_started_values(id, hyp_id=False,
             hp = rtable.get(h['hypervisors_pools'][0]).pluck('viewer').run(r_conn)
             dict_viewer = { 'static':   h['viewer']['static'],
                             'proxy_video':   h['viewer']['proxy_video'],
+                            'html5_ext_port':   h['viewer']['html5_ext_port'],
+                            'spice_ext_port':   h['viewer']['spice_ext_port'],
                             'proxy_hyper_host':    h['viewer']['proxy_hyper_host'],
                             'base_port':    int(spice),
                             # ~ 'passwd':       passwd,

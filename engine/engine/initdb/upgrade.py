@@ -359,6 +359,39 @@ class Upgrade(object):
                 
                 ''' REMOVE FIELDS PRE CHECKS ''' 
                    
+        if version == 13:
+            for d in data:
+                id=d['id']
+                d.pop('id',None)                
+                
+                ''' CONVERSION FIELDS PRE CHECKS ''' 
+                # ~ try:  
+                    # ~ if not self.check_done( d,
+                                        # ~ [],
+                                        # ~ []):  
+                        ##### CONVERSION FIELDS
+                        # ~ cfg['field']={}
+                        # ~ r.table(table).update(cfg).run()  
+                # ~ except Exception as e:
+                    # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
+                    # ~ log.error('Error detail: '+str(e))
+   
+                ''' NEW FIELDS PRE CHECKS '''   
+                try: 
+                    if not self.check_done( d,
+                                        [],
+                                        [{'viewer':{'html5_ext_port'}}]):                                     
+                        ##### NEW FIELDS
+                        self.add_keys(  table, 
+                                        [   {'viewer':{ 'html5_ext_port': '443',
+                                                        'spice_ext_port': '80'}} ],
+                                            id=id)
+                except Exception as e:
+                    log.error('Could not update table '+table+' add fields for db version '+str(version)+'!')
+                    log.error('Error detail: '+str(e))
+
+                
+                ''' REMOVE FIELDS PRE CHECKS '''
 
         return True
     '''

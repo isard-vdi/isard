@@ -78,7 +78,7 @@ class isardViewer():
                         'vmHost': domain['viewer']['proxy_hyper_host'],
                         'vmPort': str(domain['viewer']['base_port']+self.vnc),
                         'host': domain['viewer']['proxy_video'],
-                        'port': '443',
+                        'port': domain['viewer']['html5_ext_port'] if 'html5_ext_port' in domain['viewer'].keys() else '443',
                         'token': domain['viewer']['passwd']
                     }
                 }).encode('utf-8')).decode('utf-8')  
@@ -89,7 +89,8 @@ class isardViewer():
 
         if get_viewer == 'spice-client':
             port=domain['viewer']['base_port']+self.spice_tls
-            consola=self.get_spice_file(domain,port)
+            vmPort=domain['viewer']['spice_ext_port'] if 'spice_ext_port' in domain['viewer'].keys() else '80'
+            consola=self.get_spice_file(domain,vmPort,port)
             if get_cookie:
                 return {'kind':'file','ext':consola[0],'mime':consola[1],'content':consola[2]} 
             else:
@@ -106,7 +107,7 @@ class isardViewer():
         return """full address:s:%s
 """ % (ip)
 
-    def get_spice_file(self, domain, port):
+    def get_spice_file(self, domain, port, vmPort):
         try:
             op_fscr = 1 if domain['options'] != False and domain['options']['fullscreen'] else 0
         except:
@@ -129,10 +130,10 @@ class isardViewer():
         """ % (
             'spice',
             domain['viewer']['proxy_video'],
-            os.environ.get('SPICE_PROXY_PORT', 80),
+            port,
             domain['viewer']['proxy_hyper_host'],
             domain['viewer']['passwd'],
-            port,op_fscr,
+            vmPort,op_fscr,
             domain['name'] +' (TLS)',
             c
         )
