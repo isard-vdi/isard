@@ -41,9 +41,17 @@ import { sections } from '@/config/sections';
 import { SectionConfig } from '@/config/sections-config';
 import { DEFAULT_SEARCH_SIZE } from '@/config/constants';
 import ListButtons from '@/components/shared/lists/ListButtons.vue';
+import Button from 'primevue/button';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 
 export default defineComponent({
-  components: { ListButtons },
+  components: {
+    ListButtons: ListButtons,
+    Button: Button,
+    DataTable: DataTable,
+    Column: Column
+  },
   setup(props, context) {
     const store = useStore();
 

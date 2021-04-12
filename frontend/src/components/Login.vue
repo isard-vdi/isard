@@ -72,10 +72,18 @@ import { ref } from 'vue';
 import { useStore } from 'vuex';
 import { ActionTypes } from '@/store/actions';
 import { LOGIN_ENTITY } from '@/config/constants';
+import InputText from 'primevue/inputtext';
+import Button from 'primevue/button';
+import Dropdown from 'primevue/dropdown';
+import Card from 'primevue/card';
 
 export default {
   components: {
-    Language
+    Language: Language,
+    InputText: InputText,
+    Button: Button,
+    Dropdown: Dropdown,
+    Card: Card
   },
   setup(props, context) {
     const store = useStore();

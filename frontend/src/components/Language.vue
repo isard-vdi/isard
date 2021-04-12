@@ -13,11 +13,14 @@
 <script>
 import * as cookies from 'tiny-cookie';
 import { useI18n } from 'vue-i18n';
-
 import { defineComponent, reactive, ref } from 'vue';
 import { usePrimeVue } from 'primevue/config';
+import Dropdown from 'primevue/dropdown';
 
 export default defineComponent({
+  components: {
+    Dropdown: Dropdown
+  },
   setup() {
     const i18n = useI18n();
     const primevue = usePrimeVue();

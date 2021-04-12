@@ -72,8 +72,18 @@ import { cloneDeep } from 'lodash';
 import UpdateUtils from '@/utils/UpdateUtils';
 import { ActionTypes } from '@/store/actions';
 import EntitiesUtils from '@/utils/EntitiesUtils';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import IsardInputText from '@/components/shared/forms/IsardInputText.vue';
+import MainFormButtonsVue from '@/components/shared/forms/MainFormButtons.vue';
 
 export default defineComponent({
+  components: {
+    MainFormButtons: MainFormButtonsVue,
+    IsardInputText: IsardInputText,
+    DataTable: DataTable,
+    Column: Column
+  },
   setup() {
     const store = useStore();
     const entityImage = EntitiesUtils.detailCleaner(

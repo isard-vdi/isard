@@ -36,6 +36,7 @@ import { computed } from '@vue/runtime-core';
 import { useStore } from '@/store';
 
 export default {
+  name: 'MainFormButtons',
   components: { IsardButton },
   props: {
     editEnabled: {

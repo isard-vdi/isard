@@ -9,18 +9,8 @@ import 'primeflex/primeflex.css';
 import '@/assets/layout/layout.scss';
 
 import App from './App.vue';
-import AppLayout from '@/views/AppLayout.vue';
-import Calendar from 'primevue/calendar';
-import Card from 'primevue/card';
-import Column from 'primevue/column';
-import DataTable from 'primevue/datatable';
-import Dropdown from 'primevue/dropdown';
-import Panel from 'primevue/panel';
-import PanelMenu from 'primevue/panelmenu';
 import PrimeIcons from 'primevue/config';
 import PrimeVue from 'primevue/config';
-import RadioButton from 'primevue/radiobutton';
-import Sidebar from 'primevue/sidebar';
 import Tooltip from 'primevue/tooltip';
 import VueAxios from 'vue-axios';
 import axios from 'axios';
@@ -29,8 +19,6 @@ import i18n from '@/i18n';
 import router from './router';
 import { store } from './store';
 import ConnectionService from './service/ConnectionService';
-import MainFormButtons from '@/components/shared/forms/MainFormButtons.vue';
-import IsardInputText from '@/components/shared/forms/IsardInputText.vue';
 
 ConnectionService.setClientBackend();
 const app = createApp(App);
@@ -40,19 +28,6 @@ app.use(i18n);
 app.use(PrimeVue);
 app.use(PrimeIcons);
 app.use(VueAxios, axios);
-
-app.component('AppLayout', AppLayout);
-app.component('PanelMenu', PanelMenu);
-app.component('RadioButton', RadioButton);
-app.component('Panel', Panel);
-app.component('Calendar', Calendar);
-app.component('Dropdown', Dropdown);
-app.component('Card', Card);
-app.component('Sidebar', Sidebar);
-app.component('DataTable', DataTable);
-app.component('Column', Column);
-app.component('MainFormButtons', MainFormButtons);
-app.component('IsardInputText', IsardInputText);
 
 // Workaround for bug https://github.com/primefaces/primevue/issues/877 not fixed in 3.3.5
 // eslint-disable-next-line

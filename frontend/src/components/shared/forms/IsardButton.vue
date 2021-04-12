@@ -6,6 +6,7 @@
 import Button from 'primevue/button';
 
 export default {
+  name: 'IsardButton',
   components: {
     Button
   }

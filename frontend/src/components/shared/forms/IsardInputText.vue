@@ -10,6 +10,7 @@
 import InputText from 'primevue/inputtext';
 
 export default {
+  name: 'IsardInputText',
   components: {
     InputText
   },
