@@ -136,6 +136,23 @@
                                     <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
                                  </div>
                               </div>  
+
+                              <div class="item form-group">
+                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">SPICE (squid) external port <span class="required">*</span>
+                                 </label>
+                                 <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="viewer-spice_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-spice_ext_port" placeholder="Default 80" required="required" type="text" value="80">
+                                 </div>
+                              </div>
+
+                              <div class="item form-group">
+                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">HTML5 (websockify) external port <span class="required">*</span>
+                                 </label>
+                                 <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <input id="viewer-html5_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-html5_ext_port" placeholder="Default 443" required="required" type="text" value="443">
+                                 </div>
+                              </div>
+
                               <div class="item form-group" id="viewer_">
                                  <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_hyper_host">Hypervisor hostname from video proxy
                                  </label>
@@ -314,6 +331,23 @@
                                <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
                             </div>
                          </div>  
+
+                         <div class="item form-group">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">SPICE (squid) external port <span class="required">*</span>
+                           </label>
+                           <div class="col-md-6 col-sm-6 col-xs-12">
+                              <input id="viewer-spice_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-spice_ext_port" placeholder="Default 80" required="required" type="text">
+                           </div>
+                        </div>
+
+                        <div class="item form-group">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">HTML5 (websockify) external port <span class="required">*</span>
+                           </label>
+                           <div class="col-md-6 col-sm-6 col-xs-12">
+                              <input id="viewer-html5_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-html5_ext_port" placeholder="Default 443" required="required" type="text">
+                           </div>
+                        </div>
+
                          <div class="item form-group" id="viewer_">
                             <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_hyper_host">Hypervisor hostname from video proxy
                             </label>
