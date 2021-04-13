@@ -26,12 +26,16 @@ isardviewer = isardViewer()
 
 from .apiv2_exc import *
 
-from .helpers import _check, _parse_string, _parse_media_info, _disk_path
+from .helpers import (
+    _check,
+    _parse_string,
+    _parse_media_info,
+    _disk_path,
+    _random_password,
+)
 
 from .ds import DS 
 ds = DS()
-
-from .helpers import _check, _random_password
 
 class ApiUsers():
     def __init__(self):
