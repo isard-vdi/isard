@@ -10,4 +10,5 @@ type Desktop struct {
 	Viewers []string `json:"viewers,omitempty"`
 	Icon string `json:"icon,omitempty"`
 	Image string `json:"image,omitempty"`
+	IP string `json:"ip,omitempty"`
 }

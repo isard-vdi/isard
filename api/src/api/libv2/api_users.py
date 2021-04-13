@@ -175,7 +175,7 @@ class ApiUsers():
                     .filter({"kind": "desktop"})
                     .order_by("name")
                     .pluck(
-                        {
+                        [
                             "id",
                             "name",
                             "icon",
@@ -185,7 +185,9 @@ class ApiUsers():
                             "description",
                             "parents",
                             "persistent",
-                        }
+                            {"viewer": "guest_ip"},
+                            {"create_dict": {"hardware": "interfaces"}},
+                        ]
                     )
                     .run(db.conn)
                 )
@@ -200,6 +202,13 @@ class ApiUsers():
                 else:
                     d["type"] = "nonpersistent"
                 d["viewers"] = ["spice", "browser"]
+                if d["status"] == "Started":
+                    d["ip"] = d.get("viewer", {}).get("guest_ip")
+                    if (
+                        not d["ip"]
+                        and "wireguard" in d["create_dict"]["hardware"]["interfaces"]
+                    ):
+                        d["status"] = "WaitingIP"
                 modified_desktops.append(d)
             return modified_desktops
         except Exception as e:
