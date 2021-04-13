@@ -84,26 +84,28 @@ class isardViewer():
                 return 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&vmPort='+str(port)+'&passwd='+domain['viewer']['passwd']
             
         if get_viewer == 'vnc-html5':
-            port=domain['viewer']['base_port']+self.vnc
+            vmPort=str(domain['viewer']['base_port']+self.vnc)
+            port=str(domain['viewer']['html5_ext_port']) if 'html5_ext_port' in domain['viewer'].keys() else '443'
             if get_cookie:       
                 cookie = base64.b64encode(json.dumps({
                     'web_viewer': {
                         'vmName': domain['name'],
                         'vmHost': domain['viewer']['proxy_hyper_host'],
-                        'vmPort': str(domain['viewer']['base_port']+self.vnc),
+                        'vmPort': vmPort,
                         'host': domain['viewer']['proxy_video'],
-                        'port': '443',
+                        'port': port,
                         'token': domain['viewer']['passwd']
                     }
                 }).encode('utf-8')).decode('utf-8')  
                 uri = 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
             else:
-                return 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&vmPort='+str(port)+'&passwd='+domain['viewer']['passwd']
+                return 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&vmPort='+vmPort+'&passwd='+domain['viewer']['passwd']
 
         if get_viewer == 'spice-client':
             port=domain['viewer']['base_port']+self.spice_tls
-            consola=self.get_spice_file(domain,port)
+            vmPort=domain['viewer']['spice_ext_port'] if 'spice_ext_port' in domain['viewer'].keys() else '80'
+            consola=self.get_spice_file(domain,vmPort,port)
             if get_cookie:
                 return {'kind':'file','name':'isard-spice','ext':consola[0],'mime':consola[1],'content':consola[2]} 
             else:
@@ -120,7 +122,7 @@ class isardViewer():
         return """full address:s:%s
 """ % (ip)
 
-    def get_spice_file(self, domain, port):
+    def get_spice_file(self, domain, port, vmPort):
         try:
             op_fscr = 1 if domain['options'] is not False and domain['options']['fullscreen'] else 0
         except:
@@ -153,12 +155,11 @@ class isardViewer():
         """ % (
             'spice',
             domain['viewer']['proxy_video'],
-            os.environ.get('SPICE_PROXY_PORT', 80),
+            port,
             domain['viewer']['proxy_hyper_host'],
             domain['viewer']['passwd'],
-            port,
-            op_fscr,
-            domain['name']+' (TLS)',
+            vmPort,op_fscr,
+            domain['name'] +' (TLS)',
             c
         )
 
