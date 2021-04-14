@@ -10,6 +10,7 @@
             }
         },
         "help": {
+            "title": "Ayuda",
             "close-guide": "Cerrar la guía",
             "local-client": "Utilizar el cliente local (recomendado)",
             "best-performance": "Es la opción con el mejor rendimiento",

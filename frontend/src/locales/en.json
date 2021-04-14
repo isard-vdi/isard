@@ -10,6 +10,7 @@
             }
         },
         "help": {
+            "title": "Help",
             "close-guide": "Close guide",
             "local-client": "Use the local client (recommended)",
             "best-performance": "It's the option with the best performance",
