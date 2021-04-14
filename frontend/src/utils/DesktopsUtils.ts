@@ -7,7 +7,8 @@ export default class DesktopsUtils {
           creationDate: item.created_at,
           uuid: item.uuid,
           id: item.id,
-          description: item.description
+          description: item.description,
+          state: 'stopped' // item.state ? item.state : 'stopped'
         };
       }
     );
@@ -19,7 +20,8 @@ export default class DesktopsUtils {
       name: item.name,
       creationDate: '',
       uuid: item.uuid,
-      id: item.id
+      id: item.id,
+      state: 'stopped' // item.state ? item.state : 'stopped'
     };
   }
 }

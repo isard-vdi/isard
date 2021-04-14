@@ -16,8 +16,12 @@
 import { useStore } from '@/store';
 import { computed } from 'vue';
 import { ActionTypes } from '@/store/actions';
+import Button from 'primevue/button';
 
 export default {
+  components: {
+    Button: Button
+  },
   setup() {
     const store = useStore();
 

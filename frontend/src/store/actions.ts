@@ -44,7 +44,9 @@ export enum ActionTypes {
   SAVE_ITEM = 'SAVE_ITEM',
   SAVE_NEW_ITEM = 'SAVE_NEW_ITEM',
   START_LOADING = 'START_LOADING',
-  STOP_LOADING = 'STOP_LOADING'
+  STOP_LOADING = 'STOP_LOADING',
+  START_DESKTOP = 'START_DESKTOP',
+  CHANGE_DESKTOP_STATE = 'CHANGE_DESKTOP_STATE'
 }
 
 /* Action Types*/
@@ -120,7 +122,7 @@ export interface Actions {
     { commit }: AugmentedActionContext,
     payload: {
       section: string; // TODO: retrieve inside action?
-      params: any;
+      params: { id: any };
     }
   ): void;
 
@@ -214,6 +216,18 @@ export interface Actions {
   [ActionTypes.STOP_LOADING](
     { commit }: AugmentedActionContext,
     payload: {}
+  ): void;
+
+  [ActionTypes.START_DESKTOP](
+    { commit }: AugmentedActionContext,
+    payload: {
+      params: { id: any };
+    }
+  ): void;
+
+  [ActionTypes.CHANGE_DESKTOP_STATE](
+    { commit }: AugmentedActionContext,
+    payload: { uuid: string; state: string }
   ): void;
 }
 
@@ -359,6 +373,32 @@ export const actions: ActionTree<State, State> & Actions = {
       routeName,
       section
     });
+  },
+
+  async [ActionTypes.START_DESKTOP]({ commit, getters }, payload) {
+    const id: string = payload.params.id;
+
+    store.dispatch(ActionTypes.START_LOADING, payload);
+
+    const mutation = `mutation MyMutation {
+      desktopStart(id: "${id}") {
+        recordId
+      }
+    }`;
+
+    await ConnectionService.executeMutation(mutation)
+      .then(() => {
+        store.dispatch(ActionTypes.STOP_LOADING);
+        const payload = { uuid: id, state: 'started' };
+        store.dispatch(ActionTypes.CHANGE_DESKTOP_STATE, payload);
+      })
+      .catch(() => {
+        store.dispatch(ActionTypes.STOP_LOADING, payload);
+      });
+  },
+
+  [ActionTypes.CHANGE_DESKTOP_STATE]({ commit }, payload) {
+    commit(MutationTypes.CHANGE_DESKTOP_STATE, payload);
   },
 
   [ActionTypes.NAVIGATE]({ commit }, payload) {

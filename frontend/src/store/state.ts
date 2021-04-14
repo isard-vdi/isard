@@ -1,7 +1,7 @@
 import { Router } from 'vue-router';
 
 export interface State {
-  search: object[];
+  search: any[];
   auth: Auth;
   ui: Ui;
   router: RouterState;
@@ -44,7 +44,7 @@ export const state: State = {
       name: '',
       surname1: '',
       surname2: '',
-      status: '',
+      state: '',
       organizationId: '',
       roles: [],
       lastAttempt: '',
