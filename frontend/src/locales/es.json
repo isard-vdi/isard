@@ -114,6 +114,10 @@
                     "title": "Error",
                     "description": "Dispones de demasiados escritorios"
                 },
+                "create-timeout": {
+                    "title": "Timeout",
+                    "description": "El escritorio se está creando, puede tardar varios minutos"
+                },
                 "start-error": {
                     "title": "Error",
                     "description": "No se ha podido iniciar el escritorio virtual debido a un error"
@@ -157,6 +161,10 @@
                 "stopped": {
                     "text": "Parado",
                     "action": "Iniciar"
+                },
+                "waitingip": {
+                    "text": "Esperando IP",
+                    "action": "Parar"
                 }
             }
         },

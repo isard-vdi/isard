@@ -15,7 +15,10 @@
                 </h6>
               </b-card-title>
               <b-card-sub-title class="mb-2">
-                <small>{{$t(`views.select-template.status.${desktop.state.toLowerCase()}.text`)}}</small>
+                <small>
+                  {{$t(`views.select-template.status.${desktop.state.toLowerCase()}.text`)}}
+                  <p v-if="desktop.ip">IP: {{ desktop.ip }}</p>
+                </small>
               </b-card-sub-title>
               <!-- Viewers button/drowpdown -->
               <span v-if="desktop.state.toLowerCase() == 'started'">
@@ -51,7 +54,7 @@
                 </b-dropdown>
               </span>
               <!-- Change status button -->
-              <b-button v-if="['started','stopped'].includes(desktop.state.toLowerCase())" :variant="status[desktop.state.toLowerCase()].variant" class="m-1"
+              <b-button v-if="['started','stopped','waitingip'].includes(desktop.state.toLowerCase())" :variant="status[desktop.state.toLowerCase()].variant" class="m-1"
                @click="changeDesktopStatus({ action: status[desktop.state.toLowerCase()].action, desktopId: desktop.id })">
                 <font-awesome-icon :icon="status[desktop.state.toLowerCase()].icon" class="mr-2"/>
                 {{$t(`views.select-template.status.${desktop.state.toLowerCase()}.action`)}}
@@ -81,8 +84,11 @@
                       {{desktop.state ? templates.filter(template => template.id ===  desktop.template)[0].name : desktop.name}}
                     </h6>
                   </b-card-title>
-                  <b-card-sub-title class="mb-2" v-if="desktop.state">
-                    <small>{{$t(`views.select-template.status.${desktop.state.toLowerCase()}.text`)}}</small>
+                  <b-card-sub-title v-if="desktop.state">
+                    <small>
+                      {{$t(`views.select-template.status.${desktop.state.toLowerCase()}.text`)}}
+                      <p v-if="desktop.ip">IP: {{ desktop.ip }}</p>
+                    </small>
                   </b-card-sub-title>
                   <!-- If the desktop doesn't exist we can create it using its template id -->
                   <b-button v-if="!desktop.state" size="sm" :variant="status.notCreated.variant" @click="chooseDesktop(desktop.id)">
@@ -144,10 +150,10 @@
       <!-- Table view -->
       <b-row v-else>
         <b-table v-if="persistent" :items="desktops" :fields="table_fields"
-        id="desktops-table" class="text-left" key="desktops_table">
+        id="desktops-table" class="text-left" key="desktops_table" responsive>
           <!-- Persistent desktops -->
           <template #cell(action)="data">
-              <b-button v-if="['started','stopped'].includes(data.item.state.toLowerCase())" :variant="status[data.item.state.toLowerCase()].variant"
+              <b-button v-if="['started','stopped','waitingip'].includes(data.item.state.toLowerCase())" :variant="status[data.item.state.toLowerCase()].variant"
               @click="changeDesktopStatus({action: status[data.item.state.toLowerCase()].action, desktopId: data.item.id})">
                 <font-awesome-icon :icon="status[data.item.state.toLowerCase()].icon" class="mr-2"/>
                 {{$t(`views.select-template.status.${data.item.state.toLowerCase()}.action`)}}
@@ -197,7 +203,7 @@
           </template>
         </b-table>
         <b-table v-else :items="desktops" :fields="table_fields"
-        id="desktops-table" class="text-left" key="desktops_table">
+        id="desktops-table" class="text-left" key="desktops_table" responsive>
           <!-- Non persistent desktops -->
           <template #cell(action)="data">
             <!-- If the desktop doesn't exist we can create it using its template id -->
@@ -335,6 +341,13 @@ export default {
           key: 'viewers',
           thStyle: { width: '7cm' },
           label: i18n.t('components.desktop-cards.table-header.viewers')
+        },
+        {
+          key: 'ip',
+          sortable: true,
+          label: 'IP',
+          thStyle: { width: '3cm' },
+          tdClass: 'pt-3'
         },
         {
           key: 'state',

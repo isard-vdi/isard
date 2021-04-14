@@ -114,6 +114,10 @@
                     "title": "Error",
                     "description": "You have too many desktops"
                 },
+                "create-timeout": {
+                    "title": "Timeout",
+                    "description": "The desktop is being created, this might take a few minutes"
+                },
                 "start-error": {
                     "title": "Error",
                     "description": "We couldn't start the virtual desktop due to an error"
@@ -157,6 +161,10 @@
                 "stopped": {
                     "text": "Stopped",
                     "action": "Start"
+                },
+                "waitingip": {
+                    "text": "Waiting IP",
+                    "action": "Stop"
                 }
             }
         },

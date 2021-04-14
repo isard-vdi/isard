@@ -93,6 +93,7 @@ export default {
   },
   data () {
     return {
+      polling: null,
       gridView: true,
       icons: {
         default: ['fas', 'desktop'],
@@ -108,6 +109,11 @@ export default {
           variant: 'success'
         },
         started: {
+          action: 'stop',
+          icon: ['fas', 'stop'],
+          variant: 'danger'
+        },
+        waitingip: {
           action: 'stop',
           icon: ['fas', 'stop'],
           variant: 'danger'
