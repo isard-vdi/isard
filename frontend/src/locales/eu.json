@@ -1,5 +1,8 @@
 {
     "components": {
+        "navbar": {
+            "admin": "Administrazioa"
+        },  
         "help": {
             "close-guide": "Gida itxi",
             "local-client": "Tokiko bezeroa erabiltzea (gomendatua)",
@@ -42,7 +45,6 @@
             "button": "Sesioa hasi"
         },
         "login": {
-            "admin": "Administrazioa",
             "title": "Saioa hasi",
             "form": {
                 "select-category": "Mesedez, aukeratu bat",

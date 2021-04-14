@@ -156,11 +156,13 @@
                 "usr": "Nom d’utilisateur",
                 "select-category": "Veuillez sélectionner une option"
             },
-            "title": "Se connecter",
-            "admin": "Administration"
+            "title": "Se connecter"
         }
     },
     "components": {
+        "navbar": {
+            "admin": "Administration"
+        },
         "not-found": {
             "home": "Retour",
             "title": "L’adresse demandée n’a pas été trouvée"

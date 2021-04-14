@@ -1,5 +1,20 @@
 {
     "components": {
+        "navbar": {
+            "help": "Ajuda",
+            "vpn": {
+                "download": "VPN",
+                "downloaded": {
+                    "title": "Descarregat",
+                    "description": "L'arxiu de configuració de la VPN s'ha descarregat correctament"
+                },
+                "downloadvpn-error": {
+                    "title": "Error",
+                    "description": "No s'ha pogut descarregar l'arxiu de configuració de la VPN degut a un error"
+                }
+            },
+            "admin": "Administració"
+        },
         "desktop-cards": {
             "table-header": {
                 "name": "Nom",
@@ -10,7 +25,6 @@
             }
         },
         "help": {
-            "title": "Ajuda",
             "close-guide": "Tancar la guia",
             "local-client": "Fer servir el client local (recomanat)",
             "best-performance": "És l'opció amb el millor rendiment",
@@ -52,7 +66,6 @@
             "button": "Iniciar sessió"
         },
         "login": {
-            "admin": "Administració",
             "title": "Iniciar Sessió",
             "form": {
                 "select-category": "Si us plau, selecciona una opció",

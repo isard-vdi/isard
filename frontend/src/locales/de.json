@@ -113,7 +113,6 @@
                 "select-category": "Bitte wählen Sie eine Option"
             },
             "title": "Anmelden",
-            "admin": "Verwaltung",
             "isard-logo-alt": "Das IsardVDI-Logo ist ein Gämsenkopf.",
             "powered-by": "Angetrieben von"
         },
@@ -128,6 +127,9 @@
         }
     },
     "components": {
+        "navbar": {
+            "admin": "Verwaltung"
+        },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
             "home": "Zurück"

@@ -1,5 +1,20 @@
 {
     "components": {
+        "navbar": {
+            "help": "Help",
+            "vpn": {
+                "download": "VPN",
+                "downloaded": {
+                    "title": "Downloaded",
+                    "description": "The VPN configuration file has been downloaded succesfully"
+                },
+                "downloadvpn-error": {
+                    "title": "Error",
+                    "description": "We couldn't download the VPN configuration file due to an error"
+                }
+            },
+            "admin": "Administration"
+        },
         "desktop-cards": {
             "table-header": {
                 "name": "Name",
@@ -10,7 +25,6 @@
             }
         },
         "help": {
-            "title": "Help",
             "close-guide": "Close guide",
             "local-client": "Use the local client (recommended)",
             "best-performance": "It's the option with the best performance",
@@ -52,7 +66,6 @@
             "button": "Login"
         },
         "login": {
-            "admin": "Administration",
             "title": "Login",
             "form": {
                 "select-category": "Please, select an option",

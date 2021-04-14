@@ -5,6 +5,7 @@ import auth from './modules/auth'
 import config from './modules/config'
 import desktops from './modules/desktops'
 import templates from './modules/templates'
+import vpn from './modules/vpn'
 
 Vue.use(Vuex)
 
@@ -70,6 +71,7 @@ export default new Vuex.Store({
     auth,
     templates,
     desktops,
-    config
+    config,
+    vpn
   }
 })
