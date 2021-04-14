@@ -385,13 +385,20 @@ def api_v2_categories():
 # kind = config,install
 # os =
 def api_v2_user_vpn(id, kind, os=False):
-    if os == False and kind != 'config':
-        return json.dumps({"code":9,"msg":"UserVpn general exception: " + error }), 401, {'Content-Type': 'application/json'}
-    
-    vpn_data=vpn.vpn_data('users',kind,os,id)
+    if not os and kind != "config":
+        return (
+            json.dumps({"code": 9, "msg": "UserVpn: no OS supplied"}),
+            401,
+            {"Content-Type": "application/json"},
+        )
 
-    if vpn_data != False:
-        return json.dumps({'vpn': vpn_data}), 200, {'Content-Type': 'application/json'}
+    vpn_data = vpn.vpn_data("users", kind, os, id)
+
+    if vpn_data:
+        return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}
     else:
-        return json.dumps({"code":9,"msg":"UserVpn general exception: " + error }), 401, {'Content-Type': 'application/json'}
-
+        return (
+            json.dumps({"code": 9, "msg": "UserVpn no VPN data"}),
+            401,
+            {"Content-Type": "application/json"},
+        )

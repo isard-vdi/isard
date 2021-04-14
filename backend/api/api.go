@@ -63,6 +63,7 @@ func New(env *env.Env) *API {
 
 	a.Mux.HandleFunc("/api/"+version+"/check", a.isAuthenticated(a.check))
 	a.Mux.HandleFunc("/api/"+version+"/user", a.isAuthenticated(a.user))
+	a.Mux.HandleFunc("/api/"+version+"/vpn", a.isAuthenticated(a.vpn))
 	a.Mux.HandleFunc("/api/"+version+"/templates", a.isAuthenticated(a.templates))
 	a.Mux.HandleFunc("/api/"+version+"/create", a.isAuthenticated(a.create))
 

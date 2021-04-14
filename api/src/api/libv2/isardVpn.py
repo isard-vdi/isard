@@ -26,7 +26,7 @@ class isardVpn():
     def vpn_data(self,vpn,kind,os,current_user=False):
         if vpn == 'users':
             if current_user == False: return False
-            wgdata = r.table('users').get(current_user.id).pluck('vpn').run(db.conn) 
+            wgdata = r.table('users').get(current_user).pluck('vpn').run(db.conn)
         elif vpn == 'hypers':
             if current_user.role != 'admin': return False
             wgdata = r.table('hypervisors').get(current_user.id).pluck('vpn').run(db.conn)
@@ -35,7 +35,7 @@ class isardVpn():
         if wgdata == None or 'vpn' not in wgdata.keys():
             return False
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
-        if app.wireguard_users_keys == False:
+        if not getattr(app, 'wireguard_users_keys', False):
             sysconfig = r.db('isard').table('config').get(1).run(db.conn)
             app.wireguard_users_keys = sysconfig.get('vpn_users', {}).get('wireguard', {}).get('keys', False)
         if app.wireguard_users_keys == False:
