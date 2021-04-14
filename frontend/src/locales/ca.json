@@ -114,9 +114,13 @@
                     "title": "Error",
                     "description": "Disposes de massa escriptoris"
                 },
+                "create-timeout": {
+                    "title": "Timeout",
+                    "description": "L'escriptori s'està creant, pot trigar uns quants minuts"
+                },
                 "start-error": {
                     "title": "Error",
-                    "description": "No s'ha pogut inciar l'escriptori virtual degut a un error"
+                    "description": "No s'ha pogut inicar l'escriptori virtual degut a un error"
                 },
                 "start-quota": {
                     "title": "Error",
@@ -157,6 +161,10 @@
                 "stopped": {
                     "text": "Aturat",
                     "action": "Iniciar"
+                },
+                "waitingip": {
+                    "text": "Esperant IP",
+                    "action": "Atura"
                 }
             }
         },

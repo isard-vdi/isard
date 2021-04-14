@@ -5,6 +5,23 @@ import i18n from '@/i18n'
 import router from '@/router'
 import { toast } from '@/store/index.js'
 
+var polling
+
+function pollDesktops (context) {
+  if (!polling) {
+    polling = setInterval(() => {
+      context.dispatch('fetchDesktops')
+    }, 5000)
+  }
+}
+
+export function clearPolling () {
+  if (polling) {
+    clearInterval(polling)
+    polling = null
+  }
+}
+
 export default {
   state: {
     viewer: cookies.getCookie('viewer') || '',
@@ -32,10 +49,15 @@ export default {
     }
   },
   actions: {
-    fetchDesktops ({ commit }) {
+    fetchDesktops (context) {
       return new Promise((resolve, reject) => {
         apiAxios.get('/desktops').then(response => {
-          commit('setDesktops', response.data)
+          context.commit('setDesktops', response.data)
+          if (response.data.find(desktop => desktop.state === 'WaitingIP')) {
+            pollDesktops(context)
+          } else {
+            clearPolling()
+          }
           resolve()
         }).catch(e => {
           console.log(e)
@@ -65,6 +87,14 @@ export default {
             if (e.response.status === 503) {
               reject(e)
               router.push({ name: 'Maintenance' })
+            } else if (e.response.status === 408) {
+              pollDesktops(context)
+              resolve(
+                toast(
+                  i18n.t('views.select-template.error.create-timeout.title'),
+                  i18n.t('views.select-template.error.create-timeout.description')
+                )
+              )
             } else if (e.response.status === 401 || e.response.status === 403) {
               this._vm.$snotify.clear()
               reject(e)
@@ -102,6 +132,7 @@ export default {
               reject(e)
               router.push({ name: 'Maintenance' })
             } else if (e.response.status === 408) {
+              pollDesktops(context)
               resolve(
                 toast(
                   i18n.t(`views.select-template.error.${data.action}-timeout.title`),
