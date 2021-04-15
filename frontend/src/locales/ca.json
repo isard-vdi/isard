@@ -92,7 +92,8 @@
             "viewer": "Visor {name}",
             "viewer-name": {
                 "spice": "SPICE",
-                "browser": "al navegador"
+                "browser": "al navegador",
+                "rdp": "RDP"
             },
             "remove": "Esborrar",
             "notification": {

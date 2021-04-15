@@ -177,33 +177,27 @@ export default {
           context.commit('updateViewers', viewers)
           apiAxios.get(`/desktop/${data.desktopId}/viewer/${data.viewer}`).then(response => {
             const el = document.createElement('a')
-            if (data.viewer === 'browser') {
-              const spiceUrl = `${window.location.protocol}//${window.location.host}/viewer/noVNC/`
-              el.setAttribute('href', spiceUrl)
-              console.log(spiceUrl)
-              el.setAttribute('target', '_blank')
-              document.body.appendChild(el)
-              el.click()
-              this._vm.$snotify.clear()
-              resolve()
-            } else {
-              const content = JSON.parse(atob(cookies.get('isard'))).remote_viewer
+            if (response.data.kind === 'file') {
               el.setAttribute(
                 'href',
-                `data:application/x-virt-viewer;charset=utf-8,${encodeURIComponent(content)}`
+                `data:${response.data.mime};charset=utf-8,${encodeURIComponent(response.data.content)}`
               )
-              el.setAttribute('download', 'escriptori.vv')
-              el.style.display = 'none'
-              document.body.appendChild(el)
-              el.click()
-              document.body.removeChild(el)
-              resolve(
-                toast(
-                  i18n.t('views.select-template.notification.downloaded.title'),
-                  i18n.t('views.select-template.notification.downloaded.description')
-                )
-              )
+              el.setAttribute('download', `${response.data.name}.${response.data.ext}`)
+            } else if (response.data.kind === 'url') {
+              cookies.setCookie('browser_viewer', response.data.cookie)
+              el.setAttribute('href', response.data.viewer[0])
+              el.setAttribute('target', '_blank')
             }
+            el.style.display = 'none'
+            document.body.appendChild(el)
+            el.click()
+            document.body.removeChild(el)
+            resolve(
+              toast(
+                i18n.t('views.select-template.notification.downloaded.title'),
+                i18n.t('views.select-template.notification.downloaded.description')
+              )
+            )
           }).catch(e => {
             if (e.response.status === 503) {
               reject(e)

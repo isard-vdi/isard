@@ -92,7 +92,8 @@
             "viewer": "{name} viewer",
             "viewer-name": {
                 "spice": "SPICE",
-                "browser": "Browser"
+                "browser": "Browser",
+                "rdp": "RDP"
             },
             "remove": "Remove",
             "notification": {
