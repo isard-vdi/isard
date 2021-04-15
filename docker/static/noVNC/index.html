@@ -258,10 +258,10 @@
         }
 
         function getParameter(name) {
-            var match = document.cookie.match(new RegExp('(^| )' + 'isard' + '=([^;]+)'));
+            var match = document.cookie.match(new RegExp('(^| )browser_viewer=([^;]+)'));
             if (!match) return false;
 
-            return JSON.parse(atob(match[2]))['web_viewer'][name];
+            return JSON.parse(atob(decodeURIComponent(match[2])))['web_viewer'][name];
         }
 
         function resize() {

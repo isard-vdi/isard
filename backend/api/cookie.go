@@ -7,15 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/isard-vdi/isard/backend/isard"
 	"github.com/isard-vdi/isard/backend/model"
 )
 
 type cookie struct {
 	Name         string            `json:"name"`
 	DesktopID    string            `json:"desktop_id"`
-	WebViewer    *isard.ViewerHTML `json:"web_viewer,omitempty"`
-	RemoteViewer string            `json:"remote_viewer,omitempty"`
 }
 
 const cookieName = "isard"
