@@ -24,7 +24,7 @@ export function clearPolling () {
 
 export default {
   state: {
-    viewer: cookies.getCookie('viewer') || '',
+    viewers: cookies.getCookie('viewers') ? JSON.parse(cookies.getCookie('viewers')) : {},
     desktops: [],
     desktops_loaded: false
   },
@@ -35,8 +35,8 @@ export default {
     getDesktopsLoaded: state => {
       return state.desktops_loaded
     },
-    getViewer: state => {
-      return state.viewer
+    getViewers: state => {
+      return state.viewers
     }
   },
   mutations: {
@@ -44,8 +44,9 @@ export default {
       state.desktops = desktops
       state.desktops_loaded = true
     },
-    setViewer: (state, viewer) => {
-      state.viewer = viewer
+    updateViewers: (state, viewers) => {
+      state.viewers = { ...state.viewers, ...viewers }
+      cookies.setCookie('viewers', JSON.stringify(state.viewers))
     }
   },
   actions: {
@@ -167,8 +168,13 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'),
         () => new Promise((resolve, reject) => {
-          cookies.setCookie('viewer', data.viewer)
-          context.commit('setViewer', data.viewer)
+          const viewers = {}
+          if (data.template) {
+            viewers[data.template] = data.viewer
+          } else {
+            viewers[data.desktopId] = data.viewer
+          }
+          context.commit('updateViewers', viewers)
           apiAxios.get(`/desktop/${data.desktopId}/viewer/${data.viewer}`).then(response => {
             const el = document.createElement('a')
             if (data.viewer === 'browser') {
