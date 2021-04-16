@@ -92,17 +92,22 @@ class ApiUsers():
     def Update(self, user_id, user_name=False, user_email=False, user_photo=False):
         self.Exists(user_id)
         with app.app_context():
-            user = r.table('users').get(user_id).run(db.conn)
-            if user == None:
+            user = r.table("users").get(user_id).run(db.conn)
+            if user is None:
                 raise UserNotFound
-            if not user_name:
-                user_name = user['name']
-            if not user_email:
-                user_email = user['email']
-            if not user_photo:
-                user_photo = user['photo']
-            if not _check(r.table('users').get(user_id).update({'name':user_name, 'email':user_email, 'photo':user_photo}).run(db.conn),'replaced'):
-                raise UpdateFailed
+            update_values = {}
+            if user_name:
+                update_values["name"] = user_name
+            if user_email:
+                update_values["email"] = user_email
+            if user_photo:
+                update_values["photo"] = user_photo
+            if update_values:
+                if not _check(
+                    r.table("users").get(user_id).update(update_values).run(db.conn),
+                    "replaced",
+                ):
+                    raise UpdateFailed
 
     def Templates(self,user_id):
         with app.app_context():
