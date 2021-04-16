@@ -57,13 +57,13 @@ def api_v2_persistent_desktop_new():
         quotas.DesktopCreate(user_id)
     except QuotaUserNewDesktopExceeded:
         log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupNewDesktopExceeded:
         log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryNewDesktopExceeded:
         log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"PersistentDesktopNew quota check general exception: " + error }), 401, {'Content-Type': 'application/json'}
@@ -89,7 +89,7 @@ def api_v2_persistent_desktop_new():
         return json.dumps({'id': desktop_id}), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
         log.error("Desktop for user "+user_id+" from template "+template_id+", user not found")
-        return json.dumps({"code":1,"msg":"PersistentDestopNew user not found"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":1,"msg":"PersistentDesktopNew user not found"}), 404, {'Content-Type': 'application/json'}
     except TemplateNotFound:
         log.error("Desktop for user "+user_id+" from template "+template_id+" template not found.")
         return json.dumps({"code":2,"msg":"PersistentDesktopNew template not found"}), 404, {'Content-Type': 'application/json'}
@@ -99,7 +99,7 @@ def api_v2_persistent_desktop_new():
     except DesktopNotCreated:
         log.error("Desktop for user "+user_id+" from template "+template_id+" creation failed.")
         carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":4,"msg":"PersistentDestopNew not created"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":4,"msg":"PersistentDesktopNew not created"}), 404, {'Content-Type': 'application/json'}
     ### Needs more!
     except Exception as e:
         error = traceback.format_exc()
