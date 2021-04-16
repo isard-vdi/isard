@@ -10,7 +10,6 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard/certs/viewers:/certs:rw
       - /opt/isard/sshkeys:/root/.ssh:rw
-      - /opt/isard-local/logs/engine:/isard/logs:rw
     depends_on:
       - isard-db
     env_file:
