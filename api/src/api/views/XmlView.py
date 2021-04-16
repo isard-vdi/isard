@@ -37,14 +37,14 @@ xml = ApiXml()
 def api_v2_xml_virt_install(id):
     try:
         data = xml.VirtInstallGet(id)
-        return json.dumps(data), 200, {"ContentType": "application/json"}
+        return json.dumps(data), 200, {"Content-Type": "application/json"}
     except XmlNotFound:
         return (
             json.dumps(
                 {"code": 1, "msg": "VirtInstall " + id + " not exists in database"}
             ),
             404,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
 
     except Exception:
@@ -54,5 +54,5 @@ def api_v2_xml_virt_install(id):
                 {"code": 9, "msg": "VirtInstallGet general exception: " + error}
             ),
             500,
-            {"ContentType": "application/json"},
+            {"Content-Type": "application/json"},
         )
