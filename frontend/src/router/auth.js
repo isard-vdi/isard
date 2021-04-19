@@ -29,7 +29,6 @@ export function auth (to, from, next) {
       next({ name: 'Maintenance' })
     }
     next({ name: 'Login' })
-    throw e
   })
 }
 
