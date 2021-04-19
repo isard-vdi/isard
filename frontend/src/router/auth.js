@@ -20,7 +20,7 @@ export function auth (to, from, next) {
     next({ name: 'Login' })
   }
   // Si la té comprovem que sigui vàlida
-  axios.get('/check').then(response => {
+  apiAxios.get('/check').then(response => {
     // Si es vàlida demanem les dades de l'usuari
     store.dispatch('setUser')
     next()
