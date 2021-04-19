@@ -66,7 +66,7 @@ export const SectionDesktops: SectionConfig = {
       { field: 'description', header: 'Description' },
       { field: 'creationdate', header: 'Created' }
     ],
-    extraColumnsInludes: ['state']
+    extraColumns: ['state']
   },
   detail: 'Desktop',
   defaultValues: {

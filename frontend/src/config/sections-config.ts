@@ -9,7 +9,7 @@ export interface SectionConfig {
   };
   table: {
     columns: { field: string; header: string }[]; // Plain column
-    extraColumnsInludes?: string[]; // Hardcoded columns with templates
+    extraColumns?: string[]; // Hardcoded columns with templates
   };
   detail?: string;
   defaultValues?: any;

@@ -127,7 +127,6 @@ export const mutations: MutationTree<State> & Mutations = {
     state.ui.isLoading = false;
   },
   [MutationTypes.CHANGE_DESKTOP_STATE](state: State, payload) {
-    // const item = state.search.find((item) => item.uuid === payload.uuid);
     state.search.find((item) => item.uuid === payload.uuid).state =
       payload.state;
   }

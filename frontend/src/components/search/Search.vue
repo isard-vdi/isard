@@ -11,9 +11,7 @@
         ></Column>
         <Column
           key="state"
-          :style="{
-            display: tableExtraColumns.indexOf('state') != -1 ? 'block' : 'none'
-          }"
+          :style="{ display: showStateColumn ? 'table-cell' : 'none' }"
           column-key="state"
           header="State"
         >
@@ -21,7 +19,9 @@
             <span
               :class="
                 'product-badge state-' +
-                (slotProps.data.state && slotProps.data.state.toLowerCase())
+                (
+                  ((slotProps || {}).data || {}).state || 'default'
+                ).toLowerCase()
               "
               >{{ slotProps.data.state }}</span
             >
@@ -117,10 +117,11 @@ export default defineComponent({
         SectionUsers
     );
     const tableExtraColumns = computed(
-      () => sectionConfig.value.table.extraColumnsInludes || []
+      () => sectionConfig.value.table.extraColumns || []
     );
 
-    console.log(tableExtraColumns, '**********************************');
+    const showStateColumn =
+      computed(() => tableExtraColumns.value.indexOf('state') != -1) || false;
 
     watch(
       sectionAndRoute,
@@ -176,7 +177,7 @@ export default defineComponent({
       actionFilterSearch,
       itemsList,
       sectionConfig,
-      tableExtraColumns,
+      showStateColumn,
       f_edit,
       f_delete,
       f_create,

@@ -8,7 +8,7 @@ import 'primevue/resources/themes/bootstrap4-light-blue/theme.css';
 import 'primeflex/primeflex.css';
 import '@/assets/layout/layout.scss';
 
-import App from './App.vue';
+import App from '@/App.vue';
 import PrimeIcons from 'primevue/config';
 import PrimeVue from 'primevue/config';
 import Tooltip from 'primevue/tooltip';
@@ -16,9 +16,9 @@ import VueAxios from 'vue-axios';
 import axios from 'axios';
 import { createApp } from 'vue';
 import i18n from '@/i18n';
-import router from './router';
-import { store } from './store';
-import ConnectionService from './service/ConnectionService';
+import router from '@/router';
+import { store } from '@/store';
+import ConnectionService from '@/service/ConnectionService';
 
 ConnectionService.setClientBackend();
 const app = createApp(App);
