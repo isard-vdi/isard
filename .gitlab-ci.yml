@@ -21,12 +21,12 @@ unit-test:
     - merge_requests
   image: golang:1.16
   before_script:
-    - apt-get update && apt-get -y install curl build-essential libvirt-dev
+    - apt-get update && apt-get -y install curl build-essential libvirt-dev libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
     - curl -sL https://deb.nodesource.com/setup_14.x | bash -
     - apt-get -y install nodejs
     - mkdir -p .go
     - cd frontend && npm ci --cache .npm --prefer-offline && cd -
-    - make deps
+    - go mod tidy
   script:
     - make test
 
