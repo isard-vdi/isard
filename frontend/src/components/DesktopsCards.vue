@@ -30,10 +30,19 @@
                     </template>
                   </i18n>
                 </b-button>
-                <b-dropdown v-else-if="viewer" variant="primary" split  class="m-1"
-                :text="viewerText" @click="openDesktop({desktopId: desktop.id, viewer: viewer})">
-                  <b-dropdown-item v-for="dkpviewer in desktop.viewers.filter(dkpviewer => dkpviewer !== viewer)" :key="dkpviewer"
-                  @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer})">
+                <b-dropdown
+                  v-else-if="viewers[desktop.id] && desktop.viewers.includes(viewers[desktop.id])"
+                  variant="primary"
+                  split
+                  class="m-1"
+                  :text="getViewerText(viewers[desktop.id])"
+                  @click="openDesktop({desktopId: desktop.id, viewer: viewers[desktop.id]})"
+                >
+                  <b-dropdown-item
+                    v-for="dkpviewer in desktop.viewers.filter(dkpviewer => dkpviewer !== viewers[desktop.id])"
+                    :key="dkpviewer"
+                    @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer})"
+                  >
                     <i18n path="views.select-template.viewer">
                       <template v-slot:name>
                         {{$t(`views.select-template.viewer-name.${dkpviewer}`)}}
@@ -104,18 +113,31 @@
                     </b-button>
                     <!-- If it's executing we can use its viewers -->
                     <span v-else-if="desktop.state.toLowerCase() === 'started'">
-                      <b-button variant="primary" class="m-1" v-if="desktop.viewers.length === 1"
-                      @click="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})">
+                      <b-button
+                        v-if="desktop.viewers.length === 1"
+                        variant="primary"
+                        class="m-1"
+                        @click="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0], template: desktop.template })"
+                      >
                         <i18n path="views.select-template.viewer">
                           <template v-slot:name>
                             {{$t(`views.select-template.viewer-name.${desktop.viewers[0]}`)}}
                           </template>
                         </i18n>
                       </b-button>
-                      <b-dropdown v-else-if="viewer" variant="primary" split class="m-1"
-                      :text="viewerText" @click="openDesktop({desktopId: desktop.id, viewer: viewer})">
-                        <b-dropdown-item v-for="dkpviewer in desktop.viewers.filter(dkpviewer => dkpviewer !== viewer)" :key="dkpviewer"
-                        @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer})">
+                      <b-dropdown
+                        v-else-if="viewers[desktop.template] && desktop.viewers.includes(viewers[desktop.template])"
+                        variant="primary"
+                        split
+                        class="m-1"
+                        :text="getViewerText(viewers[desktop.template])"
+                        @click="openDesktop({desktopId: desktop.id, viewer: viewers[desktop.template], template: desktop.template })"
+                      >
+                        <b-dropdown-item
+                          v-for="dkpviewer in desktop.viewers.filter(dkpviewer => dkpviewer !== viewers[desktop.template])"
+                          :key="dkpviewer"
+                          @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer, template: desktop.template })"
+                        >
                           <i18n path="views.select-template.viewer">
                             <template v-slot:name>
                               {{$t(`views.select-template.viewer-name.${dkpviewer}`)}}
@@ -125,8 +147,11 @@
                       </b-dropdown>
                       <b-dropdown v-else variant="primary" size="sm"
                       :text="$t('views.select-template.viewers')" class="m-1">
-                        <b-dropdown-item v-for="dkpviewer in desktop.viewers" :key="dkpviewer"
-                        @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer})">
+                        <b-dropdown-item
+                          v-for="dkpviewer in desktop.viewers"
+                          :key="dkpviewer"
+                          @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer, template: desktop.template })"
+                        >
                           <i18n path="views.select-template.viewer">
                             <template v-slot:name>
                               {{$t(`views.select-template.viewer-name.${dkpviewer}`)}}
@@ -169,10 +194,18 @@
                   </template>
                 </i18n>
               </b-button>
-              <b-dropdown v-else-if="viewer" variant="primary" split
-              :text="viewerText" @click="openDesktop({desktopId: data.item.id, viewer: viewer})">
-                <b-dropdown-item v-for="dkpviewer in data.item.viewers.filter(dkpviewer => dkpviewer !== viewer)" :key="dkpviewer"
-                @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer})">
+              <b-dropdown
+                v-else-if="viewers[data.item.id] && data.item.viewers.includes(viewers[data.item.id])"
+                variant="primary"
+                split
+                :text="getViewerText(viewers[data.item.id])"
+                @click="openDesktop({desktopId: data.item.id, viewer: viewers[data.item.id]})"
+              >
+                <b-dropdown-item
+                  v-for="dkpviewer in data.item.viewers.filter(dkpviewer => dkpviewer !== viewers[data.item.id])"
+                  :key="dkpviewer"
+                  @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer})"
+                >
                   <i18n path="views.select-template.viewer">
                     <template v-slot:name>
                       {{$t(`views.select-template.viewer-name.${dkpviewer}`)}}
@@ -227,18 +260,29 @@
           </template>
           <template #cell(viewers)="data">
             <div v-if="data.item.state && data.item.state.toLowerCase() == 'started'">
-              <b-button v-if="data.item.viewers.length === 1" variant="primary"
-                @click="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0]})">
+              <b-button
+                v-if="data.item.viewers.length === 1"
+                variant="primary"
+                @click="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0], template: data.item.template })"
+              >
                   <i18n path="views.select-template.viewer">
                     <template v-slot:name>
                       {{$t(`views.select-template.viewer-name.${data.item.viewers[0]}`)}}
                     </template>
                   </i18n>
                 </b-button>
-                <b-dropdown v-else-if="viewer" variant="primary" split
-                :text="viewerText" @click="openDesktop({desktopId: data.item.id, viewer: viewer})">
-                  <b-dropdown-item v-for="dkpviewer in data.item.viewers.filter(dkpviewer => dkpviewer !== viewer)" :key="dkpviewer"
-                  @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer})">
+                <b-dropdown
+                  v-else-if="viewers[data.item.template] && data.item.viewers.includes(viewers[data.item.template])"
+                  variant="primary"
+                  split
+                  :text="getViewerText(viewers[data.item.template])"
+                  @click="openDesktop({desktopId: data.item.id, viewer: viewers[data.item.template], template: data.item.template })"
+                >
+                  <b-dropdown-item
+                    v-for="dkpviewer in data.item.viewers.filter(dkpviewer => dkpviewer !== viewers[data.item.template])"
+                    :key="dkpviewer"
+                    @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer, template: data.item.template })"
+                  >
                     <i18n path="views.select-template.viewer">
                       <template v-slot:name>
                         {{$t(`views.select-template.viewer-name.${dkpviewer}`)}}
@@ -248,8 +292,11 @@
                 </b-dropdown>
                 <b-dropdown v-else variant="primary"
                 :text="$t('views.select-template.viewers')">
-                  <b-dropdown-item v-for="dkpviewer in data.item.viewers" :key="dkpviewer"
-                  @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer})">
+                  <b-dropdown-item
+                    v-for="dkpviewer in data.item.viewers"
+                    :key="dkpviewer"
+                    @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer, template: data.item.template })"
+                  >
                     <i18n path="views.select-template.viewer">
                       <template v-slot:name>
                         {{$t(`views.select-template.viewer-name.${dkpviewer}`)}}
@@ -318,15 +365,15 @@ export default {
       const data = new FormData()
       data.append('template', template)
       this.$store.dispatch('createDesktop', data)
+    },
+    getViewerText (viewer) {
+      const name = i18n.t(`views.select-template.viewer-name.${viewer}`)
+      return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
     }
   },
   computed: {
-    viewer () {
-      return this.$store.getters.getViewer
-    },
-    viewerText () {
-      const name = i18n.t(`views.select-template.viewer-name.${this.$store.getters.getViewer}`)
-      return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
+    viewers () {
+      return this.$store.getters.getViewers
     }
   },
   data () {
