@@ -97,7 +97,7 @@
                     "title": "Erreur"
                 },
                 "create-timeout": {
-                    "description": "Le bureau est en cours de création, ceci peut prendre quelques minutes.",
+                    "description": "Le bureau est en cours de création, ceci peut prendre quelques minutes",
                     "title": "Délai d’expiration"
                 }
             },
