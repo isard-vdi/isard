@@ -853,7 +853,7 @@ def update_info_nvidia_hyp_domain(status,nvidia_uid,hyp_id,dom_id=False):
         nvidia_uids = [nvidia_uid]
     else:
         nvidia_uids = nvidia_uid
-
+    #d_hyp = dict(rtable_hyp.get(hyp_id).run(r_conn))
     d = dict(rtable_hyp.get(hyp_id).pluck('nvidia_uids').run(r_conn))
     result = False
     if len(d) > 0:
