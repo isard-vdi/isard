@@ -19,7 +19,7 @@ type registerRsp struct {
 }
 
 func (i *Isard) CheckRegistrationCode(u *model.User, code string) error {
-	rsp, err := http.PostForm(i.url("register"), url.Values{"code": {code}})
+	rsp, err := http.PostForm(i.url("register"), url.Values{"code": {code}, "email": {u.Email}})
 	if err != nil {
 		i.sugar.Errorw("check registration code",
 			"err", err,
@@ -33,6 +33,9 @@ func (i *Isard) CheckRegistrationCode(u *model.User, code string) error {
 	if rsp.StatusCode != 200 {
 		if rsp.StatusCode == http.StatusNotFound {
 			return errors.New("invalid registration code")
+		}
+		if rsp.StatusCode == http.StatusForbidden {
+			return errors.New("not allowed")
 		}
 
 		b, _ := ioutil.ReadAll(rsp.Body)

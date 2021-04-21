@@ -244,6 +244,7 @@ function actionsCategoryDetail(){
             $('#modalEditCategoryForm #name').val(category.name);
             $('#modalEditCategoryForm #description').val(category.description);
             $('#modalEditCategoryForm #id').val(category.id);
+            $('#modalEditCategoryForm #allowed_domain').val(category.allowed_domain);
 
             if(category['frontend'] == true){
                 $('#modalEditCategoryForm #frontend').iCheck('check').iCheck('update');
