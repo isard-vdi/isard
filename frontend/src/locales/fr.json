@@ -95,6 +95,10 @@
                 "create-error": {
                     "description": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
                     "title": "Erreur"
+                },
+                "create-timeout": {
+                    "description": "Le bureau est en cours de création, ceci peut prendre quelques minutes",
+                    "title": "Délai d’expiration"
                 }
             },
             "status": {
@@ -111,6 +115,10 @@
                 },
                 "failed": {
                     "text": "Échec"
+                },
+                "waitingip": {
+                    "action": "Arrêter",
+                    "text": "En attente de l’IP"
                 }
             },
             "remove": "Retirer",
@@ -182,7 +190,8 @@
             "install": "Installer",
             "best-performance": "C’est l’option avec la meilleure performance",
             "local-client": "Utiliser le client local (recommandé)",
-            "close-guide": "Fermer le guide"
+            "close-guide": "Fermer le guide",
+            "title": "Aide"
         },
         "title": {
             "logo-alt": "Logo"

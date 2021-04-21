@@ -36,6 +36,10 @@
                 },
                 "notCreated": {
                     "action": "Erstellen"
+                },
+                "waitingip": {
+                    "action": "Stoppen",
+                    "text": "Warten auf IP"
                 }
             },
             "error": {
@@ -74,6 +78,10 @@
                 "create-error": {
                     "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht erstellen",
                     "title": "Fehler"
+                },
+                "create-timeout": {
+                    "description": "Die Arbeitoberfläche wird erstellt, dies kann ein paar Minuten dauern",
+                    "title": "Zeitüberschreitung"
                 }
             },
             "remove": "Entfernen",
@@ -149,7 +157,8 @@
             "install": "Installieren",
             "best-performance": "Es ist die Option mit der besten Leistung",
             "local-client": "Lokalen Client verwenden (empfohlen)",
-            "close-guide": "Anleitung schließen"
+            "close-guide": "Anleitung schließen",
+            "title": "Hilfe"
         },
         "title": {
             "logo-alt": "Logo"
