@@ -25,7 +25,7 @@ carbon = Carbon()
 from ..libv2.quotas import Quotas
 quotas = Quotas()
 
-from ..libv2.api_users import ApiUsers
+from ..libv2.api_users import ApiUsers, check_category_domain
 users = ApiUsers()
 
 from ..libv2.isardVpn import isardVpn
@@ -72,12 +72,25 @@ def api_v2_category(id):
 def api_v2_register():
     try:
         code = request.form.get('code', type = str)
+        domain = request.form.get("email").split("@")[-1]
     except Exception as e:
-        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
+        return (
+            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + e}),
+            401,
+            {"Content-Type": "application/json"},
+        )
 
     try:
         data = users.CodeSearch(code)
-        return json.dumps(data), 200, {'Content-Type': 'application/json'}
+        if check_category_domain(data.get("category"), domain):
+            return json.dumps(data), 200, {"Content-Type": "application/json"}
+        else:
+            log.info(f"Domain {domain} not allowed for category {data.get('category')}")
+            return (
+                json.dumps({"code": 10, "msg": f"User domain {domain} not allowed"}),
+                403,
+                {"Content-Type": "application/json"},
+            )
     except CodeNotFound:
         log.error("Code not in database.")
         return json.dumps({"code":1,"msg":"Code "+code+" not exists in database"}), 404, {'Content-Type': 'application/json'}

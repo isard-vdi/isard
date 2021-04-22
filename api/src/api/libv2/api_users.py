@@ -37,6 +37,19 @@ from .helpers import (
 from .ds import DS 
 ds = DS()
 
+
+def check_category_domain(category_id, domain):
+    with app.app_context():
+        allowed_domain = (
+            r.table("categories")
+            .get(category_id)
+            .pluck("allowed_domain")
+            .run(db.conn)
+            .get("allowed_domain")
+        )
+    return not allowed_domain or domain == allowed_domain
+
+
 class ApiUsers():
     def __init__(self):
         self.au=auth()
