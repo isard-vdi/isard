@@ -3,6 +3,9 @@ services:
   isard-db:
     container_name: isard-db
     image: rethinkdb
+    logging:
+      options:
+        max-size: "100m"
     ports:
       - "8080:8080"
       - "28015:28015"

@@ -3,6 +3,9 @@ services:
   isard-squid:
     container_name: isard-squid
     image: ${DOCKER_IMAGE_PREFIX}squid:${DOCKER_IMAGE_TAG-latest}
+    logging:
+      options:
+        max-size: "100m"
     networks:
       - isard-network
     restart: unless-stopped

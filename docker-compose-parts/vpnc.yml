@@ -3,6 +3,9 @@ services:
   isard-vpnc:
     container_name: isard-vpnc 
     image: ${DOCKER_IMAGE_PREFIX}vpnc:${DOCKER_IMAGE_TAG:-latest}     
+    logging:
+      options:
+        max-size: "100m"
     cap_add:
       - NET_ADMIN
       - SYS_MODULE  
