@@ -129,12 +129,12 @@ function startClientViewerSocket(socket){
                 a.dispatchEvent(ev);              
         }
     });
-}   
+}
 
 
 function setViewerHelp(){
     $(".howto-"+getOS()).css("display", "block");
-}    
+}
 
 function getOS() {
       var userAgent = window.navigator.userAgent,

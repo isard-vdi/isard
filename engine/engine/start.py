@@ -20,7 +20,7 @@ except Exception as e:
     print(traceback.format_exc())
     print('Error populating...')
     exit(1)
-
+    
 try:
     u=Upgrade()
 except Exception as e:
