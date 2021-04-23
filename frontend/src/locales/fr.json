@@ -124,7 +124,8 @@
             "remove": "Retirer",
             "viewer-name": {
                 "browser": "Navigateur",
-                "spice": "SPICE"
+                "spice": "SPICE",
+                "rdp": "RDP"
             },
             "viewer": "Visionneuse {name}",
             "viewers": "Visionneuses",
@@ -169,7 +170,19 @@
     },
     "components": {
         "navbar": {
-            "admin": "Administration"
+            "admin": "Administration",
+            "vpn": {
+                "downloadvpn-error": {
+                    "description": "Nous n'avons pas pu télécharger le fichier de configuration du RPV en raison d'une erreur.",
+                    "title": "Erreur"
+                },
+                "downloaded": {
+                    "description": "Le fichier de configuration RPV a bien été téléchargé",
+                    "title": "Téléchargé"
+                },
+                "download": "RPV"
+            },
+            "help": "Aide"
         },
         "not-found": {
             "home": "Retour",
