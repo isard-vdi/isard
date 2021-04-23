@@ -46,7 +46,7 @@ def api_v2_guest_addr():
         return json.dumps({}), 200, {'Content-Type': 'application/json'}
     except UpdateFailed:
         log.error("Desktop for user "+user_id+" from template "+template_id+", user not found")
-        return json.dumps({"code":1,"msg":"DestopNew user not found"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":1,"msg":"DesktopNew user not found"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         log.error("GuestAddr general exception" + error)

@@ -239,43 +239,43 @@ def api_v2_user_templates(id=False):
         quotas.DesktopCreateAndStart(id)
     except QuotaUserNewDesktopExceeded:
         log.error("Quota for user "+id+" to create a desktop exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user desktop quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user desktop quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupNewDesktopExceeded:
         log.error("Quota for user "+id+" to create a desktop in his group limits is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew group desktop limits CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew group desktop limits CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryNewDesktopExceeded:
         log.error("Quota for user "+id+" to create a desktop in his category limits is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew category desktop limits CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew category desktop limits CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
 
     except QuotaUserConcurrentExceeded:
         log.error("Quota for user "+id+" to start a desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user quota CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user quota CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupConcurrentExceeded:
         log.error("Quota for user "+id+" to start a desktop in his group is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user limits CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user limits CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryConcurrentExceeded:
         log.error("Quota for user "+id+" to start a desktop is his category exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category limits CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category limits CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
     
     except QuotaUserVcpuExceeded:
         log.error("Quota for user "+id+" to allocate vCPU is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user quota vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user quota vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupVcpuExceeded:
         log.error("Quota for user "+id+" to allocate vCPU in his group is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user group limits vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user group limits vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryVcpuExceeded:
         log.error("Quota for user "+id+" to allocate vCPU in his category is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category limits vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category limits vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
 
     except QuotaUserMemoryExceeded:
         log.error("Quota for user "+id+" to allocate MEMORY is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user quota MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user quota MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupMemoryExceeded:
         log.error("Quota for user "+id+" for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user group limits MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user group limits MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryMemoryExceeded:
         log.error("Quota for user "+id+" category for desktop MEMORY allocation is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category limits MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category limits MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
 
     except Exception as e:
         error = traceback.format_exc()

@@ -271,25 +271,25 @@ def api_v2_desktop_new():
         quotas.DesktopCreateAndStart(user_id)
     except QuotaUserConcurrentExceeded:
         log.error("Quota for user "+user_id+" for starting another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user quota CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user quota CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryConcurrentExceeded:
         log.error("Quota for user "+user_id+" category for starting another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category quota CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category quota CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryVcpuExceeded:
         log.error("Quota for user "+user_id+" category for desktop vCPU allocation is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category quota vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category quota vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryMemoryExceeded:
         log.error("Quota for user "+user_id+" category for desktop MEMORY allocation is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category quota MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category quota MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaUserNewDesktopExceeded:
         log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupNewDesktopExceeded:
         log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryNewDesktopExceeded:
         log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"DesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -303,22 +303,22 @@ def api_v2_desktop_new():
         return json.dumps({'id': desktop_id}), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
         log.error("Desktop for user "+user_id+" from template "+template+", user not found")
-        return json.dumps({"code":1,"msg":"DestopNew user not found"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":1,"msg":"DesktopNew user not found"}), 404, {'Content-Type': 'application/json'}
     except TemplateNotFound:
         log.error("Desktop for user "+user_id+" from template "+template+" template not found.")
         return json.dumps({"code":2,"msg":"DesktopNew template not found"}), 404, {'Content-Type': 'application/json'}
     except DesktopNotCreated:
         log.error("Desktop for user "+user_id+" from template "+template+" creation failed.")
         carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":1,"msg":"DestopNew not created"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":1,"msg":"DesktopNew not created"}), 404, {'Content-Type': 'application/json'}
     except DesktopActionTimeout:
         log.error("Desktop for user "+user_id+" from template "+template+" start timeout.")
         carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":2,"msg":"DestopNew start timeout"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":2,"msg":"DesktopNew start timeout"}), 404, {'Content-Type': 'application/json'}
     except DesktopActionFailed:
         log.error("Desktop for user "+user_id+" from template "+template+" start failed.")
         carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":3,"msg":"DestopNew start failed"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":3,"msg":"DesktopNew start failed"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -403,13 +403,13 @@ def api_v2_persistent_desktop_new():
         quotas.DesktopCreate(user_id)
     except QuotaUserNewDesktopExceeded:
         log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupNewDesktopExceeded:
         log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryNewDesktopExceeded:
         log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDestopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -424,14 +424,14 @@ def api_v2_persistent_desktop_new():
         return json.dumps({'id': desktop_id}), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
         log.error("Desktop for user "+user_id+" from template "+template_id+", user not found")
-        return json.dumps({"code":1,"msg":"PersistentDestopNew user not found"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":1,"msg":"PersistentDesktopNew user not found"}), 404, {'Content-Type': 'application/json'}
     except TemplateNotFound:
         log.error("Desktop for user "+user_id+" from template "+template_id+" template not found.")
         return json.dumps({"code":2,"msg":"PersistentDesktopNew template not found"}), 404, {'Content-Type': 'application/json'}
     except DesktopNotCreated:
         log.error("Desktop for user "+user_id+" from template "+template_id+" creation failed.")
         carbon.send({'create_and_start_time':'100'})
-        return json.dumps({"code":1,"msg":"PersistentDestopNew not created"}), 404, {'Content-Type': 'application/json'}
+        return json.dumps({"code":1,"msg":"PersistentDesktopNew not created"}), 404, {'Content-Type': 'application/json'}
     ### Needs more!
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
