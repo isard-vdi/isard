@@ -12,7 +12,6 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard/backups:/isard/backups:rw
-      - /opt/isard-local/logs/webapp:/isard/logs:rw
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webapp.middlewares=webapp-auth@docker,webapp-path@docker"

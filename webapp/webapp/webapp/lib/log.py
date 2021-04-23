@@ -20,8 +20,4 @@ except Exception as e:
 LOG_FORMAT='%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s'
 LOG_DATE_FORMAT='%Y/%m/%d %H:%M:%S'
 LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
-# ~ log.basicConfig(format=LOG_FORMAT,datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
-
-log.basicConfig(filename='logs/webapp.log',
-                            filemode='a',
-                            format=LOG_FORMAT,datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
+log.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT, level=LOG_LEVEL_NUM)
