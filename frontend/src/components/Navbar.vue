@@ -13,14 +13,18 @@
         <b-navbar-nav>
           <b-nav-item v-b-modal.help_modal>
             <b-icon icon="question-circle-fill" scale="1.5" class="mr-2"></b-icon>
-            {{ $t("components.help.title") }}
+            {{ $t("components.navbar.help") }}
+          </b-nav-item>
+          <b-nav-item @click="fetchVpn()">
+            <b-icon icon="shield-lock" scale="1.5" class="mr-2"></b-icon>
+            {{ $t("components.navbar.vpn.download") }}
           </b-nav-item>
           <b-nav-item
             v-if="config['show_admin_button']"
             href="/isard-admin/login"
           >
             <b-icon icon="gear" scale="1.5" class="mr-2"></b-icon>
-            {{ $t("views.login.admin") }}
+            {{ $t("components.navbar.admin") }}
           </b-nav-item>
         </b-navbar-nav>
         <b-navbar-nav class="ml-auto">
@@ -58,7 +62,7 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['logout'])
+    ...mapActions(['logout', 'fetchVpn'])
   }
 }
 </script>
