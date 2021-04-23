@@ -3,6 +3,9 @@ services:
   isard-backend:
     container_name: isard-backend
     image: ${DOCKER_IMAGE_PREFIX}backend:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      options:
+        max-size: "100m"
     ports:
       - "1312:1312"
     networks:
@@ -17,6 +20,9 @@ services:
   isard-redis:
     container_name: isard-redis
     image: redis:6-alpine
+    logging:
+      options:
+        max-size: "100m"
     networks:
       - isard-network
     restart: unless-stopped

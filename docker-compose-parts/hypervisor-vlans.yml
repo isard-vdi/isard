@@ -8,6 +8,9 @@ services:
 
   isard-pipework:
     image: dreamcat4/pipework
+    logging:
+      options:
+        max-size: "100m"
     container_name: isard-pipework
     restart: always
     volumes:

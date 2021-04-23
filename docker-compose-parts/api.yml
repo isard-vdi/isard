@@ -3,6 +3,9 @@ services:
   isard-api:
     container_name: isard-api
     image: ${DOCKER_IMAGE_PREFIX}api:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      options:
+        max-size: "100m"
     ports:
       - "7039:7039"
     networks:

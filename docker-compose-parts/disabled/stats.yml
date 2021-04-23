@@ -3,6 +3,9 @@ services:
   isard-stats:
     container_name: isard-stats
     image: ${DOCKER_IMAGE_PREFIX}stats:${DOCKER_IMAGE_TAG-latest}
+    logging:
+      options:
+        max-size: "100m"
     networks:
       - isard-network
     restart: unless-stopped
