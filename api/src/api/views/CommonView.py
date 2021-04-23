@@ -57,8 +57,8 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
         )
 
     try:
-        viewer = common.DesktopViewer(desktop_id, protocol)
-        return json.dumps({"viewer": viewer}), 200, {"Content-Type": "application/json"}
+        viewer = common.DesktopViewer(desktop_id, protocol, get_cookie=True)
+        return json.dumps(viewer), 200, {"Content-Type": "application/json"}
     except DesktopNotFound:
         log.error(
             "Viewer for desktop "

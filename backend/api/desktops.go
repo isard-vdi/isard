@@ -138,32 +138,8 @@ func (a *API) desktopViewer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := getCookie(r)
+	viewer, err := a.env.Isard.Viewer(desktopId, viewerType)
 	if err != nil {
-		handleErr(err, w, r)
-	}
-
-	switch viewerType {
-	case "spice":
-		viewer, err := a.env.Isard.ViewerRemote(desktopId)
-		if err != nil {
-			handleErr(err, w, r)
-			return
-		}
-
-		c.RemoteViewer = viewer
-
-	case "browser":
-		viewer, err := a.env.Isard.ViewerHTML(desktopId)
-		if err != nil {
-			handleErr(err, w, r)
-			return
-		}
-
-		c.WebViewer = viewer
-	}
-
-	if err := c.save(w); err != nil {
 		handleErr(err, w, r)
 		return
 	}
@@ -174,5 +150,6 @@ func (a *API) desktopViewer(w http.ResponseWriter, r *http.Request) {
 		"usr", u.ID(),
 	)
 
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(viewer)
 }
