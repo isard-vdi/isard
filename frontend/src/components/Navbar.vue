@@ -28,13 +28,13 @@
           </b-nav-item>
         </b-navbar-nav>
         <b-navbar-nav class="ml-auto">
-          <b-nav-item right>
+          <b-nav-text right>
             <b-avatar class="mr-3" v-if="user.photo" :src="user.photo" :size="35"></b-avatar>
             <b-avatar class="mr-3" :size="35" v-else></b-avatar>
             <span class="mr-auto">{{ user.name }} [{{ user.role }}]</span>
-          </b-nav-item>
-          <b-nav-item href="#" @click="logout()" class="mt-1" right>
-            <b-icon variant="danger" icon="power" scale="1"></b-icon>
+          </b-nav-text>
+          <b-nav-item @click="logout()" class="mt-1" right>
+            <b-icon variant="danger" icon="power" scale="1.5"></b-icon>
           </b-nav-item>
         </b-navbar-nav>
       </b-collapse>
