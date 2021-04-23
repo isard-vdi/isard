@@ -38,7 +38,9 @@ class isardScheduler():
         self.scheduler.remove_all_jobs()
         #self.scheduler.add_job(alarm, 'date', run_date=alarm_time, args=[datetime.now()])
         #app.sched.shutdown(wait=False)
+        #self.add_scheduler('interval','stop_shutting_down_desktops','0','1')
         self.turnOn()
+        self.add_scheduler('interval','stop_shutting_down_desktops','0','1')
         
         
     def add_scheduler(self,kind,action,hour,minute):
@@ -61,10 +63,18 @@ class isardScheduler():
     def stop_domains():
         with app.app_context():
             r.table('domains').get_all('Started',index='status').update({'status':'Stopping'}).run(db.conn)
-    
+
     def stop_domains_without_viewer():
         with app.app_context():
             r.table('domains').get_all('Started',index='status').filter({'viewer':{'client_since':False}}).update({'status':'Stopping'}).run(db.conn)
+
+    def stop_shutting_down_desktops():
+        with app.app_context():
+            domains=r.table('domains').get_all('Shutting-down',index='status').pluck('id','accessed').run(db.conn)
+            t=time.time()
+            for d in domains:
+                if d['accessed']+1.9*60 < t: # 2 minutes * 60 seconds
+                    r.table('domains').get(d['id']).update({'status':'Stopping','accessed':time.time()}).run(db.conn)
 
     def check_ephimeral_status():
         with app.app_context():

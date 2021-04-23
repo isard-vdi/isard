@@ -335,30 +335,11 @@ $(document).ready(function() {
 				}          
                 break;
             case 'btn-stop':
-                socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
-				//~ new PNotify({
-						//~ title: 'Unplug desktop warning!',
-							//~ text: "It is NOT RECOMMENDED to continue and turn off desktop "+ name+".\n \
-								   //~ Please, properly shut down desktop from inside viewer \n\n \
-								   //~ Turn off desktop? "+ name+"?",
-							//~ hide: false,
-							//~ opacity: 0.9,
-							//~ confirm: {
-								//~ confirm: true
-							//~ },
-							//~ buttons: {
-								//~ closer: false,
-								//~ sticker: false
-							//~ },
-							//~ history: {
-								//~ history: false
-							//~ },
-							//~ addclass: 'pnotify-center'
-						//~ }).get().on('pnotify.confirm', function() {
-							//~ api.ajax('/isard-admin/domains/update','POST',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {
-                			//~ }); 
-						//~ }).on('pnotify.cancel', function() {
-				//~ });	
+                if(data['status']=='Shutting-down'){
+                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
+                }else{
+                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Shutting-down'})
+                }
                 break;
             case 'btn-display':
 				new PNotify({
@@ -915,34 +896,26 @@ function renderHypStarted(data){
 }
 
 function renderAction(data){
-		status=data.status;
-        if(status=='Crashed'){
-            return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
-        } 
-        if(status=='Stopped' || status=='Failed'){
-            if(url=='Desktops'){
-                return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
-            }else{
-                return '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>';
-            }
-        }
-        if(status=='Started'){
-            if(url=='Desktops'){
-                return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
-            }else{
-                return '<i class="fa fa-stop"></i>';
-            }
-        } 
-
-        if(status=='Disabled' || status =='Manteinance'){
-                return '<i class="fa fa-times fa-2x"></i>';
-        }         
-        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';        
+    status=data.status;
+    if(status=='Stopped' || status=='Failed'){
+        return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
+    }
+    if(status=='Started'){
+        return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
+    }
+    if(status=='Shutting-down'){
+        return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-spinner fa-pulse fa-fw"></i> Force stop</button>';
+    } 
+    if(status=='Crashed'){
+        return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
+    } 
+    if(status=='Disabled'){
+            return '<i class="fa fa-times fa-2x"></i>';
+    }
+    return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }	
 
-
 function populate_tree_template_delete(id){
-
     $("#modalDeleteTemplate .tree_template_delete").fancytree({
         extensions: ["table"],
         table: {
