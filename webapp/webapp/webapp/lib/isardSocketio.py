@@ -975,7 +975,7 @@ DOMAINS
 def socketio_domains_add(form_data):
     exceeded = quotas.check('NewDesktop',current_user.id)
     if exceeded != False:
-        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+create_dict['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+form_data['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/isard-admin/sio_users', 
@@ -1002,7 +1002,7 @@ def socketio_domains_add(form_data):
 def socketio_admin_domains_add(form_data):
     exceeded = quotas.check('NewDesktop',current_user.id)
     if exceeded != False:
-        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+create_dict['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+form_data['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/isard-admin/sio_admins', 
@@ -1439,7 +1439,7 @@ def socketio_media_add(form_data):
 def socketio_admin_domains_media_add(form_data):
     exceeded = quotas.check('NewDesktop',current_user.id)
     if exceeded != False:
-        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+create_dict['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+form_data['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/isard-admin/sio_users', 
@@ -1471,7 +1471,7 @@ def socketio_admin_domains_media_add(form_data):
 def socketio_domains_media_add(form_data):
     exceeded = quotas.check('NewDesktop',current_user.id)
     if exceeded != False:
-        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+create_dict['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+form_data['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
         socketio.emit('add_form_result',
                         data,
                         namespace='/isard-admin/sio_users', 
