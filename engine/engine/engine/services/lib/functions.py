@@ -564,7 +564,7 @@ libvirt.VIR_DOMAIN_PMSUSPENDED'''
 dict_domain_libvirt_state_to_isard_state = {'running': 'Started',
                                             'locked': 'Failed',
                                             'paused': 'Paused',
-                                            'shutdown': 'Started',
+                                            'shutdown': 'Shutting-down',
                                             'shutoff': 'Stopped',
                                             'crashed': 'Failed',
                                             'nostate': 'Failed',

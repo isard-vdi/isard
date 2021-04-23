@@ -1041,14 +1041,14 @@ class hyp(object):
             except Exception as e:
                 log.error('error when hypervisor have not rethink id. {}'.format(e))
                 return False
-        l_all_domains = get_domains_with_status_in_list(list_status=['Started', 'Stopped', 'Failed'])
+        l_all_domains = get_domains_with_status_in_list(list_status=['Started', 'Shutting-down', 'Stopped', 'Failed'])
         for d in l_all_domains:
             if d['id'] in domains_with_stats:
-                if d['status'] == 'Started':
+                if d['status'] == 'Started' or d['status'] == 'Shutting-down':
                     #if status started check if has the same hypervisor
                     if d['hyp_started'] != self.id_hyp_rethink:
                         log.error(f"Domain {d['id']} started in hypervisor ({self.id_hyp_rethink}) but database says that is started in {d['hyp_started']} !! ")
-                        update_domain_status(status='Started',
+                        update_domain_status(status=d['status'],
                                              id_domain='_admin_downloaded_tetros',
                                              detail=f'Started in other hypervisor!! {self.id_hyp_rethink}. Updated by status thread',
                                              hyp_id=self.id_hyp_rethink)

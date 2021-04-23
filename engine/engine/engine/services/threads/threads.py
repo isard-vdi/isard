@@ -360,6 +360,7 @@ def set_domains_coherence(dict_hyps_ready):
         # update domain_status
         update_all_domains_status(reset_status='Stopped', from_status=['Starting'])
         update_all_domains_status(reset_status='Started', from_status=['Stopping'])
+        update_all_domains_status(reset_status='Started', from_status=['Shutdown'])
         domains_started_in_rethink = get_domains_started_in_hyp(hyp_id)
         domains_are_started = []
 

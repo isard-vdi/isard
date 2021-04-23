@@ -624,7 +624,7 @@ class ManagerHypervisors(object):
                 if old_status == 'Stopped' and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
 
-                if old_status != 'Started' and new_status == "Deleting":
+                if old_status not in ['Started','Shutting-down'] and new_status == "Deleting":
                     # or \
                     #     old_status == 'Failed' and new_status == "Deleting" or \
                     #     old_status == 'Downloaded' and new_status == "Deleting":
@@ -661,7 +661,17 @@ class ManagerHypervisors(object):
                         (old_status == 'Failed' and new_status == "Starting"):
                     ui.start_domain_from_id(id=domain_id, ssl=True)
 
+                if (old_status == 'Started' and new_status == "Shutdown" ):
+                    # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
+                    # ui.stop_domain_from_id(id=domain_id)
+                    hyp_started = get_domain_hyp_started(domain_id)
+                    if hyp_started:
+                        ui.shutdown_domain(id_domain=domain_id, hyp_id=hyp_started)
+                    else:
+                        logs.main.error('domain without hyp_started can not be stopped: {}. '.format(domain_id))
+
                 if (old_status == 'Started' and new_status == "Stopping" ) or \
+                   (old_status == 'Shutting-down' and new_status == "Stopping" ) or \
                         (old_status == 'Suspended' and new_status == "Stopping" ):
                     # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
                     # ui.stop_domain_from_id(id=domain_id)

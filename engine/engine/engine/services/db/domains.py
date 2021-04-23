@@ -162,7 +162,7 @@ def update_domain_hyp_stopped(id_domain, status='Stopped'):
 
 
 def update_all_domains_status(reset_status='Stopped',
-                              from_status=['Starting', 'Stopping', 'Started']):
+                              from_status=['Starting', 'Stopping', 'Started','Shutdown','Shutting-down']):
     r_conn = new_rethink_connection()
     if from_status is None:
         results = r.table('domains').update({'status': reset_status}).run(r_conn)
@@ -449,7 +449,7 @@ def set_unknown_domains_not_in_hyps(hyps):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
 
-    status_to_unknown = ['Started', 'Paused', 'Unknown']
+    status_to_unknown = ['Started', 'Paused', 'Shutting-down', 'Shutdown', 'Unknown']
 
     l = list(rtable.filter(lambda d: r.expr(status_to_unknown).contains(d['status'])).
              filter(lambda d: r.not_(r.expr(hyps).contains(d['hyp_started']))).
