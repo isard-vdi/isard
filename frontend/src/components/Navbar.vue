@@ -20,7 +20,7 @@
             {{ $t("components.navbar.vpn.download") }}
           </b-nav-item>
           <b-nav-item
-            v-if="config['show_admin_button']"
+            v-if="user.role != 'user' || config['show_admin_button']"
             href="/isard-admin/login"
           >
             <b-icon icon="gear" scale="1.5" class="mr-2"></b-icon>

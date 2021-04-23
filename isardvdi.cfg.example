@@ -6,7 +6,7 @@ HOSTNAME=localhost
 
 ## Frontend Administration Button
 ## With this variable you can control if there is a button in the simplified
-## interface (frontend) to go to administration login.
+## interface (frontend) to go to administration login for users of role User.
 ## True: show button
 ## False (or variable not defined): don't show the button
 FRONTEND_SHOW_ADMIN_BTN=True
