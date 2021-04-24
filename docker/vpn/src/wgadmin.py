@@ -45,15 +45,15 @@ while True:
                 elif data['old_val']['table'] == 'domains':
                     wg_users.desktop_iptables(data)
                 continue
-            if data['old_val'] == None:
+            elif data["old_val"] is None:
                 ### New 
                 log.info('New: '+data['new_val']['id']+' found...')
                 if data['new_val']['table'] in ['users','remotevpn']:
                     wg_users.add_peer(data['new_val'], table=data['new_val']['table'])
-                elif data['old_val'].get('table') == 'hypers':
+                elif data["new_val"]["table"] == "hypers":
                     if data['new_val']['id']=='isard-hypervisor': continue
                     wg_hypers.add_peer(data['new_val'])
-                elif data['old_val']['table'] == 'domains':
+                elif data["new_val"]["table"] == "domains":
                     wg_users.desktop_iptables(data)                    
             else:
                 ### Update
