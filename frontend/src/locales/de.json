@@ -90,7 +90,8 @@
             "persistent": "Dauerhafte Arbeitsoberflächen",
             "viewer-name": {
                 "spice": "SPICE",
-                "browser": "Browser"
+                "browser": "Browser",
+                "rdp": "RDP"
             },
             "viewer": "{name}-Bildbetrachter",
             "viewers": "Bildbetrachter"
@@ -136,7 +137,19 @@
     },
     "components": {
         "navbar": {
-            "admin": "Verwaltung"
+            "admin": "Verwaltung",
+            "vpn": {
+                "downloadvpn-error": {
+                    "description": "Wir konnten die VPN-Konfigurationsdatei aufgrund eines Fehlers nicht herunterladen",
+                    "title": "Fehler"
+                },
+                "downloaded": {
+                    "description": "Die VPN-Konfigurationsdatei wurde erfolgreich heruntergeladen",
+                    "title": "Heruntergeladen"
+                },
+                "download": "VPN"
+            },
+            "help": "Hilfe"
         },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
