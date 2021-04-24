@@ -48,7 +48,7 @@ class UiActions(object):
 
 
     ### STARTING DOMAIN
-    def start_domain_from_id(self, id, ssl=True):
+    def start_domain_from_id(self, id, ssl=True, starting_paused=False):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
 
         id_domain = id
@@ -75,7 +75,10 @@ class UiActions(object):
                                  detail="DomainXML can not parse and modify xml to start")
             return False
         else:
-            hyp = self.start_domain_from_xml(xml, id_domain, pool_id=pool_id)
+            if starting_paused is True:
+                hyp = self.start_domain_from_xml(xml, id_domain, pool_id=pool_id, action='start_paused_domain')
+            else:
+                hyp = self.start_domain_from_xml(xml, id_domain, pool_id=pool_id)
             return hyp
 
     def start_paused_domain_from_xml(self, xml, id_domain, pool_id='default'):
@@ -800,8 +803,19 @@ class UiActions(object):
             kind = get_domain_kind(id_domain)
             if kind == 'desktop':
                 cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model', DEFAULT_HOST_MODE)
-                xml_to_test = recreate_xml_to_start(id_domain,ssl,cpu_host_model)
-                self.start_paused_domain_from_xml(xml=xml_to_test, id_domain=id_domain, pool_id=pool_id)
+                try:
+                    xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
+                except Exception as e:
+                    log.error('recreate_xml_to_start in domain {}'.format(id_domain))
+                    log.error('Traceback: \n .{}'.format(traceback.format_exc()))
+                    log.error('Exception message: {}'.format(e))
+                    xml = False
+                if xml is False:
+                    update_domain_status('Failed', id_domain,
+                                         detail="DomainXML can not parse and modify xml to start")
+                    return False
+
+                self.start_paused_domain_from_xml(xml=xml, id_domain=id_domain, pool_id=pool_id)
             else:
                 update_domain_status('Stopped', id_domain,
                                      detail='Updating finalished, ready to derivate desktops')

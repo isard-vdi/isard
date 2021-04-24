@@ -657,6 +657,10 @@ class ManagerHypervisors(object):
                                              hyp_id=False,
                                              detail='Waiting to create more disks for template')
 
+                if (old_status == 'Stopped' and new_status == "StartingPaused") or \
+                        (old_status == 'Failed' and new_status == "StartingPaused"):
+                    ui.start_domain_from_id(id=domain_id, ssl=True, starting_paused=True)
+
                 if (old_status == 'Stopped' and new_status == "Starting") or \
                         (old_status == 'Failed' and new_status == "Starting"):
                     ui.start_domain_from_id(id=domain_id, ssl=True)
