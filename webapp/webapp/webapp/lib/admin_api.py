@@ -72,8 +72,14 @@ class isardAdmin():
 
     def multiple_action(self, table, action, ids):
         with app.app_context():
+            if action == 'soft_toggle':
+                domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)+self.multiple_check_field(table,'status','Failed',ids)
+                domains_started=self.multiple_check_field(table,'status','Started',ids)
+                res_stopped=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn)
+                res_started=r.table(table).get_all(r.args(domains_started)).update({'status':'Shutting-down'}).run(db.conn)
+                return True
             if action == 'toggle':
-                domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)
+                domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)+self.multiple_check_field(table,'status','Failed',ids)
                 domains_started=self.multiple_check_field(table,'status','Started',ids)
                 res_stopped=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Starting'}).run(db.conn)
                 res_started=r.table(table).get_all(r.args(domains_started)).update({'status':'Stopping'}).run(db.conn)
@@ -81,22 +87,27 @@ class isardAdmin():
             if action == 'delete':
                 domains_deleting=self.multiple_check_field(table,'status','Deleting',ids)
                 res=r.table(table).get_all(r.args(domains_deleting)).delete().run(db.conn) 
-                                
-                domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)
-                res=r.table(table).get_all(r.args(domains_stopped)).update({'status':'Deleting'}).run(db.conn)
-                domains_disabled=self.multiple_check_field(table,'status','Disabled',ids)
-                res=r.table(table).get_all(r.args(domains_disabled)).update({'status':'Deleting'}).run(db.conn)                
-                domains_failed=self.multiple_check_field(table,'status','Failed',ids)
-                res=r.table(table).get_all(r.args(domains_failed)).update({'status':'Deleting'}).run(db.conn) 
-                domains_creating=self.multiple_check_field(table,'status','Creating',ids)
-                res=r.table(table).get_all(r.args(domains_creating)).update({'status':'Deleting'}).run(db.conn)                                              
-                domains_creatingdisk=self.multiple_check_field(table,'status','CreatingDisk',ids)
-                res=r.table(table).get_all(r.args(domains_creatingdisk)).update({'status':'Deleting'}).run(db.conn) 
-                domains_creatingstarting=self.multiple_check_field(table,'status','CreatingAndStarting',ids)
-                res=r.table(table).get_all(r.args(domains_creatingstarting)).update({'status':'Deleting'}).run(db.conn) 
+
+                domains=self.multiple_check_field(table,'status','Stopped',ids) + \
+                        self.multiple_check_field(table,'status','Disabled',ids) + \
+                        self.multiple_check_field(table,'status','Failed',ids) + \
+                        self.multiple_check_field(table,'status','Creating',ids) + \
+                        self.multiple_check_field(table,'status','CreatingDisk',ids) + \
+                        self.multiple_check_field(table,'status','CreatingAndStarting',ids)
+                res=r.table(table).get_all(r.args(domains)).update({'status':'Deleting'}).run(db.conn) 
                 return True
             if action == 'force_failed':
                 res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Failed'}).run(db.conn)
+                return True
+            if action == 'shutting_down':
+                domains_started=self.multiple_check_field(table,'status','Started',ids)
+                res_deleted=r.table(table).get_all(r.args(domains_started)).update({'status':'Shutting-down'}).run(db.conn)
+                return True
+            if action == 'stopping':
+                domains_shutting_down=self.multiple_check_field(table,'status','Shutting-down',ids)
+                domains_started=self.multiple_check_field(table,'status','Started',ids)
+                domains=domains_shutting_down+domains_started
+                res_deleted=r.table(table).get_all(r.args(domains)).update({'status':'Stopping'}).run(db.conn)
                 return True
             if action == 'force_stopped':
                 res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Stopped'}).run(db.conn)
@@ -105,7 +116,13 @@ class isardAdmin():
                 domains_tostop=self.multiple_check_field(table,'status','Started',ids)
                 res=r.table(table).get_all(r.args(domains_tostop)).filter(~r.row.has_fields({'viewer':'client_since'})).update({'status':'Stopping'}).run(db.conn)
                 return True
-                
+            if action == "starting_paused":
+                domains_stopped=self.multiple_check_field(table,'status','Stopped',ids)
+                domains_failed=self.multiple_check_field(table,'status','Failed',ids)
+                domains=domains_stopped+domains_failed
+                res=r.table(table).get_all(r.args(domains)).update({'status':'StartingPaused'}).run(db.conn)
+                return True
+
     def multiple_check_field(self, table, field, value, ids):
         with app.app_context():
             return [d['id'] for d in list(r.table(table).get_all(r.args(ids)).filter({field:value}).pluck('id').run(db.conn))]

@@ -178,28 +178,32 @@ $(document).ready(function() {
 				}          
                 break;
             case 'btn-stop':
-				new PNotify({
-						title: 'Unplug desktop warning!',
-							text: "It is NOT RECOMMENDED to continue and turn off desktop "+ name+".\n \
-								   Please, properly shut down desktop from inside viewer \n\n \
-								   Turn off desktop? "+ name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
+                if(data['status']=='Started'){
+                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Shutting-down'})
+                }else{
+                    new PNotify({
+                        title: 'Unplug desktop warning!',
+                            text: "It is NOT RECOMMENDED to continue and turn off desktop "+ name+".\n \
+                                Please, properly shut down desktop from inside viewer \n\n \
+                                Turn off desktop? "+ name+"?",
+                            hide: false,
+                            opacity: 0.9,
+                            confirm: {
+                                confirm: true
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            },
                             addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
+                        }).get().on('pnotify.confirm', function() {
                             socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
-						}).on('pnotify.cancel', function() {
-				});	
+                        }).on('pnotify.cancel', function() {
+                    });
+                }
                 break;
             case 'btn-display':
                 setViewerButtons(data['id'],socket);
@@ -612,75 +616,78 @@ function renderName(data){
 }
 
 function renderIcon(data){
-		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+    return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
 }
 
 function renderStatus(data,table){
-        if(data.status =='Started' && 'ephimeral' in data && !countdown[data.id]){
-                countdown[data.id]=setInterval(function(){
-                    if(data.finish < moment().unix()){clearInterval(countdown[data.id]);}
-                    data.description="<b style='color:red'>REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+' seconds</b>'
-                    dtUpdateInsert(table,data,false);
-                    },1000);
-        }
-		return data.status;
+    if(data.status =='Started' && 'ephimeral' in data && !countdown[data.id]){
+            countdown[data.id]=setInterval(function(){
+                if(data.finish < moment().unix()){clearInterval(countdown[data.id]);}
+                data.description="<b style='color:red'>REMAINIG STARTED DESKTOP TIME: "+moment.unix(data.ephimeral.finish).diff(moment(), "seconds")+' seconds</b>'
+                dtUpdateInsert(table,data,false);
+                },1000);
+    }
+    return data.status;
 }
-	
+
 function renderAction(data){
-		status=data.status;
-        if(status=='Stopped' || status=='Failed'){
-            return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
-        }
-        if(status=='Started'){
-            return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
-        } 
-        if(status=='Crashed'){
-            return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
-        } 
-        if(status=='Disabled'){
-                return '<i class="fa fa-times fa-2x"></i>';
-        }            
-        return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
-}	
+    status=data.status;
+    if(status=='Stopped' || status=='Failed'){
+        return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
+    }
+    if(status=='Started'){
+        return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
+    }
+    if(status=='Shutting-down'){
+        return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-spinner fa-pulse fa-fw"></i> Force stop</button>';
+    } 
+    if(status=='Crashed'){
+        return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
+    } 
+    if(status=='Disabled'){
+            return '<i class="fa fa-times fa-2x"></i>';
+    }
+    return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
+}
 
 function renderMedia(data){
-        html=''
-        if('isos' in data.create_dict.hardware){
-            $.each(data.create_dict.hardware.isos,function(key, value){
-                html+='<i class="fa fa-circle-o fa-2x" title="ISO cd file"></i> ';
-                //html+='<i class="fa fa-circle-o fa-2x" title="'+value.name+'"></i> ';
-            });
-        }
-        if('floppies' in data.create_dict.hardware){
-            $.each(data.create_dict.hardware.floppies,function(key, value){
-                html+='<i class="fa fa-floppy-o fa-2x" title="Floppy disk file"></i> ';
-            });
-        }
-        if('storage' in data.create_dict.hardware){
-            $.each(data.create_dict.hardware.storage,function(key, value){
-                html+='<i class="fa fa-hdd-o fa-2x" title="Storage disk file"></i> ';
-            });
-        }    
-        return html;
+    html=''
+    if('isos' in data.create_dict.hardware){
+        $.each(data.create_dict.hardware.isos,function(key, value){
+            html+='<i class="fa fa-circle-o fa-2x" title="ISO cd file"></i> ';
+            //html+='<i class="fa fa-circle-o fa-2x" title="'+value.name+'"></i> ';
+        });
+    }
+    if('floppies' in data.create_dict.hardware){
+        $.each(data.create_dict.hardware.floppies,function(key, value){
+            html+='<i class="fa fa-floppy-o fa-2x" title="Floppy disk file"></i> ';
+        });
+    }
+    if('storage' in data.create_dict.hardware){
+        $.each(data.create_dict.hardware.storage,function(key, value){
+            html+='<i class="fa fa-hdd-o fa-2x" title="Storage disk file"></i> ';
+        });
+    }    
+    return html;
 }
 
 function renderHotplugMedia(data){
-        html='<button class="btn btn-xs btn-hotplug" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button> '
-        if('hotplug' in data){
-            $.each(data.hotplug,function(key, value){
-                if(value.kind=='iso'){
-                    html+='<i class="fa fa-circle-o fa-2x" title="'+value.id+'"></i> ';
+    html='<button class="btn btn-xs btn-hotplug" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button> '
+    if('hotplug' in data){
+        $.each(data.hotplug,function(key, value){
+            if(value.kind=='iso'){
+                html+='<i class="fa fa-circle-o fa-2x" title="'+value.id+'"></i> ';
+            }
+            if(value.kind=='fd'){
+                if(value.status=='Plugging'){
+                    html+='<i class="fa fa-floppy-o fa-2x blink" title="'+value.name+'" style="color:#ff9933"></i> ';
+                }else{
+                    html+='<i class="fa fa-floppy-o fa-2x" title="'+value.name+'" style="color:#0c3300"></i> ';
                 }
-                if(value.kind=='fd'){
-                    if(value.status=='Plugging'){
-                        html+='<i class="fa fa-floppy-o fa-2x blink" title="'+value.name+'" style="color:#ff9933"></i> ';
-                    }else{
-                        html+='<i class="fa fa-floppy-o fa-2x" title="'+value.name+'" style="color:#0c3300"></i> ';
-                    }
-                }                
-            });
-        }
-        return html;
+            }                
+        });
+    }
+    return html;
 }
 
 function setDefaultsTemplate(id) {

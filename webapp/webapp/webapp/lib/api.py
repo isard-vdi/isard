@@ -56,6 +56,14 @@ class isard():
                         else:
                             return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Stopping':
+                        if dom["status"] == "Shutting-down":
+                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                                return json.dumps({'title':False,'text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
+                            else:
+                                return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                        else:
+                            return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+                    if data['value']=='Shutting-down':
                         if dom['status'] in ['Started']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                                 return json.dumps({'title':False,'text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'ContentType':'application/json'}
@@ -63,6 +71,7 @@ class isard():
                                 return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
                             return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
+
                     if data['value']=='Deleting':
                         if table=='media':
                             ''' WE SHOULD CHECK THAT DOMAINS ARE STOPPED '''
@@ -148,7 +157,7 @@ class isard():
             
     def update_table_value(self, table, id, field, value):
         with app.app_context():
-            return self.check(r.table(table).get(id).update({field: value}).run(db.conn),'replaced')
+            return self.check(r.table(table).get(id).update({field: value, 'accessed': time.time()}).run(db.conn),'replaced')
 
 
   
