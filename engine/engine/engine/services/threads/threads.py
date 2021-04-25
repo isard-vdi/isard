@@ -409,9 +409,9 @@ def try_hyp_connection(hyp_id, hostname, port, user):
 
         if len(hyp_obj.info['nvidia']) > 0:
             if len(default_gpu_models) < len(hyp_obj.info['nvidia']):
-                pass
-            default_gpu_models = {k:a['type_max_gpus'] for k,a in hyp_obj.info['nvidia'].items()}
-            update_db_default_gpu_models(hyp_id,default_gpu_models)
+
+                default_gpu_models = {k:a['type_max_gpus'] for k,a in hyp_obj.info['nvidia'].items()}
+                update_db_default_gpu_models(hyp_id,default_gpu_models)
 
             for gpu_id,d_info_gpu in hyp_obj.info['nvidia'].items():
                 if gpu_id not in uuids_gpu.keys():
@@ -422,7 +422,7 @@ def try_hyp_connection(hyp_id, hostname, port, user):
             for gpu_id,d_uids in d_hyp['nvidia_uids'].items():
                 selected_gpu_type = default_gpu_models[gpu_id]
                 info_nvidia = d_hyp['info']['nvidia'][gpu_id]
-                hyp_obj.delete_and_create_devices_if_not_exist(gpu_id,d_uids,info_nvidia,selected_gpu_type)
+                hyp_obj.delete_and_create_devices_if_not_exist(gpu_id,d_uids,info_nvidia,selected_gpu_type,hyp_id)
             if len(d_hyp['nvidia_uids']) > 0:
                 hyp_obj.update_started_uids()
 

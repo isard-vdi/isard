@@ -415,7 +415,7 @@ class hyp(object):
             d_uids[name] = d
         return d_uids
 
-    def delete_and_create_devices_if_not_exist(self,gpu_id,d_uids,info_nvidia,selected_gpu_type):
+    def delete_and_create_devices_if_not_exist(self,gpu_id,d_uids,info_nvidia,selected_gpu_type,hyp_id):
         cmds1 = list()
         path = info_nvidia['path']
         for type in d_uids.keys():
@@ -453,13 +453,13 @@ class hyp(object):
             append_uids = [a.split(':')[1].strip() for a in output_ok if a.find('create uuid')==0]
             remove_uids = [a.split(':')[1].strip() for a in output_ok if a.find('remove uuid')==0]
             if len(remove_uids) > 0:
-                ok = update_info_nvidia_hyp_domain('removed',remove_uids,self.id_hyp_rethink)
+                ok = update_info_nvidia_hyp_domain('removed',remove_uids,hyp_id)
             created += append_uids
             if len(created) > 0:
-                ok = update_info_nvidia_hyp_domain('created',created,self.id_hyp_rethink)
+                ok = update_info_nvidia_hyp_domain('created',created,hyp_id)
             if len([d['err'] for d in array_out_err if len(d['err'])>0]) > 0:
                 print('errors creating uids')
-                return False
+                return Falsegit
             return True
         else:
             return True
