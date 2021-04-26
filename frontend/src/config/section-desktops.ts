@@ -52,7 +52,7 @@ export const SectionDesktops: SectionConfig = {
     }`,
     create: `
     mutation CreateDesktop($name: String!) {
-      desktopCreate(input: {hardware: {baseId: "c1njso4tdj5q83bo02qg", memory: 1024, vcpus: 1}, name: $name}) {
+      desktopCreate(input:{hardware: {baseId: "c1q6pp0fp9cat3ibcv50", memory: 1024, vcpus: 1, disks: {description: "test disk", size: 10, name: "test", type: QCOW2}}, name: $name}) {
         recordId
       }
     }
@@ -65,7 +65,8 @@ export const SectionDesktops: SectionConfig = {
       { field: 'name', header: 'Name' },
       { field: 'description', header: 'Description' },
       { field: 'creationdate', header: 'Created' }
-    ]
+    ],
+    extraColumns: ['state']
   },
   detail: 'Desktop',
   defaultValues: {

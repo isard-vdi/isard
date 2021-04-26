@@ -5,5 +5,6 @@ namespace Types {
     creationDate: string;
     uuid: string;
     description: string;
+    state: string;
   }
 }

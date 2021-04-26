@@ -1,39 +1,56 @@
 <template>
   <div class="p-grid p-jc-end p-m-2">
-    <!-- buttons -->
-    <isard-button v-if="editMode" label="Cancel" @click.stop="endEditMode" />
+    <isard-button
+      v-if="editMode"
+      label="Cancel"
+      data-testid="buttCancel"
+      @click.stop="endEditMode"
+    />
     <isard-button
       v-if="editMode"
       label="Save"
       :disabled="!formChanged"
+      data-testid="buttSave"
       @click.stop="formChanged && $emit('savebutton-pressed')"
     />
     <isard-button
       v-if="!editMode && !createMode"
       label="Edit"
       :disabled="!editEnabled"
+      data-testid="buttEdit"
       @click.stop="goToEditMode"
     />
     <isard-button
       v-if="createMode"
       label="Save New"
+      class="buttSaveNew"
       @click.stop="$emit('savenewbutton-pressed')"
     />
   </div>
 </template>
 
 <script lang="ts">
-import IsardButton from './IsardButton.vue';
+import IsardButton from '@/components/shared/forms/IsardButton.vue';
 import { ActionTypes } from '@/store/actions';
 import { computed } from '@vue/runtime-core';
 import { useStore } from '@/store';
 
 export default {
+  name: 'MainFormButtons',
   components: { IsardButton },
   props: {
-    editEnabled: Boolean,
-    formChanged: Boolean,
-    createMode: Boolean
+    editEnabled: {
+      type: Boolean,
+      required: true
+    },
+    formChanged: {
+      type: Boolean,
+      required: true
+    },
+    createMode: {
+      type: Boolean,
+      required: true
+    }
   },
   emits: ['savebutton-pressed', 'savenewbutton-pressed'],
   setup(
@@ -58,8 +75,8 @@ export default {
 
     return {
       editMode,
-      endEditMode,
-      goToEditMode
+      goToEditMode,
+      endEditMode
     };
   }
 };

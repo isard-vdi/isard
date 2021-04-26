@@ -6,4 +6,11 @@
   </div>
 </template>
 
-<style></style>
+<script>
+import AppLayout from '@/views/AppLayout.vue';
+export default {
+  components: {
+    AppLayout: AppLayout
+  }
+};
+</script>

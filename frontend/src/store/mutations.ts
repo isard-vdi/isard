@@ -18,7 +18,8 @@ export enum MutationTypes {
   ACTIVATE_CREATE_MODE = 'ACTIVATE_CREATE_MODE',
   END_CREATE_MODE = 'END_CREATE_MODE',
   START_LOADING = 'START_LOADING',
-  STOP_LOADING = 'STOP_LOADING'
+  STOP_LOADING = 'STOP_LOADING',
+  CHANGE_DESKTOP_STATE = 'CHANGE_DESKTOP_STATE'
 }
 
 export type Mutations<S = State> = {
@@ -45,6 +46,10 @@ export type Mutations<S = State> = {
   [MutationTypes.END_CREATE_MODE](state: S, payload: {}): void;
   [MutationTypes.START_LOADING](state: S, payload: {}): void;
   [MutationTypes.STOP_LOADING](state: S, payload: {}): void;
+  [MutationTypes.CHANGE_DESKTOP_STATE](
+    state: S,
+    payload: { uuid: string; state: string }
+  ): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
@@ -64,7 +69,7 @@ export const mutations: MutationTree<State> & Mutations = {
       name: '',
       surname1: '',
       surname2: '',
-      status: '',
+      state: '',
       organizationId: '',
       roles: [],
       lastAttempt: '',
@@ -120,5 +125,9 @@ export const mutations: MutationTree<State> & Mutations = {
 
   [MutationTypes.STOP_LOADING](state: State) {
     state.ui.isLoading = false;
+  },
+  [MutationTypes.CHANGE_DESKTOP_STATE](state: State, payload) {
+    state.search.find((item) => item.uuid === payload.uuid).state =
+      payload.state;
   }
 };

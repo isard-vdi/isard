@@ -7,7 +7,7 @@ namespace Types {
     avatar: string;
     profile: string;
     email: string;
-    status: string;
+    state: string;
     organizationId: string;
     roles: string[];
     lastAttempt: string;

@@ -8,7 +8,8 @@ export interface SectionConfig {
     create?: string;
   };
   table: {
-    columns: { field: string; header: string }[];
+    columns: { field: string; header: string }[]; // Plain column
+    extraColumns?: string[]; // Hardcoded columns with templates
   };
   detail?: string;
   defaultValues?: any;

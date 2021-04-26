@@ -10,8 +10,12 @@
 
 <script lang="ts">
 import { useStore } from '@/store';
+import IsardButton from '@/components/shared/forms/IsardButton.vue';
 
 export default {
+  components: {
+    IsardButton: IsardButton
+  },
   props: {
     createEnabled: Boolean
   },

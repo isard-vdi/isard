@@ -61,8 +61,14 @@ import { useStore } from '@/store';
 import { cloneDeep } from 'lodash';
 import UpdateUtils from '@/utils/UpdateUtils';
 import { ActionTypes } from '@/store/actions';
+import IsardInputText from '@/components/shared/forms/IsardInputText.vue';
+import MainFormButtonsVue from '@/components/shared/forms/MainFormButtons.vue';
 
 export default defineComponent({
+  components: {
+    IsardInputText: IsardInputText,
+    MainFormButtons: MainFormButtonsVue
+  },
   setup() {
     const store = useStore();
     const desktop = reactive(cloneDeep(store.getters.detail));

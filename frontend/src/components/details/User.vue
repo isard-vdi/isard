@@ -71,9 +71,17 @@ import { cloneDeep } from 'lodash';
 import { computed, ComputedRef, defineComponent, reactive } from 'vue';
 import MainFormButtons from '@/components/shared/forms/MainFormButtons.vue';
 import UsersUtils from '@/utils/UsersUtils';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import IsardInputText from '@/components/shared/forms/IsardInputText.vue';
 
 export default defineComponent({
-  components: { MainFormButtons },
+  components: {
+    MainFormButtons: MainFormButtons,
+    IsardInputText: IsardInputText,
+    DataTable: DataTable,
+    Column: Column
+  },
   setup() {
     const store = useStore();
     const editEnabled = true;
