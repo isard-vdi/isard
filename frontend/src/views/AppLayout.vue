@@ -2,8 +2,8 @@
   <component :is="layout">
     <Dialog
       v-model:visible="isLoading"
-      modal="true"
-      show-header="false"
+      :modal="true"
+      :show-header="false"
       header="Cancel"
       style="width: 140px; background: rgba(255, 255, 255, 0.5)"
     >

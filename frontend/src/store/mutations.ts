@@ -19,7 +19,8 @@ export enum MutationTypes {
   END_CREATE_MODE = 'END_CREATE_MODE',
   START_LOADING = 'START_LOADING',
   STOP_LOADING = 'STOP_LOADING',
-  CHANGE_DESKTOP_STATE = 'CHANGE_DESKTOP_STATE'
+  CHANGE_DESKTOP_STATE = 'CHANGE_DESKTOP_STATE',
+  SAVE_USER_DATA = 'SAVE_USER_DATA'
 }
 
 export type Mutations<S = State> = {
@@ -50,6 +51,7 @@ export type Mutations<S = State> = {
     state: S,
     payload: { uuid: string; state: string }
   ): void;
+  [MutationTypes.SAVE_USER_DATA](state: S, payload: Types.User): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
@@ -129,5 +131,8 @@ export const mutations: MutationTree<State> & Mutations = {
   [MutationTypes.CHANGE_DESKTOP_STATE](state: State, payload) {
     state.search.find((item) => item.uuid === payload.uuid).state =
       payload.state;
+  },
+  [MutationTypes.SAVE_USER_DATA](state: State, payload: Types.User) {
+    state.auth.user = payload;
   }
 };
