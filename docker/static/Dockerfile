@@ -5,6 +5,7 @@ COPY frontend /isard-frontend
 
 WORKDIR /isard-frontend
 
+RUN apk add python3 make g++
 RUN yarn
 RUN yarn build
 
