@@ -67,7 +67,7 @@ class hyp(object):
 
         # dictionary of domains
         # self.id = 0
-        self.domains = []
+        self.domains = {}
         port=int(port)
         if (type(port) == int) and port > 1 and port < pow(2, 16):
             self.port = port
