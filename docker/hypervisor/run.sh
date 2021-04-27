@@ -31,6 +31,7 @@ do
   fi
 done
 
+iptables -I FORWARD -o eth0 -d $(ip -o -4 addr show dev eth0 | awk '{print $4}') -j REJECT
 
 echo "Checking hypervisor..."
 echo "[1/1] basic domain start..."
