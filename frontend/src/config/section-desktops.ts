@@ -60,11 +60,11 @@ export const SectionDesktops: SectionConfig = {
   },
   table: {
     columns: [
-      { field: 'id', header: 'ID' },
-      { field: 'uuid', header: 'UUID' },
-      { field: 'name', header: 'Name' },
-      { field: 'description', header: 'Description' },
-      { field: 'creationdate', header: 'Created' }
+      { field: 'id', header: 'id' },
+      { field: 'uuid', header: 'uuid' },
+      { field: 'name', header: 'name' },
+      { field: 'description', header: 'description' },
+      { field: 'creationdate', header: 'created' }
     ],
     extraColumns: ['state']
   },

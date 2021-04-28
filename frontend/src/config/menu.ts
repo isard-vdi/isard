@@ -1,78 +1,78 @@
 export const menu = [
   {
-    label: 'Desktops',
+    label: 'desktops',
     icon: 'pi pi-fw pi-desktop',
     to: { name: 'search', params: { section: 'desktops' } }
   },
   {
-    label: 'Templates',
+    label: 'templates',
     icon: 'pi pi-fw pi-clone',
     to: { name: 'search', params: { section: 'Templates' } }
   },
   {
-    label: 'Media',
+    label: 'media',
     icon: 'pi pi-fw pi-circle-off',
     to: { name: 'search', params: { section: 'Templates' } }
   },
   {
-    label: 'Users',
+    label: 'users',
     icon: 'pi pi-fw pi-users',
     to: { name: 'search', params: { section: 'users' } }
   },
   {
-    label: 'Entities',
+    label: 'entities',
     icon: 'pi pi-fw pi-sitemap',
     to: { name: 'search', params: { section: 'entities' } }
   },
   {
-    label: 'Groups',
+    label: 'groups',
     icon: 'pi pi-fw pi-list',
     to: { name: 'search', params: { section: 'Groups' } }
   },
   {
-    label: 'Resources',
+    label: 'resources',
     icon: 'pi pi-fw pi-folder-open',
     items: [
-      { label: 'Graphics', to: { name: '' } },
-      { label: 'Video', to: { name: '' } },
-      { label: 'Boots', to: { name: '' } },
-      { label: 'Interfaces', to: { name: '' } },
-      { label: 'Network Qos', to: { name: '' } },
-      { label: 'Disk Qos', to: { name: '' } }
+      { label: 'graphics', to: { name: '' } },
+      { label: 'video', to: { name: '' } },
+      { label: 'boots', to: { name: '' } },
+      { label: 'interfaces', to: { name: '' } },
+      { label: 'network_qos', to: { name: '' } },
+      { label: 'disk_qos', to: { name: '' } }
     ]
   },
   {
-    label: 'Updates',
+    label: 'updates',
     icon: 'pi pi-fw pi-download',
     items: [
-      { label: 'Domains', to: { name: '' } },
-      { label: 'Media', to: { name: '' } },
-      { label: 'Virt Installs', to: { name: '' } },
-      { label: 'Virt Builders', to: { name: '' } },
-      { label: 'Video Resources', to: { name: '' } },
-      { label: 'Viewers', to: { name: '' } }
+      { label: 'domains', to: { name: '' } },
+      { label: 'media', to: { name: '' } },
+      { label: 'virt_installs', to: { name: '' } },
+      { label: 'virt_builders', to: { name: '' } },
+      { label: 'video_resources', to: { name: '' } },
+      { label: 'viewers', to: { name: '' } }
     ]
   },
   {
-    label: 'Graphs',
+    label: 'graphs',
     icon: 'pi pi-fw pi-chart-bar',
     to: { name: '' }
   },
   {
-    label: 'Configuration',
+    label: 'configuration',
     icon: 'pi pi-fw pi-cog',
     items: [
-      { label: 'General', to: { name: 'config' } },
-      { label: 'Roles', to: { name: '' } },
-      { label: 'Job Schedulers', to: { name: '' } },
-      { label: 'Database Backups', to: { name: '' } },
-      { label: 'Authentications', to: { name: '' } },
-      { label: 'Hypervisors', to: { name: '' } },
-      { label: 'Hypervisors pools', to: { name: '' } }
+      { label: 'general', to: { name: 'config' } },
+      { label: 'roles', to: { name: '' } },
+      { label: 'job_schedulers', to: { name: '' } },
+      { label: 'database_backups', to: { name: '' } },
+      { label: 'authentications', to: { name: '' } },
+      { label: 'hypervisors', to: { name: '' } },
+      { label: 'hypervisors_pools', to: { name: '' } }
     ]
   },
   {
-    label: 'About',
+    label: 'about',
     icon: 'pi pi-fw pi-info-circle',
     to: { name: '' }
   }

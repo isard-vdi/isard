@@ -7,13 +7,13 @@
           v-for="col of sectionConfig.table?.columns"
           :key="col.field"
           :field="col.field"
-          :header="col.header"
+          :header="$t(`tables.headers.${col.header}`)"
         ></Column>
         <Column
           key="state"
           :style="{ display: showStateColumn ? 'table-cell' : 'none' }"
           column-key="state"
-          header="State"
+          :header="$t('tables.headers.state')"
         >
           <template #body="slotProps">
             <span
@@ -23,11 +23,11 @@
                   ((slotProps || {}).data || {}).state || 'default'
                 ).toLowerCase()
               "
-              >{{ slotProps.data.state }}</span
+              >{{ $t(`states.${slotProps.data.state}`) }}</span
             >
           </template>
         </Column>
-        <Column :exportable="false" header="Actions">
+        <Column :exportable="false" :header="$t('tables.headers.actions')">
           <template #body="slotProps">
             <Button
               icon="pi pi-pencil"

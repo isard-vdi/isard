@@ -1,7 +1,7 @@
 <template>
   <div class="p-grid p-jc-end p-m-2">
     <isard-button
-      label="Create New"
+      :label="$t('list-buttons.create-new')"
       :disabled="!createEnabled"
       @click="createEnabled && $emit('createbutton-pressed')"
     />

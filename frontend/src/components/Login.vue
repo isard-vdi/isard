@@ -10,18 +10,38 @@
         <template #content>
           <div class="p-fluid">
             <div class="p-field">
-              <label for="user">{{ $t('views.login.form.user') }}</label>
-              <InputText id="user" v-model.trim="user" type="text" />
+              <label for="user">{{ $t('views.login.form.user.label') }}</label>
+              <InputText
+                id="user"
+                v-model.trim="user"
+                type="text"
+                :placeholder="
+                  $t('views.login.form.placeholder', {
+                    field: $t('views.login.form.user.field')
+                  })
+                "
+              />
             </div>
             <div class="p-field">
-              <label for="password">{{ $t('views.login.form.key') }}</label>
+              <label for="password">{{
+                $t('views.login.form.pass.label')
+              }}</label>
               <div>
-                <InputText id="password" v-model.trim="password" type="text" />
+                <InputText
+                  id="password"
+                  v-model.trim="password"
+                  type="text"
+                  :placeholder="
+                    $t('views.login.form.placeholder', {
+                      field: $t('views.login.form.pass.field')
+                    })
+                  "
+                />
               </div>
             </div>
             <div class="p-field">
               <label for="organization">{{
-                $t('views.login.form.entity')
+                $t('views.login.form.entity.label')
               }}</label>
               <Dropdown
                 id="organization"
@@ -29,7 +49,11 @@
                 :options="dropdownValues"
                 option-label="name"
                 :filter="true"
-                placeholder="Select an entity"
+                :placeholder="
+                  $t('views.login.form.placeholder', {
+                    field: $t('views.login.form.entity.field')
+                  })
+                "
               >
                 <template #value="slotProps">
                   <div v-if="slotProps.value">
@@ -47,11 +71,22 @@
               </Dropdown>
             </div>
             <div class="p-field">
-              <label for="regcode">{{ $t('views.login.form.code') }}</label>
-              <InputText id="regcode" v-model.trim="regcode" type="text" />
+              <label for="regcode">{{
+                $t('views.login.form.code.label')
+              }}</label>
+              <InputText
+                id="regcode"
+                v-model.trim="regcode"
+                type="text"
+                :placeholder="
+                  $t('views.login.form.placeholder', {
+                    field: $t('views.login.form.code.field')
+                  })
+                "
+              />
             </div>
             <div>
-              <p v-if="!formIsValid">Enter a valid user and password</p>
+              <p v-if="!formIsValid">{{ $t('views.login.form.error') }}</p>
               <p v-else>
                 <br />
               </p>

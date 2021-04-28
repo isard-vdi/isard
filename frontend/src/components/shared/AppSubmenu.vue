@@ -24,7 +24,7 @@
         >
           <div @click="onMenuItemClick($event, item, i)">
             <i :class="item.icon"></i>
-            <span>{{ item.label }}</span>
+            <span>{{ $t(`menu.${item.label}`) }}</span>
             <i
               v-if="item.items"
               class="pi pi-fw pi-angle-down menuitem-toggle-icon"
@@ -44,7 +44,7 @@
           @click="onMenuItemClick($event, item, i)"
         >
           <i :class="item.icon"></i>
-          <span>{{ item.label }}</span>
+          <span>{{ $t(`menu.${item.label}`) }}</span>
           <i
             v-if="item.items"
             class="pi pi-fw pi-angle-down menuitem-toggle-icon"
