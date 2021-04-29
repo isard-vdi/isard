@@ -598,7 +598,7 @@ function icon(name){
 
 
 function renderDisplay(data){
-        if(data.status=='Stopping' || data.status =='Started'){
+        if(['Started', 'Shutting-down', 'Stopping'].includes(data.status)){
             return ' <div class="display"> \
 					<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
 					<i class="fa fa-desktop"></i> Show</button></div>';
