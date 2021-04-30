@@ -39,7 +39,7 @@ class isardViewer():
             domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options','user').run(db.conn)
         except DomainNotfound:
             raise
-        if not domain['status'] == 'Started':
+        if not domain["status"] in ["Started", "Shutting-down", "Stopping"]:
             raise DomainNotStarted
              
         if current_user != False:
