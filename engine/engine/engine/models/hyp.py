@@ -459,7 +459,7 @@ class hyp(object):
                 ok = update_info_nvidia_hyp_domain('created',created,hyp_id)
             if len([d['err'] for d in array_out_err if len(d['err'])>0]) > 0:
                 print('errors creating uids')
-                return Falsegit
+                return False
             return True
         else:
             return True
