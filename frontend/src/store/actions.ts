@@ -2,6 +2,7 @@ import { ActionContext, ActionTree } from 'vuex';
 import { MutationTypes, Mutations } from './mutations';
 import LoginService from '@/service/LoginService';
 import SearchService from '@/service/SearchService';
+import UserService from '@/service/UserService';
 import { State } from './state';
 import router from '@/router';
 import { store } from '.';
@@ -46,7 +47,9 @@ export enum ActionTypes {
   START_LOADING = 'START_LOADING',
   STOP_LOADING = 'STOP_LOADING',
   START_DESKTOP = 'START_DESKTOP',
-  CHANGE_DESKTOP_STATE = 'CHANGE_DESKTOP_STATE'
+  CHANGE_DESKTOP_STATE = 'CHANGE_DESKTOP_STATE',
+  SAVE_USER_DATA = 'SAVE_USER_DATA',
+  GET_USER_DATA = 'GET_USER_DATA'
 }
 
 /* Action Types*/
@@ -229,6 +232,16 @@ export interface Actions {
     { commit }: AugmentedActionContext,
     payload: { uuid: string; state: string }
   ): void;
+
+  [ActionTypes.SAVE_USER_DATA](
+    { commit }: AugmentedActionContext,
+    payload: Types.User
+  ): void;
+
+  [ActionTypes.GET_USER_DATA](
+    { commit }: AugmentedActionContext,
+    payload: { uuid: string }
+  ): void;
 }
 
 /****** ACTIONS ****/
@@ -246,12 +259,14 @@ export const actions: ActionTree<State, State> & Actions = {
       };
 
       store.dispatch(ActionTypes.REFRESH_CLIENT_TOKEN, payload);
+      store.dispatch(ActionTypes.GET_USER_DATA, { uuid: payload.userId });
       router.push({ name: DEFAULT_PAGE, params: { section: 'users' } });
     });
   },
 
   async [ActionTypes.REFRESH_TOKEN_FROM_SESSION]({ commit }, payload) {
     await ConnectionService.setClientHasura(payload.token);
+    store.dispatch(ActionTypes.GET_USER_DATA, { uuid: payload.userId });
     commit(MutationTypes.SET_LOGIN_DATA, payload);
   },
 
@@ -454,5 +469,17 @@ export const actions: ActionTree<State, State> & Actions = {
 
   [ActionTypes.STOP_LOADING]({ commit }, payload: boolean) {
     commit(MutationTypes.STOP_LOADING, payload);
+  },
+
+  [ActionTypes.SAVE_USER_DATA]({ commit }, payload: Types.User) {
+    commit(MutationTypes.SAVE_USER_DATA, payload);
+  },
+
+  async [ActionTypes.GET_USER_DATA]({ commit }, payload) {
+    await UserService.getUser(payload).then((response: any): any => {
+      const dataItem =
+        (response && response[Object.keys(response)[0]][0]) || {};
+      store.dispatch(ActionTypes.SAVE_USER_DATA, dataItem);
+    });
   }
 };

@@ -1,8 +1,8 @@
 stages:
- - unit-test
- - docker
- - deploy-merge
- - deploy-branch
+  - unit-test
+  - docker
+#  - deploy-merge
+#  - deploy-branch
 
 .cache:
   variables:
@@ -46,43 +46,42 @@ docker:
     - |-
       docker images --format="{{.Repository}}:{{.Tag}}" | grep "isard/isardvdi" | awk -v registry="$CI_REGISTRY_IMAGE" -v iid="$CI_MERGE_REQUEST_IID" -v slug="$CI_COMMIT_BRANCH" -F "[-:]" '{ print $0, registry "/" $2 ":" ((length(iid) == 0) ? slug : iid) }' | xargs -n2 docker tag
     - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push
+# deploy-merge:
+#   stage: deploy-merge
+#   only:
+#     - merge_requests
+#   script:
+#     - |-
+#       generate_post_data()
+#       {
+#         cat <<EOF
+#       {
+#           "type": "mr",
+#           "target_repo": "https://gitlab.com/isard/isardvdi",
+#           "target_branch": "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME",
+#           "mr_source_repo": "$CI_MERGE_REQUEST_SOURCE_PROJECT_URL",
+#           "mr_source_commit": "$CI_COMMIT_SHA"
+#       }
+#       EOF
+#       }
+#     - |-
+#       curl --header "Content-Type: application/json" --request POST --data "$(generate_post_data)" https://cd.isardvdi.com/new
 
-deploy-merge:
-  stage: deploy-merge
-  only:
-    - merge_requests
-  script:
-    - |-
-      generate_post_data()
-      {
-        cat <<EOF
-      {
-          "type": "mr",
-          "target_repo": "https://gitlab.com/isard/isardvdi",
-          "target_branch": "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME",
-          "mr_source_repo": "$CI_MERGE_REQUEST_SOURCE_PROJECT_URL",
-          "mr_source_commit": "$CI_COMMIT_SHA"
-      }
-      EOF
-      }
-    - |-
-      curl --header "Content-Type: application/json" --request POST --data "$(generate_post_data)" https://cd.isardvdi.com/new
-
-deploy-branch:
-  stage: deploy-branch
-  only:
-    - branches
-  script:
-    - |-
-      generate_post_data()
-      {
-        cat <<EOF
-      {
-          "type": "branch",
-          "target_repo": "https://gitlab.com/isard/isardvdi",
-          "target_branch": "$CI_COMMIT_BRANCH"
-      }
-      EOF
-      }
-    - |-
-      curl --header "Content-Type: application/json" --request POST --data "$(generate_post_data)" https://cd.isardvdi.com/new
+# deploy-branch:
+#   stage: deploy-branch
+#   only:
+#     - branches
+#   script:
+#     - |-
+#       generate_post_data()
+#       {
+#         cat <<EOF
+#       {
+#           "type": "branch",
+#           "target_repo": "https://gitlab.com/isard/isardvdi",
+#           "target_branch": "$CI_COMMIT_BRANCH"
+#       }
+#       EOF
+#       }
+#     - |-
+#       curl --header "Content-Type: application/json" --request POST --data "$(generate_post_data)" https://cd.isardvdi.com/new

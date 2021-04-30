@@ -16,6 +16,7 @@ export type Getters = {
   isLoading(state: State): boolean;
   createMode(state: State): boolean;
   routeName(state: State): string;
+  userData(state: State): Types.User;
 };
 
 export const getters: GetterTree<State, State> & Getters = {
@@ -60,5 +61,8 @@ export const getters: GetterTree<State, State> & Getters = {
   },
   routeName: (state) => {
     return state.router.routeName;
+  },
+  userData: (state) => {
+    return state.auth.user;
   }
 };
