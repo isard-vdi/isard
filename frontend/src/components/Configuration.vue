@@ -1,13 +1,27 @@
 <template>
   <div>
-    <h5>Menu Type</h5>
+    <h5>{{ $t('views.config.menu-type.label') }}</h5>
     <div class="p-formgroup-inline">
-      <Button label="Change menu type" @click="f_changeMenuType" />
+      <Button
+        :label="
+          $t('views.config.button', {
+            option: $t('views.config.menu-type.option')
+          })
+        "
+        @click="f_changeMenuType"
+      />
     </div>
 
-    <h5>Menu Color</h5>
+    <h5>{{ $t('views.config.menu-color.label') }}</h5>
     <div class="p-formgroup-inline">
-      <Button label="Change menu color" @click="f_changeMenuColorMode" />
+      <Button
+        :label="
+          $t('views.config.button', {
+            option: $t('views.config.menu-color.option')
+          })
+        "
+        @click="f_changeMenuColorMode"
+      />
     </div>
   </div>
 </template>

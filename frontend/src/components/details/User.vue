@@ -2,14 +2,14 @@
   <div class="p-grid p-fluid">
     <div class="p-col-12 p-md-12">
       <div class="card">
-        <h2>User Detail</h2>
+        <h2>{{ $t('detail.headers.user') }}</h2>
         <div class="p-grid p-formgrid">
           <isard-input-text
             id="userid"
             v-model="user.id"
             type="text"
-            placeholder="ID"
-            label="ID"
+            :placeholder="$t('detail.fields.id.placeholder')"
+            :label="$t('detail.fields.id.label')"
             :disabled="true"
             colspan="4"
           ></isard-input-text>
@@ -19,9 +19,9 @@
             v-model="user.name"
             v-tooltip="'Enter your username'"
             type="text"
-            placeholder="Name"
+            :placeholder="$t('detail.fields.name.placeholder')"
             :disabled="!editMode"
-            label="Name"
+            :label="$t('detail.fields.name.label')"
             colspan="4"
           ></isard-input-text>
 
@@ -29,10 +29,10 @@
             id="usersurname"
             v-model="user.surname"
             type="text"
-            placeholder="Surnamne"
+            :placeholder="$t('detail.fields.surname.placeholder')"
             :disabled="!editMode"
             class="p-error"
-            label="Surname"
+            :label="$t('detail.fields.surname.label')"
             colspan="4"
           ></isard-input-text>
         </div>
@@ -46,8 +46,14 @@
         <h4>Entities</h4>
         <div class="p-grid p-formgrid">
           <DataTable :value="user.entities">
-            <Column field="description" header="Description"></Column>
-            <Column field="name" header="Name"></Column>
+            <Column
+              field="description"
+              :header="$t('detail.fields.description.label')"
+            ></Column>
+            <Column
+              field="name"
+              :header="$t('detail.fields.name.label')"
+            ></Column>
             <Column field="uuid" header="UUID"></Column>
           </DataTable>
         </div>

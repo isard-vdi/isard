@@ -2,33 +2,33 @@
   <div class="p-grid p-fluid">
     <div class="p-col-12 p-md-12">
       <div class="card">
-        <h2>Entity Detail</h2>
+        <h2>{{ $t('detail.headers.entity') }}</h2>
         <div class="p-grid p-formgrid">
           <isard-input-text
             id="id"
             v-model="entity.id"
             type="text"
-            placeholder="ID"
+            :placeholder="$t('detail.fields.id.placeholder')"
             :disabled="true"
-            label="ID"
+            :label="$t('detail.fields.id.label')"
           ></isard-input-text>
 
           <isard-input-text
             id="name"
             v-model="entity.name"
             type="text"
-            placeholder="Name"
+            :placeholder="$t('detail.fields.name.placeholder')"
             :disabled="!editMode && !createMode"
-            label="Name"
+            :label="$t('detail.fields.name.label')"
           ></isard-input-text>
 
           <isard-input-text
             id="description"
             v-model="entity.description"
             type="text"
-            placeholder="Decription"
+            :placeholder="$t('detail.fields.description.placeholder')"
             :disabled="!editMode && !createMode"
-            label="Description"
+            :label="$t('detail.fields.description.label')"
           ></isard-input-text>
 
           <isard-input-text
@@ -48,8 +48,14 @@
         <h4>Users</h4>
         <div class="p-grid p-formgrid">
           <DataTable :value="entity.users">
-            <Column field="name" header="Name"></Column>
-            <Column field="surname" header="Surname"></Column>
+            <Column
+              field="name"
+              :header="$t('detail.fields.name.label')"
+            ></Column>
+            <Column
+              field="surname"
+              :header="$t('detail.fields.surname.label')"
+            ></Column>
             <Column field="uuid" header="UUID"></Column>
           </DataTable>
         </div>

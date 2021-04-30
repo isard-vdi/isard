@@ -47,10 +47,10 @@ export const SectionUsers: SectionConfig = {
   },
   table: {
     columns: [
-      { field: 'name', header: 'Name' },
-      { field: 'surname1', header: 'Surname' },
-      { field: 'userName', header: 'Username' },
-      { field: 'profile', header: 'Profile' }
+      { field: 'name', header: 'name' },
+      { field: 'surname1', header: 'surname' },
+      { field: 'userName', header: 'username' },
+      { field: 'profile', header: 'profile' }
     ]
   },
   detail: 'User'

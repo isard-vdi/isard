@@ -2,11 +2,113 @@
   "views": {
     "login": {
       "form": {
-        "user": "User",
-        "key": "Key",
-        "entity": "Entity",
-        "code": "Code"
+        "placeholder": "Enter {field}",
+        "user": {
+          "label": "User",
+          "field": "username"
+        },
+        "pass": {
+          "label": "Password",
+          "field": "password"
+        },
+        "entity": {
+          "label": "Entity",
+          "field": "entity"
+        },
+        "code": {
+          "label": "Code",
+          "field": "code"
+        },
+        "error": "Please enter a valid username and password"
       }
+    },
+    "config": {
+      "button": "Change {option}",
+      "menu-color": {
+        "label": "Menu color",
+        "option": "menu color"
+      },
+      "menu-type": {
+        "label": "Menu type",
+        "option": "menu type"
+      }
+    }
+  },
+  "menu": {
+    "desktops": "Desktops",
+    "templates": "Templates",
+    "media": "Media",
+    "users": "Users",
+    "entities": "Entities",
+    "groups": "Groups",
+    "resources": "Resources",
+    "graphics": "Graphics",
+    "video": "Video",
+    "boots": "Boots",
+    "interfaces": "Interfaces",
+    "network_qos": "Network Qos",
+    "disk_qos": "Disk Qos",
+    "updates": "Updates",
+    "domains": "Domains",
+    "virt_installs": "Virt Installs",
+    "virt_builders": "Virt Builders",
+    "video_resources": "Video Resources",
+    "viewers": "Viewers",
+    "graphs": "Graphs",
+    "configuration": "Configuration",
+    "general": "General",
+    "roles": "Roles",
+    "job_schedulers": "Job Schedulers",
+    "database_backups": "Database Backups",
+    "authentications": "Authentications",
+    "hypervisors": "Hypervisors",
+    "hypervisors_pools": "Hypervisors Pools",
+    "about": "About"
+  },
+  "tables": {
+    "headers": {
+      "actions": "Actions",
+      "state": "State",
+      "id": "ID",
+      "uuid": "UUID",
+      "name": "Name",
+      "description": "Description",
+      "created": "Created",
+      "surname": "Surname",
+      "username": "Username",
+      "profile": "Profile"
+    }
+  },
+  "list-buttons": {
+    "create-new": "Create new"
+  },
+  "states": {
+    "stopped": "Stopped",
+    "started": "Started"
+  },
+  "detail": {
+    "fields": {
+      "id": {
+        "label": "ID",
+        "placeholder": "ID"
+      },
+      "name": {
+        "label": "Name",
+        "placeholder": "Name"
+      },
+      "surname": {
+        "label": "Surname",
+        "placeholder": "Surname"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Description"
+      }
+    },
+    "headers": {
+      "desktop": "Desktop details",
+      "entity": "Entity details",
+      "user": "User details"
     }
   },
   "primevue": {

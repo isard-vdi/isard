@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>{{ $t('views.login.form.user') }}</h1>
+    <h1>{{ $t('views.login.form.user.label') }}</h1>
   </div>
 </template>
 

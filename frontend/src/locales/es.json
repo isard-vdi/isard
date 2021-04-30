@@ -2,11 +2,113 @@
   "views": {
     "login": {
       "form": {
-        "user": "Usuario",
-        "key": "Clave",
-        "entity": "Entidad",
-        "code": "Código"
+        "placeholder": "Introduce {field}",
+        "user": {
+          "label": "Usuari",
+          "field": "el nombre de usuario"
+        },
+        "pass": {
+          "label": "Contraseña",
+          "field": "la contraseña"
+        },
+        "entity": {
+          "label": "Entidad",
+          "field": "la entidad"
+        },
+        "code": {
+          "label": "Código",
+          "field": "el código"
+        },
+        "error": "Por favor introduce un nombre de usuario y una contraseña"
       }
+    },
+    "config": {
+      "button": "Cambiar {option}",
+      "menu-color": {
+        "label": "Color del menú",
+        "option": "el color del menú"
+      },
+      "menu-type": {
+        "label": "Tipo de menú",
+        "option": "el tipo de menú"
+      }
+    }
+  },
+  "menu": {
+    "desktops": "Escritorios",
+    "templates": "Plantillas",
+    "media": "Media",
+    "users": "Usuarios",
+    "entities": "Entidades",
+    "groups": "Grupos",
+    "resources": "Recursos",
+    "graphics": "Gráficos",
+    "video": "Video",
+    "boots": "Encendidos",
+    "interfaces": "Interfaces",
+    "network_qos": "Qos de red",
+    "disk_qos": "Qos de discos",
+    "updates": "Actualizaciones",
+    "domains": "Dominios",
+    "virt_installs": "Instaladores Virt",
+    "virt_builders": "Constructores Virt",
+    "video_resources": "Recursos de Video",
+    "viewers": "Visores",
+    "graphs": "Gráficos",
+    "configuration": "Configuración",
+    "general": "General",
+    "roles": "Roles",
+    "job_schedulers": "Programaciones",
+    "database_backups": "Backups de la BBDD",
+    "authentications": "Autenticaciones",
+    "hypervisors": "Hipervisores",
+    "hypervisors_pools": "Pools de Hipervisores",
+    "about": "Acerca de"
+  },
+  "tables": {
+    "headers": {
+      "actions": "Acciones",
+      "state": "Estado",
+      "id": "ID",
+      "uuid": "UUID",
+      "name": "Nombre",
+      "description": "Descripción",
+      "created": "Creación",
+      "surname": "Apellido",
+      "username": "Nombre de usuario",
+      "profile": "Perfil"
+    }
+  },
+  "list-buttons": {
+    "create-new": "Crear nuevo"
+  },
+  "states": {
+    "stopped": "Parado",
+    "started": "Iniciado"
+  },
+  "detail": {
+    "fields": {
+      "id": {
+        "label": "ID",
+        "placeholder": "ID"
+      },
+      "name": {
+        "label": "Nombre",
+        "placeholder": "Nombre"
+      },
+      "surname": {
+        "label": "Apellido",
+        "placeholder": "Apellido"
+      },
+      "description": {
+        "label": "Descripción",
+        "placeholder": "Descripción"
+      }
+    },
+    "headers": {
+      "desktop": "Detalles del escritorio",
+      "entity": "Detalles de la entidad",
+      "user": "Detalles del usuario"
     }
   },
   "primevue": {

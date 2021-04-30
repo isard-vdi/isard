@@ -2,11 +2,113 @@
   "views": {
     "login": {
       "form": {
-        "user": "Usuari",
-        "key": "Clau",
-        "entity": "Entitat",
-        "code": "Codi"
+        "placeholder": "Introdueix {field}",
+        "user": {
+          "label": "Usuari",
+          "field": "el nom d'usuari"
+        },
+        "pass": {
+          "label": "Clau",
+          "field": "la clau"
+        },
+        "entity": {
+          "label": "Entitat",
+          "field": "l'entitat"
+        },
+        "code": {
+          "label": "Code",
+          "field": "el codi"
+        },
+        "error": "Si us plau introdueix un nom d'usuari i una contrasenya"
       }
+    },
+    "config": {
+      "button": "Canviar {option}",
+      "menu-color": {
+        "label": "Color del menú",
+        "option": "el color del menú"
+      },
+      "menu-type": {
+        "label": "Tipus de menú",
+        "option": "el tipus de menú"
+      }
+    }
+  },
+  "menu": {
+    "desktops": "Escriptoris",
+    "templates": "Plantilles",
+    "media": "Media",
+    "users": "Usuaris",
+    "entities": "Entitats",
+    "groups": "Grups",
+    "resources": "Recursos",
+    "graphics": "Gràfics",
+    "video": "Video",
+    "boots": "Engegats",
+    "interfaces": "Interfícies",
+    "network_qos": "Qos de xarxa",
+    "disk_qos": "Qos de discos",
+    "updates": "Actualitzacions",
+    "domains": "Dominis",
+    "virt_installs": "Instaladors Virt",
+    "virt_builders": "Constructors Virt",
+    "video_resources": "Recursos de video",
+    "viewers": "Visors",
+    "graphs": "Gràfics",
+    "configuration": "Configuració",
+    "general": "General",
+    "roles": "Rols",
+    "job_schedulers": "Programacions",
+    "database_backups": "Backups de la BBDD",
+    "authentications": "Autenticacions",
+    "hypervisors": "Hipervisors",
+    "hypervisors_pools": "Pools d'Hipervisors",
+    "about": "Sobre"
+  },
+  "tables": {
+    "headers": {
+      "actions": "Accions",
+      "state": "Estat",
+      "id": "ID",
+      "uuid": "UUID",
+      "name": "Nom",
+      "description": "Descripció",
+      "created": "Creació",
+      "surname": "Cognom",
+      "username": "Nom d'usuari",
+      "profile": "Perfil"
+    }
+  },
+  "list-buttons": {
+    "create-new": "Crear nou"
+  },
+  "states": {
+    "stopped": "Aturat",
+    "started": "Iniciat"
+  },
+  "detail": {
+    "fields": {
+      "id": {
+        "label": "ID",
+        "placeholder": "ID"
+      },
+      "name": {
+        "label": "Nom",
+        "placeholder": "Nom"
+      },
+      "surname": {
+        "label": "Cognom",
+        "placeholder": "Cognom"
+      },
+      "description": {
+        "label": "Descripció",
+        "placeholder": "Descripció"
+      }
+    },
+    "headers": {
+      "desktop": "Detalls de l'escriptori",
+      "entity": "Detalls de l'entitat",
+      "user": "Detalls de l'usuari"
     }
   },
   "primevue": {

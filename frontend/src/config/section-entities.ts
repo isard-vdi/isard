@@ -55,11 +55,11 @@ export const SectionEntities: SectionConfig = {
   },
   table: {
     columns: [
-      { field: 'id', header: 'ID' },
-      { field: 'uuid', header: 'UUID' },
-      { field: 'name', header: 'Name' },
-      { field: 'description', header: 'Description' },
-      { field: 'creationDate', header: 'Created' }
+      { field: 'id', header: 'id' },
+      { field: 'uuid', header: 'uuid' },
+      { field: 'name', header: 'name' },
+      { field: 'description', header: 'description' },
+      { field: 'creationDate', header: 'created' }
     ]
   },
   detail: 'Entity',
