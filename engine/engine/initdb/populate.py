@@ -682,27 +682,29 @@ class Populate(object):
         if not r.table_list().contains('hypervisors').run():
             log.info("Table hypervisors not found, creating and populating with localhost")
             r.table_create('hypervisors', primary_key="id").run()
-        rhyper = r.table('hypervisors')
-        return self.result(rhyper.insert([{'id': 'isard-hypervisor',
-                                         'hostname': 'isard-hypervisor',
-                                         'viewer_hostname': 'localhost',
-                                         'viewer_nat_hostname': 'localhost',
-                                         'viewer_nat_offset': 0,
-                                         'user': 'root',
-                                         'port': '22',
-                                         'uri': '',
-                                         'capabilities': {'disk_operations': True,
-                                                          'hypervisor': True},
-                                         'hypervisors_pools': ['default'],
-                                         'enabled': True,
-                                         'status': 'Offline',
-                                         'status_time': False,
-                                         'prev_status': [],
-                                         'detail': '',
-                                         'description': 'Default hypervisor',
-                                         'info': []},
-                                        ]).run())  
-        self.hypervisors_pools(disk_operations=[key])
+        return True
+        # rhyper = r.table('hypervisors')
+        # return self.result(rhyper.insert([{'id': 'isard-hypervisor',
+        #                                  'hostname': 'isard-hypervisor',
+        #                                  'viewer_hostname': 'localhost',
+        #                                  'viewer_nat_hostname': 'localhost',
+        #                                  'viewer_nat_offset': 0,
+        #                                  'user': 'root',
+        #                                  'port': '2022',
+        #                                  'uri': '',
+        #                                  'capabilities': {'disk_operations': True,
+        #                                                   'hypervisor': True},
+        #                                  'hypervisors_pools': ['default'],
+        #                                  'enabled': True,
+        #                                  'status': 'Offline',
+        #                                  'status_time': False,
+        #                                  'prev_status': [],
+        #                                  'detail': '',
+        #                                  'description': 'Default hypervisor',
+        #                                  'info': []},
+        #                                 ]).run())  
+        # self.hypervisors_pools(disk_operations=[key])
+        self.hypervisors_pools()
 
     '''
     HYPERVISORS POOLS
@@ -722,19 +724,19 @@ class Populate(object):
                 log.info("Table hypervisors_pools found, populating...")
                 self.result(rpools.insert([{'id': 'default',
                                             'name': 'Default',
-                                            'description': 'Non encrypted (not recommended)' if viewer is False else 'Encrypted viewer connections',
+                                            'description': '',
                                             'paths': {'bases':
                                                           [{'path':'/isard/bases',
-                                                               'disk_operations': disk_operations, 'weight': 100}],
+                                                               'disk_operations': [], 'weight': 100}],
                                                       'groups':
                                                           [{'path':'/isard/groups',
-                                                               'disk_operations': disk_operations, 'weight': 100}],
+                                                               'disk_operations': [], 'weight': 100}],
                                                       'templates':
                                                           [{'path':'/isard/templates',
-                                                               'disk_operations': disk_operations, 'weight': 100}],
+                                                               'disk_operations': [], 'weight': 100}],
                                                       'media':
                                                           [{'path':'/isard/media',
-                                                               'disk_operations': disk_operations, 'weight': 100}],
+                                                               'disk_operations': [], 'weight': 100}],
                                                       },
                                             'viewer':viewer,
                                             'interfaces': [],

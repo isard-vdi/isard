@@ -360,6 +360,7 @@ function setHypervisorDetailButtonsStatus(id,status){
 }
 
 function actionsHyperDetail(){
+
         $('.btn-enable').on('click', function () {
                 var closest=$(this).closest("div");
                 var pk=closest.attr("data-pk");

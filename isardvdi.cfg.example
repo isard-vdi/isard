@@ -1,8 +1,15 @@
-# Isard main config v0.1
+# Isard main config v0.2
 
-## Hostname can be whatever you want to identify this host in
-## the system paths. If you have a domain set it here
+## Hostname should be localhost if isard-hypervisor is running in the
+## same host. If it is a remote hypervisor it should be the public
+## IP/DNS of that hypervisor reacheable from main isard installation.
 HOSTNAME=localhost
+
+## It should be the reacheable domain or IP for main IsardVDI installation
+## (where is running the isard-portal and isard-vpn in your instrastructure)
+## This has to be reacheable from al clients and remote hypervisors.
+## If just testing from the same server you can leave it as localhost.
+WEPAPP_DOMAIN=localhost
 
 ## Frontend Administration Button
 ## With this variable you can control if there is a button in the simplified

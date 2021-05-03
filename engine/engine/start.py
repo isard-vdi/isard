@@ -14,6 +14,9 @@ from initdb.populate import Populate
 from initdb.upgrade import Upgrade
 import traceback
 
+from subprocess import check_call, check_output
+check_output(('/isard/generate_certs.sh'), text=True).strip()
+
 try:
     p=Populate()
 except Exception as e:

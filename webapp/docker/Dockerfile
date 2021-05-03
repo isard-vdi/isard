@@ -51,4 +51,5 @@ RUN apk add --no-cache --update bash vim openssh
 RUN pip3 install python-telegram-bot
 RUN apk add py3-yaml 
 
+WORKDIR /isard
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

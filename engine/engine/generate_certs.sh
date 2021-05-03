@@ -1,8 +1,7 @@
-if [ ! -f /etc/pki/libvirt-spice/ca-cert.pem ]
+#!/bin/sh
+cd /certs
+if [ ! -f /certs/ca-cert.pem ]
 then
-
-cd /etc/pki/libvirt-spice
-
 # Self signed cert generic data
 C=CA
 L=Barcelona
@@ -29,9 +28,8 @@ echo '#### Creating  server certificate:'
 RND=$(( ( RANDOM % 1000 ) + 1 ))
 openssl x509 -req -days 9999 -in server-key.csr -CA ca-cert.pem -CAkey ca-key.pem \
           -set_serial $RND -sha256 -out server-cert.pem
-          
+fi
+
 chmod 440 *
 chown qemu:root *
-cd /
-
-fi
+cd /isard
