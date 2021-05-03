@@ -10,13 +10,13 @@ services:
       isard-network: {}
       isard-vpn:
     ports:
-      - "2022:22"
+      - "2022:2022"
     privileged: true
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /opt/isard/certs/viewers:/etc/pki/libvirt-spice:rw
-      - /opt/isard/sshkeys:/root/.ssh:rw
+      #- /opt/isard/certs/viewers:/etc/pki/libvirt-spice:rw
+      #- /opt/isard/sshkeys:/root/.ssh:rw
       - /opt/isard/hypervisor/sshd_keys:/usr/local/etc/ssh:rw
       - /opt/isard:/isard:rw
       - /opt/isard-local/sockets/:/var/run/libvirt/

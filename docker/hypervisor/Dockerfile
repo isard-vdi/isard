@@ -122,8 +122,8 @@ RUN apk add --no-cache \
 COPY --from=build-qemu /usr/local/ /usr/local/
 RUN ln -s /usr/local/bin/qemu-img /usr/bin/qemu-img
 
-COPY docker/hypervisor/qemu-kvm /usr/libexec/qemu-kvm
-COPY docker/hypervisor/qemu-kvm /usr/bin/qemu-kvm
+COPY docker/hypervisor/kvm/qemu-kvm /usr/libexec/qemu-kvm
+COPY docker/hypervisor/kvm/qemu-kvm /usr/bin/qemu-kvm
 RUN chmod a+x /usr/bin/qemu-kvm
 RUN chmod a+x /usr/libexec/qemu-kvm
 
@@ -135,11 +135,12 @@ RUN sed -i \
     -e 's|[#]*ChallengeResponseAuthentication yes|ChallengeResponseAuthentication yes|g' \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' \
     -e 's|[#]*\(HostKey \)\(/etc/ssh/.*\)$|\1/usr/local\2|' \
+    -e 's|[#]*Port 22|Port 2022|g' \
     /etc/ssh/sshd_config
     
 # Libvirt configuration and certs
-RUN useradd -ms /bin/sh qemu
-COPY docker/hypervisor/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
+RUN useradd -u 1000 -ms /bin/sh qemu
+COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
 RUN sed -i "/^kvm:x:34:kvm/c\kvm:x:34:kvm,qemu" /etc/group
 RUN echo -e 'listen_tls = 0\n \
@@ -152,26 +153,14 @@ RUN echo -e 'spice_listen = "0.0.0.0"\n \
 
 # Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
+RUN mkdir /root/.ssh
 
-RUN apk add py3-pip
-RUN pip3 install --upgrade pip
-RUN pip3 install --no-cache-dir rethinkdb==2.3.0.post6
-
-COPY docker/hypervisor/checks/domain.xml /checks/
-COPY docker/hypervisor/auto-generate-certs.sh /
-COPY docker/hypervisor/vlans-add.sh /
-COPY docker/hypervisor/vlans-discover.sh /
-COPY docker/hypervisor/vlans-db.py /
-RUN apk add bash
-COPY docker/hypervisor/wireguard.sh /
-COPY docker/hypervisor/wireguard.py /
-COPY docker/hypervisor/update-client-ips.* /
-RUN chmod 744 /update-client-ips.sh
-COPY docker/hypervisor/api_client.py /
-COPY docker/hypervisor/run.sh /
-RUN chmod +x run.sh auto-generate-certs.sh
-
+# Add needed sources
 COPY docker/hypervisor/networks/ /etc/libvirt/qemu/networks/
-#COPY docker/hypervisor/networks/ /etc/libvirt/qemu/networks/autostart/
 
-CMD [ "sh", "run.sh"]
+RUN apk add --no-cache bash python3 py3-requests
+RUN apk add
+
+COPY docker/hypervisor/src /src
+WORKDIR /src
+CMD [ "/src/start.sh"]

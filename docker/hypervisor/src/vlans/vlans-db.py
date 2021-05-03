@@ -1,3 +1,19 @@
+import os, sys, json
+from time import sleep
+from pprint import pprint
+import traceback
+from api_client import ApiClient
+
+# Instantiate connection
+try:
+    apic=ApiClient()
+except:
+    print(traceback.format_exc())
+    exit(1)
+
+    
+
+
 import os,sys
 from rethinkdb import r, ReqlTimeoutError
 import pprint

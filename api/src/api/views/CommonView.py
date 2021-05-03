@@ -131,3 +131,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             401,
             {"Content-Type": "application/json"},
         )
+
+@app.route("/api/v2/info", methods=["GET"])
+def api_v2_info():
+    return json.dumps({}),200,{"Content-Type": "application/json"}

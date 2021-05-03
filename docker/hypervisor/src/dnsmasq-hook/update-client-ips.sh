@@ -11,6 +11,7 @@ export VIR_BRIDGE_NAME=$VIR_BRIDGE_NAME
 /usr/lib/libvirt/libvirt_leaseshelper $1 $2 $3 $4
 
 source /tmp/env
-export STATS_RETHINKDB_HOST=$STATS_RETHINKDB_HOST
+export HOSTNAME=$HOSTNAME
+export WEBAPP_HOST=$WEBAPP_HOST
 export WEBAPP_ADMIN_PWD=$WEBAPP_ADMIN_PWD
-/usr/bin/python3 /update-client-ips.py "$@"
+/usr/bin/python3 /src/dnsmasq-hook/update-client-ips.py "$@"

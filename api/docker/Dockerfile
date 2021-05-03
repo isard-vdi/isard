@@ -11,7 +11,7 @@ COPY api/docker/requirements.pip3 /requirements.pip3
 RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN apk del .build_deps
 
-RUN apk add curl
+RUN apk add --no-cache curl openssh-client
 
 COPY api/src /api
 

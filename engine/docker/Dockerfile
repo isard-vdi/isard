@@ -48,6 +48,8 @@ RUN ssh-keygen -A
 #    StrictHostKeyChecking no" >/root/.ssh/config
 #RUN chmod 600 /root/.ssh/config
 
+RUN apk add --no-cache openssl shadow
+RUN useradd -u 1000 -ms /bin/sh qemu
 # Copy the isard source
 COPY engine/engine /isard
 
@@ -64,4 +66,6 @@ RUN pip3 install --no-cache-dir ipython pytest
 RUN apk add --no-cache --update bash vim openssh 
 RUN pip3 install python-telegram-bot
 RUN apk add py3-yaml 
+
+WORKDIR /isard
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
