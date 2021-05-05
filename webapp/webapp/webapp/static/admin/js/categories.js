@@ -197,7 +197,7 @@ function renderCategoriesDetailPannel ( d ) {
     if(d.id == "default"){$('.template-detail-categories .btn-delete').hide()}
     $newPanel = $template_category.clone();
     $newPanel.html(function(i, oldHtml){
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
+        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
     });
     return $newPanel
 }

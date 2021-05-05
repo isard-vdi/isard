@@ -2,21 +2,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-        <div class="right_col" role="main">
-			  
-            <div class="page-title">
-              <div class="title_left">
-                <h3><i class="fa fa-user"></i> Users<small>  Users - Roles - Categories - Groups</small></h3>
-              </div>
-              <div class="title_right">
-              </div>
-            </div>
-            <div class="clearfix"></div>
             <div class="row">
               <div class="col-md-12 col-sm-12 col-xs-12">
                 <div class="x_panel">
                   <div class="x_title">
-                    <h2><i class="fa fa-user"></i> Users <small></small></h2>                			
+                    <h3><i class="fa fa-user"></i> Users <small></small></h3>
 					          <ul class="nav navbar-right panel_toolbox">
                       <li><a class="btn-new-bulkusers"><span
                               style="color: #5499c7; "><i class="fa fa-users"></i> Bulk create</span></a>
@@ -32,7 +22,7 @@
                     <div class="clearfix"></div>
                   </div>
                   <div class="x_content">
-                    <table id="users" class="table table-striped">
+                    <table id="users" class="table">
                       <thead>
                         <tr>
 <!--
@@ -76,7 +66,7 @@
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel">
                     <div class="x_title">
-                      <h2><i class="fa fa-leaf"></i> Categories <small></small></h2> 
+                      <h3><i class="fa fa-leaf"></i> Categories <small></small></h3> 
             <ul class="nav navbar-right panel_toolbox">
                     {% if current_user.role != 'manager' %}
                         <li><a class="btn-new-category"><span
@@ -91,7 +81,7 @@
                       <div class="clearfix"></div>
                     </div>
                     <div class="x_content">
-                      <table id="categories" class="table table-striped">
+                      <table id="categories" class="table">
                         <thead>
                           <tr>
                             <th rowspan="2"></th>
@@ -136,7 +126,7 @@
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel">
                     <div class="x_title">
-                      <h2><i class="fa fa-group"></i> Groups <small></small></h2> 
+                      <h3><i class="fa fa-group"></i> Groups <small></small></h3> 
             <ul class="nav navbar-right panel_toolbox">
                         <li><a class="btn-new-group"><span
                                 style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
@@ -149,7 +139,7 @@
                       <div class="clearfix"></div>
                     </div>
                     <div class="x_content">
-                      <table id="groups" class="table table-striped">
+                      <table id="groups" class="table">
                         <thead>
                           <tr>
                             <th rowspan="2"></th>
@@ -193,7 +183,7 @@
               <div class="col-md-12 col-sm-12 col-xs-12">
                 <div class="x_panel">
                   <div class="x_title">
-                    <h2><i class="fa fa-key"></i> Roles <small></small></h2> 
+                    <h3><i class="fa fa-key"></i> Roles <small></small></h3> 
           <ul class="nav navbar-right panel_toolbox">
                       <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
                       </li>
@@ -203,7 +193,7 @@
                     <div class="clearfix"></div>
                   </div>
                   <div class="x_content">
-                    <table id="roles" class="table table-striped ">
+                    <table id="roles" class="table">
                       <thead>
                         <tr>
               <th></th>
@@ -219,7 +209,6 @@
               </div>
             </div>            
 		 </div>
-		</div>
 
 
 {% include '/admin/pages/users_modals.html' %}

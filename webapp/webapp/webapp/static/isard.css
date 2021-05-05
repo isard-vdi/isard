@@ -1,3 +1,8 @@
+body {
+  color: #3b3e47;
+  background: #3b3e47
+}
+
 .dataTables_filter {float: left; position: absolute;}
 .dataTables_filter input { max-width:90px;}
 
@@ -63,4 +68,58 @@
 
 .table > tbody > tr.active > td {
   background-color: #ffe6e6;
+}
+
+.howto-desktops {
+  background-color:rgb(238, 238, 238);
+  cursor: pointer;
+  padding: 5px 17px;
+}
+
+.x_title h4, h3 {
+  margin: 5px 0 6px;
+  float: left;
+  display: block;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.x_panel {
+  border: none
+}
+
+/* Sidebar */
+.sidebar_logo {
+  width: 50px;
+  height: 50px;
+}
+
+.sidebar-footer {
+  background: #3b3e47;
+}
+
+#menu_toggle {
+  color: #3b3e47;
+}
+
+.logo_white {
+  filter: invert(1);
+}
+
+.left_col {
+  background: #3b3e47;
+}
+
+.nav.side-menu>li.active>a {
+  background: #3b3e47;
+}
+
+.nav_title {
+  background: #3b3e47;
+  margin-bottom: 15px;
+}
+
+.nav_menu {
+  background: white;
 }

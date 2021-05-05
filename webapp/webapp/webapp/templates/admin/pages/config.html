@@ -6,14 +6,19 @@
 {% endblock %}
 {% block content %}
 
-<div class="right_col" role="main">
-    <div class="page-title">
-        <div class="title_left">
-            <h3><i class="fa fa-gears"></i> Configuration <small>Isard global configuration</small></h3>
-        </div>
-
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+       <div class="x_panel">
+          <div class="page-title">
+             <div class="title_left">
+                <h3><i class="fa fa-gears"></i> Configuration <small>Isard global configuration</small></h3>
+              </div>
+          </div> 
+          <div class="clearfix"></div>
+       </div>
     </div>
-    <div class="clearfix"></div>
+  </div>
+
         <!--
  		<div class="col-md-6 col-sm-6 col-xs-12">
 			<div class="x_panel">
@@ -154,7 +159,7 @@
         <div class="col-md-6 col-sm-6 col-xs-12">
             <div class="x_panel">
                 <div class="x_title">
-                    <h2><i class="fa fa-lock"></i> Job scheduler <small></small></h2>
+                    <h3><i class="fa fa-lock"></i> Job scheduler <small></small></h3>
                     <ul class="nav navbar-right panel_toolbox">
                         <li><a class="btn-scheduler" data-panel="scheduler"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Add job</span></a>
                     </ul>
@@ -173,7 +178,7 @@
                     <div class="clearfix"></div>
 
                     <div class="x_content">
-                        <table id="table-scheduler" class="table table-striped">
+                        <table id="table-scheduler" class="table">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -194,7 +199,7 @@
         <div class="col-md-6 col-sm-6 col-xs-12">
             <div class="x_panel">
                 <div class="x_title">
-                    <h2><i class="fa fa-briefcase"></i> Backup database <small></small></h2>
+                    <h3><i class="fa fa-briefcase"></i> Backup database <small></small></h3>
                     <ul class="nav navbar-right panel_toolbox">
                         <li><a class="btn-backup" data-panel="backup"><span style="color: #5499c7; "><i class="fa fa-life-saver"></i> Backup</span></a>
                         <li><a class="btn-backups-upload" data-panel="backup"><span style="color: darkgreen; "><i class="fa fa-upload"></i> Upload</span></a>
@@ -205,7 +210,7 @@
                     <div class="clearfix"></div>
                 </div>
                 <div class="x_content">
-                    <table id="table-backups" class="table table-striped">
+                    <table id="table-backups" class="table">
                         <thead>
                             <tr>
                                 <th>Date</th>
@@ -226,7 +231,7 @@
         <div class="col-md-6 col-sm-6 col-xs-12">
             <div class="x_panel">
                 <div class="x_title">
-                    <h2><i class="fa fa-lock"></i> Authentication <small></small></h2>
+                    <h3><i class="fa fa-lock"></i> Authentication <small></small></h3>
                     <ul class="nav navbar-right panel_toolbox">
                         <li><a class="btn-edit" data-panel="auth"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit</span></a>
                     </ul>
@@ -237,7 +242,7 @@
                     <form id="formAuthentication" class="form-horizontal form-label-left" action="{{ url_for('admin_config_update') }}" method="POST" novalidate>
                         <div class="x_panel">
                             <div class="x_title">
-                                <h2>Database authentication<small></small></h2>
+                                <h3>Database authentication<small></small></h3>
                                 <label class="control-label navbar-right" for="auth-local-active"> Active
                                 </label>
                                 <div class="checkbox pull-right">
@@ -253,7 +258,7 @@
                         </div>
                         <div class="x_panel">
                             <div class="x_title">
-                                <h2>LDAP authentication<small></small></h2>
+                                <h3>LDAP authentication<small></small></h3>
                                 <label class="control-label navbar-right" for="auth-ldap-active"> Active
                                 </label>
                                 <div class="checkbox pull-right">
@@ -420,7 +425,6 @@ ENGINE
             </div>
         </div>
     </div>
-</div>
 
 <div class="clearfix"></div>
 </div>

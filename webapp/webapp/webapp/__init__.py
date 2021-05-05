@@ -52,11 +52,11 @@ Serve static files
 '''
 @app.route('/isard-admin/build/<path:path>')
 def send_build(path):
-    return send_from_directory(os.path.join(app.root_path, 'bower_components/gentelella/build'), path)
+    return send_from_directory(os.path.join(app.root_path, 'node_modules/gentelella/build'), path)
     
 @app.route('/isard-admin/vendors/<path:path>')
 def send_vendors(path):
-    return send_from_directory(os.path.join(app.root_path, 'bower_components/gentelella/vendors'), path)
+    return send_from_directory(os.path.join(app.root_path, 'node_modules/gentelella/vendors'), path)
 
 @app.route('/isard-admin/templates/<path:path>')
 def send_templates(path):
@@ -68,7 +68,7 @@ def send_bower(path):
 
 @app.route('/isard-admin/font-linux/<path:path>')
 def send_font_linux(path):
-    return send_from_directory(os.path.join(app.root_path, 'bower_components/font-linux/assets'), path)
+    return send_from_directory(os.path.join(app.root_path, 'node_modules/font-linux/assets'), path)
     
 @app.route('/isard-admin/isard_dist/<path:path>')
 def send_isardist(path):
