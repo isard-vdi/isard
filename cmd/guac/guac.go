@@ -3,15 +3,96 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
 	"github.com/wwt/guac"
 )
+
+var (
+	guacdAddr     string
+	backendAddr   string
+	backendScheme string
+)
+
+func init() {
+	guacdAddr = os.Getenv("GUACD_ADDR")
+	if guacdAddr == "" {
+		guacdAddr = "isard-vpn:4822"
+	}
+
+	backendAddr = os.Getenv("BACKEND_HOST")
+	if backendAddr == "" || backendAddr == "localhost" {
+		backendAddr = "isard-backend:8080"
+		backendScheme = "http"
+	} else {
+		backendAddr += ":443"
+		backendScheme = "https"
+	}
+}
+
+func isAuthenticated(handler http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := &url.URL{
+			Scheme: backendScheme,
+			Host:   backendAddr,
+			Path:   path.Join("/api/v2/check-desktop", r.URL.Query().Get("hostname")),
+		}
+
+		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+		if err != nil {
+			logrus.Fatal("create http request to check for authentication: %v", err)
+		}
+
+		session := r.URL.Query().Get("session")
+		if session == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		c := &http.Cookie{
+			Name:  "session",
+			Value: session,
+		}
+
+		req.AddCookie(c)
+
+		rsp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logrus.Error("do http request to check for authentication: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		switch rsp.StatusCode {
+		case http.StatusOK:
+			handler.ServeHTTP(w, r)
+
+		case http.StatusUnauthorized:
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+
+		default:
+			b, err := io.ReadAll(rsp.Body)
+			if err != nil {
+				logrus.Errorf("read http response: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			defer rsp.Body.Close()
+
+			w.WriteHeader(rsp.StatusCode)
+			w.Write(b)
+		}
+	})
+}
 
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
@@ -24,9 +105,9 @@ func main() {
 	wsServer.OnDisconnect = sessions.Delete
 
 	mux := http.NewServeMux()
-	mux.Handle("/tunnel", servlet)
-	mux.Handle("/tunnel/", servlet)
-	mux.Handle("/websocket-tunnel", wsServer)
+	mux.HandleFunc("/tunnel", isAuthenticated(servlet))
+	mux.HandleFunc("/tunnel/", isAuthenticated(servlet))
+	mux.HandleFunc("/websocket-tunnel", isAuthenticated(wsServer))
 	mux.HandleFunc("/sessions/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -77,14 +158,14 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 		// http tunnel uses the body to pass parameters
 		data, err := ioutil.ReadAll(request.Body)
 		if err != nil {
-			logrus.Error("Failed to read body ", err)
+			logrus.Errorf("Failed to read body ", err)
 			return nil, err
 		}
 		_ = request.Body.Close()
 		queryString := string(data)
 		query, err = url.ParseQuery(queryString)
 		if err != nil {
-			logrus.Error("Failed to parse body query ", err)
+			logrus.Errorf("Failed to parse body query ", err)
 			return nil, err
 		}
 		logrus.Debugln("body:", queryString, query)
@@ -116,11 +197,15 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 	config.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
 	logrus.Debug("Connecting to guacd")
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:4822")
+	addr, err := net.ResolveTCPAddr("tcp", guacdAddr)
+	if err != nil {
+		logrus.Errorf("resolve guacd address: %v", err)
+		return nil, err
+	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		logrus.Errorln("error while connecting to guacd", err)
+		logrus.Errorf("error while connecting to guacd", err)
 		return nil, err
 	}
 
