@@ -30,12 +30,12 @@
             <div v-if="persistentDesktops.length > 0">
               <h2 class="mt-2">{{ $t('views.select-template.persistent') }}</h2>
               <DesktopsCards :templates="user_templates" :desktops="persistentDesktops"
-              :persistent="true" :gridView="gridView" :icons="icons" :status="status"/>
+              :persistent="true" :gridView="gridView" :status="status"/>
             </div>
             <div v-if="nonpersistentDesktops.length > 0">
               <h2 class="mt-2">{{ $t('views.select-template.volatile') }}</h2>
               <DesktopsCards :templates="user_templates" :desktops="nonpersistentDesktops"
-              :persistent="false" :gridView="gridView" :icons="icons" :status="status"/>
+              :persistent="false" :gridView="gridView" :status="status"/>
             </div>
           </div>
         </b-col>
@@ -48,6 +48,7 @@
 // @ is an alias to /src
 import DesktopsCards from '@/components/DesktopsCards.vue'
 import Navbar from '../components/Navbar.vue'
+import { DesktopUtils } from '../utils/desktopsUtils'
 
 export default {
   components: {
@@ -63,20 +64,10 @@ export default {
       return this.$store.getters.getUser
     },
     user_templates () {
-      this.$store.getters.getTemplates.forEach((template) => {
-        if (!(template.icon in this.icons)) {
-          template.icon = 'default'
-        }
-      })
-      return this.$store.getters.getTemplates
+      return DesktopUtils.parseTemplates(this.$store.getters.getTemplates)
     },
     user_desktops () {
-      this.$store.getters.getDesktops.forEach((desktop) => {
-        if (!(desktop.icon in this.icons)) {
-          desktop.icon = 'default'
-        }
-      })
-      return this.$store.getters.getDesktops
+      return DesktopUtils.parseDesktops(this.$store.getters.getDesktops)
     },
     persistentDesktops () {
       return this.user_desktops.filter(desktop => desktop.type === 'persistent')
@@ -95,14 +86,6 @@ export default {
     return {
       polling: null,
       gridView: true,
-      icons: {
-        default: ['fas', 'desktop'],
-        win: ['fab', 'windows'],
-        ubuntu: ['fab', 'ubuntu'],
-        fedora: ['fab', 'fedora'],
-        linux: ['fab', 'linux'],
-        centos: ['fab', 'centos']
-      },
       status: {
         notCreated: {
           icon: ['fas', 'play'],
