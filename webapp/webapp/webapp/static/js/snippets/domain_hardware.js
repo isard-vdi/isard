@@ -153,7 +153,7 @@
 		data['hardware']=data['create_dict']['hardware']
 		$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
 		$(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
-	    	$(div_id+" #net").html(data.hardware.interfaces);
+		$(div_id+" #net").html(data.hardware.interfaces.join(' '));
 	    	$(div_id+" #graphics").html(data.hardware.graphics);
 		$(div_id+" #video").html(data.hardware.videos);
 		$(div_id+" #boot").html(data.hardware['boot_order']);
