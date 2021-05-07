@@ -115,7 +115,7 @@ function startClientViewerSocket(socket){
     socket.on('domain_viewer', function (data) {
         var data = JSON.parse(data);
         if(data['kind']=='url'){
-            setCookie('isard', data['cookie'], 1)
+            setCookie('browser_viewer', data['cookie'], 1)
             window.open(data['viewer'], '_blank');            
         }
         if(data['kind']=='file'){
