@@ -40,6 +40,7 @@ RUN mkdir -p /var/log/supervisor /isard /root/.ssh
 COPY webapp/webapp /isard
 
 COPY webapp/docker/supervisord.conf /etc/supervisord.conf
+RUN cd /isard/webapp && yarn install
 
 EXPOSE 5000
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
