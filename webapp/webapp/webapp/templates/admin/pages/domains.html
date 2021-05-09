@@ -17,27 +17,6 @@
          <div class="x_title">
             <h3><i class="fa fa-{{icon}}"></i> Admin {{ nav }} <small>You have the power</small></h3>
             <ul class="nav navbar-right panel_toolbox">
-               <li>
-                  <div class="item form-group pull-right">
-                     <div id="global_actions" style="display:none; width: 15cm;">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" style="margin-top: 10px" for="mactions">Global actions:</label>
-                        <div class="col-md-5 col-sm-5 col-xs-12">
-                           <select class="form-control" id="mactions" name="mactions" >
-                              <option value="none">Select action</option>
-                              <option value="soft_toggle">Soft toggle started/shutting-down state</option>
-                              <option value="toggle">Toggle started/stopped state</option>
-                              <!-- <option value="stop_noviewer">Stop no viewers</option> -->
-                              <option value="shutting_down">Soft shut down</option>
-                              <option value="stopping">Shut down</option>
-                              <option value="force_stopped">Force Stopped state</option>
-                              <option value="force_failed">Force Failed state</option>
-                              <option value="delete">Delete</option>
-                              <option value="starting_paused">Start paused (check status)</option>
-                           </select>
-                        </div>
-                     </div>
-                  </div>
-               </li>
                <li><a class="btn-add-desktop"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Bulk desktops</span></a></li>                    
                <!--<li>
                   <a class="btn btn-app add-new-media" style="background-color:#F5FFDC;">
@@ -54,6 +33,27 @@
          </div>
          <div class="x_content">
             <p class="text-muted font-13 m-b-30"></p>
+            <div id="global_actions" style="display:none; width: 15cm;">
+               <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
+                  <h4>
+                     Global actions:
+                  </h4>
+               </label>
+               <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+                  <select class="form-control" id="mactions" name="mactions" >
+                     <option value="none">Select action</option>
+                     <option value="soft_toggle">Soft toggle started/shutting-down state</option>
+                     <option value="toggle">Toggle started/stopped state</option>
+                     <!-- <option value="stop_noviewer">Stop no viewers</option> -->
+                     <option value="shutting_down">Soft shut down</option>
+                     <option value="stopping">Shut down</option>
+                     <option value="force_stopped">Force Stopped state</option>
+                     <option value="force_failed">Force Failed state</option>
+                     <option value="delete">Delete</option>
+                     <option value="starting_paused">Start paused (check status)</option>
+                  </select>
+               </div>
+            </div>
             <div id="tableDiv"></div>
                <table id="domains" class="table">
                   <thead>
@@ -72,6 +72,7 @@
                         {% if nav!="Desktops" %}
                         <th>Derivates</th>
                         {% endif %}
+                        <th>Selected</th>
                      </tr>
                   </thead>
                   <tbody>
@@ -92,6 +93,7 @@
                         {% if nav!="Desktops" %}
                         <th>Derivates</th>
                         {% endif %}
+                        <th>Selected</th>
                      </tr>
                   </tfoot>
                </table>

@@ -66,10 +66,6 @@ body {
   width: 100% !important;
 }
 
-.table > tbody > tr.active > td {
-  background-color: #ffe6e6;
-}
-
 .howto-desktops {
   background-color:rgb(238, 238, 238);
   cursor: pointer;
