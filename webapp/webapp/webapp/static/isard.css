@@ -66,6 +66,20 @@ body {
   width: 100% !important;
 }
 
+table.dataTable td.details-show > button > i:before,
+table.dataTable td.details-control > button > i:before {
+	content: '\f067';
+	font-family: FontAwesome;
+	cursor: pointer;
+	color: white;
+}
+
+table.dataTable tr.shown td.details-show > button > i:before,
+table.dataTable tr.shown td.details-control > button > i:before {
+	content: '\f068';
+	color: white;
+}
+
 .howto-desktops {
   background-color:rgb(238, 238, 238);
   cursor: pointer;
