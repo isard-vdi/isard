@@ -4,3 +4,16 @@ services:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/static/spice-web-client:/usr/share/nginx/html/static/spice-web-client
     - ${BUILD_ROOT_PATH}/docker/static/noVNC:/usr/share/nginx/html/static/noVNC
+  isard-frontend-dev:
+    container_name: isard-frontend-dev
+    image: node
+    logging:
+      options:
+        max-size: "100m"
+    working_dir: /usr/local/src/isard-frontend/
+    command: yarn serve
+    networks:
+      - isard-network
+    restart: unless-stopped
+    volumes:
+    - ${BUILD_ROOT_PATH}/frontend/:/usr/local/src/isard-frontend/
