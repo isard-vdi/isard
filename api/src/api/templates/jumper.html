@@ -67,7 +67,7 @@
       function open_viewer(kind){
           var viewers = {{ viewers|safe }};
           if(kind=='url'){
-              setCookie('isard', viewers['vnc-html5']['cookie'], 1)
+              setCookie('browser_viewer', viewers['vnc-html5']['cookie'], 1)
               window.open(viewers['vnc-html5']['viewer'], '_blank');            
           }        
 
