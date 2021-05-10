@@ -234,7 +234,7 @@ class ApiUsers():
                 if d["status"] == "Started":
                     d["ip"] = d.get("viewer", {}).get("guest_ip")
                     if d["ip"]:
-                        d["viewers"].append("rdp")
+                        d["viewers"].extend(["rdp", "rdp-html5"])
                     elif "wireguard" in d["create_dict"]["hardware"]["interfaces"]:
                         d["status"] = "WaitingIP"
                 modified_desktops.append(d)

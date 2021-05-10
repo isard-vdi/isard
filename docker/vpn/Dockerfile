@@ -38,6 +38,10 @@ COPY docker/vpn/requirements.pip3 /requirements.pip3
 RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN apk del .build_deps
 
+RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
+RUN apk add libwebsockets@edge guacamole-server@testing guacamole-server-dev@testing freerdp freerdp-plugins
+
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
 COPY docker/vpn/networking.py /

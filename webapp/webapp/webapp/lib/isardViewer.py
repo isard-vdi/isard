@@ -88,6 +88,41 @@ class isardViewer():
             else:
                 return 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&vmPort='+vmPort+'&passwd='+domain['viewer']['passwd']
 
+        if get_viewer == "rdp-html5":
+            vmPort = str(domain["viewer"]["base_port"] + self.vnc)
+            port = (
+                str(domain["viewer"]["html5_ext_port"])
+                if "html5_ext_port" in domain["viewer"].keys()
+                else "443"
+            )
+            if get_cookie:
+                cookie = base64.b64encode(
+                    json.dumps(
+                        {
+                            "web_viewer": {
+                                "vmName": domain["name"],
+                                "vmHost": domain["viewer"]["guest_ip"],
+                                "vmUsername": domain["options"]["credentials"][
+                                    "username"
+                                ]
+                                if "credentials" in domain["options"]
+                                else "",
+                                "vmPassword": domain["options"]["credentials"][
+                                    "password"
+                                ]
+                                if "credentials" in domain["options"]
+                                else "",
+                                "host": domain["viewer"]["proxy_video"],
+                                "port": port,
+                            }
+                        }
+                    ).encode("utf-8")
+                ).decode("utf-8")
+                uri = (f"https://{domain['viewer']['static']}/Rdp",)
+                return {"kind": "url", "viewer": uri, "cookie": cookie}
+            else:
+                return "https://" + domain["viewer"]["static"] + "/notavailable"
+
         if get_viewer == 'spice-client':
             port=domain['viewer']['base_port']+self.spice_tls
             vmPort=domain['viewer']['spice_ext_port'] if 'spice_ext_port' in domain['viewer'].keys() else '80'

@@ -49,6 +49,21 @@
         },
         "title": {
             "logo-alt": "Logo"
+        },
+        "rdp-modal": {
+            "message": {
+                "connecting": "Connecting to Guacamole...",
+                "disconnected": "You have been disconnected",
+                "unstable": "The network connection server appears unstable",
+                "error": "Connection error"
+            },
+            "title": {
+                "connecting": "Connecting",
+                "disconnected": "Disconnected",
+                "unstable": "Unstable",
+                "error": "Client Error"
+            },
+            "button-refresh": "Refresh"
         }
     },
     "views": {
@@ -106,7 +121,8 @@
             "viewer-name": {
                 "spice": "SPICE",
                 "browser": "Browser",
-                "rdp": "RDP"
+                "rdp": "RDP",
+                "rdp-html5": "RDP Browser"
             },
             "remove": "Remove",
             "notification": {

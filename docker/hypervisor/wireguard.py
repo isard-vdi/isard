@@ -34,11 +34,11 @@ wireguard_xml = """<network xmlns:dnsmasq='http://libvirt.org/schemas/network/dn
   </ip>  \
   <dns enable="no"/> \
        <dnsmasq:options> \
-        <dnsmasq:option value="dhcp-option=121,%s,%s"/> \
-        <dnsmasq:option value="dhcp-script=/update-client-ips.sh"/> \
-        <dnsmasq:option value='dhcp-option=3'/> \
+          <dnsmasq:option value="dhcp-option=121,10.0.0.0/8,10.2.0.1"/> \
+          <dnsmasq:option value="dhcp-script=/update-client-ips.sh"/> \
+          <dnsmasq:option value='dhcp-option=3'/> \
       </dnsmasq:options> \
-</network>""" % (dhcp_subnet_gw, dhcp_subnet_prefix, dhcp_subnet_range_start, dhcp_subnet_range_end, users_net, dhcp_subnet_gw)
+</network>""" % (dhcp_subnet_gw, dhcp_subnet_prefix, dhcp_subnet_range_start, dhcp_subnet_range_end)
 
 with open('/etc/libvirt/qemu/networks/wireguard.xml', 'w') as fd:
     fd.write(wireguard_xml)
