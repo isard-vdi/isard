@@ -78,6 +78,10 @@ $(document).ready(function() {
             tr.removeClass('shown');
         }
         else {
+            // Close other rows
+            if ( table.row( '.shown' ).length ) {
+                $('.details-control', table.row( '.shown' ).node()).click();
+            }
             // Open this row
             row.child( formatPanel(row.data()) ).show();
             tr.addClass('shown');

@@ -149,6 +149,40 @@
 			}); 
 	}
 
+
+function populate_tree_template(id){
+	$(".template_tree").fancytree({
+		extensions: ["table"],
+		table: {
+			indentation: 20,      // indent 20px per node level
+			nodeColumnIdx: 2      // render the node title into the 2nd column
+		},  
+		source: {
+			url: "/isard-admin/admin/domains/tree_list/" + id,
+			cache: false
+		},
+		lazyLoad: function(event, data) {
+			data.result = $.ajax({
+				url: "/isard-admin/admin/domains/tree_list/" + id,
+				dataType: "json"
+			});
+		},
+		selectMode: 3,
+		renderColumns: function(event, data) {
+			var node = data.node,
+			$tdList = $(node.tr).find(">td");
+			$tdList.eq(1).text(node.getIndexHier());
+			// (index #2 is rendered by fancytree)
+			$tdList.eq(3).text(node.data.user);
+			$tdList.eq(4).text(node.data.kind);
+			$tdList.eq(5).text(node.data.kind);
+			$tdList.eq(6).text(node.data.category);
+			$tdList.eq(7).text(node.data.group);
+		}
+	});
+  
+}
+
 	function setHardwareDomainDefaults_viewer(div_id,data){
 		data['hardware']=data['create_dict']['hardware']
 		$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
@@ -157,14 +191,12 @@
 	    	$(div_id+" #graphics").html(data.hardware.graphics);
 		$(div_id+" #video").html(data.hardware.videos);
 		$(div_id+" #boot").html(data.hardware['boot_order']);
-		$(div_id+" #hypervisor_pool").html(data['hypervisors_pools']);
 		if(data['forced_hyp']){
 			$(div_id+" #forced_hyp").html(data['forced_hyp']);
 			$(div_id+" #forced_hyp").closest("tr").show();
 		}else{
 			$(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
 		}
+		console.log(data)
+		populate_tree_template(data.kind == 'desktop' && data.create_dict.origin ? data.create_dict.origin : data.id);
 	}
-
-
-

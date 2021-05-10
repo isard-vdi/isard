@@ -1,93 +1,102 @@
 <div style="display:none">
-    <div class="row admin-template-detail-domain">
-      <div class="col-md-1 col-sm-1 col-xs-12">
-                <div class="row">
-               <div class="col-md-12 col-md-12 col-xs-12" id="actions-d.id" data-pk="d.id" data-name="d.name">
-                     {% if(current_user.role!='user') %}
-                     <div class="row">
-                        <button class="btn btn-success btn-xs pull-right btn-template" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Template it</button>
-                     </div>
-                     <div class="row">
-                      <button class="btn btn-success btn-xs pull-right btn-forcedhyp" type="button"  data-placement="top" ><i class="fa fa-rocket m-right-xs"></i>Forced hyp</button>
-                     </div>                      
-                     <!-- Needed for admin -->
-                     <div class="row">
-                        <button class="btn btn-danger btn-xs pull-right btn-delete-template" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
-                     </div>                             
-                     {% endif %}
-                     <div class="row">
-                        <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil m-right-xs"></i>Edit</button>
-                     </div>
-                     <div class="row">
-                        <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
-                     </div>
-                     {% if(current_user.role=='admin') %}
-                     <hr>
-                     <div class="row">
-                        <button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>XML</button>
-                     </div>
-                     <div class="row">
-                        <button class="btn btn-info btn-xs pull-right btn-events" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Events</button>
-                     </div>
-                     <div class="row">								
-                        <button class="btn btn-info btn-xs pull-right btn-messages" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Messages</button>
-                     </div>
-                     {% endif %}							 
-                </div>
-                </div>
+  <div class="row admin-template-detail-domain">
+    <div class="col-md-1 col-sm-1 col-xs-12">
+      <div class="row">
+        <div class="col-md-12 col-md-12 col-xs-12" id="actions-d.id" data-pk="d.id" data-name="d.name">
+          {% if(current_user.role!='user') %}
+          <div class="row">
+            <button class="btn btn-success btn-xs pull-right btn-template" type="button"  data-placement="top" ><i class="fa fa-cube m-right-xs"></i>Template it</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-success btn-xs pull-right btn-forcedhyp" type="button"  data-placement="top" ><i class="fa fa-rocket m-right-xs"></i>Forced hyp</button>
+          </div>
+          <!-- Needed for admin -->
+          <div class="row">
+            <button class="btn btn-danger btn-xs pull-right btn-delete-template" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
+          </div>
+          {% endif %}
+          <div class="row">
+            <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil m-right-xs"></i>Edit</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
+          </div>
+          {% if(current_user.role=='admin') %}
+          <hr>
+          <div class="row">
+            <button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>XML</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-info btn-xs pull-right btn-events" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Logs</button>
+          </div>
+          {% endif %}
+        </div>
       </div>
-      <div class="col-md-11 col-sm-11 col-xs-12">
-        <div class="x_panel" style="background-color:#F7F7F7">
-            <div class="row">
-                <div class="col-md-12 col-md-12 col-xs-12">
-                    <div class="x_panel">
-                          <div class="x_content">  
-                              <h3>Status detailed info: <small id="status-detail-d.id"></small></h3>
-                          </div>
-                    </div>
-                </div>
+    </div>
+    <div class="col-md-11 col-sm-11 col-xs-12">
+      <div class="x_panel" style="background-color:#F7F7F7">
+        <div class="row">
+          <div class="col-md-12 col-md-12 col-xs-12">
+            <div class="x_panel">
+              <div class="x_content">
+                <h3>Status detailed info: <small id="status-detail-d.id"></small></h3>
+              </div>
             </div>
-            <div class="row" >
-                  <div class="col-md-4 col-md-4 col-xs-12">
-                      <div id="hardware-d.id" class="x_content">
-                        {% include '/snippets/domain_hardware.html' %}
-                      </div>
+          </div>
+        </div>
+        <div class="row" >
+          <div class="col-md-4 col-md-4 col-xs-12">
+            <div id="hardware-d.id" class="x_content">
+              {% include '/snippets/domain_hardware.html' %}
+            </div>
+          </div>
+          <div class="col-md-8 col-md-8 col-xs-12">
+            <div class="row">
+              {% if(current_user.role=='admin') %}
+              <div class="col-md-12 col-md-12 col-xs-12">
+                <div class="x_content">
+                  <div class="x_panel">
+                    <div class="x_title">
+                      <h3>Template tree<small></small></h3>
+                      <div class="clearfix"></div>
+                    </div>
+                    <div class="x_content">
+                      {% include '/snippets/template_tree.html' %}
+                    </div>
                   </div>
-                  
-                  <div class="col-md-8 col-md-8 col-xs-12">
-                      <div class="row" >
-                        <div class="col-md-12 col-md-12 col-xs-12">
-                          <div id="alloweds-d.id" class="x_content">
-                            {% include '/snippets/alloweds.html' %}
-                          </div>
-                        </div>                                
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            <div class="row">
+              <div class="col-md-12 col-md-12 col-xs-12">
+                <div id="alloweds-d.id" class="x_content">
+                  {% include '/snippets/alloweds.html' %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <!--
                         <div class="col-md-12 col-md-12 col-xs-12">
                             <div id="hotplug-d.id" class="x_content">
                               include '/snippets/domain_hotplugged.html' 
                             </div>
-                        </div>                                  
--->
-<!--
+                        </div>
                         <div class="col-md-12 col-md-12 col-xs-12">
                             <div id="events-d.id" class="x_content">
                               include '/snippets/domain_genealogy.html' 
                             </div>
                         </div>
--->
-<!--
                         <div class="col-md-12 col-md-12 col-xs-12">
                             <div id="graphs-d.id" class="x_content">
                                include '/snippets/domain_graphs.html' 
                             </div>                                    
                         </div>
--->
-                      </div>
-                </div>
-          </div>
-          <div class="row" >
-          
-<!--
                 <div class="col-md-12 col-md-12 col-xs-12">
                     <div id="derivates-d.id" class="x_content">
                     {% if(current_user.role=='admin') %}
@@ -96,9 +105,3 @@
                     </div>
                 </div>                              
 -->
-          </div>
-        </div>
-      </div>
-    </div>
-</div>
-
