@@ -9,9 +9,10 @@ import (
 )
 
 var viewerTypeTranslation = map[string]string{
-	"spice": "spice-client",
-	"rdp": "rdp-client",
-	"browser": "vnc-html5",
+	"spice":     "spice-client",
+	"rdp":       "rdp-client",
+	"browser":   "vnc-html5",
+	"rdp-html5": "rdp-html5",
 }
 
 func (i *Isard) Viewer(id string, viewerType string) ([]byte, error) {

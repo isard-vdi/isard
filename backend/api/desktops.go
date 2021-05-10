@@ -2,10 +2,28 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/isard-vdi/isard/backend/model"
 )
+
+func checkAuthorizationByID(u *model.User, id string) error {
+	found := false
+	for _, desktop := range u.Desktops {
+		if desktop.ID == id {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errors.New("permission denied")
+	}
+
+	return nil
+}
 
 type viewerResponse struct {
 	Type    string `json:"type,omitempty"`
@@ -41,6 +59,11 @@ func (a *API) desktopStart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unknown desktop", http.StatusBadRequest)
 		return
 	}
+	u := getUsr(r.Context())
+	if err := checkAuthorizationByID(u, d); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
 	if err := a.env.Isard.DesktopStart(d); err != nil {
 		handleErr(err, w, r)
@@ -59,7 +82,6 @@ func (a *API) desktopStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := getUsr(r.Context())
 	a.env.Sugar.Infow("desktop start",
 		"desktop", d,
 		"usr", u.ID(),
@@ -73,6 +95,12 @@ func (a *API) desktopStop(w http.ResponseWriter, r *http.Request) {
 	d, ok := vars["desktop"]
 	if !ok {
 		http.Error(w, "unknown desktop", http.StatusBadRequest)
+		return
+	}
+
+	u := getUsr(r.Context())
+	if err := checkAuthorizationByID(u, d); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -93,7 +121,6 @@ func (a *API) desktopStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := getUsr(r.Context())
 	a.env.Sugar.Infow("desktop stop",
 		"desktop", d,
 		"usr", u.ID(),
@@ -104,20 +131,25 @@ func (a *API) desktopStop(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) desktopDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	desktopId, ok := vars["desktop"]
+	d, ok := vars["desktop"]
 	if !ok {
 		http.Error(w, "unknown desktop", http.StatusBadRequest)
 		return
 	}
 
-	if err := a.env.Isard.DesktopDelete(desktopId); err != nil {
+	u := getUsr(r.Context())
+	if err := checkAuthorizationByID(u, d); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if err := a.env.Isard.DesktopDelete(d); err != nil {
 		handleErr(err, w, r)
 		return
 	}
 
-	u := getUsr(r.Context())
 	a.env.Sugar.Infow("desktop delete",
-		"desktop", desktopId,
+		"desktop", d,
 		"usr", u.ID(),
 	)
 
@@ -126,7 +158,7 @@ func (a *API) desktopDelete(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) desktopViewer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	desktopId, ok := vars["desktop"]
+	d, ok := vars["desktop"]
 	if !ok {
 		http.Error(w, "unknown desktop", http.StatusBadRequest)
 		return
@@ -138,13 +170,18 @@ func (a *API) desktopViewer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	viewer, err := a.env.Isard.Viewer(desktopId, viewerType)
+	u := getUsr(r.Context())
+	if err := checkAuthorizationByID(u, d); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	viewer, err := a.env.Isard.Viewer(d, viewerType)
 	if err != nil {
 		handleErr(err, w, r)
 		return
 	}
 
-	u := getUsr(r.Context())
 	a.env.Sugar.Infow("viewer",
 		"type", viewerType,
 		"usr", u.ID(),

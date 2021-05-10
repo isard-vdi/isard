@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 	"net/url"
+
+	"github.com/gorilla/mux"
 )
 
 const redirectKey = "redirect"
@@ -22,4 +24,23 @@ func (a *API) check(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, u.String(), http.StatusFound)
+}
+
+func (a *API) checkDesktop(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	ip, ok := vars["ip"]
+	if !ok {
+		http.Error(w, "unknown desktop", http.StatusBadRequest)
+		return
+	}
+
+	u := getUsr(r.Context())
+	for _, desktop := range u.Desktops {
+		if desktop.IP == ip {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+
+	http.Error(w, "permission denied", http.StatusForbidden)
 }
