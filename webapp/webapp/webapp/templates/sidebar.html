@@ -1,202 +1,165 @@
-            <div class="navbar nav_title" style="border: 0;">
-              <a href="/isard-admin/about" class="site_title">
-                  <img src="/isard-admin/static/img/isard_50x50_white.gif" alt="isard"> <span>Isard VDI</span></a>
+<div class="navbar nav_title" style="border: 0;">
+  <a href="/isard-admin/about" class="site_title">
+    <img src="/isard-admin/static/img/isard.svg" class="sidebar_logo logo_white" alt="isard">
+    <span>IsardVDI</span>
+  </a>
+</div>
+
+<div class="clearfix"></div>
+<!-- sidebar menu -->
+<div id="sidebar-menu" class="main_menu_side hidden-print main_menu">        
+  <div class="menu_section">
+    <h3>User</h3>
+    <div class="clearfix"></div>
+    <ul class="nav side-menu">
+      <li><a href="/"><i class="fa fa-home"></i> Home</a></li>
+      <li><a href="/isard-admin/desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
+      {% if current_user.role == 'admin' or current_user.role == 'advanced' or current_user.role == 'manager' %}
+      <li><a href="/isard-admin/templates"><i class="fa fa-cubes"></i> Templates</a></li>
+      <li><a href="/isard-admin/media"><i class="fa fa-circle-o"></i> Media</a></li>
+      {% endif %}
+    </ul>
+
+    {% if current_user.role == 'manager' %}
+    <h3>Manager</h3>
+    <ul class="nav side-menu">
+      <li><a href="/isard-admin/admin/users"><i class="fa fa-user"></i> Users</a>
+      </li>
+      <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
+      <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cube"></i>Templates</a></li>
+      <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i>Media</a></li>
+      <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i>Graphs</a></li>
+    </ul>
+    {% endif %}
+
+    {% if current_user.role == 'manager' %}
+    <div class="panel-body admin-status" style="display:none">
+      <div class="alert alert-success">
+        <div class="container">
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Desktops</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="limits-desktops-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
-            <div class="clearfix"></div>
-
-            <!-- menu profile quick info -->
-            <div class="profile">
-              <div class="profile_pic">
-                <img src="/isard-admin/static/img/user.png" alt="..." class="img-circle profile_img">
-              </div>
-              <div class="profile_info">
-                <span>Welcome,</span>
-                <h2>{{ current_user.name }}</h2>
-              </div>
+          </p>
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Concurrent</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="limits-concurrent-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
-            <!-- /menu profile quick info -->
-
-            <br />
-
-            <!-- sidebar menu -->
-            <div id="sidebar-menu" class="main_menu_side hidden-print main_menu">        
-              <div class="menu_section">
-                <h3>User</h3>
-                <ul class="nav side-menu">
-                  <li><a href="/"><i class="fa fa-home"></i> Home</span></a></li>
-                  <li><a href="/isard-admin/desktops"><i class="fa fa-desktop"></i> Desktops</span></a>
-                  </li>
-                  {% if current_user.role == 'admin' or current_user.role == 'advanced' or current_user.role == 'manager' %}
-                  <li><a href="/isard-admin/templates"><i class="fa fa-cubes"></i> Templates</span></a>
-                  </li>
-                  <li><a href="/isard-admin/media"><i class="fa fa-circle-o"></i> Media</span></a>
-                  </li>
-                  {% endif %}
-                </ul>
-                {% if current_user.role == 'manager' %}
-                <h3>Manager</h3>
-                <ul class="nav side-menu">
-                  <li><a href="/isard-admin/admin/users"><i class="fa fa-user"></i> Users</span></a>
-                  </li>
-                  <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
-                  <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cube"></i>Templates</a></li>
-                  <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i>Media</a></li>
-                  <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i>Graphs</a></li>
-                </ul>
-            {% endif %}
-
-              {% if current_user.role == 'manager' %}
-              <div class="panel-body admin-status" style="display:none">
-                <div class="alert alert-success">
-                    <div class="container">
-                        <p>
-                            <span style="float: left; margin-right: 1em; width:65px;">Desktops</span>
-                            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                              <div class="limits-desktops-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                            </div>
-                        </p>
-                        <p>
-                          <span style="float: left; margin-right: 1em; width:65px;">Concurrent</span>
-                          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                            <div class="limits-concurrent-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                          </div>
-                        </p>   
-                        <p>
-                          <span style="float: left; margin-right: 1em; width:65px;">Templates</span>
-                          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                            <div class="limits-templates-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                          </div>
-                        </p> 
-                        <p>
-                          <span style="float: left; margin-right: 1em; width:65px;">Isos</span>
-                          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                            <div class="limits-isos-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                          </div>
-                        </p> 
-                        <p>
-                          <span style="float: left; margin-right: 1em; width:65px;">vCPUs</span>
-                          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                            <div class="limits-vcpus-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                          </div>
-                        </p> 
-                        <p>
-                          <span style="float: left; margin-right: 1em; width:65px;">Memory</span>
-                          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                            <div class="limits-memory-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                          </div>
-                        </p>  
-                        <p>
-                          <span style="float: left; margin-right: 1em; width:65px;">Users</span>
-                          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                            <div class="limits-users-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                          </div>
-                        </p>                                                                                                                                                                
-                    </div>
-                </div>
-              </div>
-              {% endif %}
-
-                {% if current_user.role == 'admin'  and current_user.role != 'manager' %}
-                <h3>Administrator</h3>
-                <ul class="nav side-menu">
-                  <li><a href="/isard-admin/admin/users"><i class="fa fa-user"></i> Users</span></a>
-                  </li>
-                  <li><a><i class="fa fa-desktop"></i> Domains <span class="fa fa-chevron-down"></span></a>
-                    <ul class="nav child_menu">
-                      <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
-                      <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cube"></i>Templates</a></li>
-                      <li><a href="/isard-admin/admin/domains/render/Bases"><i class="fa fa-cubes"></i>Bases</a></li>
-                      <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i>Media</a></li>
-                      <li><a href="/isard-admin/admin/domains/render/Resources"><i class="fa fa-gears"></i>Resources</a></li>
-
-                    </ul>
-                  </li>
-                  
-                  <li><a href="/isard-admin/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</span></a></li>
-                  <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i>Graphs</a></li>
-                  </li>
-
-<!--
-                  <li><a href="/isard-admin/admin/graphs/graphs"><i class="fa fa-area-chart"></i> Graphs</span></a>
-                  </li>
--->
-
-                  <li><a href="/isard-admin/admin/updates"><i class="fa fa-cloud-download"></i> Updates</span></a>
-                  <li><a href="/isard-admin/admin/config"><i class="fa fa-gear"></i> Config</span></a>
-                  </li>
-                </ul>
-            {% endif %}
-
-            {% if current_user.role == 'admin' %}
-            <div class="panel-body admin-status" style="display:none">
-            
-              <div class="alert alert-success">
-                  <div class="container">
-                      <p>
-                          <span style="float: left; margin-right: 1em; width:65px;">Desktops</span>
-                          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                            <div class="system-desktops progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                          </div>
-                      </p>
-                      <p>
-                        <span style="float: left; margin-right: 1em; width:65px;">Concurrent</span>
-                        <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                          <div class="system-concurrent progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                        </div>
-                      </p>   
-                      <p>
-                        <span style="float: left; margin-right: 1em; width:65px;">Templates</span>
-                        <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                          <div class="system-templates progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                        </div>
-                      </p> 
-                      <p>
-                        <span style="float: left; margin-right: 1em; width:65px;">Isos</span>
-                        <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                          <div class="system-isos progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                        </div>
-                      </p> 
-                      <p>
-                        <span style="float: left; margin-right: 1em; width:65px;">vCPUs</span>
-                        <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                          <div class="system-vcpus progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                        </div>
-                      </p> 
-                      <p>
-                        <span style="float: left; margin-right: 1em; width:65px;">Memory</span>
-                        <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                          <div class="system-memory progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                        </div>
-                      </p>   
-                      <p>
-                        <span style="float: left; margin-right: 1em; width:65px;">Users</span>
-                        <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-                          <div class="system-users progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                        </div>
-                      </p>                                                                                                                                                              
-                  </div>
-              </div>
+          </p>   
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Templates</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="limits-templates-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
-            {% endif %}
-
-                <ul class="nav side-menu">
-                  <li><a href="/isard-admin/about"><i class="fa fa-question"></i> About</span></a>
-                  </li>
-                </ul>
-              </div>
-
-
-
+          </p> 
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Isos</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="limits-isos-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
-            <!-- /sidebar menu -->
-
-            <!-- /menu footer buttons -->
-            <div class="sidebar-footer hidden-small">
-              <a data-toggle="tooltip" href="/isard-admin/logout" data-placement="top" title="Logout">
-                <span class="glyphicon glyphicon-off" aria-hidden="true"></span>
-              </a>
+          </p> 
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">vCPUs</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="limits-vcpus-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
-            <!-- /menu footer buttons -->
-            
-          </div>
+          </p> 
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Memory</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="limits-memory-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p>  
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Users</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="limits-users-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p>                                                                                                                                                                
         </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if current_user.role == 'admin'  and current_user.role != 'manager' %}
+    <h3>Administrator</h3>
+    <div class="clearfix"></div>
+      <ul class="nav side-menu">
+        <li><a href="/isard-admin/admin/users"><i class="fa fa-user"></i> Users</span></a></li>
+        <li>
+          <a><i class="fa fa-desktop"></i> Domains <span class="fa fa-chevron-down"></span></a>
+          <ul class="nav child_menu">
+            <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
+            <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cube"></i>Templates</a></li>
+            <li><a href="/isard-admin/admin/domains/render/Bases"><i class="fa fa-cubes"></i>Bases</a></li>
+            <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i>Media</a></li>
+            <li><a href="/isard-admin/admin/domains/render/Resources"><i class="fa fa-gears"></i>Resources</a></li>
+          </ul>
+        </li>
+        <li><a href="/isard-admin/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</span></a></li>
+        <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i>Graphs</a></li>
+        <!--<li><a href="/isard-admin/admin/graphs/graphs"><i class="fa fa-area-chart"></i> Graphs</span></a></li>-->
+        <li><a href="/isard-admin/admin/updates"><i class="fa fa-cloud-download"></i> Updates</span></a></li>
+        <li><a href="/isard-admin/admin/config"><i class="fa fa-gear"></i> Config</span></a></li>
+      </ul>
+    {% endif %}
+
+    {% if current_user.role == 'admin' %}
+    <div class="panel-body admin-status" style="display:none">
+      <div class="alert alert-success">
+        <div class="container">
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Desktops</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="system-desktops progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p>
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Concurrent</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="system-concurrent progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p>   
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Templates</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="system-templates progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p> 
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Isos</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="system-isos progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p> 
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">vCPUs</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="system-vcpus progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p> 
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Memory</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="system-memory progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p>   
+          <p>
+            <span style="float: left; margin-right: 1em; width:65px;">Users</span>
+            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+              <div class="system-users progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+          </p>                                                                                                                                                              
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <ul class="nav side-menu">
+      <li><a href="/isard-admin/about"><i class="fa fa-question"></i> About</span></a>
+      </li>
+    </ul>
+  </div>
+</div>

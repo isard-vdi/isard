@@ -608,9 +608,9 @@ function renderDisplay(data){
 
 function renderName(data){
 		return '<div class="block_content" > \
-      			<h2 class="title" style="height: 4px; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
-                </h2> \
+      			<h4 class="title" style="height: 4px; margin-top: 0px;"> \
+                '+data.name+' \
+                </h4> \
       			<p class="excerpt" >'+data.description+'</p> \
            		</div>'
 }

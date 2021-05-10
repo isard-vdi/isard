@@ -96,6 +96,8 @@ def alloweds_table_term(table):
         if current_user.role == "admin":
             if table == 'groups':
                 result=app.adminapi.get_admin_table_term(table,'id',data['term'],pluck=['id','name','parent_category'])
+            elif table == 'users':
+                result=app.adminapi.get_admin_table_term(table,'id',data['term'],pluck=['id','name','uid'])
             else:
                 result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'])
         else:
@@ -108,7 +110,7 @@ def alloweds_table_term(table):
                 result=app.adminapi.get_admin_table_term(table,'id',data['term'],pluck=['id','name','parent_category'])
                 result = [g for g in result if g['id'].startswith(current_user.category)] 
             if table == 'users':
-                result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=['id','name','category'])
+                result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=['id','name','category', 'uid'])
                 result = [u for u in result if u['category'] == current_user.category]                               
         return json.dumps(result), 200, {'ContentType':'application/json'}
     return json.dumps('Could not select.'), 500, {'ContentType':'application/json'} 

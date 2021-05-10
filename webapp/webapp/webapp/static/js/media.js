@@ -72,7 +72,7 @@ $(document).ready(function() {
                 //~ "width": "10px",
                 //~ "defaultContent": '' //'<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				//~ },
-                { "data": "icon", "width": "100px"},
+                { "data": "icon", "width": "10px"},
                 { "data": "name", "width": "10px"},
                 { "data": "status", "width": "10px"},
                 { "data": null, "width": "10px"},
@@ -350,9 +350,9 @@ function renderProgress(data){
 
 function renderName(data){
     return '<div class="block_content" > \
-            <h2 class="title" style="height: 4px; margin-top: 0px;"> \
+            <h4 class="title" style="height: 4px; margin-top: 0px;"> \
             <a>'+data.name+'</a> \
-            </h2> \
+            </h4> \
             <p class="excerpt" >'+data.description+'</p> \
             </div>'
 }

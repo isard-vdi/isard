@@ -98,7 +98,36 @@
                         }
                     },
                 });
-            }else{
+            } else if (id.replace('a-','') == 'users') {
+                $(parentid+" #"+id).select2({
+                    placeholder: "Empty applies to all. Type at least 2 letters to search.",
+                    minimumInputLength: 2,
+                    multiple: true,
+                    ajax: {
+                        type: "POST",
+                        url: '/isard-admin/alloweds/term/'+id.replace('a-',''),
+                        dataType: 'json',
+                        contentType: "application/json",
+                        delay: 250,
+                        data: function (params) {
+                            return  JSON.stringify({
+                                term: params.term,
+                                pluck: ['id','name']
+                            });
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: $.map(data, function (item, i) {
+                                    return {
+                                        text: item.name + '['+item['uid']+'] ',
+                                        id: item.id
+                                    }
+                                })
+                            };
+                        }
+                    },
+                });	
+            } else{
                 $(parentid+" #"+id).select2({
                     placeholder: "Empty applies to all. Type at least 2 letters to search.",
                     minimumInputLength: 2,

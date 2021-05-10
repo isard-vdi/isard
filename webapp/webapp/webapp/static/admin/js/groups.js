@@ -174,7 +174,7 @@ $(document).ready(function() {
 function renderGroupsDetailPannel ( d ) {
     $newPanel = $template_group.clone();
     $newPanel.html(function(i, oldHtml){
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
+        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
     });
     return $newPanel
 }
