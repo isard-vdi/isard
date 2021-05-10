@@ -33,27 +33,35 @@ function startClientVpnSocket(socket){
     });
 }
 
-function setViewerButtons(id,socket,offer){
+function setViewerButtons(data,socket,offer){
     offer=[
-             {
-             'type': 'spice', 
-             'client': 'app',
-             'secure': true,
-             'preferred': true
-             },
-             {
-             'type': 'vnc', 
-             'client': 'websocket',
-             'secure': true,
-             'preferred': false
-             },
-             {
-                'type': 'rdp', 
+        {
+            'type': 'spice',
+            'client': 'app',
+            'secure': true,
+            'preferred': true
+        },{
+            'type': 'vnc',
+            'client': 'websocket',
+            'secure': true,
+            'preferred': false
+        }
+    ]
+    if (data.create_dict.hardware.interfaces.includes("wireguard")) {
+        offer.push(
+            {
+                'type': 'rdp',
                 'client': 'app',
                 'secure': true,
                 'preferred': false
+            },{
+                'type': 'rdp',
+                'client': 'websocket',
+                'secure': true,
+                'preferred': false
             }
-            ]
+        )
+    }
     html=""
     $.each(offer, function(idx,disp){
             prehtml='<div class="row"><div class="col-12 text-center">'
@@ -65,28 +73,34 @@ function setViewerButtons(id,socket,offer){
             type=''
             btntext=''
             br=''
-            if(disp['preferred']){success='btn-success';preferred='btn-lg';w='70';br='<br>'}
-            if(disp['secure']){lock='<i class="fa fa-lock"></i>';}
-            if(disp['client']=='app')
-                {type='<i class="fa fa-download"></i>';btntext=disp['type'].toUpperCase()+' Application';client='client';}
-            else if(disp['client']=='websocket')
-                {type='<i class="fa fa-html5"></i>';btntext=disp['type'].toUpperCase()+' Browser';client='html5'}
-            if(disp['type'] == 'rdp'){ 
-                html=br+prehtml+html+'<button data-pk="'+id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br;   
-                typevpn='<i class="fa network-wired"></i>';btntextvpn='Desktop IP: ';client='client';
-                //html=br+prehtml+html+'<button data-pk="'+id+'" data-type="vpn" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn btn-light '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+typevpn+' '+btntextvpn+'</button>'+posthtml+br;
-                html=br+prehtml+html+'<div data-pk="'+id+'" data-type="vpn" data-client="'+client+'" data-os="'+getOS()+' style="width:'+w+'% height:2000px">'+lock+' '+typevpn+' '+btntextvpn+'</button>'+posthtml+br;
-                //html=br+prehtml+html+'<button btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br;
-            }else{
-                //type='<i class="fa fa-download"></i>';btntext=disp['type'].toUpperCase()+' Application';client='client'; 
-                html=br+prehtml+html+'<button data-pk="'+id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br;
+            if(disp['preferred']){
+                success='btn-success'
+                preferred='btn-lg'
+                w='70'
+                br='<br>'
             }
+            if(disp['secure']){
+                lock='<i class="fa fa-lock"></i>'
+            }
+            if(disp['client']=='app'){
+                type='<i class="fa fa-download"></i>'
+                btntext=disp['type'].toUpperCase()+' Application'
+                client='client'
+            }
+            else if(disp['client']=='websocket'){
+                type='<i class="fa fa-html5"></i>'
+                btntext=disp['type'].toUpperCase()+' Browser'
+                client='html5'
+            }
+            html=br+html+prehtml+'<button data-pk="'+data.id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
     })
+    if (data.create_dict.hardware.interfaces.includes("wireguard")) {
+        html+=prehtml+'<div id="vpn-ip" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa network-wired"></i> Desktop IP: </div>'+posthtml
+    }
     $('#viewer-buttons').html(html);
     loading='<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>'
-    //$('#viewer-buttons button[data-type="vpn"]').html(loading)
-    $('#viewer-buttons button[data-type="rdp"]').prop("disabled",true).html($('#viewer-buttons button[data-type="rdp"]').html()+loading);
-    $('#viewer-buttons div[data-type="vpn"]').prop("disabled",true).html($('#viewer-buttons div[data-type="vpn"]').html()+loading);
+    $('#viewer-buttons button[data-type="rdp"]').prop("disabled", true).append(loading);
+    $('#vpn-ip').append(loading);
     $('#viewer-buttons .btn-viewers').on('click', function () {
         if($('#chk-viewers').iCheck('update')[0].checked){
             preferred=true
@@ -94,12 +108,22 @@ function setViewerButtons(id,socket,offer){
             preferred=false
         }
         console.log($(this).data('type')+'-'+$(this).data('client'))
-        socket.emit('domain_viewer',{'pk':id,'kind':$(this).data('type')+'-'+$(this).data('client'),'os':$(this).data('os'),'preferred':preferred});
+        socket.emit('domain_viewer', {
+            'pk':$(this).data('pk'),
+            'kind':$(this).data('type')+'-'+$(this).data('client'),
+            'os':$(this).data('os'),
+            'preferred':preferred
+        });
         $("#modalOpenViewer").modal('hide');        
     });
 }
 
-
+function viewerButtonsIP(ip){
+    $('#vpn-ip').append(ip)
+    $('#vpn-ip i.fa-spinner').remove()
+    $('#viewer-buttons button[data-type="rdp"]').prop("disabled", false)
+    $('#viewer-buttons button[data-type="rdp"] i.fa-spinner').remove()
+}
 
 function setCookie(name,value,days) {
     var expires = "";

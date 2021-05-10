@@ -371,7 +371,7 @@ $(document).ready(function() {
 							},
 							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
-                            setViewerButtons(data['id'],socket);
+                            setViewerButtons(data,socket);
 
                             if('viewer' in data && 'guest_ip' in data['viewer']){
                                 $('#viewer-buttons div[data-type="vpn"]').prop("disabled",false).html($('#viewer-buttons div[data-type="vpn"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',data['viewer']['guest_ip']))
