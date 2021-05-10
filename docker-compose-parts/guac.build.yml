@@ -1,0 +1,6 @@
+version: "3.5"
+services:
+  isard-guac:
+    build:
+      context: ${BUILD_ROOT_PATH}/guac
+      dockerfile: build/package/Dockerfile

@@ -114,6 +114,7 @@ flavour "" \
 	api \
 	backend \
 	vpn \
+	guac \
 
 flavour hypervisor \
 	network \
@@ -123,9 +124,11 @@ flavour hypervisor \
 	squid \
 	stats \
 	vpnc \
+	guac \
+	guac-vpnc \
 
 flavour toolbox \
-        network \
+	network \
 	toolbox \
 
 flavour hypervisor-standalone \
@@ -140,6 +143,7 @@ flavour video-standalone \
 	video \
 	websockify \
 	squid \
+	guac \
 	stats \
 
 flavour web \

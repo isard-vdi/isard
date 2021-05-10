@@ -1,3 +1,7 @@
+# Start guacd
+guacd -b 0.0.0.0 -L info -f &
+
+# Start wireguard
 cd /certs
 if [ ! -f /certs/server_private.key ]
 then
