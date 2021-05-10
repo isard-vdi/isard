@@ -117,7 +117,7 @@
                         v-if="desktop.viewers.length === 1"
                         variant="primary"
                         class="m-1"
-                        @click="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0], template: desktop.template })"
+                        @click="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0], template: desktop.template})"
                       >
                         <i18n path="views.select-template.viewer">
                           <template v-slot:name>
@@ -131,12 +131,12 @@
                         split
                         class="m-1"
                         :text="getViewerText(viewers[desktop.template])"
-                        @click="openDesktop({desktopId: desktop.id, viewer: viewers[desktop.template], template: desktop.template })"
+                        @click="openDesktop({desktopId: desktop.id, viewer: viewers[desktop.template], template: desktop.template})"
                       >
                         <b-dropdown-item
                           v-for="dkpviewer in desktop.viewers.filter(dkpviewer => dkpviewer !== viewers[desktop.template])"
                           :key="dkpviewer"
-                          @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer, template: desktop.template })"
+                          @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer, template: desktop.template})"
                         >
                           <i18n path="views.select-template.viewer">
                             <template v-slot:name>
@@ -150,7 +150,7 @@
                         <b-dropdown-item
                           v-for="dkpviewer in desktop.viewers"
                           :key="dkpviewer"
-                          @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer, template: desktop.template })"
+                          @click="openDesktop({desktopId: desktop.id, viewer: dkpviewer, template: desktop.template})"
                         >
                           <i18n path="views.select-template.viewer">
                             <template v-slot:name>
@@ -187,7 +187,7 @@
           <template #cell(viewers)="data">
             <div v-if="data.item.state.toLowerCase() == 'started'">
               <b-button v-if="data.item.viewers.length === 1" variant="primary"
-              @click="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0]})">
+                @click="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0]})">
                 <i18n path="views.select-template.viewer">
                   <template v-slot:name>
                     {{$t(`views.select-template.viewer-name.${data.item.viewers[0]}`)}}
@@ -263,7 +263,7 @@
               <b-button
                 v-if="data.item.viewers.length === 1"
                 variant="primary"
-                @click="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0], template: data.item.template })"
+                @click="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0], template: data.item.template})"
               >
                   <i18n path="views.select-template.viewer">
                     <template v-slot:name>
@@ -276,12 +276,12 @@
                   variant="primary"
                   split
                   :text="getViewerText(viewers[data.item.template])"
-                  @click="openDesktop({desktopId: data.item.id, viewer: viewers[data.item.template], template: data.item.template })"
+                  @click="openDesktop({desktopId: data.item.id, viewer: viewers[data.item.template], template: data.item.template})"
                 >
                   <b-dropdown-item
                     v-for="dkpviewer in data.item.viewers.filter(dkpviewer => dkpviewer !== viewers[data.item.template])"
                     :key="dkpviewer"
-                    @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer, template: data.item.template })"
+                    @click="openDesktop({desktopId: data.item.id, viewer: dkpviewer, template: data.item.template})"
                   >
                     <i18n path="views.select-template.viewer">
                       <template v-slot:name>
@@ -357,6 +357,7 @@ export default {
   },
   methods: {
     ...mapActions([
+      'loadViewers',
       'openDesktop',
       'deleteDesktop',
       'changeDesktopStatus'

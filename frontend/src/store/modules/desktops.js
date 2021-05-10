@@ -50,6 +50,9 @@ export default {
     }
   },
   actions: {
+    loadViewers (context, viewers) {
+      context.commit('updateViewers', viewers)
+    },
     fetchDesktops (context) {
       return new Promise((resolve, reject) => {
         apiAxios.get('/desktops').then(response => {
@@ -180,7 +183,7 @@ export default {
             if (response.data.kind === 'file') {
               el.setAttribute(
                 'href',
-                `data:${response.data.mime};charset=utf-8,${encodeURIComponent(response.data.content)}`
+                  `data:${response.data.mime};charset=utf-8,${encodeURIComponent(response.data.content)}`
               )
               el.setAttribute('download', `${response.data.name}.${response.data.ext}`)
             } else if (response.data.kind === 'url') {

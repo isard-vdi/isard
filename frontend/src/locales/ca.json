@@ -49,6 +49,21 @@
         },
         "title": {
             "logo-alt": "Logotip"
+        },
+        "rdp-modal": {
+            "message": {
+                "connecting": "Connectant amb el servidor...",
+                "disconnected": "S'ha perdut la connexió",
+                "unstable": "La connexió amb el servidor és inestable",
+                "error": "Error de connexió"
+            },
+            "title": {
+                "connecting": "Connectant",
+                "disconnected": "Desconectat",
+                "unstable": "Inestable",
+                "error": "Error"
+            },
+            "button-refresh": "Recarregar"
         }
     },
     "views": {
@@ -106,7 +121,8 @@
             "viewer-name": {
                 "spice": "SPICE",
                 "browser": "al navegador",
-                "rdp": "RDP"
+                "rdp": "RDP",
+                "rdp-html5": "RDP al navegador"
             },
             "remove": "Esborrar",
             "notification": {

@@ -5,6 +5,7 @@ import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
 import Register from '@/views/Register.vue'
 import Home from '@/views/Home.vue'
+import Rdp from '@/views/Rdp.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { auth } from './auth'
@@ -17,6 +18,14 @@ const router = new VueRouter({
       path: '/',
       name: 'Home',
       component: Home,
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/rdp',
+      name: 'Rdp',
+      component: Rdp,
       meta: {
         requiresAuth: true
       }

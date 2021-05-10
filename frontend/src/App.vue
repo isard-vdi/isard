@@ -1,5 +1,5 @@
 <template>
-    <div id="app">
+    <div id="app" :class="{ guacamole: this.$route.name === 'Rdp' }">
         <router-view />
         <vue-snotify />
     </div>
@@ -12,5 +12,11 @@
     -moz-osx-font-smoothing: grayscale;
     text-align: center;
     color: #2c3e50;
+}
+
+.guacamole {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 </style>
