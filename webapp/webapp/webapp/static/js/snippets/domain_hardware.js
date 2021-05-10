@@ -17,7 +17,7 @@
 				}
 				$.each(hardware.nets,function(key, value) 
 				{
-					$(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + '</option>');
+					$(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
 				});
 
 				if(hardware.graphics.length == 1){
