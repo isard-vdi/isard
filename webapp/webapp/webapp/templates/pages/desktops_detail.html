@@ -30,10 +30,7 @@
 								<button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>XML</button>
 							 </div>
 							 <div class="row">
-								<button class="btn btn-info btn-xs pull-right btn-events" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Events</button>
-							 </div>
-							 <div class="row">								
-								<button class="btn btn-info btn-xs pull-right btn-messages" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Messages</button>
+								<button class="btn btn-info btn-xs pull-right btn-events" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>Logs</button>
 							 </div>
                              {% endif %}							 
                         </div>
@@ -58,6 +55,23 @@
 						  </div>
                           
               <div class="col-md-8 col-md-8 col-xs-12">
+                {% if(current_user.role=='admin') %}
+                <div class="row">
+                  <div class="col-md-12 col-md-12 col-xs-12">
+                    <div class="x_content">
+                      <div class="x_panel">
+                        <div class="x_title">
+                          <h3>Template tree<small></small></h3>
+                          <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                          {% include '/snippets/template_tree.html' %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
                   <div class="row" >
                                 <div class="col-md-12 col-md-12 col-xs-12">
                                     <div id="hotplug-d.id" class="x_content">

@@ -2,43 +2,62 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="right_col" role="main">
-
-<!--
-<div class="page-title">
-   <div class="title_left">
-      <h3>ISARD <small>VDI</small></h3>
-   </div>
-   <div class="title_right">
-      <div class="col-md-5 col-sm-5 col-xs-12 form-group pull-right top_search">
-          <div class="input-group">
-         
+<div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+     <div class="x_panel">
+         <div class="container for-about text-center" style="margin-top: 15px;">
+            <img src="/isard-admin/static/img/isard.svg" width="250px" height="250px">
+            <h1>IsardVDI</h1>
+            <h1><small>Virtual Desktops Infrastructure</small></h1>
+            <div class="row" style="margin-top: 40px;">
+               <div class="col-lg-2 col-md-12 col-sm-12 col-xs-12"></div>
+               <div class="col-lg-2 col-md-6 col-sm-6 col-xs-12">
+                  <a  href="http://www.isardvdi.com" target="_blank" style="color: deepskyblue">
+                     <i class="fa fa-globe" style="font-size: 125px;" aria-hidden="true"></i>
+                     <h1><small>Visit website</small></h1>
+                  </a>
+               </div>
+               <div class="col-lg-2 col-md-6 col-sm-6 col-xs-12">
+                  <a  href="https://isard.gitlab.io/isardvdi-docs/" target="_blank" style="color: lightgrey">
+                     <i class="fa fa-file-text fa-5x" style="font-size: 125px;" aria-hidden="true"></i>
+                     <h1><small>Read documentation</small></h1>
+                  </a>
+               </div>
+               <div class="col-lg-2 col-md-6 col-sm-6 col-xs-12">
+                  <a href="https://gitlab.com/isard/isardvdi" target="_blank" style="color: #1ABB9C">
+                     <i class="fa fa-code fa-5x" style="font-size: 125px;" aria-hidden="true"></i>
+                     <h1><small>View source code</small></h1>
+                  </a>
+               </div>
+               <div class="col-lg-2 col-md-6 col-sm-6 col-xs-12">
+                  <a href="https://gitlab.com/isard/isardvdi/-/issues" target="_blank" style="color: orange">
+                     <i class="fa fa-gitlab fa-5x" style="font-size: 125px;" aria-hidden="true"></i>
+                     <h1><small>Open an issue</small></h1>
+                  </a>
+               </div>
+               <div class="col-lg-2 col-md-12 col-sm-12 col-xs-12"></div>
+            </div>
+            <div class="row" style="margin-top: 25px;">
+               <div class="col-md-4 col-sm-4 col-xs-4"></div>
+               <div class="col-md-2 col-sm-2 col-xs-12">
+                  <i class="fa fa-envelope-o fa-5x" style="font-size: 125px;" aria-hidden="true"></i>
+                  <h1>
+                     <small>
+                        Contact us at:
+                        <br/>
+                        info@isardvdi.com
+                     </small>
+                  </h1>
+               </div>
+               <div class="col-md-2 col-sm-6 col-xs-12">
+                  <p><img src="/isard-admin/static/img/agplv3-155x51.png" style="margin-top: 60px;"></p>
+                  <h1 style="margin-top: 25px;"><small>License</small></h1>
+               </div>
+               <div class="col-md-4 col-sm-4 col-xs-4"></div>
+            </div>
          </div>
-      </div>
+     </div>
    </div>
-</div>
--->
-<div class="clearfix"></div>
-<div class="jumbotron">
-   <div class="container for-about">
-   <h1><img src="/isard-admin/static/img/isard.png" width"100px" height="130px">IsardVDI</h1>
-   <p>Virtual Desktops Infrastructure</p>
-   <div class="col-lg-6">
-       <p>More info:</p>
-       <li><a href="http://www.isardvdi.com">Web Site</a></li>
-       <li><a href="https://isardvdi.readthedocs.io/en/latest/">Documentation</a></li>
-       <li><a href="https://github.com/isard-vdi/isard">Source Code</a></li>
-       <li><a href="https://github.com/isard-vdi/isard/issues">Open an issue</a></li>
-    </div>
-    <div class="col-lg-6 text-right">
-        <h3>Contact IsardVDI</h3>
-        <b>info@isardvdi.com</b><br>
-        <br>
-        <h3>License:</h3>
-        <p><img src="/isard-admin/static/img/agplv3-155x51.png"></p>
-    </div>
-   </div>
-</div>
 </div>
 
 {% endblock %}
