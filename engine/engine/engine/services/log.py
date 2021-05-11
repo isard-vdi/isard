@@ -15,7 +15,6 @@ environ = os.environ
 LOG_DIR = 'logs'
 #LOG_LEVEL = CONFIG_DICT["LOG"]["log_level"]
 LOG_LEVEL = environ.get("LOG_LEVEL")
-LOG_FILE = CONFIG_DICT["LOG"]["log_file"]
 # LOG FORMATS
 
 #FORCE LOG_LEVEL IF EXISTS FILE
@@ -43,7 +42,7 @@ LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
 print(f'Engine log level: {LOG_LEVEL} ({LOG_LEVEL_NUM})')
 
 # log.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
-log.basicConfig(filename=LOG_DIR + '/' + LOG_FILE,
+log.basicConfig(
                 format=LOG_FORMAT,
                 datefmt=LOG_DATE_FORMAT,
                 level=LOG_LEVEL_NUM)
