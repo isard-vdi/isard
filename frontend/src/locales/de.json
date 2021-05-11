@@ -91,7 +91,8 @@
             "viewer-name": {
                 "spice": "SPICE",
                 "browser": "Browser",
-                "rdp": "RDP"
+                "rdp": "RDP",
+                "rdp-html5": "RDP-Browser"
             },
             "viewer": "{name}-Bildbetrachter",
             "viewers": "Bildbetrachter"
@@ -185,6 +186,21 @@
                 "description": "Beschreibung",
                 "state": "Status",
                 "name": "Name"
+            }
+        },
+        "rdp-modal": {
+            "button-refresh": "Aktualisieren",
+            "title": {
+                "error": "Client-Fehler",
+                "unstable": "Instabil",
+                "disconnected": "Getrennt",
+                "connecting": "Verbindung wird herstellt"
+            },
+            "message": {
+                "error": "Verbindungsfehler",
+                "unstable": "Der Netzwerkverbindungsserver scheint instabil zu sein",
+                "disconnected": "Ihre Verbindung wurde getrennt",
+                "connecting": "Verbindung mit Guacamole wird herstellt …"
             }
         }
     }
