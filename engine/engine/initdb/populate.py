@@ -133,7 +133,6 @@ class Populate(object):
                                                                     'log':{
                                                                             'log_name':  'isard',
                                                                             'log_level': 'WARNING',
-                                                                            'log_file':  'msg.log'
                                                                     },
                                                                     'timeouts':{
                                                                             'ssh_paramiko_hyp_test_connection':   4,
