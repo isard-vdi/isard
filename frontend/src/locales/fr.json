@@ -125,7 +125,8 @@
             "viewer-name": {
                 "browser": "Navigateur",
                 "spice": "SPICE",
-                "rdp": "RDP"
+                "rdp": "RDP",
+                "rdp-html5": "Navigateur RDP"
             },
             "viewer": "Visionneuse {name}",
             "viewers": "Visionneuses",
@@ -218,6 +219,21 @@
                 "description": "Description",
                 "state": "État",
                 "name": "Nom"
+            }
+        },
+        "rdp-modal": {
+            "button-refresh": "Actualiser",
+            "title": {
+                "error": "Erreur du client",
+                "unstable": "Instable",
+                "disconnected": "Déconnecté",
+                "connecting": "Connexion en cours"
+            },
+            "message": {
+                "error": "Erreur de connexion",
+                "unstable": "Le serveur de connexion réseau semble instable",
+                "disconnected": "Vous avez été déconnecté·e",
+                "connecting": "Connexion à Guacamole…"
             }
         }
     }
