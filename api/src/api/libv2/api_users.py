@@ -207,6 +207,7 @@ class ApiUsers():
                             "description",
                             "parents",
                             "persistent",
+                            "os",
                             {"viewer": "guest_ip"},
                             {"create_dict": {"hardware": ["interfaces", "videos"]}},
                         ]
@@ -224,19 +225,15 @@ class ApiUsers():
                 else:
                     d["type"] = "nonpersistent"
                 d["viewers"] = []
-                if not any(
-                    [
-                        video.startswith("gpu")
-                        for video in d["create_dict"]["hardware"]["videos"]
-                    ]
-                ):
-                    d["viewers"].extend(["spice", "browser"])
                 if d["status"] == "Started":
-                    d["ip"] = d.get("viewer", {}).get("guest_ip")
-                    if d["ip"]:
-                        d["viewers"].extend(["rdp", "rdp-html5"])
-                    elif "wireguard" in d["create_dict"]["hardware"]["interfaces"]:
-                        d["status"] = "WaitingIP"
+                    if "default" in d["create_dict"]["hardware"]["videos"]:
+                        d["viewers"].extend(["spice", "browser"])
+                    if "wireguard" in d["create_dict"]["hardware"]["interfaces"]:
+                        d["ip"] = d.get("viewer", {}).get("guest_ip")
+                        if not d["ip"]:
+                            d["status"] = "WaitingIP"
+                        if d["os"].startswith("win"):
+                            d["viewers"].extend(["rdp", "rdp-html5"])
                 modified_desktops.append(d)
             return modified_desktops
         except Exception as e:

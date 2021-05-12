@@ -34,20 +34,27 @@ function startClientVpnSocket(socket){
 }
 
 function setViewerButtons(data,socket,offer){
-    offer=[
-        {
-            'type': 'spice',
-            'client': 'app',
-            'secure': true,
-            'preferred': true
-        },{
-            'type': 'vnc',
-            'client': 'websocket',
-            'secure': true,
-            'preferred': false
-        }
-    ]
-    if (data.create_dict.hardware.interfaces.includes("wireguard")) {
+    offer=[]
+    if (data.create_dict.hardware.videos.includes("default")) {
+        offer.push(
+            {
+                'type': 'spice',
+                'client': 'app',
+                'secure': true,
+                'preferred': true
+            },{
+                'type': 'vnc',
+                'client': 'websocket',
+                'secure': true,
+                'preferred': false
+            }
+        )
+    }
+    if (
+        data.os.startsWith("win")
+        &&
+        data.create_dict.hardware.interfaces.includes("wireguard")
+    ) {
         offer.push(
             {
                 'type': 'rdp',
