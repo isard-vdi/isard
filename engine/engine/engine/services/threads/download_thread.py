@@ -155,7 +155,7 @@ class DownloadThread(threading.Thread, object):
                              preexec_fn=os.setsid)
         rc = p.poll()
         update_status_table(self.table, 'Downloading', self.id, "downloading in hypervisor: {}".format(self.hostname))
-        while rc != 0:
+        if rc is None:
             header = p.stderr.readline().decode('utf8')
             header2 = p.stderr.readline().decode('utf8')
             keys = ['total_percent',
@@ -173,7 +173,7 @@ class DownloadThread(threading.Thread, object):
 
             line = ""
 
-            while True:
+            while rc is None:
 
                 c = p.stderr.read(1).decode('utf8')
                 if self.stop is True:
@@ -214,6 +214,7 @@ class DownloadThread(threading.Thread, object):
                     # update_status_table(self.table, 'DownloadFailed', self.id, detail="download aborted")
                     return False
                 if not c:
+                    rc = p.poll()
                     break
                 if c == '\r':
                     if len(line) > 60:
@@ -235,14 +236,16 @@ class DownloadThread(threading.Thread, object):
                 else:
                     line = line + c
 
-            rc = p.poll()
+                rc = p.poll()
 
         if self.stop is True:
             return False
+        elif rc != 0:
+            error_msg = f"Download failed with status code {rc}"
+            logs.downloads.info(f"{error_msg}: {self.id}, {self.url}")
+            update_status_table(self.table, 'DownloadFailed', self.id, detail=error_msg)
         else:
             logs.downloads.info('File downloaded: {}'.format(self.path))
-
-            assert rc == 0
             if self.table == 'domains':
                 # update_table_field(self.table, self.id, 'path_downloaded', self.path)
                 d_update_domain = get_domain(self.id)['create_dict']
