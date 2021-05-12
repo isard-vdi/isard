@@ -7,3 +7,11 @@ export const cardIcons = {
   linux: ['fab', 'linux'],
   centos: ['fab', 'centos']
 }
+
+export const desktopStates = {
+  not_created: 'notCreated',
+  failed: 'failed',
+  started: 'started',
+  stopped: 'stopped',
+  waitingip: 'waitingip'
+}

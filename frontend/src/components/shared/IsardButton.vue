@@ -1,8 +1,11 @@
 <template>
   <b-button
-      @click="$emit('buttonClicked')"
-      :variant="variant">
+      @click="!spinnerActive && $emit('buttonClicked')"
+      :variant="spinnerActive ? '' : variant"
+      :size="buttonSize ? buttonSize : ''"
+      class="m-1">
         <isard-butt-viewer-text :viewerName="viewerName"></isard-butt-viewer-text>
+        <b-spinner v-if="spinnerActive" small type="grow"/>
   </b-button>
 </template>
 
@@ -12,8 +15,9 @@ export default {
   components: { IsardButtViewerText },
   props: {
     variant: String,
-    cssclass: String,
-    viewerName: String
+    viewerName: String,
+    spinnerActive: Boolean,
+    buttonSize: String
   }
 }
 </script>

@@ -14,15 +14,19 @@
                     {{ desktop.name }}
                 </b-card-title>
                 <b-card-sub-title class="mb-2 card-sub-title">
-                    {{$t(`views.select-template.status.${desktop.state.toLowerCase()}.text`)}}
+                    <span>
+                      <b-spinner v-if="waitingIp (desktop.state)" small/>
+                      {{$t(`views.select-template.status.${desktop.state.toLowerCase()}.text`)}}
+                    </span>
                     <p v-if="desktop.ip">IP: {{ desktop.ip }}</p>
                 </b-card-sub-title>
                 <!-- Viewers button/dropdown -->
-                <span v-if="desktop.state.toLowerCase() == 'started'">
+                <span v-if="showDropDown(desktop.state)">
                   <isard-button
                     v-if="desktop.viewers.length === 1"
                     :viewerName="desktop.viewers[0]"
-                    variant="primary" cssClass="m-1"
+                    variant="primary"
+                    :spinnerActive="waitingIp(desktop.state)"
                     @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})">
                   </isard-button>
                   <isard-dropdown
@@ -33,6 +37,7 @@
                     :desktop="desktop"
                     :viewerText="viewers[desktop.id] !== undefined ? getViewerText(viewers[desktop.id]) : $t('views.select-template.viewers')"
                     :defaultViewer="viewers[desktop.id]"
+                    :waitingIp="waitingIp (desktop.state)"
                     @dropdownClicked="openDesktop">
                   </isard-dropdown>
                 </span>
@@ -64,9 +69,12 @@
                       <b-icon v-if="desktop.description" v-b-tooltip.hover :title="desktop.description" icon="info-circle" class="mr-1"></b-icon>
                       {{desktop.state ? templates.filter(template => template.id ===  desktop.template)[0].name : desktop.name}}
                   </b-card-title>
-                  <b-card-sub-title class="card-sub-title" v-if="desktop.state">
+                  <b-card-sub-title class="card-sub-title mb-2" v-if="desktop.state">
+                    <span>
+                      <b-spinner v-if="waitingIp (desktop.state)" small/>
                       {{$t(`views.select-template.status.${desktop.state.toLowerCase()}.text`)}}
-                      <p v-if="desktop.ip">IP: {{ desktop.ip }}</p>
+                    </span>
+                    <p v-if="desktop.ip">IP: {{ desktop.ip }}</p>
                   </b-card-sub-title>
                   <!-- If the desktop doesn't exist we can create it using its template id -->
                   <b-button
@@ -78,29 +86,32 @@
                   </b-button>
                   <span v-else>
                     <!-- If it's stopped we can start it -->
-                    <b-button v-if="desktop.state.toLowerCase() === 'stopped'" size="sm" :variant="status.stopped.variant"
+                    <b-button v-if="desktop.state.toLowerCase() === desktopStates.stopped" size="sm" :variant="status.stopped.variant"
                       @click="changeDesktopStatus({ action: status.stopped.action, desktopId: desktop.id })">
                         <font-awesome-icon :icon="status.stopped.icon" class="mr-2"/>
                         {{$t('views.select-template.status.stopped.action')}}
                     </b-button>
                     <!-- If it's executing we can use its viewers -->
-                    <span v-else-if="desktop.state.toLowerCase() === 'started'">
+                    <span v-else-if="showDropDown(desktop.state)">
                       <isard-button
                         v-if="desktop.viewers.length === 1"
                         variant="primary"
+                        buttonSize="sm"
                         :viewerName="desktop.viewers[0]"
-                        cssClass="m-1"
+                        :spinnerActive="waitingIp(desktop.state)"
                         @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0], template: desktop.template})">
                       </isard-button>
                       <isard-dropdown
                         v-else
                         variant="primary"
                         cssClass="m-1"
+                        labelSize="sm"
                         :viewers="desktop.viewers.filter(item => item !== viewers[desktop.template])"
                         :desktop="desktop"
                         :viewerText="viewers[desktop.template] !== undefined ? getViewerText(viewers[desktop.template]) : $t('views.select-template.viewers')"
                         :defaultViewer="viewers[desktop.template]"
                         :template="desktop.template"
+                        :waitingIp="waitingIp(desktop.state)"
                         @dropdownClicked="openDesktop">
                       </isard-dropdown>
                     </span>
@@ -129,11 +140,12 @@
               </b-button>
           </template>
           <template #cell(viewers)="data">
-            <div v-if="data.item.state.toLowerCase() == 'started'">
+            <div v-if="showDropDown(data.item.state)">
               <isard-button
                 v-if="data.item.viewers.length === 1"
                 variant="primary"
                 :viewerName="data.item.viewers[0]"
+                :spinnerActive="waitingIp(data.item.state)"
                 @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0]})">
               </isard-button>
               <isard-dropdown
@@ -144,6 +156,7 @@
                 :desktop="data.item"
                 :viewerText="viewers[data.item.id] !== undefined ? getViewerText(viewers[data.item.id]) : $t('views.select-template.viewers')"
                 :defaultViewer="viewers[data.item.id]"
+                :waitingIp="waitingIp(data.item.state)"
                 @dropdownClicked="openDesktop">
               </isard-dropdown>
             </div>
@@ -155,6 +168,12 @@
                 <p>{{ data.item.name }}</p>
               </b-col>
             </b-row>
+          </template>
+          <template #cell(state)="data">
+            <div>
+              {{data.item.state && $t(`views.select-template.status.${data.item.state.toLowerCase()}.text`)}}
+              <b-spinner v-if="waitingIp(data.item.state)" small/>
+            </div>
           </template>
         </b-table>
         <!-- Non persistent desktops -->
@@ -172,7 +191,7 @@
             <span v-else>
               <!-- If it's stopped we can start it -->
               <b-button
-                v-if="data.item.state.toLowerCase() === 'stopped'"
+                v-if="data.item.state.toLowerCase() === desktopStates.stopped"
                 :variant="status.stopped.variant" class="mr-1"
                 @click="changeDesktopStatus({ action: status.stopped.action, desktopId: data.item.id })">
                   <font-awesome-icon :icon="status.stopped.icon" class="mr-2"/>
@@ -186,11 +205,12 @@
             </span>
           </template>
           <template #cell(viewers)="data">
-            <div v-if="data.item.state && data.item.state.toLowerCase() == 'started'">
+            <div v-if="showDropDown(data.item.state)">
                 <isard-button
                   v-if="data.item.viewers.length === 1"
                   variant="primary"
                   :viewerName="data.item.viewers[0]"
+                  :spinnerActive="waitingIp(data.item.state)"
                   @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers[0], template: data.item.template})">
                 </isard-button>
                 <isard-dropdown
@@ -202,6 +222,7 @@
                   :viewerText="viewers[data.item.template] !== undefined ? getViewerText(viewers[data.item.template]) : $t('views.select-template.viewers')"
                   :defaultViewer="viewers[data.item.template]"
                   :template="data.item.template"
+                  :waitingIp="waitingIp(data.item.state)"
                   @dropdownClicked="openDesktop">
                 </isard-dropdown>
             </div>
@@ -214,8 +235,11 @@
               </b-col>
             </b-row>
           </template>
-          <template #cell(status)="data">
-            <span v-if="data.item.state">{{$t(`views.select-template.status.${data.item.state.toLowerCase()}.text`)}}</span>
+          <template #cell(state)="data">
+            <div>
+              {{data.item.state && $t(`views.select-template.status.${data.item.state.toLowerCase()}.text`)}}
+              <b-spinner v-if="waitingIp(data.item.state)" small/>
+            </div>
           </template>
         </b-table>
       </b-row>
@@ -226,7 +250,7 @@
 // @ is an alias to /src
 import i18n from '@/i18n'
 import { mapActions } from 'vuex'
-import { cardIcons } from '../shared/constants'
+import { cardIcons, desktopStates } from '../shared/constants'
 import IsardDropdown from './shared/IsardDropdown.vue'
 import IsardButton from './shared/IsardButton.vue'
 
@@ -269,6 +293,12 @@ export default {
     getViewerText (viewer) {
       const name = i18n.t(`views.select-template.viewer-name.${viewer}`)
       return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
+    },
+    showDropDown (state) {
+      return state && [desktopStates.started, desktopStates.waitingip].includes(state.toLowerCase())
+    },
+    waitingIp (desktopState) {
+      return desktopState && desktopState.toLowerCase() === desktopStates.waitingip
     }
   },
   computed: {
@@ -282,7 +312,7 @@ export default {
         {
           key: 'action',
           label: i18n.t('components.desktop-cards.table-header.action'),
-          thStyle: { width: '7cm' }
+          thStyle: { width: '8cm' }
         },
         {
           key: 'viewers',
@@ -304,7 +334,7 @@ export default {
           },
           sortByFormatted: true,
           label: i18n.t('components.desktop-cards.table-header.state'),
-          thStyle: { width: '3cm' },
+          thStyle: { width: '5cm' },
           tdClass: 'pt-3'
         },
         {
@@ -320,7 +350,8 @@ export default {
           tdClass: 'pt-3'
         }
       ],
-      ICONS: cardIcons
+      ICONS: cardIcons,
+      desktopStates
     }
   }
 }
@@ -332,18 +363,19 @@ export default {
     min-height:250px !important;
     min-width:400px !important;
     z-index: 0 !important;
+    transition: 0.3s;
   }
 
   .temporal_desktop {
     min-height:100px !important;
-    min-width:350px !important;
+    min-width:400px !important;
     z-index: 0 !important;
   }
 
   .card:hover{
     z-index: 1 !important;
     box-shadow: 8px 8px 5px blue;
-    transform: scale(1.1);
+    background-color: #eaf1ed;
   }
 
   .bounce-enter-active {
