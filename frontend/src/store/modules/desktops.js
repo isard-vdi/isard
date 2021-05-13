@@ -1,5 +1,4 @@
 import * as cookies from 'tiny-cookie'
-
 import { apiAxios } from '@/router/auth'
 import i18n from '@/i18n'
 import router from '@/router'

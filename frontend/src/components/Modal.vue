@@ -36,7 +36,6 @@ export default {
   methods: {
     show (state, message) {
       this.message = ''
-      console.log(state, 'show message')
       this.status = state
       if (message) this.message = message
     },
