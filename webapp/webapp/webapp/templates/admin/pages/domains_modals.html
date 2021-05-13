@@ -516,47 +516,54 @@
 </div>
 
 
-<div class="modal fade" id="modalDeleteTemplate" tabindex="-1" role="dialog" 
-   aria-labelledby="modalDeleteTemplate" aria-hidden="true" >
-    <div class="modal-dialog modal-lg" >
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header">
-               <button type="button" class="close" 
-                  data-dismiss="modal">
-               <span aria-hidden="true">&times;</span>
-               <span class="sr-only">Close</span>
-               </button>
-               <h4 class="modal-title" id="myModalLabel">
-                  <i class="fa fa-warning" style="color:red"></i>   Delete template and derivates
-               </h4>
+<div class="modal fade" id="modalDeleteTemplate" tabindex="-1" role="dialog" aria-labelledby="modalDeleteTemplate" aria-hidden="true" >
+   <div class="modal-dialog modal-lg" >
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close" 
+               data-dismiss="modal">
+            <span aria-hidden="true">&times;</span>
+            <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-warning" style="color:red"></i>   Delete template and derivates
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <div class="row">
+               <div class="x_panel">
+                  <div class="x_title">
+                     <h4>List of domains to be deleted<small></small></h4>
+                     <div class="clearfix"></div>
+               </div>
+               <input  id="id" name="id" type="hidden" required>
+                  {% include '/snippets/template_tree.html' %}
+
+               </div>
             </div>
-            <!-- Modal Body -->
-            <div class="modal-body">
-                <div class="x_panel" style="padding: 5px;">
-                    <input  id="id" name="id" type="hidden" required>
-                    {% include '/snippets/template_tree.html' %}
-                </div>
-                <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">List of domains to be deleted</p>
-                    <div class="x_content" style="padding: 0px;">
-                         <p style="font-size: 18px;margin-bottom:0px;"> All this desktops and templates will be deleted!</p><br>
-                         All them depend on the template you are about to delete so they must be deleted also.<br>
-                         THIS OPERATION CAN'T BE UNDONE!
-                    </div>
-                </div>                
-                  <!-- Modal Footer -->
-            <div class="modal-footer">
-                 <ul class="nav navbar-left panel_toolbox">
-                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                 </ul>                
-                 <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-warning">Stop and Delete ALL!</button></li>
-                 </ul>
+            <div class="row">
+               <div class="x_panel">
+                     <div class="x_content">
+                        <p style="font-size: 18px;margin-bottom:0px; color: red"> All this desktops and templates will be deleted!</p><br>
+                        All them depend on the template you are about to delete so they must be deleted also.<br>
+                        THIS OPERATION CAN'T BE UNDONE!
+                     </div>
+               </div>
             </div>
-        </div>
-    </div>
-</div>
+         </div>
+         <!-- Modal Footer -->
+         <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+               <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>                
+            <ul class="nav navbar-right panel_toolbox">
+               <li><button id="send" type="button" class="btn btn-danger">Stop and Delete ALL!</button></li>
+            </ul>
+         </div>
+      </div>
+   </div>
 </div>
 
 
