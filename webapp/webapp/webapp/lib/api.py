@@ -55,55 +55,55 @@ class isard():
                                 return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted. Something went wrong!','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                         else:
                             return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
-                if data["value"] == "DownloadStarting":
-                    if dom["status"] == "DownloadFailed":
-                        if app.isardapi.update_table_value(
-                            table, data["pk"], data["name"], data["value"]
-                        ):
-                            return (
-                                json.dumps(
-                                    {
-                                        "title": f"{item} downloading success",
-                                        "text": f"{item} {dom['name']} will be downloaded",
-                                        "icon": "success",
-                                        "type": "info",
-                                    }
-                                ),
-                                200,
-                                {"Content-Type": "application/json"},
-                            )
+                    if data["value"] == "DownloadStarting":
+                        if dom["status"] == "DownloadFailed":
+                            if app.isardapi.update_table_value(
+                                table, data["pk"], data["name"], data["value"]
+                            ):
+                                return (
+                                    json.dumps(
+                                        {
+                                            "title": f"{item} downloading success",
+                                            "text": f"{item} {dom['name']} will be downloaded",
+                                            "icon": "success",
+                                            "type": "info",
+                                        }
+                                    ),
+                                    200,
+                                    {"Content-Type": "application/json"},
+                                )
+                            else:
+                                return (
+                                    json.dumps(
+                                        {
+                                            "title": f"{item} downloading error",
+                                            "text": (
+                                                f"{item} {dom['name']} can't be downloaded."
+                                                f"Something went wrong!"
+                                            ),
+                                            "icon": "warning",
+                                            "type": "error",
+                                        }
+                                    ),
+                                    500,
+                                    {"Content-Type": "application/json"},
+                                )
                         else:
                             return (
                                 json.dumps(
                                     {
                                         "title": f"{item} downloading error",
                                         "text": (
-                                            f"{item} {dom['name']} can't be downloaded."
-                                            f"Something went wrong!"
+                                            f"{item} {dom['name']} can't be doenloaded"
+                                            f"while not DownloadFailed"
                                         ),
                                         "icon": "warning",
                                         "type": "error",
                                     }
                                 ),
-                                500,
-                                {"Content-Type": "application/json"},
+                                409,
+                                {"ContentType": "application/json"},
                             )
-                    else:
-                        return (
-                            json.dumps(
-                                {
-                                    "title": f"{item} downloading error",
-                                    "text": (
-                                        f"{item} {dom['name']} can't be doenloaded"
-                                        f"while not DownloadFailed"
-                                    ),
-                                    "icon": "warning",
-                                    "type": "error",
-                                }
-                            ),
-                            409,
-                            {"ContentType": "application/json"},
-                        )
                     if data['value']=='Stopping':
                         if dom["status"] == "Shutting-down":
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
