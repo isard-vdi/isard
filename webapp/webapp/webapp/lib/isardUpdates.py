@@ -140,9 +140,11 @@ class Updates(object):
         if kind == 'domains' or kind == 'media':
             with app.app_context():
                 dbb=r.table(kind).get('_'+username+'_'+w['id']).run(db.conn)
-            if dbb == None:
+            if dbb is None:
                 w['id']='_'+username+'_'+w['id']
                 return w
+            elif dbb.get("status") == "DownloadFailed":
+                return dbb
         else:
             with app.app_context():
                 dbb=r.table(kind).get(w['id']).run(db.conn)
