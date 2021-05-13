@@ -9,6 +9,6 @@ def add_private_code(code):
         except Exception as e:
             print("Error updating.\n"+str(e))
 
-code = input("Enter you private access code to updates: ")
+code = input("Enter you private access code to IsardVDI Downloads Service: ")
 add_private_code(code)
 

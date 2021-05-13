@@ -7,14 +7,22 @@
   <div class="col-md-12 col-sm-12 col-xs-12">
      <div class="x_panel">
         <div class="page-title">
-           <div class="title_left">
-              <h3><i class="fa fa-cloud-download"></i> Updates <small>Get resources from IsardVDI</small></h3>
+          <div class="row">
+            <div class="col-md-10 col-sm-12 col-xs-12">
+              <h3>
+                <i class="fa fa-cloud-download"></i>
+                Downloads
+                <small>Get resources from IsardVDI Downloads Service</small>
+              </h3>
             </div>
-            <div class="title_right">
+            <div class="col-md-2 col-sm-12 col-xs-12">
               <form action="{{ url_for('admin_updates_reload') }}" method="post">
-              <button id="reload" type="submit" class="btn btn-info"><i class="fa fa-refresh"></i></button>
-              </form>  
+                <button id="reload" type="submit" class="btn btn-info">
+                  <i class="fa fa-refresh"></i>
+                </button>
+              </form>
             </div>
+          </div>
         </div> 
         <div class="clearfix"></div>
      </div>
@@ -26,11 +34,14 @@
     <div class="col-md-12 col-sm-12 col-xs-12">
       <div class="x_panel">
         <div class="x_title">
-          <h2>Can't contact now with IsardVDI updates <small>Try again later...</small></h2>
+          <h2>
+            Can't contact now with IsardVDI Downloads Service
+            <small>Try again later...</small>
+          </h2>
           <div class="clearfix"></div>
         </div>
         <div class="x_content">
-          It could be a network problem or we are currently updating IsardVDI oline updates server<br>
+          It could be a network problem or we are currently updating IsardVDI Downloads Service
           <div class="clearfix"></div>                        
         </div>
       </div>
@@ -43,14 +54,24 @@
     <div class="col-md-12 col-sm-12 col-xs-12">
       <div class="x_panel">
         <div class="x_title">
-          <h2>Not registered <small>Your IsardVDI is not registered for updates. </small></h2>
+          <h2>
+            Not registered
+            <small>Your IsardVDI is not registered for IsardVDI Downloads Service.</small>
+          </h2>
           <div class="clearfix"></div>
         </div>
         <div class="x_content">
-          Registering your IsardVDI only sets a unique id for this installation.<br>
-          No personal data is collected.<br>
-          <form action="{{ url_for('admin_updates_register') }}" method="post">
-            <button id="register" type="submit" class="btn btn-success">Register to get updates!</button>
+          Registering your IsardVDI only sets a unique id for this installation.
+          <br>
+          No personal data is collected.
+          <br>
+          <form
+            action="{{ url_for('admin_updates_register') }}"
+            method="post"
+          >
+            <button id="register" type="submit" class="btn btn-success">
+              Register with only a click!
+            </button>
           </form>
           <div class="clearfix"></div>                        
         </div>
