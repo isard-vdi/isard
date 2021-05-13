@@ -241,7 +241,7 @@ $(document).ready(function() {
 
     });
 
-    $("#modalQosNetForm #send").on('click', function(e){
+    $("#modalQosNet #send").on('click', function(e){
         console.log('send net')
         var form = $('#modalQosNetForm');
         data = form.serializeObject()
@@ -337,7 +337,7 @@ $(document).ready(function() {
 
     });
 
-    $("#modalQosDiskForm #send").on('click', function(e){
+    $("#modalQosDisk #send").on('click', function(e){
         var form = $('#modalQosDiskForm');
         data = form.serializeObject()
         form.parsley().validate();
@@ -451,7 +451,7 @@ $(document).ready(function() {
               });
     });
 
-    $("#modalInterfacesForm #send").on('click', function(e){
+    $("#modalInterfaces #send").on('click', function(e){
         var form = $('#modalInterfacesForm');
         data = form.serializeObject()
         form.parsley().validate();

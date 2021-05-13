@@ -214,8 +214,8 @@
             });
         });	                    
 
-        $("#modalAllowedsForm #send").off('click');
-        $("#modalAllowedsForm #send").on('click', function(e){
+        $("#modalAlloweds #send").off('click');
+        $("#modalAlloweds #send").on('click', function(e){
                 var form = $('#modalAllowedsForm');
 
                 form.parsley().validate();
