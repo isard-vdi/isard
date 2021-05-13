@@ -253,13 +253,12 @@ class DownloadThread(threading.Thread, object):
                 d_update_domain['hardware']['disks'][0]['file'] = self.path
 
                 update_domain_dict_create_dict(self.id, d_update_domain)
-                self.finalished_threads.append(self.path)
                 update_domain_status('Downloaded', self.id, detail="downloaded disk")
                 update_domain_status('Updating', self.id, detail="downloaded disk")
             else:
-                self.finalished_threads.append(self.path)
                 update_table_field(self.table, self.id, 'path_downloaded', self.path)
                 update_status_table(self.table, 'Downloaded', self.id)
+        self.finalished_threads.append(self.path)
 
 
 class DownloadChangesThread(threading.Thread):
