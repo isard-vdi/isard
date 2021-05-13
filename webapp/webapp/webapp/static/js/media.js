@@ -190,6 +190,9 @@ $(document).ready(function() {
                             }).on('pnotify.cancel', function() {
                     });	             
                 break;
+             case 'btn-download':
+                    socket.emit('media_update', {'pk': data.id, 'name': 'status', 'value': 'DownloadStarting'})
+                break;
              case 'btn-alloweds':
                     modalAllowedsFormShow('media',data)
                 break;                
