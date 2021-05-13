@@ -311,7 +311,8 @@ def test_templates():
 
 
 def tree_create():
-    ## Admin user must download tetros from updates and convert it to template.
+    ## Admin user must download tetros from IsardVDI Download Service
+    ## and convert it to template.
     user_id='local_default_admin_admin' 
     template_id='_local_default_admin_admin_downloaded_tetros'
     template_id='_local_default_admin_admin_Template_TetrOS'

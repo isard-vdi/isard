@@ -397,7 +397,10 @@ class DownloadChangesThread(threading.Thread):
         elif dict_changes.get('url-isard', False) is not False:
             if self.url_code is False:
                 if self.get_url_resources_and_code() is False:
-                    logs.downloads.error(f'not url_code, isard installation not registered to updates')
+                    logs.downloads.error(
+                        f'not url_code, isard installation not registered'
+                        f' to IsardVDI Downloads Service'
+                    )
                     return False
             url_base = self.url_resources
 
