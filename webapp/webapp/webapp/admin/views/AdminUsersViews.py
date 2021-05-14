@@ -35,7 +35,7 @@ def admin_users_get():
     data = app.adminapi.get_admin_users_domains()
     if current_user.role == 'manager':
         data = [d for d in data if d['category'] == current_user.category]
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/group/enrollment/<id>')
 @login_required
@@ -43,8 +43,8 @@ def admin_users_get():
 def admin_group_enrollment(id):
     data = app.adminapi.get_group(id)
     if current_user.role == 'manager' and data != {}:
-        if data['parent_category'] != current_user.category: return json.dumps({}), 500, {'ContentType': 'application/json'}  
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+        if data['parent_category'] != current_user.category: return json.dumps({}), 500, {'Content-Type': 'application/json'}  
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/group/enrollment_reset/<id>/<role>')
 @login_required
@@ -52,9 +52,9 @@ def admin_group_enrollment(id):
 def admin_group_enrollment_reset(id,role):
     data = app.adminapi.get_group(id)
     if current_user.role == 'manager' and data != {}:
-        if data['parent_category'] != current_user.category: return json.dumps({}), 500, {'ContentType': 'application/json'}  
+        if data['parent_category'] != current_user.category: return json.dumps({}), 500, {'Content-Type': 'application/json'}  
     data = app.adminapi.enrollment_reset(id,role)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/group/enrollment_disable/<id>/<role>')
 @login_required
@@ -62,16 +62,16 @@ def admin_group_enrollment_reset(id,role):
 def admin_group_enrollment_disable(id,role):
     data = app.adminapi.get_group(id)
     if current_user.role == 'manager' and data != {}:
-        if data['parent_category'] != current_user.category: return json.dumps({}), 500, {'ContentType': 'application/json'}  
+        if data['parent_category'] != current_user.category: return json.dumps({}), 500, {'Content-Type': 'application/json'}  
     data = app.adminapi.enrollment_reset(id,role,disabled=True)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/users/detail/<id>')
 @login_required
 @isAdminManager
 def admin_users_get_detail(id):
     data = 'user desktops'
-    return json.dumps(data), 200, {'ContentType':'application/json'} 
+    return json.dumps(data), 200, {'Content-Type':'application/json'} 
 
 @app.route('/isard-admin/admin/userschema', methods=['POST'])
 @login_required

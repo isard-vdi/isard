@@ -26,7 +26,7 @@ def desktops():
 @app.route('/isard-admin/desktops/get')
 @login_required
 def desktops_get():
-    return json.dumps(app.isardapi.get_user_domains(current_user.id)), 200, {'ContentType': 'application/json'}
+    return json.dumps(app.isardapi.get_user_domains(current_user.id)), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/desktops/download_viewer/<os>/<id>')
 @login_required
@@ -63,13 +63,13 @@ def domains_update():
         try:
             exceeded = app.isardapi.check_quota_limits('NewConcurrent',current_user.id)
             if exceeded != False:  
-                 return json.dumps('Quota for starting domains full. '+exceeded), 500, {'ContentType':'application/json'}
+                 return json.dumps('Quota for starting domains full. '+exceeded), 500, {'Content-Type':'application/json'}
             if app.isardapi.update_table_value('domains', args['pk'], args['name'], args['value']):
-                return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+                return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
             else:
-                return json.dumps('This is not a valid value.'), 500, {'ContentType':'application/json'}
+                return json.dumps('This is not a valid value.'), 500, {'Content-Type':'application/json'}
         except Exception as e:
-            return json.dumps('Wrong parameters.'), 500, {'ContentType':'application/json'}
+            return json.dumps('Wrong parameters.'), 500, {'Content-Type':'application/json'}
 
 
 # Gets all allowed for a domain
@@ -108,18 +108,18 @@ def templateUpdate(id):
 @ownsid
 def jumperurl(id):
     data = app.adminapi.get_jumperurl(id)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/desktops/jumperurl_reset/<id>')
 @login_required
 @ownsid
 def jumperurl_reset(id):
     data = app.adminapi.jumperurl_reset(id)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/desktops/jumperurl_disable/<id>')
 @login_required
 @ownsid
 def jumperurl_disable(id):
     data = app.adminapi.jumperurl_reset(id,disabled=True)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}

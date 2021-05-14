@@ -24,14 +24,14 @@ def media():
 def media_get():
 	data=app.isardapi.get_all_alloweds_table('media',current_user.id, pluck=False)
 	# ~ data=[d for d in data if d['status']=='Downloaded' ]
-	return json.dumps(data), 200, {'ContentType': 'application/json'}
+	return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/domain/media', methods=["POST"])
 @login_required
 def domain_media():
     if request.method == 'POST':
         data=request.get_json(force=True)    
-        return json.dumps(app.isardapi.get_domain_media(data['pk'])), 200, {'ContentType': 'application/json'}
+        return json.dumps(app.isardapi.get_domain_media(data['pk'])), 200, {'Content-Type': 'application/json'}
     return url_for('media')
 
 @app.route('/isard-admin/domain/media_list', methods=["POST"])
@@ -39,13 +39,13 @@ def domain_media():
 def domain_media_list():
     if request.method == 'POST':
         data=request.get_json(force=True)    
-        return json.dumps(app.isardapi.get_domain_media_list(data['pk'])), 200, {'ContentType': 'application/json'}
+        return json.dumps(app.isardapi.get_domain_media_list(data['pk'])), 200, {'Content-Type': 'application/json'}
     return url_for('media')
 
 @app.route('/isard-admin/media/installs')
 @login_required
 def media_installs_get():
-    return json.dumps(app.isardapi.get_media_installs()), 200, {'ContentType': 'application/json'}
+    return json.dumps(app.isardapi.get_media_installs()), 200, {'Content-Type': 'application/json'}
 
 
 @app.route('/isard-admin/media/select2/post', methods=["POST"])
@@ -64,8 +64,8 @@ def media_select2_post():
         if current_user.role != "admin":
             result = [r for r in result if r['category'] == current_user.category or r['category'] == 'default']        
         #~ result=app.adminapi.get_admin_table_term('media','name',data['term'],kind=kind,pluck=data['pluck'])
-        return json.dumps(result), 200, {'ContentType':'application/json'}
-    return json.dumps('Could not select.'), 500, {'ContentType':'application/json'} 
+        return json.dumps(result), 200, {'Content-Type':'application/json'}
+    return json.dumps('Could not select.'), 500, {'Content-Type':'application/json'} 
 
 
 # ~ @app.route('/isard-admin/admin/table/<table>/post', methods=["POST"])
@@ -79,5 +79,5 @@ def media_select2_post():
         # ~ #~ if 'order' not in data.keys():
             # ~ #~ data['order']=False
         # ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'])
-        # ~ return json.dumps(result), 200, {'ContentType':'application/json'}
-    # ~ return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+        # ~ return json.dumps(result), 200, {'Content-Type':'application/json'}
+    # ~ return json.dumps('Could not delete.'), 500, {'Content-Type':'application/json'} 

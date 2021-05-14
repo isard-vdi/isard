@@ -48,7 +48,7 @@ def admin_table_get(table):
             result = [r for r in result if 'parent_category' in r.keys() and r['parent_category'] == current_user.category]
         if table == 'roles':
             result = [r for r in result if r['id'] != 'admin']
-    return json.dumps(result), 200, {'ContentType':'application/json'} 
+    return json.dumps(result), 200, {'Content-Type':'application/json'} 
 
 # Used in quota.js for admin users
 @app.route('/isard-admin/admin/load/<table>/post', methods=["POST"])
@@ -70,8 +70,8 @@ def admin_load_post(table):
         else:
             result=app.adminapi.get_admin_table(table,id=data['id'],pluck=data['pluck'],order=data['order'],flatten=data['flatten'])
 
-        return json.dumps(result), 200, {'ContentType':'application/json'}
-    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+        return json.dumps(result), 200, {'Content-Type':'application/json'}
+    return json.dumps('Could not delete.'), 500, {'Content-Type':'application/json'} 
     
 @app.route('/isard-admin/admin/table/<table>/post', methods=["POST"])
 @login_required
@@ -94,8 +94,8 @@ def admin_table_post(table):
         #~ if 'order' not in data.keys():
             #~ data['order']=False
         result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'],kind=data['kind'])
-        return json.dumps(result), 200, {'ContentType':'application/json'}
-    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+        return json.dumps(result), 200, {'Content-Type':'application/json'}
+    return json.dumps('Could not delete.'), 500, {'Content-Type':'application/json'} 
 
 @app.route('/isard-admin/admin/getAllTemplates', methods=["POST"])
 @login_required
@@ -106,8 +106,8 @@ def admin_get_all_templates():
         result=app.adminapi.get_admin_templates(data['term'])
         if current_user.role == 'manager':
             result = [d for d in result if d['category'] == current_user.category]
-        return json.dumps(result), 200, {'ContentType':'application/json'}
-    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'} 
+        return json.dumps(result), 200, {'Content-Type':'application/json'}
+    return json.dumps('Could not delete.'), 500, {'Content-Type':'application/json'} 
     
 @app.route('/isard-admin/admin/delete', methods=["POST"])
 @login_required
@@ -115,8 +115,8 @@ def admin_get_all_templates():
 def admin_delete():
     if request.method == 'POST':
         if app.adminapi.delete_table_key(request.get_json(force=True)['table'],request.get_json(force=True)['pk']):
-            return json.dumps('Deleted'), 200, {'ContentType':'application/json'} 
-    return json.dumps('Could not delete.'), 500, {'ContentType':'application/json'}
+            return json.dumps('Deleted'), 200, {'Content-Type':'application/json'} 
+    return json.dumps('Could not delete.'), 500, {'Content-Type':'application/json'}
 '''
 CONFIG
 '''
@@ -125,7 +125,7 @@ CONFIG
 @isAdminManager
 def admin_config():
     if request.method == 'POST':
-        return json.dumps(app.adminapi.get_admin_config(1)), 200, {'ContentType': 'application/json'}
+        return json.dumps(app.adminapi.get_admin_config(1)), 200, {'Content-Type': 'application/json'}
     return render_template('admin/pages/config.html',nav="Config")
 
 
@@ -134,7 +134,7 @@ def admin_config():
 #~ @isAdmin
 #~ def admin_disposables():
     #~ result=app.adminapi.get_admin_table('disposables')
-    #~ return json.dumps(result), 200, {'ContentType':'application/json'} 
+    #~ return json.dumps(result), 200, {'Content-Type':'application/json'} 
 
 @app.route('/isard-admin/admin/config/update', methods=['POST'])
 @login_required
@@ -156,9 +156,9 @@ def admin_config_update():
             dict['disposable_desktops'].pop('id',None)
             dict['disposable_desktops']['active']=False if 'active' not in dict['disposable_desktops'] else True
         if app.adminapi.update_table_dict('config',1,dict):
-            # ~ return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+            # ~ return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
             return render_template('admin/pages/config.html',nav="Config")
-    return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
+    return json.dumps('Could not update.'), 500, {'Content-Type':'application/json'}
 
 @app.route('/isard-admin/admin/disposable/add', methods=['POST'])
 @login_required
@@ -178,8 +178,8 @@ def admin_disposable_add():
                         'nets':nets,
                         'disposables':dsps}]
         if app.adminapi.insert_table_dict('disposables',disposable):
-            return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-    return json.dumps('Could not update.'), 500, {'ContentType':'application/json'}
+            return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
+    return json.dumps('Could not update.'), 500, {'Content-Type':'application/json'}
 
 '''
 BACKUP & RESTORE
@@ -190,8 +190,8 @@ BACKUP & RESTORE
 def admin_backup():
     if request.method == 'POST':
         app.adminapi.backup_db()
-        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+        return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'Content-Type':'application/json'}
 
 @app.route('/isard-admin/admin/restore', methods=['POST'])
 @login_required
@@ -199,8 +199,8 @@ def admin_backup():
 def admin_restore():
     if request.method == 'POST':
         app.adminapi.restore_db(request.get_json(force=True)['pk'])
-        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+        return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'Content-Type':'application/json'}
 
 @app.route('/isard-admin/admin/restore/<table>', methods=['POST'])
 @login_required
@@ -213,13 +213,13 @@ def admin_restore_table(table):
         data.pop('new_backup_data',None)
         if insert:
             if app.adminapi.insert_table_dict(table,data):
-                return json.dumps('Inserted'), 200, {'ContentType':'application/json'}
+                return json.dumps('Inserted'), 200, {'Content-Type':'application/json'}
         else:
             id=data['id']
             data.pop('id',None)
             if app.adminapi.update_table_dict(table,id,data):
-                return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+                return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'Content-Type':'application/json'}
     
 @app.route('/isard-admin/admin/backup_remove', methods=['POST'])
 @login_required
@@ -227,8 +227,8 @@ def admin_restore_table(table):
 def admin_backup_remove():
     if request.method == 'POST':
         app.adminapi.remove_backup_db(request.get_json(force=True)['pk'])
-        return json.dumps('Updated'), 200, {'ContentType':'application/json'}
-    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+        return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'Content-Type':'application/json'}
 
 backup_data = {}
 backup_db=[]
@@ -240,8 +240,8 @@ def admin_backup_info():
     global backup_data,backup_db
     if request.method == 'POST':
         backup_data,backup_db=app.adminapi.info_backup_db(request.get_json(force=True)['pk'])
-        return json.dumps(backup_data), 200, {'ContentType':'application/json'}
-    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+        return json.dumps(backup_data), 200, {'Content-Type':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'Content-Type':'application/json'}
 
 @app.route('/isard-admin/admin/backup_detailinfo', methods=['POST'])
 @login_required
@@ -250,10 +250,10 @@ def admin_backup_detailinfo():
     global backup_data,backup_db
     if request.method == 'POST':
         table=request.get_json(force=True)['table']
-        if table=='': return json.dumps({}), 200, {'ContentType':'application/json'}
+        if table=='': return json.dumps({}), 200, {'Content-Type':'application/json'}
         new_db=app.adminapi.check_new_values(table,backup_db[table])
-        return json.dumps(new_db), 200, {'ContentType':'application/json'}
-    return json.dumps('Method not allowed.'), 500, {'ContentType':'application/json'}
+        return json.dumps(new_db), 200, {'Content-Type':'application/json'}
+    return json.dumps('Method not allowed.'), 500, {'Content-Type':'application/json'}
     
     
 @app.route('/isard-admin/admin/backup/download/<id>', methods=['GET'])
@@ -271,5 +271,5 @@ def admin_backup_download(id):
 def admin_backup_upload():
     for f in request.files:
         app.adminapi.upload_backup(request.files[f])
-    return json.dumps('Updated'), 200, {'ContentType':'application/json'}
+    return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
 

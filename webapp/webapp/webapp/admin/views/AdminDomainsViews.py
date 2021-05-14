@@ -46,7 +46,7 @@ def admin_mdomains():
     dict=request.get_json(force=True)
     desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
     res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
-    return json.dumps({'test':1}), 200, {'ContentType': 'application/json'}
+    return json.dumps({'test':1}), 200, {'Content-Type': 'application/json'}
     
 @app.route('/isard-admin/admin/domains/get/<kind>')
 @app.route('/isard-admin/admin/domains/get')
@@ -60,16 +60,16 @@ def admin_domains_get(kind=False):
             data = app.adminapi.get_admin_domains_with_derivates(kind='template')
             if current_user.role == 'manager':
                 data = [d for d in data if d['category'] == current_user.category]
-            return json.dumps(data), 200, {'ContentType': 'application/json'}
+            return json.dumps(data), 200, {'Content-Type': 'application/json'}
         if kind=='Bases':
             data = app.adminapi.get_admin_domains_with_derivates(kind='base')
             if current_user.role == 'manager':
                 data = [d for d in data if d['category'] == current_user.category]            
-            return json.dumps(data), 200, {'ContentType': 'application/json'}
+            return json.dumps(data), 200, {'Content-Type': 'application/json'}
     data = app.adminapi.get_admin_domains_with_derivates(kind=kind)
     if current_user.role == 'manager':
         data = [d for d in data if d['category'] == current_user.category]
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/domains/xml/<id>', methods=['POST','GET'])
 @login_required
@@ -78,23 +78,23 @@ def admin_domains_xml(id):
     if request.method == 'POST':
         res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
         if res:
-            return json.dumps(res), 200,  {'ContentType': 'application/json'}
+            return json.dumps(res), 200,  {'Content-Type': 'application/json'}
         else:
-            return json.dumps(res), 500,  {'ContentType': 'application/json'}
-    return json.dumps(app.adminapi.get_admin_table('domains',pluck='xml',id=id)['xml']), 200, {'ContentType': 'application/json'}
+            return json.dumps(res), 500,  {'Content-Type': 'application/json'}
+    return json.dumps(app.adminapi.get_admin_table('domains',pluck='xml',id=id)['xml']), 200, {'Content-Type': 'application/json'}
 
 
 @app.route('/isard-admin/admin/domains/events/<id>', methods=['GET'])
 @login_required
 @isAdmin
 def admin_domains_events(id):
-    return json.dumps(app.isardapi.get_domain_last_events(id)), 200, {'ContentType': 'application/json'}
+    return json.dumps(app.isardapi.get_domain_last_events(id)), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/domains/messages/<id>', methods=['GET'])
 @login_required
 @isAdmin
 def admin_domains_messages(id):
-    return json.dumps(app.isardapi.get_domain_last_messages(id)), 200, {'ContentType': 'application/json'}    
+    return json.dumps(app.isardapi.get_domain_last_messages(id)), 200, {'Content-Type': 'application/json'}    
 
 @app.route('/isard-admin/admin/domains/todelete/<id>', methods=['POST'])
 @app.route('/isard-admin/admin/domains/todelete/<id>', methods=['GET'])
@@ -104,10 +104,10 @@ def admin_domains_todelete(id=None):
     if request.method == 'POST':
         res=app.adminapi.template_delete(id)
         if res:
-            return json.dumps(res), 200,  {'ContentType': 'application/json'}
+            return json.dumps(res), 200,  {'Content-Type': 'application/json'}
         else:
-            return json.dumps(res), 500,  {'ContentType': 'application/json'}
-    return json.dumps(app.adminapi.template_delete_list(id)), 200, {'ContentType': 'application/json'}
+            return json.dumps(res), 500,  {'Content-Type': 'application/json'}
+    return json.dumps(app.adminapi.template_delete_list(id)), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/items/delete', methods=['POST'])
 @login_required
@@ -121,9 +121,9 @@ def admin_items_delete():
 
         res=app.adminapi.items_delete(args)
         if res == False:
-            return json.dumps(True), 200,  {'ContentType': 'application/json'}
+            return json.dumps(True), 200,  {'Content-Type': 'application/json'}
         else:
-            return json.dumps(res), 500,  {'ContentType': 'application/json'}
+            return json.dumps(res), 500,  {'Content-Type': 'application/json'}
 
 
 @app.route('/isard-admin/admin/domains/jumperurl/<id>')
@@ -131,28 +131,28 @@ def admin_items_delete():
 @isAdminManager
 def admin_jumperurl(id):
     data = app.adminapi.get_jumperurl(id)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/domains/jumperurl_reset/<id>')
 @login_required
 @isAdminManager
 def admin_jumperurl_reset(id):
     data = app.adminapi.jumperurl_reset(id)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/domains/jumperurl_disable/<id>')
 @login_required
 @isAdminManager
 def admin_jumperurl_disable(id):
     data = app.adminapi.jumperurl_reset(id,disabled=True)
-    return json.dumps(data), 200, {'ContentType': 'application/json'}
+    return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 
 @app.route('/isard-admin/admin/domains/tree_list/<id>', methods=['GET'])
 @login_required
 @isAdminManager
 def admin_domains_tree_list(id):
-    return json.dumps(template_tree.get_tree(id,current_user)), 200, {'ContentType': 'application/json'}
+    return json.dumps(template_tree.get_tree(id,current_user)), 200, {'Content-Type': 'application/json'}
 
 # ~ '''
 # ~ VIRT BUILDER TESTS (IMPORT NEW BUILDERS?)
@@ -163,6 +163,6 @@ def admin_domains_tree_list(id):
 # ~ def admin_domains_get_builders():
     # ~ app.adminapi.update_virtbuilder()
     # ~ app.adminapi.update_virtinstall()
-    # ~ return json.dumps(''), 200, {'ContentType': 'application/json'}
+    # ~ return json.dumps(''), 200, {'Content-Type': 'application/json'}
 
 
