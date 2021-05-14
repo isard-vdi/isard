@@ -29,4 +29,4 @@ def templates():
 @app.route('/isard-admin/template/get/')
 @login_required
 def templates_get():
-	return json.dumps(app.isardapi.get_user_templates(current_user.id)), 200, {'ContentType': 'application/json'}
+	return json.dumps(app.isardapi.get_user_templates(current_user.id)), 200, {'Content-Type': 'application/json'}

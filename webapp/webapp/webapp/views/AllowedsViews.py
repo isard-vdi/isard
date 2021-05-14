@@ -112,8 +112,8 @@ def alloweds_table_term(table):
             if table == 'users':
                 result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=['id','name','category', 'uid'])
                 result = [u for u in result if u['category'] == current_user.category]                               
-        return json.dumps(result), 200, {'ContentType':'application/json'}
-    return json.dumps('Could not select.'), 500, {'ContentType':'application/json'} 
+        return json.dumps(result), 200, {'Content-Type':'application/json'}
+    return json.dumps('Could not select.'), 500, {'Content-Type':'application/json'} 
     
 
 @app.route('/isard-admin/domains/removable', methods=['POST'])
@@ -122,4 +122,4 @@ def alloweds_table_term(table):
 def domain_removable():
     if request.method == 'POST':
         return json.dumps(app.adminapi.is_template_removable(request.get_json(force=True)['id'],current_user.id))
-    return json.dumps('Could not check.'), 500, {'ContentType':'application/json'} 
+    return json.dumps('Could not check.'), 500, {'Content-Type':'application/json'} 
