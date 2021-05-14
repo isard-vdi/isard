@@ -44,7 +44,12 @@ class isard():
             # item = table.removesuffix('s').capitalize()
             item = (table.endswith('s') and table[:-1] or table).capitalize()
             with app.app_context():
-                dom = r.table(table).get(data['pk']).pluck('status','name','ephimeral').run(db.conn)          
+                dom = (
+                    r.table(table)
+                    .get(data["pk"])
+                    .pluck("status", "name", "ephimeral", "kind")
+                    .run(db.conn)
+                )
             try:
                 if data['name']=='status':
                     if data['value']=='DownloadAborting':
@@ -141,6 +146,22 @@ class isard():
                             else:
                                 return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'ContentType':'application/json'}
                     if data['value']=='Starting':
+                        if dom["kind"] != "desktop":
+                            return (
+                                json.dumps(
+                                    {
+                                        "title": f"{item} starting error",
+                                        "text": (
+                                            f"{item} {dom['name']} can't be started"
+                                            " because it isn't a desktop"
+                                        ),
+                                        "icon": "warning",
+                                        "type": "error",
+                                    }
+                                ),
+                                409,
+                                {"Content-Type": "application/json"},
+                            )
                         if dom['status'] in ['Stopped','Failed']:
                             exceeded = quotas.check('NewConcurrent',current_user.id)
                             if exceeded != False:
