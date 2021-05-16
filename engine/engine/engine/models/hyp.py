@@ -407,7 +407,11 @@ class hyp(object):
         d_uids = {}
         for name,d_type in d_info_gpu['types'].items():
             d = {}
-            for i in range(d_type['max']):
+            #in some nvidia cards as A40 d['max'] is None
+            if d_type.get('max') is None:
+                d_type['max'] = d_type.get('available',1)
+            total_available = max(d_type.get('max',1),d_type.get('available',1))
+            for i in range(total_available):
                 uid = str(uuid.uuid4())
                 d[uid] = {'created':False,
                           'reserved':False,
