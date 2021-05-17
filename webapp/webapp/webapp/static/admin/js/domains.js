@@ -375,8 +375,7 @@ $(document).ready(function() {
                             setViewerButtons(data,socket);
 
                             if('viewer' in data && 'guest_ip' in data['viewer']){
-                                $('#viewer-buttons div[data-type="vpn"]').prop("disabled",false).html($('#viewer-buttons div[data-type="vpn"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',data['viewer']['guest_ip']))
-                                $('#viewer-buttons button[data-type="rdp"]').prop("disabled",false).html($('#viewer-buttons button[data-type="rdp"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',''))            
+                                viewerButtonsIP(data['viewer']['guest_ip'])
                             }
                             $('#modalOpenViewer').modal({
                                 backdrop: 'static',
@@ -419,10 +418,7 @@ $(document).ready(function() {
         if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
             if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
                 //console.log('NEW IP ARRIVED!: '+data['viewer']['guest_ip'])
-                if($('#viewer-buttons div[data-type="vpn"]').length){
-                    $('#viewer-buttons div[data-type="vpn"]').prop("disabled",false).html($('#viewer-buttons div[data-type="vpn"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',data['viewer']['guest_ip']))
-                    $('#viewer-buttons button[data-type="rdp"]').prop("disabled",false).html($('#viewer-buttons button[data-type="rdp"]').html().replace('<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>',''))
-                }
+                viewerButtonsIP(data['viewer']['guest_ip'])
             }
         }        
         dtUpdateInsert(domains_table,data,false);
