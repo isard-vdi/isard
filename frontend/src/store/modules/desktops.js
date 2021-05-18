@@ -3,6 +3,7 @@ import { apiAxios } from '@/router/auth'
 import i18n from '@/i18n'
 import router from '@/router'
 import { toast } from '@/store/index.js'
+import { desktopStates } from '../../shared/constants'
 
 var polling
 
@@ -56,7 +57,7 @@ export default {
       return new Promise((resolve, reject) => {
         apiAxios.get('/desktops').then(response => {
           context.commit('setDesktops', response.data)
-          if (response.data.find(desktop => desktop.state === 'WaitingIP')) {
+          if (response.data.find(desktop => desktop.state.toLowerCase() === desktopStates.waitingip)) {
             pollDesktops(context)
           } else {
             clearPolling()
