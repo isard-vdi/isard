@@ -5,7 +5,7 @@ if [ -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ]; then
 	exit 0
 elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ -z "$HYPERVISOR_STATIC_VLANS" ]; then
     echo "VLANS enabled for DYNAMIC discovery."
-	eth=$(ip link | awk -F: '$0 ~ "vlans@"{print $2;getline}')
+	eth=$HYPERVISOR_HOST_TRUNK_INTERFACE
 	if [ -z $eth ]; then
 		echo "Trunk interface not found. Not starting vlan autodiscovery."
 		exit 0
@@ -26,7 +26,7 @@ for VLAN in $VLANS
 do
 	echo "SETTING VLAN: $VLAN"
 	echo "Creating vlan interface v$VLAN..."
-	ip link add name v$VLAN link vlans type vlan id $VLAN
+	ip link add name v$VLAN link $HYPERVISOR_HOST_TRUNK_INTERFACE type vlan id $VLAN
 	ip link set v$VLAN up
 	echo "Creating bridge br-$VLAN"
 	ip link add name br-$VLAN type bridge
