@@ -118,6 +118,12 @@ WG_INTERFACE=eth1
 ## fix this as forced vlans inside hypervisor.
 #HYPERVISOR_STATIC_VLANS=
 
+## NOTE: The interface name should not be changed from defaults.
+##       Newer kernels use cgroups2 that doens't work. To get the
+##       old cgroups add to /etc/default/grub:
+##        GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"
+##       and update-grub, and reboot.
+
 ###################### Hypervisor video proxy
 
 ## Only set this to different LETSENCRYPT domain if you are using

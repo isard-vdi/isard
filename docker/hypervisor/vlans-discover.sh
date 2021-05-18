@@ -11,7 +11,7 @@ elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ -z "$HYPERVISOR_STATIC_VLAN
 		exit 0
 	fi
 	echo "Wait, scanning trunk interface for VLANS for 260 seconds..."
-	tshark -a duration:260 -i vlans -Y "vlan" -x -V 2>&1 |grep -o " = ID: .*" |awk '{ print $NF }'  > out
+	tshark -a duration:260 -i $HYPERVISOR_HOST_TRUNK_INTERFACE -Y "vlan" -x -V 2>&1 |grep -o " = ID: .*" |awk '{ print $NF }'  > out
 	cat out | sort -u > /root/.ssh/vlans
 	rm out
 elif [ ! -z "$HYPERVISOR_HOST_TRUNK_INTERFACE" ] & [ ! -z "$HYPERVISOR_STATIC_VLANS" ]; then
