@@ -4,7 +4,7 @@ services:
     depends_on:
       - isard-pipework
     environment:
-      - pipework_cmd=--direct-phys ${HYPERVISOR_HOST_TRUNK_INTERFACE} -i vlans isard-hypervisor 0/0
+      - pipework_cmd=--direct-phys ${HYPERVISOR_HOST_TRUNK_INTERFACE} -i ${HYPERVISOR_HOST_TRUNK_INTERFACE} isard-hypervisor 0/0
 
   isard-pipework:
     image: dreamcat4/pipework
