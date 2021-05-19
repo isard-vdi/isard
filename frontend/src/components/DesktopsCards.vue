@@ -8,7 +8,7 @@
             v-for="desktop in desktops"
             :key="desktop.id" class="shadow persistent_desktop m-3 border-secondary" no-body>
               <b-card-body :class="desktop.template && templates.filter(template => template.id ===  desktop.template).length > 0 ? '' : 'mt-4'">
-                <font-awesome-icon size="4x" :icon="ICONS[desktop.icon]" class="mb-2"/>
+                <font-awesome-icon size="4x" :icon="desktop.icon" class="mb-2"/>
                 <b-card-title class="card-title">
                     <b-icon v-if="desktop.description" v-b-tooltip.hover :title="desktop.description" icon="info-circle" class="mr-1"></b-icon>
                     {{ desktop.name }}
@@ -62,7 +62,7 @@
             <b-card-body>
               <b-row no-gutters>
                 <b-col cols="4">
-                  <font-awesome-icon class="mt-2" size="4x" :icon="ICONS[desktop.icon]" />
+                  <font-awesome-icon class="mt-2" size="4x" :icon="desktop.icon" />
                 </b-col>
                 <b-col cols="8">
                   <b-card-title class="card-title">
@@ -163,7 +163,7 @@
           </template>
           <template #cell(name)="data">
             <b-row>
-              <font-awesome-icon :icon="ICONS[data.item.icon]" size="2x" class="mr-2"/>
+              <font-awesome-icon :icon="data.item.icon" size="2x" class="mr-2"/>
               <b-col class="pt-1">
                 <p>{{ data.item.name }}</p>
               </b-col>
@@ -229,7 +229,7 @@
           </template>
           <template #cell(name)="data">
             <b-row>
-              <font-awesome-icon :icon="ICONS[data.item.icon]" size="2x" class="mr-2"/>
+              <font-awesome-icon :icon="data.item.icon" size="2x" class="mr-2"/>
               <b-col class="pt-1">
                 <p>{{data.item.state ? templates.filter(template => template.id ===  data.item.template)[0].name : data.item.name}}</p>
               </b-col>
