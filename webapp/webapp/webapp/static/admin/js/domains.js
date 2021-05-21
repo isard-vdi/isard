@@ -546,7 +546,6 @@ function actionsDomainDetail(){
                 url:"/isard-admin/admin/domains/xml/" + pk,
                 success: function(data)
                 {
-                    var data = JSON.parse(data);
                     $('#modalEditXmlForm #xml').val(data);
                 }				
             });
