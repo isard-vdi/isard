@@ -69,10 +69,14 @@ columnDefs = [
 ]
 
 if(url!="Desktops"){
-    columns.splice(10, 0, {"data": "derivates"});
+    columns.splice(
+        10,
+        0,
+        {"data": "derivates"},
+        {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
+    );
     columns.splice(5, 2)
     columnDefs.splice(2, 2)
-    columnDefs[2]["targets"] -= 1
 }
 
 $(document).ready(function() {
