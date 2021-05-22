@@ -69,6 +69,7 @@ columnDefs = [
 ]
 
 if(url!="Desktops"){
+    columns.splice(11, 1)
     columns.splice(
         10,
         0,

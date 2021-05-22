@@ -75,7 +75,9 @@
                            <th>Shares</th>
                         {% endif %}
                         <th>Last Access</th>
-                        <th>Selected</th>
+                        {% if nav == "Desktops" %}
+                           <th>Selected</th>
+                        {% endif %}
                      </tr>
                   </thead>
                   <tbody>
@@ -99,7 +101,9 @@
                            <th>Shares</th>
                         {% endif %}
                         <th>Last Access</th>
-                        <th>Selected</th>
+                        {% if nav == "Desktops" %}
+                           <th>Selected</th>
+                        {% endif %}
                      </tr>
                   </tfoot>
                </table>
