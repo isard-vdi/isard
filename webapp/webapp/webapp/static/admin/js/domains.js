@@ -72,6 +72,7 @@ if(url!="Desktops"){
     columns.splice(10, 0, {"data": "derivates"});
     columns.splice(5, 2)
     columnDefs.splice(2, 2)
+    columnDefs[2]["targets"] -= 1
 }
 
 $(document).ready(function() {
