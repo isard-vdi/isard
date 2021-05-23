@@ -17,7 +17,15 @@
          <div class="x_title">
             <h3><i class="fa fa-{{icon}}"></i> Admin {{ nav }} <small>You have the power</small></h3>
             <ul class="nav navbar-right panel_toolbox">
-               <li><a class="btn-add-desktop"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Bulk desktops</span></a></li>                    
+               {% if nav == "Desktops" %}
+                  <li>
+                     <a class="btn-add-desktop">
+                        <span style="color: #5499c7; ">
+                           <i class="fa fa-plus"></i>
+                           Bulk Desktops</span>
+                     </a>
+                  </li>
+               {% endif %}
                <!--<li>
                   <a class="btn btn-app add-new-media" style="background-color:#F5FFDC;">
                      <i class="fa fa-circle-o"></i> New from ISO
