@@ -70,11 +70,14 @@
                         <th>User</th>
                         <th>Category</th>
                         <th>Group</th>
-                        <th>last access</th>
                         {% if nav!="Desktops" %}
-                        <th>Derivates</th>
+                           <th>Derivates</th>
+                           <th>Shares</th>
                         {% endif %}
-                        <th>Selected</th>
+                        <th>Last Access</th>
+                        {% if nav == "Desktops" %}
+                           <th>Selected</th>
+                        {% endif %}
                      </tr>
                   </thead>
                   <tbody>
@@ -93,11 +96,14 @@
                         <th>User</th>
                         <th>Category</th>
                         <th>Group</th>
-                        <th>last access</th>
                         {% if nav!="Desktops" %}
-                        <th>Derivates</th>
+                           <th>Derivates</th>
+                           <th>Shares</th>
                         {% endif %}
-                        <th>Selected</th>
+                        <th>Last Access</th>
+                        {% if nav == "Desktops" %}
+                           <th>Selected</th>
+                        {% endif %}
                      </tr>
                   </tfoot>
                </table>
