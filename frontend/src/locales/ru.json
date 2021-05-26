@@ -65,8 +65,19 @@
     },
     "components": {
         "navbar": {
-            "admin": "Администрирования"
-        }, 
+            "admin": "Администрирования",
+            "vpn": {
+                "downloadvpn-error": {
+                    "title": "Ошибка"
+                },
+                "downloaded": {
+                    "description": "Файл конфигурации VPN был успешно загружен",
+                    "title": "Загруженный"
+                },
+                "download": "ВПН"
+            },
+            "help": "Помощь"
+        },
         "not-found": {
             "title": "Запрошенный адрес не был найден",
             "home": "Вернуться"
