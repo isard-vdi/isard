@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/isard-vdi/isard/backend/model"
@@ -177,12 +176,7 @@ func (a *API) desktopViewer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	forwardedFor := strings.Split(r.Header.Get("X-Forwarded-For"), ", ")
-	var clientIP string
-	if len(forwardedFor) != 0 {
-		clientIP = forwardedFor[0]
-	}
-
+	clientIP := r.Header.Get("X-Forwarded-For")
 	viewer, err := a.env.Isard.Viewer(d, viewerType, clientIP)
 	if err != nil {
 		handleErr(err, w, r)
