@@ -1,0 +1,5 @@
+version: "3.5"
+services:
+  isard-hypervisor:
+    ports:
+      - "15000-17024:15000-17024"
