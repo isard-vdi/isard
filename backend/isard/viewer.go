@@ -15,13 +15,25 @@ var viewerTypeTranslation = map[string]string{
 	"rdp-html5": "rdp-html5",
 }
 
-func (i *Isard) Viewer(id string, viewerType string) ([]byte, error) {
+func (i *Isard) Viewer(id string, viewerType string, clientIP string) ([]byte, error) {
 	viewer, found := viewerTypeTranslation[viewerType]
 	if !found {
 		return nil, ErrUnknownViewerType
 	}
 
-	rsp, err := http.Get(i.url(fmt.Sprintf("desktop/%s/viewer/%s", id, viewer)))
+	req, err := http.NewRequest(http.MethodGet, i.url(fmt.Sprintf("desktop/%s/viewer/%s", id, viewer)), nil)
+	if err != nil {
+		i.sugar.Errorw("create viewer request",
+			"err", err,
+			"type", viewer,
+			"id", id,
+		)
+		return nil, fmt.Errorf("create viewer request: %w", err)
+	}
+
+	req.Header.Add("X-Forwarded-For", clientIP)
+
+	rsp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		i.sugar.Errorw("get viewer",
 			"err", err,
