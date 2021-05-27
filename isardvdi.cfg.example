@@ -125,7 +125,8 @@ WG_INTERFACE=eth1
 ##       and update-grub, and reboot.
 
 ###################### RDP DIRECT ACCESS
-RDP_DIRECT=1
+#RDP_DIRECT_PORT_START=15000
+#RDP_DIRECT_PORT_END=16024
 
 ###################### Hypervisor video proxy
 
