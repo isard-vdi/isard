@@ -25,7 +25,8 @@ export class DesktopUtils {
         description,
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
         id,
-        name
+        name,
+        type: 'nonpersistent'
       }
     }) || []
   }

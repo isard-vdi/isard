@@ -182,7 +182,8 @@
                     "action": "Crear"
                 },
                 "failed": {
-                    "text": "Fallat"
+                    "text": "Fallat",
+                    "action": "Iniciar"
                 },
                 "started": {
                     "text": "Iniciat",
@@ -195,6 +196,9 @@
                 "waitingip": {
                     "text": "Esperant IP",
                     "action": "Atura"
+                },
+                "readyCreation": {
+                    "text": "Llest per a crear"
                 }
             }
         },

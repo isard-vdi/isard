@@ -26,7 +26,8 @@ export default {
   state: {
     viewers: cookies.getCookie('viewers') ? JSON.parse(cookies.getCookie('viewers')) : {},
     desktops: [],
-    desktops_loaded: false
+    desktops_loaded: false,
+    viewType: 'grid'
   },
   getters: {
     getDesktops: state => {
@@ -37,6 +38,9 @@ export default {
     },
     getViewers: state => {
       return state.viewers
+    },
+    getViewType: state => {
+      return state.viewType
     }
   },
   mutations: {
@@ -47,6 +51,9 @@ export default {
     updateViewers: (state, viewers) => {
       state.viewers = { ...state.viewers, ...viewers }
       cookies.setCookie('viewers', JSON.stringify(state.viewers))
+    },
+    setViewType: (state, type) => {
+      state.viewType = type
     }
   },
   actions: {
@@ -249,6 +256,9 @@ export default {
           })
         })
       )
+    },
+    setViewType (context, viewType) {
+      context.commit('setViewType', viewType)
     }
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <b-container fluid>
+  <b-container fluid id="login">
     <b-row id="header" class="mb-4">
       <b-col>
         <Logo/>
@@ -190,6 +190,10 @@ export default {
 </script>
 
 <style>
+#login {
+  text-align: center;
+}
+
 #powered-by {
   margin: 4rem;
 }

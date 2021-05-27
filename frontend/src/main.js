@@ -4,6 +4,10 @@ import 'bootstrap-vue/dist/bootstrap-vue.css'
 // Custom css
 import '@/assets/global.css'
 import 'vue-snotify/styles/material.css'
+// Isard styles
+import './assets/styles.css'
+import './assets/styles_standard.css'
+import './assets/styles_xl.css'
 
 import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
 import { faCentos, faFedora, faGithub, faGoogle, faLinux, faUbuntu, faWindows } from '@fortawesome/free-brands-svg-icons'
@@ -55,6 +59,16 @@ Vue.mixin({
       })
     }
   }
+})
+
+Vue.filter('truncate', function (value, size) {
+  if (!value) return ''
+  value = value.toString()
+
+  if (value.length <= size) {
+    return value
+  }
+  return value.substr(0, size) + '...'
 })
 
 new Vue({

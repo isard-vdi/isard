@@ -1,0 +1,20 @@
+<template>
+<!-- TODO: change spinnerActive to clickActive -->
+  <b-button
+      @click="!spinnerActive && $emit('buttonClicked')"
+      size='sm'
+      class='px-4 rounded-pill ml-3'
+      :class="[buttColor]">
+      {{ buttText }}
+  </b-button>
+</template>
+
+<script>
+export default {
+  props: {
+    spinnerActive: Boolean,
+    buttColor: String,
+    buttText: String
+  }
+}
+</script>

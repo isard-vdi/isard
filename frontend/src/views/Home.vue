@@ -1,18 +1,10 @@
 <template>
   <div>
-    <Navbar/>
-    <b-container fluid>
-      <b-row align-h="center" class="pt-4">
-        <b-col>
-          <div class="d-flex float-right">
-            <label for="switch">
-              <b-icon-list></b-icon-list>
-            </label>
-            <b-form-checkbox id="switch" v-model="gridView" switch class="ml-2 mt-n1"></b-form-checkbox>
-            <label for="switch">
-              <b-icon-grid></b-icon-grid>
-            </label>
-          </div>
+    <div class="header-wrapper">
+      <NewNavBar/>
+      <StatusBar/>
+    </div>
+    <b-container fluid id="content">
           <div v-if="!templates_loaded">
             <b-spinner/>
             <p>{{ $t('views.select-template.loading') }}</p>
@@ -24,36 +16,44 @@
           </div>
 
           <div v-else>
-            <h1>
-              {{ $t('views.select-template.which-template') }}
-            </h1>
-            <div v-if="persistentDesktops.length > 0">
-              <h2 class="mt-2">{{ $t('views.select-template.persistent') }}</h2>
-              <DesktopsCards :templates="user_templates" :desktops="persistentDesktops"
-              :persistent="true" :gridView="gridView"/>
-            </div>
-            <div v-if="nonpersistentDesktops.length > 0">
-              <h2 class="mt-2">{{ $t('views.select-template.volatile') }}</h2>
-              <DesktopsCards :templates="user_templates" :desktops="nonpersistentDesktops"
-              :persistent="false" :gridView="gridView"/>
-            </div>
+            <template v-if="viewType === 'grid'">
+              <div v-if="persistentDesktops.length > 0">
+                <card-list
+                  listTitle="Escritorios persistentes"
+                  :templates="user_templates"
+                  :desktops="persistentDesktops"
+                  :persistent="true">
+                </card-list>
+              </div>
+              <div v-if="nonpersistentDesktops.length > 0">
+                <card-list
+                    listTitle="Escritorios temporales"
+                    :templates="user_templates"
+                    :desktops="nonpersistentDesktops"
+                    :persistent="false">
+                </card-list>
+              </div>
+            </template>
+            <template v-else>
+
+            </template>
           </div>
-        </b-col>
-      </b-row>
     </b-container>
   </div>
 </template>
 
 <script>
 // @ is an alias to /src
-import DesktopsCards from '@/components/DesktopsCards.vue'
-import Navbar from '@/components/Navbar.vue'
+import NewNavBar from '@/components/NewNavBar.vue'
+import StatusBar from '@/components/StatusBar.vue'
+import CardList from '@/components/CardList.vue'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 
 export default {
   components: {
-    DesktopsCards,
-    Navbar
+    StatusBar,
+    NewNavBar,
+    CardList
   },
   created () {
     this.$store.dispatch('fetchDesktops')
@@ -73,13 +73,16 @@ export default {
       return this.user_desktops.filter(desktop => desktop.type === 'persistent')
     },
     nonpersistentDesktops () {
-      return this.user_templates.map(t => this.user_desktops.find((d) => t.id === d.template && d.type === 'nonpersistent') || t)
+      return this.user_templates.map(template => this.user_desktops.find((desktop) => template.id === desktop.template && desktop.type === 'nonpersistent') || template)
     },
     templates_loaded () {
       return this.$store.getters.getTemplatesLoaded
     },
     desktops_loaded () {
       return this.$store.getters.getDesktopsLoaded
+    },
+    viewType () {
+      return this.$store.getters.getViewType
     }
   },
   data () {

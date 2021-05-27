@@ -1,12 +1,12 @@
 <template>
   <b-dropdown
+        :disabled="ddDisabled"
         :variant="!(waitingIp && needsIp(defaultViewer)) ? variant : 'secondary'"
         :class="cssClass"
-        :size="labelSize ? labelSize : ''"
         split
         @click="defaultViewer && !(waitingIp && needsIp(defaultViewer)) && $emit('dropdownClicked', {desktopId: desktop.id, viewer: defaultViewer})">
-        <template #button-content>{{ viewerText }} <b-spinner v-if="defaultViewer && (waitingIp && needsIp(defaultViewer))" small type="grow"/>   </template>
-                  <b-dropdown-item
+        <template #button-content><div :title="fullViewerText" class="dropdown-default-text">{{ viewerText }}</div> <b-spinner v-if="defaultViewer && (waitingIp && needsIp(defaultViewer))" small type="grow"/>   </template>
+                  <b-dropdown-item class="dropdown-text"
                     v-for="dkpviewer in viewers"
                     :disabled="waitingIp && needsIp(dkpviewer)"
                     :key="dkpviewer"
@@ -31,10 +31,12 @@ export default {
     variant: String,
     desktop: Object,
     viewerText: String,
+    fullViewerText: String,
     defaultViewer: String,
     template: String,
     waitingIp: Boolean,
-    labelSize: String
+    labelSize: String,
+    ddDisabled: Boolean
   },
   methods: {
     getViewerText (viewer) {

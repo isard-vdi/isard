@@ -182,7 +182,8 @@
                     "action": "Crear"
                 },
                 "failed": {
-                    "text": "Fallido"
+                    "text": "Fallido",
+                    "action": "Iniciar"
                 },
                 "started": {
                     "text": "Iniciado",
@@ -195,6 +196,9 @@
                 "waitingip": {
                     "text": "Esperando IP",
                     "action": "Parar"
+                },
+                "readyCreation": {
+                    "text": "Listo para crear"
                 }
             }
         },
