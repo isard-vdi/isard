@@ -47,7 +47,6 @@ common = ApiDesktopsCommon()
 @app.route("/api/v2/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
 def api_v2_desktop_viewer(desktop_id=False, protocol=False):
     if desktop_id == False or protocol == False:
-        remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
@@ -57,6 +56,19 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             {"Content-Type": "application/json"},
         )
 
+    remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+    try:
+        log.error(request.headers['X-Forwarded-For'])
+    except:
+        print('not found 1')
+    try:
+        log.error(request.headers)
+    except:
+        print('not found 2')
+    try:
+        log.error(request.remote_addr)
+    except:
+        print('not found 3')
     try:
         viewer = common.DesktopViewer(desktop_id, protocol, get_cookie=True)
         return json.dumps(viewer), 200, {"Content-Type": "application/json"}
