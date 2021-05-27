@@ -73,7 +73,7 @@ flavour(){
 			parts="$parts hypervisor-vlans"
 			no_stats_parts="$no_stats_parts hypervisor-vlans"
 		fi
-		if [ "$part" = "hypervisor" -a -n "$DIRECT_RDP" ]
+		if [ "$part" = "hypervisor" -a -n "$RDP_DIRECT" ]
 		then
 			parts="$parts hypervisor-rdp"
 			no_stats_parts="$no_stats_parts hypervisor-rdp"

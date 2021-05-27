@@ -124,6 +124,9 @@ WG_INTERFACE=eth1
 ##        GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"
 ##       and update-grub, and reboot.
 
+###################### RDP DIRECT ACCESS
+RDP_DIRECT=1
+
 ###################### Hypervisor video proxy
 
 ## Only set this to different LETSENCRYPT domain if you are using
