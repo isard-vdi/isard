@@ -19,7 +19,15 @@
             "loading": "Шаблоны загрузки",
             "template": "Шаблон",
             "persistent": "Постоянные рабочие столы",
-            "volatile": "Временные рабочие столы"
+            "volatile": "Временные рабочие столы",
+            "error": {
+                "create-error": {
+                    "title": "Ошибка"
+                }
+            },
+            "viewer-name": {
+                "browser": "Браузер"
+            }
         },
         "register": {
             "code": "Код регистрации",
