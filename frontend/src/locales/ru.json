@@ -122,6 +122,15 @@
                 "viewers": "Зрители",
                 "name": "Имя"
             }
+        },
+        "rdp-modal": {
+            "button-refresh": "Обновить",
+            "title": {
+                "connecting": "Подключение"
+            },
+            "message": {
+                "error": "Ошибка подключения"
+            }
         }
     }
 }
