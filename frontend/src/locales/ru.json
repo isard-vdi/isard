@@ -17,7 +17,17 @@
                 }
             },
             "loading": "Шаблоны загрузки",
-            "template": "Шаблон"
+            "template": "Шаблон",
+            "persistent": "Постоянные рабочие столы",
+            "volatile": "Временные рабочие столы",
+            "error": {
+                "create-error": {
+                    "title": "Ошибка"
+                }
+            },
+            "viewer-name": {
+                "browser": "Браузер"
+            }
         },
         "register": {
             "code": "Код регистрации",
@@ -65,8 +75,19 @@
     },
     "components": {
         "navbar": {
-            "admin": "Администрирования"
-        }, 
+            "admin": "Администрирования",
+            "vpn": {
+                "downloadvpn-error": {
+                    "title": "Ошибка"
+                },
+                "downloaded": {
+                    "description": "Файл конфигурации VPN был успешно загружен",
+                    "title": "Загруженный"
+                },
+                "download": "ВПН"
+            },
+            "help": "Помощь"
+        },
         "not-found": {
             "title": "Запрошенный адрес не был найден",
             "home": "Вернуться"
@@ -100,6 +121,15 @@
                 "action": "Действие",
                 "viewers": "Зрители",
                 "name": "Имя"
+            }
+        },
+        "rdp-modal": {
+            "button-refresh": "Обновить",
+            "title": {
+                "connecting": "Подключение"
+            },
+            "message": {
+                "error": "Ошибка подключения"
             }
         }
     }
