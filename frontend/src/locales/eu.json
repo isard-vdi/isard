@@ -2,7 +2,7 @@
     "components": {
         "navbar": {
             "admin": "Administrazioa"
-        },  
+        },
         "help": {
             "close-guide": "Gida itxi",
             "local-client": "Tokiko bezeroa erabiltzea (gomendatua)",
@@ -28,6 +28,15 @@
         },
         "title": {
             "logo-alt": "Logotipoa"
+        },
+        "desktop-cards": {
+            "table-header": {
+                "viewers": "Bisoreak",
+                "action": "Ekintza",
+                "description": "Deskribapena",
+                "state": "Egoera",
+                "name": "Izena"
+            }
         }
     },
     "views": {
@@ -85,7 +94,57 @@
                     "title": "Abiarazten"
                 }
             },
-            "loading": "Txantiloiak kargatzen"
+            "loading": "Txantiloiak kargatzen",
+            "status": {
+                "stopped": {
+                    "action": "Hasi",
+                    "text": "Gelditua"
+                },
+                "started": {
+                    "action": "Geldi",
+                    "text": "Hasia"
+                },
+                "failed": {
+                    "text": "Hutsegitea"
+                },
+                "notCreated": {
+                    "action": "Sortu"
+                }
+            },
+            "error": {
+                "open-error": {
+                    "title": "Errorea"
+                },
+                "start-timeout": {
+                    "description": "Mahaigaina abiatzen, minutuak behar izan ditzake",
+                    "title": "Denbora-mugaz kanpo"
+                },
+                "start-quota": {
+                    "description": "Une beran mahaigain gehiegi exekutatzen ari zara",
+                    "title": "Errorea"
+                },
+                "start-error": {
+                    "title": "Errorea"
+                },
+                "create-quota": {
+                    "description": "Mahaigain gehiegi dituzu",
+                    "title": "Errorea"
+                },
+                "create-error": {
+                    "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu",
+                    "title": "Errorea"
+                }
+            },
+            "remove": "Ezabatu",
+            "viewer-name": {
+                "browser": "Nabigatzailea",
+                "spice": "SPICE"
+            },
+            "viewer": "{name} bisorea",
+            "viewers": "Bisoreak",
+            "volatile": "Aldi baterako mahaigainak",
+            "persistent": "Mahaigain iraunkorrak",
+            "template": "Txantiloia"
         },
         "welcome": {
             "title": "Ongi etorri IsardVDI-era, mahaigain birtualen sistemara",
