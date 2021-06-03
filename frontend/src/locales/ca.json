@@ -52,7 +52,7 @@
         },
         "rdp-modal": {
             "message": {
-                "connecting": "Connectant amb el servidor...",
+                "connecting": "Connectant amb el servidor…",
                 "disconnected": "S'ha perdut la connexió",
                 "unstable": "La connexió amb el servidor és inestable",
                 "error": "Error de connexió"
@@ -89,8 +89,8 @@
                 "login": "Iniciar sessió"
             },
             "other-logins": "O iniciar sessió amb",
-	    "powered-by": "Impulsat per",
-	    "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard."
+            "powered-by": "Impulsat per",
+            "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard."
         },
         "maintenance": {
             "title": "Actualment, el servei d'Isard es troba en manteniment",
@@ -145,7 +145,7 @@
                     "description": "Disposes de massa escriptoris"
                 },
                 "create-timeout": {
-                    "title": "Timeout",
+                    "title": "Temps excedit",
                     "description": "L'escriptori s'està creant, pot trigar uns quants minuts"
                 },
                 "start-error": {
@@ -157,7 +157,7 @@
                     "description": "Estàs fent servir massa escriptoris al mateix temps"
                 },
                 "start-timeout": {
-                    "title": "Timeout",
+                    "title": "Temps excedit",
                     "description": "L'escriptori s'està iniciant, pot trigar uns quants minuts"
                 },
                 "open-error": {
@@ -169,7 +169,7 @@
                     "description": "No s'ha pogut parar l'escriptori virtual degut a un error"
                 },
                 "stop-timeout": {
-                    "title": "Timeout",
+                    "title": "Temps excedit",
                     "description": "L'escriptori s'està parant, pot trigar uns quants minuts"
                 },
                 "delete-error": {
