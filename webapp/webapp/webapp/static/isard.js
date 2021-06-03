@@ -352,3 +352,8 @@ $(document).ready(function() {
     });
 });
 
+function show_no_os_hardware_template_selected() {
+  $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
+  $('#datatables-install-error-status').html('No OS hardware template selected').addClass('my-error');
+}
+

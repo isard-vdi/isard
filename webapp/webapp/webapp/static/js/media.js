@@ -381,9 +381,7 @@ function initialize_modal_all_install_events(){
         rdata=modal_add_install.row(this).data()
         if ( $(this).hasClass('selected') ) {
             $(this).removeClass('selected');
-            $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
-            $('#modalInstall #datatables-install-error-status').html('No OS template selected').addClass('my-error');
-            
+            show_no_os_hardware_template_selected()
             $('#modalInstall #install').val('');
         }
         else {
@@ -456,8 +454,7 @@ function modal_add_install_datatables(){
                     data=$('#modalAddFromMedia  #modalAdd').serializeObject();
                     socket.emit('domain_media_add',data)
                 }else{                
-                        $('#modal_add_install').closest('.x_panel').addClass('datatables-error');
-                        $('#modalAddFromMedia #datatables-install-error-status').html('No OS template selected').addClass('my-error');                    
+                        show_no_os_hardware_template_selected()
                 }
             }
         });
