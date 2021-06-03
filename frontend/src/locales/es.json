@@ -14,7 +14,7 @@
                 }
             },
             "admin": "Administración"
-        },        
+        },
         "desktop-cards": {
             "table-header": {
                 "name": "Nombre",
@@ -52,7 +52,7 @@
         },
         "rdp-modal": {
             "message": {
-                "connecting": "Conectando con el servidor...",
+                "connecting": "Conectando con el servidor…",
                 "disconnected": "Se ha perdido la conexión",
                 "unstable": "La conexión con el servidor es inestable",
                 "error": "Error de conexión"
@@ -89,8 +89,8 @@
                 "login": "Iniciar sesión"
             },
             "other-logins": "O iniciar sesión con",
-	    "powered-by": "Desarrollado por",
-	    "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
+            "powered-by": "Desarrollado por",
+            "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
         },
         "maintenance": {
             "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",
@@ -145,7 +145,7 @@
                     "description": "Dispones de demasiados escritorios"
                 },
                 "create-timeout": {
-                    "title": "Timeout",
+                    "title": "Tiempo excedido",
                     "description": "El escritorio se está creando, puede tardar varios minutos"
                 },
                 "start-error": {
@@ -157,7 +157,7 @@
                     "description": "Estás ejecutando demasiados escritorios al mismo tiempo"
                 },
                 "start-timeout": {
-                    "title": "Timeout",
+                    "title": "Tiempo excedido",
                     "description": "El escritorio se está iniciando, puede tardar varios minutos"
                 },
                 "open-error": {
@@ -169,7 +169,7 @@
                     "description": "No se ha podido parar el escritorio virtual debido a un error"
                 },
                 "stop-timeout": {
-                    "title": "Timeout",
+                    "title": "Tiempo excedido",
                     "description": "El escritorio se está parando, puede tardar varios minutos"
                 },
                 "delete-error": {
