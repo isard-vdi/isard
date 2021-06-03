@@ -15,3 +15,25 @@ export const desktopStates = {
   stopped: 'stopped',
   waitingip: 'waitingip'
 }
+
+export const status = {
+  notCreated: {
+    icon: ['fas', 'play'],
+    variant: 'success'
+  },
+  started: {
+    action: 'stop',
+    icon: ['fas', 'stop'],
+    variant: 'danger'
+  },
+  waitingip: {
+    action: 'stop',
+    icon: ['fas', 'stop'],
+    variant: 'danger'
+  },
+  stopped: {
+    action: 'start',
+    icon: ['fas', 'play'],
+    variant: 'success'
+  }
+}

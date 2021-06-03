@@ -30,12 +30,12 @@
             <div v-if="persistentDesktops.length > 0">
               <h2 class="mt-2">{{ $t('views.select-template.persistent') }}</h2>
               <DesktopsCards :templates="user_templates" :desktops="persistentDesktops"
-              :persistent="true" :gridView="gridView" :status="status"/>
+              :persistent="true" :gridView="gridView"/>
             </div>
             <div v-if="nonpersistentDesktops.length > 0">
               <h2 class="mt-2">{{ $t('views.select-template.volatile') }}</h2>
               <DesktopsCards :templates="user_templates" :desktops="nonpersistentDesktops"
-              :persistent="false" :gridView="gridView" :status="status"/>
+              :persistent="false" :gridView="gridView"/>
             </div>
           </div>
         </b-col>
@@ -47,8 +47,8 @@
 <script>
 // @ is an alias to /src
 import DesktopsCards from '@/components/DesktopsCards.vue'
-import Navbar from '../components/Navbar.vue'
-import { DesktopUtils } from '../utils/desktopsUtils'
+import Navbar from '@/components/Navbar.vue'
+import { DesktopUtils } from '@/utils/desktopsUtils'
 
 export default {
   components: {
@@ -85,28 +85,7 @@ export default {
   data () {
     return {
       polling: null,
-      gridView: true,
-      status: {
-        notCreated: {
-          icon: ['fas', 'play'],
-          variant: 'success'
-        },
-        started: {
-          action: 'stop',
-          icon: ['fas', 'stop'],
-          variant: 'danger'
-        },
-        waitingip: {
-          action: 'stop',
-          icon: ['fas', 'stop'],
-          variant: 'danger'
-        },
-        stopped: {
-          action: 'start',
-          icon: ['fas', 'play'],
-          variant: 'success'
-        }
-      }
+      gridView: true
     }
   }
 }
