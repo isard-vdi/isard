@@ -19,7 +19,7 @@
             "table-header": {
                 "name": "Nom",
                 "state": "Estat",
-                "description": "Descripcio",
+                "description": "Descripció",
                 "action": "Acció",
                 "viewers": "Visors"
             }
