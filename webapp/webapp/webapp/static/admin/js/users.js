@@ -36,9 +36,9 @@ $(document).ready(function() {
             a.dispatchEvent(ev);  
 	});
 
-    $("#add-category").on('change', function () {
-        let category = $(this).val()
-        $('#add-group').find('option').each(function () {
+    function filter_groups(category_select, group_select) {
+        let category = category_select.val()
+        group_select.find('option').each(function () {
             if (this.value.startsWith(category + "-")) {
                 this.disabled = false
             } else {
@@ -48,6 +48,12 @@ $(document).ready(function() {
                 }
             }
         })
+    }
+    $("#add-category").on('change', function () {
+        filter_groups($(this), $('#add-group'))
+    })
+    $("#bulk-category").on('change', function () {
+        filter_groups($(this), $('#bulk-group'))
     })
 
     $("#modalAddUser #send").on('click', function(e){
