@@ -109,9 +109,6 @@ class isardAdmin():
                 domains=domains_shutting_down+domains_started
                 res_deleted=r.table(table).get_all(r.args(domains)).update({'status':'Stopping'}).run(db.conn)
                 return True
-            if action == 'force_stopped':
-                res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Stopped'}).run(db.conn)
-                return True
             if action == "stop_noviewer":
                 domains_tostop=self.multiple_check_field(table,'status','Started',ids)
                 res=r.table(table).get_all(r.args(domains_tostop)).filter(~r.row.has_fields({'viewer':'client_since'})).update({'status':'Stopping'}).run(db.conn)
