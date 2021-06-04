@@ -45,9 +45,28 @@ def admin_domains(nav='Domains'):
 def admin_mdomains():
     dict=request.get_json(force=True)
     desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
-    res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
-    return json.dumps({'test':1}), 200, {'Content-Type': 'application/json'}
-    
+    res = app.adminapi.multiple_action("domains", dict['action'], desktop_domains)
+    if res is True:
+        json_data = json.dumps(
+            {
+                "title": "Processing",
+                "text": "Actions will be processed",
+                "type": "success"
+            }
+        )
+        http_code = 200
+    else:
+        json_data = json.dumps(
+            {
+                "title": "Error",
+                "text": res,
+                "type": "error",
+            }
+        )
+        http_code = 409
+    return json_data, http_code, {"Content-Type": "application/json"}
+
+
 @app.route('/isard-admin/admin/domains/get/<kind>')
 @app.route('/isard-admin/admin/domains/get')
 @login_required

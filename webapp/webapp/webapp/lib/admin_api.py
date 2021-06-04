@@ -107,6 +107,10 @@ class isardAdmin():
                 res=r.table(table).get_all(r.args(domains)).update({'status':'Deleting'}).run(db.conn) 
                 return True
             if action == 'force_failed':
+                res = r.table(table).get_all(r.args(ids)).pluck('status').run(db.conn)
+                for item in res:
+                    if item.get("status") in ["Stopped", "Started", "Downloading"]:
+                        return "Cannot change to Failed status desktops from Stopped, Started or Downloading status"
                 res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Failed'}).run(db.conn)
                 return True
             if action == 'shutting_down':
@@ -118,9 +122,6 @@ class isardAdmin():
                 domains_started=self.multiple_check_field(table,'status','Started',ids)
                 domains=domains_shutting_down+domains_started
                 res_deleted=r.table(table).get_all(r.args(domains)).update({'status':'Stopping'}).run(db.conn)
-                return True
-            if action == 'force_stopped':
-                res_deleted=r.table(table).get_all(r.args(ids)).update({'status':'Stopped'}).run(db.conn)
                 return True
             if action == "stop_noviewer":
                 domains_tostop=self.multiple_check_field(table,'status','Started',ids)
