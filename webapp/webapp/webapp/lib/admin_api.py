@@ -39,6 +39,16 @@ from .ds import DS
 ds = DS()
 
 
+def check_group_category(user):
+    if user['group'].startswith(f"{user['category']}-"):
+        return True
+    else:
+        log.error(
+            "Cannot create a user with a group of other category, "
+            f"user: {user['id']}, category: {user['category']}, group: {user['group']}"
+        )
+        return False
+
 class isardAdmin():
     def __init__(self):
         self.f=flatten()
@@ -217,11 +227,7 @@ class isardAdmin():
             user['auto']=desktops['auto']        
 
         user['id']='local-'+user['category']+'-'+user['uid']+'-'+user['username']
-        if not user['group'].startswith(f"{user['category']}-"):
-            log.error(
-                "Cannot create a user with a group of other category, "
-                f"user: {user['id']}, category: {user['category']}, group: {user['group']}"
-            )
+        if not check_group_category(user):
             return False
         return self.check(r.table('users').insert(user).run(db.conn),'inserted')
 
@@ -254,7 +260,8 @@ class isardAdmin():
                 user['auto']=desktops['auto'] 
 
             user['id']='local-'+user['category']+'-'+user['uid']+'-'+user['username']
-
+            if not check_group_category(user):
+                return False
             final_users.append(user)          
         return self.check(r.table('users').insert(final_users).run(db.conn),'inserted')
 
