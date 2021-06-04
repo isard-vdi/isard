@@ -26,7 +26,7 @@
                   <div class="clearfix"></div>
                 </div>
                 <div class="x_content">
-                  <div id="show-users-quota" class="show-users-quota-d.id"style="padding: 5px;">
+                  <div id="show-users-quota-d.id" class="show-users-quota" style="padding: 5px;">
                     {% include '/snippets/quota_edit.html' %}
                   </div>
                 </div>
@@ -40,9 +40,11 @@
                   <div class="clearfix"></div>
                 </div>
                 <div class="x_content">
-                  {% with type="limits" %}
-                    {% include '/snippets/quota_edit.html' %}
-                  {% endwith %}
+                  <div id="show-users-limits-d.id" class="show-users-limits" style="padding: 5px;">
+                    {% with type="limits" %}
+                      {% include '/snippets/quota_edit.html' %}
+                    {% endwith %}
+                  </div>
                 </div>
               </div>
             </div>

@@ -263,12 +263,23 @@ $(document).ready(function() {
         }else {
             if ( users_table.row( '.shown' ).length ) {
                 $('.details-control', users_table.row( '.shown' ).node()).click();
-            }            
-            row.child( renderUsersDetailPannel(row.data()) ).show();
+            }
+            row.child(renderUsersDetailPannel(row.data())).show()
             actionsUserDetail()
             tr.addClass('shown');
-            setQuotaMax('.show-users-quota-'+row.data().id,kind='user',id=row.data().id,disabled=true);
-            setLimitsMax('.show-users-limits-'+row.data().id,kind='user',id=row.data().id,disabled=true);
+            id = row.data().id
+            setQuotaMax(
+                '#show-users-quota-' + id,
+                kind='user',
+                id=id,
+                disabled=true
+            )
+            setLimitsMax(
+                '#show-users-limits-' + id,
+                kind='user',
+                id=id,
+                disabled=true
+            )
         }
     });
 
