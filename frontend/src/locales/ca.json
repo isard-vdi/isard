@@ -15,6 +15,10 @@
             },
             "admin": "Administració"
         },
+        "statusbar": {
+            "desktops-started": "Desktops arrencats",
+            "checkbox-text": "Només arrencats"
+        },
         "desktop-cards": {
             "table-header": {
                 "name": "Nom",

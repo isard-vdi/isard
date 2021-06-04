@@ -1,5 +1,5 @@
 <template>
-  <div id="navbar" class="bg-darkgray px-5">
+  <div id="navbar" class="bg-darkgray px-0 px-lg-5 pl-4">
     <b-container fluid class="px-0">
       <b-navbar toggleable="lg" type="dark" variant="">
         <b-navbar-brand href="#" id="logo">
@@ -9,8 +9,8 @@
         <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
 
         <b-collapse id="nav-collapse" is-nav>
-          <b-navbar-nav id="left-side">
-            <b-nav-item href="#">{{ $t("components.navbar.help") }}</b-nav-item>
+          <b-navbar-nav id="left-side" class="mt-5 mt-lg-0">
+            <b-nav-item href="#" v-b-modal.help_modal>{{ $t("components.navbar.help") }}</b-nav-item>
             <b-nav-item href="#" @click="fetchVpn()">{{ $t("components.navbar.vpn.download") }}</b-nav-item>
             <b-nav-item v-if="user.role != 'user' || config['show_admin_button']" href="/isard-admin/login" >
                 {{ $t("components.navbar.admin") }}

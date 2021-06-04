@@ -4,6 +4,7 @@ import i18n from '@/i18n'
 import router from '@/router'
 import { toast } from '@/store/index.js'
 import { desktopStates } from '../../shared/constants'
+import { DesktopUtils } from '../../utils/desktopsUtils'
 
 var polling
 
@@ -27,7 +28,8 @@ export default {
     viewers: cookies.getCookie('viewers') ? JSON.parse(cookies.getCookie('viewers')) : {},
     desktops: [],
     desktops_loaded: false,
-    viewType: 'grid'
+    viewType: 'grid',
+    showStarted: false
   },
   getters: {
     getDesktops: state => {
@@ -41,6 +43,9 @@ export default {
     },
     getViewType: state => {
       return state.viewType
+    },
+    getShowStarted: state => {
+      return state.showStarted
     }
   },
   mutations: {
@@ -54,6 +59,9 @@ export default {
     },
     setViewType: (state, type) => {
       state.viewType = type
+    },
+    toggleShowStarted: (state, type) => {
+      state.showStarted = !state.showStarted
     }
   },
   actions: {
@@ -63,7 +71,7 @@ export default {
     fetchDesktops (context) {
       return new Promise((resolve, reject) => {
         apiAxios.get('/desktops').then(response => {
-          context.commit('setDesktops', response.data)
+          context.commit('setDesktops', DesktopUtils.parseDesktops(response.data))
           if (response.data.find(desktop => desktop.state.toLowerCase() === desktopStates.waitingip)) {
             pollDesktops(context)
           } else {
@@ -259,6 +267,9 @@ export default {
     },
     setViewType (context, viewType) {
       context.commit('setViewType', viewType)
+    },
+    toggleShowStarted (context) {
+      context.commit('toggleShowStarted')
     }
   }
 }

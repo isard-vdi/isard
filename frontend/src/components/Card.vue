@@ -13,8 +13,8 @@
             <b-tooltip :target="`card-info-icon-${desktop.id}`" :title="desktop.description"></b-tooltip>
             <!-- Desktop state -->
             <div class='machine-state px-4 d-flex flex-row align-content-center' :class="stateBarCssClass">
-              <b-spinner v-if="desktopState === 'waitingip'" small variant='light' class='align-self-center mr-2'></b-spinner>
-              <p class='mb-0 py-1' :class="{ 'text-white': !desktopState === 'stopped' }"> {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`)}}</p>
+              <b-spinner v-if="desktopState === desktopStates.waitingip" small variant='light' class='align-self-center mr-2'></b-spinner>
+              <p class='mb-0 py-1' :class="{ 'text-white': !desktopState === desktopStates.stopped }"> {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`)}}</p>
             </div>
 
             <div class='p-2 h-100 d-flex flex-wrap flex-column'>
@@ -41,13 +41,15 @@
 
               <!-- Actions -->
               <div class='d-flex flex-row mb-2 justify-content-between buttons-padding'>
-                  <isard-button
+                  <DesktopButton
                     v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
-                    :viewerName="desktop.viewers[0]"
+                    :active="desktopState === desktopStates.started"
+                    :buttColor = "buttViewerCssColor"
+                    :buttText="desktop.viewers[0]"
                     variant="primary"
                     :spinnerActive="waitingIp"
                     @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})">
-                  </isard-button>
+                  </DesktopButton>
                   <isard-dropdown
                     v-else-if="!hideViewers"
                     :ddDisabled="!showDropDown"
@@ -62,22 +64,25 @@
                     @dropdownClicked="openDesktop">
                   </isard-dropdown>
 
-                  <DesktopButton v-if="!desktop.state || (desktop.type === 'nonpersistent' && !['started', 'waitingip', 'stopped'].includes(desktopState))"
+                  <DesktopButton v-if="!desktop.state || (desktop.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
                     class="dropdown-text"
+                    :active="true"
                     @buttonClicked="chooseDesktop(desktop.id)"
                     :buttColor = "buttCssColor"
                     :spinnerActive ="false"
                     :buttText = "$t('views.select-template.status.notCreated.action')">
                 </DesktopButton>
-                <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state === 'Stopped' )"
+                <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state === desktopStates.stopped )"
                     class="dropdown-text"
+                    :active="true"
                     @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
                     :buttColor = "buttCssColor"
                     :spinnerActive ="false"
                     :buttText = "$t(`views.select-template.status.${desktopState}.action`)">
                 </DesktopButton>
-                <DesktopButton v-if="(desktop.state && desktop.type === 'nonpersistent' && ['started', 'waitingip', 'stopped'].includes(desktopState))"
+                <DesktopButton v-if="(desktop.state && desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
                     class="dropdown-text"
+                    :active="true"
                     @buttonClicked="deleteDesktop(desktop.id)"
                     buttColor = "btn-red"
                     :spinnerActive ="false"
@@ -144,16 +149,25 @@ export default {
       const stateColors = {
         stopped: 'btn-green',
         started: 'btn-red',
+        waitingip: 'btn-red',
+        error: 'btn-red'
+      }
+      return stateColors[this.desktopState]
+    },
+    buttViewerCssColor () {
+      const stateColors = {
+        stopped: 'btn-gray',
+        started: 'btn-green',
         waitingip: 'btn-orange',
         error: 'btn-red'
       }
       return stateColors[this.desktopState]
     },
     desktopState () {
-      return (this.desktop.state && this.desktop.state.toLowerCase()) || 'stopped'
+      return (this.desktop.state && this.desktop.state.toLowerCase()) || desktopStates.stopped
     },
     imageId () {
-      return this.desktop.state && this.desktop.type === 'nonpersistent' && ['started', 'waitingip', 'stopped'].includes(this.desktopState) ? this.hash(this.template.id) : this.desktop.id && this.hash(this.desktop.id)
+      return this.desktop.state && this.desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(this.desktopState) ? this.hash(this.template.id) : this.desktop.id && this.hash(this.desktop.id)
     },
     waitingIp () {
       return this.desktopState === desktopStates.waitingip

@@ -15,6 +15,10 @@
             },
             "admin": "Administración"
         },
+        "statusbar": {
+            "desktops-started": "Desktops arrancados",
+            "checkbox-text": "Solo arrancados"
+        },        
         "desktop-cards": {
             "table-header": {
                 "name": "Nombre",

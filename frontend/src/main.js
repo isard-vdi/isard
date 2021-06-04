@@ -8,6 +8,7 @@ import 'vue-snotify/styles/material.css'
 import './assets/styles.css'
 import './assets/styles_standard.css'
 import './assets/styles_xl.css'
+import './assets/styles_small.css'
 
 import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
 import { faCentos, faFedora, faGithub, faGoogle, faLinux, faUbuntu, faWindows } from '@fortawesome/free-brands-svg-icons'

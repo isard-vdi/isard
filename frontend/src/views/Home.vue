@@ -19,7 +19,7 @@
             <template v-if="viewType === 'grid'">
               <div v-if="persistentDesktops.length > 0">
                 <card-list
-                  listTitle="Escritorios persistentes"
+                  :listTitle="$t('views.select-template.persistent')"
                   :templates="user_templates"
                   :desktops="persistentDesktops"
                   :persistent="true">
@@ -27,9 +27,9 @@
               </div>
               <div v-if="nonpersistentDesktops.length > 0">
                 <card-list
-                    listTitle="Escritorios temporales"
+                    :listTitle="$t('views.select-template.volatile')"
                     :templates="user_templates"
-                    :desktops="nonpersistentDesktops"
+                    :desktops="visibleNonPersistentDesktops"
                     :persistent="false">
                 </card-list>
               </div>
@@ -47,7 +47,6 @@
 import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import CardList from '@/components/CardList.vue'
-import { DesktopUtils } from '@/utils/desktopsUtils'
 
 export default {
   components: {
@@ -64,16 +63,19 @@ export default {
       return this.$store.getters.getUser
     },
     user_templates () {
-      return DesktopUtils.parseTemplates(this.$store.getters.getTemplates)
+      return this.$store.getters.getTemplates
     },
     user_desktops () {
-      return DesktopUtils.parseDesktops(this.$store.getters.getDesktops)
+      return this.$store.getters.getDesktops
     },
     persistentDesktops () {
-      return this.user_desktops.filter(desktop => desktop.type === 'persistent')
+      return this.$store.getters.getDesktops.filter(desktop => this.getShowStarted ? desktop.type === 'persistent' && desktop.state === 'Started' : desktop.type === 'persistent')
     },
     nonpersistentDesktops () {
-      return this.user_templates.map(template => this.user_desktops.find((desktop) => template.id === desktop.template && desktop.type === 'nonpersistent') || template)
+      return this.$store.getters.getTemplates.map(template => this.$store.getters.getDesktops.find((desktop) => template.id === desktop.template && desktop.type === 'nonpersistent') || template)
+    },
+    visibleNonPersistentDesktops () {
+      return this.nonpersistentDesktops.filter(desktop => this.getShowStarted ? desktop.state : desktop.name)
     },
     templates_loaded () {
       return this.$store.getters.getTemplatesLoaded
@@ -83,6 +85,9 @@ export default {
     },
     viewType () {
       return this.$store.getters.getViewType
+    },
+    getShowStarted () {
+      return this.$store.getters.getShowStarted
     }
   },
   data () {
