@@ -11,7 +11,7 @@ services:
       options:
         max-size: "100m"
     working_dir: /usr/local/src/isard-frontend/
-    command: yarn serve
+    command: sh -c "yarn install && yarn serve"
     networks:
       - isard-network
     restart: unless-stopped
