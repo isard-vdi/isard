@@ -1,3 +1,25 @@
+function unlimited_show_hide(parentid, selector, editable, unlimited){
+	if(editable) {
+		$(parentid).find(".unlimited").show()
+		$(parentid).find("label[for=unlimited]").show()
+		$(parentid).find(".unlimited .checkbox").show()
+		$(parentid).find(".quota_form").show()
+		if (unlimited) {
+			quotaDisable(selector)
+		} else {
+			quotaEnable(selector)
+		}
+	} else {
+		quotaDisable(selector)
+		if (unlimited) {
+			$(parentid).find(".unlimited").show()
+			$(parentid).find("label[for=unlimited]").show()
+		} else {
+			$(parentid).find(".quota_form").show()
+		}
+	}
+}
+
 	function setQuotaMax(parentid,kind,id,disabled){
 		disabled = typeof disabled !== 'undefined' ? disabled : false;
 		id = typeof id !== 'undefined' ? id : false; //Missing id will get current user/category/group
@@ -64,11 +86,7 @@
 				enable=false
 			}
 
-			if(disabled == false && enable == true){
-				quotaEnable(parentid+' #quota-')
-			}else{
-				quotaDisable(parentid+' #quota-')
-			}
+			unlimited_show_hide(parentid, parentid + ' #quota-', !disabled, !enable)
 
 			$(parentid+"#unlimited").unbind('ifChecked').on('ifChecked', function(event){
 				quotaDisable('#'+$(event.target).closest('form').attr('id')+' #quota-')
@@ -114,11 +132,7 @@
 				      
 			}
 
-			if(disabled == false && enable == true){
-				quotaEnable(parentid+' #limits-')
-			}else{
-				quotaDisable(parentid+' #limits-')
-			}
+			unlimited_show_hide(parentid, parentid + ' #limits-', !disabled, !enable)
 
 			$(parentid+"#unlimited").unbind('ifChecked').on('ifChecked', function(event){
 				quotaDisable('#'+$(event.target).closest('form').attr('id')+' #limits-')
