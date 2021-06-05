@@ -200,7 +200,7 @@
                 "error": "Verbindungsfehler",
                 "unstable": "Der Netzwerkverbindungsserver scheint instabil zu sein",
                 "disconnected": "Ihre Verbindung wurde getrennt",
-                "connecting": "Verbindung mit Guacamole wird herstellt …"
+                "connecting": "Verbindung zum Server wird hergestellt …"
             }
         }
     }

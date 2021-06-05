@@ -233,7 +233,7 @@
                 "error": "Erreur de connexion",
                 "unstable": "Le serveur de connexion réseau semble instable",
                 "disconnected": "Vous avez été déconnecté·e",
-                "connecting": "Connexion à Guacamole…"
+                "connecting": "Connexion au serveur…"
             }
         }
     }
