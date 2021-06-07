@@ -7,7 +7,7 @@ hypervisor=int(os.environ['HYPERVISOR_NUMBER'])
 network=os.environ['WG_GUESTS_NETS']
 dhcp_mask=int(os.environ['WG_GUESTS_DHCP_MASK'])
 reserved_hosts=int(os.environ['WG_GUESTS_RESERVED_HOSTS'])
-users_net=os.environ['WG_USERS_NET']
+main_net=os.environ['WG_MAIN_NET']
 
 nparent = ipaddress.ip_network(network, strict=False)
 dhcpsubnets=list(nparent.subnets(new_prefix=dhcp_mask))
@@ -34,17 +34,17 @@ wireguard_xml = """<network xmlns:dnsmasq='http://libvirt.org/schemas/network/dn
   </ip>  \
   <dns enable="no"/> \
        <dnsmasq:options> \
-          <dnsmasq:option value="dhcp-option=121,10.0.0.0/8,10.2.0.1"/> \
+          <dnsmasq:option value="dhcp-option=121,%s,%s"/> \
           <dnsmasq:option value="dhcp-script=/update-client-ips.sh"/> \
           <dnsmasq:option value='dhcp-option=3'/> \
       </dnsmasq:options> \
-</network>""" % (dhcp_subnet_gw, dhcp_subnet_prefix, dhcp_subnet_range_start, dhcp_subnet_range_end)
+</network>""" % (dhcp_subnet_gw, dhcp_subnet_prefix, dhcp_subnet_range_start, dhcp_subnet_range_end, main_net, dhcp_subnet_gw)
 
 with open('/etc/libvirt/qemu/networks/wireguard.xml', 'w') as fd:
     fd.write(wireguard_xml)
 
 print('Setting wireguard-hypervisor internal net interface IP: ip a a '+str(list(int_net.hosts())[2])+'/'+str(int_net.prefixlen)+' dev '+os.environ['WG_INTERFACE'])
 os.system('ip a a '+str(list(int_net.hosts())[2])+'/'+str(int_net.prefixlen)+' dev '+os.environ['WG_INTERFACE'])
-print('Setting route to wireguard users network: ip r a '+users_net+' via '+str(list(int_net.hosts())[1]))
-os.system('ip r a '+users_net+' via '+str(list(int_net.hosts())[1]))
+print('Setting route to wireguard users network: ip r a '+main_net+' via '+str(list(int_net.hosts())[1]))
+os.system('ip r a '+main_net+' via '+str(list(int_net.hosts())[1]))
 #ip r a $WG_USERS_NET via ${WG_HYPER_NET_WG_PEER}

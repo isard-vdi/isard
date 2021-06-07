@@ -63,6 +63,10 @@ LOG_LEVEL=INFO
 
 ###################### Wireguard
 
+## All the sub networks needed for infrastructure wireguard will
+## fall within this sub networks
+WG_MAIN_NET=10.0.0.0/14
+
 ## Users at home will get a unique /32 IP from this range.
 ## Set a network that will allow as many clients as you will have.
 WG_USERS_NET=10.0.0.0/16
@@ -101,6 +105,44 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## This is the internal interface in wireguard and isard-hypervisor
 ## containers. In docker it is the isard-vpn network.
 WG_INTERFACE=eth1
+
+##############################################################################
+##############################################################################
+## ANOTHER EXAMPLE DEFINING Wireguard NETWORKS
+# Lets get a range with enouth IPs to subdivide.
+# We need at least ranges for users, remote hypers and dhcp nets for
+# desktops in those remote hypers.
+# FULL WG RANGE: 128-135
+# WG_MAIN_NET=          192.168.128.0/21 
+
+# Now lets subdivide this full range in smaller ones
+# FIRST NETWORK: Users network
+# Range 128.1-129.254: 510 Maximum users that can get vpn config
+# WG_USERS_NET=             192.168.128.0/23
+
+# SECOND NETWORK: Hypervisors network
+# Range 130.1-131.254: 510 Maximum hypervisors connected from isard-vpnc
+# We will lose almost all this network
+# WG_HYPERS_NET=            192.168.130.0/23
+
+# THIRD NETWORK: Guests in hypervisors. Will be again subdivided with DHCP_MASK
+# Range 132.0-135.254
+# WG_GUESTS_NETS=           192.168.132.0/22
+
+# This third network should be subdivided for guests in hypervisors,
+# so balance between number of hypervisors and guests that can run there.
+# For example:
+# WG_GUESTS_DHCP_MASK=24        /24: 4 NETS/HYPERS WITH 253 DESKTOPS EACH (If RESERVED_HOSTS=0)
+#                               /25: 8 NETS/HYPERS WITH 125 DESKTOPS EACH (If RESERVED_HOSTS=0)
+# WG_GUESTS_RESERVED_HOSTS=20  Yo will lose those desktops from each WG_GUESTS_DHCP_MASK
+
+# And remember to set interface and UDP ports for this vpn connections
+# WG_INTERFACE=eth1     # this is the internal network name between isard-vpn
+#                           and isard-hypervisor containers
+# WG_USERS_PORT=443     # Users connect to main isard-vpn with this port
+# WG_HYPERS_PORT=4443   # Remote hypers connect isard-vpnc to main with this port
+##############################################################################
+##############################################################################
 
 ###################### HYPERVISOR
 
