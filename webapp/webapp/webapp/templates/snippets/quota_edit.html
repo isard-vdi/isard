@@ -1,7 +1,24 @@
 {% if type is not defined %}
     {% set type = 'quota' %}
 {% endif %}
-<div class="x_content found">
+<div class="item form-group unlimited" style="display: none">
+    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="unlimited">
+        Unlimited
+    </label>
+    <div class="col-md-6 col-sm-6 col-xs-12">
+        <div class="checkbox" style="display: none">
+            <label>
+                <div class="icheckbox_flat-green" style="position: relative;">
+                    <input type="checkbox" id="unlimited" name="unlimited" class="flat"  style="position: absolute; opacity: 0;">
+                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                    </ins>
+                </div>
+            </label>
+        </div>
+    </div>
+</div>
+
+<div class="x_content found quota_form" style="display: none">
     <div class="row">
         <div class="x_panel">
             <div class="col-xs-3 form-group">
