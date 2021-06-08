@@ -34,4 +34,18 @@ export class DesktopUtils {
   static getIcon (name) {
     return ['fab', name]
   }
+
+  static hash (term) {
+    if (term === null) return 1
+    if (term === undefined) return 1
+
+    const H = 48
+    let total = 0
+
+    for (var i = 0; i < term.length; i++) {
+      total += total + term.charCodeAt(i)
+    }
+
+    return total % H + 1
+  }
 }

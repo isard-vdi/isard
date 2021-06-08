@@ -250,3 +250,12 @@
   background-color: #eead47 !important;
   border-color: #eead47 !important;
 }
+
+.isard-tooltip .tooltip-inner {
+  background-color: #858581;
+}
+
+.arrow::before {
+  border-bottom-color: #858581 !important;
+  border-top-color: #858581 !important;
+}

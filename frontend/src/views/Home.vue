@@ -5,39 +5,54 @@
       <StatusBar/>
     </div>
     <b-container fluid id="content">
-          <div v-if="!templates_loaded">
-            <b-spinner/>
-            <p>{{ $t('views.select-template.loading') }}</p>
-          </div>
-
-          <div v-else-if="user_templates.length === 0 && user_desktops.length === 0">
-            <h1>{{ $t('views.select-template.no-templates.title') }}</h1>
+      <div v-if="(desktops_loaded && templates_loaded) && (user_templates.length === 0 && user_desktops.length === 0)">
+            <h3><strong>{{ $t('views.select-template.no-templates.title') }}</strong></h3>
             <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
-          </div>
-
-          <div v-else>
-            <template v-if="viewType === 'grid'">
-              <div v-if="persistentDesktops.length > 0">
+      </div>
+      <b-tabs v-else>
+        <b-tab v-if="!(desktops_loaded && templates_loaded) || persistentDesktops.length > 0" active>
+          <template #title>
+            <b-spinner v-if="!(desktops_loaded && templates_loaded)" type="border" small></b-spinner>
+            {{ $t('views.select-template.persistent') }}
+          </template>
+          <template v-if="viewType === 'grid'">
                 <card-list
-                  :listTitle="$t('views.select-template.persistent')"
                   :templates="user_templates"
                   :desktops="persistentDesktops"
-                  :persistent="true">
+                  :persistent="true"
+                  :loading="!(desktops_loaded && templates_loaded)">
                 </card-list>
-              </div>
-              <div v-if="nonpersistentDesktops.length > 0">
-                <card-list
-                    :listTitle="$t('views.select-template.volatile')"
-                    :templates="user_templates"
-                    :desktops="visibleNonPersistentDesktops"
-                    :persistent="false">
-                </card-list>
-              </div>
             </template>
             <template v-else>
-
+              <TableList
+                  :templates="user_templates"
+                  :desktops="persistentDesktops"
+                  :persistent="true"
+                  :loading="!(desktops_loaded && templates_loaded)"></TableList>
             </template>
-          </div>
+        </b-tab>
+
+        <b-tab v-if="!(desktops_loaded && templates_loaded)  || visibleNonPersistentDesktops.length > 0">
+          <template #title>
+            <b-spinner v-if="!(desktops_loaded && templates_loaded)" type="border" small></b-spinner> {{$t('views.select-template.volatile')}}
+          </template>
+              <template v-if="viewType === 'grid'">
+                <card-list
+                    :templates="user_templates"
+                    :desktops="visibleNonPersistentDesktops"
+                    :persistent="false"
+                    :loading="!(desktops_loaded && templates_loaded)">
+                </card-list>
+            </template>
+            <template v-else>
+               <TableList
+                    :templates="user_templates"
+                    :desktops="visibleNonPersistentDesktops"
+                    :persistent="false"
+                    :loading="!(desktops_loaded && templates_loaded)"></TableList>
+            </template>
+        </b-tab>
+      </b-tabs>
     </b-container>
   </div>
 </template>
@@ -47,12 +62,14 @@
 import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import CardList from '@/components/CardList.vue'
+import TableList from '@/components/TableList.vue'
 
 export default {
   components: {
     StatusBar,
     NewNavBar,
-    CardList
+    CardList,
+    TableList
   },
   created () {
     this.$store.dispatch('fetchDesktops')

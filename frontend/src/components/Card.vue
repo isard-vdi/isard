@@ -8,9 +8,8 @@
             <b-icon
               icon='info-circle-fill'
               class='info-icon position-absolute cursor-pointer'
-              :id="`card-info-icon-${desktop.id}`"
+              v-b-tooltip="{ title: `${desktop.description}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
             ></b-icon>
-            <b-tooltip :target="`card-info-icon-${desktop.id}`" :title="desktop.description"></b-tooltip>
             <!-- Desktop state -->
             <div class='machine-state px-4 d-flex flex-row align-content-center' :class="stateBarCssClass">
               <b-spinner v-if="desktopState === desktopStates.waitingip" small variant='light' class='align-self-center mr-2'></b-spinner>
@@ -20,23 +19,26 @@
             <div class='p-2 h-100 d-flex flex-wrap flex-column'>
               <div class='mb-2 flex-grow-1'>
                 <!-- Title -->
-                <div class='font-weight-bold card-title' :id="`card-title-text-${desktop.id}`">{{ getCardTitle | truncate(20) }}</div>
-                <b-tooltip :target="`card-title-text-${desktop.id}`" :title="getCardTitle"></b-tooltip>
+                <div
+                  class='font-weight-bold card-title'
+                  v-b-tooltip="{ title: `${getCardTitle}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
+                    {{ getCardTitle | truncate(20) }}
+                </div>
 
                 <!-- IP -->
                 <p class='w-100 mb-0 card-text'>{{ desktop.ip ? `IP:  ${desktop.ip}` : '' }}</p>
 
                 <!-- DESCRIPTION -->
-                <p class='w-100 mb-0 card-text' :id="`card-description-text-${desktop.id}`">{{ !desktop.ip ? getCardDescription  : '' | truncate(30)}}</p>
-                <b-tooltip :target="`card-description-text-${desktop.id}`" :title="getCardDescription"></b-tooltip>
+                <p class='w-100 mb-0 card-text' v-b-tooltip="{ title: `${getCardDescription}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
+                  {{ !desktop.ip ? getCardDescription  : '' | truncate(30)}}
+                </p>
 
                 <!-- Template -->
                 <p class='w-100 mb-0 card-text'
                   v-if="desktop.type === 'persistent' && template"
-                  :id="`card-template-text-${desktop.id}`">
+                  v-b-tooltip="{ title: `${template.name}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
                   Plantilla: {{ template.name  | truncate(16) }}
                 </p>
-                <b-tooltip v-if="desktop.type === 'persistent' && template" :target="`card-template-text-${desktop.id}`" :title="template.name"></b-tooltip>
               </div>
 
               <!-- Actions -->
@@ -72,7 +74,7 @@
                     :spinnerActive ="false"
                     :buttText = "$t('views.select-template.status.notCreated.action')">
                 </DesktopButton>
-                <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state === desktopStates.stopped )"
+                <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
                     class="dropdown-text"
                     :active="true"
                     @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
@@ -95,6 +97,7 @@
 
 <script>
 import i18n from '@/i18n'
+import { DesktopUtils } from '@/utils/desktopsUtils'
 import { mapActions } from 'vuex'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
@@ -119,16 +122,6 @@ export default {
       const data = new FormData()
       data.append('template', template)
       this.$store.dispatch('createDesktop', data)
-    },
-    hash (string) {
-      const H = 48
-      let total = 0
-
-      for (var i = 0; i < string.length; i++) {
-        total += total + string.charCodeAt(i)
-      }
-
-      return total % H + 1
     }
   },
   computed: {
@@ -167,7 +160,7 @@ export default {
       return (this.desktop.state && this.desktop.state.toLowerCase()) || desktopStates.stopped
     },
     imageId () {
-      return this.desktop.state && this.desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(this.desktopState) ? this.hash(this.template.id) : this.desktop.id && this.hash(this.desktop.id)
+      return this.desktop.state && this.desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(this.desktopState) ? DesktopUtils.hash(this.template.id) : this.desktop.id && DesktopUtils.hash(this.desktop.id)
     },
     waitingIp () {
       return this.desktopState === desktopStates.waitingip

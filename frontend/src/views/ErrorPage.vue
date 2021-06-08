@@ -20,10 +20,10 @@
 export default {
   data () {
     const error = this.isNullOrUndefined(
-      this.$t('views.error.codes')[this.$route.params.code.toString()]
+      this.$t('views.error.codes')[this.$route.params.code && this.$route.params.code.toString()]
     )
       ? this.$t('views.error.codes')['500']
-      : this.$t('views.error.codes')[this.$route.params.code.toString()]
+      : this.$t('views.error.codes')[this.$route.params.code && this.$route.params.code.toString()]
     return {
       error: error
     }

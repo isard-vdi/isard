@@ -6,11 +6,12 @@ import '@/assets/global.css'
 import 'vue-snotify/styles/material.css'
 // Isard styles
 import './assets/styles.css'
+// import './assets/table_styles.css'
 import './assets/styles_standard.css'
 import './assets/styles_xl.css'
 import './assets/styles_small.css'
 
-import { BootstrapVue, IconsPlugin } from 'bootstrap-vue'
+import { BootstrapVue, IconsPlugin, VBTooltip } from 'bootstrap-vue'
 import { faCentos, faFedora, faGithub, faGoogle, faLinux, faUbuntu, faWindows } from '@fortawesome/free-brands-svg-icons'
 import { faDesktop, faPlay, faStop, faTrash } from '@fortawesome/free-solid-svg-icons'
 
@@ -71,6 +72,8 @@ Vue.filter('truncate', function (value, size) {
   }
   return value.substr(0, size) + '...'
 })
+
+Vue.directive('b-tooltip', VBTooltip)
 
 new Vue({
   router,

@@ -1,6 +1,6 @@
 import { apiAxios } from '@/router/auth'
 import router from '@/router'
-import { DesktopUtils } from '../../utils/desktopsUtils'
+import { DesktopUtils } from '@/utils/desktopsUtils'
 
 export default {
   state: {
