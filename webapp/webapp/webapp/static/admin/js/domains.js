@@ -580,7 +580,6 @@ function actionsDomainDetail(){
                 url:"/isard-admin/admin/domains/events/" + pk,
                 success: function(data)
                 {
-                    var data = JSON.parse(data);
                     $('#modalShowInfoForm #xml').val(JSON.stringify(data, undefined, 4));
                 }				
             });
