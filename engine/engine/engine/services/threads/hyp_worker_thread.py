@@ -12,6 +12,7 @@ from xml.etree import ElementTree
 from time import sleep
 
 from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
+from libvirt import VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN
 
 from engine.models.hyp import hyp
 from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, \
@@ -179,7 +180,11 @@ class HypWorkerThread(threading.Thread):
                     logs.workers.debug('action shutdown domain: {}'.format(action['id_domain'][30:100]))
                     try:
                         domain_handler=self.h.conn.lookupByName(action['id_domain'])
-                        domain_handler.shutdown()
+                        # this function not shutdown via ACPI: domain_handler.shutdown()
+                        # the flag that we use is: VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN
+                        # if we have agent we can use the constant: VIR_DOMAIN_SHUTDOWN_GUEST_AGENT
+                        # using shutdownFlags you can control the behaviour of shutdown like virsh shutdown domain --mode MODE-LIST
+                        domain_handler.shutdownFlags(VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN)
                         logs.workers.debug('SHUTTING-DOWN domain {}'.format(action['id_domain']))
                         update_domain_status('Shutting-down', action['id_domain'], hyp_id=hyp_id)
                     except Exception as e:
