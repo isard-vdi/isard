@@ -28,8 +28,8 @@ func init() {
 		guacdAddr = "isard-vpn:4822"
 	}
 
-	backendAddr = os.Getenv("BACKEND_HOST")
-	if backendAddr == "" || backendAddr == "localhost" {
+	backendAddr = os.Getenv("GUACD_BACKEND_HOST")
+	if backendAddr == "" {
 		backendAddr = "isard-backend:8080"
 		backendScheme = "http"
 	} else {
