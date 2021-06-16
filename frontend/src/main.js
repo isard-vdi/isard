@@ -6,7 +6,7 @@ import '@/assets/global.css'
 import 'vue-snotify/styles/material.css'
 // Isard styles
 import './assets/styles.css'
-// import './assets/table_styles.css'
+import './assets/table_styles.css'
 import './assets/styles_standard.css'
 import './assets/styles_xl.css'
 import './assets/styles_small.css'

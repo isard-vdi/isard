@@ -259,3 +259,22 @@
   border-bottom-color: #858581 !important;
   border-top-color: #858581 !important;
 }
+
+.selectedView {
+  background-color: #c8c8c4;
+  border-radius: 10px;
+}
+
+.nav-tabs .nav-link.active {
+  background-color: transparent !important;
+  border-top: transparent;
+  border-left: transparent;
+  border-right: transparent;
+  border-bottom-color: black;
+  border-bottom-width: 2px;
+  font-weight: bold;
+}
+
+.nav-tabs .nav-link {
+  color: #495057;
+}

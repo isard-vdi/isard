@@ -31,26 +31,26 @@
             </b-nav-item>
           </b-navbar-nav>
 
-          <!-- Right aligned nav items
-          <b-navbar-nav class="ml-auto flex-row">
+          <!-- Right aligned nav items-->
+          <b-navbar-nav class="ml-auto flex-row d-none d-xl-flex">
 
-            <b-nav-item href="#" @click="changeView('grid')">
+            <b-nav-item href="#" @click="changeView('grid')" :class="{selectedView: view === 'grid'}">
               <b-icon
                 icon="grid-fill"
                 aria-hidden="true"
-                class="text-medium-gray mr-2 mr-lg-0"
+                class="text-medium-gray mt-1"
               ></b-icon>
             </b-nav-item>
 
-            <b-nav-item href="#" @click="changeView('list')">
+            <b-nav-item href="#" @click="changeView('list')" :class="{selectedView: view === 'list'}" class="ml-sm-2 ml-xl-0">
               <b-icon
                 icon="list"
                 aria-hidden="true"
-                class="text-medium-gray"
+                class="text-medium-gray mt-1"
               ></b-icon>
             </b-nav-item>
 
-          </b-navbar-nav>-->
+          </b-navbar-nav>
         </div>
       </b-navbar>
     </b-container>
@@ -85,6 +85,9 @@ export default {
     },
     getShowStarted () {
       return this.$store.getters.getShowStarted
+    },
+    view () {
+      return this.$store.getters.getViewType
     }
   }
 }

@@ -26,7 +26,8 @@
                 "description": "Description",
                 "action": "Action",
                 "viewers": "Viewers"
-            }
+            },
+            "no-info-default": "No description available"
         },
         "help": {
             "close-guide": "Close guide",
@@ -119,7 +120,9 @@
             },
             "which-template": "Which desktop do you want to use?",
             "persistent": "Persistent desktops",
+            "persistent-compact": "Persistent",
             "volatile": "Temporal desktops",
+            "volatile-compact": "Temporal",
             "viewers": "Viewers",
             "viewer": "{name} viewer",
             "viewer-name": {

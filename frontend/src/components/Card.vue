@@ -8,7 +8,7 @@
             <b-icon
               icon='info-circle-fill'
               class='info-icon position-absolute cursor-pointer'
-              v-b-tooltip="{ title: `${desktop.description}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+              v-b-tooltip="{ title: `${desktop.description ? desktop.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
             ></b-icon>
             <!-- Desktop state -->
             <div class='machine-state px-4 d-flex flex-row align-content-center' :class="stateBarCssClass">

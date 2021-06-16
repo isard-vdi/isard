@@ -26,7 +26,8 @@
                 "description": "Descripción",
                 "action": "Acción",
                 "viewers": "Visores"
-            }
+            },
+            "no-info-default": "No hay descripción disponible"
         },
         "help": {
             "close-guide": "Cerrar la guía",
@@ -119,7 +120,9 @@
             },
             "which-template": "¿Qué escritorio quieres usar?",
             "persistent": "Escritorios persistentes",
+            "persistent-compact": "Persistentes",
             "volatile": "Escritorios temporales",
+            "volatile-compact": "Temporales",
             "viewers": "Visores",
             "viewer": "Visor {name}",
             "viewer-name": {

@@ -26,7 +26,8 @@
                 "description": "Descripció",
                 "action": "Acció",
                 "viewers": "Visors"
-            }
+            },
+            "no-info-default": "No hi ha cap descripció disponible"
         },
         "help": {
             "close-guide": "Tancar la guia",
@@ -119,7 +120,9 @@
             },
             "which-template": "Quin escriptori vols fer servir?",
             "persistent": "Escriptoris persistents",
+            "persistent-compact": "Persistents",
             "volatile": "Escriptoris temporals",
+            "volatile-compact": "Temporals",
             "viewers": "Visors",
             "viewer": "Visor {name}",
             "viewer-name": {

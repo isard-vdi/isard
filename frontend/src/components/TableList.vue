@@ -12,16 +12,8 @@
               <b-icon
                 icon='info-circle-fill'
                 class='info-icon position-absolute cursor-pointer'
-                :id="'card-info-icon-'"
+                v-b-tooltip="{ title: `${data.item.description ? data.item.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
               ></b-icon>
-
-              <b-tooltip
-              :target="'card-info-icon-'"
-              :title='data.item.description'
-              triggers='hover'
-              placement='top'
-              custom-class='isard-tooltip-class'></b-tooltip>
-
               <!-- IMAGE -->
               <div
                 class='rounded-circle bg-red'
@@ -46,7 +38,7 @@
             <template #cell(state)='data'>
               <div class='d-flex justify-content-center align-items-center'>
                 <!-- STATE DOT -->
-                  <div v-if="data.item.state !== 'Cargando'" :class="'state-dot mr-2 ' + data.item.state"></div>
+                  <div v-if="getItemState(data.item) !== desktopStates.waitingip" :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"></div>
                   <!-- SPINNER -->
                   <b-spinner
                         v-if="getItemState(data.item) === desktopStates.waitingip"
@@ -104,7 +96,7 @@
                     :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)">
                 </DesktopButton>
                 <DesktopButton v-if="(data.item.state && data.item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
-                    class="dropdown-text"
+                    class="dropdown-text mt-2"
                     :active="true"
                     @buttonClicked="deleteDesktop(data.item.id)"
                     buttColor = "btn-red"
@@ -201,6 +193,15 @@ export default {
       }
       return stateColors[state]
     },
+    stateCssClass (state) {
+      const stateColors = {
+        stopped: 'state-off',
+        started: 'state-on',
+        waitingip: 'state-loading',
+        failed: 'state-error'
+      }
+      return stateColors[state]
+    },
     getViewerText (desktop) {
       const name = i18n.t(`views.select-template.viewer-name.${this.viewers[desktop.id]}`)
       return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
@@ -265,154 +266,5 @@ export default {
 </script>
 
 <style>
-/* TYPOGRAPHY */
-.table-list .description p {
-  font-size: 0.9rem;
-}
-.table-list .ip p {
-  font-size: 0.9rem;
-}
-.table-list .state p {
-  font-size: 0.9rem;
-}
-.table-list .viewers button {
-  font-size: 0.9rem;
-}
-.table-list .action button p {
-  font-size: 0.9rem;
-}
 
-/* TABLE */
-.table-list table {
-  border-collapse: separate;
-  border-spacing: 0 1em;
-}
-
-.table-list thead tr {
-  box-shadow: none !important;
-}
-
-.table-list thead th {
-  border-top: 0 !important;
-  border-bottom: 0 !important;
-  border-right: 1px solid #dfe6e9;
-}
-
-.table-list thead th:last-child {
-  border-right: 0;
-}
-
-.table-list tr {
-  box-shadow: 0 2px 4px 0 #b2bec3;
-  margin-bottom: 20px;
-  border-radius: 11px;
-}
-
-.table-list tr td {
-  border: 0;
-  border-right: 1px solid #e6edf0;
-  vertical-align: middle;
-}
-
-.table-list tr td.image > div{
-  width: 60px;
-  height: 60px;
-  left: 0;
-  top: 16px;
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-color: white;
-  border-radius: 50%;
-}
-
-.table-list .ip,
-.table-list .viewers {
-  text-align: center;
-}
-
-/* VIEWERS */
-.table-list .viewers-dropdown>button {
-  display: flex;
-  justify-content: space-between;
-  border-radius: 7px;
-  border: 1px solid #b2bec3;
-  padding-left: 10px;
-}
-
-.table-list .viewers-dropdown>button::after {
-  margin-top: 0.7em;
-}
-
-.table-list .viewers-dropdown ul.dropdown-menu {
-  padding: 0;
-}
-
-.table-list .viewers-dropdown ul.dropdown-menu a {
-  padding: 3px 10px;
-}
-
-.table-list .viewers-dropdown ul.dropdown-menu li:not(:first-child) {
-  border-top: 1px solid lightgray;
-}
-
-/* STATE */
-.table-list .state-on {
-  background-color: #97c277;
-}
-
-.table-list .state-off {
-  background-color: #dde4e4;
-}
-
-.table-list .state-error {
-  background-color: #e7898e;
-}
-
-.table-list .state-loading {
-  background-color: #eead47;
-}
-
-.table-list .state-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-}
-
-.table-list .state-dot.state-on {
-  background-color: #97c277;
-}
-
-.table-list .state-dot.state-off {
-  background-color: #dde4e4;
-}
-
-.table-list .state-dot.state-error {
-  background-color: #e7898e;
-}
-
-.table-list .state-dot.state-loading {
-  background-color: #eead47;
-}
-
-/* INFO ICON */
-.table-list .info-icon {
-  top: 5px;
-  left: 5px;
-  fill: #b2bec3;
-}
-
-/* SPINNER */
-.spinner-loading {
-  color: #eead47;
-}
-
-/* BUTTONS */
-.table-list .action button svg {
-  height: 20px;
-}
-
-.table-list .action button p {
-  margin-top: -3px !important;
-}
 </style>
