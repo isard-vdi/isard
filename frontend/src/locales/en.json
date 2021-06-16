@@ -100,7 +100,8 @@
         "maintenance": {
             "title": "Currently, Isard service is under maintenance",
             "the-service": "The service is going to be available again in a few minutes",
-            "sorry": "Sorry for the inconvenience"
+            "sorry": "Sorry for the inconvenience",
+            "go-login": "Go to login"
         },
         "not-found": {
             "title": "We couldn't find the requested address",

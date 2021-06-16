@@ -100,7 +100,8 @@
         "maintenance": {
             "title": "Actualment, el servei d'Isard es troba en manteniment",
             "the-service": "El servei tornarà a estar disponible en una estona",
-            "sorry": "Disculpeu les molèsties"
+            "sorry": "Disculpeu les molèsties",
+            "go-login": "Anar al login"
         },
         "not-found": {
             "title": "No hem pogut trobar l'adreça sol·licitada",

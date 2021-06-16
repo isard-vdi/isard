@@ -270,6 +270,9 @@ export default {
     },
     toggleShowStarted (context) {
       context.commit('toggleShowStarted')
+    },
+    navigate (context, path) {
+      router.push({ name: path })
     }
   }
 }
