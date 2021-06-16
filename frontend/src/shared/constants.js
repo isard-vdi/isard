@@ -35,5 +35,8 @@ export const status = {
     action: 'start',
     icon: ['fas', 'play'],
     variant: 'success'
+  },
+  failed: {
+    action: 'start'
   }
 }

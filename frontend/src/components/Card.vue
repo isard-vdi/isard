@@ -76,7 +76,7 @@
                 </DesktopButton>
                 <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
                     class="dropdown-text"
-                    :active="true"
+                    :active="desktopState !== desktopStates.failed"
                     @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
                     :buttColor = "buttCssColor"
                     :spinnerActive ="false"
