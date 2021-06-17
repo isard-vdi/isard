@@ -600,6 +600,15 @@ class DomainXML(object):
     def set_video_type(self, type_video):
         if type_video.find('nvidia') == 0:
             type_video = 'none'
+            # remove all attributes like vram that have no sense if type_video is none
+            # libvirt xml parser launch an exception if these keys exists
+            for key in self.tree.xpath('/domain/devices/video/model')[0].keys():
+                if key != 'type':
+                    try:
+                        del self.tree.xpath('/domain/devices/video/model')[0].attrib[key]
+                    except Exception as e:
+                        print(f'Exception when remove attribute from video model none in xml: {e}')
+
         if type_video.find('nvidia-with-qxl') == 0:
             type_video = 'qxl'
         self.tree.xpath('/domain/devices/video/model')[0].set('type', type_video)
