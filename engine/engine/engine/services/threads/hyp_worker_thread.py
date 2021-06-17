@@ -99,8 +99,9 @@ class HypWorkerThread(threading.Thread):
 
                             if domain_active is False:
                                 # domain is destroyed, all ok
-                                update_domain_status('CreatingDomain', action['id_domain'], hyp_id='',
-                                                      detail='Domain created and test OK: Started, paused and now stopped in hyp {}'.format(self.hyp_id))
+                                update_domain_status('Stopped', action['id_domain'], hyp_id='',
+                                                     detail='Domain created and test OK: Started, paused and now stopped in hyp {}'.format(self.hyp_id))
+
                                 logs.workers.debug(
                                         'domain {} creating operation finalished. Started paused and destroyed in hypervisor {}. Now status is Stopped. READY TO USE'.format(
                                                 action['id_domain'], self.hyp_id))
