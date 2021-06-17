@@ -32,7 +32,6 @@ elif os.path.isfile('/isard/LOG_LEVEL_ERROR'):
 # log_format='%(levelname)s:%(message)s'
 LOG_FORMAT = '%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s'
 LOG_DATE_FORMAT = '%Y/%m/%d %H:%M:%S'
-LOG_LEVEL = 'DEBUG'
 LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
 #print(f'LOGLEVEL ------ {LOG_LEVEL} - {LOG_LEVEL_NUM}')
 # logger = log.getLogger(CONFIG_DICT["LOG"]["log_name"])
