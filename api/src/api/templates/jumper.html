@@ -53,35 +53,7 @@
         cursor: pointer;
       }
     </style>    
-    <script  type="text/javascript">
-      function setCookie(name,value,days) {
-          var expires = "";
-          if (days) {
-              var date = new Date();
-              date.setTime(date.getTime() + (days*24*60*60*1000));
-              expires = "; expires=" + date.toUTCString();
-          }
-          document.cookie = name + "=" + (value || "")  + expires + "; path=/";
-      }
 
-      function open_viewer(kind){
-          var viewers = {{ viewers|safe }};
-          if(kind=='url'){
-              setCookie('browser_viewer', viewers['vnc-html5']['cookie'], 1)
-              window.open(viewers['vnc-html5']['viewer'], '_blank');            
-          }        
-
-          if(kind=='file'){
-              var viewerFile = new Blob([viewers['spice-client']['content']], {type: viewers['spice-client']['mime']});
-              var a = document.createElement('a');
-                  a.download = 'console.'+viewers['spice-client']['ext'];
-                  a.href = window.URL.createObjectURL(viewerFile);
-              var ev = document.createEvent("MouseEvents");
-                  ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                  a.dispatchEvent(ev);              
-          }
-      }
-    </script>
   </head>
 
   <body>
@@ -98,4 +70,37 @@
       </div>
     </div>
   </body>
+  <script  type="text/javascript">
+      const urlParams = new URLSearchParams(window.location.search);
+      protocol=urlParams.get('protocol')
+      if(protocol){open_viewer(protocol,blank='_self')}
+
+    function setCookie(name,value,days) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days*24*60*60*1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+    }
+
+    function open_viewer(kind,blank='_blank'){
+        var viewers = {{ viewers|safe }};
+        if(kind=='url'){
+            setCookie('browser_viewer', viewers['vnc-html5']['cookie'], 1)
+            window.open(viewers['vnc-html5']['viewer'], blank);
+        }
+
+        if(kind=='file'){
+            var viewerFile = new Blob([viewers['spice-client']['content']], {type: viewers['spice-client']['mime']});
+            var a = document.createElement('a');
+                a.download = 'console.'+viewers['spice-client']['ext'];
+                a.href = window.URL.createObjectURL(viewerFile);
+            var ev = document.createEvent("MouseEvents");
+                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+                a.dispatchEvent(ev);
+        }
+    }
+  </script>
 </html>
