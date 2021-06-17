@@ -191,7 +191,7 @@
                 },
                 "failed": {
                     "text": "Fallido",
-                    "action": "Iniciar"
+                    "action": "Fallido"
                 },
                 "started": {
                     "text": "Iniciado",
@@ -207,6 +207,14 @@
                 },
                 "readyCreation": {
                     "text": "Listo para crear"
+                },
+                "working": {
+                    "text": "Esperando",
+                    "action": "working"
+                },
+                "shutting-down": {
+                    "text": "Apagando",
+                    "action": "Apagando"
                 }
             }
         },

@@ -38,10 +38,10 @@
             <template #cell(state)='data'>
               <div class='d-flex justify-content-center align-items-center'>
                 <!-- STATE DOT -->
-                  <div v-if="getItemState(data.item) !== desktopStates.waitingip" :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"></div>
+                  <div v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))" :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"></div>
                   <!-- SPINNER -->
                   <b-spinner
-                        v-if="getItemState(data.item) === desktopStates.waitingip"
+                        v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
                         small
                         class='align-self-center mr-2 spinner-loading'
                       ></b-spinner>
@@ -89,7 +89,7 @@
                 </DesktopButton>
                 <DesktopButton v-if="data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )"
                     class="dropdown-text"
-                    :active="true"
+                    :active="![desktopStates.failed, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
                     :buttColor = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
@@ -198,7 +198,9 @@ export default {
         stopped: 'state-off',
         started: 'state-on',
         waitingip: 'state-loading',
-        failed: 'state-error'
+        failed: 'state-error',
+        working: 'state-loading',
+        'shutting-down': 'state-loading'
       }
       return stateColors[state]
     },

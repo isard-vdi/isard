@@ -12,7 +12,7 @@
             ></b-icon>
             <!-- Desktop state -->
             <div class='machine-state px-4 d-flex flex-row align-content-center' :class="stateBarCssClass">
-              <b-spinner v-if="desktopState === desktopStates.waitingip" small variant='light' class='align-self-center mr-2'></b-spinner>
+              <b-spinner v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())" small variant='light' class='align-self-center mr-2'></b-spinner>
               <p class='mb-0 py-1' :class="{ 'text-white': !desktopState === desktopStates.stopped }"> {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`)}}</p>
             </div>
 
@@ -76,7 +76,7 @@
                 </DesktopButton>
                 <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
                     class="dropdown-text"
-                    :active="desktopState !== desktopStates.failed"
+                    :active="![desktopStates.failed, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
                     @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
                     :buttColor = "buttCssColor"
                     :spinnerActive ="false"
@@ -134,7 +134,9 @@ export default {
         started: 'state-on',
         waitingip: 'state-loading',
         error: 'state-error',
-        failed: 'state-failed'
+        failed: 'state-failed',
+        working: 'state-loading',
+        'shutting-down': 'state-loading'
       }
       return states[this.desktopState]
     },

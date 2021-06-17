@@ -13,7 +13,9 @@ export const desktopStates = {
   failed: 'failed',
   started: 'started',
   stopped: 'stopped',
-  waitingip: 'waitingip'
+  waitingip: 'waitingip',
+  working: 'working',
+  'shutting-down': 'shutting-down'
 }
 
 export const status = {
@@ -38,5 +40,7 @@ export const status = {
   },
   failed: {
     action: 'start'
+  },
+  working: {
   }
 }

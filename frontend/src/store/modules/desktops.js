@@ -72,7 +72,7 @@ export default {
       return new Promise((resolve, reject) => {
         apiAxios.get('/desktops').then(response => {
           context.commit('setDesktops', DesktopUtils.parseDesktops(response.data))
-          if (response.data.find(desktop => desktop.state.toLowerCase() === desktopStates.waitingip)) {
+          if (response.data.find(desktop => ![desktopStates.started, desktopStates.stopped, desktopStates.failed].includes(desktop.state.toLowerCase()))) {
             pollDesktops(context)
           } else {
             clearPolling()

@@ -1,4 +1,4 @@
-import { cardIcons } from '../shared/constants'
+import { cardIcons, desktopStates } from '../shared/constants'
 
 export class DesktopUtils {
   static parseDesktops (items) {
@@ -9,7 +9,7 @@ export class DesktopUtils {
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
         id,
         name,
-        state,
+        state: [desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down']].includes(state.toLowerCase()) ? state : desktopStates.working,
         type,
         ip,
         viewers,

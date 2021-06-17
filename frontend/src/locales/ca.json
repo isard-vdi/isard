@@ -191,7 +191,7 @@
                 },
                 "failed": {
                     "text": "Fallat",
-                    "action": "Iniciar"
+                    "action": "Fallat"
                 },
                 "started": {
                     "text": "Iniciat",
@@ -207,6 +207,14 @@
                 },
                 "readyCreation": {
                     "text": "Llest per a crear"
+                },
+                "working": {
+                    "text": "Esperant",
+                    "action": "working"
+                },
+                "shutting-down": {
+                    "text": "Apagant",
+                    "action": "Apagant"
                 }
             }
         },

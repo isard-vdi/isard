@@ -191,7 +191,7 @@
                 },
                 "failed": {
                     "text": "Failed",
-                    "action": "Start"
+                    "action": "Failed"
                 },
                 "started": {
                     "text": "Started",
@@ -207,6 +207,14 @@
                 },
                 "readyCreation": {
                     "text": "Ready for creation"
+                },
+                "working": {
+                    "text": "Waiting",
+                    "action": "working"
+                },
+                "shutting-down": {
+                    "text": "Stopping",
+                    "action": "Stopping"
                 }
             }
         },

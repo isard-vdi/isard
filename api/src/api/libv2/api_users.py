@@ -216,8 +216,6 @@ class ApiUsers():
                 )
             modified_desktops = []
             for d in desktops:
-                if d["status"] not in ["Started", "Failed"]:
-                    d["status"] = "Stopped"
                 d["image"] = d.get("image", None)
                 d["from_template"] = d.get("parents", [None])[-1]
                 if d.get("persistent", True):
