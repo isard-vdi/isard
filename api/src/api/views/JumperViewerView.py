@@ -37,6 +37,7 @@ def api_v2_img(img):
 def api_v2_viewer(token):
     try:
         viewers=common.DesktopViewerFromToken(token)
+        protocol = request.args.get('protocol', default = False)
         return render_template('jumper.html', vmName=viewers['vmName'], vmDescription=viewers['vmDescription'], viewers=json.dumps(viewers))
         #return render_template('jumper.html', data='')
     except DesktopNotFound:
