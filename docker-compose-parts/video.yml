@@ -7,7 +7,8 @@ services:
       options:
         max-size: "100m"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.22
     ports:
       - published: 80
         target: 80

@@ -9,7 +9,8 @@ services:
       GUACD_ADDR: isard-vpn:4822
       BACKEND_HOST: ${BACKEND_HOST} 
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.16
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime

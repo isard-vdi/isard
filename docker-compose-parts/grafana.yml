@@ -10,7 +10,8 @@ services:
       - "3000:3000"
       - "2004:2004"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.15
     restart: unless-stopped
     volumes:
       - /opt/isard/grafana/grafana/data:/grafana/data:rw

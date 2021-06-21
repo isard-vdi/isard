@@ -9,12 +9,15 @@ services:
     cap_add:
     - NET_ADMIN    
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.18
     ports:
       - published: 80
         target: 80
+        mode: host
       - published: 443
-        target: 443      
+        target: 443
+        mode: host
     restart: unless-stopped
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw

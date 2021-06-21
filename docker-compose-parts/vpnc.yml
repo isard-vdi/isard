@@ -10,7 +10,8 @@ services:
       - NET_ADMIN
       - SYS_MODULE  
     networks:
-      isard-network: {}
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.24
       isard-vpn:
     ports:
       - published: 443

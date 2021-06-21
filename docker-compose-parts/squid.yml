@@ -7,7 +7,8 @@ services:
       options:
         max-size: "100m"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.19
     restart: unless-stopped
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=1
