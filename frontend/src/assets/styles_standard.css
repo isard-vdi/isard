@@ -11,6 +11,10 @@
       padding-right: 16px;
     }
 
+    .card-list .card-button {
+      max-height: 1.8rem;
+    }
+
     .card-text {
       font-size: 0.9rem;
       padding-left: 16px;

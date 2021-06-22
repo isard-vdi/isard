@@ -148,3 +148,7 @@
 .table-list .action button p {
   margin-top: -3px !important;
 }
+
+.table-list .dropdown-inactive button {
+  background-color: darkgrey;
+}

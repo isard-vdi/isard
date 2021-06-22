@@ -4,7 +4,7 @@
       :disabled="!active"
       @click="active && !spinnerActive && $emit('buttonClicked')"
       size='sm'
-      class='px-4 rounded-pill ml-3'
+      class='px-2 rounded-pill'
       :class="[buttColor]">
       {{ buttText }}
   </b-button>

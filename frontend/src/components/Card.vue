@@ -43,6 +43,31 @@
 
               <!-- Actions -->
               <div class='d-flex flex-row mb-2 justify-content-between buttons-padding'>
+                <DesktopButton v-if="!desktop.state || (desktop.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
+                    class="dropdown-text card-button"
+                    :active="true"
+                    @buttonClicked="chooseDesktop(desktop.id)"
+                    :buttColor = "buttCssColor"
+                    :spinnerActive ="false"
+                    :buttText = "$t('views.select-template.status.notCreated.action')">
+                </DesktopButton>
+                <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
+                    class="dropdown-text card-button"
+                    :active="![desktopStates.failed, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
+                    @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
+                    :buttColor = "buttCssColor"
+                    :spinnerActive ="false"
+                    :buttText = "$t(`views.select-template.status.${desktopState}.action`)">
+                </DesktopButton>
+                <DesktopButton v-if="(desktop.state && desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
+                    class="dropdown-text card-button"
+                    :active="true"
+                    @buttonClicked="deleteDesktop(desktop.id)"
+                    buttColor = "btn-red"
+                    :spinnerActive ="false"
+                    :buttText = "$t('views.select-template.remove')">
+                </DesktopButton>
+
                   <DesktopButton
                     v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
                     :active="desktopState === desktopStates.started"
@@ -53,43 +78,19 @@
                     @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})">
                   </DesktopButton>
                   <isard-dropdown
-                    v-else-if="!hideViewers"
+                  v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && [desktopStates.started, desktopStates.waitingip].includes(desktopState))"
                     :ddDisabled="!showDropDown"
                     cssClass='viewers-dropdown m-0'
+                    :class="{ 'dropdown-inactive': !showDropDown }"
                     variant='light'
                     :viewers="desktop.viewers && desktop.viewers.filter(item => item !== viewers[desktop.id])"
                     :desktop="desktop"
                     :viewerText="viewers[desktop.id] !== undefined ? getViewerText.substring(0, 13) : $t('views.select-template.viewers')"
                     :fullViewerText="viewers[desktop.id] !== undefined ? getViewerText : $t('views.select-template.viewers')"
-                    :defaultViewer="viewers[desktop.id]"
+                    defaultViewer="browser"
                     :waitingIp="waitingIp"
                     @dropdownClicked="openDesktop">
                   </isard-dropdown>
-
-                  <DesktopButton v-if="!desktop.state || (desktop.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
-                    class="dropdown-text"
-                    :active="true"
-                    @buttonClicked="chooseDesktop(desktop.id)"
-                    :buttColor = "buttCssColor"
-                    :spinnerActive ="false"
-                    :buttText = "$t('views.select-template.status.notCreated.action')">
-                </DesktopButton>
-                <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
-                    class="dropdown-text"
-                    :active="![desktopStates.failed, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
-                    @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
-                    :buttColor = "buttCssColor"
-                    :spinnerActive ="false"
-                    :buttText = "$t(`views.select-template.status.${desktopState}.action`)">
-                </DesktopButton>
-                <DesktopButton v-if="(desktop.state && desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
-                    class="dropdown-text"
-                    :active="true"
-                    @buttonClicked="deleteDesktop(desktop.id)"
-                    buttColor = "btn-red"
-                    :spinnerActive ="false"
-                    :buttText = "$t('views.select-template.remove')">
-                </DesktopButton>
               </div>
             </div>
           </b-card>
@@ -162,7 +163,7 @@ export default {
       return (this.desktop.state && this.desktop.state.toLowerCase()) || desktopStates.stopped
     },
     imageId () {
-      return this.desktop.state && this.desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(this.desktopState) ? DesktopUtils.hash(this.template.id) : this.desktop.id && DesktopUtils.hash(this.desktop.id)
+      return this.desktop.state && this.desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip].includes(this.desktopState) ? DesktopUtils.hash(this.template.id) : this.desktop.id && DesktopUtils.hash(this.desktop.id)
     },
     waitingIp () {
       return this.desktopState === desktopStates.waitingip
@@ -187,11 +188,28 @@ export default {
       return (this.desktop.description !== null && this.desktop.description !== undefined) ? this.desktop.description : ''
     }
   },
+  watch: {
+    desktopState: {
+      immediate: true,
+      handler: function (newState) {
+        // if ([desktopStates.started, desktopStates.waitingip].includes(this.desktopState)) {
+        //   this.highlightDropdown = true
+        // }
+
+        if ([desktopStates.started, desktopStates.waitingip].includes(this.desktopState)) {
+          if (this.desktop) {
+            this.$store.dispatch('setDefaultViewer', { id: this.desktop.id, viewer: 'browser' })
+          }
+        }
+      }
+    }
+  },
   data () {
     return {
       desktopStates,
       status,
-      item: {}
+      item: {},
+      highlightDropdown: false
     }
   }
 }

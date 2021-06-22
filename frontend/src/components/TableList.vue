@@ -65,7 +65,7 @@
                   <isard-dropdown
                     v-else
                     :ddDisabled="!showDropDown(data.item)"
-                    cla
+                    :class="{ 'dropdown-inactive': !showDropDown(data.item) }"
                     cssClass='viewers-dropdown flex-grow-1'
                     variant='light'
                     :viewers="data.item.viewers && data.item.viewers.filter(item => item !== viewers[data.item.id])"

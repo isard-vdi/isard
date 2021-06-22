@@ -112,6 +112,15 @@
   border: 1px solid #b2bec3;
 }
 
+.card-list .viewers-dropdown {
+    width: 50%;
+}
+
+.card-list .card-button {
+  width: 45%;
+  overflow: hidden;
+}
+
 .card-list .viewers-dropdown>button::after {
   margin-top: 0.6em;
 }
@@ -126,6 +135,26 @@
 
 .card-list .viewers-dropdown ul.dropdown-menu li:not(:first-child) {
   border-top: 1px solid lightgray;
+}
+
+.card-list .dropdown-inactive button {
+  background-color: darkgrey;
+}
+
+.blink button {
+  animation:  1s alternate 4 blink-animation;
+  -webkit-animation: 1s alternate 4 blink-animation;
+}
+
+@keyframes blink-animation {
+  to {
+    background-color: #97c277;
+  }
+}
+@-webkit-keyframes blink-animation {
+  to {
+    background-color: #97c277;
+  }
 }
 
 .machine-state {

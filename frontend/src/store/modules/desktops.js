@@ -265,6 +265,14 @@ export default {
         })
       )
     },
+    setDefaultViewer ({ commit, getters }, data) {
+      const viewers = {}
+      viewers[data.id] = data.viewer
+
+      if (!getters.getViewers[data.id]) {
+        commit('updateViewers', viewers)
+      }
+    },
     setViewType (context, viewType) {
       context.commit('setViewType', viewType)
     },
