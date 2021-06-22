@@ -12,7 +12,7 @@ function pollDesktops (context) {
   if (!polling) {
     polling = setInterval(() => {
       context.dispatch('fetchDesktops')
-    }, 5000)
+    }, 2000)
   }
 }
 
@@ -142,6 +142,7 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'),
         () => new Promise((resolve, reject) => {
+          pollDesktops(context)
           apiAxios.post(`/desktop/${data.desktopId}/${data.action}`).then(response => {
             context.dispatch('fetchDesktops')
             this._vm.$snotify.clear()
@@ -151,7 +152,6 @@ export default {
               reject(e)
               router.push({ name: 'Maintenance' })
             } else if (e.response.status === 408) {
-              pollDesktops(context)
               resolve(
                 toast(
                   i18n.t(`views.select-template.error.${data.action}-timeout.title`),
