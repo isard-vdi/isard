@@ -371,6 +371,46 @@ def api_v2_categorygroup_insert():
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"General exception when creating category/group pair: "+error}), 401, {'Content-Type': 'application/json'}
 
+@app.route('/api/v2/group', methods=['POST'])
+def api_v2_group_insert():
+    try:
+        # Required
+        category_name = request.form.get('category_name', type = str)
+        group_name = request.form.get('group_name', type = str)
+
+        # Optional
+        category_limits = request.form.get('category_limits', False)
+        if category_limits == 'False': category_limits = False
+        if category_limits != False: category_limits=json.loads(category_limits)
+        category_quota = request.form.get('category_quota', False)
+        if category_quota == 'False': category_quota = False
+        if category_quota != False: category_quota=json.loads(category_quota)
+        group_quota = request.form.get('group_quota', False)
+        if group_quota == 'False': group_quota = False
+        if group_quota != False: group_quota=json.loads(group_quota)
+
+    ## We should check here if limits and quotas have a correct dict schema
+
+    ##
+    except Exception as e:
+        error = traceback.format_exc()
+        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
+    if category_name == None:
+        log.error("Incorrect access parameters. Check your query.")
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
+
+    try:
+        users.GroupCreate( category_name, \
+                                            group_name,
+                                            category_limits=category_limits,
+                                            category_quota=category_quota,
+                                            group_quota=group_quota)
+        return json.dumps({}), 200, {'Content-Type': 'application/json'}
+    except Exception as e:
+        log.error("Group create error.")
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"General exception when creating category/group pair: "+error}), 401, {'Content-Type': 'application/json'}
+
 
 @app.route('/api/v2/categories', methods=['GET'])
 def api_v2_categories():

@@ -300,7 +300,7 @@ class ApiUsers():
         group_id=_parse_string(group_name)
         with app.app_context():
             category = r.table('categories').get(category_id).run(db.conn)
-            if category == None:                 
+            if category == None:
                 category = {
                         "description": "" ,
                         "id": category_id ,
@@ -309,6 +309,29 @@ class ApiUsers():
                         "quota": category_quota
                     }
                 r.table('categories').insert(category, conflict='update').run(db.conn)
+
+            group = r.table('groups').get(category_id+'-'+group_id).run(db.conn)
+            if group == None:
+                group = {
+                        "description": "" ,
+                        "id": category_id+'-'+group_id ,
+                        "limits": False ,
+                        "parent_category": category_id,
+                        "uid": group_id,
+                        "name": group_id,
+                        "enrollment": {'manager':False, 'advanced':False, 'user':False},
+                        "quota": group_quota
+                    }
+                r.table('groups').insert(group, conflict='update').run(db.conn)
+        return group['quota']
+
+    def GroupCreate(self,category_name,group_name,category_limits=False,category_quota=False,group_quota=False):
+        category_id=_parse_string(category_name)
+        group_id=_parse_string(group_name)
+        with app.app_context():
+            category = r.table('categories').get(category_id).run(db.conn)
+            if category == None:
+                return False
 
             group = r.table('groups').get(category_id+'-'+group_id).run(db.conn)
             if group == None:
