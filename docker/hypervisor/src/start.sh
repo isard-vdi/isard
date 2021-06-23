@@ -24,6 +24,7 @@ rm -rf /run/libvirt/*
 rm -r /var/lib/libvirt/dnsmasq
 
 ln -s /src/lib/api_client.py /src/certs/api_client.py
+ln -s /src/lib/api_client.py /src/vlans/api_client.py
 ln -s /src/lib/api_client.py /src/dnsmasq-hook/api_client.py
 
 echo "---> Setting ssh password to WEBAPP_ADMIN_PWD"

@@ -103,3 +103,21 @@ def api_v2_hypervisor_vpn(hyp_id):
         error = traceback.format_exc()
         log.error("ViewerCerts general exception" + error)
         return json.dumps({"code":9,"msg":"ViewerCerts general exception: " + error }), 500, {'Content-Type': 'application/json'}
+
+
+@app.route('/api/v2/vlan', methods=['GET','POST'])
+def api_v2_vlan():
+    if request.method == 'POST':
+        return json.dumps({"code":8,"msg":"Not implemented"}), 301, {'Content-Type': 'application/json'}
+
+    if request.method == 'GET':
+        try:
+            vlans=api_hypervisors.get_vlans()
+            return json.dumps(vlans), 200, {'Content-Type': 'application/json'}
+        except Exception as e:
+            error = traceback.format_exc()
+            log.error("Vlans general exception" + error)
+            return json.dumps({"code":9,"msg":"Vlans general exception: " + error }), 500, {'Content-Type': 'application/json'}
+
+    log.error("Incorrect access parameters. Check your query.")
+    return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 500, {'Content-Type': 'application/json'}
