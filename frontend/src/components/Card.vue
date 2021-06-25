@@ -1,7 +1,7 @@
 <template>
           <b-card
             :img-src= "require(`../assets/img/cards/${imageId}.jpg`)"
-            class='border-0 mx-3 pb-2'
+            class='border-0 mx-3'
             img-alt='' img-top no-body
           >
             <!-- Info -->
@@ -16,7 +16,7 @@
               <p class='mb-0 py-1' :class="{ 'text-white': !desktopState === desktopStates.stopped }"> {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`)}}</p>
             </div>
 
-            <div class='p-2 h-100 d-flex flex-wrap flex-column'>
+            <div class='p-2 h-100 d-flex flex-wrap flex-column' :class="{'startedHighlight': desktopState === desktopStates.started}">
               <div class='mb-2 flex-grow-1'>
                 <!-- Title -->
                 <div

@@ -203,6 +203,12 @@
   border-top-right-radius: 20px;
 }
 
+.card-list .card .startedHighlight {
+  background-color: #EAF5E1;
+  border-bottom-right-radius: 20px;
+  border-bottom-left-radius: 20px;
+}
+
 /* BUTTONS */
 
 .btn-green {
