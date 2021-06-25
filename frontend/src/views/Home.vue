@@ -13,7 +13,7 @@
         <b-tab v-if="!(desktops_loaded && templates_loaded) || persistentDesktops.length > 0" active>
           <template #title>
             <b-spinner v-if="!(desktops_loaded && templates_loaded)" type="border" small></b-spinner>
-            <span class="d-inline d-xl-none">{{ $t('views.select-template.persistent-compact') }}</span><span class="d-none d-xl-inline">{{ $t('views.select-template.persistent') }}</span>
+            <span class="d-inline d-xl-none">{{ $t('views.select-template.persistent-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.persistent') }}</span>
           </template>
           <template v-if="viewType === 'grid'">
                 <card-list
@@ -35,7 +35,7 @@
         <b-tab v-if="!(desktops_loaded && templates_loaded)  || visibleNonPersistentDesktops.length > 0">
           <template #title>
             <b-spinner v-if="!(desktops_loaded && templates_loaded)" type="border" small></b-spinner>
-            <span class="d-inline d-xl-none">{{ $t('views.select-template.volatile-compact') }}</span><span class="d-none d-xl-inline">{{ $t('views.select-template.volatile') }}</span>
+            <span class="d-inline d-xl-none">{{ $t('views.select-template.volatile-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.volatile') }}</span>
           </template>
               <template v-if="viewType === 'grid'">
                 <card-list

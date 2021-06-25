@@ -1,6 +1,14 @@
 <template>
   <div class='table-list px-5'>
     <b-container fluid class='px-0'>
+      <b-skeleton-wrapper :loading="loading" class='pb-1 pt-4 justify-content-start'>
+              <template #loading>
+                <b-col>
+                  <list-item-skeleton class="mb-2"></list-item-skeleton>
+                  <list-item-skeleton class="mb-2"></list-item-skeleton>
+                  <list-item-skeleton class="mb-2"></list-item-skeleton>
+                </b-col>
+              </template>
       <b-row>
         <b-col
           cols='12'
@@ -105,8 +113,9 @@
                 </DesktopButton>
             </template>
           </b-table>
-        </b-col>
+          </b-col>
       </b-row>
+      </b-skeleton-wrapper>
     </b-container>
   </div>
 </template>
@@ -118,9 +127,10 @@ import { DesktopUtils } from '@/utils/desktopsUtils'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
 import { mapActions } from 'vuex'
+import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 
 export default {
-  components: { DesktopButton, IsardDropdown },
+  components: { DesktopButton, IsardDropdown, ListItemSkeleton },
   props: {
     listTitle: String,
     templates: {

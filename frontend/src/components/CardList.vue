@@ -4,7 +4,7 @@
 
       <b-row class='pb-3 pt-2'>
         <b-col cols='12' md='auto' class='card-body pb-1 pt-4 d-flex flex-row flex-wrap justify-content-start'>
-            <b-skeleton-wrapper :loading="loading" class='card-body pb-1 pt-4 d-flex flex-row flex-wrap justify-content-start'>
+            <b-skeleton-wrapper :loading="loading" class='card-body pt-4 d-flex flex-row flex-wrap justify-content-start'>
               <template #loading>
                 <card-skeleton></card-skeleton>
                 <card-skeleton></card-skeleton>
