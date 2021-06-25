@@ -179,6 +179,9 @@ export default {
       return [desktopStates.started, desktopStates.waitingip].includes(this.getItemState(desktop))
     },
     getItemState (desktop) {
+      if ([desktopStates.started, desktopStates.waitingip].includes(desktop.state && desktop.state.toLowerCase())) {
+        this.$store.dispatch('setDefaultViewer', { id: desktop.id, viewer: 'browser' })
+      }
       return desktop.state ? desktop.state.toLowerCase() : desktopStates.stopped
     },
     getemplate (desktop) {
