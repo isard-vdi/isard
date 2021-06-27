@@ -7,7 +7,7 @@ class ApiClient():
         if os.environ['HOSTNAME']=='localhost':
             self.base_url="http://isard-api:7039/api/v2/"
         else:
-            self.base_url="https://"+os.environ['WEPAPP_DOMAIN']+"/debug/api/api/v2/"
+            self.base_url="https://"+os.environ['WEBAPP_DOMAIN']+"/debug/api/api/v2/"
         self.verifycert=False
 
     def post(self,url,data):
