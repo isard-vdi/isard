@@ -15,6 +15,10 @@
             },
             "admin": "Administration"
         },
+        "statusbar": {
+            "desktops-started": "Desktops started",
+            "checkbox-text": "Only started"
+        },
         "desktop-cards": {
             "table-header": {
                 "name": "Name",
@@ -22,7 +26,8 @@
                 "description": "Description",
                 "action": "Action",
                 "viewers": "Viewers"
-            }
+            },
+            "no-info-default": "No description available"
         },
         "help": {
             "close-guide": "Close guide",
@@ -95,7 +100,8 @@
         "maintenance": {
             "title": "Currently, Isard service is under maintenance",
             "the-service": "The service is going to be available again in a few minutes",
-            "sorry": "Sorry for the inconvenience"
+            "sorry": "Sorry for the inconvenience",
+            "go-login": "Go to login"
         },
         "not-found": {
             "title": "We couldn't find the requested address",
@@ -115,7 +121,9 @@
             },
             "which-template": "Which desktop do you want to use?",
             "persistent": "Persistent desktops",
+            "persistent-compact": "Persistent",
             "volatile": "Temporal desktops",
+            "volatile-compact": "Temporal",
             "viewers": "Viewers",
             "viewer": "{name} viewer",
             "viewer-name": {
@@ -182,7 +190,8 @@
                     "action": "Create"
                 },
                 "failed": {
-                    "text": "Failed"
+                    "text": "Failed",
+                    "action": "Failed"
                 },
                 "started": {
                     "text": "Started",
@@ -195,6 +204,17 @@
                 "waitingip": {
                     "text": "Waiting IP",
                     "action": "Stop"
+                },
+                "readyCreation": {
+                    "text": "Ready for creation"
+                },
+                "working": {
+                    "text": "Waiting",
+                    "action": "working"
+                },
+                "shutting-down": {
+                    "text": "Stopping",
+                    "action": "Stopping"
                 }
             }
         },

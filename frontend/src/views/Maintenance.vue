@@ -10,6 +10,8 @@
           <h1 key="title" class="mt-2">{{ $t('views.maintenance.title') }}</h1>
           <h2 key="text">{{ $t('views.maintenance.the-service') }}</h2>
           <h2 key="text2">{{ $t('views.maintenance.sorry') }}</h2>
+          <br key="space"/>
+          <b-button key="loginlink" @click="navigate('Login')">{{ $t('views.maintenance.go-login') }}</b-button>
         </transition-group>
       </b-col>
       <b-col md="1"/>
@@ -18,9 +20,16 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex'
+
 // @ is an alias to /src
 
 export default {
+  methods: {
+    ...mapActions([
+      'navigate'
+    ])
+  }
 }
 </script>
 

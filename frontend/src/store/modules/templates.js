@@ -1,5 +1,6 @@
 import { apiAxios } from '@/router/auth'
 import router from '@/router'
+import { DesktopUtils } from '@/utils/desktopsUtils'
 
 export default {
   state: {
@@ -24,7 +25,7 @@ export default {
     fetchTemplates ({ commit }) {
       return new Promise((resolve, reject) => {
         apiAxios.get('/templates').then(response => {
-          commit('setTemplates', response.data)
+          commit('setTemplates', DesktopUtils.parseTemplates(response.data))
           resolve()
         }).catch(e => {
           console.log(e)

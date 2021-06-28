@@ -1,59 +1,76 @@
 <template>
   <div>
-    <Navbar/>
-    <b-container fluid>
-      <b-row align-h="center" class="pt-4">
-        <b-col>
-          <div class="d-flex float-right">
-            <label for="switch">
-              <b-icon-list></b-icon-list>
-            </label>
-            <b-form-checkbox id="switch" v-model="gridView" switch class="ml-2 mt-n1"></b-form-checkbox>
-            <label for="switch">
-              <b-icon-grid></b-icon-grid>
-            </label>
-          </div>
-          <div v-if="!templates_loaded">
-            <b-spinner/>
-            <p>{{ $t('views.select-template.loading') }}</p>
-          </div>
-
-          <div v-else-if="user_templates.length === 0 && user_desktops.length === 0">
-            <h1>{{ $t('views.select-template.no-templates.title') }}</h1>
+    <div class="header-wrapper">
+      <NewNavBar/>
+      <StatusBar/>
+    </div>
+    <b-container fluid id="content">
+      <div v-if="(desktops_loaded && templates_loaded) && (user_templates.length === 0 && user_desktops.length === 0)">
+            <h3><strong>{{ $t('views.select-template.no-templates.title') }}</strong></h3>
             <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
-          </div>
+      </div>
+      <b-tabs v-else>
+        <b-tab v-if="!(desktops_loaded && templates_loaded) || persistentDesktops.length > 0" active>
+          <template #title>
+            <b-spinner v-if="!(desktops_loaded && templates_loaded)" type="border" small></b-spinner>
+            <span class="d-inline d-xl-none">{{ $t('views.select-template.persistent-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.persistent') }}</span>
+          </template>
+          <template v-if="viewType === 'grid'">
+                <card-list
+                  :templates="user_templates"
+                  :desktops="persistentDesktops"
+                  :persistent="true"
+                  :loading="!(desktops_loaded && templates_loaded)">
+                </card-list>
+            </template>
+            <template v-else>
+              <TableList
+                  :templates="user_templates"
+                  :desktops="persistentDesktops"
+                  :persistent="true"
+                  :loading="!(desktops_loaded && templates_loaded)"></TableList>
+            </template>
+        </b-tab>
 
-          <div v-else>
-            <h1>
-              {{ $t('views.select-template.which-template') }}
-            </h1>
-            <div v-if="persistentDesktops.length > 0">
-              <h2 class="mt-2">{{ $t('views.select-template.persistent') }}</h2>
-              <DesktopsCards :templates="user_templates" :desktops="persistentDesktops"
-              :persistent="true" :gridView="gridView"/>
-            </div>
-            <div v-if="nonpersistentDesktops.length > 0">
-              <h2 class="mt-2">{{ $t('views.select-template.volatile') }}</h2>
-              <DesktopsCards :templates="user_templates" :desktops="nonpersistentDesktops"
-              :persistent="false" :gridView="gridView"/>
-            </div>
-          </div>
-        </b-col>
-      </b-row>
+        <b-tab v-if="!(desktops_loaded && templates_loaded)  || visibleNonPersistentDesktops.length > 0">
+          <template #title>
+            <b-spinner v-if="!(desktops_loaded && templates_loaded)" type="border" small></b-spinner>
+            <span class="d-inline d-xl-none">{{ $t('views.select-template.volatile-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.volatile') }}</span>
+          </template>
+              <template v-if="viewType === 'grid'">
+                <card-list
+                    :templates="user_templates"
+                    :desktops="visibleNonPersistentDesktops"
+                    :persistent="false"
+                    :loading="!(desktops_loaded && templates_loaded)">
+                </card-list>
+            </template>
+            <template v-else>
+               <TableList
+                    :templates="user_templates"
+                    :desktops="visibleNonPersistentDesktops"
+                    :persistent="false"
+                    :loading="!(desktops_loaded && templates_loaded)"></TableList>
+            </template>
+        </b-tab>
+      </b-tabs>
     </b-container>
   </div>
 </template>
 
 <script>
 // @ is an alias to /src
-import DesktopsCards from '@/components/DesktopsCards.vue'
-import Navbar from '@/components/Navbar.vue'
-import { DesktopUtils } from '@/utils/desktopsUtils'
+import NewNavBar from '@/components/NewNavBar.vue'
+import StatusBar from '@/components/StatusBar.vue'
+import CardList from '@/components/CardList.vue'
+import TableList from '@/components/TableList.vue'
 
 export default {
   components: {
-    DesktopsCards,
-    Navbar
+    StatusBar,
+    NewNavBar,
+    CardList,
+    TableList
   },
   created () {
     this.$store.dispatch('fetchDesktops')
@@ -64,22 +81,31 @@ export default {
       return this.$store.getters.getUser
     },
     user_templates () {
-      return DesktopUtils.parseTemplates(this.$store.getters.getTemplates)
+      return this.$store.getters.getTemplates
     },
     user_desktops () {
-      return DesktopUtils.parseDesktops(this.$store.getters.getDesktops)
+      return this.$store.getters.getDesktops
     },
     persistentDesktops () {
-      return this.user_desktops.filter(desktop => desktop.type === 'persistent')
+      return this.$store.getters.getDesktops.filter(desktop => this.getShowStarted ? desktop.type === 'persistent' && desktop.state === 'Started' : desktop.type === 'persistent')
     },
     nonpersistentDesktops () {
-      return this.user_templates.map(t => this.user_desktops.find((d) => t.id === d.template && d.type === 'nonpersistent') || t)
+      return this.$store.getters.getTemplates.map(template => this.$store.getters.getDesktops.find((desktop) => template.id === desktop.template && desktop.type === 'nonpersistent') || template)
+    },
+    visibleNonPersistentDesktops () {
+      return this.nonpersistentDesktops.filter(desktop => this.getShowStarted ? desktop.state : desktop.name)
     },
     templates_loaded () {
       return this.$store.getters.getTemplatesLoaded
     },
     desktops_loaded () {
       return this.$store.getters.getDesktopsLoaded
+    },
+    viewType () {
+      return this.$store.getters.getViewType
+    },
+    getShowStarted () {
+      return this.$store.getters.getShowStarted
     }
   },
   data () {

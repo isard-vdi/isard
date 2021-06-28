@@ -1,5 +1,5 @@
 <template>
-  <b-container fluid>
+  <b-container fluid id="login">
     <b-row id="header" class="mb-4">
       <b-col>
         <Logo/>
@@ -94,8 +94,6 @@ export default {
   data () {
     return {
       loading: false,
-      categories_select: [],
-      category: '',
       usr: '',
       pwd: '',
       window: window,
@@ -104,8 +102,19 @@ export default {
     }
   },
   computed: {
+    category () {
+      return this.categories.length === 1 ? this.categories[0].id : ''
+    },
+    categories_select () {
+      return this.categories.map(category =>
+        ({
+          value: category.id,
+          text: category.name
+        })
+      )
+    },
     categories () {
-      return this.$store.state.categories
+      return this.$store.getters.getCategories
     },
     config () {
       return this.$store.getters.getConfig
@@ -136,7 +145,7 @@ export default {
           .dispatch('login', data)
           .then(() => { this.$router.push({ name: 'Home' }) })
           .catch(err => {
-            this.error = this.$t('views.error.codes')[err.response.status.toString()]
+            this.error = this.$t('views.error.codes')[err.response && err.response.status.toString()]
             this.showDismissibleAlert = true
             this.loading = false
           })
@@ -151,28 +160,8 @@ export default {
   },
   beforeMount: async function () {
     this.$store.dispatch('fetchConfig')
+    this.$store.dispatch('fetchCategories')
 
-    this.$store.dispatch('fetchCategories').then(() => {
-      if (this.categories.length === 1) {
-        this.category = this.categories[0].id
-      } else {
-        this.categories_select = this.categories.map(category =>
-          ({
-            value: category.id,
-            text: category.name
-          })
-        )
-      }
-    }).catch(err => {
-      if (err.response.status === 404) {
-        // this.$router.push({ name: 'NotFound' })
-      } else {
-        this.$router.push({
-          name: 'Error',
-          params: { code: err.response.status.toString() }
-        })
-      }
-    })
     if (this.category_by_path) {
       this.category = this.$route.params.category
     } else {
@@ -190,6 +179,10 @@ export default {
 </script>
 
 <style>
+#login {
+  text-align: center;
+}
+
 #powered-by {
   margin: 4rem;
 }

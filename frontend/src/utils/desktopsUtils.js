@@ -1,4 +1,4 @@
-import { cardIcons } from '../shared/constants'
+import { cardIcons, desktopStates } from '../shared/constants'
 
 export class DesktopUtils {
   static parseDesktops (items) {
@@ -9,7 +9,7 @@ export class DesktopUtils {
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
         id,
         name,
-        state,
+        state: [desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down']].includes(state.toLowerCase()) ? state : desktopStates.working,
         type,
         ip,
         viewers,
@@ -25,12 +25,27 @@ export class DesktopUtils {
         description,
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
         id,
-        name
+        name,
+        type: 'nonpersistent'
       }
     }) || []
   }
 
   static getIcon (name) {
     return ['fab', name]
+  }
+
+  static hash (term) {
+    if (term === null) return 1
+    if (term === undefined) return 1
+
+    const H = 48
+    let total = 0
+
+    for (var i = 0; i < term.length; i++) {
+      total += total + term.charCodeAt(i)
+    }
+
+    return total % H + 1
   }
 }

@@ -4,6 +4,7 @@ import i18n from '@/i18n'
 import router from '@/router'
 import { toast } from '@/store/index.js'
 import { desktopStates } from '../../shared/constants'
+import { DesktopUtils } from '../../utils/desktopsUtils'
 
 var polling
 
@@ -11,7 +12,7 @@ function pollDesktops (context) {
   if (!polling) {
     polling = setInterval(() => {
       context.dispatch('fetchDesktops')
-    }, 5000)
+    }, 2000)
   }
 }
 
@@ -26,7 +27,9 @@ export default {
   state: {
     viewers: cookies.getCookie('viewers') ? JSON.parse(cookies.getCookie('viewers')) : {},
     desktops: [],
-    desktops_loaded: false
+    desktops_loaded: false,
+    viewType: 'grid',
+    showStarted: false
   },
   getters: {
     getDesktops: state => {
@@ -37,6 +40,12 @@ export default {
     },
     getViewers: state => {
       return state.viewers
+    },
+    getViewType: state => {
+      return state.viewType
+    },
+    getShowStarted: state => {
+      return state.showStarted
     }
   },
   mutations: {
@@ -47,6 +56,12 @@ export default {
     updateViewers: (state, viewers) => {
       state.viewers = { ...state.viewers, ...viewers }
       cookies.setCookie('viewers', JSON.stringify(state.viewers))
+    },
+    setViewType: (state, type) => {
+      state.viewType = type
+    },
+    toggleShowStarted: (state, type) => {
+      state.showStarted = !state.showStarted
     }
   },
   actions: {
@@ -56,8 +71,8 @@ export default {
     fetchDesktops (context) {
       return new Promise((resolve, reject) => {
         apiAxios.get('/desktops').then(response => {
-          context.commit('setDesktops', response.data)
-          if (response.data.find(desktop => desktop.state.toLowerCase() === desktopStates.waitingip)) {
+          context.commit('setDesktops', DesktopUtils.parseDesktops(response.data))
+          if (response.data.find(desktop => ![desktopStates.started, desktopStates.stopped, desktopStates.failed].includes(desktop.state.toLowerCase()))) {
             pollDesktops(context)
           } else {
             clearPolling()
@@ -127,6 +142,7 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'),
         () => new Promise((resolve, reject) => {
+          pollDesktops(context)
           apiAxios.post(`/desktop/${data.desktopId}/${data.action}`).then(response => {
             context.dispatch('fetchDesktops')
             this._vm.$snotify.clear()
@@ -136,7 +152,6 @@ export default {
               reject(e)
               router.push({ name: 'Maintenance' })
             } else if (e.response.status === 408) {
-              pollDesktops(context)
               resolve(
                 toast(
                   i18n.t(`views.select-template.error.${data.action}-timeout.title`),
@@ -249,6 +264,23 @@ export default {
           })
         })
       )
+    },
+    setDefaultViewer ({ commit, getters }, data) {
+      const viewers = {}
+      viewers[data.id] = data.viewer
+
+      if (!getters.getViewers[data.id]) {
+        commit('updateViewers', viewers)
+      }
+    },
+    setViewType (context, viewType) {
+      context.commit('setViewType', viewType)
+    },
+    toggleShowStarted (context) {
+      context.commit('toggleShowStarted')
+    },
+    navigate (context, path) {
+      router.push({ name: path })
     }
   }
 }

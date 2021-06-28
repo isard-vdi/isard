@@ -173,5 +173,5 @@ class ApiDesktopsPersistent():
         if desktop == None:
             raise DesktopNotFound
         # Start the domain
-        ds.WaitStatus(desktop_id, 'Any', 'Stopping', 'Stopped')
+        ds.WaitStatus(desktop_id, 'Any', 'Shutting-down', 'Stopped')
         return desktop_id

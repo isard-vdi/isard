@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
+import router from '@/router'
 import { apiAxios } from '@/router/auth'
 import auth from './modules/auth'
 import config from './modules/config'
@@ -26,6 +27,11 @@ export default new Vuex.Store({
   state: {
     categories: []
   },
+  getters: {
+    getCategories: state => {
+      return state.categories
+    }
+  },
   mutations: {
     setCategories (state, categories) {
       state.categories = categories
@@ -33,13 +39,13 @@ export default new Vuex.Store({
   },
   actions: {
     fetchCategories ({ commit }) {
-      return new Promise((resolve, reject) => {
-        apiAxios.get('/categories').then(response => {
-          commit('setCategories', response.data)
-          resolve()
-        }).catch(e => {
-          console.log(e)
-          reject(e.response)
+      return apiAxios.get('/categories').then(response => {
+        commit('setCategories', response.data)
+      }).catch(err => {
+        console.log(err)
+        router.push({
+          name: 'Error',
+          params: { code: err.response && err.response.status.toString() }
         })
       })
     },
@@ -58,8 +64,13 @@ export default new Vuex.Store({
         apiAxios.post(`/login/${data.get('category')}?provider=${data.get('provider')}&redirect=/`, data, { timeout: 25000 }).then(response => {
           resolve()
         }).catch(e => {
-          console.log(e)
-          reject(e)
+          if (e.response.status === 503) {
+            reject(e)
+            router.push({ name: 'Maintenance' })
+          } else {
+            console.log(e)
+            reject(e)
+          }
         })
       })
     },

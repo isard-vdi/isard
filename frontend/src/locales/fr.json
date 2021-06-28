@@ -131,7 +131,9 @@
             "viewer": "Visionneuse {name}",
             "viewers": "Visionneuses",
             "volatile": "Bureaux temporaires",
+            "volatile-compact": "Temporaires",
             "persistent": "Bureaux permanents",
+            "persistent-compact": "Permanents",
             "template": "Modèle"
         },
         "not-found": {

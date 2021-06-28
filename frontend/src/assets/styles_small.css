@@ -1,0 +1,43 @@
+@media only screen and (max-width: 992px) {
+  .card-list .card {
+    width: 18rem;
+    height: 360px !important;
+    margin: 1vh 0.5vw 0;
+    }
+    
+    .card-list .card-title {
+      font-size: 1rem;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .card-text {
+      font-size: 0.9rem;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .dropdown-default-text {
+      font-size: 0.7rem;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .dropdown-text {
+      font-size: 0.8rem;
+    }
+
+    .buttons-padding {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
+    #statusbar-content {
+      margin-left: 6rem;
+      padding-right: 0 !important;
+    }
+
+    .isard-navitem-margin {
+      margin-left: 1rem;
+    }
+  }

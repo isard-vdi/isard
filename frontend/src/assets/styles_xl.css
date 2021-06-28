@@ -1,0 +1,37 @@
+@media only screen and (min-width: 2400px) {
+  .card-list .card {
+    width: 23rem;
+    height: 470px !important;
+    }
+
+    .card-list .card-title {
+      font-size: 1.6rem;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .card-list .card-button {
+      max-height: 2.5rem;
+    }
+
+    .card-text {
+      font-size: 1.3rem;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .dropdown-default-text {
+      font-size: 1.2rem;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .dropdown-text {
+      font-size: 1.2rem;
+    }
+
+    .buttons-padding {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+  }

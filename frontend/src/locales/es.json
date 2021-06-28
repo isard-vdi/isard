@@ -15,6 +15,10 @@
             },
             "admin": "Administración"
         },
+        "statusbar": {
+            "desktops-started": "Desktops arrancados",
+            "checkbox-text": "Solo arrancados"
+        },        
         "desktop-cards": {
             "table-header": {
                 "name": "Nombre",
@@ -22,7 +26,8 @@
                 "description": "Descripción",
                 "action": "Acción",
                 "viewers": "Visores"
-            }
+            },
+            "no-info-default": "No hay descripción disponible"
         },
         "help": {
             "close-guide": "Cerrar la guía",
@@ -95,7 +100,8 @@
         "maintenance": {
             "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",
             "the-service": "El servicio volverá a estar disponible en un rato",
-            "sorry": "Disculpen las molestias"
+            "sorry": "Disculpen las molestias",
+            "go-login": "Ir al login"
         },
         "not-found": {
             "title": "No hemos encontrado la dirección solicitada",
@@ -115,7 +121,9 @@
             },
             "which-template": "¿Qué escritorio quieres usar?",
             "persistent": "Escritorios persistentes",
+            "persistent-compact": "Persistentes",
             "volatile": "Escritorios temporales",
+            "volatile-compact": "Temporales",
             "viewers": "Visores",
             "viewer": "Visor {name}",
             "viewer-name": {
@@ -182,7 +190,8 @@
                     "action": "Crear"
                 },
                 "failed": {
-                    "text": "Fallido"
+                    "text": "Fallido",
+                    "action": "Fallido"
                 },
                 "started": {
                     "text": "Iniciado",
@@ -195,6 +204,17 @@
                 "waitingip": {
                     "text": "Esperando IP",
                     "action": "Parar"
+                },
+                "readyCreation": {
+                    "text": "Listo para crear"
+                },
+                "working": {
+                    "text": "Esperando",
+                    "action": "working"
+                },
+                "shutting-down": {
+                    "text": "Apagando",
+                    "action": "Apagando"
                 }
             }
         },

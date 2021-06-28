@@ -15,6 +15,10 @@
             },
             "admin": "Administració"
         },
+        "statusbar": {
+            "desktops-started": "Desktops arrencats",
+            "checkbox-text": "Només arrencats"
+        },
         "desktop-cards": {
             "table-header": {
                 "name": "Nom",
@@ -22,7 +26,8 @@
                 "description": "Descripció",
                 "action": "Acció",
                 "viewers": "Visors"
-            }
+            },
+            "no-info-default": "No hi ha cap descripció disponible"
         },
         "help": {
             "close-guide": "Tancar la guia",
@@ -95,7 +100,8 @@
         "maintenance": {
             "title": "Actualment, el servei d'Isard es troba en manteniment",
             "the-service": "El servei tornarà a estar disponible en una estona",
-            "sorry": "Disculpeu les molèsties"
+            "sorry": "Disculpeu les molèsties",
+            "go-login": "Anar al login"
         },
         "not-found": {
             "title": "No hem pogut trobar l'adreça sol·licitada",
@@ -115,7 +121,9 @@
             },
             "which-template": "Quin escriptori vols fer servir?",
             "persistent": "Escriptoris persistents",
+            "persistent-compact": "Persistents",
             "volatile": "Escriptoris temporals",
+            "volatile-compact": "Temporals",
             "viewers": "Visors",
             "viewer": "Visor {name}",
             "viewer-name": {
@@ -182,7 +190,8 @@
                     "action": "Crear"
                 },
                 "failed": {
-                    "text": "Fallat"
+                    "text": "Fallat",
+                    "action": "Fallat"
                 },
                 "started": {
                     "text": "Iniciat",
@@ -195,6 +204,17 @@
                 "waitingip": {
                     "text": "Esperant IP",
                     "action": "Atura"
+                },
+                "readyCreation": {
+                    "text": "Llest per a crear"
+                },
+                "working": {
+                    "text": "Esperant",
+                    "action": "working"
+                },
+                "shutting-down": {
+                    "text": "Apagant",
+                    "action": "Apagant"
                 }
             }
         },

@@ -1,0 +1,38 @@
+@media only screen and (max-width: 2400px) {
+  .card-list .card {
+    width: 18rem;
+    height: 360px !important;
+    margin: 1vh 0.5vw 0;
+    }
+    
+    .card-list .card-title {
+      font-size: 1vw;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .card-list .card-button {
+      max-height: 1.8rem;
+    }
+
+    .card-text {
+      font-size: 0.9rem;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .dropdown-default-text {
+      font-size: 0.7rem;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .dropdown-text {
+      font-size: 0.8rem;
+    }
+
+    .buttons-padding {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+  }
