@@ -22,7 +22,7 @@ from .apiv2_exc import *
 from .ds import DS 
 ds = DS()
 
-from .helpers import _check, _parse_string, _parse_media_info, __disk_path 
+from .helpers import _check, _parse_string, _parse_media_info, _disk_path 
 
 class ApiTemplates():
     def __init__(self):
@@ -87,7 +87,12 @@ class ApiTemplates():
                 raise TemplateExists
 
 
-
+    def Get(self,template_id):
+        with app.app_context():
+            try:
+                return r.table('domains').get(template_id).pluck('id','name','icon','image','description').run(db.conn)
+            except:
+                return UserTemplatesError
 
 
 
