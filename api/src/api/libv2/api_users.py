@@ -293,17 +293,21 @@ class ApiUsers():
 
 ### USER Schema
 
-    def CategoryGroupCreate(self,category_name,group_name,category_limits=False,category_quota=False,group_quota=False):
+    def CategoryCreate(self,category_name,group_name=False,category_limits=False,category_quota=False,group_quota=False):
         category_id=_parse_string(category_name)
-        group_id=_parse_string(group_name)
+        if group_name:
+            group_id=_parse_string(group_name)
+        else:
+            group_name='Main'
+            group_id='main'
         with app.app_context():
             category = r.table('categories').get(category_id).run(db.conn)
-            if category == None:                 
+            if category == None:
                 category = {
                         "description": "" ,
                         "id": category_id ,
                         "limits": category_limits ,
-                        "name": category_id ,
+                        "name": category_name ,
                         "quota": category_quota
                     }
                 r.table('categories').insert(category, conflict='update').run(db.conn)
@@ -311,18 +315,39 @@ class ApiUsers():
             group = r.table('groups').get(category_id+'-'+group_id).run(db.conn)
             if group == None:
                 group = {
-                        "description": "" ,
+                        "description": "["+category['name']+"]" ,
                         "id": category_id+'-'+group_id ,
                         "limits": False ,
                         "parent_category": category_id,
                         "uid": group_id,
-                        "name": group_id,
+                        "name": group_name,
                         "enrollment": {'manager':False, 'advanced':False, 'user':False},
                         "quota": group_quota
                     }
                 r.table('groups').insert(group, conflict='update').run(db.conn)
-        return group['quota']
+        return category_id
+
+    def GroupCreate(self,category_id,group_name,category_limits=False,category_quota=False,group_quota=False):
+        group_id=_parse_string(group_name)
+        with app.app_context():
+            category = r.table('categories').get(category_id).run(db.conn)
+            if category == None: return False
+
+            group = r.table('groups').get(category_id+'-'+group_id).run(db.conn)
+            if group == None:
+                group = {
+                        "description": "["+category['name']+"]" ,
+                        "id": category_id+'-'+group_id ,
+                        "limits": False ,
+                        "parent_category": category_id,
+                        "uid": group_id,
+                        "name": group_name,
+                        "enrollment": {'manager':False, 'advanced':False, 'user':False},
+                        "quota": group_quota
+                    }
+                r.table('groups').insert(group, conflict='update').run(db.conn)
+        return category_id+'-'+group_id
 
     def CategoriesGet(self):
-        with app.app_context():        
+        with app.app_context():
             return list(r.table('categories').pluck({'id','name','frontend'}).filter({'frontend':True}).order_by('name').run(db.conn))
