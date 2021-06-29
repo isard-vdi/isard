@@ -67,7 +67,7 @@ class isardViewer():
             return {'kind':'file','name':'isard-rdp','ext':'rdp','mime':'application/x-rdp','content':self.get_rdp_file(domain['viewer']['guest_ip'])} 
 
         if get_viewer == 'spice-html5':
-            if get_cookie:       
+            if get_cookie:
                 cookie = base64.b64encode(json.dumps({
                     'web_viewer': {
                         'vmName': domain['name'],
