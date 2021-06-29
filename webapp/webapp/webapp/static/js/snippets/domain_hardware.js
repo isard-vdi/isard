@@ -197,6 +197,7 @@ function populate_tree_template(id){
 		}else{
 			$(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
 		}
-		console.log(data)
-		populate_tree_template(data.kind == 'desktop' && data.create_dict.origin ? data.create_dict.origin : data.id);
+		// console.log(data)
+		// console.log('Disabled template tree. The endpoint is filtering managers and admins. It is that needed?')
+		// populate_tree_template(data.kind == 'desktop' && data.create_dict.origin ? data.create_dict.origin : data.id);
 	}

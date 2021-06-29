@@ -55,7 +55,7 @@ class DomainsThread(threading.Thread):
                             event='desktop_delete' if data['kind']=='desktop' else 'template_delete'
                         else:
                             if not c['new_val']['id'].startswith('_'): continue
-                            data=c['new_val']                    
+                            data=c['new_val']
                             if data['kind']=='desktop':
                                 event='desktop_data'
                                 #if data['status'] == 'Started' and 'viewer' in data.keys() and 'guest_ip' in data['viewer'].keys():
@@ -74,16 +74,30 @@ class DomainsThread(threading.Thread):
                                     )
                                 except:
                                     continue
-                                    
-                        socketio.emit(event, 
-                                        json.dumps(data), 
-                                        #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
-                                        namespace='/isard-admin/sio_users', 
-                                        room='user_'+data['user'])
-                        socketio.emit('user_quota', 
-                                        json.dumps(quotas.get(data['user'])), 
-                                        namespace='/isard-admin/sio_users', 
-                                        room='user_'+data['user'])
+
+
+                        original_event=event
+                        if not data.get("tag_visible", True):
+                            if c["old_val"] is None or c["old_val"].get("tag_visible"):
+                                event='desktop_delete'
+                                socketio.emit(event, 
+                                                json.dumps(data), 
+                                                namespace='/isard-admin/sio_users', 
+                                                room='user_'+data['user'])
+                                socketio.emit('user_quota', 
+                                                json.dumps(quotas.get(data['user'])), 
+                                                namespace='/isard-admin/sio_users', 
+                                                room='user_'+data['user'])
+                        else:
+                            socketio.emit(event, 
+                                            json.dumps(data), 
+                                            #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                            namespace='/isard-admin/sio_users', 
+                                            room='user_'+data['user'])
+                            socketio.emit('user_quota', 
+                                            json.dumps(quotas.get(data['user'])), 
+                                            namespace='/isard-admin/sio_users', 
+                                            room='user_'+data['user'])
                         socketio.emit('user_quota', 
                                         json.dumps(quotas.get(data['user'])), 
                                         namespace='/isard-admin/sio_admins', 
@@ -91,22 +105,32 @@ class DomainsThread(threading.Thread):
                         socketio.emit('user_quota', 
                                         json.dumps(quotas.get(False,admin=True)), 
                                         namespace='/isard-admin/sio_admins', 
-                                        room='domains')                                                                          
+                                        room='domains')
                         """ socketio.emit('user_quota', 
                                         json.dumps(quotas.get('local-default-admin-admin')), 
                                         namespace='/isard-admin/sio_admins', 
                                         room='domains') """
                         ## Admins should receive all updates on /isard-admin/admin namespace
-                        socketio.emit(event, 
+                        socketio.emit(original_event, 
                                         json.dumps(data),
                                         #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
                                         namespace='/isard-admin/sio_admins', 
                                         room=data['category']+'_domains')  
-                        socketio.emit(event, 
+                        socketio.emit(original_event, 
                                         json.dumps(data),
                                         #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
                                         namespace='/isard-admin/sio_admins', 
                                         room='domains')
+
+                        ## Tagged desktops to advanced users
+                        if data['kind']=='desktop' and data.get("tag", False):
+                                user = data['tag'].split('_')[1]
+                                socketio.emit(original_event, 
+                                                json.dumps(data),
+                                                #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
+                                                namespace='/isard-admin/sio_users', 
+                                                room=user+'_tagged')
+
             except ReqlDriverError:
                 print('DomainsThread: Rethink db connection lost!')
                 log.error('DomainsThread: Rethink db connection lost!')
@@ -959,12 +983,24 @@ def socketio_quota_update(form_data):
 ## Domains namespace
 @socketio.on('connect', namespace='/isard-admin/sio_users')
 def socketio_users_connect():
-    join_room('user_'+current_user.id)
-    socketio.emit('user_quota', 
-                    json.dumps(quotas.get(current_user.id)), 
-                    namespace='/isard-admin/sio_users', 
-                    room='user_'+current_user.id)
-    
+    try:
+        join_room('user_'+current_user.id)
+        socketio.emit('user_quota', 
+                        json.dumps(quotas.get(current_user.id)), 
+                        namespace='/isard-admin/sio_users', 
+                        room='user_'+current_user.id)
+    except:
+        log.error('Anonymous user tried to connect to websocket')
+
+@socketio.on('join_rooms', namespace='/isard-admin/sio_users')
+def socketio_advanceds_joinrooms(join_rooms):
+    try:
+        if current_user.role=='advanced':
+            if 'tagged' in join_rooms:
+                join_room(current_user.id+'_tagged')
+    except:
+        log.error('Anonymous user tried to join room')
+
 @socketio.on('disconnect', namespace='/isard-admin/sio_users')
 def socketio_domains_disconnect():
     None
@@ -1029,6 +1065,75 @@ def socketio_admin_domains_add(form_data):
                     data,
                     namespace='/isard-admin/sio_admins', 
                     room=current_user.category+'_domains')                    
+
+@socketio.on('domain_add_advanced', namespace='/isard-admin/sio_users')
+def socketio_advanced_domains_add(form_data):
+    exceeded = quotas.check('NewDesktop',current_user.id)
+    if exceeded is not False:
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/isard-admin/sio_users', 
+                        room=current_user.id+'_tagged')
+        return        
+
+    create_dict=app.isardapi.f.unflatten_dict(form_data)
+
+    tag='_'+current_user.id+'_'+create_dict['tag']
+    deployment_dict={   'id':tag,
+                        'name':create_dict['tag'],
+                        'user':current_user.id,
+                        'create_dict':create_dict.copy()}
+    app.adminapi.insert_or_update_table_dict('deployments',deployment_dict)
+
+    create_dict=parseHardware(create_dict)
+    create_dict=quotas.limit_user_hardware_allowed(create_dict,current_user.id)
+    res=app.isardapi.new_domains_from_tmpl(current_user, create_dict)
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktops','text':'Desktops with name'+create_dict['name']+' is being created...','icon':'success','type':'success','tag':tag})
+    else:
+        data=json.dumps({'result':False,'title':'New desktops','text':'Desktop with name '+create_dict['name']+' can\'t be created as this users have one with the same name:'+str(res),'icon':'warning','type':'error'})
+    socketio.emit('adds_form_result',
+                    data,
+                    namespace='/isard-admin/sio_users', 
+                    room=current_user.id+'_tagged')    
+
+@socketio.on('domain_recreate_advanced', namespace='/isard-admin/sio_users')
+def socketio_advanced_domains_recreate(deployment_id):
+    exceeded = quotas.check('NewDesktop',current_user.id)
+    if exceeded is not False:
+        data=json.dumps({'result':False,'title':'New desktop quota exceeded.','text':'Desktop '+create_dict['name']+' can\'t be created. '+str(exceeded),'icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        data,
+                        namespace='/isard-admin/sio_users', 
+                        room=current_user.id+'_tagged')
+        return
+
+    create_dict=app.adminapi.get_user_deployment_create_dict(current_user.id,deployment_id)
+
+    create_dict=parseHardware(create_dict)
+    create_dict=quotas.limit_user_hardware_allowed(create_dict,current_user.id)
+    res=app.isardapi.new_domains_from_tmpl(current_user, create_dict, ignoreexisting=True)
+    if res is True:
+        data=json.dumps({'result':True,'title':'New desktops','text':'Desktops with name'+create_dict['name']+' is being created...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'New desktops','text':'Desktop with name '+create_dict['name']+' not created for users \n'+str(res)+' \nas they already have one with the same name.','icon':'warning','type':'warning'})
+    socketio.emit('adds_form_result',
+                    data,
+                    namespace='/isard-admin/sio_users', 
+                    room=current_user.id+'_tagged') 
+
+@socketio.on('domain_delete_advanced', namespace='/isard-admin/sio_users')
+def socketio_advanced_domains_delete(deployment_id):
+    res=app.adminapi.delete_deployment(current_user.id,deployment_id)
+    if res is True:
+        data=json.dumps({'result':True,'title':'Delete deployment','text':'Deployment has been deleted.','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'result':False,'title':'Delete deploymet','text':'Could not delete deployment.','icon':'warning','type':'warning'})
+    socketio.emit('delete_result',
+                    data,
+                    namespace='/isard-admin/sio_users', 
+                    room=current_user.id+'_tagged') 
 
 @socketio.on('domain_edit', namespace='/isard-admin/sio_users')
 def socketio_domain_edit(form_data):
@@ -1120,8 +1225,15 @@ def socketio_domains_update(data):
 @socketio.on('domain_update', namespace='/isard-admin/sio_admins')
 def socketio_admin_domains_update(data):
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+    if current_user.role not in ['admin','manager']: 
+        data=json.dumps({'result':False,'title':'Update','text':'Not allowed','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        data,
+                        namespace='/isard-admin/sio_admins', 
+                        room='domains')
+        return
     socketio.emit('result',
-                    app.isardapi.update_table_status(current_user.id, 'domains', data,remote_addr),
+                    app.isardapi.update_table_status(False, 'domains', data,remote_addr),
                     namespace='/isard-admin/sio_admins', 
                     room='domains')
 
@@ -1283,6 +1395,7 @@ def socketio_domains_viewer(data):
             default_viewer=data['kind']
         else:
             default_viewer=False
+
     viewer_data=isardviewer.viewer_data(data['pk'],get_viewer=data['kind'],default_viewer=default_viewer,current_user=current_user)
     if viewer_data:
         socketio.emit('domain_viewer',
@@ -1387,6 +1500,13 @@ MEDIA
 @socketio.on('media_update', namespace='/isard-admin/sio_admins')
 def socketio_admin_media_update(data):
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+    if current_user.role not in ['admin','manager']: 
+        data=json.dumps({'result':False,'title':'Update','text':'Not allowed','icon':'warning','type':'error'})
+        socketio.emit('result',
+                        data,
+                        namespace='/isard-admin/sio_admins', 
+                        room='domains')
+        return
     socketio.emit('result',
                     app.isardapi.update_table_status(current_user.id, 'media', data,remote_addr),
                     namespace='/isard-admin/sio_admins', 

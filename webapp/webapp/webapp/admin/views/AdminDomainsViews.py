@@ -20,11 +20,8 @@ from ...lib import trees
 template_tree = trees.TemplateTree()
 
 
-from .decorators import isAdmin, isAdminManager
+from .decorators import isAdmin, isAdminManager, isAdvanced, isAdminManagerAdvanced, ownsidortag
 
-'''
-DOMAINS (NOT USED)
-'''
 @app.route('/isard-admin/admin/domains/render/<nav>')
 @login_required
 @isAdminManager
@@ -66,6 +63,24 @@ def admin_mdomains():
         http_code = 409
     return json_data, http_code, {"Content-Type": "application/json"}
 
+    res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
+    return json.dumps({'test':1}), 200, {'Content-Type': 'application/json'}
+
+@app.route('/isard-admin/advanced/mdomains', methods=['POST'])
+@login_required
+@isAdminManagerAdvanced
+def admin_advanced_mdomains():
+    dict=request.get_json(force=True)
+    desktop_domains=app.adminapi.multiple_check_field('domains','kind','desktop',dict['ids'])
+    if current_user.role == 'advanced':
+        tags=app.adminapi.user_owns_tag_ids(current_user.id,desktop_domains)
+        if tags is not False:
+            res=app.adminapi.multiple_action('domains',dict['action'],desktop_domains)
+            if res:
+                if dict['action'] == 'download_jumperurls':
+                    return json.dumps(res), 200, {"Content-Type": "text/csv"}
+                return json.dumps({"test": 1}), 200, {"Content-Type": "application/json"}
+    return json.dumps({}), 500, {"Content-Type": "application/json"}
 
 @app.route('/isard-admin/admin/domains/get/<kind>')
 @app.route('/isard-admin/admin/domains/get')
@@ -147,21 +162,21 @@ def admin_items_delete():
 
 @app.route('/isard-admin/admin/domains/jumperurl/<id>')
 @login_required
-@isAdminManager
+@ownsidortag
 def admin_jumperurl(id):
     data = app.adminapi.get_jumperurl(id)
     return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/domains/jumperurl_reset/<id>')
 @login_required
-@isAdminManager
+@ownsidortag
 def admin_jumperurl_reset(id):
     data = app.adminapi.jumperurl_reset(id)
     return json.dumps(data), 200, {'Content-Type': 'application/json'}
 
 @app.route('/isard-admin/admin/domains/jumperurl_disable/<id>')
 @login_required
-@isAdminManager
+@ownsidortag
 def admin_jumperurl_disable(id):
     data = app.adminapi.jumperurl_reset(id,disabled=True)
     return json.dumps(data), 200, {'Content-Type': 'application/json'}

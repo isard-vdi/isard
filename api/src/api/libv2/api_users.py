@@ -208,6 +208,7 @@ class ApiUsers():
                             "parents",
                             "persistent",
                             "os",
+                            "tag_visible",
                             {"viewer": "guest_ip"},
                             {"create_dict": {"hardware": ["interfaces", "videos"]}},
                         ]
@@ -216,6 +217,10 @@ class ApiUsers():
                 )
             modified_desktops = []
             for d in desktops:
+                if not d.get("tag_visible", True):
+                    continue
+                if d["status"] not in ["Started", "Failed"]:
+                    d["status"] = "Stopped"
                 d["image"] = d.get("image", None)
                 d["from_template"] = d.get("parents", [None])[-1]
                 if d.get("persistent", True):

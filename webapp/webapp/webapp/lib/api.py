@@ -18,7 +18,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from .admin_api import flatten
-from ..auth.authentication import Password  
+from ..auth.authentication import Password, user_reloader
 
 from netaddr import IPNetwork, IPAddress 
 from ..lib.quotas import QuotaLimits
@@ -37,164 +37,173 @@ class isard():
                 exit(1)
         pass
 
-
-
     def update_table_status(self,user,table,data,remote_addr):
-            # Python 3.9
-            # item = table.removesuffix('s').capitalize()
-            item = (table.endswith('s') and table[:-1] or table).capitalize()
+        ## It is userid, not user
+        # Python 3.9
+        # item = table.removesuffix('s').capitalize()
+        if user is not False:
+            if table not in ['domains','media']: 
+                return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
             with app.app_context():
-                dom = (
-                    r.table(table)
-                    .get(data["pk"])
-                    .pluck("status", "name", "ephimeral", "kind")
-                    .run(db.conn)
-                )
-            try:
-                if data['name']=='status':
-                    if data['value']=='DownloadAborting':
-                        if dom['status'] in ['Downloading']:
-                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':item+' aborting success','text':item+' '+dom['name']+' will be aborted','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
-                            else:
-                                return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                domain=r.table('domains').get(data['pk']).pluck('user','tag').run(db.conn)
+            if domain['user'] != user:
+                user_tag=domain['tag'].split('_')[1]
+                if user != user_tag:
+                    return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+
+        item = (table.endswith('s') and table[:-1] or table).capitalize()
+        with app.app_context():
+            dom = (
+                r.table(table)
+                .get(data["pk"])
+                .pluck("status", "name", "ephimeral", "kind")
+                .run(db.conn)
+            )
+        try:
+            if data['name']=='status':
+                if data['value']=='DownloadAborting':
+                    if dom['status'] in ['Downloading']:
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' aborting success','text':item+' '+dom['name']+' will be aborted','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
                         else:
-                            return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-                    if data["value"] == "DownloadStarting":
-                        if dom["status"] == "DownloadFailed":
-                            if app.isardapi.update_table_value(
-                                table, data["pk"], data["name"], data["value"]
-                            ):
-                                return (
-                                    json.dumps(
-                                        {
-                                            "title": f"{item} downloading success",
-                                            "text": f"{item} {dom['name']} will be downloaded",
-                                            "icon": "success",
-                                            "type": "info",
-                                        }
-                                    ),
-                                    200,
-                                    {"Content-Type": "application/json"},
-                                )
-                            else:
-                                return (
-                                    json.dumps(
-                                        {
-                                            "title": f"{item} downloading error",
-                                            "text": (
-                                                f"{item} {dom['name']} can't be downloaded."
-                                                f"Something went wrong!"
-                                            ),
-                                            "icon": "warning",
-                                            "type": "error",
-                                        }
-                                    ),
-                                    500,
-                                    {"Content-Type": "application/json"},
-                                )
+                            return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                    else:
+                        return json.dumps({'title':item+' aborting error','text':item+' '+dom['name']+' can\'t be aborted while not Downloading','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                if data["value"] == "DownloadStarting":
+                    if dom["status"] == "DownloadFailed":
+                        if app.isardapi.update_table_value(
+                            table, data["pk"], data["name"], data["value"]
+                        ):
+                            return (
+                                json.dumps(
+                                    {
+                                        "title": f"{item} downloading success",
+                                        "text": f"{item} {dom['name']} will be downloaded",
+                                        "icon": "success",
+                                        "type": "info",
+                                    }
+                                ),
+                                200,
+                                {"Content-Type": "application/json"},
+                            )
                         else:
                             return (
                                 json.dumps(
                                     {
                                         "title": f"{item} downloading error",
                                         "text": (
-                                            f"{item} {dom['name']} can't be doenloaded"
-                                            f"while not DownloadFailed"
+                                            f"{item} {dom['name']} can't be downloaded."
+                                            f"Something went wrong!"
                                         ),
                                         "icon": "warning",
                                         "type": "error",
                                     }
                                 ),
-                                409,
+                                500,
                                 {"Content-Type": "application/json"},
                             )
-                    if data['value']=='Stopping':
-                        if dom["status"] == "Shutting-down":
-                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':False,'text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
-                            else:
-                                return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                    else:
+                        return (
+                            json.dumps(
+                                {
+                                    "title": f"{item} downloading error",
+                                    "text": (
+                                        f"{item} {dom['name']} can't be doenloaded"
+                                        f"while not DownloadFailed"
+                                    ),
+                                    "icon": "warning",
+                                    "type": "error",
+                                }
+                            ),
+                            409,
+                            {"Content-Type": "application/json"},
+                        )
+                if data['value']=='Stopping':
+                    if dom["status"] == "Shutting-down":
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':False,'text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
                         else:
-                            return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-                    if data['value']=='Shutting-down':
-                        if dom['status'] in ['Started']:
-                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':False,'text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
-                            else:
-                                return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                            return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                    else:
+                        return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                if data['value']=='Shutting-down':
+                    if dom['status'] in ['Started']:
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':False,'text':item+' '+dom['name']+' will be stopped','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
                         else:
-                            return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                            return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                    else:
+                        return json.dumps({'title':item+' stopping error','text':item+' '+dom['name']+' can\'t be stopped while not Started','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
 
-                    if data['value']=='Deleting':
-                        if table=='media':
-                            ''' WE SHOULD CHECK THAT DOMAINS ARE STOPPED '''
-                            app.adminapi.media_delete(data['pk'])                        
-                            # ~ if dom['status'] in ['Stopped','Failed']:
+                if data['value']=='Deleting':
+                    if table=='media':
+                        ''' WE SHOULD CHECK THAT DOMAINS ARE STOPPED '''
+                        app.adminapi.media_delete(data['pk'])
+                        # ~ if dom['status'] in ['Stopped','Failed']:
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
+                        else:
+                            return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                        # ~ else:
+                            # ~ return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                    else:
+                        if dom['status'] in ['Stopped','Failed']:
                             if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
                                 return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
                             else:
                                 return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-                            # ~ else:
-                                # ~ return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
                         else:
-                            if dom['status'] in ['Stopped','Failed']:
-                                if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                    return json.dumps({'title':item+' deleting success','text':item+' '+dom['name']+' will be deleted','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
-                                else:
-                                    return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-                            else:
-                                return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-                    if data['value']=='Starting':
-                        if dom["kind"] != "desktop":
-                            return (
-                                json.dumps(
-                                    {
-                                        "title": f"{item} starting error",
-                                        "text": (
-                                            f"{item} {dom['name']} can't be started"
-                                            " because it isn't a desktop"
-                                        ),
-                                        "icon": "warning",
-                                        "type": "error",
-                                    }
-                                ),
-                                409,
-                                {"Content-Type": "application/json"},
-                            )
-                        if dom['status'] in ['Stopped','Failed']:
-                            exceeded = quotas.check('NewConcurrent',current_user.id)
-                            if exceeded != False:
-                                return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started. '+exceeded,'icon':'warning','type':'warning'}), 500, {'Content-Type':'application/json'}
+                            return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                if data['value']=='Starting':
+                    if dom["kind"] != "desktop":
+                        return (
+                            json.dumps(
+                                {
+                                    "title": f"{item} starting error",
+                                    "text": (
+                                        f"{item} {dom['name']} can't be started"
+                                        " because it isn't a desktop"
+                                    ),
+                                    "icon": "warning",
+                                    "type": "error",
+                                }
+                            ),
+                            409,
+                            {"Content-Type": "application/json"},
+                        )
+                    if dom['status'] in ['Stopped','Failed']:
+                        exceeded = quotas.check('NewConcurrent',current_user.id)
+                        if exceeded != False:
+                            return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started. '+exceeded,'icon':'warning','type':'warning'}), 500, {'Content-Type':'application/json'}
 
-                            self.auto_interface_set(user,data['pk'],remote_addr)
-                            if 'ephimeral' in dom.keys():
-                                try:
-                                    trigger=list(r.table('scheduler_jobs').filter({'action':'check_ephimeral_status'}).run(db.conn))[0]
-                                    ci=trigger['next_run_time']
-                                    i=1
-                                    t=time.time()
-                                    while ci < t+int(dom['ephimeral']['minutes'])*60:
-                                        ci=trigger['next_run_time']+int(trigger['minute'])*60*i
-                                        i=i+1
-                                    dom['ephimeral']['finish']=trigger['next_run_time']+int(trigger['minute'])*60*(i-1)
-                                    r.table(table).get(data['pk']).update({'ephimeral': dom['ephimeral']}).run(db.conn)
-                                except Exception as e:
-                                    r.table(table).get(data['pk']).replace(r.row.without('ephimeral')).run(db.conn)
-                                    log.error('Exception in ephimeral time range set: '+str(e))
-                            if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
-                                return json.dumps({'title':False,'text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
-                            else:
-                                return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                        self.auto_interface_set(user,data['pk'],remote_addr)
+                        if 'ephimeral' in dom.keys():
+                            try:
+                                trigger=list(r.table('scheduler_jobs').filter({'action':'check_ephimeral_status'}).run(db.conn))[0]
+                                ci=trigger['next_run_time']
+                                i=1
+                                t=time.time()
+                                while ci < t+int(dom['ephimeral']['minutes'])*60:
+                                    ci=trigger['next_run_time']+int(trigger['minute'])*60*i
+                                    i=i+1
+                                dom['ephimeral']['finish']=trigger['next_run_time']+int(trigger['minute'])*60*(i-1)
+                                r.table(table).get(data['pk']).update({'ephimeral': dom['ephimeral']}).run(db.conn)
+                            except Exception as e:
+                                r.table(table).get(data['pk']).replace(r.row.without('ephimeral')).run(db.conn)
+                                log.error('Exception in ephimeral time range set: '+str(e))
+                        if app.isardapi.update_table_value(table, data['pk'], data['name'], data['value']):
+                            return json.dumps({'title':False,'text':item+' '+dom['name']+' will be started','icon':'success','type':'info'}), 200, {'Content-Type':'application/json'}
                         else:
-                            return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-                return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-            except Exception as e:
-                log.error('Error updating status for '+dom['name']+': '+str(e))
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                log.error(exc_type, fname, exc_tb.tb_lineno)                
-                return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                            return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started. Something went wrong!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+                    else:
+                        return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+            return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+        except Exception as e:
+            log.error('Error updating status for '+dom['name']+': '+str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            log.error(exc_type, fname, exc_tb.tb_lineno)
+            return json.dumps({'title':item+' starting error','text':item+' '+dom['name']+' can\'t be started now','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
 
     def auto_interface_set(self,user,id, remote_addr):
         with app.app_context():
@@ -260,17 +269,23 @@ class isard():
             user=self.f.flatten_dict(r.table('users').get(user).run(db.conn))
             user['password']=''
         return user
-                
+
     def get_user_domains(self, user, filterdict=False):
         if not filterdict: filterdict={'kind': 'desktop'}
         with app.app_context():
             domains=list(r.table('domains').get_all(user, index='user').filter(filterdict).without('xml','history_domain','allowed').run(db.conn))
+            domains=[d for d in domains if d.get("tag_visible", True)]
+        return domains
+
+    def get_user_tagged_domains(self,current_user,id=False):
+        tags=r.table('deployments').get_all(current_user.id,index='user').pluck('id')['id'].coerce_to('array').run(db.conn)
+        domains=list(r.table('domains').get_all(r.args(tags), index='tag').run(db.conn))
         return domains
 
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
         with app.app_context():
-            domain = r.table('domains').get(id).without('xml','history_domain','progress').run(db.conn)
+            domain = r.table('domains').get(id).without('xml','xml_to_start','history_domain','hw_stats','disks_info','progress','jumperurl','viewer').run(db.conn)
         try:
             if flatten:
                 domain=self.f.flatten_dict(domain)
@@ -929,7 +944,7 @@ class isard():
                         
             self.new_domain_from_tmpl(user, tmpl['create_dict'])
 
-    def new_domains_from_tmpl(self, current_user, create_dict):
+    def new_domains_from_tmpl(self, current_user, create_dict,ignoreexisting=False):
         selected = create_dict.pop('allowed',None)
         #if current_user.role == == 'manager'
         users=[]
@@ -1010,9 +1025,16 @@ class isard():
                 None
         if len(existing_desktops):
             lst_existing_desktops=[ed['user'].split('-')[-1] for ed in existing_desktops]
-            return 'This users already have a desktop with the same name: '+', '.join(lst_existing_desktops)
+            if not ignoreexisting: return ', '.join(lst_existing_desktops)
+        if 'tag' in create_dict.keys():
+            create_dict['tag']='_'+current_user.id+'_'+create_dict['tag']
+            with app.app_context():
+                r.table('users').get(current_user.id).update({"tags": r.row["tags"].default([]).set_insert(create_dict['tag'])}).run(db.conn)
+            user_reloader(current_user.id)
         for user in users:
             self.new_domain_from_tmpl(user,create_dict)
+        if len(existing_desktops):
+            return ', '.join(lst_existing_desktops)
         return True
 
 
@@ -1042,6 +1064,8 @@ class isard():
         new_domain={'id': '_'+user+'-'+parsed_name,
                   'name': create_dict['name'],
                   'description': create_dict['description'],
+                  'tag':create_dict.get("tag", False),
+                  'tag_visible':create_dict.get("tag_visible", True),
                   'kind': 'desktop',
                   'user': userObj['id'],
                   'username': userObj['username'],

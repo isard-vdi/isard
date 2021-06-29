@@ -58,6 +58,7 @@ class ApiDesktopsCommon:
     def DesktopViewerFromToken(self, token):
         with app.app_context():
             domains = list(r.table("domains").filter({"jumperurl": token}).run(db.conn))
+        domains=[d for d in domains if d.get("tag_visible", True)]
         if len(domains) == 0:
             raise DesktopNotFound
         if len(domains) == 1:
