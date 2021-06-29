@@ -11,6 +11,6 @@ export VIR_BRIDGE_NAME=$VIR_BRIDGE_NAME
 /usr/lib/libvirt/libvirt_leaseshelper $1 $2 $3 $4
 
 source /tmp/env
-export WEBAPP_HOST=$WEBAPP_HOST
+export WEBAPP_DOMAIN=$WEBAPP_DOMAIN
 export WEBAPP_ADMIN_PWD=$WEBAPP_ADMIN_PWD
 /usr/bin/python3 /src/update-client-ips.py "$@"
