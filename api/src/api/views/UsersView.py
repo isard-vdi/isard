@@ -193,8 +193,8 @@ def api_v2_user_insert():
                                     email)
         return json.dumps({'id':user_id}), 200, {'Content-Type': 'application/json'}
     except UserExists:
-        log.error("User "+user_username+" already exists.")
-        return json.dumps({"code":1,"msg":"User already exists"}), 404, {'Content-Type': 'application/json'}
+        user_id = provider+'-'+category_id+'-'+user_uid+'-'+user_username
+        return json.dumps({'id':user_id}), 200, {'Content-Type': 'application/json'}
     except RoleNotFound:
         log.error("Role "+role_username+" not found.")
         return json.dumps({"code":2,"msg":"Role not found"}), 404, {'Content-Type': 'application/json'}
