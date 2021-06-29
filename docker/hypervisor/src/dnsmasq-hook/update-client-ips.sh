@@ -12,6 +12,6 @@ export VIR_BRIDGE_NAME=$VIR_BRIDGE_NAME
 
 source /tmp/env
 export HOSTNAME=$HOSTNAME
-export WEBAPP_HOST=$WEBAPP_HOST
+export WEBAPP_DOMAIN=$WEBAPP_DOMAIN
 export WEBAPP_ADMIN_PWD=$WEBAPP_ADMIN_PWD
 /usr/bin/python3 /src/dnsmasq-hook/update-client-ips.py "$@"
