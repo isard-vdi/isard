@@ -186,46 +186,35 @@
                            <label for="message">Description</label>
                            <textarea id="description" class="form-control" name="description"></textarea>                              
                         </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-md-6 col-xs-12">                   
-                                <div class="row">
-                                      <div id="modalInstall" class="x_panel" style="background-color:#efeff5;">
-                                         <p style="font-size: 18px;margin-bottom:0px;"> Select OS hardware template</p>
-                                         <div id="datatables-install-error-status"></div>
-                                         <input  id="install" name="install" type="hidden" required>
-                                         <table id="modal_add_install" class="table" cellspacing="0" width="100%"  style="margin-top: 0px;">
-                                            <thead>
-                                               <tr>
-                                                  <th>Name</th>
-                                                  <th>Vers</th>
-                                               </tr>
-                                            </thead>
-                                            <tbody>
-                                            </tbody>
-                                         </table>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6 col-xs-12">    
-                              <div class="x_panel" id="media-hardware-block"  style="background-color:#efeff5;">
-                                 <p style="font-size: 18px;margin-bottom:0px;"><i class="fa fa-wrench"></i> Adjust OS template Hardware</p>
-                                 {% include '/snippets/domain_hardware_disksize_edit.html' %}
-                              </div>
-                            </div>
+                     </div>
+                     <div class="x_panel">
+                        <div class="x_title">
+                           <h4><i class="fa fa-gear" aria-hidden="true"></i> Adjust OS template Hardware</h4>
+                           <div class="clearfix"></div>
+                       </div>
+                        <div class="x_content">
+                           {% include '/snippets/domain_hardware_disksize_edit.html' %}
                         </div>
-                        <div id="datatables-install-error-status"></div>
-                        <input  id="install" name="install" type="hidden" required>
-                        <table id="modal_add_install" class="table table-hover" cellspacing="0" width="100%"  style="margin-top: 0px;">
-                           <thead>
-                              <tr>
-                                 <th>Name</th>
-                                 <th>Vers</th>
-                              </tr>
-                           </thead>
-                           <tbody>
-                           </tbody>
-                        </table>
+                     </div>
+                     <div id="modalInstall" class="x_panel">
+                        <div class="x_title">
+                           <h4>Select OS template</h4>
+                           <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                           <div id="datatables-install-error-status"></div>
+                           <input  id="install" name="install" type="hidden" required>
+                           <table id="modal_add_install" class="table table-hover" cellspacing="0" width="100%"  style="margin-top: 0px;">
+                              <thead>
+                                    <tr>
+                                    <th>Name</th>
+                                    <th>Vers</th>
+                                    </tr>
+                              </thead>
+                              <tbody>
+                              </tbody>
+                           </table>
+                        </div>
                      </div>
                   </div>
                </div>

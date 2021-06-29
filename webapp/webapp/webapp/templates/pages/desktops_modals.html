@@ -271,38 +271,37 @@
                 <form id="modalTemplateDesktopForm" class="form-horizontal form-label-left" novalidate>
                     <div class="x_panel">
                         <div class="x_title">
-                            <h4><i class="fa fa-cubes"></i> New template properties<small></small></h4>
+                            <h4><i class="fa fa-cubes"></i> New template properties</h4>
                             <div class="clearfix"></div>
                         </div>
                         <div class="x_content">
                             <input id="id" name="id" class="template-id" hidden ></input>
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Template name <span class="required">*</span>
-                                </label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
+                            <div class="row">
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="name">Template name <span class="required">*</span>
+                                    </label>
                                     <input id="template-name" class="form-control template-name" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New template name" data-parsley-trigger="change" required type="text">
                                 </div>
-                            </div>
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Template description
-                                </label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <textarea id="description" name="description" class="form-control col-md-7 col-xs-12 template-description"></textarea>
-                                </div>
-                            </div>
-                            {% if(current_user.role == 'admin') %}		     
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Type of template</label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                {% if(current_user.role == 'admin') %}
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="kind">Type of template
+                                    </label>
                                     <select class="form-control" id="kind" name="kind" class="template-kind">
                                         <option value="user_template" selected="selected">Template</option>
                                         <option value="base">Base</option>
                                     </select>
                                 </div>
+                                {% else %}
+                                <input id="kind" name="kind" class="template-kind" hidden value="user_template" ></input>
+                                {% endif %}
                             </div>
-                            {% else %}
-                            <input id="kind" name="kind" class="template-kind" hidden value="user_template" ></input>
-                            {% endif %}
+                            <div class="row">
+                                <div class="col-md-12 col-xs-12">
+                                    <label class="control-label" for="description">Template description
+                                    </label>
+                                    <textarea id="description" name="description" class="form-control col-md-7 col-xs-12 template-description"></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div id="alloweds-add">
