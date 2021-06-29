@@ -157,6 +157,7 @@ flavour web \
 	stats \
 	api \
 	backend \
+	vpn \
 
 flavour stats \
 	network \

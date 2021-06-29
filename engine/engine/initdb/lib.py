@@ -31,7 +31,7 @@ class Certificates(object):
         self.ca_file='/certs/ca-cert.pem'
         self.server_file='/certs/server-cert.pem'   
         cfg=loadConfig()
-        self.cfg=cfg.cfg()    
+        self.cfg=cfg.cfg()
         
 
     def get_viewer(self,update_db=False):

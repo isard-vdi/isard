@@ -760,12 +760,9 @@ class isardAdmin():
                 return 'Only isard-hypervisor can be the number 0'
             if dict['capabilities']['disk_operations']:
                 id=dict['id']
-                cap_disk=dict['capabilities']['disk_operations']
-                cap_hyp=dict['capabilities']['hypervisor']
                 for hp in dict['hypervisors_pools']:
                     paths=r.table('hypervisors_pools').get(hp).run(db.conn)['paths']
                     for p in paths:
-                        path_list=[]
                         for i,path_data in enumerate(paths[p]):
                             if id not in path_data['disk_operations']:
                                 path_data['disk_operations'].append(id)

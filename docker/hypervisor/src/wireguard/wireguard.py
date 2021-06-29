@@ -34,9 +34,9 @@ wireguard_xml = """<network xmlns:dnsmasq='http://libvirt.org/schemas/network/dn
   </ip>  \
   <dns enable="no"/> \
        <dnsmasq:options> \
-          <dnsmasq:option value="dhcp-option=121,%s,%s"/> \
-          <dnsmasq:option value="dhcp-script=/update-client-ips.sh"/> \
-          <dnsmasq:option value='dhcp-option=3'/> \
+        <dnsmasq:option value="dhcp-option=121,%s,%s"/> \
+        <dnsmasq:option value="dhcp-script=/src/dnsmasq-hook/update-client-ips.sh"/> \
+        <dnsmasq:option value='dhcp-option=3'/> \
       </dnsmasq:options> \
 </network>""" % (dhcp_subnet_gw, dhcp_subnet_prefix, dhcp_subnet_range_start, dhcp_subnet_range_end, main_net, dhcp_subnet_gw)
 

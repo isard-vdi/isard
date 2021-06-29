@@ -227,9 +227,15 @@ class Wg(object):
             if self.table == 'hypervisors':
                 pass
                 # There seems to be a bug because the route is not applied so we need to force again...
+<<<<<<< HEAD
                 # check_output(('/usr/bin/wg-quick','save','hypers'), text=True)
                 # check_output(('/usr/bin/wg-quick','down','hypers'), text=True)
                 # check_output(('/usr/bin/wg-quick','up','hypers'), text=True)
+=======
+                # check_output(('/usr/bin/wg-quick','save','hypers'), text=True).strip()
+                # check_output(('/usr/bin/wg-quick','down','hypers'), text=True).strip()
+                # check_output(('/usr/bin/wg-quick','up','hypers'), text=True).strip()
+>>>>>>> vinolas/hyper-api
             return True
         except Exception as e:
             log.error('New peer up peer error: \n'+traceback.format_exc())
