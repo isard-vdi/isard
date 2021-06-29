@@ -2,188 +2,193 @@
      [id^=modal_add_] .selected {
         background-color: #e0f1af !important;
     }
-    
-     [id^=modal_add_] tr.even:hover {
-        background-color: #e0e0d1;
+
+    [id^=modal_add_] tr {
+        cursor: pointer;
     } 
 
-     [id^=modal_add_] tr.odd:hover {
-        background-color: #ebebe0;
-    }  
-
     .my-error{
-      color: #B94A48 !important;
-      background-color: #F2DEDE !important;
-      border: 1px solid #EED3D7 !important;        
+        margin-top: 5px;
+        color: #B94A48 !important;
+        background-color: #F2DEDE !important;
+        border: 1px solid #EED3D7 !important;
+        padding: 10px;
     }    
 </style>
 
 
-
-
-<div class="modal fade" id="modalAddDesktop" tabindex="-1" role="dialog" 
-     aria-labelledby="modalAddDesktop" aria-hidden="true">
+<div class="modal fade" id="modalAddDesktop" tabindex="-1" role="dialog" aria-labelledby="modalAddDesktop" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header"  style="padding: 5px;">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">   
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i>   Add new desktop
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Add new desktop
                 </h4>
             </div>
 
             <!-- Modal Body -->
             <div class="modal-body">
-              <form id="modalAdd" class="form-horizontal"> 
-                <div class="x_panel">
-                    <div class="x_content">
-                        <div class="row">
+                <form id="modalAdd" class="form-horizontal"> 
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="x_title">
+                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Desktop name and description</h4>
+                                <div class="clearfix"></div>
+                            </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
-                                  <label class="control-label" for="name">Name <span class="required">*</span></label>
-                                  <input id="desktop-name"  maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                              </div>
-                              <div class="col-md-9 col-sm-9 col-xs-12">
+                                <label class="control-label" for="name">Name <span class="required">*</span></label>
+                                <input id="desktop-name"  maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                            </div>
+                            <div class="col-md-9 col-sm-9 col-xs-12">
                                 <label class="control-label" for="description">Description </label>
                                 <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
-                              </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-			  <div class="x_panel" style="padding: 5px; height: 350px">
-                <p style="font-size: 18px;margin-bottom:0px;">Select a template as base for your new desktop</p>
-                <input  id="template" name="template" type="hidden" required>
-                <table id="modal_add_desktops" class="table" cellspacing="0" style="margin-top: 0px;" width="100%" >
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                            <th>Group</th>
-                            <th>User</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
-                <div id="datatables-error-status"></div>
-			  </div>
-
-			  <div class="x_panel" id="hardware-block" style="padding: 5px; display: none;">
-					 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
-					{% include '/snippets/domain_hardware_edit.html' %}
-              </div>
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                            <div class="x_panel">
+                                <div class="x_title">
+                                    <h4><i class="fa fa-cubes" aria-hidden="true"></i> Select a template as base for your new desktop</h4>
+                                    <div class="clearfix"></div>
+                                </div>
+                                <input  id="template" name="template" type="hidden" required>
+                                <table id="modal_add_desktops" class="table table-hover" cellspacing="0" style="margin-top: 0px;" width="100%" >
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Description</th>
+                                            <th>Group</th>
+                                            <th>User</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                                <div id="datatables-error-status"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                            <div class="x_panel"  id="hardware-block" style="display: none;">
+                                <div class="x_title">
+                                    <h4><i class="fa fa-gear" aria-hidden="true"></i> Hardware</h4>
+                                    <div class="clearfix"></div>
+                                </div>
+                                {% include '/snippets/domain_hardware_edit.html' %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
-
             <!-- Modal Footer -->
-            <div class="modal-footer" style="padding: 5px;">
+            <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
                     <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                   </li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
                     <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Set hardware</button></li>
                     <li><button id="send" type="button" class="btn btn-success">Create desktop</button></li>
-                   </li>
                 </ul>
             </div>
-            </form>
         </div>
     </div>
 </div>
 
 
 
-<div class="modal fade" id="modalEditDesktop" tabindex="-1" role="dialog" 
-     aria-labelledby="modalEditDesktop" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalEditDesktop" tabindex="-1" role="dialog" aria-labelledby="modalEditDesktop" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header"  style="padding: 5px;">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">   
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i>   Edit desktop
+                    <i class="fa fa-edit fa-1x"> </i> <i class="fa fa-desktop"> </i> Edit desktop
                 </h4>
             </div>
             
             <!-- Modal Body -->
             <div class="modal-body" style="padding: 7px;">
                 
-              <form id="modalEdit" class="form-inline form-label-left"> 
-			  <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
-					<div class="x_content" style="padding: 0px;">
-                         <input id="id" name="id" hidden/>
-                         <input type="hidden" id="name" name="name"/>
-                        <div class="row">
-                            <div class="col-md-4 col-xs-12">
-                                <label class="control-label" for="name">Name <span class="required">*</span>
-                                </label>
-                                  <input id="name_hidden" disabled maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                            </div>
-                            <div class="col-md-8 col-xs-12">
-                                <label class="control-label" for="description">Description 
-                                </label>
-                                <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                <form id="modalEdit" class="form-inline form-label-left"> 
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Desktop name and description</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                            <input id="id" name="id" hidden/>
+                            <input type="hidden" id="name" name="name"/>
+                            <div class="row">
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="name_hidden" disabled maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
+                                </div>
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="description">Description 
+                                    </label>
+                                    <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                                </div>
                             </div>
                         </div>
-				</div>
-			  </div>
-
-
-			  <div class="x_panel" style="padding: 5px;">
-                     <div class="item form-group">
+                    </div>
+  
+  
+                <div class="x_panel">
+                    <div class="item form-group">
                         <label class="control-label col-md-6 col-sm-6 col-xs-12" for="options-viewers-spice-fullscreen">Options
                         </label>
                         <div class="col-md-12 col-sm-12 col-xs-12">
-                          <div class="checkbox">
+                        <div class="checkbox">
                             <label class="">
-                              <div class="icheckbox_flat-green" style="position: relative;">
-                                  <input type="checkbox" id="options-viewers-spice-fullscreen" name="options-viewers-spice-fullscreen" class="flat capabilities_hypervisor"  style="position: absolute; opacity: 0;">
-                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                  </ins>
-                              </div> Viewer fullscreen
+                            <div class="icheckbox_flat-green" style="position: relative;">
+                                <input type="checkbox" id="options-viewers-spice-fullscreen" name="options-viewers-spice-fullscreen" class="flat capabilities_hypervisor"  style="position: absolute; opacity: 0;">
+                                <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                </ins>
+                            </div> Viewer fullscreen
                             </label>
-                          </div> 
+                        </div> 
                         </div>                                              
-                     </div>
-			  </div> 
-
-            
-			  <div class="x_panel" id="hardware-block" style="padding: 5px;">
-					 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
-					{% include '/snippets/domain_hardware_edit.html' %}
-              </div>
-
-			  <div id="media-block">
-					{% include '/snippets/media.html' %}
-              </div>
+                    </div>
+                </div> 
+  
               
-            </div>
-            
+                <div class="x_panel" id="hardware-block">
+                    <div class="x_content">
+                        <div class="x_title">
+                            <h4><i class="fa fa-gear" aria-hidden="true"></i> Hardware</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        {% include '/snippets/domain_hardware_edit.html' %}
+                    </div>
+                </div>
+  
+                <div id="media-block">
+                      {% include '/snippets/media.html' %}
+                </div>
+                </form>
+                
+              </div>
             <!-- Modal Footer -->
-            <div class="modal-footer" style="padding: 5px;">
+            <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
                     <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                   </li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
-<!--
-                    <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Edit hardware</button></li>
--->
                     <li><button id="send" type="button" class="btn btn-success">Modify desktop</button></li>
-                   </li>
                 </ul>
-            </div>                       
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -192,69 +197,69 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header" style="padding: 5px;">
+            <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
                     <span aria-hidden="true">&times;</span>
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i>    Direct viewer access <i class="fa fa-key"> </i>
+                    <i class="fa fa-plus fa-1x"></i> Direct viewer access <i class="fa fa-key"></i>
                 </h4>
             </div>
  
             <!-- Modal Body -->
-            <div class="modal-body" style="padding: 7px;">
- 
-                <form id="modalJumperurlForm" class="form-inline">
-                    <input hidden id="id" name="id"/>
-                    <div class="row">
-                        <div class="col-md-12 col-sm-12 col-xs-12">
-                              <label>Direct web access to HTML5 viewer</label>
-                              <div class="checkbox">
-                                <label class="">
-                                  <div class="icheckbox_flat-green" style="position: relative;">
-                                      <input type="checkbox" id="jumperurl-check" name="jumperurl-check" class="flat"  style="position: absolute; opacity: 0;">
-                                      <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                      </ins>
-                                  </div>
+            <div class="modal-body">
+                <form id="modalJumperurlForm" class="form-horizontal">
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <input id="id" name="id" hidden ></input>
+                            <div class="item form-group">
+                                <label class="control-label col-md-6 col-sm-6 col-xs-12" for="jumperurl-check">Direct web access to HTML5 viewer
                                 </label>
-                              </div>                               
-                              <input id="jumperurl" class="form-control roundbox" name="jumperurl" style="width:100%; " placeholder="Viewer url" disabled />
-                        </div>                                                                    
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <div class="checkbox">
+                                        <label class="">
+                                            <div class="icheckbox_flat-green">
+                                                <input type="checkbox" id="jumperurl-check" name="jumperurl-check" class="flat"  style="position: absolute; opacity: 0;">
+                                                <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                </ins>
+                                            </div>
+                                        </label>
+                                    </div>                               
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-8 col-sm-8 col-xs-12">
+                                    <input id="jumperurl" class="form-control roundbox" name="jumperurl" style="width:100%; " placeholder="Viewer url" disabled />
+                                </div>
+                                <div class="col-md-4 col-sm-4 col-xs-12">
+                                    <button class="btn btn-info pull-right btn-copy-jumperurl" type="button"  data-placement="top"><i class="fa fa-clipboard" ></i> Copy to clipboard</button>
+                                </div>                                                                        
+                            </div>
+                        </div>
                     </div>
-                
-                    <div class="row"> 
-                        <div class="col-md-3 col-sm-3 col-xs-12">
-                            <button class="btn btn-info btn-xs pull-right btn-copy-jumperurl" type="button"  data-placement="top"><i class="fa fa-pencil m-right-xs" ></i>Copy to clipboard</button>
-            
-                        </div>                                                                        
-                    </div>
+                </form>
             </div>
- 
             <!-- Modal Footer -->
-            <div class="modal-footer" style="padding: 5px;">
+            <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
                     <li>
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     </li>
-                    </li>
                 </ul>
             </div>
-            </form>
         </div>
     </div>
- </div>
+</div>
 
-<div class="modal fade" id="modalTemplateDesktop" tabindex="-1" role="dialog" 
-     aria-labelledby="modalTemplateDesktop" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalTemplateDesktop" tabindex="-1" role="dialog" aria-labelledby="modalTemplateDesktop" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
             <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
                     <i class="fa fa-desktop"> </i> <i class="fa fa-long-arrow-right fa-1x"> </i> <i class="fa fa-cube"> </i> Create template from desktop
@@ -263,101 +268,81 @@
             
             <!-- Modal Body -->
             <div class="modal-body">
-                
-              <form id="modalTemplateDesktopForm" class="form-horizontal form-label-left" novalidate>       
-
-			  <div class="x_panel">
-				 <div class="x_title">
-					<h4>New template properties<small></small></h4>
-					<ul class="nav navbar-right panel_toolbox">
-					   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-					   </li>
-					</ul>
-					<div class="clearfix"></div>
-				 </div>
-					<div class="x_content">
-					 <input id="id" name="id" class="template-id" hidden ></input>
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Template name <span class="required">*</span>
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                            <input id="template-name" class="form-control template-name" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New template name" data-parsley-trigger="change" required type="text">
+                <form id="modalTemplateDesktopForm" class="form-horizontal form-label-left" novalidate>
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-cubes"></i> New template properties</h4>
+                            <div class="clearfix"></div>
                         </div>
-                     </div>
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Template description
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                           <textarea id="description" name="description" class="form-control col-md-7 col-xs-12 template-description"></textarea>
+                        <div class="x_content">
+                            <input id="id" name="id" class="template-id" hidden ></input>
+                            <div class="row">
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="name">Template name <span class="required">*</span>
+                                    </label>
+                                    <input id="template-name" class="form-control template-name" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New template name" data-parsley-trigger="change" required type="text">
+                                </div>
+                                {% if(current_user.role == 'admin') %}
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="kind">Type of template
+                                    </label>
+                                    <select class="form-control" id="kind" name="kind" class="template-kind">
+                                        <option value="user_template" selected="selected">Template</option>
+                                        <option value="base">Base</option>
+                                    </select>
+                                </div>
+                                {% else %}
+                                <input id="kind" name="kind" class="template-kind" hidden value="user_template" ></input>
+                                {% endif %}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 col-xs-12">
+                                    <label class="control-label" for="description">Template description
+                                    </label>
+                                    <textarea id="description" name="description" class="form-control col-md-7 col-xs-12 template-description"></textarea>
+                                </div>
+                            </div>
                         </div>
-                     </div>
-                                  {% if(current_user.role == 'admin') %}		     
-				     <div class="item form-group">
-					<label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Type of template
-					</label>
-					<div class="col-md-6 col-sm-6 col-xs-12">
-					   <select class="form-control" id="kind" name="kind" class="template-kind">
-						  <option value="user_template" selected="selected">Template</option>
-						  <option value="base">Base</option>
-					   </select>
-					</div>
+                    </div>
+                    <div id="alloweds-add">
+                    {% include '/snippets/alloweds_add.html' %}
+                    </div>
+				    <div class="x_panel" >
+                        <div class="x_title">
+                            <h4><i class="fa fa-gear"></i> Hardware<small></small></h4>
+                            <ul class="nav navbar-right panel_toolbox">
+                                <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+                            </ul>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                            {% include '/snippets/domain_hardware_edit.html' %}
+                        </div>
 				    </div>
-				  {% else %}
-				   <input id="kind" name="kind" class="template-kind" hidden value="user_template" ></input>
-                                  {% endif %}
-                    
-                     
-				</div>
-			  </div>
-
-                                    <div id="alloweds-add">
-                                      {% include '/snippets/alloweds_add.html' %}
-                                    </div> 
-              
-				  <div class="x_panel" >
-					 <div class="x_title">
-						<h4>Hardware<small></small></h4>
-						<ul class="nav navbar-right panel_toolbox">
-						   <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
-						   </li>
-						</ul>
-						<div class="clearfix"></div>
-					 </div>
-					 <div class="x_content">
-						{% include '/snippets/domain_hardware_edit.html' %}
-					 </div>
-				  </div>
-<!--
-                  </div>
--->
-                      <div id="media-block">
-                            {% include '/snippets/media.html' %}
-                      </div>              
+                    <div id="media-block">
+                        {% include '/snippets/media.html' %}
+                    </div>              
+                </form>
+            </div>
             <!-- Modal Footer -->
             <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="button" class="btn btn-success">Create template</button>
-                        </div>
-                     </div>
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Create template</button></li>
+                </ul>
             </div>
-            </form>
         </div>
     </div>
 </div>
-</div>
-    </div>
-</div>
 
-<div class="modal fade" id="modalShowInfo" tabindex="-1" role="dialog" 
-     aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalShowInfo" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
             <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
+                <button type="button" class="close" data-dismiss="modal">
                        <span aria-hidden="true">&times;</span>
                        <span class="sr-only">Close</span>
                 </button>
@@ -368,32 +353,21 @@
             
             <!-- Modal Body -->
             <div class="modal-body">
-                
               <form id="modalShowInfoForm" class="form-horizontal form-label-left">
                     <input  id="id" name="id" type="hidden" required>
                      <div class="item form-group">
-                        </label>
                         <div class="col-md-12 col-sm-12 col-xs-12">
                            <textarea class="form-control" rows="30" id="xml"></textarea>
                         </div>
-                        
                      </div>
-
-        </div>
-                       
+                </form>
+            </div>
             <!-- Modal Footer -->
             <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-<!--
-                           <button id="send" type="button" class="btn btn-success">Update XML</button>
--->
-                        </div>
-                     </div>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
             </div>
-            </form>
         </div>
-</div>
     </div>
 </div>

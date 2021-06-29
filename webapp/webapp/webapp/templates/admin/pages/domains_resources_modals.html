@@ -21,7 +21,7 @@
                      
 			  <div class="x_panel" style="padding: 5px;">
                   <p style="font-size: 18px;margin-bottom:0px;">Set video parameters</p>
-					<div class="x_content" style="padding: 0px;">
+					<div class="x_content">
                         <div class="row">
                             <div class="col-md-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
@@ -38,7 +38,7 @@
                             <div class="col-xs-12">
                                 <label class="control-label" for="name">Model <span class="required">*</span>
                                 </label>
-                                  <input id="model" class="roundbox" maxlength="20" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[1, 20]" name="model" placeholder="Model name" data-parsley-trigger="change" required type="text">
+                                  <input id="model" class="roundbox" maxlength="20" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[1, 20]" name="model" placeholder="Model name" data-parsley-trigger="change" required type="text"  style="width: 100%;">
                             </div>
                         </div>
                         
@@ -62,17 +62,18 @@
                                     <div id="alloweds-videos-add">
                                       {% include '/snippets/alloweds_add.html' %}
                                     </div>
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="button" class="btn btn-success">Add video</button></li>
-                        </div>
-                     </div>
-            </div>
-            </form>
-            </div>
+                                </form>
+                            </div>
+                            <!-- Modal Footer -->
+                            <div class="modal-footer">
+                                <ul class="nav navbar-left panel_toolbox">
+                                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                                </ul>
+                                <ul class="nav navbar-right panel_toolbox">
+                                    <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Set hardware</button></li>
+                                    <button id="send" type="button" class="btn btn-success">Add video</button></li>
+                                </ul>
+                            </div>
         </div>
     </div>
 </div>
@@ -100,7 +101,7 @@
                      
 			  <div class="x_panel" style="padding: 5px;">
                   <p style="font-size: 18px;margin-bottom:0px;">Set graphics parameters</p>
-					<div class="x_content" style="padding: 0px;">
+					<div class="x_content">
                         <div class="row">
                             <div class="col-md-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
@@ -136,16 +137,16 @@
                                 </div>
 -->
               
+                </form>
+            </div>
             <!-- Modal Footer -->
             <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="button" class="btn btn-success">Add graphics</button></li>
-                        </div>
-                     </div>
-            </div>
-            </form>
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <button id="send" type="button" class="btn btn-success">Add graphics</button></li>
+                </ul>
             </div>
         </div>
     </div>
@@ -170,76 +171,75 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 
-              <form id="modalInterfacesForm" class="form-horizontal form-label-left">
-                     
-			  <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">Set interface parameters</p>
-					<div class="x_content" style="padding: 0px;">
-                        <div class="row">
-                            <input id="id" name="id" value="" hidden/>
-                            <div class="col-md-4 col-xs-12">
-                                <label class="control-label" for="name">Name <span class="required">*</span>
-                                </label>
-                                  <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                            </div>
-                            <div class="col-md-8 col-xs-12">
-                                <label class="control-label" for="description">Description 
-                                </label>
-                                <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
-                            </div>
-                        </div>
-
-                        <div class="row">
-                           <div class="col-md-4 col-xs-12">
-                              <label class="control-label" for="ifname">Interface Name <span class="required">*</span>
-                              </label>
-                              <input id="ifname" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="ifname" placeholder="Must match hypervisor definition" data-parsley-trigger="change" required type="text">
-                           </div>
-                           <!-- <div class="col-md-8 col-xs-12">
-                              <label class="control-label" for="net">Network
-                              </label>
-                              <input id="net"  class="roundbox" name="net" placeholder="Network (Ex.: 192.168.1.0/24)"  type="text" style="width:100%" data-parsley-cidr="">
-                           </div> -->
-                        </div>
+                <form id="modalInterfacesForm" class="form-horizontal form-label-left">
                         
-                        <div class="row">
-                            <div class="col-md-6 col-xs-12">
-                                    <label class="control-label" for="kind">Type: <span class="required">*</span></label>
-                                       <select id="kind" name="kind" class="form-control roundbox" required>
-                                          <option value="">Choose..</option>
-                                          <option value="bridge">Bridge</option>
-                                          <option value="network">Network</option>
-                                       </select>
-                             </div>
-                             <div class="col-md-6 col-xs-12">
-                                    <label class="control-label" for="model">Model: <span class="required">*</span></label>
-                                       <select id="model" name="model" class="form-control roundbox" required>
-                                          <option value="">Choose..</option>
-                                          <option value="rtl8931">rtl8931</option>
-                                          <option value="virtio">virtio</option>
-                                          <option value="e1000">e1000</option>
-                                       </select>
-                              </div>
-                              <div class="col-md-6 col-xs-12">
-                                <label class="control-label" for="model">QoS: <span class="required">*</span></label>
-                                   <select id="qos_id" name="qos_id" class="form-control roundbox" required>
-                                   </select>
-                          </div>                              
+                    <div class="x_panel" style="padding: 5px;">
+                        <p style="font-size: 18px;margin-bottom:0px;">Set interface parameters</p>
+                        <div class="x_content" style="padding: 0px;">
+                            <div class="row">
+                                <input id="id" name="id" value="" hidden/>
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                        <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                                </div>
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="description">Description 
+                                    </label>
+                                    <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="ifname">Interface Name <span class="required">*</span>
+                                    </label>
+                                    <input id="ifname" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="ifname" placeholder="Must match hypervisor definition" data-parsley-trigger="change" required type="text">
+                                </div>
+                                <!-- <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="net">Network
+                                    </label>
+                                    <input id="net"  class="roundbox" name="net" placeholder="Network (Ex.: 192.168.1.0/24)"  type="text" style="width:100%" data-parsley-cidr="">
+                                </div> -->
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 col-xs-12">
+                                        <label class="control-label" for="kind">Type: <span class="required">*</span></label>
+                                            <select id="kind" name="kind" class="form-control roundbox" required>
+                                                <option value="">Choose..</option>
+                                                <option value="bridge">Bridge</option>
+                                                <option value="network">Network</option>
+                                            </select>
+                                    </div>
+                                    <div class="col-md-6 col-xs-12">
+                                        <label class="control-label" for="model">Model: <span class="required">*</span></label>
+                                            <select id="model" name="model" class="form-control roundbox" required>
+                                                <option value="">Choose..</option>
+                                                <option value="rtl8931">rtl8931</option>
+                                                <option value="virtio">virtio</option>
+                                                <option value="e1000">e1000</option>
+                                            </select>
+                                    </div>
+                                    <div class="col-md-6 col-xs-12">
+                                    <label class="control-label" for="model">QoS: <span class="required">*</span></label>
+                                        <select id="qos_id" name="qos_id" class="form-control roundbox" required>
+                                        </select>
+                                </div>                              
+                            </div>
+                        
                         </div>
-                    
-				</div>
-              </div>
-              
+                    </div>
+                </form>
+            </div>
             <!-- Modal Footer -->
             <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="button" class="btn btn-success">Add interface</button></li>
-                        </div>
-                     </div>
-            </div>
-            </form>
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <button id="send" type="button" class="btn btn-success">Add interface</button></li>
+                </ul>
             </div>
         </div>
     </div>
@@ -317,17 +317,17 @@
                     </div>    
                 </div>   
 
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="button" class="btn btn-success">Add Net QoS</button></li>
-                        </div>
-                     </div>
-            </div>
             </form>
-            </div>
+        </div>
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+                <button id="send" type="button" class="btn btn-success">Add Net QoS</button></li>
+            </ul>
+        </div>
         </div>
     </div>
 </div>
@@ -357,7 +357,7 @@
                     <div class="col-md-4 col-xs-12">
                         <label class="control-label" for="name">Name <span class="required">*</span>
                         </label>
-                          <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                          <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width: 100%;">
                     </div>
                     <div class="col-md-8 col-xs-12">
                         <label class="control-label" for="description">Description 
@@ -460,16 +460,15 @@
 
                     </div>   
                 </div>
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="button" class="btn btn-success">Add interface</button></li>
-                        </div>
-                     </div>
-            </div>
             </form>
+            </div>
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <button id="send" type="button" class="btn btn-success">Add Net QoS</button></li>
+                </ul>
             </div>
         </div>
     </div>
@@ -498,7 +497,7 @@
                      
 			  <div class="x_panel" style="padding: 5px;">
                   <p style="font-size: 18px;margin-bottom:0px;">Set client parameters</p>
-					<div class="x_content" style="padding: 0px;">
+					<div class="x_content">
                         <div class="row">
                             <input id="id" name="id" value="" hidden/>
                             <div class="col-md-4 col-xs-12">
@@ -522,17 +521,15 @@
                         </div>
 				</div>
 			  </div>
-
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                     <div class="form-group">
-                        <div class="col-md-6 col-md-offset-3">
-                           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                           <button id="send" type="button" class="btn btn-success">Add VPN client</button></li>
-                        </div>
-                     </div>
-            </div>
             </form>
+            </div>
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <button id="send" type="button" class="btn btn-success">Add VPN client</button></li>
+                </ul>
             </div>
         </div>
     </div>

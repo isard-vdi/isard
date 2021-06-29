@@ -92,7 +92,7 @@ $(document).ready(function() {
                     if(key == 'category'){
                         $("#parent_category").find('option').remove().end();
                         for(var i in d[key]){
-                            $("#parent_category").append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                            $("#parent_category").append('<option value=' + value[i].id + '>' + value[i].name + ' - ' + value[i].description + '</option>');
                         }
                         //$("."+key+' option[value="local"]').prop("selected",true);
                     }
