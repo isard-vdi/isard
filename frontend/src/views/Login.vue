@@ -98,13 +98,11 @@ export default {
       pwd: '',
       window: window,
       error: '',
-      showDismissibleAlert: false
+      showDismissibleAlert: false,
+      category: ''
     }
   },
   computed: {
-    category () {
-      return this.categories.length === 1 ? this.categories[0].id : ''
-    },
     categories_select () {
       return this.categories.map(category =>
         ({
@@ -160,7 +158,11 @@ export default {
   },
   beforeMount: async function () {
     this.$store.dispatch('fetchConfig')
-    this.$store.dispatch('fetchCategories')
+    this.$store.dispatch('fetchCategories').then(() => {
+      if (this.categories.length === 1) {
+        this.category = this.categories[0].id
+      }
+    })
 
     if (this.category_by_path) {
       this.category = this.$route.params.category
