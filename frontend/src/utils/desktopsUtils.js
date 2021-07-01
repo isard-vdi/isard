@@ -12,7 +12,7 @@ export class DesktopUtils {
         state: [desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down']].includes(state.toLowerCase()) ? state : desktopStates.working,
         type,
         ip,
-        viewers,
+        viewers: (viewers !== undefined && viewers !== null) ? viewers : [],
         template
       }
     }) || []
@@ -47,5 +47,9 @@ export class DesktopUtils {
     }
 
     return total % H + 1
+  }
+
+  static filterViewerFromList (viewers, viewer) {
+    return viewers.filter(item => item !== viewer)
   }
 }

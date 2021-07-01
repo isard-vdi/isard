@@ -78,16 +78,16 @@
                     @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})">
                   </DesktopButton>
                   <isard-dropdown
-                  v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && [desktopStates.started, desktopStates.waitingip].includes(desktopState))"
+                  v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
                     :ddDisabled="!showDropDown"
                     cssClass='viewers-dropdown m-0'
                     :class="{ 'dropdown-inactive': !showDropDown }"
                     variant='light'
-                    :viewers="desktop.viewers && desktop.viewers.filter(item => item !== viewers[desktop.id])"
+                    :viewers="filterViewerFromList"
                     :desktop="desktop"
-                    :viewerText="viewers[desktop.id] !== undefined ? getViewerText.substring(0, 13) : $t('views.select-template.viewers')"
-                    :fullViewerText="viewers[desktop.id] !== undefined ? getViewerText : $t('views.select-template.viewers')"
-                    defaultViewer="browser"
+                    :viewerText="getViewerText.substring(0, 13)"
+                    :fullViewerText="getViewerText"
+                    :defaultViewer="getDefaultViewer"
                     :waitingIp="waitingIp"
                     @dropdownClicked="openDesktop">
                   </isard-dropdown>
@@ -128,6 +128,9 @@ export default {
   computed: {
     viewers () {
       return this.$store.getters.getViewers
+    },
+    filterViewerFromList () {
+      return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },
     stateBarCssClass () {
       const states = {
@@ -172,8 +175,8 @@ export default {
       return [desktopStates.started, desktopStates.waitingip].includes(this.desktopState)
     },
     getViewerText () {
-      const name = i18n.t(`views.select-template.viewer-name.${this.viewers[this.desktop.id]}`)
-      return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
+      const name = this.getDefaultViewer !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer}`) : i18n.t('views.select-template.viewers')
+      return this.getDefaultViewer !== '' ? i18n.t('views.select-template.viewer', i18n.locale, { name: name }) : name
     },
     hideViewers () {
       return this.desktop.state && this.desktop.type === 'nonpersistent' && this.desktopState === desktopStates.stopped
@@ -186,22 +189,16 @@ export default {
     },
     getCardDescription () {
       return (this.desktop.description !== null && this.desktop.description !== undefined) ? this.desktop.description : ''
-    }
-  },
-  watch: {
-    desktopState: {
-      immediate: true,
-      handler: function (newState) {
-        // if ([desktopStates.started, desktopStates.waitingip].includes(this.desktopState)) {
-        //   this.highlightDropdown = true
-        // }
-
-        if ([desktopStates.started, desktopStates.waitingip].includes(this.desktopState)) {
-          if (this.desktop) {
-            this.$store.dispatch('setDefaultViewer', { id: this.desktop.id, viewer: 'browser' })
-          }
+    },
+    getDefaultViewer () {
+      if (this.desktop.viewers !== undefined) {
+        if (this.viewers[this.desktop.id] !== undefined && this.desktop.viewers.includes(this.viewers[this.desktop.id])) {
+          return this.viewers[this.desktop.id]
+        } else if (this.desktop.viewers.length > 0) {
+          return this.desktop.viewers.includes('browser') ? 'browser' : this.desktop.viewers[0]
         }
       }
+      return ''
     }
   },
   data () {
