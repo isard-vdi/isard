@@ -193,8 +193,8 @@ def api_v2_user_insert():
                                     email)
         return json.dumps({'id':user_id}), 200, {'Content-Type': 'application/json'}
     except UserExists:
-        log.error("User "+user_username+" already exists.")
-        return json.dumps({"code":1,"msg":"User already exists"}), 404, {'Content-Type': 'application/json'}
+        user_id = provider+'-'+category_id+'-'+user_uid+'-'+user_username
+        return json.dumps({'id':user_id}), 200, {'Content-Type': 'application/json'}
     except RoleNotFound:
         log.error("Role "+role_username+" not found.")
         return json.dumps({"code":2,"msg":"Role not found"}), 404, {'Content-Type': 'application/json'}
@@ -331,14 +331,14 @@ def api_v2_user_desktops(id=False):
 
 
 # Add categorygroup
-@app.route('/api/v2/categorygroup', methods=['POST'])
-def api_v2_categorygroup_insert():
+@app.route('/api/v2/category', methods=['POST'])
+def api_v2_category_insert():
     try:
         # Required
         category_name = request.form.get('category_name', type = str)
-        group_name = request.form.get('group_name', type = str)
 
         # Optional
+        group_name = request.form.get('group_name', False)
         category_limits = request.form.get('category_limits', False)
         if category_limits == 'False': category_limits = False
         if category_limits != False: category_limits=json.loads(category_limits)
@@ -360,16 +360,57 @@ def api_v2_categorygroup_insert():
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
 
     try:
-        users.CategoryGroupCreate( category_name, \
+        category_id=users.CategoryCreate( category_name, \
                                             group_name,
                                             category_limits=category_limits,
                                             category_quota=category_quota,
                                             group_quota=group_quota)
-        return json.dumps({}), 200, {'Content-Type': 'application/json'}
+        return json.dumps({'id':category_id}), 200, {'Content-Type': 'application/json'}
     except Exception as e:
-        log.error("Category / Group create error.")
+        log.error("Category create error.")
         error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"General exception when creating category/group pair: "+error}), 401, {'Content-Type': 'application/json'}
+        return json.dumps({"code":9,"msg":"General exception when creating category pair: "+error}), 401, {'Content-Type': 'application/json'}
+
+# Add group
+@app.route('/api/v2/group', methods=['POST'])
+def api_v2_group_insert():
+    try:
+        # Required
+        category_id = request.form.get('category_id', type = str)
+        group_name = request.form.get('group_name', type = str)
+
+        # Optional
+        category_limits = request.form.get('category_limits', False)
+        if category_limits == 'False': category_limits = False
+        if category_limits != False: category_limits=json.loads(category_limits)
+        category_quota = request.form.get('category_quota', False)
+        if category_quota == 'False': category_quota = False
+        if category_quota != False: category_quota=json.loads(category_quota)
+        group_quota = request.form.get('group_quota', False)
+        if group_quota == 'False': group_quota = False
+        if group_quota != False: group_quota=json.loads(group_quota)
+
+    ## We should check here if limits and quotas have a correct dict schema
+
+    ##
+    except Exception as e:
+        error = traceback.format_exc()
+        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
+    if category_id == None:
+        log.error("Incorrect access parameters. Check your query.")
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
+
+    try:
+        group_id=users.GroupCreate( category_id, \
+                            group_name,
+                            category_limits=category_limits,
+                            category_quota=category_quota,
+                            group_quota=group_quota)
+        return json.dumps({'id':group_id}), 200, {'Content-Type': 'application/json'}
+    except Exception as e:
+        log.error(" Group create error.")
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"General exception when creating group: "+error}), 401, {'Content-Type': 'application/json'}
 
 
 @app.route('/api/v2/categories', methods=['GET'])

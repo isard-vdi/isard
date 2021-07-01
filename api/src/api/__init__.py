@@ -48,6 +48,7 @@ from .views import JumperViewerView
 from .views import DesktopsPersistentView
 from .views import XmlView
 from .views import SundryView
+from .views import TemplatesView
 
 
 

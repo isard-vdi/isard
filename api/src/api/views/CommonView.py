@@ -68,7 +68,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             + ", desktop not found"
         )
         return (
-            json.dumps({"code": 1, "msg": "Desktop viewer id not found"}),
+            json.dumps({"code": 1, "msg": "Desktop viewer: desktop id not found"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -81,7 +81,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             + ", desktop not started"
         )
         return (
-            json.dumps({"code": 2, "msg": "Desktop viewer is not started"}),
+            json.dumps({"code": 2, "msg": "Desktop viewer: desktop is not started"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -94,7 +94,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             + ", viewer access not allowed"
         )
         return (
-            json.dumps({"code": 3, "msg": "Desktop viewer id not owned by user"}),
+            json.dumps({"code": 3, "msg": "Desktop viewer: desktop id not owned by user"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -107,7 +107,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             + ", viewer protocol not found"
         )
         return (
-            json.dumps({"code": 4, "msg": "Desktop viewer protocol not found"}),
+            json.dumps({"code": 4, "msg": "Desktop viewer: viewer protocol not found"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -120,7 +120,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             + ", viewer protocol not implemented"
         )
         return (
-            json.dumps({"code": 5, "msg": "Desktop viewer protocol not implemented"}),
+            json.dumps({"code": 5, "msg": "Desktop viewer: viewer protocol not implemented"}),
             404,
             {"Content-Type": "application/json"},
         )

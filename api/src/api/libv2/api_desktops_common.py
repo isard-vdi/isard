@@ -33,12 +33,19 @@ ds = DS()
 
 from .helpers import _check, _parse_string, _parse_media_info, _disk_path
 
+import secrets
 
 class ApiDesktopsCommon:
     def __init__(self):
         None
 
     def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
+        if protocol in ['url','file']:
+            direct_protocol = protocol
+            protocol = 'vnc-html5'
+        else:
+            direct_protocol = False
+
         try:
             viewer_txt = isardviewer.viewer_data(
                 desktop_id, protocol, get_cookie=get_cookie
@@ -53,7 +60,11 @@ class ApiDesktopsCommon:
             raise
         except ViewerProtocolNotImplemented:
             raise
-        return viewer_txt
+
+        if not direct_protocol:
+            return viewer_txt
+        else:
+            return self.DesktopDirectViewer(desktop_id, viewer_txt, direct_protocol)
 
     def DesktopViewerFromToken(self, token):
         with app.app_context():
@@ -91,3 +102,29 @@ class ApiDesktopsCommon:
             except:
                 raise
         raise
+
+    def DesktopDirectViewer(self, desktop_id, viewer_txt, protocol):
+        log.error(viewer_txt)
+        viewer_uri=viewer_txt['viewer'][0].split('/viewer/')[0]+'/vw/'
+
+        jumpertoken=False
+        with app.app_context():
+            try:
+                jumpertoken = r.table("domains").get(desktop_id).pluck('jumperurl').run(db.conn)['jumperurl']
+            except:
+                pass
+        if jumpertoken == False:
+            jumpertoken = self.gen_jumpertoken(desktop_id)
+        
+        return {'kind': protocol,'viewer':viewer_uri+jumpertoken+'?protocol='+protocol, 'cookie': False}
+
+    def gen_jumpertoken(self, desktop_id, length=128):
+        code = False
+        while code == False:
+            code = secrets.token_urlsafe(length) 
+            found=list(r.table('domains').filter({'jumperurl':code}).run(db.conn))
+            if len(found) == 0:
+                with app.app_context():
+                    r.table('domains').get(desktop_id).update({'jumperurl':code}).run(db.conn)                
+                return code
+        return False
