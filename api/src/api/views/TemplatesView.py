@@ -27,10 +27,10 @@ quotas = Quotas()
 from ..libv2.api_users import ApiUsers
 users = ApiUsers()
 
-from ..libv2.api_desktops import ApiDesktops
-desktops = ApiDesktops()
+# from ..libv2.api_desktops import ApiDesktops
+# desktops = ApiDesktops()
 
-from ..libv2.api_desktops import ApiTemplates
+from ..libv2.api_templates import ApiTemplates
 templates = ApiTemplates()
 
 @app.route('/api/v2/template', methods=['POST'])
@@ -85,3 +85,18 @@ def api_v2_template_new():
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return json.dumps({"code":9,"msg":"TemplateNew general exception: " + str(e) }), 401, {'Content-Type': 'application/json'}
+
+@app.route('/api/v2/template/<id>', methods=['GET'])
+def api_v2_template(id=False):
+    if id == False:
+        log.error("Incorrect access parameters. Check your query.")
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
+
+    try:
+        template = templates.Get(id)
+        if template:
+            return json.dumps(template), 200, {'Content-Type': 'application/json'}
+        return json.dumps({"code":2,"msg":"Template not found"}), 401, {'Content-Type': 'application/json'}
+    except Exception as e:
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"Template general exception: " + error }), 401, {'Content-Type': 'application/json'}
