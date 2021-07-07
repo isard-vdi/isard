@@ -31,6 +31,18 @@ export class DesktopUtils {
     }) || []
   }
 
+  static parseDeployments (items) {
+    return items.map((item) => {
+      const { id, name, startedDesktops, totalDesktops } = item
+      return {
+        id,
+        name,
+        currentlyUsedDesktops,
+        totalDesktops
+      }
+    }) || []
+  }
+
   static getIcon (name) {
     return ['fab', name]
   }

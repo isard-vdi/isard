@@ -1,6 +1,7 @@
 {
     "components": {
         "navbar": {
+            "home": "Inicio",
             "help": "Ayuda",
             "vpn": {
                 "download": "VPN",
@@ -13,7 +14,8 @@
                     "description": "No se ha podido descargar el archivo de configuración de la VPN debido a un error"
                 }
             },
-            "admin": "Administración"
+            "admin": "Administración",
+            "deployments": "Deployments"
         },
         "statusbar": {
             "desktops-started": "Desktops arrancados",

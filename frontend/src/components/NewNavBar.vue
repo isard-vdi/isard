@@ -10,6 +10,8 @@
 
         <b-collapse id="nav-collapse" is-nav>
           <b-navbar-nav id="left-side" class="mt-5 mt-lg-0">
+            <b-nav-item :to="{ name: 'Home' }">{{ $t("components.navbar.home") }}</b-nav-item>
+            <b-nav-item v-if="user.role != 'user'" :to="{ name: 'Deployments' }">{{ $t("components.navbar.deployments") }}</b-nav-item>
             <b-nav-item href="#" v-b-modal.help_modal>{{ $t("components.navbar.help") }}</b-nav-item>
             <b-nav-item href="#" @click="fetchVpn()">{{ $t("components.navbar.vpn.download") }}</b-nav-item>
             <b-nav-item v-if="user.role != 'user' || config['show_admin_button']" href="/isard-admin/login" >

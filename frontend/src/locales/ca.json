@@ -1,6 +1,7 @@
 {
     "components": {
         "navbar": {
+            "home": "Inici",
             "help": "Ajuda",
             "vpn": {
                 "download": "VPN",
@@ -13,7 +14,8 @@
                     "description": "No s'ha pogut descarregar l'arxiu de configuració de la VPN degut a un error"
                 }
             },
-            "admin": "Administració"
+            "admin": "Administració",
+            "deployments": "Deployments"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",

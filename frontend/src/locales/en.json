@@ -1,6 +1,7 @@
 {
     "components": {
         "navbar": {
+            "home": "Home",
             "help": "Help",
             "vpn": {
                 "download": "VPN",
@@ -13,7 +14,8 @@
                     "description": "We couldn't download the VPN configuration file due to an error"
                 }
             },
-            "admin": "Administration"
+            "admin": "Administration",
+            "deployments": "Deployments"
         },
         "statusbar": {
             "desktops-started": "Desktops started",
