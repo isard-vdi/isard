@@ -21,7 +21,7 @@
                     "title": "Téléchargé"
                 },
                 "loading": {
-                    "description": "En attente d'une réponse du serveur",
+                    "description": "En attente d’une réponse du serveur",
                     "title": "Chargement"
                 }
             },
@@ -114,11 +114,23 @@
                     "text": "Démarré"
                 },
                 "failed": {
-                    "text": "Échec"
+                    "text": "Échec",
+                    "action": "Échec"
                 },
                 "waitingip": {
                     "action": "Arrêter",
                     "text": "En attente de l’IP"
+                },
+                "shutting-down": {
+                    "action": "Arrêt en cours",
+                    "text": "Arrêt en cours"
+                },
+                "working": {
+                    "action": "en exécution",
+                    "text": "En attente"
+                },
+                "readyCreation": {
+                    "text": "Prêt pour la création"
                 }
             },
             "remove": "Retirer",
@@ -143,7 +155,8 @@
         "maintenance": {
             "sorry": "Désolé pour le désagrément",
             "the-service": "Le service sera de nouveau disponible dans quelques minutes",
-            "title": "Actuellement, le service Isard est en maintenance"
+            "title": "Actuellement, le service Isard est en maintenance",
+            "go-login": "Aller à la connexion"
         },
         "expired-session": {
             "subtitle": "Pour utiliser le bureau virtuel, connectez-vous à nouveau",
@@ -176,7 +189,7 @@
             "admin": "Administration",
             "vpn": {
                 "downloadvpn-error": {
-                    "description": "Nous n'avons pas pu télécharger le fichier de configuration du RPV en raison d'une erreur",
+                    "description": "Nous n’avons pas pu télécharger le fichier de configuration du RPV en raison d’une erreur",
                     "title": "Erreur"
                 },
                 "downloaded": {
@@ -221,7 +234,8 @@
                 "description": "Description",
                 "state": "État",
                 "name": "Nom"
-            }
+            },
+            "no-info-default": "Aucune description disponible"
         },
         "rdp-modal": {
             "button-refresh": "Actualiser",
@@ -237,6 +251,10 @@
                 "disconnected": "Vous avez été déconnecté·e",
                 "connecting": "Connexion au serveur…"
             }
+        },
+        "statusbar": {
+            "checkbox-text": "Seulement les démarrés",
+            "desktops-started": "Bureaux démarrés"
         }
     }
 }

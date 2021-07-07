@@ -3,7 +3,8 @@
         "maintenance": {
             "the-service": "Isard wird in wenigen Minuten wieder verfügbar sein",
             "title": "Derzeit wird Isard gewartet",
-            "sorry": "Entschuldigung für die Unannehmlichkeiten"
+            "sorry": "Entschuldigung für die Unannehmlichkeiten",
+            "go-login": "Zur Anmeldung gehen"
         },
         "select-template": {
             "no-templates": {
@@ -17,7 +18,7 @@
                 },
                 "loading": {
                     "description": "Warten auf Serverantwort",
-                    "title": "Lade …"
+                    "title": "Wird geladen"
                 }
             },
             "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?",
@@ -32,7 +33,8 @@
                     "text": "Gestartet"
                 },
                 "failed": {
-                    "text": "Fehlgeschlagen"
+                    "text": "Fehlgeschlagen",
+                    "action": "Fehlgeschlagen"
                 },
                 "notCreated": {
                     "action": "Erstellen"
@@ -40,6 +42,17 @@
                 "waitingip": {
                     "action": "Stoppen",
                     "text": "Warten auf IP"
+                },
+                "shutting-down": {
+                    "action": "Wird gestoppt",
+                    "text": "Wird gestoppt"
+                },
+                "working": {
+                    "action": "wird ausgeführt",
+                    "text": "Ausstehend"
+                },
+                "readyCreation": {
+                    "text": "Bereit für die Erstellung"
                 }
             },
             "error": {
@@ -188,7 +201,8 @@
                 "description": "Beschreibung",
                 "state": "Status",
                 "name": "Name"
-            }
+            },
+            "no-info-default": "Keine Beschreibung vorhanden"
         },
         "rdp-modal": {
             "button-refresh": "Aktualisieren",
@@ -204,6 +218,10 @@
                 "disconnected": "Ihre Verbindung wurde getrennt",
                 "connecting": "Verbindung zum Server wird hergestellt …"
             }
+        },
+        "statusbar": {
+            "checkbox-text": "Nur gestartet",
+            "desktops-started": "Arbeitoberfläche gestartet"
         }
     }
 }
