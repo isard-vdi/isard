@@ -37,10 +37,24 @@ export class DesktopUtils {
       return {
         id,
         name,
-        currentlyUsedDesktops,
+        startedDesktops,
         totalDesktops
       }
     }) || []
+  }
+
+  static parseDeployment (items) {
+    return items.map((item) => {
+      const { id, user, name, description, state, viewers } = item
+      return {
+        id,
+        user,
+        name,
+        description,
+        state,
+        viewers
+      }
+    })
   }
 
   static getIcon (name) {

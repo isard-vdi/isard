@@ -25,9 +25,9 @@
                 {{ data.item.description }}
               </p>
             </template>
-            <template #cell(currentlyUsedDesktops)='data'>
+            <template #cell(startedDesktops)='data'>
               <p class='text-dark-gray m-0'>
-                {{ data.item.currentlyUsedDesktops }} / {{ data.item.totalDesktops }}
+                {{ data.item.startedDesktops }} / {{ data.item.totalDesktops }}
               </p>
             </template>
           </b-table>
