@@ -229,7 +229,10 @@ class ApiUsers():
                     d["type"] = "nonpersistent"
                 d["viewers"] = []
                 if d["status"] == "Started":
-                    if "default" in d["create_dict"]["hardware"]["videos"]:
+                    if any(
+                            item in d["create_dict"]["hardware"]["videos"]
+                            for item in ["default", "vga"]
+                    ):
                         d["viewers"].extend(["spice", "browser"])
                     if "wireguard" in d["create_dict"]["hardware"]["interfaces"]:
                         d["ip"] = d.get("viewer", {}).get("guest_ip")

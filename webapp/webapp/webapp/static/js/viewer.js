@@ -35,7 +35,11 @@ function startClientVpnSocket(socket){
 
 function setViewerButtons(data,socket,offer){
     offer=[]
-    if (data.create_dict.hardware.videos.includes("default")) {
+    if (
+        ["default", "vga"].some(
+            (item) => data.create_dict.hardware.videos.includes(item)
+        )
+    ) {
         offer.push(
             {
                 'type': 'spice',
