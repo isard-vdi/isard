@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-websockify:
     build: ${BUILD_ROOT_PATH}/websockify

@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-hypervisor:
     container_name: isard-hypervisor
@@ -10,8 +10,8 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET}.17
       isard-vpn:
-    ports:
-      - "2022:22"
+    # ports:
+    #   - "2022:22"
     privileged: true
     restart: unless-stopped
     volumes:

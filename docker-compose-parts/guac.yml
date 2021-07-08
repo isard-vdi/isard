@@ -1,10 +1,8 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-guac:
     container_name: isard-guac
     image: ${DOCKER_IMAGE_PREFIX}guac:${DOCKER_IMAGE_TAG-latest}
-    ports:
-      - 4567:4567
     environment:
       GUACD_ADDR: isard-vpn:4822
       BACKEND_HOST: ${BACKEND_HOST} 

@@ -6,9 +6,6 @@ services:
     logging:
       options:
         max-size: "100m"
-    ports:
-      - "8080:8080"
-      - "28015:28015"
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET}.13
