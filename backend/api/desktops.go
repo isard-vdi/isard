@@ -9,7 +9,7 @@ import (
 	"github.com/isard-vdi/isard/backend/model"
 )
 
-func checkAuthorizationByID(u *model.User, id string) error {
+func checkDesktopAuthorizationByID(u *model.User, id string) error {
 	found := false
 	for _, desktop := range u.Desktops {
 		if desktop.ID == id {
@@ -60,7 +60,7 @@ func (a *API) desktopStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := getUsr(r.Context())
-	if err := checkAuthorizationByID(u, d); err != nil {
+	if err := checkDesktopAuthorizationByID(u, d); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -99,7 +99,7 @@ func (a *API) desktopStop(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := getUsr(r.Context())
-	if err := checkAuthorizationByID(u, d); err != nil {
+	if err := checkDesktopAuthorizationByID(u, d); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -138,7 +138,7 @@ func (a *API) desktopDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := getUsr(r.Context())
-	if err := checkAuthorizationByID(u, d); err != nil {
+	if err := checkDesktopAuthorizationByID(u, d); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -171,7 +171,7 @@ func (a *API) desktopViewer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := getUsr(r.Context())
-	if err := checkAuthorizationByID(u, d); err != nil {
+	if err := checkDesktopAuthorizationByID(u, d); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
