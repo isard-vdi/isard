@@ -16,22 +16,19 @@ from flask import request
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas_exc import *
 
-#from ..libv2.telegram import tsend
-def tsend(txt):
-    None
-from ..libv2.carbon import Carbon
-carbon = Carbon()
-
 from ..libv2.quotas import Quotas
 quotas = Quotas()
 
 from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
 desktops = ApiDesktopsNonPersistent()
 
-@app.route('/api/v2/desktop', methods=['POST'])
-def api_v2_desktop_new():
+from .decorators import has_token, is_admin, ownsUserId, ownsCategoryId, ownsDomainId, allowedTemplateId
+
+@app.route('/api/v3/desktop', methods=['POST'])
+@has_token
+def api_v3_desktop_new(payload):
     try:
-        user_id = request.form.get('id', type = str)
+        user_id = payload['user_id']
         template_id = request.form.get('template', type = str)
     except Exception as e:
         return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
@@ -39,6 +36,7 @@ def api_v2_desktop_new():
         log.error("Incorrect access parameters. Check your query.")
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
 
+    if not allowedTemplateId(payload,template_id): return json.dumps({"code":10,"msg":"Forbidden: "}), 403, {'Content-Type': 'application/json'}
     # Leave only one nonpersistent desktop from this template
     try:
         desktops.DeleteOthers(user_id,template_id)
@@ -135,9 +133,7 @@ def api_v2_desktop_new():
     # So now we have checked if desktop exists and if we can create and/or start it
 
     try:
-        now=time.time()
         desktop_id = desktops.New(user_id,template_id)
-        carbon.send({'create_and_start_time':str(round(time.time()-now,2))})
         return json.dumps({'id': desktop_id}), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
         log.error("Desktop for user "+user_id+" from template "+template_id+", user not found")
@@ -147,11 +143,9 @@ def api_v2_desktop_new():
         return json.dumps({"code":2,"msg":"DesktopNew template not found"}), 404, {'Content-Type': 'application/json'}
     except DesktopNotCreated:
         log.error("Desktop for user "+user_id+" from template "+template_id+" creation failed.")
-        carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":1,"msg":"DesktopNew not created"}), 404, {'Content-Type': 'application/json'}
     except DesktopActionTimeout:
         log.error("Desktop for user "+user_id+" from template "+template_id+" start timeout.")
-        carbon.send({'create_and_start_time':'100'})
         return (
             json.dumps({"code": 2, "msg": "DesktopNew start timeout"}),
             408,
@@ -159,22 +153,21 @@ def api_v2_desktop_new():
         )
     except DesktopActionFailed:
         log.error("Desktop for user "+user_id+" from template "+template_id+" start failed.")
-        carbon.send({'create_and_start_time':'100'})
         return json.dumps({"code":3,"msg":"DesktopNew start failed"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"DesktopNew general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-@app.route('/api/v2/desktop/<desktop_id>', methods=['DELETE'])
-def api_v2_desktop_delete(desktop_id=False):
+@app.route('/api/v3/desktop/<desktop_id>', methods=['DELETE'])
+@has_token
+def api_v3_desktop_delete(payload, desktop_id=False):
     if desktop_id == False:
         log.error("Incorrect access parameters. Check your query.")
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
 
+    if not ownsDomainId(payload,desktop_id): return json.dumps({"code":10,"msg":"Forbidden: "}), 403, {'Content-Type': 'application/json'}
     try:
-        now=time.time()
         desktops.Delete(desktop_id)
-        carbon.send({'delete_time':str(round(time.time()-now,2))})
         return json.dumps({}), 200, {'Content-Type': 'application/json'}
     except DesktopNotFound:
         log.error("Desktop delete "+desktop_id+", desktop not found")

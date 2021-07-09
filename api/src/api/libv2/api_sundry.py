@@ -39,4 +39,4 @@ class ApiSundry():
     def UpdateGuestAddr(self, domain_id, data):
         with app.app_context():
             if not _check(r.table('domains').get(domain_id).update(data).run(db.conn),'replaced'):
-                raise UpdateFailed            
+                raise UpdateFailed

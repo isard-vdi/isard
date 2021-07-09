@@ -82,9 +82,9 @@ class DS():
         for desktop in desktops_to_delete:
             ds.delete_desktop(desktop['id'],desktop['status'])
 
-    def WaitStatus(self, desktop_id, original_status, transition_status, final_status):
+    def WaitStatus(self, desktop_id, original_status, transition_status, final_status, wait_seconds=10):
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(lambda p: self._wait_for_domain_status(*p), [desktop_id, original_status, transition_status, final_status])
+            future = executor.submit(lambda p: self._wait_for_domain_status(*p), [desktop_id, original_status, transition_status, final_status, wait_seconds])
         try:
             result = future.result()
         except ReqlTimeoutError:
@@ -93,7 +93,7 @@ class DS():
             raise DesktopActionFailed
         return True
 
-    def _wait_for_domain_status(self, desktop_id, original_status, transition_status, final_status):
+    def _wait_for_domain_status(self, desktop_id, original_status, transition_status, final_status, wait_seconds):
         with app.app_context():
             # Prepare changes
             if final_status == 'Deleted':
@@ -112,11 +112,11 @@ class DS():
 
             # Get change
             try:
-                doc = changestatus.next(wait=5)
+                doc = changestatus.next(wait=wait_seconds)
             except ReqlTimeoutError:
                 raise
             if final_status != 'Deleted':
-                if doc['new_val']['status'] == 'Failed':
+                if doc['new_val']['status'] != final_status:
                     raise DesktopWaitFailed
 
     def _check(self,dict,action):

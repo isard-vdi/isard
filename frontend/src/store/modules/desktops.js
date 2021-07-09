@@ -1,31 +1,14 @@
 import * as cookies from 'tiny-cookie'
-import { apiAxios } from '@/router/auth'
+import axios from 'axios'
 import i18n from '@/i18n'
 import router from '@/router'
 import { toast } from '@/store/index.js'
-import { desktopStates } from '../../shared/constants'
+import { apiV3Segment } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
-
-var polling
-
-function pollDesktops (context) {
-  if (!polling) {
-    polling = setInterval(() => {
-      context.dispatch('fetchDesktops')
-    }, 2000)
-  }
-}
-
-export function clearPolling () {
-  if (polling) {
-    clearInterval(polling)
-    polling = null
-  }
-}
 
 export default {
   state: {
-    viewers: cookies.getCookie('viewers') ? JSON.parse(cookies.getCookie('viewers')) : {},
+    viewers: localStorage.viewers ? JSON.parse(localStorage.viewers) : {},
     desktops: [],
     desktops_loaded: false,
     viewType: 'grid',
@@ -55,28 +38,48 @@ export default {
     },
     updateViewers: (state, viewers) => {
       state.viewers = { ...state.viewers, ...viewers }
-      cookies.setCookie('viewers', JSON.stringify(state.viewers))
+      localStorage.viewers = JSON.stringify(state.viewers)
     },
     setViewType: (state, type) => {
       state.viewType = type
     },
     toggleShowStarted: (state, type) => {
       state.showStarted = !state.showStarted
+    },
+    add_desktop: (state, desktop) => {
+      state.desktops = [...state.desktops, desktop]
+    },
+    update_desktop: (state, desktop) => {
+      const item = state.desktops.find(d => d.id === desktop.id)
+      Object.assign(item, desktop)
+    },
+    remove_desktop: (state, desktop) => {
+      const desktopIndex = state.desktops.findIndex(d => d.id === desktop.id)
+      if (desktopIndex !== -1) {
+        state.desktops.splice(desktopIndex, 1)
+      }
     }
   },
   actions: {
+    socket_desktopAdd (context, data) {
+      const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
+      context.commit('add_desktop', desktop)
+    },
+    socket_desktopUpdate (context, data) {
+      const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
+      context.commit('update_desktop', desktop)
+    },
+    socket_desktopDelete (context, data) {
+      const desktop = JSON.parse(data)
+      context.commit('remove_desktop', desktop)
+    },
     loadViewers (context, viewers) {
       context.commit('updateViewers', viewers)
     },
     fetchDesktops (context) {
       return new Promise((resolve, reject) => {
-        apiAxios.get('/desktops').then(response => {
+        axios.get(`${apiV3Segment}/user/desktops`).then(response => {
           context.commit('setDesktops', DesktopUtils.parseDesktops(response.data))
-          if (response.data.find(desktop => ![desktopStates.started, desktopStates.stopped, desktopStates.failed].includes(desktop.state.toLowerCase()))) {
-            pollDesktops(context)
-          } else {
-            clearPolling()
-          }
           resolve()
         }).catch(e => {
           console.log(e)
@@ -98,8 +101,7 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'),
         () => new Promise((resolve, reject) => {
-          apiAxios.post('/create', data, { timeout: 25000 }).then(response => {
-            context.dispatch('fetchDesktops')
+          axios.post(`${apiV3Segment}/desktop`, data, { timeout: 25000 }).then(response => {
             this._vm.$snotify.clear()
             resolve()
           }).catch(e => {
@@ -107,7 +109,6 @@ export default {
               reject(e)
               router.push({ name: 'Maintenance' })
             } else if (e.response.status === 408) {
-              pollDesktops(context)
               resolve(
                 toast(
                   i18n.t('views.select-template.error.create-timeout.title'),
@@ -142,9 +143,7 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'),
         () => new Promise((resolve, reject) => {
-          pollDesktops(context)
-          apiAxios.post(`/desktop/${data.desktopId}/${data.action}`).then(response => {
-            context.dispatch('fetchDesktops')
+          axios.get(`${apiV3Segment}/desktop/${data.action}/${data.desktopId}`).then(response => {
             this._vm.$snotify.clear()
             resolve()
           }).catch(e => {
@@ -193,7 +192,7 @@ export default {
             viewers[data.desktopId] = data.viewer
           }
           context.commit('updateViewers', viewers)
-          apiAxios.get(`/desktop/${data.desktopId}/viewer/${data.viewer}`).then(response => {
+          axios.get(`${apiV3Segment}/desktop/${data.desktopId}/viewer/${data.viewer}`).then(response => {
             const el = document.createElement('a')
             if (response.data.kind === 'file') {
               el.setAttribute(
@@ -201,9 +200,9 @@ export default {
                   `data:${response.data.mime};charset=utf-8,${encodeURIComponent(response.data.content)}`
               )
               el.setAttribute('download', `${response.data.name}.${response.data.ext}`)
-            } else if (response.data.kind === 'url') {
+            } else if (response.data.kind === 'browser') {
               cookies.setCookie('browser_viewer', response.data.cookie)
-              el.setAttribute('href', response.data.viewer[0])
+              el.setAttribute('href', response.data.viewer)
               el.setAttribute('target', '_blank')
             }
             el.style.display = 'none'
@@ -241,8 +240,7 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'),
         () => new Promise((resolve, reject) => {
-          apiAxios.delete(`/desktop/${desktopId}`).then(response => {
-            context.dispatch('fetchDesktops')
+          axios.delete(`${apiV3Segment}/desktop/${desktopId}`).then(response => {
             this._vm.$snotify.clear()
             resolve()
           }).catch(e => {

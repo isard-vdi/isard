@@ -6,8 +6,6 @@
 # License: AGPLv3
 import time
 from api import app
-from datetime import datetime, timedelta
-import pprint
 
 from rethinkdb import RethinkDB; r = RethinkDB()
 from rethinkdb.errors import ReqlTimeoutError
@@ -19,30 +17,13 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..auth.authentication import *
-
-from ..libv2.isardViewer import isardViewer
-isardviewer = isardViewer()
-
-from .apiv2_exc import *
-
 from .helpers import (
-    _check,
-    _parse_string,
-    _parse_media_info,
-    _disk_path,
-    _random_password,
+    _parse_deployment_desktop,
 )
-
-from .ds import DS 
-ds = DS()
-
-from ..libv2.isardViewer import isardViewer
-isardviewer = isardViewer()
 
 class ApiDeployments():
     def __init__(self):
-        self.au=auth()
+        None
 
     def List(self,user_id):
         with app.app_context():
@@ -56,31 +37,19 @@ class ApiDeployments():
 
     def Get(self,user_id,deployment_id):
         with app.app_context():
-            if user_id != r.table('deployments').get(deployment_id).pluck('user').run(db.conn)['user']: raise
-            desktops = list(r.table('domains').get_all(deployment_id,index='tag').pluck('id','user','name','description','status','create_dict').merge(lambda desktop:
-                            {
-                                "userName": r.table('users').get(desktop['user']).pluck('name')['name']
-                            }
-                        ).run(db.conn))
+            deployment = r.table('deployments').get(deployment_id).without('create_dict').run(db.conn)
+            if user_id != deployment['user']: raise
+            desktops = list(r.table('domains').get_all(deployment_id,index='tag').pluck('id','user','name','description','status','icon','image','persistent','parents','create_dict','viewer','options').run(db.conn))
+
+        parsed_desktops=[]
         for desktop in desktops:
-            desktop['state']=desktop.pop('status')
-            if desktop['state'] == 'Started':
-                # We only return the direct browser url.
-                # TODO: Check if it has RDP and send RDP instead of vnc?
-                desktop['viewer'] = isardviewer.viewer_data(
-                        desktop['id'], 'vnc-html5', get_cookie=False, get_dict=True
-                    )
-                desktop["viewers"] = []
-                if "default" in desktop["create_dict"]["hardware"]["videos"]:
-                    desktop["viewers"].extend(["spice", "browser"])
-                if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
-                    desktop["ip"] = d.get("viewer", {}).get("guest_ip")
-                    if not desktop["ip"]:
-                        desktop["state"] = "WaitingIP"
-                    if desktop["os"].startswith("win"):
-                        desktop["viewers"].extend(["rdp", "rdp-html5"])
-            desktop.pop('create_dict')
-        return desktops
+            tmp_desktop=_parse_deployment_desktop(desktop)
+            desktop_name = tmp_desktop.pop('name')
+            desktop_description = tmp_desktop.pop('description')
+            parsed_desktops.append(tmp_desktop)
 
-
-        
+        return {'id':deployment['id'],
+                'name':deployment['name'],
+                'desktop_name':desktop_name,
+                'description':desktop_description,
+                'desktops':parsed_desktops}

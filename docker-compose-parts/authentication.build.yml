@@ -1,0 +1,6 @@
+version: '3.5'
+services:
+  isard-authentication:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: authentication/build/package/Dockerfile

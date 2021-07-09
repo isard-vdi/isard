@@ -1,0 +1,17 @@
+version: '3.5'
+services:
+  isard-authentication:
+    container_name: isard-authentication
+    image: ${DOCKER_IMAGE_PREFIX}authentication:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      options:
+        max-size: "100m"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.11
+    restart: unless-stopped
+    volumes:
+      - "/opt/isard/backend/keys:/keys"
+      - "/opt/isard/backend/metadata:/metadata"
+    env_file:
+      - .env

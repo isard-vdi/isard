@@ -62,7 +62,7 @@
   background-size: cover;
   background-repeat: no-repeat;
   background-position:center;
-  background-color: #d5d5cd;
+  background-color: #918e91;
   border-radius: 50%;
 }
 
@@ -380,4 +380,26 @@
 .item-spinner {
   margin-left: 0.5rem;
   margin-top: 0.1rem;
+}
+
+/* LOGIN */
+.right-separator-border:before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  width: 1px;
+  border-right: magenta;
+}
+
+/* DEPLOYMENT LOGO */
+#deployment-logo {
+  width: 70px;
+  height: 70px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position:center;
+  background-color: #d5d5cd;
+  border-radius: 50%;
 }

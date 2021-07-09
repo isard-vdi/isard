@@ -16,12 +16,6 @@ from flask import request, jsonify
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas_exc import *
 
-#from ..libv2.telegram import tsend
-def tsend(txt):
-    None
-from ..libv2.carbon import Carbon
-carbon = Carbon()
-
 from ..libv2.quotas import Quotas
 quotas = Quotas()
 
@@ -31,48 +25,36 @@ users = ApiUsers()
 from ..libv2.isardVpn import isardVpn
 vpn = isardVpn()
 
-@app.route('/api/v2', methods=['GET'])
-def api_v2_test():
-    return "IsardVDI api v2", 200, {'Content-Type': 'application/json'}
+from .decorators import has_token, is_admin, ownsUserId, ownsCategoryId, is_register
 
-@app.route('/api/v2/login', methods=['POST'])
-def api_v2_login():
-    try:
-        id = request.form.get('id', type = str)
-        passwd = request.form.get('passwd', type = str)
-    except Exception as e:
-        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
-    if id == None or passwd == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
+'''
+Users jwt endpoints
+'''
+@app.route('/api/v3/jwt', methods=['GET'])
+@has_token
+def api_v3_jwt(payload):
+    ### Refreshes it's own token with new one.
+    return users.Jwt(payload['user_id'])
 
+@app.route('/api/v3/user', methods=['GET'])
+@has_token
+def api_v3_user_exists(payload):
     try:
-        id_ = users.Login(id, passwd)
-        return jsonify(success=True, id=id_)
-    except UserLoginFailed:
-        log.error("User "+id+" login failed.")
-        return json.dumps({"code":1,"msg":"User login failed"}), 403, {'Content-Type': 'application/json'}
+        user=users.Exists(payload['user_id'])
+        return json.dumps(user), 200, {'Content-Type': 'application/json'}
+    except UserNotFound:
+        log.error("User "+id+" not in database.")
+        return json.dumps({"code":1,"msg":"User not exists in database"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserExists general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-@app.route('/api/v2/category/<id>', methods=['GET'])
-def api_v2_category(id):
-    try:
-        data = users.CategoryGet(id)
-        return json.dumps(data), 200, {'Content-Type': 'application/json'}
-    except CategoryNotFound:
-        return json.dumps({"code":1,"msg":"Category "+id+" not exists in database"}), 404, {'Content-Type': 'application/json'}
-
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"Register general exception: " + error }), 500, {'Content-Type': 'application/json'}
-
-@app.route('/api/v2/register', methods=['POST'])
-def api_v2_register():
+@app.route('/api/v3/user/register', methods=['POST'])
+@is_register
+def api_v3_user_register(payload):
     try:
         code = request.form.get('code', type = str)
-        domain = request.form.get("email").split("@")[-1]
+        # domain = request.form.get("email").split("@")[-1]
     except Exception as e:
         return (
             json.dumps({"code": 8, "msg": "Incorrect access. exception: " + e}),
@@ -82,15 +64,7 @@ def api_v2_register():
 
     try:
         data = users.CodeSearch(code)
-        if check_category_domain(data.get("category"), domain):
-            return json.dumps(data), 200, {"Content-Type": "application/json"}
-        else:
-            log.info(f"Domain {domain} not allowed for category {data.get('category')}")
-            return (
-                json.dumps({"code": 10, "msg": f"User domain {domain} not allowed"}),
-                403,
-                {"Content-Type": "application/json"},
-            )
+        check_category_domain(data.get("category"), payload['category_id'])
     except CodeNotFound:
         log.error("Code not in database.")
         return json.dumps({"code":1,"msg":"Code "+code+" not exists in database"}), 404, {'Content-Type': 'application/json'}
@@ -98,29 +72,65 @@ def api_v2_register():
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"Register general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-@app.route('/api/v2/user/<id>', methods=['GET'])
-def api_v2_user_exists(id=False):
-    if id == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
-
     try:
-        user=users.Exists(id)
-        return json.dumps(user), 200, {'Content-Type': 'application/json'}
-    except UserNotFound:
-        log.error("User "+id+" not in database.")
-        return json.dumps({"code":1,"msg":"User not exists in database"}), 404, {'Content-Type': 'application/json'}
+        user_id=users.Create( payload['provider'], \
+                                    payload['category_id'], \
+                                    payload['user_id'], \
+                                    payload['username'], \
+                                    payload['name'], \
+                                    data.get("role"), \
+                                    data.get("group"), \
+                                    photo=payload['photo'], \
+                                    email=payload['email'])
+        return json.dumps({'id':user_id}), 200, {'Content-Type': 'application/json'}
+    except UserExists:
+        return json.dumps(payload), 200, {'Content-Type': 'application/json'}
+    except RoleNotFound:
+        log.error("Role "+data.get("role")+" not found.")
+        return json.dumps({"code":2,"msg":"Role not found"}), 404, {'Content-Type': 'application/json'}
+    except CategoryNotFound:
+        log.error("Category "+payload['category_id']+" not found.")
+        return json.dumps({"code":3,"msg":"Category not found"}), 404, {'Content-Type': 'application/json'}
+    except GroupNotFound:
+        log.error("Group "+data.get("group")+" not found.")
+        return json.dumps({"code":4,"msg":"Group not found"}), 404, {'Content-Type': 'application/json'}
+    except NewUserNotInserted:
+        log.error("User "+payload['username']+" could not be inserted into database.")
+        return json.dumps({"code":5,"msg":"User could not be inserted into database. Already exists!"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"UserExists general exception: " + error }), 401, {'Content-Type': 'application/json'}
+        return json.dumps({"code":9,"msg":"UserUpdate general exception: " + error }), 401, {'Content-Type': 'application/json'}
+
+
+
+# Check from isard-guac if the user owns the ip
+@app.route('/api/v3/user/owns_desktop', methods=['GET'])
+@has_token
+def api_v3_user_owns_desktop(payload):
+    try:
+        ip = request.form.get("ip", False)
+    except Exception as e:
+        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + str(e) }), 401, {'Content-Type': 'application/json'}
+
+    if ip == False:
+        log.error("Incorrect access parameters. Check your query.")
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query. At least one parameter should be specified." }), 401, {'Content-Type': 'application/json'}
+    try:
+        users.OwnsDesktop(payload['user_id'],ip)
+
+        return json.dumps({}), 200, {'Content-Type': 'application/json'}
+    except DesktopNotFound: # If not owns
+        log.error("User "+payload['username']+" not owns the desktop ip.")
+        return json.dumps({"code":1,"msg":"User "+payload['username']+" not owns the desktop ip"}), 401, {'Content-Type': 'application/json'}
+    except:
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"OwnsDesktop general exception: " + error }), 500, {'Content-Type': 'application/json'}
+
 
 # Update user name
-@app.route('/api/v2/user/<id>', methods=['PUT'])
-def api_v2_user_update(id=False):
-    if id == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
-
+@app.route('/api/v3/user', methods=['PUT'])
+@has_token
+def api_v3_user_update(payload):
     try:
         name = request.form.get("name", "")
         email = request.form.get("email", "")
@@ -132,7 +142,7 @@ def api_v2_user_update(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query. At least one parameter should be specified." }), 401, {'Content-Type': 'application/json'}
     try:
-        users.Update(id,user_name=name,user_email=email,user_photo=photo)
+        users.Update(payload['user_id'],user_name=name,user_email=email,user_photo=photo)
         return json.dumps({}), 200, {'Content-Type': 'application/json'}
     except UpdateFailed:
         log.error("User "+id+" update failed.")
@@ -141,291 +151,100 @@ def api_v2_user_update(id=False):
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserUpdate general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-# Add user
-@app.route('/api/v2/user', methods=['POST'])
-def api_v2_user_insert():
+@app.route('/api/v3/user', methods=['DELETE'])
+@has_token
+def api_v3_user_delete(payload):
     try:
-        # Required
-        provider = request.form.get('provider', type = str)
-        user_uid = request.form.get('user_uid', type = str)
-        user_username = request.form.get('user_username', type = str)
-        role_id = request.form.get('role', type = str)
-        category_id = request.form.get('category', type = str)
-        group_id = request.form.get('group', type = str)
-
-        # Optional
-        name=request.form.get('name', user_username, type = str)
-        password = request.form.get('password', False, type = str)
-        encrypted_password = request.form.get('encrypted_password', False, type = str)
-        photo = request.form.get('photo', '', type = str)
-        email = request.form.get('email', '', type = str)
-    except Exception as e:
-        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
-    if provider == None or user_username == None or role_id == None or category_id == None or group_id == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
-    if password == None: password = False
-
-    try:
-        quotas.UserCreate(category_id,group_id)
-    except QuotaCategoryNewUserExceeded:
-        log.error("Quota for creating another user in category "+category_id+" is exceeded")
-        return json.dumps({"code":11,"msg":"UserNew category quota for adding user exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaGroupNewUserExceeded:
-        log.error("Quota for creating another user in group "+group_id+" is exceeded")
-        return json.dumps({"code":11,"msg":"UserNew group quota for adding user exceeded"}), 507, {'Content-Type': 'application/json'}
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"UserNew quota check general exception: " + error }), 401, {'Content-Type': 'application/json'}
-
-
-    try:
-        user_id=users.Create( provider, \
-                                    category_id, \
-                                    user_uid, \
-                                    user_username, \
-                                    name, \
-                                    role_id, \
-                                    group_id, \
-                                    password, \
-                                    encrypted_password, \
-                                    photo, \
-                                    email)
-        return json.dumps({'id':user_id}), 200, {'Content-Type': 'application/json'}
-    except UserExists:
-        user_id = provider+'-'+category_id+'-'+user_uid+'-'+user_username
-        return json.dumps({'id':user_id}), 200, {'Content-Type': 'application/json'}
-    except RoleNotFound:
-        log.error("Role "+role_username+" not found.")
-        return json.dumps({"code":2,"msg":"Role not found"}), 404, {'Content-Type': 'application/json'}
-    except CategoryNotFound:
-        log.error("Category "+category_id+" not found.")
-        return json.dumps({"code":3,"msg":"Category not found"}), 404, {'Content-Type': 'application/json'}
-    except GroupNotFound:
-        log.error("Group "+group_id+" not found.")
-        return json.dumps({"code":4,"msg":"Group not found"}), 404, {'Content-Type': 'application/json'}
-    except NewUserNotInserted:
-        log.error("User "+user_username+" could not be inserted into database.")
-        return json.dumps({"code":5,"msg":"User could not be inserted into database. Already exists!"}), 404, {'Content-Type': 'application/json'}
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"UserUpdate general exception: " + error }), 401, {'Content-Type': 'application/json'}
-
-@app.route('/api/v2/user/<user_id>', methods=['DELETE'])
-def api_v2_user_delete(user_id):
-    try:
-        users.Delete(user_id)
+        users.Delete(payload['user_id'])
         return json.dumps({}), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
-        log.error("User delete "+user_id+", user not found")
+        log.error("User delete "+payload['user_id']+", user not found")
         return json.dumps({"code":1,"msg":"User delete id not found"}), 404, {'Content-Type': 'application/json'}
     except UserDeleteFailed:
-        log.error("User delete "+user_id+", user delete failed")
+        log.error("User delete "+payload['user_id']+", user delete failed")
         return json.dumps({"code":2,"msg":"User delete failed"}), 404, {'Content-Type': 'application/json'}
     except DesktopDeleteFailed:
-        log.error("User delete for user "+user_id+", desktop delete failed")
-        return json.dumps({"code":5,"msg":"User delete, desktop deleting failed"}), 404, {'Content-Type': 'application/json'}
+        log.error("User delete for user "+payload['user_id']+", user delete failed")
+        return json.dumps({"code":5,"msg":"User delete, user deleting failed"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserDelete general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-@app.route('/api/v2/user/<id>/templates', methods=['GET'])
-def api_v2_user_templates(id=False):
+@app.route('/api/v3/user/templates', methods=['GET'])
+@has_token
+def api_v3_user_templates(payload):
     if id == False:
         log.error("Incorrect access parameters. Check your query.")
         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
 
-    """ try:
-        quotas.DesktopCreateAndStart(id)
-    except QuotaUserNewDesktopExceeded:
-        log.error("Quota for user "+id+" to create a desktop exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user desktop quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaGroupNewDesktopExceeded:
-        log.error("Quota for user "+id+" to create a desktop in his group limits is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew group desktop limits CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaCategoryNewDesktopExceeded:
-        log.error("Quota for user "+id+" to create a desktop in his category limits is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew category desktop limits CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
-
-    except QuotaUserConcurrentExceeded:
-        log.error("Quota for user "+id+" to start a desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user quota CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaGroupConcurrentExceeded:
-        log.error("Quota for user "+id+" to start a desktop in his group is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user limits CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaCategoryConcurrentExceeded:
-        log.error("Quota for user "+id+" to start a desktop is his category exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user category limits CONCURRENT exceeded"}), 507, {'Content-Type': 'application/json'}
-    
-    except QuotaUserVcpuExceeded:
-        log.error("Quota for user "+id+" to allocate vCPU is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user quota vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaGroupVcpuExceeded:
-        log.error("Quota for user "+id+" to allocate vCPU in his group is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user group limits vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaCategoryVcpuExceeded:
-        log.error("Quota for user "+id+" to allocate vCPU in his category is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user category limits vCPU allocation exceeded"}), 507, {'Content-Type': 'application/json'}
-
-    except QuotaUserMemoryExceeded:
-        log.error("Quota for user "+id+" to allocate MEMORY is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user quota MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaGroupMemoryExceeded:
-        log.error("Quota for user "+id+" for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user group limits MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
-    except QuotaCategoryMemoryExceeded:
-        log.error("Quota for user "+id+" category for desktop MEMORY allocation is exceeded")
-        return json.dumps({"code":11,"msg":"DesktopNew user category limits MEMORY allocation exceeded"}), 507, {'Content-Type': 'application/json'}
-
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"DesktopNew quota check general exception: " + error }), 401, {'Content-Type': 'application/json'} """
-
     try:
-        templates = users.Templates(id)
+        templates = users.Templates(payload)
         dropdown_templates = [{'id':t['id'],'name':t['name'],'icon':t['icon'],'image':'','description':t['description']} for t in templates]
         return json.dumps(dropdown_templates), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
-        log.error("User "+id+" not in database.")
+        log.error("User "+payload['user_id']+" not in database.")
         return json.dumps({"code":1,"msg":"UserTemplates: User not exists in database"}), 404, {'Content-Type': 'application/json'}
     except UserTemplatesError:
-        log.error("Template list for user "+id+" failed.")
+        log.error("Template list for user "+payload['user_id']+" failed.")
         return json.dumps({"code":2,"msg":"UserTemplates: list error"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserTemplates general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-@app.route('/api/v2/user/<id>/desktops', methods=['GET'])
-def api_v2_user_desktops(id=False):
-    if id == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
-
+@app.route('/api/v3/user/desktops', methods=['GET'])
+@has_token
+def api_v3_user_desktops(payload):
     try:
-        desktops = users.Desktops(id)
-        dropdown_desktops = [
-            {
-                "id": d["id"],
-                "name": d["name"],
-                "state": d["status"],
-                "type": d["type"],
-                "template": d["from_template"],
-                "viewers": d["viewers"],
-                "icon": d["icon"],
-                "image": d["image"],
-                "description": d["description"],
-                "ip": d.get("ip"),
-            }
-            for d in desktops
-        ]
-        return json.dumps(dropdown_desktops), 200, {'Content-Type': 'application/json'}
+        desktops = users.Desktops(payload['user_id'])
+        return json.dumps(desktops), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
-        log.error("User "+id+" not in database.")
+        log.error("User "+payload['user_id']+" not in database.")
         return json.dumps({"code":1,"msg":"UserDesktops: User not exists in database"}), 404, {'Content-Type': 'application/json'}
     except UserDesktopsError:
-        log.error("Desktops list for user "+id+" failed.")
+        log.error("Desktops list for user "+payload['user_id']+" failed.")
         return json.dumps({"code":2,"msg":"UserDesktops: list error"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserDesktops general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-
-# Add categorygroup
-@app.route('/api/v2/category', methods=['POST'])
-def api_v2_category_insert():
+@app.route('/api/v3/user/desktop/<desktop_id>', methods=['GET'])
+@has_token
+def api_v3_user_desktop(payload,desktop_id):
     try:
-        # Required
-        category_name = request.form.get('category_name', type = str)
-
-        # Optional
-        group_name = request.form.get('group_name', False)
-        category_limits = request.form.get('category_limits', False)
-        if category_limits == 'False': category_limits = False
-        if category_limits != False: category_limits=json.loads(category_limits)
-        category_quota = request.form.get('category_quota', False)
-        if category_quota == 'False': category_quota = False
-        if category_quota != False: category_quota=json.loads(category_quota)
-        group_quota = request.form.get('group_quota', False)
-        if group_quota == 'False': group_quota = False
-        if group_quota != False: group_quota=json.loads(group_quota)
-
-    ## We should check here if limits and quotas have a correct dict schema
-
-    ##
+        desktop = users.Desktop(desktop_id, payload['user_id'])
+        desktop_dict = {
+                "id": desktop["id"],
+                "name": desktop["name"],
+                "state": desktop["status"],
+                "type": desktop["type"],
+                "template": desktop["from_template"],
+                "viewers": desktop["viewers"],
+                "icon": desktop["icon"],
+                "image": desktop["image"],
+                "description": desktop["description"],
+                "ip": desktop.get("ip"),
+            }
+        return json.dumps(desktop_dict), 200, {'Content-Type': 'application/json'}
+    except UserNotFound:
+        log.error("User "+payload['user_id']+" not in database.")
+        return json.dumps({"code":1,"msg":"UserDesktops: User not exists in database"}), 404, {'Content-Type': 'application/json'}
+    except UserDesktopsError:
+        log.error("Desktops get for user "+payload['user_id']+" failed.")
+        return json.dumps({"code":2,"msg":"UserDesktops: list error"}), 404, {'Content-Type': 'application/json'}
+    except DesktopNotFound:
+        log.error("Desktops get for user "+payload['user_id']+" not found.")
+        return json.dumps({"code":3,"msg":"UserDesktops: not found"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
-        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
-    if category_name == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
-
-    try:
-        category_id=users.CategoryCreate( category_name, \
-                                            group_name,
-                                            category_limits=category_limits,
-                                            category_quota=category_quota,
-                                            group_quota=group_quota)
-        return json.dumps({'id':category_id}), 200, {'Content-Type': 'application/json'}
-    except Exception as e:
-        log.error("Category create error.")
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"General exception when creating category pair: "+error}), 401, {'Content-Type': 'application/json'}
-
-# Add group
-@app.route('/api/v2/group', methods=['POST'])
-def api_v2_group_insert():
-    try:
-        # Required
-        category_id = request.form.get('category_id', type = str)
-        group_name = request.form.get('group_name', type = str)
-
-        # Optional
-        category_limits = request.form.get('category_limits', False)
-        if category_limits == 'False': category_limits = False
-        if category_limits != False: category_limits=json.loads(category_limits)
-        category_quota = request.form.get('category_quota', False)
-        if category_quota == 'False': category_quota = False
-        if category_quota != False: category_quota=json.loads(category_quota)
-        group_quota = request.form.get('group_quota', False)
-        if group_quota == 'False': group_quota = False
-        if group_quota != False: group_quota=json.loads(group_quota)
-
-    ## We should check here if limits and quotas have a correct dict schema
-
-    ##
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
-    if category_id == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
-
-    try:
-        group_id=users.GroupCreate( category_id, \
-                            group_name,
-                            category_limits=category_limits,
-                            category_quota=category_quota,
-                            group_quota=group_quota)
-        return json.dumps({'id':group_id}), 200, {'Content-Type': 'application/json'}
-    except Exception as e:
-        log.error(" Group create error.")
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"General exception when creating group: "+error}), 401, {'Content-Type': 'application/json'}
+        return json.dumps({"code":9,"msg":"UserDesktops general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
 
-@app.route('/api/v2/categories', methods=['GET'])
-def api_v2_categories():
-    try:
-        return json.dumps(users.CategoriesGet()), 200, {'Content-Type': 'application/json'}
-    except Exception as e:
-        error = traceback.format_exc()
-        return json.dumps({"code":9,"msg":"CategoriesGet general exception: " + error }), 401, {'Content-Type': 'application/json'}
-
-@app.route('/api/v2/user/<id>/vpn/<kind>/<os>', methods=['GET'])
-@app.route('/api/v2/user/<id>/vpn/<kind>', methods=['GET'])
+@app.route('/api/v3/user/vpn/<kind>/<os>', methods=['GET'])
+@app.route('/api/v3/user/vpn/<kind>', methods=['GET'])
 # kind = config,install
 # os =
-def api_v2_user_vpn(id, kind, os=False):
+@has_token
+def api_v3_user_vpn(payload, kind, os=False):
     if not os and kind != "config":
         return (
             json.dumps({"code": 9, "msg": "UserVpn: no OS supplied"}),
@@ -433,7 +252,7 @@ def api_v2_user_vpn(id, kind, os=False):
             {"Content-Type": "application/json"},
         )
 
-    vpn_data = vpn.vpn_data("users", kind, os, id)
+    vpn_data = vpn.vpn_data("users", kind, os, payload['user_id'])
 
     if vpn_data:
         return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}

@@ -15,15 +15,6 @@ from flask import request
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas_exc import *
 
-
-def tsend(txt):
-    None
-
-
-from ..libv2.carbon import Carbon
-
-carbon = Carbon()
-
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -33,8 +24,8 @@ from ..libv2.api_xml import ApiXml
 xml = ApiXml()
 
 
-@app.route("/api/v2/xml/virt_install/<id>", methods=["GET"])
-def api_v2_xml_virt_install(id):
+@app.route("/api/v3/xml/virt_install/<id>", methods=["GET"])
+def api_v3_xml_virt_install(id):
     try:
         data = xml.VirtInstallGet(id)
         return json.dumps(data), 200, {"Content-Type": "application/json"}

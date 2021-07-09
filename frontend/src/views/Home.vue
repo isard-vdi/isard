@@ -99,9 +99,14 @@ export default {
   },
   data () {
     return {
-      polling: null,
       gridView: true
     }
+  },
+  mounted () {
+    this.$store.dispatch('openSocket', { room: 'desktops' })
+  },
+  destroyed () {
+    this.$store.dispatch('closeSocket')
   }
 }
 </script>

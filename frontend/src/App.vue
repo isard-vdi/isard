@@ -5,6 +5,18 @@
     </div>
 </template>
 
+<script>
+
+export default {
+  beforeMount () {
+    if (localStorage.token) {
+      this.$store.dispatch('setSession', localStorage.token)
+    }
+  }
+}
+
+</script>
+
 <style>
 #app {
     font-family: Arial, Avenir, Helvetica, sans-serif;

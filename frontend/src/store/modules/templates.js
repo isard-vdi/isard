@@ -1,6 +1,7 @@
-import { apiAxios } from '@/router/auth'
+import axios from 'axios'
 import router from '@/router'
 import { DesktopUtils } from '@/utils/desktopsUtils'
+import { apiV3Segment } from '../../shared/constants'
 
 export default {
   state: {
@@ -24,7 +25,7 @@ export default {
   actions: {
     fetchTemplates ({ commit }) {
       return new Promise((resolve, reject) => {
-        apiAxios.get('/templates').then(response => {
+        axios.get(`${apiV3Segment}/user/templates`).then(response => {
           commit('setTemplates', DesktopUtils.parseTemplates(response.data))
           resolve()
         }).catch(e => {

@@ -11,11 +11,14 @@
 
 from api import app
 # ~ import rethinkdb as r
-#~ from flask import current_app
+#~ from flask import app
 
 # ~ from .flask_rethink import RethinkDB
-import os, sys
+import os, sys, time, traceback
 import logging as log
+
+from rethinkdb import RethinkDB; r = RethinkDB()
+#import rethinkdb as r
 
 class loadConfig():
 
@@ -23,15 +26,42 @@ class loadConfig():
         None
             
     def check_db(self):
-        return True
-        try:
-            conn=RethinkDB(None)
-            conn.connect()
-            return True
-        except Exception as e:
-            print(e)
-            return False
-            
+        ready=False
+        while not ready:
+            try:
+                conn=r.connect(host=app.config['RETHINKDB_HOST'],
+                            port=app.config['RETHINKDB_PORT'],
+                            auth_key='',
+                            db=app.config['RETHINKDB_DB'])
+                print('Database server OK')
+                ready=True
+            except Exception as e:
+                # print(traceback.format_exc())
+                print('Database server '+app.config['RETHINKDB_HOST']+':'+app.config['RETHINKDB_PORT']+' not present. Waiting to be ready')
+                time.sleep(2)
+        ready=False
+        while not ready:
+            try:
+                tables = list(r.db('isard').table_list().run(conn))
+            except:
+                print('  No tables yet in database')
+                time.sleep(1)
+                continue
+            if 'config' in tables: 
+                ready=True
+            else:
+                print('Waiting for database to be populated with all tables...')
+                print('   '+str(len(tables))+' populated')
+                time.sleep(2)
+        r.db('isard').table('secrets').insert(
+            {'id':'isardvdi',
+            'secret': os.environ['API_ISARDVDI_SECRET'],
+            'description': 'isardvdi',
+            'domain': 'localhost',
+            "category_id":"default",
+            "role_id":"admin"}, conflict="replace"
+        ).run(conn)
+
     def init_app(self, app):
         '''
         Read RethinkDB configuration from environ
@@ -54,8 +84,5 @@ class loadConfig():
             print('Missing parameters!')
             return False
         print('Initial configuration loaded...')
-        if self.check_db() is False:
-            print('No database found!!!!!!!!!!')
-            print('Using database connection {} and database {}'.format(app.config['RETHINKDB_HOST']+':'+app.config['RETHINKDB_PORT'],app.config['RETHINKDB_DB']))
-            return False
+        self.check_db()
         return True

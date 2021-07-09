@@ -63,8 +63,8 @@
       <h2><i>Direct viewer connection</i></h2>
       <h3>{{ vmName|safe }}</h3>
       <h5>{{ vmDescription|safe }}</h5>
-      <input class="big_button" id="url" type="button" class="button1" value="Browser access" onclick="open_viewer('url');" />
-      <input class="big_button" id="file" type="button" class="button2"value="Local client" onclick="open_viewer('file');" />
+      <input class="big_button" id="browser-vnc" type="button" class="button1" value="Browser access" onclick="open_viewer('browser-vnc');" />
+      <input class="big_button" id="file-spice" type="button" class="button2"value="Local client" onclick="open_viewer('file-spice');" />
       <div>
         <a href="https://isard.gitlab.io/isardvdi-docs/user/local-client/" target="_blank">How to install local client</a>
       </div>
@@ -87,15 +87,15 @@
 
     function open_viewer(kind,blank='_blank'){
         var viewers = {{ viewers|safe }};
-        if(kind=='url'){
-            setCookie('browser_viewer', viewers['vnc-html5']['cookie'], 1)
-            window.open(viewers['vnc-html5']['viewer'], blank);
+        if(kind=='browser-vnc'){
+            setCookie('browser_viewer', viewers['browser-vnc']['cookie'], 1)
+            window.open(viewers['browser-vnc']['viewer'], blank);
         }
 
-        if(kind=='file'){
-            var viewerFile = new Blob([viewers['spice-client']['content']], {type: viewers['spice-client']['mime']});
+        if(kind=='file-spice'){
+            var viewerFile = new Blob([viewers['file-spice']['content']], {type: viewers['file-spice']['mime']});
             var a = document.createElement('a');
-                a.download = 'console.'+viewers['spice-client']['ext'];
+                a.download = 'console.'+viewers['file-spice']['ext'];
                 a.href = window.URL.createObjectURL(viewerFile);
             var ev = document.createEvent("MouseEvents");
                 ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);

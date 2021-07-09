@@ -17,11 +17,6 @@ from ..libv2.apiv2_exc import *
 from ..libv2.quotas_exc import *
 
 from flask import render_template, Response, request, redirect, url_for, send_file, send_from_directory
-#from ..libv2.telegram import tsend
-def tsend(txt):
-    None
-from ..libv2.carbon import Carbon
-carbon = Carbon()
 
 from ..libv2.quotas import Quotas
 quotas = Quotas()
@@ -30,11 +25,11 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 common = ApiDesktopsCommon()
 
 @app.route('/vw/img/<img>', methods=['GET'])
-def api_v2_img(img):
+def api_v3_img(img):
     return send_from_directory('templates/',img)
 
 @app.route('/vw/<token>', methods=['GET'])
-def api_v2_viewer(token):
+def api_v3_viewer(token):
     try:
         viewers=common.DesktopViewerFromToken(token)
         protocol = request.args.get('protocol', default = False)
@@ -50,7 +45,6 @@ def api_v2_viewer(token):
         #return json.dumps({"code":2,"msg":"Jumper viewer desktop is not started"}), 404, {'Content-Type': 'application/json'}
     except DesktopActionTimeout:
         log.error("Jumper viewer desktop start timeout.")
-        carbon.send({'create_and_start_time':'100'})
         return render_template('error.html', error='Desktop start timed out. Try again in a while...')
         #return json.dumps({"code":2,"msg":"Jumper viewer start timeout"}), 404, {'Content-Type': 'application/json'}
     except Exception as e:

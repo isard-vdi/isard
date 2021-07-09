@@ -5,7 +5,6 @@
 </template>
 
 <script>
-import * as cookies from 'tiny-cookie'
 
 export default {
   data () {
@@ -23,7 +22,7 @@ export default {
   },
   methods: {
     changeLanguage (lang) {
-      cookies.setCookie('language', lang)
+      localStorage.language = lang
       this.$i18n.locale = lang
     }
   }

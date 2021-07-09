@@ -1,6 +1,7 @@
 {
     "components": {
         "navbar": {
+            "home": "Inici",
             "help": "Ajuda",
             "vpn": {
                 "download": "VPN",
@@ -13,7 +14,12 @@
                     "description": "No s'ha pogut descarregar l'arxiu de configuració de la VPN degut a un error"
                 }
             },
-            "admin": "Administració"
+            "admin": "Administració",
+            "deployments": {
+                "text": "Desplegaments",
+                "view": "Veure",
+                "manage": "Gestionar"
+            }
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
@@ -73,6 +79,7 @@
         }
     },
     "views": {
+        "cancel" : "Cancelar",
         "error": {
             "title": "Error",
             "codes": {
@@ -112,7 +119,12 @@
         "register": {
             "title": "Registre",
             "code": "Codi de registre",
-            "register": "Registrar-se"
+            "register": "Registrar-se",
+            "errors": {
+                "404": "Codi no trobat",
+                "401": "Sessió expirada",
+                "500": "Error en el servidor"
+            }
         },
         "select-template": {
             "template": "Plantilla",
@@ -129,10 +141,10 @@
             "viewers": "Visors",
             "viewer": "Visor {name}",
             "viewer-name": {
-                "spice": "SPICE",
-                "browser": "al navegador",
-                "rdp": "RDP",
-                "rdp-html5": "RDP al navegador"
+                "file-spice": "SPICE",
+                "browser-vnc": "al navegador",
+                "file-rdpvpn": "RDP",
+                "browser-rdp": "RDP al navegador"
             },
             "remove": "Esborrar",
             "notification": {
@@ -223,6 +235,20 @@
         "welcome": {
             "title": "Benvingut a IsardVDI, sistema d'escriptoris virtuals",
             "button": "Identifiqueu-vos"
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "No hi ha cap deployment de l'usuari actual",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            }
+        },
+        "deployment": {
+            "no-started-desktops": {
+                "title": "Aquest deployment no té cap escriptori iniciat"
+            },
+            "desktop": {
+                "not-available": "Escriptori no disponible"
+            }
         }
     }
 }

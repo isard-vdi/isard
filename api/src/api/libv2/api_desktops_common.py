@@ -42,7 +42,7 @@ class ApiDesktopsCommon:
     def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
         if protocol in ['url','file']:
             direct_protocol = protocol
-            protocol = 'vnc-html5'
+            protocol = 'browser-vnc'
         else:
             direct_protocol = False
 
@@ -78,11 +78,11 @@ class ApiDesktopsCommon:
                     viewers = {
                         "vmName": domains[0]["name"],
                         "vmDescription": domains[0]["description"],
-                        "spice-client": self.DesktopViewer(
-                            domains[0]["id"], "spice-client", get_cookie=True
+                        "file-spice": self.DesktopViewer(
+                            domains[0]["id"], "file-spice", get_cookie=True
                         ),
-                        "vnc-html5": self.DesktopViewer(
-                            domains[0]["id"], "vnc-html5", get_cookie=True
+                        "browser-vnc": self.DesktopViewer(
+                            domains[0]["id"], "browser-vnc", get_cookie=True
                         ),
                     }
                     return viewers
@@ -91,11 +91,11 @@ class ApiDesktopsCommon:
                     viewers = {
                         "vmName": domains[0]["name"],
                         "vmDescription": domains[0]["description"],
-                        "spice-client": self.DesktopViewer(
-                            domains[0]["id"], "spice-client", get_cookie=True
+                        "file-spice": self.DesktopViewer(
+                            domains[0]["id"], "file-spice", get_cookie=True
                         ),
-                        "vnc-html5": self.DesktopViewer(
-                            domains[0]["id"], "vnc-html5", get_cookie=True
+                        "browser-vnc": self.DesktopViewer(
+                            domains[0]["id"], "browser-vnc", get_cookie=True
                         ),
                     }
                     return viewers

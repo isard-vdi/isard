@@ -10,6 +10,7 @@ from flask import request
 from flask_login import LoginManager, UserMixin
 import time
 import requests
+import json
 
 from webapp import app
 from ..lib.flask_rethink import RethinkDB
@@ -37,6 +38,13 @@ class LocalUsers():
             usr['group_uid']= r.table('groups').get(usr['group']).pluck('uid').run(db.conn)['uid']
         return usr
 
+    def getUserWithGroup(self,usr):
+        with app.app_context():
+            if usr is None:
+                return None
+            usr['group_uid']= r.table('groups').get(usr['group']).pluck('uid').run(db.conn)['uid']
+        return usr
+
 class User(UserMixin):
     def __init__(self, dict):
         self.id = dict['id']
@@ -55,6 +63,7 @@ class User(UserMixin):
         self.is_admin=True if self.role=='admin' else False
         self.active = dict['active']
         self.tags = dict.get("tags", [])
+        self.photo = dict['photo']
 
     def is_active(self):
         return self.active
@@ -63,17 +72,21 @@ class User(UserMixin):
         return False
 
 
-def get_authenticated_user_backend():
-    """Check if session is authenticated by backend
+def get_authenticated_user():
+    """Check if session is authenticated by jwt
 
     :returns: User object if authenticated
     """
+
+    auth = request.headers.get("Authorization", None)
+    if not auth: return None 
+
     response = requests.get(
-        'http://isard-backend:8080/api/v2/check',
-        cookies={'session': request.cookies.get('session')}
+        'http://isard-api:5000/api/v3/user',
+        headers={'Authorization': auth}
     )
     if response.status_code == 200:
-        user = app.localuser.getUser(response.text)
+        user = app.localuser.getUserWithGroup(json.loads(response.text))
         if user:
             return User(user)
     return None

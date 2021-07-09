@@ -1,6 +1,7 @@
 {
     "components": {
         "navbar": {
+            "home": "Inicio",
             "help": "Ayuda",
             "vpn": {
                 "download": "VPN",
@@ -13,7 +14,12 @@
                     "description": "No se ha podido descargar el archivo de configuración de la VPN debido a un error"
                 }
             },
-            "admin": "Administración"
+            "admin": "Administración",
+            "deployments": {
+                "text": "Despliegues",
+                "view": "Ver",
+                "manage": "Gestionar"
+            }
         },
         "statusbar": {
             "desktops-started": "Desktops arrancados",
@@ -73,6 +79,7 @@
         }
     },
     "views": {
+        "cancel" : "Cancelar",
         "error": {
             "title": "Error",
             "codes": {
@@ -95,6 +102,10 @@
                 "pwd": "Contraseña",
                 "login": "Iniciar sesión"
             },
+            "errors": {
+                "401": "Usuario o password incorrecto",
+                "500": "Error en el servidor"
+            },
             "other-logins": "O iniciar sesión con",
             "powered-by": "Funciona con",
             "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
@@ -112,7 +123,12 @@
         "register": {
             "title": "Registro",
             "code": "Código de registro",
-            "register": "Registrarse"
+            "register": "Registrarse",
+            "errors": {
+                "404": "Código no encontrado",
+                "401": "Sesión expirada",
+                "500": "Error en el servidor"
+            }
         },
         "select-template": {
             "template": "Plantilla",
@@ -129,10 +145,10 @@
             "viewers": "Visores",
             "viewer": "Visor {name}",
             "viewer-name": {
-                "spice": "SPICE",
-                "browser": "en el navegador",
-                "rdp": "RDP",
-                "rdp-html5": "RDP en el navegador"
+                "file-spice": "SPICE",
+                "browser-vnc": "en el navegador",
+                "file-rdpvpn": "RDP",
+                "browser-rdp": "RDP en el navegador"
             },
             "remove": "Eliminar",
             "notification": {
@@ -223,6 +239,20 @@
         "welcome": {
             "title": "Bienvenido a IsardVDI, sistema de escritorios virtuales",
             "button": "Identificarse"
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "No existen deployments de este usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            }
+        },
+        "deployment": {
+            "no-started-desktops": {
+                "title": "Este deployment no tiene ningún escritorio iniciado"
+            },
+            "desktop": {
+                "not-available": "Escritorio no disponible"
+            }
         }
     }
 }

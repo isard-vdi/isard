@@ -13,9 +13,12 @@ RUN apk del .build_deps
 
 RUN apk add curl
 
+COPY api/srcv2 /apiv2
 COPY api/src /api
-
+COPY api/docker/run.sh /
 #EXPOSE 7039
-WORKDIR /api
-CMD [ "python3", "start.py" ]
+# WORKDIR /api
+# CMD [ "python3", "start.py" ]
+
+CMD /run.sh
 

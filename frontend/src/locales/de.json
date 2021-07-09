@@ -104,10 +104,10 @@
             "persistent": "Dauerhafte Arbeitsoberflächen",
             "persistent-compact": "Dauerhafte",
             "viewer-name": {
-                "spice": "SPICE",
-                "browser": "Browser",
-                "rdp": "RDP",
-                "rdp-html5": "RDP-Browser"
+                "file-spice": "SPICE",
+                "browser-vnc": "Browser",
+                "file-rdpvpn": "RDP",
+                "browser-rdp": "RDP-Browser"
             },
             "viewer": "{name}-Bildbetrachter",
             "viewers": "Bildbetrachter"

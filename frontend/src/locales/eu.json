@@ -137,8 +137,8 @@
             },
             "remove": "Ezabatu",
             "viewer-name": {
-                "browser": "Nabigatzailea",
-                "spice": "SPICE"
+                "browser-vnc": "Nabigatzailea",
+                "file-spice": "SPICE"
             },
             "viewer": "{name} bisorea",
             "viewers": "Bisoreak",

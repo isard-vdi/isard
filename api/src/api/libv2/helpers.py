@@ -23,6 +23,37 @@ import bcrypt,string,random
 
 from .apiv2_exc import *
 
+from ..libv2.isardViewer import isardViewer
+isardviewer = isardViewer()
+
+import traceback
+
+class InternalUsers(object):
+    def __init__(self):
+        self.users={}
+
+    def get(self,user_id):
+        data=self.users.get(user_id,False)
+        if not data:
+            with app.app_context():
+                try:
+                    user = r.table('users').get(user_id).pluck('name','category','group','photo').run(db.conn)
+                    category_name = r.table('categories').get(user['category']).pluck('name').run(db.conn)['name']
+                    group_name = r.table('groups').get(user['group']).pluck('name').run(db.conn)['name']
+                    self.users[user_id] = {'userName':user['name'],
+                                        'userPhoto': user['photo'],
+                                        'categoryName':category_name,
+                                        'groupName':group_name}
+                except:
+                    print(traceback.format_exc())
+                    return {'userName':'Unknown',
+                                        'userPhoto': 'Unknown',
+                                        'categoryName':'Unknown',
+                                        'groupName':'Unknown'}
+        return self.users[user_id]
+    
+    def list(self):
+        return self.users
 
 def _parse_string( txt):
     import re, unicodedata, locale
@@ -70,4 +101,52 @@ def _parse_media_info( create_dict):
                     newlist.append(r.table('media').get(item['id']).pluck('id','name','description').run(db.conn))
             create_dict['hardware'][m]=newlist
     return create_dict
+
+def _parse_desktop(desktop):
+    desktop["image"] = desktop.get("image", None)
+    desktop["from_template"] = desktop.get("parents", [None])[-1]
+    if desktop.get("persistent", True):
+        desktop["type"] = "persistent"
+    else:
+        desktop["type"] = "nonpersistent"
+    desktop["viewers"] = ["file-spice", "browser-vnc"]
+    if desktop["status"] == "Started":
+        if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
+            desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
+            if not desktop["ip"]:
+                desktop["status"] = "WaitingIP"
+            if desktop["os"].startswith("win"):
+                desktop["viewers"].extend(["file-rdpvpn", "browser-rdp"])
+
+    return {
+            "id": desktop["id"],
+            "name": desktop["name"],
+            "state": desktop["status"],
+            "type": desktop["type"],
+            "template": desktop["from_template"],
+            "viewers": desktop["viewers"],
+            "icon": desktop["icon"],
+            "image": desktop["image"],
+            "description": desktop["description"],
+            "ip": desktop.get("ip"),
+            }
+
+def _parse_deployment_desktop(desktop):
+    user = desktop['user']
+    if desktop['status'] == 'Started' and desktop.get('viewer').get('static'):
+        viewer = isardviewer.viewer_data(
+                desktop['id'], 'browser-vnc', get_cookie=False, get_dict=True, domain=desktop
+            )
+    else:
+        viewer = False
+    desktop = _parse_desktop(desktop)
+    desktop['viewer'] = viewer
+    desktop = {**desktop, **app.internal_users.get(user)}
+    desktop['user'] = user
+    desktop.pop('type')
+    desktop.pop('template')
+
+    return desktop
+
+
 

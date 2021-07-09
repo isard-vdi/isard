@@ -4,23 +4,6 @@
 # License: AGPLv3
 
 #!/usr/bin/env python
-# coding=utf-8
-# ~ import sys, json
-# ~ from webapp import app
-# ~ import rethinkdb as r
-# ~ from ..lib.log import * 
-
-# ~ from .flask_rethink import RethinkDB
-# ~ db = RethinkDB(app)
-# ~ db.init_app(app)
-
-# ~ from .admin_api import flatten
-# ~ from netaddr import IPNetwork, IPAddress 
-
-# ~ from ..lib.viewer_exc import *
-
-# ~ from http.cookies import SimpleCookie
-# ~ import base64
 
 import sys,base64,json
 import os
@@ -49,11 +32,12 @@ class isardViewer():
         self.vnc_ws=-198 #5900-200????
         pass
 
-    def viewer_data(self,id,get_viewer='spice-client',current_user=False,default_viewer=False,get_cookie=True,get_dict=False):
-        try:
-            domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options').run(db.conn)
-        except ReqlNonExistenceError:
-            raise DesktopNotFound
+    def viewer_data(self,id,get_viewer='browser-vnc',current_user=False,default_viewer=False,get_cookie=True,get_dict=False,domain=False):
+        if not domain:
+            try:
+                domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options').run(db.conn)
+            except ReqlNonExistenceError:
+                raise DesktopNotFound
         if not domain['status'] == 'Started':
             raise DesktopNotStarted
              
@@ -62,102 +46,96 @@ class isardViewer():
                 raise NotAllowed 
         if  'preferred' not in domain['options']['viewers'].keys() or not domain['options']['viewers']['preferred'] == default_viewer:
             r.table('domains').get(id).update({'options':{'viewers':{'preferred':default_viewer}}}).run(db.conn)
- 
-        if get_viewer == 'rdp-client':
-            return {'kind':'file','name':'isard-rdp','ext':'rdp','mime':'application/x-rdp','content':self.get_rdp_file(domain['viewer']['guest_ip'])} 
 
-        if get_viewer == 'spice-html5':
-            if get_cookie:
-                cookie = base64.b64encode(json.dumps({
-                    'web_viewer': {
-                        'vmName': domain['name'],
-                        'vmHost': domain['viewer']['proxy_hyper_host'],
-                        'vmPort': str(domain['viewer']['base_port']+self.spice),
-                        'host': domain['viewer']['proxy_video'],
-                        'port': '443',
-                        'token': domain['viewer']['passwd']
-                    }
-                }).encode('utf-8')).decode('utf-8')  
-                uri = 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/',
-                return {'kind':'url','viewer':uri,'cookie':cookie}
-            else:
-                return 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&vmPort='+str(port)+'&passwd='+domain['viewer']['passwd']
-            
-        if get_viewer == 'vnc-html5':
-            vmPort=str(domain['viewer']['base_port']+self.vnc)
-            port=str(domain['viewer']['html5_ext_port']) if 'html5_ext_port' in domain['viewer'].keys() else '443'
-            if get_cookie:
-                cookie = base64.b64encode(json.dumps({
-                    'web_viewer': {
-                        'vmName': domain['name'],
-                        'vmHost': domain['viewer']['proxy_hyper_host'],
-                        'vmPort': vmPort,
-                        'host': domain['viewer']['proxy_video'],
-                        'port': port,
-                        'token': domain['viewer']['passwd']
-                    }
-                }).encode('utf-8')).decode('utf-8')  
-                uri = 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
-                return {'kind':'url','viewer':uri,'cookie':cookie}
-            elif get_dict:
-                    return {
-                            'proxy': 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
-                            'vmName': domain['name'],
-                            'vmHost': domain['viewer']['proxy_hyper_host'],
-                            'vmPort': vmPort,
-                            'host': domain['viewer']['proxy_video'],
-                            'port': port,
-                            'token': domain['viewer']['passwd']
-                            }
-            else:
-                return 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&vmPort='+vmPort+'&passwd='+domain['viewer']['passwd']
-
-        if get_viewer == "rdp-html5":
-            vmPort = str(domain["viewer"]["base_port"] + self.vnc)
-            port = (
-                str(domain["viewer"]["html5_ext_port"])
-                if "html5_ext_port" in domain["viewer"].keys()
-                else "443"
-            )
-            if get_cookie:
-                cookie = base64.b64encode(
-                    json.dumps(
-                        {
-                            "web_viewer": {
-                                "vmName": domain["name"],
-                                "vmHost": domain["viewer"]["guest_ip"],
-                                "vmUsername": domain["options"]["credentials"][
-                                    "username"
-                                ]
-                                if "credentials" in domain["options"]
-                                else "",
-                                "vmPassword": domain["options"]["credentials"][
-                                    "password"
-                                ]
-                                if "credentials" in domain["options"]
-                                else "",
-                                "host": domain["viewer"]["proxy_video"],
-                                "port": port,
-                            }
-                        }
-                    ).encode("utf-8")
-                ).decode("utf-8")
-                uri = (f"https://{domain['viewer']['static']}/Rdp",)
-                return {"kind": "url", "viewer": uri, "cookie": cookie}
-            else:
-                return "https://" + domain["viewer"]["static"] + "/notavailable"
-
-        if get_viewer == 'spice-client':
+        ### File viewers
+        if get_viewer == 'file-spice':
             port=domain['viewer']['base_port']+self.spice_tls
-            vmPort=domain['viewer']['spice_ext_port'] if 'spice_ext_port' in domain['viewer'].keys() else '80'
+            vmPort=domain['viewer'].get('spice_ext_port','80')
             consola=self.get_spice_file(domain,vmPort,port)
-            if get_cookie:
-                return {'kind':'file','name':'isard-spice','ext':consola[0],'mime':consola[1],'content':consola[2]} 
-            else:
-                return consola[2]
+            return {'kind':'file',
+                    'protocol':'spice',
+                    'name':'isard-spice',
+                    'ext':consola[0],
+                    'mime':consola[1],
+                    'content':consola[2]} 
                 
-        if get_viewer == 'vnc-client':
+        if get_viewer == 'file-vnc':
             raise ViewerProtocolNotImplemented
+
+        if get_viewer == 'file-rdpvpn':
+            return {'kind':'file',
+                    'protocol':'rdpvpn',
+                    'name':'isard-rdp-vpn',
+                    'ext':'rdp',
+                    'mime':'application/x-rdp',
+                    'content':self.get_rdp_file(domain['viewer']['guest_ip'])} 
+
+        ## Browser viewers
+        if get_viewer == 'browser-spice':
+            data = {
+                    'vmName': domain['name'],
+                    'vmHost': domain['viewer']['proxy_hyper_host'],
+                    'vmPort': str(domain['viewer']['base_port']+self.spice),
+                    'host': domain['viewer']['proxy_video'],
+                    'port': domain['viewer'].get('html5_ext_port','443'),
+                    'token': domain['viewer']['passwd']
+                }
+            cookie = base64.b64encode(json.dumps({"web_viewer": data}).encode('utf-8')).decode('utf-8')  
+            uri = 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/'
+            urlp = 'https://'+domain['viewer']['static']+'/viewer/spice-web-client/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&vmPort='+data['port']+'&passwd='+domain['viewer']['passwd']
+            return {'kind':'browser',
+                    'protocol':'spice',
+                    'viewer':uri,
+                    'urlp': urlp,
+                    'cookie':cookie,
+                    'values': data}
+
+        if get_viewer == 'browser-vnc':
+            data = {
+                    'vmName': domain['name'],
+                    'vmHost': domain['viewer']['proxy_hyper_host'],
+                    'vmPort': str(domain['viewer']['base_port']+self.vnc),
+                    'host': domain['viewer']['proxy_video'],
+                    'port': domain['viewer'].get('html5_ext_port','443'),
+                    'token': domain['viewer']['passwd']
+                }
+            cookie = base64.b64encode(json.dumps({"web_viewer": data}).encode('utf-8')).decode('utf-8') 
+            uri = 'https://'+domain['viewer']['static']+'/viewer/noVNC/'
+            urlp = 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+data['port']+'&vmPort='+data['vmPort']+'&passwd='+domain['viewer']['passwd']
+            return {'kind':'browser',
+                    'protocol':'vnc',
+                    'viewer':uri,
+                    'urlp': urlp,
+                    'cookie':cookie,
+                    'values': data}
+
+        if get_viewer == "browser-rdp":
+            data = {
+                    'vmName': domain['name'],
+                    'vmHost': domain["viewer"]["guest_ip"],
+                    "vmUsername": domain["options"]["credentials"][
+                        "username"
+                    ]
+                    if "credentials" in domain["options"]
+                    else "",
+                    "vmPassword": domain["options"]["credentials"][
+                        "password"
+                    ]
+                    if "credentials" in domain["options"]
+                    else "",
+                    'host': domain['viewer']['proxy_video'],
+                    'port': domain['viewer'].get('html5_ext_port','443')
+                }
+            cookie = base64.b64encode(json.dumps({"web_viewer": data}).encode('utf-8')).decode('utf-8') 
+            uri = (f"https://{domain['viewer']['static']}/Rdp",)
+            urlp = 'Not implemented'
+            return {'kind':'browser',
+                    'protocol':'rdp',
+                    'viewer':uri,
+                    'urlp': urlp,
+                    'cookie':cookie,
+                    'values': data}
+
         if get_viewer == 'vnc-client-macos':
             raise ViewerProtocolNotImplemented
         
@@ -172,17 +150,7 @@ class isardViewer():
             op_fscr = 1 if domain['options'] is not False and domain['options']['fullscreen'] else 0
         except:
             op_fscr = 0
-            
-        # ~ viewer = { 'viewer_static_host':   hypervisor['viewer_static_host'],
-                    # ~ 'viewer_proxy_video':   hypervisor['viewer_proxy_video'],
-                    # ~ 'viewer_hyper_host':    hypervisor['viewer_hyper_host'],
-                    # ~ 'base_port':    domain['viewer']['port'],
-                    # ~ 'passwd':       domain['viewer']['passwd'],
-                    # ~ 'client_addr':  False,
-                    # ~ 'client_since': False,
-                    # ~ }
-                    
-                          
+
         c = '%'
         consola = """[virt-viewer]
         type=%s

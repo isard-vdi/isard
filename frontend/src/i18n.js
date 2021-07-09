@@ -1,6 +1,6 @@
-import * as cookies from 'tiny-cookie'
 import Vue from 'vue'
 import VueI18n from 'vue-i18n'
+import { StringUtils } from './utils/stringUtils'
 
 Vue.use(VueI18n)
 
@@ -24,15 +24,11 @@ export default new VueI18n({
 })
 
 function getLocale () {
-  const sessionCookie = cookies.getCookie('language')
-  if (isNullOrUndefined(sessionCookie)) {
+  const sessionCookie = localStorage.language
+  if (StringUtils.isNullOrUndefinedOrEmpty(sessionCookie)) {
     const lang = navigator.language || navigator.browserLanguage || (navigator.languages || ['en'])[0]
     return lang.split('_')[0].split('-')[0]
   }
 
   return sessionCookie
-}
-
-function isNullOrUndefined (arg) {
-  return arg === null || arg === undefined || arg === 'undefined'
 }

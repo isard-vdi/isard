@@ -1139,7 +1139,7 @@ def socketio_advanced_domains_delete(deployment_id):
     if res is True:
         data=json.dumps({'result':True,'title':'Delete deployment','text':'Deployment has been deleted.','icon':'success','type':'success'})
     else:
-        data=json.dumps({'result':False,'title':'Delete deploymet','text':'Could not delete deployment.','icon':'warning','type':'warning'})
+        data=json.dumps({'result':False,'title':'Delete deployment','text':'Could not delete deployment as there are desktops not stopped. Please stop them all before deleting deployment.','icon':'warning','type':'warning'})
     socketio.emit('delete_result',
                     data,
                     namespace='/isard-admin/sio_users', 

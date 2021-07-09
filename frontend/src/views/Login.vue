@@ -1,90 +1,94 @@
 <template>
-  <b-container fluid id="login">
-    <b-row id="header" class="mb-4">
-      <b-col>
-        <Logo/>
+  <b-container fluid id="login" style="height: 100vh;">
+    <b-row class="h-100">
+      <b-col sm="12" md="6" lg="6" xl="8" class="justify-content-center align-content-center h-100 d-flex right-separator-border">
+          <Logo/>
       </b-col>
-    </b-row>
-    <b-row>
-      <b-col>
-        <Language class="mb-4"/>
-      </b-col>
-    </b-row>
-    <b-row id="login" align-h="center">
-      <b-spinner v-if="loading" />
-      <b-col v-else sm="10" md="6" lg="5" xl="4">
-        <h1 v-if="getCategories.length || getConfig['social_logins']">{{ $t('views.login.title') }}</h1>
-        <h3 v-if="category_by_path">{{ category_name }}</h3>
 
-        <b-form v-if="getCategories.length" @submit.prevent="login('local')">
+      <b-col sm="12" md="6" lg="6" xl="4" class="d-flex flex-column justify-content-center align-content-start">
+        <b-row id="login" class="justify-content-left">
+          <b-spinner v-if="loading" />
+          <b-col v-else sm="12" md="10" lg="9" xl="9" class="d-flex flex-column justify-content-start text-left">
+            <h1 v-if="getCategories.length || getConfig['providers']">{{ $t('views.login.title') }}</h1>
+            <h3 v-if="category_by_path">{{ category_name }}</h3>
+            <Language class="d-inline-block mt-5 mb-4"/>
+            <b-form v-if="getCategories.length" @submit.prevent="login('local')" class="m-0">
 
-          <b-alert
-            v-model="showDismissibleAlert"
-            dismissible
-            variant="danger"
-          >
-            {{ this.error }}
-          </b-alert>
+              <b-alert
+                v-model="showDismissibleAlert"
+                dismissible
+                variant="danger"
+              >
+                {{ this.error }}
+              </b-alert>
 
-          <b-form-select
-            v-if="!category_by_path && getCategories.length > 1"
-            size="md"
-            class="mb-4"
-            required
-            :options="categories_select"
-            v-model="category"
-            ref="select_category"
-          >
-            <template #first>
-              <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
-            </template>
-          </b-form-select>
+              <b-form-select
+                v-if="!category_by_path && getCategories.length > 1"
+                size="md"
+                class="mb-4"
+                style="height:52px;"
+                required
+                :options="categories_select"
+                v-model="category"
+                ref="select_category"
+              >
+                <template #first>
+                  <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
+                </template>
+              </b-form-select>
 
-          <b-form-input v-model="usr" type="text" required :placeholder="$t('views.login.form.usr')" />
+              <b-form-input v-model="usr" type="text" class="mb-4 py-4" required :placeholder="$t('views.login.form.usr')" />
 
-          <b-form-input
-            type="password"
-            required
-            v-model="pwd"
-            :placeholder="$t('views.login.form.pwd')"
-          />
+              <b-form-input
+                type="password"
+                required
+                v-model="pwd"
+                class="py-4"
+                :placeholder="$t('views.login.form.pwd')"
+              />
 
-          <b-button type="submit" variant="warning" size="lg">{{ $t('views.login.form.login') }}</b-button>
-        </b-form>
+              <b-button type="submit" size="lg" class="btn-green w-100 rounded-pill mt-4">{{ $t('views.login.form.login') }}</b-button>
+            </b-form>
 
-        <hr v-if="getCategories.length && getConfig['social_logins']"/>
+            <div v-if="getCategories.length && getConfig['providers'].length">
 
-        <p v-if="getCategories.length && getConfig['social_logins']">{{ $t('views.login.other-logins') }}</p>
+              <hr class="m-4" style="border-bottom: 1px solid #ececec;"/>
 
-        <b-button
-          v-for="provider in getConfig['social_logins']"
-          v-bind:key="provider"
-          @click="login(provider.toLowerCase())"
-          :class="'login-btn btn-' + provider.toLowerCase()"
-        >
-          <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
-          {{ provider }}
-        </b-button>
-        <hr v-if="getCategories.length || getConfig['social_logins']"/>
-      </b-col>
-    </b-row>
-    <b-row id="powered-by" align-h="center">
-      <b-col>
-        <a href="https://isardvdi.com/" target="_blank">
-          {{ $t('views.login.powered-by') }}
-          <img id="isard-logo" src="@/assets/logo.svg" :alt="$t('views.login.isard-logo-alt')" />
-          <strong>IsardVDI</strong>
-        </a>
+              <div class="d-flex flex-row flex-wrap justify-content-center align-items-center">
+                <p class="mb-3 w-100 text-center">{{ $t('views.login.other-logins') }}</p>
+                <b-button
+                  v-for="provider in getConfig['providers']"
+                  v-bind:key="provider"
+                  @click="login(provider.toLowerCase())"
+                  :class="'rounded-pill btn-sm login-btn btn-' + provider.toLowerCase()"
+                >
+                  <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
+                  {{ provider }}
+                </b-button>
+              </div>
+
+            </div>
+
+            <b-row id="powered-by" align-h="center">
+              <b-col class="text-center">
+                <a href="https://isardvdi.com/" target="_blank">
+                  {{ $t('views.login.powered-by') }}
+                  <strong>IsardVDI</strong>
+                </a>
+              </b-col>
+            </b-row>
+          </b-col>
+        </b-row>
       </b-col>
     </b-row>
   </b-container>
 </template>
 
 <script>
-import * as cookies from 'tiny-cookie'
 import { mapGetters } from 'vuex'
 import Language from '@/components/Language.vue'
 import Logo from '@/components/Logo.vue'
+import { authenticationSegment } from '@/shared/constants'
 
 export default {
   name: 'login',
@@ -134,21 +138,21 @@ export default {
       if (provider === 'local') {
         this.loading = true
         const data = new FormData()
-        data.append('category', this.category)
+        data.append('category_id', this.category)
         data.append('provider', provider)
-        data.append('usr', this.usr)
-        data.append('pwd', this.pwd)
+        data.append('username', this.usr)
+        data.append('password', this.pwd)
         this.$store
           .dispatch('login', data)
-          .then(() => { this.$router.push({ name: 'Home' }) })
+          .then(() => {})
           .catch(err => {
-            this.error = this.$t('views.error.codes')[err.response && err.response.status.toString()]
+            this.error = this.$t('views.login.errors')[err.response && err.response.status.toString()]
             this.showDismissibleAlert = true
             this.loading = false
           })
       } else {
         if (this.category) {
-          window.location = `${window.location.protocol}//${window.location.host}/api/v2/login/${this.category}?provider=${provider}&redirect=/`
+          window.location = `${window.location.protocol}//${window.location.host}${authenticationSegment}/login?provider=${provider}&category_id=${this.category}&redirect=/`
         } else {
           this.$refs.select_category.$el.reportValidity()
         }
@@ -156,6 +160,10 @@ export default {
     }
   },
   beforeMount: async function () {
+    if (localStorage.token) {
+      this.$router.push({ name: 'Home' })
+    }
+    this.$store.dispatch('removeAuthorizationCookie')
     this.$store.dispatch('fetchConfig')
     this.$store.dispatch('fetchCategories').then(() => {
       if (this.getCategories.length === 1) {
@@ -166,13 +174,13 @@ export default {
     if (this.category_by_path) {
       this.category = this.$route.params.category
     } else {
-      this.category = cookies.getCookie('category') || ''
+      this.category = localStorage.category || ''
     }
   },
   watch: {
     category: function () {
       if (!this.category_by_path) {
-        cookies.setCookie('category', this.category)
+        localStorage.category = this.category
       }
     }
   }

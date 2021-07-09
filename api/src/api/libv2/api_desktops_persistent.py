@@ -39,7 +39,59 @@ class ApiDesktopsPersistent():
             raise DesktopNotFound
         ds.delete_desktop(desktop_id, desktop['status'])
 
-    def New(self, desktop_name, user_id,  memory, vcpus, kind = 'desktop', from_template_id = False, xml_id = False, xml_definition = False, disk_size = False, disk_path = False, parent_disk_path=False, iso = False, boot='disk'):
+    def NewFromTemplate(self, desktop_name, template_id, payload):
+        with app.app_context():
+            template = r.table('domains').get(template_id).run(db.conn)
+        if template == None:
+            raise TemplateNotFound
+
+        parsed_name = _parse_string(desktop_name)
+
+        parent_disk=template['hardware']['disks'][0]['file']
+        dir_disk = payload['category_id']+'/'+payload['group_id']+'/'+payload['user_id']
+        disk_filename = parsed_name+'.qcow2'
+
+        create_dict=template['create_dict']
+        create_dict['hardware']['disks']=[{'file':dir_disk+'/'+disk_filename,
+                                            'parent':parent_disk}]
+        create_dict=_parse_media_info(create_dict)
+
+        new_desktop={'id': '_'+payload['user_id']+'-'+parsed_name,
+                  'name': parsed_name,
+                  'description': template['description'],
+                  'kind': 'desktop',
+                  'user': payload['user_id'],
+                  'username': payload['user_id'].split('-')[-1],
+                  'status': 'Creating',
+                  'detail': None,
+                  'category': payload['category_id'],
+                  'group': payload['group_id'],
+                  'xml': None,
+                  'icon': template['icon'],
+                  'server': template['server'],
+                  'os': template['os'],
+                  'options': {'viewers':{'spice':{'fullscreen':True}}},
+                  'create_dict': {'hardware':create_dict['hardware'],
+                                    'origin': template['id']},
+                  'hypervisors_pools': template['hypervisors_pools'],
+                  'allowed': {'roles': False,
+                              'categories': False,
+                              'groups': False,
+                              'users': False},
+                  'accessed': time.time(),
+                  'persistent':False,
+                  'from_template':template['id']}
+
+        with app.app_context():
+            if r.table('domains').get(new_desktop['id']).run(db.conn) == None:
+                if _check(r.table('domains').insert(new_desktop).run(db.conn),'inserted') == False:
+                    raise NewDesktopNotInserted
+                else:
+                    return new_desktop['id']
+            else:
+                raise DesktopExists
+
+    def NewFromIso(self, desktop_name, user_id,  memory, vcpus, kind = 'desktop', from_template_id = False, xml_id = False, xml_definition = False, disk_size = False, disk_path = False, parent_disk_path=False, iso = False, boot='disk'):
         if kind not in ['desktop', 'user_template']:
             raise NewDesktopNotInserted
         parsed_name = _parse_string(desktop_name)
@@ -172,6 +224,13 @@ class ApiDesktopsPersistent():
                 raise DesktopActionFailed
         if desktop == None:
             raise DesktopNotFound
-        # Start the domain
-        ds.WaitStatus(desktop_id, 'Any', 'Shutting-down', 'Stopped')
+        # Stop the domain
+        try:
+            # ds.WaitStatus(desktop_id, 'Any', 'Shutting-down', 'Stopped', wait_seconds=30)
+            ds.WaitStatus(desktop_id, 'Any', 'Stopping', 'Stopped', wait_seconds=10)
+        except DesktopActionTimeout:
+            try:
+                ds.WaitStatus(desktop_id, 'Any', 'Stopping', 'Stopped')
+            except DesktopActionTimeout:
+                raise DesktopActionTimeout
         return desktop_id
