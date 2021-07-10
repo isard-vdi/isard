@@ -7,7 +7,7 @@
 # coding=utf-8
 import time
 from webapp import app
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 
 from datetime import datetime, timedelta
 from string import digits, ascii_lowercase

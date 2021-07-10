@@ -11,7 +11,7 @@ from flask import render_template, Response, request, redirect, url_for
 from flask import after_this_request
 from flask_login import login_required, login_user, logout_user, current_user
 
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 
 from webapp import app
 from ...lib import admin_api

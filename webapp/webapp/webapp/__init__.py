@@ -50,6 +50,10 @@ app.localuser=authentication.LocalUsers()
 '''
 Serve static files
 '''
+@app.route('/isard-admin/socketio/<path:path>')
+def send_socketio(path):
+    return send_from_directory(os.path.join(app.root_path, 'node_modules/socket.io/client-dist'), path)
+
 @app.route('/isard-admin/build/<path:path>')
 def send_build(path):
     return send_from_directory(os.path.join(app.root_path, 'node_modules/gentelella/build'), path)

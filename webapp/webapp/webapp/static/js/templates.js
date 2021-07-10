@@ -143,7 +143,10 @@ $(document).ready(function() {
     });
 
     // SocketIO
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_users');
+        socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_users', {
+        'path': '/isard-admin/socket.io/',
+        'transports': ['websocket']
+    });
 
     socket.on('connect', function() {
         connection_done();
