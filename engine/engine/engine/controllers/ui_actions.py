@@ -336,9 +336,9 @@ class UiActions(object):
                                 id_domain,
                                 forced_hyp,
                                 pool_id))
-                            next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
+                            next_hyp, extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain)
                     else:
-                        next_hyp = self.manager.pools[pool_id].get_next(domain_id=id_domain)
+                        next_hyp, extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain)
 
                     if type(next_hyp) is tuple:
                         h=next_hyp[0]
