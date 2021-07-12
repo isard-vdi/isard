@@ -20,7 +20,6 @@ db.init_app(app)
 from .admin_api import flatten
 from ..auth.authentication import Password, user_reloader
 
-from netaddr import IPNetwork, IPAddress 
 from ..lib.quotas import QuotaLimits
 quotas = QuotaLimits()
 
@@ -221,14 +220,6 @@ class isard():
                     dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
                     dict["hardware"]["interfaces"]=[iface['id']]
                     return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
-            elif remote_addr:
-                # Automatic interface selection
-                allowed_ifaces=self.get_alloweds(user,'interfaces',pluck=['id','net'])
-                for iface in allowed_ifaces:
-                    if IPAddress(remote_addr) in IPNetwork(iface['net']):
-                        dict=r.table('domains').get(id).pluck("create_dict").run(db.conn)['create_dict']
-                        dict["hardware"]["interfaces"]=[iface['id']]
-                        return self.check(r.table('domains').get(id).update({"create_dict":dict}).run(db.conn),'replaced')
             return True
         except Exception as e:
             log.error('Error updating domain '+id+' network interface.\n'+str(e))
