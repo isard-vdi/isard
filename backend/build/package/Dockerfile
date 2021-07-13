@@ -13,6 +13,6 @@ MAINTAINER isard <info@isard.com>
 
 COPY --from=build /go/src/github.com/isard-vdi/isard/backend /
 
-EXPOSE 8080
+#EXPOSE 8080
 
 CMD [ "/backend" ]

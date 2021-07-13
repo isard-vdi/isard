@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-static:
     container_name: isard-static
@@ -7,7 +7,8 @@ services:
       options:
         max-size: "100m"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.20
     restart: unless-stopped
     volumes:
       - /opt/isard/frontend/custom:/usr/share/nginx/html/custom:ro

@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-api:
     container_name: isard-api
@@ -6,10 +6,9 @@ services:
     logging:
       options:
         max-size: "100m"
-    ports:
-      - "7039:7039"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.10
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro

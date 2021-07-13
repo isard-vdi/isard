@@ -1,5 +1,9 @@
-version: "3.5"
+version: '3.5'
 networks:
   isard-network:
+    driver: bridge
     external: false
     name: isard-network
+    ipam:
+      config:
+        - subnet: ${DOCKER_NET}.0/24

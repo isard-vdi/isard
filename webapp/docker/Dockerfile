@@ -42,7 +42,7 @@ COPY webapp/webapp /isard
 COPY webapp/docker/supervisord.conf /etc/supervisord.conf
 RUN cd /isard/webapp && yarn install
 
-EXPOSE 5000
+#EXPOSE 5000
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 
 FROM production as development

@@ -6,11 +6,9 @@ services:
     logging:
       options:
         max-size: "100m"
-    ports:
-      - "8080:8080"
-      - "28015:28015"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.13
     restart: unless-stopped
     volumes:
     - /etc/localtime:/etc/localtime:ro

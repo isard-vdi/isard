@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-websockify:
     container_name: isard-websockify
@@ -7,7 +7,8 @@ services:
       options:
         max-size: "100m"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.27
     restart: unless-stopped
     env_file:
       - .env

@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-backend:
     container_name: isard-backend
@@ -6,10 +6,11 @@ services:
     logging:
       options:
         max-size: "100m"
-    ports:
-      - "1312:1312"
+    # ports:
+    #   - "127.0.0.1:1312:1312"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.11
     restart: unless-stopped
     volumes:
       - "/opt/isard/backend/keys:/keys"
@@ -24,7 +25,8 @@ services:
       options:
         max-size: "100m"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.12
     restart: unless-stopped
     volumes:
       - "/opt/isard/redis:/data"

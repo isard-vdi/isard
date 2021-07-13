@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-vpnhypers:
     container_name: isard-vpnhypers 
@@ -10,7 +10,8 @@ services:
       - NET_ADMIN
       - SYS_MODULE  
     networks:
-      isard-network: {}
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.25
       isard-vpn:
         ipv4_address: ${WG_HYPER_NET_WG_PEER}
     ports:

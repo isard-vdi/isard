@@ -1,4 +1,4 @@
-version: "3.5"
+version: '3.5'
 services:
   isard-video:
     container_name: isard-video
@@ -7,14 +7,15 @@ services:
       options:
         max-size: "100m"
     networks:
-      - isard-network
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.22
     ports:
       - published: 80
         target: 80
       - published: ${VIDEO_PORT}
         target: 443
-      - published: ${VIDEO_STATS_PORT}
-        target: 8888
+      # - published: ${VIDEO_STATS_PORT}
+      #   target: 8888
     restart: unless-stopped
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw

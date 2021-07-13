@@ -5,8 +5,6 @@ services:
     #image: isard/webapp:${TAG:-latest}
     ports:
       - "7039:7039"
-    networks:
-      - isard-network
     restart: unless-stopped
     volumes:
     - /etc/localtime:/etc/localtime:ro
