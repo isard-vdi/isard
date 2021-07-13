@@ -338,7 +338,7 @@ class DownloadChangesThread(threading.Thread):
         # change for other pools when pools are implemented in all media
         try:
             pool_id = 'default'
-            next_hyp = self.manager.pools[pool_id].get_next()
+            next_hyp, extra_info = self.manager.pools[pool_id].get_next()
             logs.downloads.debug('hypervisor where delete media {}: {}'.format(new_file_path, next_hyp))
 
             action = dict()
@@ -361,7 +361,7 @@ class DownloadChangesThread(threading.Thread):
 
         # change for other pools when pools are implemented in all media
         pool_id = 'default'
-        next_hyp = self.manager.pools[pool_id].get_next()
+        next_hyp, extra_info = self.manager.pools[pool_id].get_next()
         logs.downloads.debug('hypervisor where delete media {}: {}'.format(d_media['path_downloaded'], next_hyp))
 
         action = dict()
@@ -461,7 +461,7 @@ class DownloadChangesThread(threading.Thread):
                 while next_hyp is False:
                     logs.downloads.info('waiting an hypervisor online to launch downloading actions')
                     if pool_id in self.manager.pools.keys():
-                        next_hyp = self.manager.pools[pool_id].get_next()
+                        next_hyp, extra_info = self.manager.pools[pool_id].get_next()
                     sleep(1)
                 logs.downloads.info(f'hypervisor to launch download: {next_hyp}')
                 for hyp_id in get_hypers_in_pool():
