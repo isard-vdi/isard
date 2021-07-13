@@ -27,9 +27,8 @@ export default {
   },
   methods: {
     newRFB (target, viewOnly, qualityLevel) {
-      var viewerData = this.desktop.viewers.filter(viewer => viewer.type === 'browser')[0]
-      this.rfb = new RFB(target, 'wss://' + viewerData.host + ':' + viewerData.port + '/' + viewerData.vmHost + '/' + viewerData.vmPort, {
-        credentials: { password: viewerData.token }
+      this.rfb = new RFB(target, 'wss://' + this.desktop.viewer.host + ':' + this.desktop.viewer.port + '/' + this.desktop.viewer.vmHost + '/' + this.desktop.viewer.vmPort, {
+        credentials: { password: this.desktop.viewer.token }
       })
 
       this.rfb.viewOnly = viewOnly

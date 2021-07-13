@@ -223,6 +223,17 @@
         "welcome": {
             "title": "Benvingut a IsardVDI, sistema d'escriptoris virtuals",
             "button": "Identifiqueu-vos"
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "No hi ha cap deployment de l'usuari actual",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            }
+        },
+        "deployment": {
+            "no-started-desktops": {
+                "title": "Aquest deployment no té cap escriptori iniciat"
+            }
         }
     }
 }

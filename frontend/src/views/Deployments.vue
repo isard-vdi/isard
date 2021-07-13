@@ -4,7 +4,11 @@
       <NewNavBar/>
     </div>
     <b-container fluid id="content">
-      <DeploymentsList
+      <div v-if="deployments_loaded && deployments.length === 0">
+        <h3><strong>{{ $t('views.deployments.no-deployments.title') }}</strong></h3>
+        <p>{{ $t('views.deployments.no-deployments.subtitle') }}</p>
+      </div>
+      <DeploymentsList v-else
         :deployments="deployments"
         :loading="!(deployments_loaded)"/>
     </b-container>

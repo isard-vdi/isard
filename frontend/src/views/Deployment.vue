@@ -4,14 +4,15 @@
       <NewNavBar/>
     </div>
     <b-container fluid id="content">
-      <h5 class='font-weight-bold'>Deployment {{ this.$route.params.id }}</h5>
-      <b-row class='pb-3 pt-2'>
+      <h5 class='font-weight-bold'>{{ this.$route.params.id }}</h5>
+      <b-row class='pb-3 pt-2' v-if="deployment.filter(d => d.viewer).length !== 0">
         <b-col cols='3' :key="desktop.id" v-for="desktop in deployment">
-          <NoVNC
+          <NoVNC v-if="desktop.viewer"
             :height="'200px'"
             :desktop="desktop"/>
         </b-col>
       </b-row>
+      <h3 v-else><strong>{{ $t('views.deployment.no-started-desktops.title') }}</strong></h3>
     </b-container>
   </div>
 </template>
@@ -26,7 +27,7 @@ export default {
     NoVNC
   },
   created () {
-    this.$store.dispatch('fetchDeployment')
+    this.$store.dispatch('fetchDeployment', { id: this.$route.params.id })
   },
   computed: {
     deployment () {

@@ -223,6 +223,17 @@
         "welcome": {
             "title": "Bienvenido a IsardVDI, sistema de escritorios virtuales",
             "button": "Identificarse"
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "No existen deployments de este usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            }
+        },
+        "deployment": {
+            "no-started-desktops": {
+                "title": "Este deployment no tiene ningún escritorio iniciado"
+            }
         }
     }
 }

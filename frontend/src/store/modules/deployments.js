@@ -1,4 +1,6 @@
 import { DesktopUtils } from '../../utils/desktopsUtils'
+import { apiAxios } from '@/router/auth'
+import router from '@/router'
 
 export default {
   state: {
@@ -33,66 +35,25 @@ export default {
   },
   actions: {
     fetchDeployments (context) {
-      return new Promise((resolve, reject) => {
-        context.commit('setDeployments', DesktopUtils.parseDeployments([
-          {
-            id: 1,
-            name: 'AAAA',
-            startedDesktops: 2,
-            totalDesktops: 10
-          },
-          {
-            id: 2,
-            name: 'BBBB',
-            startedDesktops: 7,
-            totalDesktops: 10
-          },
-          {
-            id: 3,
-            name: 'CCCC',
-            startedDesktops: 3,
-            totalDesktops: 10
-          }
-        ]))
-        resolve()
+      return apiAxios.get('/deployments').then(response => {
+        context.commit('setDeployments', DesktopUtils.parseDeployments(response.data))
+      }).catch(err => {
+        console.log(err)
+        router.push({
+          name: 'Error',
+          params: { code: err.response && err.response.status.toString() }
+        })
       })
     },
-    fetchDeployment (context) {
-      return new Promise((resolve, reject) => {
-        context.commit('setDeployment', DesktopUtils.parseDeployment([
-          {
-            id: 1,
-            user: 'melina',
-            name: 'Deployment 1',
-            description: 'Descripció de prova',
-            state: '',
-            viewers: [
-              {
-                type: 'browser',
-                host: 'localhost',
-                port: '443',
-                token: '',
-                vmHost: 'isard-hypervisor',
-                vmPort: ''
-              }
-            ]
-          },
-          {
-            id: 2,
-            user: 'vitto',
-            name: 'Deployment 2',
-            description: 'Descripció de prova 2',
-            state: '',
-            viewers: [{
-              type: 'browser',
-              host: 'localhost',
-              port: '443',
-              token: '',
-              vmHost: 'isard-hypervisor',
-              vmPort: ''
-            }]
-          }
-        ]))
+    fetchDeployment (context, data) {
+      return apiAxios.get(`/deployment/${data.id}`).then(response => {
+        context.commit('setDeployment', DesktopUtils.parseDeployment(response.data))
+      }).catch(err => {
+        console.log(err)
+        router.push({
+          name: 'Error',
+          params: { code: err.response && err.response.status.toString() }
+        })
       })
     }
   }

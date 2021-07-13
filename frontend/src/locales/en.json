@@ -223,6 +223,17 @@
         "welcome": {
             "title": "Welcome to IsardVDI, virtual desktops service",
             "button": "Login"
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "There are no deployments from this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            }
+        },
+        "deployment": {
+            "no-started-desktops": {
+                "title": "There are no started desktops at this deployment"
+            }
         }
     }
 }
