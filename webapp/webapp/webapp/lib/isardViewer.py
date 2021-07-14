@@ -16,7 +16,6 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from .admin_api import flatten
-from netaddr import IPNetwork, IPAddress
 import urllib
 
 from ..lib.viewer_exc import *
