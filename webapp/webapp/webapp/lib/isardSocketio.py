@@ -34,6 +34,13 @@ from ..lib.quotas import QuotaLimits
 quotas = QuotaLimits()
 
 socketio = SocketIO(app)
+socketio = SocketIO(
+    app,
+    path='/isard-admin/socket.io/',
+    cors_allowed_origins='*',
+    logger=False,
+    engineio_logger=False,
+)
 threads = {}
 
 ## Domains Threading
