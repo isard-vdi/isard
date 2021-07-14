@@ -10,6 +10,8 @@ services:
     logging:
       options:
         max-size: "100m"
+    networks:
+      isard-network:
     working_dir: /usr/local/src/isard-frontend/
     command: sh -c "yarn install && yarn serve"
     restart: unless-stopped
