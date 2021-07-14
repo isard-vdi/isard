@@ -27,7 +27,8 @@
                 "action": "Acció",
                 "viewers": "Visors"
             },
-            "no-info-default": "No hi ha cap descripció disponible"
+            "no-info-default": "No hi ha cap descripció disponible",
+            "open-with": "Accedeix amb"
         },
         "help": {
             "close-guide": "Tancar la guia",

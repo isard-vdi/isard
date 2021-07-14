@@ -2,11 +2,11 @@
 <!-- TODO: change spinnerActive to clickActive -->
   <b-button
       :disabled="!active"
-      @click="active && !spinnerActive && $emit('buttonClicked')"
-      size='sm'
-      class='px-2 rounded-pill'
+      @click="active && $emit('buttonClicked')"
+      size='md'
+      class='rounded-pill pt-2'
       :class="[buttColor]">
-      {{ buttText }}
+      <b-icon class="mb-0" v-if="iconName !== '' && iconName !== undefined" :icon="iconName"></b-icon><span class="ml-1">{{ buttText }}</span>
   </b-button>
 </template>
 
@@ -16,7 +16,8 @@ export default {
     spinnerActive: Boolean,
     buttColor: String,
     buttText: String,
-    active: Boolean
+    active: Boolean,
+    iconName: String
   }
 }
 </script>

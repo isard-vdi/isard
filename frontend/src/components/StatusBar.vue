@@ -34,7 +34,7 @@
           <!-- Right aligned nav items-->
           <b-navbar-nav class="ml-auto flex-row d-none d-xl-flex">
 
-            <b-nav-item href="#" @click="changeView('grid')" :class="{selectedView: view === 'grid'}">
+            <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: view === 'grid'}">
               <b-icon
                 icon="grid-fill"
                 aria-hidden="true"
@@ -42,7 +42,7 @@
               ></b-icon>
             </b-nav-item>
 
-            <b-nav-item href="#" @click="changeView('list')" :class="{selectedView: view === 'list'}" class="ml-sm-2 ml-xl-0">
+            <b-nav-item href="#" @click="setViewType('list')" :class="{selectedView: view === 'list'}" class="ml-sm-2 ml-xl-0">
               <b-icon
                 icon="list"
                 aria-hidden="true"
@@ -59,6 +59,7 @@
 
 <script>
 import { desktopStates } from '@/shared/constants'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   data () {
@@ -68,23 +69,25 @@ export default {
     }
   },
   methods: {
-    changeView (type) {
-      this.$store.dispatch('setViewType', type)
-    },
+    ...mapActions([
+      'setViewType',
+      'toggleShowStarted'
+    ]),
     toggleDesktopsFilter () {
       this.status = !this.status
-      this.$store.dispatch('toggleShowStarted')
+      this.toggleShowStarted()
     }
   },
   computed: {
+    ...mapGetters([
+      'getViewType',
+      'getDesktops'
+    ]),
     startedDesktops () {
-      const startedDesktops = this.$store.getters.getDesktops.filter((item) => {
+      const startedDesktops = this.getDesktops.filter((item) => {
         return item && item.state.toLowerCase() === desktopStates.started
       })
       return startedDesktops.length
-    },
-    getShowStarted () {
-      return this.$store.getters.getShowStarted
     },
     view () {
       return this.$store.getters.getViewType

@@ -25,22 +25,29 @@ export const status = {
   },
   started: {
     action: 'stop',
-    icon: ['fas', 'stop'],
+    icon: 'stop',
     variant: 'danger'
   },
   waitingip: {
     action: 'stop',
-    icon: ['fas', 'stop'],
+    icon: 'stop',
     variant: 'danger'
   },
   stopped: {
     action: 'start',
-    icon: ['fas', 'play'],
+    icon: 'play',
     variant: 'success'
   },
   failed: {
-    action: 'start'
+    action: 'start',
+    icon: 'play'
+  },
+  'shutting-down': {
+    action: '',
+    icon: ''
   },
   working: {
+    action: '',
+    icon: ''
   }
 }
