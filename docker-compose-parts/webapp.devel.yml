@@ -3,4 +3,4 @@ services:
   isard-webapp:
     volumes:
       - ${BUILD_ROOT_PATH}/webapp/webapp:/isard:rw
-    command: sleep infinity
+    command: sh -c "yarn --cwd /isard/webapp install && python3 start.py"
