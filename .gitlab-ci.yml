@@ -1,3 +1,7 @@
+stages:
+ - build
+ - changelog
+
 docker-build:
   image: docker:latest
   stage: build
@@ -24,3 +28,26 @@ docker-build:
   artifacts:
     paths:
       - docker-compose*.yml
+
+.changelog:
+  image: registry.gitlab.com/gitlab-org/release-cli
+  stage: changelog
+  before_script:
+    - apk add --no-cache nodejs npm git
+    - cd releaser && npm i --save && cd -
+
+changelog:
+  extends: .changelog
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - ./releaser/index.js CHANGELOG.md
+
+changelog-release:
+  extends: .changelog
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - url_host=`git remote get-url origin | sed -e "s/https:\/\/gitlab-ci-token:.*@//g"`
+    - git remote set-url origin "https://gitlab-ci-token:${GITLAB_TOKEN}@${url_host}"
+    - ./releaser/index.js CHANGELOG.md --release

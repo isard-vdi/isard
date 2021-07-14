@@ -1,29 +1,37 @@
 # Contributing
 
-## New feature
+This file is going to be used to document de development process of IsardVDI, both for newcomers and old contributors!
 
-1. Fork the `isard-vdi/isard` repository
-2. Clone **your** Isard fork and move  (if you already have your fork clonned, make sure you have the latest changes: `git fetch upstream`)
-3. Add the upstream remote: `git remote add upstream https://github.com/isard-vdi/isard`
+## Development model
 
-1. Initialize Git Flow: `git flow init`
-2. Create the feature: `git flow feature start <feature name>` 
-3. Work and commit it
-4. Publish the feature branch: `git flow feature publish <feature name>`
-5. Create a pull request from `your username/isard` `feature/<feature name>` to `isard-vdi/isard` `develop` branch
+- IsardVDI is developed in a *rolling release* model. This means that every change done, is going to be a new version
+- Uses [semver](https://semver.org/)
+  + If the changes are a bugfix, increase the PATCH (x.x.X)
+  + If the changes introduce a new feature, change the MINOR (x.X.x)
+  + If some changes break the upgrading process, change the MAJOR (X.x.x)
+- Does not provide support for old versions (e.g. if we have version 3.1.1 and 3.2.0 is out, there's never going to be version 3.1.2)
 
+## Example
 
+Let's say we have found a bug and have a solution:
 
-## New release
+1. For the `isard/isardvdi` repository
+2. Clone **your** fork
+3. Add the upstream remote: `git remote add upstream https://gitlab.com/isard/isardvdi`
+4. If you already have the clone, make sure you have the latest changes:
 
-1. Clone the `isard-vdi/isard` repository
-2. Create the release: `git flow release start X.X.X`
-3. Publish the release branch: `git flow publish release X.X.X`
-4. Create a pull request from the `isard-vdi/isard` `release/X.X.X` to `isard-vdi/isard` `master`
-5. Update the Changelog, the `docker-compose.yml` file...
-6. Merge the release to master
-7. Create a new release to GitHub using as description the Changelog for the version
-8. Pull the changes to the local `isard-vdi/isard` clone
-9. Change to the new version tag: `git checkout X.X.X`
-10. Build the Docker images and push them to Docker Hub
+```sh
+git checkout main
+git pull upstream
+```
 
+5. Create a branch from there: `git checkout -b <name>` (please, pick a descriptive name!)
+6. Work in this branch
+7. Update the `CHANGELOG.md` and *commit* the changes. Write a [good and descriptive commit message](https://www.freecodecamp.org/news/writing-good-commit-messages-a-practical-guide/).
+8. Make sure you're on the latest `upstream` commit: `git fetch upstream && git rebase upstream/main`
+8. Push the branch to your remote: `git push`
+9. Create a Merge Request to the `main` branch of the `isard/isardvdi` repository. Please be descriptive in both the title and the description!
+10. Review the changes and decide it's ready for a release
+11. Rebase again against the `upstream/main`. If there has been a release, use `git commit --amend` to edit the last commit and ensure the `CHANGELOG.md` is correct
+12. Push to your fork and wait for someone to review the changes and merge it to `main`
+13. Done! The GitLab CI will create the release, the tag and publish de Docker images! :)
