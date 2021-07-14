@@ -285,6 +285,8 @@ class isardAdmin():
         del user['password']
         user={**usr, **user}
         
+        if not user.get('photo',False): user['photo']=''
+
         if user['quota'] != False:
             for k,v in user['quota'].items():
                 user['quota'][k]=int(v)
@@ -318,6 +320,8 @@ class isardAdmin():
             del user['password']
             user={**usr, **user}
 
+            if not user.get('photo',False): user['photo']=''
+            
             if user['quota'] != False:
                 for k,v in user['quota'].items():
                     user['quota'][k]=int(v)

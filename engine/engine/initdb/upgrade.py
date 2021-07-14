@@ -17,7 +17,7 @@ from .lib import *
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 14
+release_version = 15
 tables=['config','hypervisors','hypervisors_pools','domains','media','videos','graphics','users','roles','groups','interfaces']
 
 
@@ -796,6 +796,14 @@ class Upgrade(object):
             ):
                 r.table(table).get("local-default-admin-admin").update(
                     {"photo": ""}
+                ).run()
+
+        if version == 15:
+            # We need to do it for all users
+                r.table(table).filter({"photo": None}).update({"photo":""}).run()
+                r.table(table).filter({"photo": False}).update({"photo":""}).run()
+                r.table(table).update(
+                    {"photo": (r.row["photo"]).default("")}
                 ).run()
 
         return True
