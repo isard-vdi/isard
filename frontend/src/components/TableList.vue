@@ -76,11 +76,11 @@
                     :class="{ 'dropdown-inactive': !showDropDown(data.item) }"
                     cssClass='viewers-dropdown flex-grow-1'
                     variant='light'
-                    :viewers="data.item.viewers && data.item.viewers.filter(item => item !== viewers[data.item.id])"
+                    :viewers="data.item.viewers && data.item.viewers.filter(item => item !== getDefaultViewer(data.item))"
                     :desktop="data.item"
-                    :viewerText="viewers[data.item.id] !== undefined ? getViewerText(data.item).substring(0, 13) : $t('views.select-template.viewers')"
-                    :fullViewerText="viewers[data.item.id] !== undefined ? getViewerText(data.item) : $t('views.select-template.viewers')"
-                    :defaultViewer="viewers[data.item.id]"
+                    :viewerText="getViewerText(data.item).substring(0, 13)"
+                    :fullViewerText="getViewerText(data.item)"
+                    :defaultViewer="getDefaultViewer(data.item)"
                     :waitingIp="data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip"
                     @dropdownClicked="openDesktop">
                   </isard-dropdown>
@@ -150,9 +150,6 @@ export default {
       type: Boolean
     }
   },
-  created () {
-    console.log(this.desktops)
-  },
   computed: {
     stateBarCssClass () {
       const states = {
@@ -189,9 +186,6 @@ export default {
       return [desktopStates.started, desktopStates.waitingip].includes(this.getItemState(desktop))
     },
     getItemState (desktop) {
-      if ([desktopStates.started, desktopStates.waitingip].includes(desktop.state && desktop.state.toLowerCase())) {
-        this.$store.dispatch('setDefaultViewer', { id: desktop.id, viewer: 'browser' })
-      }
       return desktop.state ? desktop.state.toLowerCase() : desktopStates.stopped
     },
     getemplate (desktop) {
@@ -218,8 +212,18 @@ export default {
       return stateColors[state]
     },
     getViewerText (desktop) {
-      const name = i18n.t(`views.select-template.viewer-name.${this.viewers[desktop.id]}`)
-      return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
+      const name = this.getDefaultViewer(desktop) !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer(desktop)}`) : i18n.t('views.select-template.viewers')
+      return this.getDefaultViewer(desktop) !== '' ? i18n.t('views.select-template.viewer', i18n.locale, { name: name }) : name
+    },
+    getDefaultViewer (desktop) {
+      if (desktop.viewers !== undefined) {
+        if (this.viewers[desktop.id] !== undefined && desktop.viewers.includes(this.viewers[desktop.id])) {
+          return this.viewers[desktop.id]
+        } else if (desktop.viewers.length > 0) {
+          return desktop.viewers.includes('browser') ? 'browser' : desktop.viewers[0]
+        }
+      }
+      return ''
     }
   },
   data () {
