@@ -277,23 +277,12 @@
                         <div class="x_content">
                             <input id="id" name="id" class="template-id" hidden ></input>
                             <div class="row">
-                                <div class="col-md-8 col-xs-12">
+                                <div class="col-md-12 col-xs-12">
                                     <label class="control-label" for="name">Template name <span class="required">*</span>
                                     </label>
-                                    <input id="template-name" class="form-control template-name" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New template name" data-parsley-trigger="change" required type="text">
+                                    <input id="template-name" class="form-control template-name" maxlength="60" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 60]" name="name" placeholder="New template name" data-parsley-trigger="change" required type="text">
                                 </div>
-                                {% if(current_user.role == 'admin') %}
-                                <div class="col-md-4 col-xs-12">
-                                    <label class="control-label" for="kind">Type of template
-                                    </label>
-                                    <select class="form-control" id="kind" name="kind" class="template-kind">
-                                        <option value="user_template" selected="selected">Template</option>
-                                        <option value="base">Base</option>
-                                    </select>
-                                </div>
-                                {% else %}
                                 <input id="kind" name="kind" class="template-kind" hidden value="user_template" ></input>
-                                {% endif %}
                             </div>
                             <div class="row">
                                 <div class="col-md-12 col-xs-12">
