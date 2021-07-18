@@ -28,36 +28,12 @@
                   <span class="sr-only">Close</span>
             </button>
             <h4 class="modal-title" id="myModalLabel">
-               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Deployment desktops to users
+               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Create multiple desktops
             </h4>
          </div>
          <!-- Modal Body -->
          <div class="modal-body">
             <form id="modalAdd" class="form-inline form-label-left">
-               <div class="x_panel">
-                  <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Deployment</h4>
-                  <div class="x_content" style="padding: 0px;">
-                     <div class="row">
-                        <div class="col-md-6 col-xs-12">
-                           <label class="control-label" for="tag">Deployment name <span class="required">*</span>
-                           </label>
-                           <input id="tag" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="tag" placeholder="Deployment name" data-parsley-trigger="change" required type="text" style="width:100%">
-                        </div>
-                        <div class="col-md-6 col-xs-12">
-                           <label>Visible to users</label>
-                           <div class="checkbox">
-                              <label class="">
-                                 <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="tag_visible" name="tag_visible" class="flat"  style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                 </div>
-                              </label>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
                <div class="x_panel">
                   <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Desktop name and description</h4>
                   <div class="x_content" style="padding: 0px;">
@@ -119,7 +95,6 @@
       </div>
    </div>
 </div>
-
 
 <div class="modal fade" id="modalAddFromBuilder" tabindex="-1" role="dialog" 
    aria-labelledby="modalAddBuilder" aria-hidden="true">
