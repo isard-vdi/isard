@@ -740,7 +740,6 @@ function modal_add_desktop_datatables(){
 
 							]
 	} );  
-
 }
 
 function initalize_modal_all_desktops_events(){

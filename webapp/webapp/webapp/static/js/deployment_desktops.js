@@ -428,23 +428,26 @@ $(document).ready(function() {
                 clearInterval(countdown[data.id])
                 countdown[data.id]=null
         }
-
-        dtUpdateInsert(table,data,false);
-        setDesktopDetailButtonsStatus(data.id, data.status);
+        if( 'tag' in data && data['tag'] ){
+            dtUpdateInsert(table,data,false);
+            setDesktopDetailButtonsStatus(data.id, data.status);
+        }
     });
 
     socket.on('desktop_delete', function(data){
         var data = JSON.parse(data);
-        var row = table.row('#'+data.id).remove().draw();
-        new PNotify({
-                title: "Desktop deleted",
-                text: "Desktop "+data.name+" has been deleted",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-        });
+        if( 'tag' in data && data['tag'] ){
+            var row = table.row('#'+data.id).remove().draw();
+            new PNotify({
+                    title: "Desktop deleted",
+                    text: "Desktop "+data.name+" has been deleted",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+            });
+        }
     });
 
     socket.on('result', function (data) {

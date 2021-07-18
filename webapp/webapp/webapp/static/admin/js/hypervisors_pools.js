@@ -147,22 +147,7 @@ $(document).ready(function() {
 
     $("#modalAddPool #send").on('click', function(e){
             var form = $('#modalAddHyper #modalAdd');
-            //~ form.parsley().validate();
-            //~ var queryString = $('#modalAdd').serialize();
             data=$('#modalAddPool #modalAdd').serializeObject();
-            //~ socket.emit('hypervisor_add',data)
-            //~ if (form.parsley().isValid()){
-                //~ template=$('#modalAddDesktop #template').val();
-                //~ console.log('TEMPLATE:'+template)
-                //~ if (template !=''){
-                    //~ var queryString = $('#modalAdd').serialize();
-                    //~ data=$('#modalAdd').serializeObject();
-                    //~ socket.emit('domain_add',data)
-                //~ }else{
-                    //~ $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    //~ $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                //~ }
-            //~ }
         });
 
     tablepools = $('#hypervisors_pools').DataTable( {
