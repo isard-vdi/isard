@@ -13,10 +13,10 @@
     <b-row id="login" align-h="center">
       <b-spinner v-if="loading" />
       <b-col v-else sm="10" md="6" lg="5" xl="4">
-        <h1 v-if="categories.length || config['social_logins']">{{ $t('views.login.title') }}</h1>
+        <h1 v-if="getCategories.length || getConfig['social_logins']">{{ $t('views.login.title') }}</h1>
         <h3 v-if="category_by_path">{{ category_name }}</h3>
 
-        <b-form v-if="categories.length" @submit.prevent="login('local')">
+        <b-form v-if="getCategories.length" @submit.prevent="login('local')">
 
           <b-alert
             v-model="showDismissibleAlert"
@@ -27,7 +27,7 @@
           </b-alert>
 
           <b-form-select
-            v-if="!category_by_path && categories.length > 1"
+            v-if="!category_by_path && getCategories.length > 1"
             size="md"
             class="mb-4"
             required
@@ -52,12 +52,12 @@
           <b-button type="submit" variant="warning" size="lg">{{ $t('views.login.form.login') }}</b-button>
         </b-form>
 
-        <hr v-if="categories.length && config['social_logins']"/>
+        <hr v-if="getCategories.length && getConfig['social_logins']"/>
 
-        <p v-if="categories.length && config['social_logins']">{{ $t('views.login.other-logins') }}</p>
+        <p v-if="getCategories.length && getConfig['social_logins']">{{ $t('views.login.other-logins') }}</p>
 
         <b-button
-          v-for="provider in config['social_logins']"
+          v-for="provider in getConfig['social_logins']"
           v-bind:key="provider"
           @click="login(provider.toLowerCase())"
           :class="'login-btn btn-' + provider.toLowerCase()"
@@ -65,7 +65,7 @@
           <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
           {{ provider }}
         </b-button>
-        <hr v-if="categories.length || config['social_logins']"/>
+        <hr v-if="getCategories.length || getConfig['social_logins']"/>
       </b-col>
     </b-row>
     <b-row id="powered-by" align-h="center">
@@ -82,6 +82,7 @@
 
 <script>
 import * as cookies from 'tiny-cookie'
+import { mapGetters } from 'vuex'
 import Language from '@/components/Language.vue'
 import Logo from '@/components/Logo.vue'
 
@@ -103,26 +104,24 @@ export default {
     }
   },
   computed: {
+    ...mapGetters([
+      'getCategories',
+      'getConfig'
+    ]),
     categories_select () {
-      return this.categories.map(category =>
+      return this.getCategories.map(category =>
         ({
           value: category.id,
           text: category.name
         })
       )
     },
-    categories () {
-      return this.$store.getters.getCategories
-    },
-    config () {
-      return this.$store.getters.getConfig
-    },
     category_by_path () {
       return this.$route.params.category !== undefined
     },
     category_name () {
       var name = ''
-      this.categories.forEach(category => {
+      this.getCategories.forEach(category => {
         if (this.category === category.id) {
           name = category.name
         }
@@ -159,8 +158,8 @@ export default {
   beforeMount: async function () {
     this.$store.dispatch('fetchConfig')
     this.$store.dispatch('fetchCategories').then(() => {
-      if (this.categories.length === 1) {
-        this.category = this.categories[0].id
+      if (this.getCategories.length === 1) {
+        this.category = this.getCategories[0].id
       }
     })
 

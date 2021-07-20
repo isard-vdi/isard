@@ -12,14 +12,14 @@
           <b-navbar-nav id="left-side" class="mt-5 mt-lg-0">
             <b-nav-item href="#" v-b-modal.help_modal>{{ $t("components.navbar.help") }}</b-nav-item>
             <b-nav-item href="#" @click="fetchVpn()">{{ $t("components.navbar.vpn.download") }}</b-nav-item>
-            <b-nav-item v-if="user.role != 'user' || config['show_admin_button']" href="/isard-admin/login" >
+            <b-nav-item v-if="getUser.role != 'user' || getConfig['show_admin_button']" href="/isard-admin/login" >
                 {{ $t("components.navbar.admin") }}
             </b-nav-item>
           </b-navbar-nav>
 
           <!-- Right aligned nav items -->
           <b-navbar-nav class="ml-auto">
-            <b-nav-item href="#"><span class="text-white">{{ user.name }} [{{ user.role }}]</span></b-nav-item>
+            <b-nav-item href="#"><span class="text-white">{{ getUser.name }} [{{ getUser.role }}]</span></b-nav-item>
 
             <b-nav-item href="#" @click="logout()"
               ><b-icon
@@ -38,25 +38,27 @@
 
 <script>
 import Help from '@/components/Help.vue'
-import { mapActions } from 'vuex'
+import { mapActions, mapGetters } from 'vuex'
 
 export default {
   components: {
     Help
   },
   beforeMount: async function () {
-    this.$store.dispatch('fetchConfig')
+    this.fetchConfig()
   },
   computed: {
-    config () {
-      return this.$store.getters.getConfig
-    },
-    user () {
-      return this.$store.getters.getUser
-    }
+    ...mapGetters([
+      'getConfig',
+      'getUser'
+    ])
   },
   methods: {
-    ...mapActions(['logout', 'fetchVpn'])
+    ...mapActions([
+      'logout',
+      'fetchVpn',
+      'fetchConfig'
+    ])
   }
 }
 </script>

@@ -34,7 +34,7 @@
           <!-- Right aligned nav items-->
           <b-navbar-nav class="ml-auto flex-row d-none d-xl-flex">
 
-            <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: view === 'grid'}">
+            <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
               <b-icon
                 icon="grid-fill"
                 aria-hidden="true"
@@ -42,7 +42,7 @@
               ></b-icon>
             </b-nav-item>
 
-            <b-nav-item href="#" @click="setViewType('list')" :class="{selectedView: view === 'list'}" class="ml-sm-2 ml-xl-0">
+            <b-nav-item href="#" @click="setViewType('list')" :class="{selectedView: getViewType === 'list'}" class="ml-sm-2 ml-xl-0">
               <b-icon
                 icon="list"
                 aria-hidden="true"
@@ -88,9 +88,6 @@ export default {
         return item && item.state.toLowerCase() === desktopStates.started
       })
       return startedDesktops.length
-    },
-    view () {
-      return this.$store.getters.getViewType
     }
   }
 }
