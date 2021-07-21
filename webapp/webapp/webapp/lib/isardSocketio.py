@@ -1085,10 +1085,13 @@ def socketio_advanced_domains_add(form_data):
         return        
 
     create_dict=app.isardapi.f.unflatten_dict(form_data)
+    deployment_name=create_dict['tag']
+    create_dict['tag']=app.isardapi.parse_string(deployment_name)
+    create_dict['tag_name']=deployment_name
+    tag='_'+current_user.id+'_'+create_dict['tag']
 
-    tag='_'+current_user.id+'_'+app.isardapi.parse_string(create_dict['tag'])
     deployment_dict={   'id':tag,
-                        'name':create_dict['tag'],
+                        'name':deployment_name,
                         'user':current_user.id,
                         'create_dict':create_dict.copy()}
     app.adminapi.insert_or_update_table_dict('deployments',deployment_dict)

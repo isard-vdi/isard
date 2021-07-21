@@ -17,12 +17,12 @@ $(document).ready(function() {
     user['role']=$('#user-data').data("role");
     $('.btn-delete-template').remove()
     modal_add_desktops = $('#modal_add_desktops').DataTable()
-	initalize_modal_all_desktops_events()
+    initalize_modal_all_desktops_events()
     setViewerHelp();
 
-	$template = $(".template-detail-domain");
+    $template = $(".template-detail-domain");
 
-	$('.btn-new').on('click', function () {
+    $('.btn-new').on('click', function () {
         if($('.quota-desktops .perc').text() >=100){
             new PNotify({
                 title: "Quota for creating desktops full.",
@@ -54,84 +54,84 @@ $(document).ready(function() {
             $('#modalAdd').parsley();
             modal_add_desktop_datatables();
         }
-	});
+    });
 
-	//DataTable Main renderer
-	var table = $('#desktops').DataTable({
-			"ajax": {
-				"url": "/isard-admin/desktops/get/",
-				"dataSrc": ""
-			},
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+    //DataTable Main renderer
+    var table = $('#desktops').DataTable({
+            "ajax": {
+                "url": "/isard-admin/desktops/get/",
+                "dataSrc": ""
+            },
+            "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
                 "emptyTable": "<h1>You don't have any desktop created yet.</h1><br><h2>Create one using the +Add new button on top right of this page.</h2><br>\
                                 Select your desktop from templates created and shared by the administrator."
-			},           
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-				{
+            },           
+            "rowId": "id",
+            "deferRender": true,
+            "columns": [
+                {
                 "className":      'details-control',
                 "orderable":      false,
                 "data":           null,
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-				},
-				{ "data": "icon", "width": "10px" },
-				{ "data": null, "width": "10px"},
-				{ "data": null, "width": "10px"},
-				{ "data": "status", "width": "10px"},
+                },
+                { "data": "icon", "width": "10px" },
                 { "data": null, "width": "10px"},
-				{ "data": "name"},
+                { "data": null, "width": "10px"},
+                { "data": "status", "width": "10px"},
+                { "data": null, "width": "10px"},
+                { "data": "name"},
                 { "data": null, "width": "90px"},
-				],
-			 "order": [[3, 'desc']],		 
-		"columnDefs": [ {
-							"targets": 1,
-							"render": function ( data, type, full, meta ) {
-							  return renderIcon(full);
-							}},
-							{
-							"targets": 2,
-							"render": function ( data, type, full, meta ) {
-							  return renderAction(full);
-							}},
-							{
-							"targets": 3,
-							"render": function ( data, type, full, meta ) {
-							  return renderDisplay(full);
-							}},
-							{
-							"targets": 4,
-							"render": function ( data, type, full, meta ) {
-							  return renderStatus(full,table);
-							}},
+                ],
+             "order": [[3, 'desc']],
+        "columnDefs": [ {
+                            "targets": 1,
+                            "render": function ( data, type, full, meta ) {
+                                return renderIcon(full);
+                            }},
                             {
-							"targets": 5,
-							"render": function ( data, type, full, meta ) {
+                            "targets": 2,
+                            "render": function ( data, type, full, meta ) {
+                              return renderAction(full);
+                            }},
+                            {
+                            "targets": 3,
+                            "render": function ( data, type, full, meta ) {
+                              return renderDisplay(full);
+                            }},
+                            {
+                            "targets": 4,
+                            "render": function ( data, type, full, meta ) {
+                              return renderStatus(full,table);
+                            }},
+                            {
+                            "targets": 5,
+                            "render": function ( data, type, full, meta ) {
                                 if('preferred' in full['options']['viewers'] && full['options']['viewers']['preferred']){return full['options']['viewers']['preferred'].replace('-','/').toUpperCase();}
-							  return '';
-							}},                            
-							{
-							"targets": 6,
-							"render": function ( data, type, full, meta ) {
-							  return renderName(full);
-							}},
-							{
-							"targets": 7,
-							"render": function ( data, type, full, meta ) {
-							  return renderMedia(full);
-							}},
-							//~ {
-							//~ "targets": 7,
-							//~ "render": function ( data, type, full, meta ) {
-							  //~ return renderHotplugMedia(full);
-							//~ }}
-							]
-	} );
+                              return '';
+                            }},
+                            {
+                            "targets": 6,
+                            "render": function ( data, type, full, meta ) {
+                              return renderName(full);
+                            }},
+                            {
+                            "targets": 7,
+                            "render": function ( data, type, full, meta ) {
+                              return renderMedia(full);
+                            }},
+                            //~ {
+                            //~ "targets": 7,
+                            //~ "render": function ( data, type, full, meta ) {
+                              //~ return renderHotplugMedia(full);
+                            //~ }}
+                            ]
+    } );
 
-	// DataTable detail
-	$('#desktops tbody').on('click', 'td.details-control', function () {
+    // DataTable detail
+    $('#desktops tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = table.row( tr );
         if ( row.child.isShown() ) {
@@ -158,24 +158,24 @@ $(document).ready(function() {
           }
     } );
 
-	// DataTable buttons
+    // DataTable buttons
     $('#desktops tbody').on( 'click', 'button', function () {
         var data = table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
             case 'btn-play':
-				if($('.quota-play .perc').text() >=100){
-					new PNotify({
-						title: "Quota for running desktops full.",
-							text: "Can't start another desktop, quota full.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-				}else{
+                if($('.quota-play .perc').text() >=100){
+                    new PNotify({
+                        title: "Quota for running desktops full.",
+                            text: "Can't start another desktop, quota full.",
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                }else{
                     socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'}) 
-				}          
+                }          
                 break;
             case 'btn-stop':
                 if(data['status']=='Started'){
@@ -341,25 +341,25 @@ $(document).ready(function() {
 
 
 function actionsDesktopDetail(){
-	$('.btn-edit').on('click', function () {
+    $('.btn-edit').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
-			setHardwareOptions('#modalEditDesktop');
+            setHardwareOptions('#modalEditDesktop');
             setHardwareDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
-			$('#modalEditDesktop').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalEditDesktop').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
              $('#hardware-block').hide();
             $('#modalEdit').parsley();
             modal_edit_desktop_datatables(pk);
             
             setDomainMediaDefaults('#modalEditDesktop',pk);
             setMedia_add('#modalEditDesktop #media-block')
-	});
+    });
 
-	$('.btn-template').on('click', function () {
-		if($('.quota-templates .perc').text() >=100){
+    $('.btn-template').on('click', function () {
+        if($('.quota-templates .perc').text() >=100){
             new PNotify({
                 title: "Quota for creating templates full.",
                 text: "Can't create another template, quota full.",
@@ -369,17 +369,17 @@ function actionsDesktopDetail(){
                 opacity: 1,
                 type: 'error'
             });
-		}else{	
-			var pk=$(this).closest("[data-pk]").attr("data-pk");
+        }else{  
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
             
-			setDefaultsTemplate(pk);
-			setHardwareOptions('#modalTemplateDesktop');
-			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+            setDefaultsTemplate(pk);
+            setHardwareOptions('#modalTemplateDesktop');
+            setHardwareDomainDefaults('#modalTemplateDesktop',pk);
             
-			$('#modalTemplateDesktop').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalTemplateDesktop').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
 
             setDomainMediaDefaults('#modalTemplateDesktop',pk);
             setMedia_add('#modalTemplateDesktop #media-block')  
@@ -387,44 +387,44 @@ function actionsDesktopDetail(){
             setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
             $('#modalTemplateDesktopForm').parsley().validate();
         }
-	});
+    });
 
     $('#modalTemplateDesktop').on('shown.bs.modal', function () {
             validator.checkAll($('#modalTemplateDesktopForm')[0]);
         });
 
-	$('.btn-delete').on('click', function () {
-				var pk=$(this).closest("[data-pk]").attr("data-pk");
-				var name=$(this).closest("[data-pk]").attr("data-name");
-				new PNotify({
-						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete virtual machine: "+name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
+    $('.btn-delete').on('click', function () {
+                var pk=$(this).closest("[data-pk]").attr("data-pk");
+                var name=$(this).closest("[data-pk]").attr("data-name");
+                new PNotify({
+                        title: 'Confirmation Needed',
+                            text: "Are you sure you want to delete virtual machine: "+name+"?",
+                            hide: false,
+                            opacity: 0.9,
+                            confirm: {
+                                confirm: true
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            },
+                            addclass: 'pnotify-center'
+                        }).get().on('pnotify.confirm', function() {
                             socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
-						}).on('pnotify.cancel', function() {
-				});	
-	});
+                        }).on('pnotify.cancel', function() {
+                }); 
+    });
 
-	$('.btn-xml').on('click', function () {
+    $('.btn-xml').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
-			$('#modalEditXml').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalEditXml').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             $('#modalShowInfoForm #id').val(pk);
             $.ajax({
                 type: "GET",
@@ -433,19 +433,19 @@ function actionsDesktopDetail(){
                 {
                     var data = JSON.parse(data);
                     $('#xml').val(data);
-                }				
+                }               
             });
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
-	});
+    });
 
-	$('.btn-events').on('click', function () {
+    $('.btn-events').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
-			$('#modalShowInfo').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalShowInfo').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             $('#modalShowInfoForm #id').val(pk);
             $.ajax({
                 type: "GET",
@@ -453,20 +453,20 @@ function actionsDesktopDetail(){
                 success: function(data)
                 {
                     var data = JSON.parse(data);
-		    $('#xml').val(JSON.stringify(data, undefined, 4));
-                }				
+            $('#xml').val(JSON.stringify(data, undefined, 4));
+                }               
             });
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
-	});
+    });
 
-	$('.btn-messages').on('click', function () {
+    $('.btn-messages').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
-			$('#modalShowInfo').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalShowInfo').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             $('#modalShowInfoForm #id').val(pk);
             $.ajax({
                 type: "GET",
@@ -475,11 +475,11 @@ function actionsDesktopDetail(){
                 {
                     var data = JSON.parse(data);
                     $('#xml').val(JSON.stringify(data, undefined, 4));
-                }				
+                }               
             });
             //~ $('#modalEdit').parsley();
             //~ modal_edit_desktop_datatables(pk);
-	});
+    });
 
     $('.btn-jumperurl').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -520,7 +520,7 @@ function actionsDesktopDetail(){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
             }
-          }); 	
+          });   
         $('#jumperurl-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
             pk=$('#modalJumperurlForm #id').val();
             new PNotify({
@@ -559,17 +559,17 @@ function actionsDesktopDetail(){
         });
 
 }
-	
-//~ RENDER DATATABLE	
+        
+//~ RENDER DATATABLE    
 function addDesktopDetailPannel ( d ) {
-		$newPanel = $template.clone();
+        $newPanel = $template.clone();
         $newPanel.find('#derivates-d\\.id').remove();
         $newPanel.find('.btn-forcedhyp').remove();
         $newPanel.find('.btn-xml').remove();
-		$newPanel.html(function(i, oldHtml){
-			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
-		});
-		return $newPanel
+        $newPanel.html(function(i, oldHtml){
+            return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
+        });
+        return $newPanel
 }
 
 function setDesktopDetailButtonsStatus(id,status){
@@ -585,32 +585,32 @@ function setDesktopDetailButtonsStatus(id,status){
       $('#actions-'+id+' .btn-delete').prop('disabled', false);
     }
 }
-	
+        
 function icon(name){
        if(name=='windows' || name=='linux'){
            return "<i class='fa fa-"+name+" fa-2x '></i>";
         }else{
             return "<span class='fl-"+name+" fa-2x'></span>";
-		}       
+        }       
 }
 
 
 function renderDisplay(data){
         if(['Started', 'Shutting-down', 'Stopping'].includes(data.status)){
             return ' <div class="display"> \
-					<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
-					<i class="fa fa-desktop"></i> Show</button></div>';
+                    <button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
+                    <i class="fa fa-desktop"></i> Show</button></div>';
         }
         return ''
 }
 
 function renderName(data){
-		return '<div class="block_content" > \
-      			<h4 class="title" style="height: 4px; margin-top: 0px;"> \
+        return '<div class="block_content" > \
+                <h4 class="title" style="height: 4px; margin-top: 0px;"> \
                 '+data.name+' \
                 </h4> \
-      			<p class="excerpt" >'+data.description+'</p> \
-           		</div>'
+                <p class="excerpt" >'+data.description+'</p> \
+                </div>'
 }
 
 function renderIcon(data){
@@ -689,17 +689,17 @@ function renderHotplugMedia(data){
 }
 
 function setDefaultsTemplate(id) {
-	$.ajax({
-		type: "GET",
-		url:"/isard-admin/desktops/templateUpdate/" + id,
-		success: function(data)
-		{
-			$('.template-id').val(id);
-			$('.template-id').attr('data-pk', id);
+    $.ajax({
+        type: "GET",
+        url:"/isard-admin/desktops/templateUpdate/" + id,
+        success: function(data)
+        {
+            $('.template-id').val(id);
+            $('.template-id').attr('data-pk', id);
             $('.template-name').val('Template '+data.name);
             $('.template-description').val(data.description);
-		}				
-	});
+        }               
+    });
 }
 
 
@@ -711,35 +711,35 @@ function modal_add_desktop_datatables(){
     } );
     
 
-	modal_add_desktops = $('#modal_add_desktops').DataTable({
-			"ajax": {
-				"url": "/isard-admin/desktops/getAllTemplates/",
-				"dataSrc": ""
+    modal_add_desktops = $('#modal_add_desktops').DataTable({
+            "ajax": {
+                "url": "/isard-admin/desktops/getAllTemplates/",
+                "dataSrc": ""
             },
             "scrollY":        "350px",
             "scrollCollapse": true,
             "paging":         true,
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+            "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
                 "zeroRecords":    "No matching templates found",
                 "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
                 "infoEmpty":      "Showing 0 to 0 of 0 templates",
                 "infoFiltered":   "(filtered from _MAX_ total templates)"
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
+            },
+            "rowId": "id",
+            "deferRender": true,
+            "columns": [
                 { "data": "name"},
-				{ "data": "description"},
+                { "data": "description"},
                 { "data": "group"},
                 { "data": "username"}
-				],
-			 "order": [[0, 'asc']],	
-             "pageLength": 10,	 
-		"columnDefs": [     
+                ],
+             "order": [[0, 'asc']], 
+             "pageLength": 10,   
+        "columnDefs": [     
 
-							]
-	} );  
+                            ]
+    } );  
 }
 
 function initalize_modal_all_desktops_events(){
@@ -765,8 +765,8 @@ function initalize_modal_all_desktops_events(){
                 setHardwareDomainDefaults('#modalAddDesktop',rdata['id'])
             //}
         }
-    } );	
-	
+    } );    
+        
     $("#modalAddDesktop #send").on('click', function(e){
         var form = $('#modalAdd');
 
@@ -812,22 +812,22 @@ function initalize_modal_all_desktops_events(){
 }
 
 function modal_edit_desktop_datatables(id){
-	$.ajax({
-		type: "GET",
-		url:"/isard-admin/desktops/templateUpdate/" + id,
-		success: function(data)
-		{
+    $.ajax({
+        type: "GET",
+        url:"/isard-admin/desktops/templateUpdate/" + id,
+        success: function(data)
+        {
             $('#modalEditDesktop #forced_hyp').closest("div").remove();
-			$('#modalEditDesktop #name_hidden').val(data.name);
+            $('#modalEditDesktop #name_hidden').val(data.name);
             $('#modalEditDesktop #name').val(data.name);
-			$('#modalEditDesktop #description').val(data.description);
+            $('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
             setHardwareDomainDefaults('#modalEditDesktop', id);
             if(data['options-viewers-spice-fullscreen']){
                 $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
             }
-		}
-	});
+        }
+    });
 }
 
 $("#modalEditDesktop #send").on('click', function(e){

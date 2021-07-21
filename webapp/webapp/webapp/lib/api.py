@@ -269,8 +269,10 @@ class isard():
         return domains
 
     def get_user_tagged_domains(self,current_user,id=False):
-        tags=r.table('deployments').get_all(current_user.id,index='user').pluck('id')['id'].coerce_to('array').run(db.conn)
-        domains=list(r.table('domains').get_all(r.args(tags), index='tag').run(db.conn))
+        tags=r.table('deployments').get_all(current_user.id,index='user').pluck('id','name').run(db.conn)
+        domains=[]
+        for tag in tags:
+            domains+=list(r.table('domains').get_all(tag['id'], index='tag').without('xml','history_domain','allowed').run(db.conn))
         return domains
 
     def get_domain(self, id, human_size=False, flatten=True):
@@ -1019,8 +1021,6 @@ class isard():
             if not ignoreexisting: return ', '.join(lst_existing_desktops)
         if 'tag' in create_dict.keys():
             create_dict['tag']='_'+current_user.id+'_'+create_dict['tag']
-            with app.app_context():
-                r.table('users').get(current_user.id).update({"tags": r.row["tags"].default([]).set_insert(create_dict['tag'])}).run(db.conn)
             user_reloader(current_user.id)
         for user in users:
             self.new_domain_from_tmpl(user,create_dict)
@@ -1056,6 +1056,7 @@ class isard():
                   'name': create_dict['name'],
                   'description': create_dict['description'],
                   'tag':create_dict.get("tag", False),
+                  'tag_name':create_dict.get("tag_name", False),
                   'tag_visible':create_dict.get("tag_visible", True),
                   'kind': 'desktop',
                   'user': userObj['id'],
