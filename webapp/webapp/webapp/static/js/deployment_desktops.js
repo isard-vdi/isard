@@ -92,7 +92,7 @@ $(document).ready(function() {
             "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
             { "data": "icon" },
-            { "data": "tag", "width": "100px"},
+            { "data": "tag_name", "width": "100px"},
             { "data": "tag_visible"},
             { "data": "name"},
             { "data": null},
@@ -108,11 +108,6 @@ $(document).ready(function() {
                         "targets": 1,
                         "render": function ( data, type, full, meta ) {
                           return renderIcon(full);
-                        }},
-                        {
-                        "targets": 2,
-                        "render": function ( data, type, full, meta ) {
-                            return full.tag.split('_')[2];
                         }},
                         {
                         "targets": 3,
