@@ -1143,10 +1143,11 @@ class isard():
         if not dict['errors']: return True
         return False
         
-    def parse_string(self, txt):
+    def parse_string(self, txt, strip=True):
         import re, unicodedata, locale
         if type(txt) != str:
             txt = txt.decode('utf-8')
+        if strip: txt = txt.strip()
         #locale.setlocale(locale.LC_ALL, 'ca_ES')
         prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$")
         if not prog.match(txt):
