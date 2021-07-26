@@ -202,7 +202,8 @@
                 "state": "Status",
                 "name": "Name"
             },
-            "no-info-default": "Keine Beschreibung vorhanden"
+            "no-info-default": "Keine Beschreibung vorhanden",
+            "open-with": "Öffnen mit"
         },
         "rdp-modal": {
             "button-refresh": "Aktualisieren",
