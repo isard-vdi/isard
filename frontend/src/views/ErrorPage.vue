@@ -8,6 +8,7 @@
                     {{ $t('views.error.title') }}
                 </h1>
                 <h2>{{ error }}</h2>
+                <b-button @click="navigate('Home')">{{ $t('views.error.go-home') }}</b-button>
             </b-col>
             <b-col md="3" />
         </b-row>
@@ -15,6 +16,8 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex'
+
 // @ is an alias to /src
 
 export default {
@@ -27,6 +30,11 @@ export default {
     return {
       error: error
     }
+  },
+  methods: {
+    ...mapActions([
+      'navigate'
+    ])
   }
 }
 </script>

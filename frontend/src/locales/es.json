@@ -79,7 +79,8 @@
                 "401": "Tu grupo no tiene permisos para acceder esta página",
                 "403": "No tienes permisos para acceder esta página",
                 "500": "Error inesperado"
-            }
+            },
+            "go-home": "Ir al inicio"
         },
         "expired-session": {
             "title": "La sesión ha caducado",
