@@ -102,6 +102,7 @@
 
 .card-list .card-title {
   max-width: 90%;
+  margin-bottom: 0rem;
 }
 
 .card-list .viewers-dropdown>button {
@@ -117,8 +118,32 @@
 }
 
 .card-list .card-button {
-  width: 45%;
   overflow: hidden;
+}
+
+.card-list .card-button {
+  margin-top: 0.5rem;
+  padding-right: 1rem;
+  padding-bottom: 0.1rem !important;
+  padding-top: 0.1rem !important;
+}
+
+.card-list .card-button .b-icon {
+  font-size: 1.1em;
+  margin-right: 0.2rem;
+}
+
+.card-list .card-button span {
+  font-size: 1em;
+  margin-right: 0.3rem;
+}
+
+
+.text-state {
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+  font-size: large;
+  color: #89ce6d;
 }
 
 .card-list .viewers-dropdown>button::after {
@@ -139,6 +164,14 @@
 
 .card-list .dropdown-inactive button {
   background-color: darkgrey;
+}
+
+.card-list .dropdown-wait button {
+  background-color: #eead47;
+}
+
+.card-list .dropdown-active button {
+  background-color: #97c277;
 }
 
 .blink button {
@@ -170,6 +203,7 @@
   transition: all ease 0.5s;
   background: #f7f7f7;
   margin-bottom: 1.5rem !important;
+  line-height: 1;
   }
 
 .card-list .card .state-on {
@@ -185,7 +219,7 @@
 }
 
 .card-list .card .state-loading {
-  background-color: #eead47;
+  background-color: #f1cc90;
 }
 
 .card-list .card .state-failed {
@@ -314,4 +348,36 @@
 
 .nav-tabs .nav-link {
   color: #495057;
+}
+
+.status-spinner {
+  color: #eead47 !important
+}
+
+.status-green {
+  color: #53bb03
+}
+
+.status-orange {
+  color: #eead47
+}
+
+.status-red {
+  color: #e7898e
+}
+
+.status-gray {
+  color: black
+}
+
+.table-action-button {
+  width: 8rem;
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+
+/* DROPDOWN */
+.item-spinner {
+  margin-left: 0.5rem;
+  margin-top: 0.1rem;
 }

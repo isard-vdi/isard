@@ -9,7 +9,7 @@
           <div class="dropdown-default-text" v-b-tooltip="{ title: `${fullViewerText}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
             {{ viewerText }}
           </div>
-          <b-spinner v-if="defaultViewer && (waitingIp && needsIp(defaultViewer))" small type="grow"/>   </template>
+          <b-spinner v-if="defaultViewer && (waitingIp && needsIp(defaultViewer))" small type="grow" class="item-spinner"/>   </template>
           <b-dropdown-item class="dropdown-text"
             v-for="dkpviewer in viewers"
             :disabled="waitingIp && needsIp(dkpviewer)"
@@ -17,7 +17,7 @@
             @click="$emit('dropdownClicked', {desktopId: desktop.id, viewer: dkpviewer, template: template || null})"
           >
           <isard-butt-viewer-text :viewerName="dkpviewer"></isard-butt-viewer-text>
-          <b-spinner v-if="waitingIp && needsIp(dkpviewer)" small type="grow"/>
+          <b-spinner v-if="waitingIp && needsIp(dkpviewer)" small type="grow" class="item-spinner"/>
           </b-dropdown-item>
                 </b-dropdown>
 </template>
@@ -25,6 +25,7 @@
 <script>
 import i18n from '@/i18n'
 import IsardButtViewerText from './IsardButtViewerText.vue'
+import { DesktopUtils } from '@/utils/desktopsUtils'
 
 export default {
   components: { IsardButtViewerText },
@@ -48,7 +49,7 @@ export default {
       return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
     },
     needsIp (viewer) {
-      return ['rdp', 'rdp-html5'].includes(viewer)
+      return DesktopUtils.viewerNeedsIp(viewer)
     }
   }
 }

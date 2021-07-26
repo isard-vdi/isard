@@ -27,7 +27,8 @@
                 "action": "Acción",
                 "viewers": "Visores"
             },
-            "no-info-default": "No hay descripción disponible"
+            "no-info-default": "No hay descripción disponible",
+            "open-with": "Accede con"
         },
         "help": {
             "close-guide": "Cerrar la guía",

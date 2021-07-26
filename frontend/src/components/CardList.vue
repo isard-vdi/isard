@@ -10,7 +10,7 @@
                 <card-skeleton></card-skeleton>
                 <card-skeleton></card-skeleton>
               </template>
-              <card v-for="desktop in desktops" :key="desktop.id" :desktop="desktop" :templates="templates"></card>
+              <Card v-for="desktop in desktops" :key="desktop.id" :desktop="desktop" :templates="templates"></Card>
             </b-skeleton-wrapper>
         </b-col>
       </b-row>

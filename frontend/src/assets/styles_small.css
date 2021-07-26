@@ -1,7 +1,7 @@
 @media only screen and (max-width: 992px) {
   .card-list .card {
     width: 18rem;
-    height: 360px !important;
+    height: 400px !important;
     margin: 1vh 0.5vw 0;
     }
     
@@ -28,8 +28,12 @@
     }
 
     .buttons-padding {
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .buttons-margin {
+      margin-top: 1rem;
     }
 
     #statusbar-content {

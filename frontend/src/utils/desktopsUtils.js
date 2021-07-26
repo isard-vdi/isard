@@ -1,4 +1,4 @@
-import { cardIcons, desktopStates } from '../shared/constants'
+import { cardIcons, desktopStates, status } from '../shared/constants'
 
 export class DesktopUtils {
   static parseDesktops (items) {
@@ -9,11 +9,12 @@ export class DesktopUtils {
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
         id,
         name,
-        state: [desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down']].includes(state.toLowerCase()) ? state : desktopStates.working,
+        state: this.getState(state),
         type,
         ip,
         viewers: (viewers !== undefined && viewers !== null) ? viewers : [],
-        template
+        template,
+        buttonIconName: this.buttonIconName(item)
       }
     }) || []
   }
@@ -26,7 +27,8 @@ export class DesktopUtils {
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
         id,
         name,
-        type: 'nonpersistent'
+        type: 'nonpersistent',
+        buttonIconName: 'play'
       }
     }) || []
   }
@@ -51,5 +53,22 @@ export class DesktopUtils {
 
   static filterViewerFromList (viewers, viewer) {
     return viewers.filter(item => item !== viewer)
+  }
+
+  static buttonIconName (item) {
+    const state = this.getState(item.state)
+    if (item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip].includes(state.toLowerCase())) {
+      return 'trash'
+    }
+
+    return state ? status[state.toLowerCase()].icon : status.stopped.icon
+  }
+
+  static getState (state) {
+    return [desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down']].includes(state.toLowerCase()) ? state : desktopStates.working
+  }
+
+  static viewerNeedsIp (viewer) {
+    return ['rdp', 'rdp-html5'].includes(viewer)
   }
 }

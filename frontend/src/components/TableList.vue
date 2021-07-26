@@ -78,8 +78,8 @@
                     variant='light'
                     :viewers="data.item.viewers && data.item.viewers.filter(item => item !== getDefaultViewer(data.item))"
                     :desktop="data.item"
-                    :viewerText="getViewerText(data.item).substring(0, 13)"
-                    :fullViewerText="getViewerText(data.item)"
+                    :viewerText="getViewerText(data.item).substring(0, 40)"
+                    fullViewerText=''
                     :defaultViewer="getDefaultViewer(data.item)"
                     :waitingIp="data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip"
                     @dropdownClicked="openDesktop">
@@ -88,28 +88,31 @@
             </template>
             <template #cell(action)='data'>
               <DesktopButton v-if="!data.item.state || (data.item.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
-                    class="dropdown-text"
+                    class="table-action-button"
                     :active="true"
                     @buttonClicked="chooseDesktop(data.item.id)"
                     :buttColor = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
-                    :buttText = "$t('views.select-template.status.notCreated.action')">
+                    :buttText = "$t('views.select-template.status.notCreated.action')"
+                    :iconName = "data.item.buttonIconName">
                 </DesktopButton>
                 <DesktopButton v-if="data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )"
-                    class="dropdown-text"
+                    class="table-action-button"
                     :active="![desktopStates.failed, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
                     :buttColor = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
-                    :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)">
+                    :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)"
+                    :iconName = "data.item.buttonIconName">
                 </DesktopButton>
                 <DesktopButton v-if="(data.item.state && data.item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
-                    class="dropdown-text mt-2"
+                    class="table-action-button"
                     :active="true"
                     @buttonClicked="deleteDesktop(data.item.id)"
                     buttColor = "btn-red"
                     :spinnerActive ="false"
-                    :buttText = "$t('views.select-template.remove')">
+                    :buttText = "$t('views.select-template.remove')"
+                    iconName = "trash">
                 </DesktopButton>
             </template>
           </b-table>
@@ -126,7 +129,7 @@ import { desktopStates, status } from '@/shared/constants'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
-import { mapActions } from 'vuex'
+import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 
 export default {
@@ -151,6 +154,7 @@ export default {
     }
   },
   computed: {
+    ...mapGetters(['getViewers']),
     stateBarCssClass () {
       const states = {
         stopped: 'state-off',
@@ -160,21 +164,19 @@ export default {
         failed: 'state-failed'
       }
       return states[this.desktopState]
-    },
-    viewers () {
-      return this.$store.getters.getViewers
     }
   },
   methods: {
     ...mapActions([
       'deleteDesktop',
       'openDesktop',
-      'changeDesktopStatus'
+      'changeDesktopStatus',
+      'createDesktop'
     ]),
     chooseDesktop (template) {
       const data = new FormData()
       data.append('template', template)
-      this.$store.dispatch('createDesktop', data)
+      this.createDesktop(data)
     },
     imageId (desktop, template) {
       return desktop.state && desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(this.getItemState(desktop)) ? DesktopUtils.hash(this.getemplate.id) : desktop.id && DesktopUtils.hash(desktop.id)
@@ -217,8 +219,8 @@ export default {
     },
     getDefaultViewer (desktop) {
       if (desktop.viewers !== undefined) {
-        if (this.viewers[desktop.id] !== undefined && desktop.viewers.includes(this.viewers[desktop.id])) {
-          return this.viewers[desktop.id]
+        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.includes(this.getViewers[desktop.id])) {
+          return this.getViewers[desktop.id]
         } else if (desktop.viewers.length > 0) {
           return desktop.viewers.includes('browser') ? 'browser' : desktop.viewers[0]
         }
@@ -242,14 +244,14 @@ export default {
           key: 'name',
           sortable: true,
           label: 'Nombre',
-          thStyle: { width: '25%' },
+          thStyle: { width: '20%' },
           tdClass: 'name'
         },
         {
           key: 'description',
           sortable: true,
           label: 'Descripción',
-          thStyle: { width: '35%' },
+          thStyle: { width: '30%' },
           tdClass: 'description'
         },
         {
@@ -268,14 +270,14 @@ export default {
         },
         {
           key: 'viewers',
-          thStyle: { width: '7%' },
+          thStyle: { width: '15%' },
           label: 'Visor',
           tdClass: 'viewers'
         },
         {
           key: 'action',
           label: 'Acción',
-          thStyle: { width: '5%' },
+          thStyle: { width: '10%' },
           tdClass: 'px-4 action'
         }
       ]
@@ -283,7 +285,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>
