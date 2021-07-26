@@ -56,6 +56,10 @@ func (i *Isard) UserLoad(u *model.User) error {
 		return err
 	}
 
+	if err := i.UserDeployments(u); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -64,7 +68,7 @@ func (i *Isard) UserUpdate(u *model.User) error {
 		return nil
 	}
 	params := url.Values{
-		"name": {u.Name},
+		"name":  {u.Name},
 		"email": {u.Email},
 	}
 	if u.Photo != "" {
@@ -145,11 +149,11 @@ func (i *Isard) UserDesktops(u *model.User) error {
 }
 
 type userTemplateRsp struct {
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
-	Icon string `json:"icon,omitempty"`
-	Image string `json:"image,omitempty"`
+	Icon        string `json:"icon,omitempty"`
+	Image       string `json:"image,omitempty"`
 }
 
 func (i *Isard) UserTemplates(u *model.User) error {
@@ -188,11 +192,11 @@ func (i *Isard) UserTemplates(u *model.User) error {
 
 	for _, t := range templates {
 		u.Templates = append(u.Templates, model.Template{
-			ID:   t.ID,
-			Name: t.Name,
+			ID:          t.ID,
+			Name:        t.Name,
 			Description: t.Description,
-			Icon: t.Icon,
-			Image: t.Image,
+			Icon:        t.Icon,
+			Image:       t.Image,
 		})
 	}
 
@@ -237,6 +241,42 @@ func (i *Isard) UserRegister(u *model.User) error {
 		)
 
 		return fmt.Errorf("register user: %w", err)
+	}
+
+	return nil
+}
+
+func (i *Isard) UserDeployments(u *model.User) error {
+	rsp, err := http.Get(i.url("user/" + u.ID() + "/deployments"))
+	if err != nil {
+		i.sugar.Errorw("get user deployments",
+			"err", err,
+			"id", u.ID(),
+		)
+		return fmt.Errorf("get user deployments: %w", err)
+	}
+
+	defer rsp.Body.Close()
+	if rsp.StatusCode != http.StatusOK {
+		b, _ := ioutil.ReadAll(rsp.Body)
+
+		err = utils.NewHTTPCodeErr(rsp.StatusCode)
+		i.sugar.Errorw("get user deployments",
+			"err", err,
+			"code", rsp.StatusCode,
+			"body", string(b),
+			"id", u.ID(),
+		)
+
+		return fmt.Errorf("get user deployments: %w", err)
+	}
+
+	if err := json.NewDecoder(rsp.Body).Decode(&u.Deployments); err != nil {
+		i.sugar.Errorw("get user deployments: decode JSON response",
+			"err", err,
+		)
+
+		return fmt.Errorf("get user deployments: decode JSON response: %w", err)
 	}
 
 	return nil
