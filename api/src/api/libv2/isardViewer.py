@@ -28,7 +28,7 @@ from api import app
 from ..libv2.log import * 
 
 from rethinkdb import RethinkDB; r = RethinkDB()
-from rethinkdb.errors import ReqlTimeoutError
+from rethinkdb.errors import ReqlTimeoutError, ReqlNonExistenceError
 import urllib
 
 from ..libv2.flask_rethink import RDB
@@ -49,11 +49,11 @@ class isardViewer():
         self.vnc_ws=-198 #5900-200????
         pass
 
-    def viewer_data(self,id,get_viewer='spice-client',current_user=False,default_viewer=False,get_cookie=True):
+    def viewer_data(self,id,get_viewer='spice-client',current_user=False,default_viewer=False,get_cookie=True,get_dict=False):
         try:
             domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options').run(db.conn)
-        except DesktopNotfound:
-            raise
+        except ReqlNonExistenceError:
+            raise DesktopNotFound
         if not domain['status'] == 'Started':
             raise DesktopNotStarted
              
@@ -86,7 +86,7 @@ class isardViewer():
         if get_viewer == 'vnc-html5':
             vmPort=str(domain['viewer']['base_port']+self.vnc)
             port=str(domain['viewer']['html5_ext_port']) if 'html5_ext_port' in domain['viewer'].keys() else '443'
-            if get_cookie:       
+            if get_cookie:
                 cookie = base64.b64encode(json.dumps({
                     'web_viewer': {
                         'vmName': domain['name'],
@@ -99,6 +99,16 @@ class isardViewer():
                 }).encode('utf-8')).decode('utf-8')  
                 uri = 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
                 return {'kind':'url','viewer':uri,'cookie':cookie}
+            elif get_dict:
+                    return {
+                            'proxy': 'https://'+domain['viewer']['static']+'/viewer/noVNC/',
+                            'vmName': domain['name'],
+                            'vmHost': domain['viewer']['proxy_hyper_host'],
+                            'vmPort': vmPort,
+                            'host': domain['viewer']['proxy_video'],
+                            'port': port,
+                            'token': domain['viewer']['passwd']
+                            }
             else:
                 return 'https://'+domain['viewer']['static']+'/viewer/noVNC/?vmName='+urllib.parse.quote_plus(domain['name'])+'&vmHost='+domain['viewer']['proxy_hyper_host']+'&host='+domain['viewer']['proxy_video']+'&port='+port+'&vmPort='+vmPort+'&passwd='+domain['viewer']['passwd']
 

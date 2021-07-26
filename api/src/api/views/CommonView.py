@@ -131,3 +131,84 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             401,
             {"Content-Type": "application/json"},
         )
+
+@app.route("/api/v2/desktop/<desktop_id>/viewers", methods=["GET"])
+def api_v2_desktop_viewers(desktop_id=False, protocol=False):
+    viewers = []
+    for protocol in ['vnc-html5','spice-client']:
+        try:
+            viewer = common.DesktopViewer(desktop_id, protocol, get_cookie=True)
+            viewers.append({**{'protocol':protocol},**viewer})
+        except DesktopNotFound:
+            log.error(
+                "Viewer for desktop "
+                + desktop_id
+                + " with protocol "
+                + protocol
+                + ", desktop not found"
+            )
+            return (
+                json.dumps({"code": 1, "msg": "Desktop viewer: desktop id not found"}),
+                404,
+                {"Content-Type": "application/json"},
+            )
+        except DesktopNotStarted:
+            log.error(
+                "Viewer for desktop "
+                + desktop_id
+                + " with protocol "
+                + protocol
+                + ", desktop not started"
+            )
+            return (
+                json.dumps({"code": 2, "msg": "Desktop viewer: desktop is not started"}),
+                404,
+                {"Content-Type": "application/json"},
+            )
+        except NotAllowed:
+            log.error(
+                "Viewer for desktop "
+                + desktop_id
+                + " with protocol "
+                + protocol
+                + ", viewer access not allowed"
+            )
+            return (
+                json.dumps({"code": 3, "msg": "Desktop viewer: desktop id not owned by user"}),
+                404,
+                {"Content-Type": "application/json"},
+            )
+        except ViewerProtocolNotFound:
+            log.error(
+                "Viewer for desktop "
+                + desktop_id
+                + " with protocol "
+                + protocol
+                + ", viewer protocol not found"
+            )
+            return (
+                json.dumps({"code": 4, "msg": "Desktop viewer: viewer protocol not found"}),
+                404,
+                {"Content-Type": "application/json"},
+            )
+        except ViewerProtocolNotImplemented:
+            log.error(
+                "Viewer for desktop "
+                + desktop_id
+                + " with protocol "
+                + protocol
+                + ", viewer protocol not implemented"
+            )
+            return (
+                json.dumps({"code": 5, "msg": "Desktop viewer: viewer protocol not implemented"}),
+                404,
+                {"Content-Type": "application/json"},
+            )
+        except Exception as e:
+            error = traceback.format_exc()
+            return (
+                json.dumps({"code": 9, "msg": "DesktopViewer general exception: " + error}),
+                401,
+                {"Content-Type": "application/json"},
+            )
+    return json.dumps(viewers), 200, {"Content-Type": "application/json"}
