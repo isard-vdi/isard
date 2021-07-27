@@ -235,7 +235,8 @@
                 "state": "État",
                 "name": "Nom"
             },
-            "no-info-default": "Aucune description disponible"
+            "no-info-default": "Aucune description disponible",
+            "open-with": "Ouvrir avec"
         },
         "rdp-modal": {
             "button-refresh": "Actualiser",
