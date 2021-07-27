@@ -43,10 +43,14 @@ export default new Vuex.Store({
         commit('setCategories', response.data)
       }).catch(err => {
         console.log(err)
-        router.push({
-          name: 'Error',
-          params: { code: err.response && err.response.status.toString() }
-        })
+        if (err.response.status === 503) {
+          router.push({ name: 'Maintenance' })
+        } else {
+          router.push({
+            name: 'Error',
+            params: { code: err.response && err.response.status.toString() }
+          })
+        }
       })
     },
     maintenance (context) {
