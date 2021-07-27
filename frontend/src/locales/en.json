@@ -79,7 +79,8 @@
                 "401": "Your group doesn't have permissions to access this page",
                 "403": "You don't have permissions to access this page",
                 "500": "Unexpected error"
-            }
+            },
+            "go-home": "Go Home"
         },
         "expired-session": {
             "title": "The session has expired",
