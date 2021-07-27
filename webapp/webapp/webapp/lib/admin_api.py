@@ -172,24 +172,21 @@ class isardAdmin():
 
     def user_owns_tag_ids(self,userid,ids):
         with app.app_context():
-            user_tags=r.table('users').get(userid).pluck('tags').run(db.conn)['tags']
+            user_tags=list(r.table('deployments').get_all(userid, index='user').pluck('id').coerce_to('array').run(db.conn))
+            user_tags=[ut['id'] for ut in user_tags]
             tags= list(set([d['tag'] for d in r.table('domains').get_all(r.args(ids)).pluck('tag').run(db.conn)]))
         for tag in tags:
             if tag not in user_tags: return False
         return tags
 
     def delete_tag_if_last_domain(self,tag):
+        return
+        # Better not remove deployment from advanced user automatically
+        # when the last desktop is deleted (users delete their desktops).
+        # Better keep the deployment id at the advanced user
         with app.app_context():
             if r.table('domains').get_all(tag, index='tag').count().run(db.conn) == 0:
-                try:
-                    tags=r.table('users').get(tag.split('_')[1]).run(db.conn)['tags']
-                    tags.remove(tag)
-                    r.table('users').get(tag.split('_')[1]).update({'tags':tags}).run(db.conn)
-                except:
-                    pass
-                # r.table('users').get(tag.split('_')[1])['tags'].update(lambda doc:
-                #     {'tags': doc['tags'].difference([tag]) }
-                # ).run(db.conn)
+                r.table('deployments').get(tag).delete().run(db.conn)
 
     def get_user_deployment_create_dict(self,userid,deploymentid):
         with app.app_context():
