@@ -16,12 +16,20 @@ type User struct {
 	Role     string `json:"role"`
 	Group    string `json:"group"`
 
-	Desktops []Desktop
-	Templates []Template
+	Desktops    []Desktop
+	Templates   []Template
+	Deployments []UserDeployment
 
 	Name  string `json:"name"`
 	Email string `json:"email"`
 	Photo string `json:"photo"`
+}
+
+type UserDeployment struct {
+	ID              string `json:"id,omitempty"`
+	Name            string `json:"name,omitempty"`
+	TotalDesktops   int    `json:"totalDesktops,omitempty"`
+	StartedDesktops int    `json:"startedDesktops"`
 }
 
 func (u *User) ID() string {

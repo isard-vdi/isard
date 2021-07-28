@@ -42,6 +42,7 @@ else:
 Import all views
 '''
 from .views import UsersView
+from .views import DeploymentsView
 from .views import CommonView
 from .views import DesktopsNonPersistentView
 from .views import JumperViewerView
