@@ -118,7 +118,8 @@
                 "403": "Sie haben keine Berechtigung, auf diese Seite zuzugreifen",
                 "401": "Ihre Gruppe hat keine Berechtigung zum Zugriff auf diese Seite"
             },
-            "title": "Fehler"
+            "title": "Fehler",
+            "go-home": "Zu Startseite"
         },
         "not-found": {
             "title": "Wir konnten die gewünschte Adresse nicht finden",
