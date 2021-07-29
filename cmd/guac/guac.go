@@ -41,21 +41,16 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			Path:   "/api/v3/user/owns_desktop",
 		}
 
-		type body struct {
-			IP string `json:"ip"`
-		}
+		body := url.Values{}
+		body.Set("ip", r.URL.Query().Get("hostname"))
 
-		b, err := json.Marshal(&body{IP: r.URL.Query().Get("hostname")})
-		if err != nil {
-			logrus.Error("build JSON API request: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		req, err := http.NewRequest(http.MethodGet, u.String(), bytes.NewBuffer(b))
+		req, err := http.NewRequest(http.MethodGet, u.String(), bytes.NewBufferString(body.Encode()))
 		if err != nil {
 			logrus.Fatal("create http request to check for authentication: %v", err)
 		}
+
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Content-Length", strconv.Itoa(len(body.Encode())))
 
 		session := r.URL.Query().Get("session")
 		if session == "" {
@@ -63,7 +58,6 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
-		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", session))
 
 		rsp, err := http.DefaultClient.Do(req)
