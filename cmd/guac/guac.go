@@ -45,7 +45,7 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			IP string `json:"ip"`
 		}
 
-		b, err := json.Marshal(&body{IP: r.Header.Get("hostname")})
+		b, err := json.Marshal(&body{IP: r.URL.Query().Get("hostname")})
 		if err != nil {
 			logrus.Error("build JSON API request: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
