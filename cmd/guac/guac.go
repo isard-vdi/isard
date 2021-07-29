@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
@@ -17,9 +17,8 @@ import (
 )
 
 var (
-	guacdAddr     string
-	backendAddr   string
-	backendScheme string
+	guacdAddr string
+	apiAddr   string
 )
 
 func init() {
@@ -28,28 +27,30 @@ func init() {
 		guacdAddr = "isard-vpn:4822"
 	}
 
-	backendAddr = os.Getenv("GUACD_BACKEND_HOST")
-	if backendAddr == "" {
-		backendAddr = "isard-backend:8080"
-		backendScheme = "http"
-	} else {
-		backendAddr += ":443"
-		backendScheme = "https"
+	apiAddr = os.Getenv("GUACD_BACKEND_HOST")
+	if apiAddr == "" {
+		apiAddr = "isard-api:5000"
 	}
 }
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := &url.URL{
-			Scheme: backendScheme,
-			Host:   backendAddr,
-			Path:   path.Join("/api/v2/check-desktop", r.URL.Query().Get("hostname")),
+			Scheme: "http",
+			Host:   apiAddr,
+			Path:   "/api/v3/user/owns_desktop",
 		}
 
-		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+		body := url.Values{}
+		body.Set("ip", r.URL.Query().Get("hostname"))
+
+		req, err := http.NewRequest(http.MethodGet, u.String(), bytes.NewBufferString(body.Encode()))
 		if err != nil {
 			logrus.Fatal("create http request to check for authentication: %v", err)
 		}
+
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Content-Length", strconv.Itoa(len(body.Encode())))
 
 		session := r.URL.Query().Get("session")
 		if session == "" {
@@ -57,12 +58,7 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
-		c := &http.Cookie{
-			Name:  "session",
-			Value: session,
-		}
-
-		req.AddCookie(c)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", session))
 
 		rsp, err := http.DefaultClient.Do(req)
 		if err != nil {
