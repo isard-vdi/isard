@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,23 +29,30 @@ func init() {
 
 	apiAddr = os.Getenv("GUACD_BACKEND_HOST")
 	if apiAddr == "" {
-		apiAddr = "isard-backend:8080"
+		apiAddr = "isard-api:5000"
 	}
 }
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		query := url.Values{}
-		query.Add("ip", r.URL.Query().Get("hostname"))
-
 		u := &url.URL{
-			Scheme:   "http",
-			Host:     apiAddr,
-			Path:     "/api/v3/user/owns_desktop",
-			RawQuery: query.Encode(),
+			Scheme: "http",
+			Host:   apiAddr,
+			Path:   "/api/v3/user/owns_desktop",
 		}
 
-		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+		type body struct {
+			IP string `json:"ip"`
+		}
+
+		b, err := json.Marshal(&body{IP: r.Header.Get("hostname")})
+		if err != nil {
+			logrus.Error("build JSON API request: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		req, err := http.NewRequest(http.MethodGet, u.String(), bytes.NewBuffer(b))
 		if err != nil {
 			logrus.Fatal("create http request to check for authentication: %v", err)
 		}
@@ -55,7 +63,8 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", session))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", session))
 
 		rsp, err := http.DefaultClient.Do(req)
 		if err != nil {
