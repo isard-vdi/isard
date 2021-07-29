@@ -16,9 +16,8 @@ import (
 )
 
 var (
-	guacdAddr     string
-	backendAddr   string
-	backendScheme string
+	guacdAddr string
+	apiAddr   string
 )
 
 func init() {
@@ -27,13 +26,9 @@ func init() {
 		guacdAddr = "isard-vpn:4822"
 	}
 
-	backendAddr = os.Getenv("GUACD_BACKEND_HOST")
-	if backendAddr == "" {
-		backendAddr = "isard-backend:8080"
-		backendScheme = "http"
-	} else {
-		backendAddr += ":443"
-		backendScheme = "https"
+	apiAddr = os.Getenv("GUACD_BACKEND_HOST")
+	if apiAddr == "" {
+		apiAddr = "isard-backend:8080"
 	}
 }
 
@@ -43,9 +38,9 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 		query.Add("ip", r.URL.Query().Get("hostname"))
 
 		u := &url.URL{
-			Scheme:   backendScheme,
-			Host:     backendAddr,
-			Path:     "/api/v3/owns_desktop",
+			Scheme:   "http",
+			Host:     apiAddr,
+			Path:     "/api/v3/user/owns_desktop",
 			RawQuery: query.Encode(),
 		}
 
