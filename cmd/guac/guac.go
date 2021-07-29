@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
@@ -40,10 +39,14 @@ func init() {
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := url.Values{}
+		query.Add("ip", r.URL.Query().Get("hostname"))
+
 		u := &url.URL{
-			Scheme: backendScheme,
-			Host:   backendAddr,
-			Path:   path.Join("/api/v2/check-desktop", r.URL.Query().Get("hostname")),
+			Scheme:   backendScheme,
+			Host:     backendAddr,
+			Path:     "/api/v3/owns_desktop",
+			RawQuery: query.Encode(),
 		}
 
 		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -57,12 +60,7 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
-		c := &http.Cookie{
-			Name:  "session",
-			Value: session,
-		}
-
-		req.AddCookie(c)
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", session))
 
 		rsp, err := http.DefaultClient.Do(req)
 		if err != nil {
