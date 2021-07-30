@@ -169,7 +169,8 @@
                 "403": "Vous n’avez pas l’autorisation d’accéder à cette page",
                 "401": "Votre groupe n’a pas l’autorisation d’accéder à cette page"
             },
-            "title": "Erreur"
+            "title": "Erreur",
+            "go-home": "Retour à l’accueil"
         },
         "login": {
             "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
