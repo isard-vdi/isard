@@ -166,7 +166,9 @@
             "button-refresh": "Обновить",
             "title": {
                 "connecting": "Подключение",
-                "error": "Ошибка клиента"
+                "error": "Ошибка клиента",
+                "unstable": "Нестабильный",
+                "disconnected": "Отключено"
             },
             "message": {
                 "error": "Ошибка подключения",
