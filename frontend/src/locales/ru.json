@@ -117,7 +117,8 @@
             "admin": "Администрирования",
             "vpn": {
                 "downloadvpn-error": {
-                    "title": "Ошибка"
+                    "title": "Ошибка",
+                    "description": "Не удалось загрузить файл конфигурации VPN из-за ошибки"
                 },
                 "downloaded": {
                     "description": "Файл конфигурации VPN был успешно загружен",
@@ -166,7 +167,9 @@
             "button-refresh": "Обновить",
             "title": {
                 "connecting": "Подключение",
-                "error": "Ошибка клиента"
+                "error": "Ошибка клиента",
+                "unstable": "Нестабильный",
+                "disconnected": "Отключено"
             },
             "message": {
                 "error": "Ошибка подключения",
