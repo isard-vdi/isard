@@ -1,0 +1,6 @@
+version: "3.5"
+services:
+  isard-migrations:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: migrations/build/package/Dockerfile

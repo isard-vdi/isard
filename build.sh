@@ -115,6 +115,7 @@ flavour "" \
 	backend \
 	vpn \
 	guac \
+	migrations \
 
 flavour hypervisor \
 	network \
@@ -157,6 +158,7 @@ flavour web \
 	stats \
 	api \
 	backend \
+	migrations \
 
 flavour stats \
 	network \

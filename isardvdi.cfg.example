@@ -270,3 +270,7 @@ STATS_SERVER=isard-grafana
 STATS_RETHINKDB_HOST=isard-db
 STATS_RETHINKDB_PORT=28015
 STATS_RETHINKDB_DB=isard
+
+# MIGRATIONS Config
+###########################################################
+MIGRATIONS_REDIS_HOST=isard-redis

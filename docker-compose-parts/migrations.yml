@@ -1,0 +1,16 @@
+version: "3.5"
+services:
+  isard-migrations:
+    container_name: isard-migrations
+    image: ${DOCKER_IMAGE_PREFIX}migrations:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      options:
+        max-size: "100m"
+    ports:
+      - "1312:1312"
+    networks:
+      - isard-network
+    restart: unless-stopped
+    env_file:
+      - .env
+      
