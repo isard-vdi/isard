@@ -19,10 +19,11 @@
 import { mapActions } from 'vuex'
 
 // @ is an alias to /src
+import { StringUtils } from '../utils/stringUtils'
 
 export default {
   data () {
-    const error = this.isNullOrUndefined(
+    const error = StringUtils.isNullOrUndefinedOrEmpty(
       this.$t('views.error.codes')[this.$route.params.code && this.$route.params.code.toString()]
     )
       ? this.$t('views.error.codes')['500']

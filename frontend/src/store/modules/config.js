@@ -1,8 +1,11 @@
-import { apiAxios } from '@/router/auth'
+import axios from 'axios'
+import { authenticationSegment } from '../../shared/constants'
 
 export default {
   state: {
-    config: {}
+    config: {
+      providers: []
+    }
   },
   getters: {
     getConfig: state => {
@@ -16,7 +19,7 @@ export default {
   },
   actions: {
     async fetchConfig ({ commit }) {
-      const rsp = await apiAxios.get('/config')
+      const rsp = await axios.get(`${authenticationSegment}/config`)
       commit('setConfig', rsp.data)
     }
   }

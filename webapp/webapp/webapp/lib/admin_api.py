@@ -129,13 +129,10 @@ class isardAdmin():
                 domains_deleting=self.multiple_check_field(table,'status','Deleting',ids)
                 res=r.table(table).get_all(r.args(domains_deleting)).delete().run(db.conn) 
 
-                domains=self.multiple_check_field(table,'status','Stopped',ids) + \
-                        self.multiple_check_field(table,'status','Disabled',ids) + \
-                        self.multiple_check_field(table,'status','Failed',ids) + \
-                        self.multiple_check_field(table,'status','Creating',ids) + \
-                        self.multiple_check_field(table,'status','CreatingDisk',ids) + \
-                        self.multiple_check_field(table,'status','CreatingAndStarting',ids)
-                res=r.table(table).get_all(r.args(domains)).update({'status':'Deleting'}).run(db.conn) 
+                domains = list(r.table(table).get_all(r.args(ids)).pluck('id','status').run(db.conn))
+                domains = [d['id'] for d in domains if d['status'] in ['Stopped','Disabled','Failed','Creating','CreatingDisk','CreatingAndStarting','Shutting-down']]
+
+                res=r.table(table).get_all(r.args(domains)).update({'status':'Deleting'}).run(db.conn)
                 return True
             if action == 'force_failed':
                 res = r.table(table).get_all(r.args(ids)).pluck('status').run(db.conn)
@@ -202,9 +199,12 @@ class isardAdmin():
         if deploymentid not in deployments:
             return False
         with app.app_context():
-            ids=[d['id'] for d in list(r.table('domains').get_all(deploymentid,index='tag').pluck('id').run(db.conn))]
-        self.multiple_action('domains','delete',ids)
-        with app.app_context():
+            deployment_domains = list(r.table('domains').get_all(deploymentid,index='tag').pluck('id','status').run(db.conn))
+            if len([d for d in deployment_domains if d['status'] not in ['Stopped','Failed']]): return False
+            # ids = [d['id'] for d in deployment_domains]
+            # res=r.table(table).get_all(r.args(ids)).update({'status':'Deleting'}).run(db.conn)
+            for desktop in deployment_domains:
+                ds.delete_desktop(desktop['id'],desktop['status'])
             r.table('deployments').get(deploymentid).delete().run(db.conn)
         return True
 
@@ -628,7 +628,7 @@ class isardAdmin():
             #groupdict['name']=category_name+' '+dict['name']
             groupdict['description']='['+category_name+'] '+dict['description']
             groupdict['enrollment'] = {'manager':False, 'advanced':False, 'user':False}
-            return self.check(r.table('groups').insert(groupdict).run(db.conn),'inserted')            
+            return self.check(r.table('groups').insert(groupdict).run(db.conn),'inserted')
         else:
             return self.check(r.table(table).insert(dict).run(db.conn),'inserted')
 

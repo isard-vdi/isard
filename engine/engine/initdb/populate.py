@@ -67,7 +67,7 @@ class Populate(object):
                 'boots','hypervisors_events','hypervisors_status','hypervisors_status_history',
                 'disk_operations','hosts_viewers','places',
                 'scheduler_jobs','backups','config','engine',
-                'qos_net','qos_disk','remotevpn','deployments',
+                'qos_net','qos_disk','remotevpn','deployments','secrets'
                    ]
         tables_to_create=list(set(newtables) - set(dbtables))
         d = {k:v for v,k in enumerate(newtables)}
@@ -298,6 +298,17 @@ class Populate(object):
             log.info("Table deployments not found, creating...")
             r.table_create('deployments', primary_key="id").run()
             self.index_create('deployments',['user'])
+        return True
+
+    '''
+    SECRETS
+    '''
+
+    def secrets(self):
+        if not r.table_list().contains('secrets').run():
+            log.info("Table secrets not found, creating...")
+            r.table_create('secrets', primary_key="id").run()
+            # self.index_create('deployments',['user'])
         return True
 
 # {'allowed': {'groups': [], 'users': False},

@@ -10,8 +10,8 @@ from webapp import app
 from flask_login import login_required, login_user, logout_user, current_user
 import requests
 
-from ..auth.authentication import *   
-from ..lib.log import *                       
+from ..auth.authentication import *
+from ..lib.log import *
 
 """ @app.route('/isard-admin/admin', methods=['POST', 'GET'])
 def login():
@@ -61,7 +61,7 @@ def login(category='default'):
                 return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
             else:
                 flash('Username not found or incorrect password.','warning')
-    user = get_authenticated_user_backend()
+    user = get_authenticated_user()
     if user:
         login_user(user)
         flash('Authenticated via backend.','success')

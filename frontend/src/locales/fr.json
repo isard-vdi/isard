@@ -135,10 +135,10 @@
             },
             "remove": "Retirer",
             "viewer-name": {
-                "browser": "Navigateur",
-                "spice": "SPICE",
-                "rdp": "RDP",
-                "rdp-html5": "Navigateur RDP"
+                "browser-vnc": "Navigateur",
+                "file-spice": "SPICE",
+                "file-rdpvpn": "RDP",
+                "browser-rdp": "Navigateur RDP"
             },
             "viewer": "Visionneuse {name}",
             "viewers": "Visionneuses",

@@ -15,6 +15,7 @@ import states from '@/lib/states'
 import clipboard from '@/lib/clipboard'
 import Modal from '@/components/Modal'
 import * as cookies from 'tiny-cookie'
+import { mapGetters } from 'vuex'
 
 Guacamole.Mouse = GuacMouse.mouse
 
@@ -22,6 +23,11 @@ export default {
   name: 'Rdp',
   components: {
     Modal
+  },
+  computed: {
+    ...mapGetters([
+      'getToken'
+    ])
   },
   data () {
     return {
@@ -55,7 +61,7 @@ export default {
       this.host = params.host
       this.desktopIp = params.vmHost
 
-      const query = `scheme=rdp&hostname=${this.desktopIp}&ignore-cert=true&resize-method=display-update&session=${cookies.getCookie('session')}&server-layout=es-es-qwerty`
+      const query = `scheme=rdp&hostname=${this.desktopIp}&ignore-cert=true&resize-method=display-update&session=${this.getToken}&server-layout=es-es-qwerty`
       this.connected = true
 
       this.connect(query)

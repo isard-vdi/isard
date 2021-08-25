@@ -222,7 +222,7 @@ export default {
         if (this.getViewers[desktop.id] !== undefined && desktop.viewers.includes(this.getViewers[desktop.id])) {
           return this.getViewers[desktop.id]
         } else if (desktop.viewers.length > 0) {
-          return desktop.viewers.includes('browser') ? 'browser' : desktop.viewers[0]
+          return desktop.viewers.includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0]
         }
       }
       return ''

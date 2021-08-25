@@ -28,10 +28,15 @@ class ApiTemplates():
     def __init__(self):
         None
 
+    def New(self, template_name, desktop_id, allowed_roles=False, allowed_categories=False, allowed_groups=False, allowed_users=False):
 
+        allowed={'roles': allowed_roles,
+                'categories': allowed_categories,
+                'groups': allowed_groups,
+                'users': allowed_users}
 
-    def New(self, template_name, user_id, from_desktop_id):
         parsed_name = _parse_string(template_name)
+        user_id=desktop_id.split('_')[1]
         template_id = '_' + user_id + '-' + parsed_name
 
         with app.app_context():
@@ -39,7 +44,7 @@ class ApiTemplates():
                 user=r.table('users').get(user_id).pluck('id','category','group','provider','username','uid').run(db.conn)
             except:
                 raise UserNotFound
-            desktop = r.table('domains').get(from_desktop_id).run(db.conn)
+            desktop = r.table('domains').get(desktop_id).run(db.conn)
             if desktop == None: raise DesktopNotFound
 
         parent_disk=desktop['hardware']['disks'][0]['file']
@@ -51,8 +56,8 @@ class ApiTemplates():
                                             'parent':parent_disk}]
 
         create_dict=_parse_media_info({'hardware':hardware})
-        create_dict['origin']=from_desktop_id
-        print(create_dict)
+        create_dict['origin']=desktop_id
+
         template_dict={'id': template_id,
                   'name': template_name,
                   'description': 'Api created',
@@ -71,15 +76,12 @@ class ApiTemplates():
                   'create_dict': create_dict,
                   'hypervisors_pools': ['default'],
                   'parents': desktop['parents'] if 'parents' in desktop.keys() else [],
-                  'allowed': {'roles': False,
-                              'categories': False,
-                              'groups': False,
-                              'users': False}}
+                  'allowed': allowed}
 
         with app.app_context():
             if r.table('domains').get(template_dict['id']).run(db.conn) == None:
 
-                if _check(r.table('domains').get(from_desktop_id).update({"create_dict": {"template_dict": template_dict}, "status": "CreatingTemplate"}).run(db.conn),'replaced') == False:
+                if _check(r.table('domains').get(desktop_id).update({"create_dict": {"template_dict": template_dict}, "status": "CreatingTemplate"}).run(db.conn),'replaced') == False:
                     raise NewTemplateNotInserted
                 else:
                     return template_dict['id']
@@ -92,8 +94,11 @@ class ApiTemplates():
             try:
                 return r.table('domains').get(template_id).pluck('id','name','icon','image','description').run(db.conn)
             except:
-                return UserTemplatesError
+                raise UserTemplatesError
 
+    def Delete(self,template_id):
+        ## TODO: Delete all related desktops!!!
+        ds.delete_desktop(template_id, 'Stopped')
 
 
 

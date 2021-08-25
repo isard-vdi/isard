@@ -1,7 +1,8 @@
-import { apiAxios } from '@/router/auth'
+import axios from 'axios'
 import i18n from '@/i18n'
 import router from '@/router'
 import { toast } from '@/store/index.js'
+import { apiV3Segment } from '../../shared/constants'
 
 export default {
   actions: {
@@ -10,7 +11,7 @@ export default {
         i18n.t('views.select-template.notification.loading.description'),
         i18n.t('views.select-template.notification.loading.title'),
         () => new Promise((resolve, reject) => {
-          apiAxios.get('/vpn').then(response => {
+          axios.get(`${apiV3Segment}/user/vpn/config`).then(response => {
             const el = document.createElement('a')
             const content = response.data.content
             el.setAttribute(

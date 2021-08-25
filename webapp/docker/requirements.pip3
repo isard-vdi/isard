@@ -6,3 +6,4 @@ bcrypt==3.2.0
 pem==21.2.0
 rethinkdb==2.3.0.post6
 APScheduler==3.3.1
+python-jose==3.3.0

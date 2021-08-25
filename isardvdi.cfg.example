@@ -15,6 +15,10 @@ FRONTEND_SHOW_ADMIN_BTN=True
 ## openssl rand -base64 32
 WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
 
+## Generate your own!:
+## openssl rand -base64 32
+API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
+
 ## Initial WEB admin user password
 WEBAPP_ADMIN_PWD=IsardVDI
 
@@ -204,6 +208,21 @@ WEBAPP_HOST=isard-webapp
 WEBAPP_RETHINKDB_HOST=isard-db
 WEBAPP_RETHINKDB_PORT=28015
 WEBAPP_RETHINKDB_DB=isard
+
+###################### AUTHENTICATION config
+
+AUTHENTICATION_AUTHENTICATION_HOST=localhost
+AUTHENTICATION_DB_HOST=isard-db
+
+## Local
+# AUTHENTICATION_AUTHENTICATION_LOCAL=false
+
+## Google
+# Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
+# Authorized redirect URIs: https://domain.tld/authentication/callback
+# Change AUTHENTICATION_AUTHENTICATION_HOST to domain.tld
+# AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
+# AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
 
 ###################### BACKEND config
 

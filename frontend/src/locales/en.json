@@ -1,6 +1,7 @@
 {
     "components": {
         "navbar": {
+            "home": "Home",
             "help": "Help",
             "vpn": {
                 "download": "VPN",
@@ -13,7 +14,12 @@
                     "description": "We couldn't download the VPN configuration file due to an error"
                 }
             },
-            "admin": "Administration"
+            "admin": "Administration",
+            "deployments": {
+                "text": "Deployments",
+                "view": "View",
+                "manage": "Manage"
+            }
         },
         "statusbar": {
             "desktops-started": "Desktops started",
@@ -73,6 +79,7 @@
         }
     },
     "views": {
+        "cancel" : "Cancel",
         "error": {
             "title": "Error",
             "codes": {
@@ -95,6 +102,10 @@
                 "pwd": "Password",
                 "login": "Login"
             },
+            "errors": {
+                "401": "Incorrect user or password",
+                "500": "Server error"
+            },
             "other-logins": "Or login with",
             "powered-by": "Powered by",
             "isard-logo-alt": "The IsardVDI logo is a chamois head."
@@ -112,7 +123,12 @@
         "register": {
             "title": "Sign Up",
             "code": "Sign up code",
-            "register": "Sign up"
+            "register": "Sign up",
+            "errors": {
+                "404": "Code not found",
+                "401": "Session expired",
+                "500": "Server error"
+            }
         },
         "select-template": {
             "template": "Template",
@@ -129,10 +145,10 @@
             "viewers": "Viewers",
             "viewer": "{name} viewer",
             "viewer-name": {
-                "spice": "SPICE",
-                "browser": "Browser",
-                "rdp": "RDP",
-                "rdp-html5": "RDP Browser"
+                "file-spice": "SPICE",
+                "browser-vnc": "Browser",
+                "file-rdpvpn": "RDP",
+                "browser-rdp": "RDP Browser"
             },
             "remove": "Remove",
             "notification": {
@@ -223,6 +239,20 @@
         "welcome": {
             "title": "Welcome to IsardVDI, virtual desktops service",
             "button": "Login"
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "There are no deployments from this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            }
+        },
+        "deployment": {
+            "no-started-desktops": {
+                "title": "There are no started desktops at this deployment"
+            },
+            "desktop": {
+                "not-available": "Desktop not available"
+            }
         }
     }
 }

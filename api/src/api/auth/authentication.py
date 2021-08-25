@@ -37,18 +37,22 @@ class LocalUsers():
 class User(UserMixin):
     def __init__(self, dict):
         self.id = dict['id']
-        self.username = dict['id']
+        self.provider = dict['provider']
+        self.category = dict['category']
+        self.uid = dict['uid']
+        self.username = dict['username']
         self.name = dict['name']
         self.password = dict['password']
         self.role = dict['role']
-        self.category = dict['category']
         self.group = dict['group']
-        self.path = dict['category']+'/'+dict['group']+'/'+dict['id']+'/'
+        self.path = dict['category']+'/'+dict['group_uid']+'/'+dict['provider']+'/'+dict['uid']+'-'+dict['username']+'/'
         self.email = dict['email']
         self.quota = dict['quota']
         self.auto = dict['auto'] if 'auto' in dict.keys() else False
         self.is_admin=True if self.role=='admin' else False
         self.active = dict['active']
+        self.tags = dict.get("tags", [])
+        self.photo = dict['photo']
 
     def is_active(self):
         return self.active
@@ -136,9 +140,10 @@ class auth(object):
     def authentication_local(self,username,password):
         with app.app_context():
             dbuser=r.table('users').get(username).run(db.conn)
-            log.info('USER:'+username)
-            if dbuser == None or dbuser['active'] != True:
+            #log.info('USER:'+username)
+            if dbuser is None or dbuser['active'] is not True:
                 return False
+            dbuser['group_uid']=r.table('groups').get(dbuser['group']).pluck('uid').run(db.conn)['uid']
         pw=Password()
         if pw.valid(password,dbuser['password']):
             #~ TODO: Check active or not user

@@ -112,7 +112,7 @@ flavour "" \
 	grafana \
 	stats \
 	api \
-	backend \
+	authentication \
 	vpn \
 	guac \
 
@@ -156,7 +156,7 @@ flavour web \
 	grafana \
 	stats \
 	api \
-	backend \
+	authentication \
 
 flavour stats \
 	network \

@@ -46,8 +46,8 @@
                 }
             },
             "viewer-name": {
-                "browser": "Браузер",
-                "rdp-html5": "RDP браузер"
+                "browser-vnc": "Браузер",
+                "browser-rdp": "RDP браузер"
             },
             "status": {
                 "waitingip": {

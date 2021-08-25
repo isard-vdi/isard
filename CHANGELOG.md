@@ -2,17 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
-## [develop] - not released
+## [3.0.0] - 2021-08-25 | Gran Paradiso
 
-### Upgrade
+*Note*: it is possible to upgrade from version `2.0.0-rc1` to `3.0.0`, but we don't assure you everything will work (though it probably will). For a stable installation, start from scratch. 
+
+### Update tricks
+
+#### Before upgrade
+```sh
+mkdir -p /opt/isard/hypervisor
+docker cp isard-hypervisor:/etc/ssh /opt/isard/hypervisor/sshd_keys
+rm /opt/isard/hypervisor/sshd_keys/moduli /opt/isard/hypervisor/sshd_keys/ssh_config /opt/isard/hypervisor/sshd_keys/sshd_config
+```
+More info [here](https://github.com/isard-vdi/isard/pull/290)
+
+```sh
+docker network rm isard-network
+```
+More info [here](https://gitlab.com/isard/isardvdi/-/merge_requests/276#note_626216072)
 
 #### After upgrade
-
-If you bring up 2.0-rc1 version and then upgrade, as you will have the certs already created, they don't get the correct permissions.
-Fix permissions running the following command:
-```
+```sh
 docker-compose run isard-hypervisor chown -R qemu /etc/pki/libvirt-spice
 ```
+More info [here](https://github.com/isard-vdi/isard/issues/278#issuecomment-716102809)
+
+
+### Added
+
+- New frontend
+- Set a custom logo
+- Single Sign On
+- Full Nvidia GPU support
+- RDP viewer
+- RDP browser viewer (using Guacamole)
+- Deployments (desktop groups)
+- Desktop soft shutdown
+- Desktop sharing through an unique URL
+- VPN connection for each user
+
+### Fixed
+
+- *Lots* of bugs fixed in all the services
+
+### Changed
+
+- Advanced interface styles cleanup
+- Updated Libvirt & QEMU to newer releases
+- Updated lots of frontend & webapp Javascript dependencies
+- Development moved to Gitlab
+- Renamed the 'Updates' section to 'Downloads', in the advanced interface
+
+### Removed
+
+- Old frontend
+
 
 ## [2.0.0-rc1] - 2020-08-03
 

@@ -6,17 +6,21 @@
         <b-row id="register" align-h="center">
             <b-col sm="10" md="6" lg="5" xl="4">
                 <h1>{{ $t('views.register.title') }}</h1>
-
-                <b-form method="POST" :action="register()">
-                    <b-form-input
-                        id="code"
-                        name="code"
-                        type="text"
-                        required
-                        :placeholder="$t('views.register.code')"
-                    />
-
-                    <b-button id="submit" type="submit" variant="warning" size="lg">{{ $t('views.register.register') }}</b-button>
+                <b-form @submit.prevent="register(code)">
+                <b-alert
+                  v-model="showAlert"
+                  variant="danger"
+                >
+                {{ this.getPageErrorMessage }}
+                </b-alert>
+                <b-form-input
+                    type="text"
+                    v-model="code"
+                    required
+                    :placeholder="$t('views.register.code')"
+                />
+                  <b-button type="submit" variant="warning" size="lg">{{ $t('views.register.register') }}</b-button>
+                  <b-button @click="redirectLogin()" class="ml-3" variant="primary" size="lg">{{ $t('views.cancel') }}</b-button>
                 </b-form>
             </b-col>
         </b-row>
@@ -25,23 +29,32 @@
 
 <script>
 import Logo from '@/components/Logo.vue'
+import { mapActions, mapGetters } from 'vuex'
+
 export default {
   name: 'register',
   components: {
     Logo
   },
   methods: {
-    register () {
-      let redirect = new URLSearchParams(window.location.search).get(
-        'redirect'
-      )
-      if (redirect !== '') {
-        redirect = '?redirect=' + redirect
-      }
-      return (
-                `${window.location.protocol}//${window.location.host}/api/v2/register` +
-                redirect
-      )
+    ...mapActions([
+      'register'
+    ]),
+    redirectLogin: function () {
+      this.$router.push({ name: 'Login' })
+    }
+  },
+  computed: {
+    ...mapGetters([
+      'getPageErrorMessage'
+    ]),
+    showAlert () {
+      return this.getPageErrorMessage !== ''
+    }
+  },
+  data () {
+    return {
+      code: ''
     }
   }
 }

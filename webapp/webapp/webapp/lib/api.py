@@ -1058,6 +1058,7 @@ class isard():
                   'tag':create_dict.get("tag", False),
                   'tag_name':create_dict.get("tag_name", False),
                   'tag_visible':create_dict.get("tag_visible", True),
+                  'jumperurl':app.adminapi.jumperurl_gencode() if create_dict.get("tag_visible", True) else False,
                   'kind': 'desktop',
                   'user': userObj['id'],
                   'username': userObj['username'],

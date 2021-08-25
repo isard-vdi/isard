@@ -6,6 +6,8 @@ import NotFound from '@/views/NotFound.vue'
 import Register from '@/views/Register.vue'
 import Home from '@/views/Home.vue'
 import Rdp from '@/views/Rdp.vue'
+import Deployments from '@/views/Deployments.vue'
+import Deployment from '@/views/Deployment.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { auth } from './auth'
@@ -26,6 +28,22 @@ const router = new VueRouter({
       path: '/rdp',
       name: 'Rdp',
       component: Rdp,
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/deployments',
+      name: 'Deployments',
+      component: Deployments,
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/deployment/:id',
+      name: 'Deployment',
+      component: Deployment,
       meta: {
         requiresAuth: true
       }

@@ -3,20 +3,24 @@ import { cardIcons, desktopStates, status } from '../shared/constants'
 export class DesktopUtils {
   static parseDesktops (items) {
     return items.map((item) => {
-      const { description, icon, id, name, state, type, viewers, ip, template } = item
-      return {
-        description,
-        icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
-        id,
-        name,
-        state: this.getState(state),
-        type,
-        ip,
-        viewers: (viewers !== undefined && viewers !== null) ? viewers : [],
-        template,
-        buttonIconName: this.buttonIconName(item)
-      }
+      return DesktopUtils.parseDesktop(item)
     }) || []
+  }
+
+  static parseDesktop (item) {
+    const { description, icon, id, name, state, type, viewers, ip, template } = item
+    return {
+      description,
+      icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
+      id,
+      name,
+      state: this.getState(state),
+      type,
+      ip,
+      viewers: (viewers !== undefined && viewers !== null) ? viewers : [],
+      template,
+      buttonIconName: this.buttonIconName(item)
+    }
   }
 
   static parseTemplates (items) {
@@ -69,6 +73,6 @@ export class DesktopUtils {
   }
 
   static viewerNeedsIp (viewer) {
-    return ['rdp', 'rdp-html5'].includes(viewer)
+    return ['file-rdpvpn', 'browser-rdp'].includes(viewer)
   }
 }

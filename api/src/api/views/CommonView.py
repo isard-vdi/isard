@@ -26,14 +26,6 @@ from flask import (
     send_from_directory,
 )
 
-# from ..libv2.telegram import tsend
-def tsend(txt):
-    None
-
-
-from ..libv2.carbon import Carbon
-
-carbon = Carbon()
 
 from ..libv2.quotas import Quotas
 
@@ -43,9 +35,11 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 
 common = ApiDesktopsCommon()
 
+from .decorators import has_token, is_admin, ownsUserId, ownsCategoryId, ownsDomainId, allowedTemplateId
 
-@app.route("/api/v2/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
-def api_v2_desktop_viewer(desktop_id=False, protocol=False):
+@app.route("/api/v3/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
+@has_token
+def api_v3_desktop_viewer(payload,desktop_id=False, protocol=False):
     if desktop_id == False or protocol == False:
         log.error("Incorrect access parameters. Check your query.")
         return (
@@ -56,6 +50,7 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
             {"Content-Type": "application/json"},
         )
 
+    if not ownsDomainId(payload,desktop_id): return json.dumps({"code":10,"msg":"Forbidden: "}), 403, {'Content-Type': 'application/json'}
     try:
         viewer = common.DesktopViewer(desktop_id, protocol, get_cookie=True)
         return json.dumps(viewer), 200, {"Content-Type": "application/json"}
@@ -133,12 +128,14 @@ def api_v2_desktop_viewer(desktop_id=False, protocol=False):
         )
 
 @app.route("/api/v2/desktop/<desktop_id>/viewers", methods=["GET"])
-def api_v2_desktop_viewers(desktop_id=False, protocol=False):
+@has_token
+def api_v2_desktop_viewers(payload,desktop_id=False, protocol=False):
+    if not ownsDomainId(payload,desktop_id): return json.dumps({"code":10,"msg":"Forbidden: "}), 403, {'Content-Type': 'application/json'}
     viewers = []
-    for protocol in ['vnc-html5','spice-client']:
+    for protocol in ['browser-vnc','file-spice']:
         try:
             viewer = common.DesktopViewer(desktop_id, protocol, get_cookie=True)
-            viewers.append({**{'protocol':protocol},**viewer})
+            viewers.append(viewer)
         except DesktopNotFound:
             log.error(
                 "Viewer for desktop "
