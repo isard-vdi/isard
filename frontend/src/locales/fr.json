@@ -3,7 +3,12 @@
         "register": {
             "title": "Inscription",
             "register": "S’inscrire",
-            "code": "Code d’inscription"
+            "code": "Code d’inscription",
+            "errors": {
+                "500": "Erreur du serveur",
+                "401": "La session a expiré",
+                "404": "Code introuvable"
+            }
         },
         "welcome": {
             "button": "Se connecter",
@@ -182,8 +187,26 @@
                 "usr": "Nom d’utilisateur",
                 "select-category": "Veuillez sélectionner une option"
             },
-            "title": "Se connecter"
-        }
+            "title": "Se connecter",
+            "errors": {
+                "500": "Erreur du serveur",
+                "401": "Nom d’utilisateur ou mot de passe incorrect"
+            }
+        },
+        "deployment": {
+            "no-started-desktops": {
+                "title": "Il n’y a pas de postes de travail démarrés dans ce déploiement"
+            },
+            "desktop": {
+                "not-available": "Bureau non disponible"
+            }
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "Il n’y a aucun déploiement de cet utilisateur"
+            }
+        },
+        "cancel": "Annuler"
     },
     "components": {
         "navbar": {
@@ -199,7 +222,13 @@
                 },
                 "download": "RPV"
             },
-            "help": "Aide"
+            "help": "Aide",
+            "deployments": {
+                "manage": "Gérer",
+                "view": "Voir",
+                "text": "Déploiements"
+            },
+            "home": "Accueil"
         },
         "not-found": {
             "home": "Retour",
