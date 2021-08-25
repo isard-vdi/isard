@@ -203,7 +203,8 @@
         },
         "deployments": {
             "no-deployments": {
-                "title": "Il n’y a aucun déploiement de cet utilisateur"
+                "title": "Il n’y a aucun déploiement de cet utilisateur",
+                "subtitle": "Si vous pensez que ceci est une erreur, veuillez contacter l’administrateur"
             }
         },
         "cancel": "Annuler"
