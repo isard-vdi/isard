@@ -86,7 +86,8 @@ class DomainsThread(threading.Thread):
                             data=c['old_val']
                         else:
                             if not c['new_val']['id'].startswith('_'): continue
-                            if c['new_val']['status'] not in ['Creating','Shutting-down','Stopping','Stopped','Starting','Started','Failed']: continue
+                            if c['new_val']['status'] not in ['Creating','CreatingAndStarting','Shutting-down','Stopping','Stopped','Starting','Started','Failed']: continue
+
                             if c['new_val']['kind'] != 'desktop':
                                 item='template'
                             else:

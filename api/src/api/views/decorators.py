@@ -122,7 +122,6 @@ def allowedTemplateId(payload,template_id):
     if payload['role_id'] == 'admin': return True
     if payload['role_id'] == 'manager' and payload['category_id'] == template['category']: return True
     if alloweds['roles'] != False:
-        print(alloweds['roles'])
         if alloweds['roles'] == []: return True
         if payload['role_id'] in alloweds['roles']: return True
     if alloweds['categories'] != False:
