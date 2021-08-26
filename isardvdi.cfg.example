@@ -227,35 +227,6 @@ AUTHENTICATION_DB_HOST=isard-db
 ###################### BACKEND config
 
 BACKEND_HOST=localhost
-BACKEND_REDIS_HOST=isard-redis
-BACKEND_REDIS_PASSWORD=
-BACKEND_AUTH_AUTOREGISTRATION=true
-
-## Github Login
-# Create your Github OAuth credentials at https://github.com/settings/developers
-# Homepage URL: https://domain.tld
-# Authorization callback URL: https://domain.tld/callback/github
-# Change BACKEND_HOST to domain.tld
-# BACKEND_AUTH_GITHUB_HOST=api.github.com
-# BACKEND_AUTH_GITHUB_ID=id
-# BACKEND_AUTH_GITHUB_SECRET=secret
-
-## Google Login
-# Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
-# Authorized redirect URIs: https://domain.tld/callback/google
-# Change BACKEND_HOST to domain.tld
-# BACKEND_AUTH_GOOGLE_ID=id
-# BACKEND_AUTH_GOOGLE_SECRET=secret
-
-# BACKEND_AUTH_SAML_CERT_PATH=/keys/saml.cert
-# BACKEND_AUTH_SAML_KEY_PATH=/keys/saml.key
-# BACKEND_AUTH_SAML_IDP_URL=https://<yoursamlserver
-# BACKEND_AUTH_SAML_IDP_METADATA_PATH=/metadata/shibboleth.xml
-# BACKEND_AUTH_SAML_CALLBACK_URL=https://<yourdomain>
-# BACKEND_AUTH_SAML_ATTR_ID=uid
-# BACKEND_AUTH_SAML_ATTR_NAME=displayName
-BACKEND_ISARD_API_HOST=isard-api
-BACKEND_MANTEINANCE_ADMINS=admin
 
 # VIDEO config
 ###########################################################
