@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2021-08-27
+
+### Fixed
+
+- Temporary desktops didn't start
+- Some temporary desktops logout user as the allowed filter had a bug
+
+### Removed
+
+- Removed unused BACKEND variables from isardvdi.cfg
+
 ## [3.0.0] - 2021-08-25 | Gran Paradiso
 
 *Note*: it is possible to upgrade from version `2.0.0-rc1` to `3.0.0`, but we don't assure you everything will work (though it probably will). For a stable installation, start from scratch. 
