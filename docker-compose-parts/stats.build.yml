@@ -1,0 +1,7 @@
+version: "3.5"
+services:
+  isard-stats:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/stats/Dockerfile
+      target: production

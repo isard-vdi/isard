@@ -55,6 +55,18 @@ XML_SNIPPET_BRIDGE = '''
     </interface>
 '''
 
+XML_SNIPPET_OVS = '''
+    <interface type='bridge'>
+      <source bridge='{ovs_br_name}'/>
+      <mac address='52:54:00:eb:b1:aa'/>
+      <virtualport type='openvswitch'></virtualport>
+      <vlan>
+        <tag id='{vlan_id}'/>
+      </vlan>
+      <model type="virtio"/>
+    </interface>
+'''
+
 XML_SNIPPET_CDROM = '''
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
@@ -515,6 +527,16 @@ class DomainXML(object):
             interface_etree = etree.parse(StringIO(XML_SNIPPET_BRIDGE))
             interface_etree.xpath('/interface')[0].xpath('source')[0].set('bridge', net)
 
+        elif type_interface == 'ovs':
+            xml_snippet = XML_SNIPPET_OVS.format(vlan_id = net, ovs_br_name='ovsbr0')
+            interface_etree = etree.parse(StringIO(xml_snippet))
+
+        elif type_interface.find('ovs') == 0 and len(type_interface) > 3:
+            suffix_br = type_interface[3:]
+            ovs_br_name = 'ovsbr' + suffix_br
+            xml_snippet = XML_SNIPPET_OVS.format(vlan_id = net, ovs_br_name=ovs_br_name)
+            interface_etree = etree.parse(StringIO(xml_snippet))
+
         elif type_interface == 'network':
             interface_etree = etree.parse(StringIO(XML_SNIPPET_NETWORK))
             interface_etree.xpath('/interface')[0].xpath('source')[0].set('network', net)
@@ -914,10 +936,11 @@ class DomainXML(object):
 
             return path
 
-    def randomize_vm(self):
-        self.new_random_mac()
-        self.new_domain_uuid()
-
+    def randomize_vm(self,mac=False,uuid=True):
+        if mac:
+            self.new_random_mac()
+        if uuid:
+            self.new_domain_uuid()
         self.dict_from_xml()
 
     def print_vm_dict(self):
@@ -1163,6 +1186,10 @@ def populate_dict_hardware_from_create_dict(id_domain):
         update_domain_dict_create_dict(id_domain,create_dict)
 
     new_hardware_dict['interfaces'] = create_list_interfaces_from_list_ids(list_interfaces_id,list_interfaces_mac)
+    d_netnames_mac = {'macs':{d['original_id']:d['mac'] for d in new_hardware_dict['interfaces']}}
+    d_netnames_mac_reset = {'macs':False}
+    update_table_field('domains',id_domain,'create_dict',d_netnames_mac_reset)
+    update_table_field('domains',id_domain,'create_dict',d_netnames_mac)
 
     # BOOT MENU
     if 'hardware' in create_dict.keys():
@@ -1210,6 +1237,7 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
                 dict_bandwidth = pop_key_if_zero(dict_bandwidth)
                 return {'type': dict_net['kind'],
                         'id': dict_net['ifname'],
+                        'original_id':dict_net['id'],
                         'name': dict_net['name'],
                         'model': dict_net['model'],
                         'net': dict_net['net'],
@@ -1221,6 +1249,7 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
             log.error(f'net qos with id {qos_id} not defined in dict_qos table')
     return {'type': dict_net['kind'],
             'id': dict_net['ifname'],
+            'original_id':dict_net['id'],
             'name': dict_net['name'],
             'model': dict_net['model'],
             'net': dict_net['net'],

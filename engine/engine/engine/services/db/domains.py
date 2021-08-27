@@ -4,15 +4,21 @@ import sys
 import time
 import flatten_dict
 
-import rethinkdb as r
-from rethinkdb import ReqlNonExistenceError
+from rethinkdb import r
+from rethinkdb.errors import ReqlNonExistenceError
 from copy import deepcopy
 
+from engine.services.log import logs
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import new_rethink_connection, \
     close_rethink_connection, create_list_buffer_history_domain
 from engine.services.db.db import new_rethink_connection, close_rethink_connection
 from engine.services.db.domains_status import stop_last_domain_status
+
+DEBUG_CHANGES = True if logs.changes.handlers[0].level <= 10 else False
+if DEBUG_CHANGES:
+    import inspect
+    import threading
 
 def dict_merge(a, b):
     '''recursively merges dict's. not just simple a['key'] = b['key'], if
@@ -88,6 +94,22 @@ def update_domain_parents(id_domain):
 def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=False):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
+
+    if DEBUG_CHANGES:
+        thread_name = threading.currentThread().name
+        parents = []
+        for i in inspect.stack():
+            if len(i) > 3:
+                p = i[3]
+                if p not in ['<module>', 'eval_in_context', 'evaluate_expression', 'do_it',
+                             'process_internal_commands', '_do_wait_suspend', 'do_wait_suspend', 'do_wait_suspend',
+                             'trace_dispatch']:
+                    parents.append(p)
+        s_parents = ' <- '.join(parents)
+        logs.changes.debug(f'*** update domain {id_domain} to {status}:\n *** {thread_name} - {s_parents}')
+
+
+    logs.main.debug(f"Update domain status -> status: {status} / domain:{id_domain} / hyp_id={hyp_id} / keep_hyp_id?{keep_hyp_id}")
     # INFO TO DEVELOPER TODO: verificar que el estado que te ponen es realmente un estado válido
     # INFO TO DEVELOPER TODO: si es stopped puede interesar forzar resetear hyp_started no??
     # INFO TO DEVELOPER TODO: MOLARÍA GUARDAR UN HISTÓRICO DE LOS ESTADOS COMO EN HYPERVISORES

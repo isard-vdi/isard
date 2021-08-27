@@ -127,7 +127,7 @@ def api_v3_desktop_viewer(payload,desktop_id=False, protocol=False):
             {"Content-Type": "application/json"},
         )
 
-@app.route("/api/v2/desktop/<desktop_id>/viewers", methods=["GET"])
+@app.route("/api/v3/desktop/<desktop_id>/viewers", methods=["GET"])
 @has_token
 def api_v2_desktop_viewers(payload,desktop_id=False, protocol=False):
     if not ownsDomainId(payload,desktop_id): return json.dumps({"code":10,"msg":"Forbidden: "}), 403, {'Content-Type': 'application/json'}

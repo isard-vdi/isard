@@ -119,6 +119,43 @@ class DS():
                 if doc['new_val']['status'] != final_status:
                     raise DesktopWaitFailed
 
+    def WaitHyperStatus(self, hyper_id, original_status, transition_status, final_status):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(lambda p: self._wait_for_hyper_status(*p), [hyper_id, original_status, transition_status, final_status])
+        try:
+            result = future.result()
+        except ReqlTimeoutError:
+            raise DesktopActionTimeout
+        except DesktopWaitFailed:
+            raise DesktopActionFailed
+        return True
+
+    def _wait_for_hyper_status(self, hyper_id, original_status, transition_status, final_status):
+        with app.app_context():
+            # Prepare changes
+            if final_status == 'Deleted':
+                changestatus = r.table('hypervisors').get(hyper_id).changes().filter({'new_val': None}).run(db.conn)
+            elif final_status == 'Started':
+                changestatus = r.table('hypervisors').get(hyper_id).changes().filter({'new_val':{'status':final_status}}).has_fields({'new_val': {'viewer': {'tls':{'host-subject':True}}}}).run(db.conn)
+            else:
+                changestatus = r.table('hypervisors').get(hyper_id).changes().filter({'new_val':{'status':final_status}}).run(db.conn)
+
+            # Start transition
+            if transition_status != 'Any':
+                status = r.table('hypervisors').get(hyper_id).update({'status':transition_status}).run(db.conn)
+                
+                if _check(status,'replaced') == False:
+                    raise DesktopPreconditionFailed
+
+            # Get change
+            try:
+                doc = changestatus.next(wait=5)
+            except ReqlTimeoutError:
+                raise
+            if final_status != 'Deleted':
+                if doc['new_val']['status'] != final_status:
+                    raise DesktopWaitFailed
+
     def _check(self,dict,action):
         '''
         These are the actions:

@@ -1,95 +1,22 @@
-from threading import Thread
+import os
+from time import sleep
 
-from sources.engine import Engine
-from sources.operating_system import OperatingSystem
-from sources.containers import Containers
-from sources.hypervisor import Hypervisors
+from stats import HypStats
 
-# ~ from sources.domains_events import DomainsEvents
-# ~ from sources.domains import Domains
+hyp_hostname = os.environ.get('STATS_HYP_HOSTNAME', 'isard-hypervisor')
+hyp_user = os.environ.get('STATS_HYP_USER', 'root')
+hyp_port = int(os.environ.get('STATS_HYP_PORT', 22))
 
-# ~ domains=Domains()
-# ~ if domains.check() is not False:
-    # ~ print('LIBVIRT DOMAINS MONITOR: OK')
-    # ~ thread_domains = Thread(target = domains.stats)
-    # ~ thread_domains.start()
-# ~ else:
-    # ~ print('LIBVIRT DOMAINS MONITOR: FAILED')  
-    
-# ~ domains_events=DomainsEvents()
-# ~ if domains_events.check() is not False:
-    # ~ print('LIBVIRT EVENT MONITOR: OK')
-    # ~ thread_domains_events = Thread(target = domains_events.stats)
-    # ~ thread_domains_events.start()
-# ~ else:
-    # ~ print('LIBVIRT EVENT MONITOR: FAILED')
-    
-engine=Engine()
-if engine.check() is not False:
-    print('ENGINE MONITOR: OK')
-    thread_engine = Thread(target = engine.stats)
-    thread_engine.start()
-else:
-    print('ENGINE MONITOR: FAILED')
-    
-ossys=OperatingSystem()
-if ossys.check() is not False:
-    print('OPERATING SYSTEM MONITOR: OK')
-    thread_ossys = Thread(target = ossys.stats)
-    thread_ossys.start()
-else:
-    print('OPERATING SYSTEM MONITOR: FAILED')
-    
-dock=Containers()
-if dock.check() is not False:
-    print('DOCKER MONITOR: OK')
-    thread_dock_stats = Thread(target = dock.stats)
-    thread_dock_stats.start()
-else:
-    print('DOCKER MONITOR: FAILED')
-    
-hyp=Hypervisors()
-if hyp.check() is not False:
-    print('HYPERVISOR MONITOR: OK')
-    thread_hyp_stats = Thread(target = hyp.stats)
-    thread_hyp_stats.start()
-else:
-    print('HYPERVISOR MONITOR: FAILED')
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-# ~ engine_work=engine.check()
-# ~ if engine_work is False: 
-    # ~ print("Engine not reacheable, disabling stats for engine")
-# ~ else:
-    # ~ print('Starting engine stats...')
-    
-# ~ ossys_work=ossys.stats()
-# ~ if ossys_work is False: 
-    # ~ print("SysStats not working, disabling system stats")
-# ~ else:
-    # ~ print('Starting System Stats...')
-    
-# ~ dock_work=dock.stats()
-# ~ if dock_work is False: 
-    # ~ print("Docker not reacheable, disabling stats for docker containers")
-# ~ else:
-    # ~ print('Starting dock stats...')
-    
-# ~ while True:
-    # ~ if engine_work is not False: send(transform({"engine":engine.stats()})) 
-    # ~ if ossys_work is not False:  send(transform({"system":ossys.stats()}))
-    # ~ if dock_work is not False:  send(transform({"docker":dock.stats()}))
-    # ~ time.sleep(10)
+send_to_influx = True if os.environ.get('STATS_SEND_TO_INFLUX', 'true') == 'true' else False
+send_shutdown_if_no_viewer = True if os.environ.get('STATS_SEND_SHUTDOWN_IF_NO_VIEWER', 'true') == 'true' else False
+url_api_shutdown = os.environ.get('STATS_SEND_SHUTDOWN_API_URL', 'http://isard-engine')
+type_conn_ss = os.environ.get('STATS_TYPE_CONN_SS', 'docker')
+
+h = HypStats(hyp_hostname=hyp_hostname,
+             hyp_user=hyp_user,
+             hyp_port=hyp_port,
+             type_conn_ss=type_conn_ss)
+
+while True:
+    h.stats_loop()
+

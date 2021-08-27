@@ -1,0 +1,15 @@
+version: '3.5'
+services:
+  isard-floodlight:
+    container_name: isard-floodlight
+    image: ${DOCKER_IMAGE_PREFIX}floodlight:${DOCKER_IMAGE_TAG-latest}
+    logging:
+      options:
+        max-size: "100m"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET}.99
+    ports:
+      - "8080:8080"
+      - "6653:6653"
+    restart: unless-stopped

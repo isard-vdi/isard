@@ -11,21 +11,80 @@ from random import randint
 from time import sleep
 from traceback import format_exc
 
+import pprint
+
 from engine.services.balancers.balancer_factory import BalancerFactory
 from engine.services.db.hypervisors import get_hypers_in_pool,get_pool_hypers_conf,get_hypers_info
 from engine.services.db.domains import get_create_dict
 from engine.services.log import logs
+from engine.services.lib.functions import clean_intermediate_status
+
+status_to_delete = ['Creating', 'CreatingAndStarting', 'CreatingDiskFromScratch', 'CreatingFromBuilder']
+status_to_failed = ['Updating', 'Deleting']
+status_to_stopped = ['Starting']
+
+def move_actions_to_others_hypers(hyp_id,
+                                  d_queues,
+                                  remove_stopping=False,
+                                  remove_if_no_more_hyps=False):
+    balancer = Balancer_no_stats()
+
+    for type_queue,d_q in d_queues.items():
+        if hyp_id not in d_q:
+            logs.main.info(f'no queue of type {type_queue} in hypervisor {hyp_id} to move actions to other hyper')
+            continue
+        retain_actions_in_queue = []
+        while d_q[hyp_id].empty() is False:
+            action = d_q[hyp_id].get()
+
+            #get next hyp
+            while True:
+                new_hyp = balancer.get_next()
+                if hyp_id in balancer.hyps and len(balancer.hyps == 1):
+                    logs.workers.info(f"can't move actions to other hyps, only {hyp_id} is online")
+                    new_hyp = False
+                    break
+                if new_hyp != hyp_id:
+                    break
+
+            if action['type'] == 'stop_thread':
+                retain_actions_in_queue.append(action)
+                continue
+
+            elif action['type'] == 'shutdown_domain' or action['type'] == 'stop_domain':
+                if remove_stopping is False:
+                    retain_actions_in_queue.append(action)
+                else:
+                    id_domain = action['id_domain']
+                    clean_intermediate_status(reason='delete actions from queue of hyper', only_domain_id=id_domain)
+
+            else:
+                if new_hyp is False or new_hyp not in d_q.keys():
+                    if new_hyp not in d_q.keys() and type(new_hyp) is str:
+                        logs.main.warn(f"can't move action {action['type']} to hypervisor {new_hyp} because queue {type_queue} don't exist")
+                    if remove_if_no_more_hyps is False:
+                        retain_actions_in_queue.append(action)
+                    else:
+                        if 'id_domain' in action.keys():
+                            id_domain = action['id_domain']
+                            clean_intermediate_status(reason='delete action from queue of hyper',only_domain_id=id_domain)
+                            logs.main.info(f'action {action["type"]} deleted in hypervisor {hyp_id} in queue {type_queue}')
+                            logs.main.debug(pprint.pformat(action))
+                else:
+                    d_q[new_hyp].put(action)
+                    logs.main.info(f'action {action["type"]} moved from {hyp_id} to {new_hyp} in queue {type_queue}')
+                    logs.main.debug(pprint.pformat(action))
+
+        for action in retain_actions_in_queue:
+            d_q[hyp_id].put(action)
+
+
 
 class Balancer_no_stats():
-    def __init__(self,hyps_id,id_pool):
-        assert type(hyps_id) is list
-        assert len(hyps_id) >= 1
-        self.hyps = hyps_id
+    def __init__(self,id_pool='default'):
+        self.hyps = []
         self.index_round_robin = 0
         self.id_pool = id_pool
-    # args = {'to_create_disk': to_create_disk,
-    #         'path_selected': path_selected,
-    #         'domain_id': domain_id}
 
     def get_next(self, **kwargs):
         self.hyps = get_hypers_in_pool(self.id_pool,exclude_hyp_only_forced=True)
@@ -39,13 +98,12 @@ class Balancer_no_stats():
             return False
 
 class PoolHypervisors():
-    def __init__(self, id_pool, manager, hyps_ready_count, with_status_threads=True):
+    def __init__(self, id_pool):
         self.id_pool = id_pool
-        self.with_status_threads = with_status_threads
         self.balancer_name = "round_robin"  # get from config?
         # self.balancer_name = "central_manager"  # get from config?
         try:
-            self.init_balancer(manager, hyps_ready_count)
+            self.init_balancer()
         except:
             # format_exc() -- > This is like print_exc(limit) but returns a string instead of printing to a file.
             # print_exc(limit) --> This is a shorthand for print_exception(*sys.exc_info(), limit, file, chain).
@@ -53,34 +111,8 @@ class PoolHypervisors():
 
         self.conf = get_pool_hypers_conf(id_pool)
 
-    def init_balancer(self, manager, hyps_ready_count):
-        if self.with_status_threads is True:
-            hyps = self.get_hyps_obj(manager, hyps_ready_count)
-            kwargs = {"id_pool": self.id_pool,
-                      "hyps": hyps}
-
-            self.balancer = BalancerFactory.create(self.balancer_name, **kwargs)
-        else:
-            hyps_id = get_hypers_in_pool(self.id_pool)
-            while (len(hyps_id) < hyps_ready_count):
-                sleep(2)
-                hyps_id = get_hypers_in_pool(self.id_pool)
-            self.balancer = Balancer_no_stats(hyps_id,self.id_pool)
-
-
-    def get_hyps_obj(self, manager, hyps_ready_count):
-        hyps_obj = {}
-        hyps_id = get_hypers_in_pool(self.id_pool)
-        while (len(hyps_id) < hyps_ready_count):
-            sleep(2)
-            hyps_id = get_hypers_in_pool(self.id_pool)
-        for hyp_id in hyps_id:
-            while (not getattr(manager.t_status[hyp_id], "status_obj", None)):
-                sleep(2)
-            while (not getattr(manager.t_status[hyp_id].status_obj, "hyp_obj", None)):
-                sleep(2)
-            hyps_obj[hyp_id] = manager.t_status[hyp_id].status_obj.hyp_obj
-        return hyps_obj
+    def init_balancer(self):
+        self.balancer = Balancer_no_stats(self.id_pool)
 
     def get_next(self, domain_id=None, to_create_disk=False, path_selected='',
                  force_hyp=False,

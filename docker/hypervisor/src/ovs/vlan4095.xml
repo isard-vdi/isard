@@ -1,0 +1,7 @@
+<interface type='bridge'>
+  <source bridge='ovsbr0'/>
+  <virtualport type='openvswitch'></virtualport>
+  <vlan>
+    <tag id='4095'/>
+  </vlan>
+</interface>

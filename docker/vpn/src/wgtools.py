@@ -130,7 +130,7 @@ class Wg(object):
         print('Initializing peers...')
         if self.table == 'hypervisors':
             wglist = list(r.table(self.table).pluck('id','vpn','hypervisor_number').run())
-            wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
+            # wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
         elif self.table == 'users':
             wglist = list(r.table(self.table).pluck('id','vpn').run())
             wglist_remotevpn = list(r.table('remotevpn').pluck('id','vpn').run())
@@ -208,7 +208,8 @@ class Wg(object):
         if self.table == 'hypervisors':
             if 'hypervisor_number' not in peer.keys():
                 peer['hypervisor_number'] = 1
-            extra_client_nets=str(self.get_hyper_subnet(peer['hypervisor_number']))
+            # extra_client_nets=str(self.get_hyper_subnet(peer['hypervisor_number']))
+            extra_client_nets=None
         return {'id':peer['id'],
                 'vpn':{ 'iptables':[],
                         'wireguard':
@@ -225,6 +226,7 @@ class Wg(object):
         try:
             check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'allowed-ips', address), text=True).strip()  
             if self.table == 'hypervisors':
+                check_output(('ovs-vsctl','add-port','ovsbr0',peer['id'],'--','set','interface',peer['id'],'type=geneve','options:remote_ip='+address), text=True).strip() 
                 pass
                 # There seems to be a bug because the route is not applied so we need to force again...
                 # check_output(('/usr/bin/wg-quick','save','hypers'), text=True)
@@ -256,6 +258,8 @@ class Wg(object):
         if 'vpn' in peer.keys() and 'wireguard' in peer['vpn'].keys():
             check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'remove'), text=True).strip()  
         self.uipt.remove_matching_rules(peer)
+        if table=='hypervisors':
+            log.error(check_output(('ovs-vsctl','del-port',peer['id']), text=True).strip() )
         #if self.table=='users':
         #    self.uipt.del_user(peer['id'],peer['vpn']['wireguard']['Address'])
 

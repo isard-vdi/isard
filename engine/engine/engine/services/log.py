@@ -49,6 +49,8 @@ log.basicConfig(
 logFormatter = log.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
 rootLogger = log.getLogger()
 
+rootLogger.setLevel(LOG_LEVEL_NUM)
+
 # fileHandler = logging.FileHandler("{0}/{1}.log".format(logPath, fileName))
 # fileHandler.setFormatter(logFormatter)
 # rootLogger.addHandler(fileHandler)
@@ -96,3 +98,4 @@ class Logs (object):
         setattr(self, name, logger_obj)
 
 logs = Logs()
+

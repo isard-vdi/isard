@@ -19,7 +19,7 @@ from engine.services.db.db import update_table_field
 from engine.services.db.domains import update_domain_status, update_domain_parents
 from engine.services.db.hypervisors import update_hyp_status, get_hyp_hostname_from_id, \
     update_hypervisor_failed_connection, update_db_hyp_info, get_hyp, update_db_default_gpu_models, \
-    update_uids_for_nvidia_id
+    update_uids_for_nvidia_id, update_hyp_thread_status
 from engine.services.lib.functions import dict_domain_libvirt_state_to_isard_state, state_and_cause_to_str, \
     execute_commands, \
     execute_command_with_progress, get_tid
@@ -53,9 +53,11 @@ def threading_enumerate():
     return e
 
 
-def launch_disk_operations_thread(hyp_id, hostname, user='root', port=22):
+def launch_disk_operations_thread(hyp_id, hostname, user='root', port=22, q_orchestrator=None):
     if hyp_id is False:
         return False, False
+
+    update_hyp_thread_status('disk_operations',hyp_id,'Starting')
 
     queue_disk_operation = queue.Queue()
     # thread_disk_operation = threading.Thread(name='disk_op_'+id,target=disk_operations_thread, args=(host_disk_operations,queue_disk_operation))
@@ -64,15 +66,18 @@ def launch_disk_operations_thread(hyp_id, hostname, user='root', port=22):
                                                  hostname=hostname,
                                                  queue_actions=queue_disk_operation,
                                                  user=user,
-                                                 port=port)
+                                                 port=port,
+                                                 queue_master=q_orchestrator)
     thread_disk_operation.daemon = True
     thread_disk_operation.start()
     return thread_disk_operation, queue_disk_operation
 
 
-def launch_long_operations_thread(hyp_id, hostname, user='root', port=22):
+def launch_long_operations_thread(hyp_id, hostname, user='root', port=22, q_orchestrator=None):
     if hyp_id is False:
         return False, False
+
+    update_hyp_thread_status('long_operations', hyp_id, 'Starting')
 
     queue_long_operation = queue.Queue()
     thread_long_operation = LongOperationsThread(name='long_op_' + hyp_id,
@@ -80,7 +85,8 @@ def launch_long_operations_thread(hyp_id, hostname, user='root', port=22):
                                                  hostname=hostname,
                                                  queue_actions=queue_long_operation,
                                                  user=user,
-                                                 port=port)
+                                                 port=port,
+                                                 queue_master=q_orchestrator)
     thread_long_operation.daemon = True
     thread_long_operation.start()
     return thread_long_operation, queue_long_operation
@@ -288,14 +294,16 @@ def  launch_action_create_template_disk(action, hostname, user, port):
 
 
 
-def launch_thread_worker(hyp_id, queue_master=None):
+def launch_thread_worker(hyp_id, q_event_register, queue_master):
     log.debug('launching thread wordker for hypervisor: {}'.format(hyp_id))
     q = queue.Queue()
+    update_hyp_thread_status('worker', hyp_id, 'Starting')
     # t = threading.Thread(name='worker_'+hyp_id,target=hyp_worker_thread, args=(hyp_id,q,queue_master))
     t = HypWorkerThread(name='worker_' + hyp_id,
                         hyp_id=hyp_id,
                         queue_actions=q,
-                        queue_master=queue_master)
+                        queue_master=queue_master,
+                        q_event_register = q_event_register)
     t.daemon = True
     t.start()
     return t, q

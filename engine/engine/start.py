@@ -1,8 +1,8 @@
 from engine.services.lib.debug import check_if_debugging
 check_if_debugging()
 
-from gevent.pywsgi import WSGIServer
-
+# from gevent.pywsgi import WSGIServer
+import inspect
 import os, sys
 import logging
 
@@ -13,6 +13,10 @@ from logging.handlers import RotatingFileHandler
 from initdb.populate import Populate
 from initdb.upgrade import Upgrade
 import traceback
+from pid import PidFile, PidFileAlreadyRunningError, PidFileAlreadyLockedError
+
+from subprocess import check_call, check_output
+check_output(('/isard/generate_certs.sh'), text=True).strip()
 
 try:
     p=Populate()
@@ -33,7 +37,7 @@ from engine.services.lib.functions import check_tables_populated
 check_tables_populated()
 
 from engine.services import db
-from engine.models.manager_hypervisors import ManagerHypervisors
+from engine.models.engine import Engine
 
 
 def run(app):
@@ -47,10 +51,20 @@ def run(app):
 
 if __name__ == "__main__":
 
+    p = PidFile('engine')
+    try:
+        p.create()
+    except PidFileAlreadyLockedError:
+        import time
+        err_pid = PidFile(str(time.time()))
+        err_pid.create()
+        while True:
+            time.sleep(1)
+
     app = Flask(__name__)
 
     #app.m = ManagerHypervisors()
-    app.m = ManagerHypervisors(with_status_threads=False)
+    app.m = Engine(with_status_threads=False)
     app.db = db
 
     # remove default logging for get/post messages
@@ -67,4 +81,9 @@ if __name__ == "__main__":
 
     app.register_blueprint(api_blueprint, url_prefix="")  # url_prefix /api?
 
-    run(app)
+    #run(app)
+    if os.environ.get("LOG_LEVEL") == 'DEBUG':
+        app.run(debug=True, host='0.0.0.0')
+    else:
+        app.run(host='0.0.0.0')
+
