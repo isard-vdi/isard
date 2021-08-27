@@ -10,15 +10,15 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET}.22
     ports:
-      - published: 80
+      - published: ${VIEWER_SPICE}
         target: 80
-      - published: ${VIDEO_PORT}
+      - published: ${VIEWER_BROWSER}
         target: 443
       # - published: ${VIDEO_STATS_PORT}
       #   target: 8888
     restart: unless-stopped
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
-      - /opt/isard/certs/default/${HOSTNAME}:/certs:rw
+      - /opt/isard/certs/default:/certs:rw
     env_file:
       - .env

@@ -1,0 +1,25 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: Graphite
+    orgId: 1
+
+datasources:
+- orgId: 1
+  version: 2
+  name: InfluxDB
+  type: influxdb
+  access: proxy
+  url: http://isard-influxdb:8086
+  basicAuth: true
+  isDefault: true
+  editable: true
+  jsonData:
+    defaultBucket: isardvdi
+    httpMode: POST
+    organization: isardvdi
+    version: Flux
+    httpHeaderName1: Authorization
+  secureJsonData:
+    token: $INFLUXDB_ADMIN_TOKEN_SECRET
+    httpHeaderValue1: 'Token $INFLUXDB_ADMIN_TOKEN_SECRET'

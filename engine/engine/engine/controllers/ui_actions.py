@@ -227,35 +227,24 @@ class UiActions(object):
             self.stop_domain(id, hyp_id)
 
     def shutdown_domain(self, id_domain, hyp_id, delete_after_stopped=False):
-
-
-        from pprint import pprint
         action = {'type': 'shutdown_domain',
                   'id_domain': id_domain,
                   'delete_after_stopped': delete_after_stopped}
 
         self.manager.q.workers[hyp_id].put(action)
-        update_domain_status(status='Shutdown',
-                             id_domain=id_domain,
-                             hyp_id=hyp_id,
-                             detail='desktop in queue to soft off with shutdown action in hyp {}'.format(hyp_id))
+        logs.main.debug(f'desktop {id_domain} in queue to soft off with shutdown ACPI action in hyp {hyp_id}')
+
         return True
 
 
     def stop_domain(self, id_domain, hyp_id, delete_after_stopped=False):
-        update_domain_status(status='Stopping',
-                             id_domain=id_domain,
-                             hyp_id=hyp_id,
-                             detail='desktop stopping in hyp {}'.format(hyp_id))
-
-        from pprint import pprint
         action = {'type': 'stop_domain',
                   'id_domain': id_domain,
                   'delete_after_stopped': delete_after_stopped}
 
         self.manager.q.workers[hyp_id].put(action)
+        logs.main.debug(f'desktop {id_domain} in queue to destroy action in hyp {hyp_id}')
         return True
-
 
 
     def delete_domain(self, id_domain):
@@ -1105,4 +1094,3 @@ class UiActions(object):
 
         # def set_default_hyper(self,hyp_id):
         #     return change_hyp_disk_operations(hyp_id)
-

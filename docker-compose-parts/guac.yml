@@ -5,9 +5,7 @@ services:
     image: ${DOCKER_IMAGE_PREFIX}guac:${DOCKER_IMAGE_TAG-latest}
     environment:
       GUACD_ADDR: isard-vpn:4822
-      BACKEND_HOST: ${BACKEND_HOST}
       API_ISARDVDI_SECRET: ${API_ISARDVDI_SECRET}
-      GUACD_BACKEND_HOST: isard-api:5000
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET}.16

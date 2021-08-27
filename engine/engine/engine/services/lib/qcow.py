@@ -47,6 +47,26 @@ def create_cmds_delete_disk(path_disk):
 
 # def check_upload_folder():
 
+def create_cmd_disk_from_uploaded_disk(path_new_disk,
+                                       path_uploaded_disk,
+                                       delete_when_copied=True,
+                                       user_owner='qemu',
+                                       group_owner='qemu'
+                                       ):
+    cmds1 = list()
+    path_dir = extract_dir_path(path_new_disk)
+    touch_test_path = path_dir + '/.touch_test'
+    cmds1.append({'title': 'mkdir dir', 'cmd': 'mkdir -p {}'.format(path_dir)})
+    cmds1.append({'title': 'pre-delete touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
+    cmds1.append({'title': 'touch', 'cmd': 'touch {}'.format(touch_test_path)})
+    cmds1.append({'title': 'readonly_touch', 'cmd': 'chmod a-wx,g+r,u+r {}'.format(touch_test_path)})
+    cmds1.append({'title': 'chgrp_touch', 'cmd': 'chgrp {} {}'.format(group_owner, touch_test_path)})
+    cmds1.append({'title': 'chown', 'cmd': 'chown {} {}'.format(user_owner, touch_test_path)})
+    cmds1.append({'title': 'verify_touch',
+                  'cmd': 'stat -c \'mountpoint:%m group:%G user:%U rights:%A\' {}'.format(touch_test_path)})
+    cmds1.append({'title': 'df_mountpoint', 'cmd': 'df $(stat -c \'%m\' {})'.format(touch_test_path)})
+    cmds1.append({'title': 'rm_touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
+
 
 def create_cmd_disk_from_scratch(path_new_disk,
                                  size_str,

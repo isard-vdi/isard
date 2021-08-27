@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify
 from flask import current_app
 from flask import request
 
-from engine.models.manager_hypervisors import ManagerHypervisors
+from engine.models.engine import Engine
 from engine.services.db.db import update_table_field
 
 api = Blueprint('api', __name__)

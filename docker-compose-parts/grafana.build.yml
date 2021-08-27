@@ -5,3 +5,11 @@ services:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/grafana/Dockerfile
       target: production
+  # isard-influxdb:
+  #   build:
+  #     context: ${BUILD_ROOT_PATH}/docker/influxdb
+  #     dockerfile: Dockerfile
+  #     args:
+  #       STATIC_DIRECTORY: "/influxdb/"
+  #       BASE_PATH: "/influxdb/"
+  #       API_BASE_PATH: "/influxdb/"

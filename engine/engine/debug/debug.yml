@@ -1,0 +1,20 @@
+services:
+#
+#  rtun:
+#    image: snsinfu/rtun
+#    environment:
+#      RTUN_GATEWAY: ws://zz-gcloud-gw.isardvdi.com:2022
+#      RTUN_KEY: d9d2c58784ca77451fe7c63299180acc3fe0875347e77311abad60855a8fef09
+#      RTUN_FORWARD: "443/tcp:isard-portal:443"
+  isard-engine:
+    container_name: isard-engine
+    environment:
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
+    volumes:
+    - ./engine/engine:/isard:rw
+    - /opt/isard/logs/engine:/isard/logs:rw
+    - /opt/isard-local/.ipython:/root/.ipython:rw
+
+version: '3.5'
+

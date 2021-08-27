@@ -42,9 +42,16 @@ RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/ap
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN apk add libwebsockets@edge guacamole-server@testing guacamole-server-dev@testing freerdp freerdp-plugins
 
+RUN apk add openvswitch
+RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
+RUN mkdir -pv /var/run/openvswitch/
+COPY docker/vpn/ovs /ovs
+
+RUN apk add dnsmasq
+COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
-COPY docker/vpn/networking.py /
+# COPY docker/vpn/networking.py /
 
 CMD [ "sh", "run.sh"]
 

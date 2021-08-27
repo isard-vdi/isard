@@ -4,8 +4,9 @@ import threading
 import traceback
 
 from engine.services.db import update_domain_status, update_table_field
-from engine.services.lib.functions import get_tid, execute_commands
-from engine.services.log import log
+from engine.services.db.hypervisors import update_hyp_thread_status
+from engine.services.lib.functions import get_tid, execute_commands, try_ssh_command
+from engine.services.log import log, logs
 from engine.services.threads.threads import TIMEOUT_QUEUES
 
 
@@ -31,13 +32,23 @@ class LongOperationsThread(threading.Thread):
         self.tid = get_tid()
         log.debug('Thread to launchdisks operations in host {} with TID: {}...'.format(host, self.tid))
 
+        test_ssh, detail = try_ssh_command(self.hostname,self.user, self.port)
+        if test_ssh is False:
+            log.error(f'test ssh in long operations thread in hypervisor {self.hyp_id} fail. Thread stopped. Reason: {detail}')
+            self.stop = True
+            self.error = detail
+
+        if self.stop is False:
+            update_hyp_thread_status('long_operations', self.hyp_id, 'Started')
         while self.stop is not True:
             try:
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
+                if action['type'] == 'stop_thread':
+                    self.stop = True
                 # for ssh commands
-                id_domain = action['domain']
-                if action['type'] in ['create_disk_virt_builder']:
 
+                elif action['type'] in ['create_disk_virt_builder']:
+                    id_domain = action['domain']
                     cmds_done = execute_commands(host=self.hostname,
                                                  ssh_commands=action['ssh_commands'],
                                                  dict_mode=True,
@@ -64,36 +75,28 @@ class LongOperationsThread(threading.Thread):
                         update_domain_status('CreatingDomainFromBuilder', id_domain,
                                              detail='disk created from virt-builder')
 
-                if action['type'] in ['calculate_disk_usage']:
+                elif action['type'] in ['calculate_disk_usage']:
                     id_domain =action['id_domain']
                     path_disk = action['path_disk']
                     hyp = action['hyp']
                     #update_disk_usage(id_domain,path_disk,hyp)
                     pass
-
-
-                elif action['type'] == 'stop_thread':
-                    self.stop = True
                 else:
                     log.error('type action {} not supported'.format(action['type']))
             except queue.Empty:
                 pass
             except Exception as e:
-                log.error('Exception when creating disk: {}'.format(e))
+                log.error('Exception in main loop in long operations therad: {}'.format(e))
                 log.error('Action: {}'.format(pprint.pformat(action)))
                 log.error('Traceback: {}'.format(traceback.format_exc()))
                 return False
 
         if self.stop is True:
-            while self.queue_actions.empty() is not True:
-                action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
-                if action['type'] == 'create_disk':
-                    disk_path = action['disk_path']
-                    id_domain = action['domain']
-                    log.error(
-                        'operations creating disk {} for new domain {} failed. Commands, outs and errors: {}'.format(
-                            disk_path, id_domain))
-                    log.error('\n'.join(
-                        ['cmd: {}'.format(action['ssh_commands'][i]) for i in range(len(action['ssh_commands']))]))
-                    update_domain_status('Failed', id_domain,
-                                         detail='new disk create operation failed, thread disk operations is stopping, detail of operations cancelled in logs')
+            update_hyp_thread_status('long_operations', self.hyp_id, 'Stopping')
+            if self.queue_actions.empty() is not True:
+                logs.main.error(f'long_operations_thread in hyper {self.hyp_id} is stopped with actions in queue')
+
+            action = {}
+            action['type'] = 'thread_long_operations_dead'
+            action['hyp_id'] = self.hyp_id
+            self.queue_master.put(action)

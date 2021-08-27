@@ -7,7 +7,7 @@ import time
 from pprint import pprint, pformat
 
 # coding=utf-8
-import rethinkdb as r
+from rethinkdb import r
 
 from engine.config import RETHINK_HOST, RETHINK_PORT, RETHINK_DB, MAX_QUEUE_DOMAINS_STATUS
 from engine.services.log import *
@@ -346,6 +346,30 @@ def get_domains_running_hypervisor(hyp_id):
 def get_domains_from_template_origin():
     return []
 
+def insert_table_dict(table,d_new):
+    r_conn = new_rethink_connection()
+    rtable = r.table(table)
+
+    result = rtable.insert(d_new).run(r_conn)
+    close_rethink_connection(r_conn)
+
+    if result['inserted'] > 0:
+        return True
+    if result['errors'] > 0:
+        print(result['first_error'])
+    return False
+
+def delete_table_item(table, id_item):
+    r_conn = new_rethink_connection()
+    rtable = r.table(table)
+
+    result = rtable.get(id_item).delete().run(r_conn)
+    close_rethink_connection(r_conn)
+    if result['deleted'] > 0:
+        return True
+    if result['errors'] > 0:
+        print(result['first_error'])
+    return False
 
 def update_table_field(table, id_doc, field, value, merge_dict=True):
     r_conn = new_rethink_connection()

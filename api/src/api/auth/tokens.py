@@ -65,8 +65,10 @@ def get_token_payload(token):
                 "description":
                 "Not authorized category"
                 " token."}, 500)
-    except Exception as e:
-        print(e)
+    except KeyError:
+        log.warning('Claim kid '+claims['kid']+' does not match any of the current secret ids in database')
+    except:
+        log.warning('JWT token with invalid parameters. Can not parse it.')
         raise AuthError({"code": "invalid_parameters",
                         "description":
                         "Unable to parse authentication parameters"

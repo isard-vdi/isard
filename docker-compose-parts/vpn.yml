@@ -12,7 +12,6 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET}.23
-      isard-vpn:
     ports:
       - published: ${WG_USERS_PORT}
         target: 443
@@ -28,7 +27,3 @@ services:
     env_file:
       - .env  
 
-networks:
-  isard-vpn:
-    external: false
-    name: isard-vpn

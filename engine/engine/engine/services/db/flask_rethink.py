@@ -6,7 +6,7 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import rethinkdb as r
+from rethinkdb import r
 # Since no older versions than 0.9 are supported for Flask, this is safe
 from flask import _app_ctx_stack as stack
 from flask import current_app

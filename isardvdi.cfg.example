@@ -1,8 +1,10 @@
-# Isard main config v0.1
+# Isard main config v0.2
 
-## Hostname can be whatever you want to identify this host in
-## the system paths. If you have a domain set it here
-HOSTNAME=localhost
+## This server main domain/ip reacheable from other hosts
+DOMAIN=localhost
+
+## Where the api can be reached from this host (usually your main isard install)
+## API_DOMAIN=
 
 ## Frontend Administration Button
 ## With this variable you can control if there is a button in the simplified
@@ -19,10 +21,15 @@ WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
 ## openssl rand -base64 32
 API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
 
+INFLUXDB_ADMIN_TOKEN_SECRET=9eFW/Qi29hL3hFGUP8wIGH89XKCH8s1k0il44GCRF2g=
+## Generate your own!:
+## openssl rand -base64 32
+API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
+
 ## Initial WEB admin user password
 WEBAPP_ADMIN_PWD=IsardVDI
 
-# WEB CERTIFICATES
+# WEBAPP CERTIFICATES
 ## You can use your own certificates if you concatenate into 
 ## /opt/isard/certs/default/chain.pem
 ## You can let isard generate autosigned certs (not recommended as
@@ -87,13 +94,6 @@ WG_HYPERS_NET=10.1.0.0/24
 
 ## UDP port for remote hypervisors to connect to this server.
 WG_HYPERS_PORT=4443
-
-## 0: isard-hypervisor.
-## N: next hypers. Be aware not to overlap them!
-## You need to set also this number when adding the hypervisor in
-## web admin. It should match as the networks are calculated based
-## on this hyper number.
-HYPERVISOR_NUMBER=0
 
 ## This is the main range to be used by wireguard interface in
 ## guests in your system. Will be subdivided in smaller ranges
@@ -175,17 +175,24 @@ WG_INTERFACE=eth1
 
 ###################### Hypervisor video proxy
 
+## It should be the reacheable domain or IP for the video server
+## for this hypervisor.
+## Only modify it if this is an hypervisor with video or if this
+## is an standalone video host.
+## Defaults to localhost
+#VIDEO_DOMAIN=localhost
+
 ## Only set this to different LETSENCRYPT domain if you are using
 ## two different dns for web & hypervisor on the same host and you
-## want to use letsencrypt!
+## want to use letsencrypt! (or this is a separate host with video)
 ## If hypervisor domain is different from web domain then you can use
 ## your own certificates concatenated in /opt/isard/certs/default/chain.pem
 ## or set here your hypervisor domain name to let isard generate
 ## letsencrypt certificate
 ## Do not set if you don't know what you are doing.
 ## Default empty
-## Set only this environment variables if you are setting an standalone
-## hypervisor.
+## Set only this environment variables if you are setting an hypervisor
+## with video proxy or a video only proxy on a different host.
 # VIDEO_LETSENCRYPT_DNS=your.video.domain.com
 # VIDEO_LETSENCRYPT_EMAIL=info@domain.com
 VIDEO_LETSENCRYPT_DNS=
@@ -224,32 +231,34 @@ AUTHENTICATION_DB_HOST=isard-db
 # AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
 # AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
 
-###################### BACKEND config
-
-BACKEND_HOST=localhost
-
-# VIDEO config
+# EXTERNAL VIEWER PORTS
 ###########################################################
-## Reacheable ip/dns from isard-debug to host holding video haproxy.
-## Only to gather statistics 
-VIDEO_HAPROXY_HOST=isard-video
-VIDEO_PORT=443
-VIDEO_STATS_PORT=8889
+## Ports to access externally to browser viewers and spice.
+## Only applied if this is an hypervisor
+VIEWER_SPICE=80
+VIEWER_BROWSER=443
+
 ## Squid video proxy acls
 ### Comma separated fields of hypervisor hostnames allowed to be proxied.
 ### Must be the same as the Viewer PROXY name in web ui hypervisor config.
 VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 VIDEO_HYPERVISOR_PORTS=5900-6899
 
-# GRAFANA Config
-###########################################################
+# GRAPH host reacheable from this server
+## All in one use defaults
 GRAFANA_HOST=isard-grafana
-## Path as seen from isard-portal haproxy
-GRAFANA_PATH=/monitor/
-## Port as defined in isard-portal haproxy
-GRAFANA_PORT=443
+INFLUXDB_HOST=isard-influxdb
+#CHRONOGRAF_HOST=isard-chronograf
 
-# STATS host
+## STATS: Hyper being monitored
+## if in the same compose use defaults
+STATS_HYP_HOSTNAME=isard-hypervisor
+STATS_HYP_USER=root
+STATS_HYP_PORT=2022
+
+
+
+# STATS host - EARLY DEPRECATED 
 ###########################################################
 # This will identify all stats from this host in grafana
 STATS_HOSTNAME=localhost
@@ -260,3 +269,33 @@ STATS_SERVER=isard-grafana
 STATS_RETHINKDB_HOST=isard-db
 STATS_RETHINKDB_PORT=28015
 STATS_RETHINKDB_DB=isard
+
+
+
+## STATS: 
+STATS_MAX_DOMAINS_BULK_EXTRACT=100
+STATS_INTERVAL_STATS=10
+STATS_GRACE_NOVIEWER_SHUTDOWN_TIME=1800
+
+STATS_SEND_TO_INFLUX=true
+STATS_INFLUX_HOST=isard-influxdb
+STATS_INFLUX_PORT=8086
+STATS_INFLUX_DB=db0
+STATS_INFLUX_USER=isard
+STATS_INFLUX_PWD=pirineus
+STATS_INFLUX_BUCKET=isardvdi
+STATS_INFLUX_ORG=isardvdi
+STATS_INFLUX_TOKEN="xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4="
+
+STATS_SEND_SHUTDOWN_IF_NO_VIEWER=true
+STATS_SEND_SHUTDOWN_API_URL=http://isard-engine
+
+#method: ssh/socket
+STATS_HYP_METHOD=ssh
+#type: ssh/docker
+STATS_TYPE_CONN_SS=ssh
+
+
+
+###################### GUAC config
+# GUAC_API_HOST=isard-api:5000
