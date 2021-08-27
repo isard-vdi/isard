@@ -19,6 +19,8 @@ WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
 ## openssl rand -base64 32
 API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
 
+INFLUXDB_ADMIN_TOKEN_SECRET=9eFW/Qi29hL3hFGUP8wIGH89XKCH8s1k0il44GCRF2g=
+
 ## Initial WEB admin user password
 WEBAPP_ADMIN_PWD=IsardVDI
 
@@ -270,15 +272,21 @@ VIDEO_STATS_PORT=8889
 VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 VIDEO_HYPERVISOR_PORTS=5900-6899
 
-# GRAFANA Config
-###########################################################
+# GRAPH host reacheable from this server
+## All in one use defaults
 GRAFANA_HOST=isard-grafana
-## Path as seen from isard-portal haproxy
-GRAFANA_PATH=/monitor/
-## Port as defined in isard-portal haproxy
-GRAFANA_PORT=443
+INFLUXDB_HOST=isard-influxdb
+#CHRONOGRAF_HOST=isard-chronograf
 
-# STATS host
+## STATS: Hyper being monitored
+## if in the same compose use defaults
+STATS_HYP_HOSTNAME=isard-hypervisor
+STATS_HYP_USER=root
+STATS_HYP_PORT=22
+
+
+
+# STATS host - EARLY DEPRECATED 
 ###########################################################
 # This will identify all stats from this host in grafana
 STATS_HOSTNAME=localhost
@@ -289,3 +297,31 @@ STATS_SERVER=isard-grafana
 STATS_RETHINKDB_HOST=isard-db
 STATS_RETHINKDB_PORT=28015
 STATS_RETHINKDB_DB=isard
+
+
+
+## STATS: 
+STATS_MAX_DOMAINS_BULK_EXTRACT=100
+STATS_INTERVAL_STATS=10
+STATS_GRACE_NOVIEWER_SHUTDOWN_TIME=1800
+
+STATS_SEND_TO_INFLUX=true
+STATS_INFLUX_HOST=isard-influxdb
+STATS_INFLUX_PORT=8086
+STATS_INFLUX_DB=db0
+STATS_INFLUX_USER=isard
+STATS_INFLUX_PWD=pirineus
+STATS_INFLUX_BUCKET=isardvdi
+STATS_INFLUX_ORG=isardvdi
+STATS_INFLUX_TOKEN="xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4="
+
+STATS_SEND_SHUTDOWN_IF_NO_VIEWER=true
+STATS_SEND_SHUTDOWN_API_URL=http://isard-engine
+
+#method: ssh/socket
+STATS_HYP_METHOD=ssh
+#type: ssh/docker
+STATS_TYPE_CONN_SS=ssh
+
+
+

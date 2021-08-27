@@ -1,0 +1,40 @@
+FROM ubuntu:bionic AS base
+
+RUN apt-get update -y && \
+    apt-get install -y \
+        nginx \
+        build-essential \
+        curl \
+        git
+
+FROM base AS repo
+WORKDIR /repo
+
+ARG STATIC_DIRECTORY
+ARG BASE_PATH
+ARG API_BASE_PATH
+
+ENV PATH="/node/bin:${PATH}"
+RUN mkdir /node && \
+    curl -sL https://git.io/n-install | N_PREFIX=/node bash -s -- -q && \
+    npm i -g yarn
+
+RUN git clone git://github.com/influxdata/influxdb.git && \
+    cd ./influxdb
+
+WORKDIR /repo/influxdb/ui
+
+# these are all run together as docker's caching mechanism
+# makes big steps like yarn install expensive
+RUN yarn install --production=false && \
+    yarn generate && \
+    INFLUXDB_SHA=remote $(npm bin)/webpack --config ./webpack.prod.ts --bail && \
+    rm -rf ./node_modules
+
+FROM base AS deploy
+WORKDIR /repo
+COPY --from=repo /repo/influxdb/ui/build /usr/share/nginx/html
+COPY ./nginx.conf /etc/nginx/nginx.conf
+RUN useradd --no-create-home nginx
+
+CMD ["nginx", "-g", "daemon off;"]
