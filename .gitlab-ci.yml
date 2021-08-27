@@ -22,8 +22,12 @@ docker-build:
     - ./build.sh
     - docker-compose -f docker-compose.build.yml build
     - docker-compose -f docker-compose.video-standalone.build.yml build isard-video
+<<<<<<< HEAD
     - docker-compose -f docker-compose.hypervisor.yml pull
     - docker-compose -f docker-compose.toolbox.yml pull
+=======
+    #- docker-compose -f docker-compose.hypervisor.build.yml build isard-vpnc
+>>>>>>> New engine, new hypervisors add/remove on up/down, api jwt for hypers, openvswitch, ...
     - docker-compose -f docker-compose.toolbox.build.yml build isard-toolbox
     - docker-compose -f docker-compose.devel.yml build isard-frontend-dev
     - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push

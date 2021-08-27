@@ -26,7 +26,6 @@ INTERVAL_STATS = int(os.environ.get('STATS_INTERVAL_STATS', 10))
 GRACE_NOVIEWER_SHUTDOWN_TIME = int(os.environ.get('STATS_GRACE_NOVIEWER_SHUTDOWN_TIME',1800))
 
 CONTAINER_NAME_HYP = 'isard-hypervisor'
-HYP_NAME = os.environ.get('DOMAIN')
 
 INFLUXDB_ADMIN_TOKEN_SECRET=os.environ.get('INFLUXDB_ADMIN_TOKEN_SECRET')
 INFLUX_HOST = os.environ.get('INFLUXDB_HOST', 'isard-influxdb')
@@ -227,7 +226,7 @@ class HypStats():
             data.append({
                 "measurement": "hypervisors",
                 "tags": {
-                    "hypervisor": HYP_NAME,
+                    "hypervisor": self.hyp_hostname,
                 },
                 "fields": flatted_hyp_stats,
                 "time": start_time
@@ -241,7 +240,7 @@ class HypStats():
                     data.append({
                         "measurement": "domains",
                         "tags": {
-                            "hypervisor": HYP_NAME,
+                            "hypervisor": self.hyp_hostname,
                             "category": domain_info['category'],
                             "group": domain_info['group'],
                             "user": domain_info['group'],
