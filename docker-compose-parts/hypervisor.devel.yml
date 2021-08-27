@@ -2,4 +2,5 @@ version: '3.5'
 services:
   isard-hypervisor:
     volumes:
-    - ${BUILD_ROOT_PATH}/docker/hypervisor/supervisor.conf/:/supervisord.conf
+    - ${BUILD_ROOT_PATH}/docker/hypervisor/src:/src
+    #command: sleep infinity

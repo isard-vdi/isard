@@ -13,7 +13,8 @@ cd /
 
 # Allows wireguard to reach guests in hypervisors
 #ip r a $WG_HYPER_GUESTNET via $WG_HYPER_NET_HYPER_PEER
-python3 networking.py
+# python3 networking.py
 
+sh -c "/ovs/ovs_setup.sh"
 cd /src
 python3 wgadmin.py

@@ -12,5 +12,7 @@ services:
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - /opt/isard/sshkeys/:/sshkeys:rw
+      - /opt/isard/certs/viewers:/viewers:ro
     env_file:
       - .env

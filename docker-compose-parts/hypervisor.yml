@@ -9,18 +9,18 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET}.17
-      isard-vpn:
     # ports:
     #   - "2022:22"
     privileged: true
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /opt/isard/certs/viewers:/etc/pki/libvirt-spice:rw
-      - /opt/isard/sshkeys:/root/.ssh:rw
+      #- /opt/isard/certs/viewers:/etc/pki/libvirt-spice:rw
+      #- /opt/isard/sshkeys:/root/.ssh:rw
       - /opt/isard/hypervisor/sshd_keys:/usr/local/etc/ssh:rw
       - /opt/isard:/isard:rw
       - /opt/isard-local/sockets/:/var/run/libvirt/
       - /dev/vfio:/dev/vfio
+      - ${BUILD_ROOT_PATH}/docker/hypervisor/src/ovs:/src/ovs
     env_file:
       - .env

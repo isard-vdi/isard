@@ -10,7 +10,7 @@ import signal
 from os.path import dirname
 import os
 import subprocess
-import rethinkdb as r
+from rethinkdb import r
 from time import sleep
 
 from engine.config import CONFIG_DICT
@@ -34,7 +34,7 @@ TIMEOUT_WAITING_HYPERVISOR_TO_DOWNLOAD = 10
 
 
 class DownloadThread(threading.Thread, object):
-    def __init__(self, url, path, path_selected, table, id_down, dict_header, finalished_threads, manager, pool_id,
+    def __init__(self, url, path, path_selected, table, id_down, dict_header, finalished_threads, threads_disk_operations, pool_id,
                  type_path_selected):
         threading.Thread.__init__(self)
         self.name = '_'.join([table, id_down])
@@ -47,7 +47,7 @@ class DownloadThread(threading.Thread, object):
         self.stop = False
         self.finalished_threads = finalished_threads
 
-        self.manager = manager
+        self.threads_disk_operations = threads_disk_operations
         self.hostname = None
         self.user = None
         self.port = None
@@ -77,14 +77,14 @@ class DownloadThread(threading.Thread, object):
         time_elapsed = 0
         path_selected = self.path_selected
         while True:
-            if len(self.manager.t_disk_operations) > 0:
+            if len(self.threads_disk_operations) > 0:
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(path_selected,
                                                                         pool=self.pool_id,
                                                                         type_path=self.type_path_selected)
                 logs.downloads.debug(f'Thread download started to in hypervisor: {hyp_to_disk_create}')
-                if self.manager.t_disk_operations.get(hyp_to_disk_create, False) is not False:
-                    if self.manager.t_disk_operations[hyp_to_disk_create].is_alive():
+                if self.threads_disk_operations.get(hyp_to_disk_create, False) is not False:
+                    if self.threads_disk_operations[hyp_to_disk_create].is_alive():
                         d = get_hyp_hostname_user_port_from_id(hyp_to_disk_create)
                         self.hostname = d['hostname']
                         self.user = d['user']
@@ -262,12 +262,14 @@ class DownloadThread(threading.Thread, object):
 
 
 class DownloadChangesThread(threading.Thread):
-    def __init__(self, manager, name='download_changes'):
+    def __init__(self, pool_hypervisors, q_workers, threads_disk_operations, name='download_changes'):
         threading.Thread.__init__(self)
         self.name = name
         self.stop = False
         self.r_conn = False
-        self.manager = manager
+        self.pool_hypervisors = pool_hypervisors
+        self.q_workers = q_workers
+        self.threads_disk_operations = threads_disk_operations
 
         cfg = get_config_branch('resources')
         if cfg is not False:
@@ -319,11 +321,8 @@ class DownloadChangesThread(threading.Thread):
         return new_file_path, path_selected, type_path_selected, pool_id
 
     def killall_curl(self,hyp_id):
-        action = dict()
-        action['type'] = 'killall_curl'
-
-        pool_id = 'default'
-        self.manager.q.workers[hyp_id].put(action)
+        action = {'type': 'killall_curl'}
+        self.q_workers[hyp_id].put(action)
 
     def abort_download(self, dict_changes,final_status='Deleted'):
         logs.downloads.debug('aborting download function')
@@ -337,8 +336,7 @@ class DownloadChangesThread(threading.Thread):
 
         # change for other pools when pools are implemented in all media
         try:
-            pool_id = 'default'
-            next_hyp, extra_info = self.manager.pools[pool_id].get_next()
+            next_hyp, extra_info = self.pool_hypervisors.get_next()
             logs.downloads.debug('hypervisor where delete media {}: {}'.format(new_file_path, next_hyp))
 
             action = dict()
@@ -348,7 +346,7 @@ class DownloadChangesThread(threading.Thread):
             action['final_status'] = final_status
             action['ssh_commands'] = cmds
 
-            self.manager.q.workers[next_hyp].put(action)
+            self.q_workers[next_hyp].put(action)
             return True
         except Exception as e:
             logs.downloads.error('next hypervisor fail: ' + str(e))
@@ -360,8 +358,7 @@ class DownloadChangesThread(threading.Thread):
         cmds = create_cmds_delete_disk(d_media['path_downloaded'])
 
         # change for other pools when pools are implemented in all media
-        pool_id = 'default'
-        next_hyp, extra_info = self.manager.pools[pool_id].get_next()
+        next_hyp, extra_info = self.pool_hypervisors.get_next()
         logs.downloads.debug('hypervisor where delete media {}: {}'.format(d_media['path_downloaded'], next_hyp))
 
         action = dict()
@@ -370,7 +367,7 @@ class DownloadChangesThread(threading.Thread):
         action['type'] = 'delete_media'
         action['ssh_commands'] = cmds
 
-        self.manager.q.workers[next_hyp].put(action)
+        self.q_workers[next_hyp].put(action)
 
         ## call disk_operations thread_to_delete
 
@@ -437,7 +434,7 @@ class DownloadChangesThread(threading.Thread):
                                                                   id_down,
                                                                   header_dict,
                                                                   self.finalished_threads,
-                                                                  self.manager,
+                                                                  self.threads_disk_operations,
                                                                   pool_id,
                                                                   type_path_selected)
             self.download_threads[new_file_path].daemon = True
@@ -459,13 +456,12 @@ class DownloadChangesThread(threading.Thread):
                 # wait a hyp to downloads
                 next_hyp = False
                 while next_hyp is False:
-                    logs.downloads.info('waiting an hypervisor online to launch downloading actions')
-                    if pool_id in self.manager.pools.keys():
-                        next_hyp, extra_info = self.manager.pools[pool_id].get_next()
+                    #logs.downloads.info('waiting an hypervisor online to launch downloading actions')
+                    next_hyp, extra_info = self.pool_hypervisors.get_next()
+                    if next_hyp:
+                        break
                     sleep(1)
                 logs.downloads.info(f'hypervisor to launch download: {next_hyp}')
-                for hyp_id in get_hypers_in_pool():
-                    self.killall_curl(hyp_id)
 
                 domains_status_downloading = get_domains_with_status('Downloading')
                 medias_status_downloading = get_media_with_status('Downloading')
@@ -562,9 +558,8 @@ class DownloadChangesThread(threading.Thread):
                         self.abort_download(c['new_val'], final_status='DownloadFailed')
 
 
-
-def launch_thread_download_changes(manager):
-    t = DownloadChangesThread(manager)
+def launch_thread_download_changes(pool_hypervisors,q_workers,threads_disk_operations):
+    t = DownloadChangesThread(pool_hypervisors,q_workers,threads_disk_operations)
     t.daemon = True
     t.start()
     return t

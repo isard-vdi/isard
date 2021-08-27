@@ -1,6 +1,6 @@
 from pprint import pformat
 
-import rethinkdb as r
+from rethinkdb import r
 
 from engine.services.db.db import new_rethink_connection, close_rethink_connection
 from engine.services.log import log

@@ -1,4 +1,4 @@
-import rethinkdb as r
+from rethinkdb import r
 import traceback
 
 from engine.config import RETHINK_HOST, RETHINK_PORT, RETHINK_DB

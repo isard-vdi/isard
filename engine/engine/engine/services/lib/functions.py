@@ -14,6 +14,8 @@ import sys
 import threading
 import time
 from time import sleep
+import queue
+
 
 import libvirt
 import paramiko
@@ -24,7 +26,7 @@ from engine.services.db.config import get_config, table_config_created_and_popul
 from engine.services.db.disk_operations import insert_disk_operation, update_disk_operation
 from engine.services.db import update_disk_backing_chain, get_domain, get_disks_all_domains, insert_domain, \
     get_domain_spice, update_domain_createing_template
-from engine.services.db import get_all_domains_with_id_and_status, delete_domain, update_domain_status
+from engine.services.db import get_domain_status, get_all_domains_with_id_and_status, delete_domain, update_domain_status
 from engine.services.db.domains import update_domain_progress, update_domain_status
 from engine.services.log import log,logs
 
@@ -50,19 +52,7 @@ def backing_chain_cmd(path_disk, json_format=True):
 
 
 def get_threads_running():
-    # t_enumerate = threading.Thread(name='THREAD_ENUMERATE',target=threading_enumerate)
-    # t_enumerate.daemon = True
-    # t_enumerate.start()
-
     e = threading.enumerate()
-    # l = [t.name for t in e]
-    # l.sort()
-    logs.threads.debug('parent PID: {}'.format(os.getppid()))
-    for t in e:
-        if hasattr(t, 'tid'):  # only available on Unix
-            logs.threads.debug('Thread running (TID: {}): {}'.format(t.tid, t.name))
-        else:
-            logs.threads.debug('Thread running: {}'.format(t.name))
     return e
 
 
@@ -119,10 +109,9 @@ def timelimit(timeout, func, arg1):
     it = FuncThread()
     it.start()
     it.join(timeout)
-    if it.isAlive():
-        raise TimeLimitExpired()
-    else:
-        return it.result
+    #if it.isAlive():
+    #    raise TimeLimitExpired()
+    return it.result
 
 
 def try_socket(hostname, port, timeout):
@@ -147,10 +136,30 @@ def try_socket(hostname, port, timeout):
         log.error('not resolves ip from hostname: {}'.format(hostname))
         return False
 
+def try_ssh_command(host,user,port):
+    # TRY IF SSH COMMAND RUN:
+    cmds = [{'cmd': 'uname -a'}]
+    try:
+        array_out_err = exec_remote_list_of_cmds_dict(host, cmds, username=user,
+                                                      port=port)
+        output = array_out_err[0]['out']
+        logs.main.debug(f'cmd: {cmds[0]}, output: {output}')
+        if len(output) > 0:
+            # TEST OK
+            return True,'test cmd ssh ok'
+        else:
+            error = 'output from command uname -a is empty, ssh action failed'
+            return False, error
+    except Exception as e:
+        error = f'testing ssh connection failed. Host: {host}, cmds: {cmds}, username={user}, port: {port}. Exception: {e}'
+        return False, error
+
 
 def test_hypervisor_conn(uri):
     """ test hypervisor connecton, if fail an error message in log """
     try:
+        #time.sleep(5)
+        logs.main.debug(f'TRY TO CONNECT URI: {uri}')
         handle = libvirt.open(uri)
         return handle
     except:
@@ -875,7 +884,7 @@ def try_ssh(hostname, port, user, timeout):
             ssh.connect(hostname,
                         username=user,
                         port=port,
-                        timeout=timeout, banner_timeout=timeout)
+                        timeout=timeout,banner_timeout=timeout)
 
             log.debug("host {} with ip {} can connect with ssh without password with paramiko".format(hostname, ip))
             log.debug('############################################')
@@ -1071,18 +1080,40 @@ def analize_backing_chains_outputs(array_out_err=[], path_to_write_json=None, pa
 def engine_restart():
     exit()
 
-def clean_intermediate_status():
-    #status_to_delete = ['DownloadAborting']
-    status_to_delete = []
+def clean_intermediate_status(reason='engine is restarting',only_domain_id=None):
+    status_to_delete = [ 'Creating', 'CreatingAndStarting', 'CreatingDiskFromScratch','CreatingFromBuilder']
     status_to_failed = ['Updating','Deleting']
+    status_to_stopped = ['Starting']
+    status_to_started = ['Stopping','Shutting-down']
 
-    all_domains = get_all_domains_with_id_and_status()
+    if type(only_domain_id) is str:
+        all_domains = []
+        status = get_domain_status(only_domain_id)
+        all_domains.append({'id':only_domain_id,'status':status})
+    else:
+        all_domains = get_all_domains_with_id_and_status()
 
+
+
+    [update_domain_status('SystemError', d['id'],
+                          detail=f"{reason} and delete domain {d['id']} that was not created") for d in
+     all_domains if d['status'] in status_to_delete]
     [delete_domain(d['id']) for d in all_domains if d['status'] in status_to_delete]
+
+    #To failed
     [update_domain_status('Failed', d['id'],
-                          detail='change status from {} when isard engine restart'.format(d['status'])) for d in
+                          detail=f"change status in domain domain {d['id']} from {d['status']} to Failed when {reason}") for d in
      all_domains if d['status'] in status_to_failed]
 
+    #To stopped
+    [update_domain_status('Stopped', d['id'],
+                          detail=f"change status in domain domain {d['id']} from {d['status']} to Failed when {reason}") for d in
+    all_domains if d['status'] in status_to_stopped]
+
+    #To started
+    [update_domain_status('Started', d['id'],
+                          detail=f"change status in domain domain {d['id']} from {d['status']} to Failed when {reason}") for d in
+    all_domains if d['status'] in status_to_started]
 
 def flatten_dict(d):
     def items():
@@ -1113,3 +1144,9 @@ def pop_key_if_zero(d):
     return d
 
 
+class QueuesThreads:
+    def __init__(self):
+        self.background = queue.Queue()
+        self.workers = {}
+        self.quit = False
+        self.action = ''

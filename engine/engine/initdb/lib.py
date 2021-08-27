@@ -10,7 +10,7 @@ import os
 import bcrypt,string,random
 import pem
 from OpenSSL import crypto
-import rethinkdb as r
+from rethinkdb import r
 
 class loadConfig():
 
@@ -31,7 +31,7 @@ class Certificates(object):
         self.ca_file='/certs/ca-cert.pem'
         self.server_file='/certs/server-cert.pem'   
         cfg=loadConfig()
-        self.cfg=cfg.cfg()    
+        self.cfg=cfg.cfg()
         
 
     def get_viewer(self,update_db=False):

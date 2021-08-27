@@ -77,6 +77,13 @@ def is_admin_user(f):
                         " token."}, 401)
     return decorated
 
+def is_hyper(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        # kwargs['payload']=payload
+        return f(*args, **kwargs)
+    return decorated
 
 ### Helpers
 def ownsUserId(payload,user_id):

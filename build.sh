@@ -72,6 +72,12 @@ flavour(){
 		then
 			parts="$parts hypervisor-vlans"
 			no_stats_parts="$no_stats_parts hypervisor-vlans"
+                        echo "WARNING: Will take host interface $HYPERVISOR_HOST_TRUNK_INTERFACE and put it inside hypervisor container"
+                        echo "         So interface WILL DISSAPPEAR from host"
+                        echo "         With this configuration, when you restart container the interface could be missing,"
+                        echo "         so, better do 'docker-compose  -f docker-compose.hypervisor.yml down' and wait a minute"
+                        echo "         till the interface $HYPERVISOR_HOST_TRUNK_INTERFACE is visible in the host again!"
+                        echo ""
 		fi
 		if [ "$part" != "stats" ]
 		then
@@ -123,7 +129,6 @@ flavour hypervisor \
 	websockify \
 	squid \
 	stats \
-	vpnc \
 	guac \
 	guac-vpnc \
 
@@ -136,7 +141,6 @@ flavour hypervisor-standalone \
 	hypervisor \
 	hypervisor-standalone \
 	stats \
-	vpnc \
 
 flavour video-standalone \
 	network \
@@ -154,9 +158,9 @@ flavour web \
 	portal \
 	webapp \
 	grafana \
-	stats \
 	api \
 	authentication \
+        vpn \
 
 flavour stats \
 	network \

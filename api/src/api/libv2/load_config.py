@@ -61,7 +61,14 @@ class loadConfig():
             "category_id":"default",
             "role_id":"admin"}, conflict="replace"
         ).run(conn)
-
+        r.db('isard').table('secrets').insert(
+            {'id':'isardvdi-hypervisors',
+            'secret': os.environ['API_HYPERVISORS_SECRET'],
+            'description': 'isardvdi hypervisors access',
+            'domain': '*',
+            "category_id":"default",
+            "role_id":"hypervisor"}, conflict="replace"
+        ).run(conn)
     def init_app(self, app):
         '''
         Read RethinkDB configuration from environ

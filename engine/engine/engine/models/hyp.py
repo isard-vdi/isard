@@ -32,7 +32,8 @@ from libpci import LibPCI
 from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
 from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
-from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain, update_info_nvidia_hyp_domain
+from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain, update_info_nvidia_hyp_domain, \
+                               get_hyp, update_db_default_gpu_models, update_uids_for_nvidia_id
 from engine.services.log import *
 from engine.config import *
 from engine.services.lib.functions import exec_remote_cmd
@@ -117,7 +118,7 @@ class hyp(object):
             # ssh -o "HostKeyAlgorithms ssh-rsa" root@ajenti.escoladeltreball.org
 
             ssh.load_system_host_keys()
-            ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
+            # ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
             # time.sleep(1)
             try:
                 # timelimit(3,test_hypervisor_conn,self.hostname,
@@ -167,8 +168,9 @@ class hyp(object):
                             self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
                         except Exception as e:
                             log.error('error when hypervisor have not rethink id. {}'.format(e))
-                    timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
-                    self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
+                    #timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
+                    #self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
+                    self.conn = test_hypervisor_conn(self.uri)
 
                     # timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
 
@@ -185,7 +187,7 @@ class hyp(object):
                         # y al ponerlo da error lo dejo comentado, pero en futuro hay que quitar
                         # esta línea si no sabemos bien que hace...
                         # self.conn.setKeepAlive(5, 3)
-                        log.debug("connected to hypervisor: %s" % self.hostname)
+                        log.info("connected to hypervisor: %s" % self.hostname)
                         self.set_status(HYP_STATUS_CONNECTED)
                         self.fail_connected_reason = ''
                         # para que le de tiempo a los eventos a quedarse registrados hay que esperar un poquillo, ya
@@ -237,6 +239,30 @@ class hyp(object):
             self.connected = False
 
             # set_hyp_status(self.hostname,status_code)
+
+    def init_nvidia(self):
+        d_hyp = get_hyp(self.id_hyp_rethink)
+        default_gpu_models = d_hyp.get('default_gpu_models',{})
+        uuids_gpu = d_hyp.get('nvidia_uids',{})
+
+        if len(self.info['nvidia']) > 0:
+            if len(default_gpu_models) < len(self.info['nvidia']):
+
+                default_gpu_models = {k:a['type_max_gpus'] for k,a in self.info['nvidia'].items()}
+                update_db_default_gpu_models(self.id_hyp_rethink,default_gpu_models)
+
+            for gpu_id,d_info_gpu in self.info['nvidia'].items():
+                if gpu_id not in uuids_gpu.keys():
+                    d_uids = self.create_uuids(d_info_gpu)
+                    update_uids_for_nvidia_id(self.id_hyp_rethink,gpu_id,d_uids)
+
+            d_hyp = get_hyp(self.id_hyp_rethink)
+            for gpu_id,d_uids in d_hyp['nvidia_uids'].items():
+                selected_gpu_type = default_gpu_models[gpu_id]
+                info_nvidia = d_hyp['info']['nvidia'][gpu_id]
+                self.delete_and_create_devices_if_not_exist(gpu_id,d_uids,info_nvidia,selected_gpu_type,self.id_hyp_rethink)
+            if len(d_hyp['nvidia_uids']) > 0:
+                self.update_started_uids()
 
     def get_kvm_mod(self):
         for i in range(MAX_GET_KVM_RETRIES):

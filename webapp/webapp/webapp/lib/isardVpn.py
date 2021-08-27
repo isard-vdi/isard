@@ -20,54 +20,53 @@ class isardVpn():
     def __init__(self):
         pass
 
-    def vpn_data(self,vpn,kind,os,id=False):
+    def vpn_data(self,vpn,kind,op_sys,itemid=False):
         if vpn == 'users':
-            if id == False: return False
-            wgdata = r.table('users').get(id).pluck('vpn').run(db.conn)
-        elif vpn == 'remotevpn':
-            wgdata = r.table('remotevpn').get(id).pluck('vpn').run(db.conn)
+            if itemid == False: return False
+            wgdata = r.table('users').get(itemid).pluck('id','vpn').run(db.conn)
+            port='443'
+            endpoint=os.environ['DOMAIN']
         elif vpn == 'hypers':
-            wgdata = r.table('hypervisors').get(id).pluck('vpn').run(db.conn)
+            #if itemid.role != 'admin': return False
+            hyper=r.table('hypervisors').get(itemid).pluck('id','vpn').run(db.conn)
+            wgdata = hyper
+            port='4443'
+            endpoint='isard-vpn' if itemid == 'isard-hypervisor' else os.environ['DOMAIN']
         else:
             return False
+
         if wgdata == None or 'vpn' not in wgdata.keys():
             return False
+
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
-        if app.wireguard_users_keys == False:
+        if not getattr(app, 'wireguard_server_keys', False):
             sysconfig = r.db('isard').table('config').get(1).run(db.conn)
-            app.wireguard_users_keys = sysconfig.get('vpn_users', {}).get('wireguard', {}).get('keys', False)
-        if app.wireguard_users_keys == False:
+            app.wireguard_server_keys = sysconfig.get('vpn_'+vpn, {}).get('wireguard', {}).get('keys', False)
+        if not app.wireguard_server_keys:
             log.error('There are no wireguard keys in webapp config yet. Try again in a few seconds...')
             return False
-        endpoints=list(r.table('hypervisors').pluck('id',{'viewer': 'static'}).run(db.conn))
-        default_endpoint = [e for e in endpoints if e['id'] == 'isard-hypervisor']
-        if len(default_endpoint):
-            endpoint = default_endpoint[0]['viewer']['static']
-        elif len(endpoints):
-            endpoint = endpoint[0]['viewer']['static']
-        else:
-            return False
+
         if kind == 'config':
-            return {'kind':'file','name':'isard-vpn','ext':'conf','mime':'text/plain','content':self.get_wireguard_file(endpoint,wgdata)} 
+            return {'kind':'file','name':'isard-vpn','ext':'conf','mime':'text/plain','content':self.get_wireguard_file(endpoint,wgdata,port)} 
         elif kind == 'install':
-            ext='sh' if os == 'Linux' else 'vb'
-            return {'kind':'file','name':'isard-vpn-setup','ext':ext,'mime':'text/plain','content':self.get_wireguard_install_script(endpoint,wgdata,os)} 
+            ext='sh' if op_sys == 'Linux' else 'vb'
+            return {'kind':'file','name':'isard-vpn-setup','ext':ext,'mime':'text/plain','content':self.get_wireguard_install_script(endpoint,wgdata,op_sys)} 
 
         return False
-        
-    def get_wireguard_file(self,endpoint,peer):
+
+    def get_wireguard_file(self,endpoint,peer,port):
         return """[Interface]
 Address = %s
 PrivateKey = %s
 
 [Peer]
 PublicKey = %s
-Endpoint = %s:443
+Endpoint = %s:%s
 AllowedIPs = %s
 PersistentKeepalive = 21
-""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],app.wireguard_users_keys['public'],endpoint,peer['vpn']['wireguard']['AllowedIPs'])
+""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],app.wireguard_server_keys['public'],endpoint,port,peer['vpn']['wireguard']['AllowedIPs'])
 
-    def get_wireguard_install_script(self,endpoint,peer,os):
+    def get_wireguard_install_script(self,endpoint,peer,op_sys):
         return """#!/bin/bash
 echo "Installing wireguard. Ubuntu/Debian script."
 apt install -y wireguard git dh-autoreconf libglib2.0-dev intltool build-essential libgtk-3-dev libnma-dev libsecret-1-dev network-manager-dev resolvconf
