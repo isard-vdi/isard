@@ -39,7 +39,7 @@ class ApiDeployments():
         with app.app_context():
             deployment = r.table('deployments').get(deployment_id).without('create_dict').run(db.conn)
             if user_id != deployment['user']: raise
-            desktops = list(r.table('domains').get_all(deployment_id,index='tag').pluck('id','user','name','description','status','icon','image','persistent','parents','create_dict','viewer','options').run(db.conn))
+            desktops = list(r.table('domains').get_all(deployment_id,index='tag').pluck('id','user','name','description','status','icon','os','image','persistent','parents','create_dict','viewer','options').run(db.conn))
 
         parsed_desktops=[]
         for desktop in desktops:

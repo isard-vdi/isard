@@ -63,7 +63,7 @@ class DeploymentsThread(threading.Thread):
                             deployment={'id':c['new_val']['id'],
                                         'name':c['new_val']['name'],
                                         'user':user,
-                                        'totalDesktops': r.table('domains').get_all(deployment['id'],index='tag').count().run(db.conn),
+                                        'totalDesktops': r.table('domains').get_all(c['new_val']['id'],index='tag').count().run(db.conn),
                                         "startedDesktops": 0
                                         }
                         else:
