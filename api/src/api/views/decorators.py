@@ -121,9 +121,18 @@ def allowedTemplateId(payload,template_id):
     alloweds=template['allowed']
     if payload['role_id'] == 'admin': return True
     if payload['role_id'] == 'manager' and payload['category_id'] == template['category']: return True
-    if alloweds['categories'] and payload['category_id'] in alloweds['categories']: return True
-    if alloweds['groups'] and payload['group_id'] in alloweds['groups']: return True
-    if alloweds['users'] and payload['user_id'] in alloweds['users']: return True
+    if alloweds['roles'] != False:
+        if alloweds['roles'] == []: return True
+        if payload['role_id'] in alloweds['roles']: return True
+    if alloweds['categories'] != False:
+        if alloweds['categories'] == []: return True
+        if payload['category_id'] in alloweds['categories']: return True
+    if alloweds['groups'] != False:
+        if alloweds['groups'] == []: return True
+        if payload['group_id'] in alloweds['groups']: return True
+    if alloweds['users'] != False:
+        if alloweds['groups'] == []: return True
+        if payload['user_id'] in alloweds['users']: return True
     return False
 
 # def allowedId(payload,category_id, alloweds):
