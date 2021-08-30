@@ -27,7 +27,7 @@ func init() {
 		guacdAddr = "isard-vpn:4822"
 	}
 
-	apiAddr = os.Getenv("GUACD_BACKEND_HOST")
+	apiAddr = os.Getenv("GUACD_API_HOST")
 	if apiAddr == "" {
 		apiAddr = "isard-api:5000"
 	}
