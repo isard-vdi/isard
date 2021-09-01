@@ -1,0 +1,17 @@
+{
+  "name": "releaser",
+  "version": "1.0.0",
+  "description": "This script is used to generate releases for IsardVDI",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Néfix Estrada",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "isomorphic-git": "^1.9.1",
+    "marked": "^2.1.3",
+    "semver": "^7.3.5",
+    "shell-quote": "^1.7.2"
+  }
+}
