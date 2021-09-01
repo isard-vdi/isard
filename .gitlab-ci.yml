@@ -1,3 +1,8 @@
+stages:
+ - build
+ - changelog
+ - force-changelog-retry
+
 docker-build:
   image: docker:latest
   stage: build
@@ -24,3 +29,47 @@ docker-build:
   artifacts:
     paths:
       - docker-compose*.yml
+
+.changelog:
+  image: registry.gitlab.com/gitlab-org/release-cli
+  stage: changelog
+  before_script:
+    - apk add --no-cache nodejs npm git
+    - cd releaser && npm i --save && cd -
+
+changelog:
+  extends: .changelog
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - ./releaser/index.js CHANGELOG.md
+
+changelog-release:
+  extends: .changelog
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - url_host=`git remote get-url origin | sed -e "s/https:\/\/gitlab-ci-token:.*@//g"`
+    - git remote set-url origin "https://gitlab-ci-token:${GITLAB_TOKEN}@${url_host}"
+    - ./releaser/index.js CHANGELOG.md --release
+
+force-changelog-retry:
+  image: alpine
+  stage: force-changelog-retry
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: always
+      allow_failure: true
+    - when: never
+  before_script:
+    - apk add --no-cache jq curl
+  script:
+    - export gitlab_base_url="https://gitlab.com/api/v4/projects"
+    - |
+      export opened_merge_requests=`curl -H "Authorization: Bearer ${GITLAB_TOKEN}" "${gitlab_base_url}/${PROJECT_ID}/merge_requests?state=opened"`
+    - |
+      for iid in $(echo "${opened_merge_requests}" | jq '.[] | .iid'); do
+        latest_pipeline=`curl -H "Authorization: Bearer ${GITLAB_TOKEN}" "${gitlab_base_url}/${PROJECT_ID}/merge_requests/${iid}/pipelines" |  jq '.[0] | .id'`
+        latest_changelog_job=`curl -H "Authorization: Bearer ${GITLAB_TOKEN}" "${gitlab_base_url}/${PROJECT_ID}/pipelines/${latest_pipeline}" |  jq '.[] | select(.name == "changelog") | .id' `
+        curl -x POST -H "Authorization: Bearer ${GITLAB_TOKEN}" "$gitlab_base_url/${PROJECT_ID}/jobs/${latest_changelog_job}/retry"
+      done
