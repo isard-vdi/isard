@@ -31,7 +31,7 @@ type Provider interface {
 	String() string
 }
 
-var errUnknownIDP = errors.New("unknown identity provider")
+var ErrUnknownIDP = errors.New("unknown identity provider")
 var errInvalidIDP = errors.New("invalid identity provider for this operation")
 
 const UnknownString = "unknown"
@@ -43,9 +43,9 @@ func (Unknown) String() string {
 }
 
 func (Unknown) Login(context.Context, string, map[string]string) (*model.User, string, error) {
-	return nil, "", errUnknownIDP
+	return nil, "", ErrUnknownIDP
 }
 
 func (Unknown) Callback(context.Context, *CallbackClaims, map[string]string) (*model.User, string, error) {
-	return nil, "", errUnknownIDP
+	return nil, "", ErrUnknownIDP
 }

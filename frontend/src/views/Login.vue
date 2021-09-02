@@ -17,7 +17,7 @@
             />
             <b-form
               v-if="show_login_form"
-              @submit.prevent="login('local')"
+              @submit.prevent="login('form')"
               class="m-0"
             >
 
@@ -158,7 +158,7 @@ export default {
   },
   methods: {
     login (provider) {
-      if (provider === 'local') {
+      if (provider === 'form') {
         this.loading = true
         const data = new FormData()
         data.append('category_id', this.category)

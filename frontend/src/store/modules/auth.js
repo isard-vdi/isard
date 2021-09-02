@@ -42,6 +42,10 @@ export default {
       store.dispatch('removeAuthorizationCookie')
       router.push({ name: 'desktops' })
     },
+    formSuccess (context, token) {
+      context.dispatch('setSession', token)
+      router.push({ name: 'Register' })
+    },
     loginAdmin (context) {
       axios.get(`${apiAdminSegment}/login`, {}, { timeout: 25000 }).catch(e => {
         if (e.response.status === 503) {
