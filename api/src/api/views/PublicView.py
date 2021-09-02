@@ -21,6 +21,27 @@ users = ApiUsers()
 def api_v3_test():
     return json.dumps({"name":"IsardVDI","api_version": 3}), 200, {'Content-Type': 'application/json'}
 
+@app.route('/api/v3/login_ldap', methods=['POST'])
+def api_v3_login_ldap():
+    try:
+        id = request.form.get('id', type = str)
+        passwd = request.form.get('passwd', type = str)
+    except Exception as e:
+        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 401, {'Content-Type': 'application/json'}
+    if id == None or passwd == None:
+        log.error("Incorrect access parameters. Check your query.")
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 401, {'Content-Type': 'application/json'}
+
+    try:
+        id_ = users.LoginLdap(id, passwd)
+        return json.dumps({"id":id_}), 200, {'Content-Type': 'application/json'}
+    except UserLoginFailed:
+        log.error("User "+id+" login failed.")
+        return json.dumps({"code":1,"msg":"User login failed"}), 403, {'Content-Type': 'application/json'}
+    except Exception as e:
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"UserExists general exception: " + error }), 401, {'Content-Type': 'application/json'}
+
 @app.route('/api/v3/login', methods=['POST'])
 @app.route('/api/v3/login/', methods=['POST'])
 @app.route('/api/v3/login/<category_id>', methods=['POST'])
