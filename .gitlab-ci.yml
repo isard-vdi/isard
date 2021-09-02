@@ -1,34 +1,34 @@
 stages:
- - build
+#  - build
  - changelog
  - force-changelog-retry
 
-docker-build:
-  image: docker:latest
-  stage: build
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - apk add bash git docker-compose
-    # Use docker compose < 1.27 to avoid depends_on issue
-    # https://github.com/isard-vdi/isard/issues/390
-    - apk add py3-pip
-    - pip install docker-compose~=1.26.0
-    - cp isardvdi.cfg.example isardvdi.cfg
-    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
-    - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
-    - ./build.sh
-    - docker-compose -f docker-compose.build.yml build
-    - docker-compose -f docker-compose.video-standalone.build.yml build isard-video
-    - docker-compose -f docker-compose.hypervisor.build.yml build isard-vpnc
-    - docker-compose -f docker-compose.toolbox.build.yml build isard-toolbox
-    - docker-compose -f docker-compose.devel.yml build isard-frontend-dev
-    - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push
-  artifacts:
-    paths:
-      - docker-compose*.yml
+# docker-build:
+#   image: docker:latest
+#   stage: build
+#   services:
+#     - docker:dind
+#   before_script:
+#     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+#   script:
+#     - apk add bash git docker-compose
+#     # Use docker compose < 1.27 to avoid depends_on issue
+#     # https://github.com/isard-vdi/isard/issues/390
+#     - apk add py3-pip
+#     - pip install docker-compose~=1.26.0
+#     - cp isardvdi.cfg.example isardvdi.cfg
+#     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
+#     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
+#     - ./build.sh
+#     - docker-compose -f docker-compose.build.yml build
+#     - docker-compose -f docker-compose.video-standalone.build.yml build isard-video
+#     - docker-compose -f docker-compose.hypervisor.build.yml build isard-vpnc
+#     - docker-compose -f docker-compose.toolbox.build.yml build isard-toolbox
+#     - docker-compose -f docker-compose.devel.yml build isard-frontend-dev
+#     - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push
+#   artifacts:
+#     paths:
+#       - docker-compose*.yml
 
 .changelog:
   image: registry.gitlab.com/gitlab-org/release-cli

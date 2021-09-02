@@ -21,7 +21,26 @@ type Authentication struct {
 	Host   string
 	Secret string
 	Local  bool
+	LDAP   AuthenticationLDAP
 	Google AuthenticationGoogle
+}
+
+type AuthenticationLDAP struct {
+	Protocol      string
+	Host          string
+	Port          int
+	BaseDN        string
+	UserSearch    string
+	FieldUID      string
+	RegexUID      string
+	FieldUsername string
+	RegexUsername string
+	FieldName     string
+	RegexName     string
+	FieldEmail    string
+	RegexEmail    string
+	FieldPhoto    string
+	RegexPhoto    string
 }
 
 type AuthenticationGoogle struct {
@@ -47,6 +66,23 @@ func setDefaults() {
 		"host":   "",
 		"secret": "",
 		"local":  true,
+		"ldap": map[string]interface{}{
+			"protocol":       "ldap",
+			"host":           "",
+			"port":           389,
+			"base_dn":        "",
+			"user_search":    "uid=%s",
+			"field_uid":      "",
+			"regex_uid":      ".*",
+			"field_username": "",
+			"regex_username": ".*",
+			"field_name":     "",
+			"regex_name":     ".*",
+			"field_email":    "",
+			"regex_email":    ".*",
+			"field_photo":    "",
+			"regex_photo":    ".*",
+		},
 		"google": map[string]interface{}{
 			"client_id":     "",
 			"client_secret": "",

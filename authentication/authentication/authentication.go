@@ -45,6 +45,11 @@ func Init(cfg cfg.Authentication, db r.QueryExecutor) *Authentication {
 		providers[google.String()] = google
 	}
 
+	if cfg.LDAP.Host != "" && cfg.LDAP.BaseDN != "" {
+		ldap := provider.InitLDAP(cfg.LDAP)
+		providers[ldap.String()] = ldap
+	}
+
 	return &Authentication{
 		Secret:    cfg.Secret,
 		DB:        db,
@@ -55,7 +60,7 @@ func Init(cfg cfg.Authentication, db r.QueryExecutor) *Authentication {
 func (a *Authentication) Providers() []string {
 	providers := []string{}
 	for k := range a.providers {
-		if k == provider.UnknownString || k == provider.LocalString {
+		if k == provider.UnknownString || k == provider.LocalString || k == provider.LDAPString {
 			continue
 		}
 
@@ -209,7 +214,15 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		p := a.Provider(prv)
 		u, redirect, err = p.Login(ctx, categoryID, args)
 		if err != nil {
-			return "", "", fmt.Errorf("login: %w", err)
+			p = a.Provider(provider.LDAPString)
+			if prv != provider.LocalString || !errors.Is(err, provider.ErrInvalidCredentials) || p.String() != provider.LDAPString {
+				return "", "", fmt.Errorf("login: %w", err)
+			}
+
+			u, redirect, err = p.Login(ctx, categoryID, args)
+			if err != nil {
+				return "", "", fmt.Errorf("login: %w", err)
+			}
 		}
 
 		if redirect != "" {

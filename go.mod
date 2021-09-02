@@ -3,6 +3,7 @@ module gitlab.com/isard/isardvdi
 go 1.16
 
 require (
+	github.com/go-ldap/ldap/v3 v3.4.1 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/rs/zerolog v1.23.0
 	github.com/spf13/viper v1.8.1
