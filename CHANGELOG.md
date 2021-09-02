@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2021-09-09
+
+### Added
+
+- Customized LDAP connection
+
 ## [3.1.3] - 2021-09-09
 
 ### Added

@@ -51,6 +51,17 @@ func (u *User) ID() string {
 	return strings.Join([]string{u.Provider, u.Category, u.UID, u.Username}, userIDSFieldSeparator)
 }
 
+func UserFromID(id string) *User {
+	parts := strings.Split(id, userIDSFieldSeparator)
+
+	return &User{
+		Provider: parts[0],
+		Category: parts[1],
+		UID:      parts[2],
+		Username: parts[3],
+	}
+}
+
 func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	res, err := r.Table("users").Get(u.ID()).Run(sess)
 	if err != nil {
