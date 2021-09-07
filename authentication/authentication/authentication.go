@@ -267,6 +267,10 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 	}
 
 	if exists {
+		if err := u.Load(ctx, a.DB); err != nil {
+			return "", "", fmt.Errorf("load user from DB: %w", err)
+		}
+
 		ss, err = a.signToken(u)
 		if err != nil {
 			return "", "", err
