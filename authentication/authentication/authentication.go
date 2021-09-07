@@ -86,6 +86,7 @@ type ClaimsData struct {
 	RoleID     string `json:"role_id"`
 	CategoryID string `json:"category_id"`
 	GroupID    string `json:"group_id"`
+	Name       string `json:"name"`
 }
 
 func (a *Authentication) signToken(u *model.User) (string, error) {
@@ -102,6 +103,7 @@ func (a *Authentication) signToken(u *model.User) (string, error) {
 			u.Role,
 			u.Category,
 			u.Group,
+			u.Name,
 		},
 	})
 
