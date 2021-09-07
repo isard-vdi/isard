@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -73,6 +74,12 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 
 	tkn, redirect, err := a.Authentication.Login(r.Context(), prv, cID, args)
 	if err != nil {
+		if errors.Is(err, provider.ErrInvalidCredentials) {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
 		// TODO: Better error handling!
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
