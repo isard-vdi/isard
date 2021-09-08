@@ -6,17 +6,7 @@ import * as cookies from 'tiny-cookie'
 
 export default {
   state: {
-    user: {
-      UID: '',
-      Username: '',
-      Provider: '',
-      Category: '',
-      role: '',
-      group: '',
-      name: '',
-      email: '',
-      photo: ''
-    },
+    user: {},
     token: '',
     registerToken: '',
     expirationDate: ''

@@ -24,7 +24,7 @@
 
           <!-- Right aligned nav items -->
           <b-navbar-nav class="ml-auto">
-            <b-nav-item href="#"><span class="text-white">{{ getUser.username }} [{{ getUser.role_id }}]</span></b-nav-item>
+            <b-nav-item href="#"><span class="text-white">{{ getUser.name }} [{{ getUser.role_id }}]</span></b-nav-item>
 
             <b-nav-item href="#" @click="logout()"
               ><b-icon
