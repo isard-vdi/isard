@@ -9,7 +9,7 @@ HOSTNAME=localhost
 ## interface (frontend) to go to administration login for users of role User.
 ## True: show button
 ## False (or variable not defined): don't show the button
-FRONTEND_SHOW_ADMIN_BTN=True
+USER_FRONTEND_SHOW_ADMIN_BTN=True
 
 ## Generate your own!:
 ## openssl rand -base64 32

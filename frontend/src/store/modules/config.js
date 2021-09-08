@@ -4,7 +4,8 @@ import { authenticationSegment } from '../../shared/constants'
 export default {
   state: {
     config: {
-      providers: []
+      providers: [],
+      show_admin_button: false
     }
   },
   getters: {

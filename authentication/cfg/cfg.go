@@ -22,6 +22,7 @@ type Authentication struct {
 	Secret string
 	Local  bool
 	Google AuthenticationGoogle
+	UserShowAdminButton string
 }
 
 type AuthenticationGoogle struct {
@@ -42,6 +43,7 @@ func setDefaults() {
 	cfg.SetHTTPDefaults()
 
 	viper.BindEnv("authentication.secret", "API_ISARDVDI_SECRET")
+	viper.BindEnv("authentication.user_show_admin_button", "USER_FRONTEND_SHOW_ADMIN_BTN")
 
 	viper.SetDefault("authentication", map[string]interface{}{
 		"host":   "",
@@ -51,5 +53,6 @@ func setDefaults() {
 			"client_id":     "",
 			"client_secret": "",
 		},
+		"user_show_admin_button": "false",
 	})
 }

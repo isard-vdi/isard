@@ -20,6 +20,7 @@ type Interface interface {
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
+	UserShowAdminButton() string
 	// Refresh()
 	// Register()
 }
@@ -28,6 +29,7 @@ type Authentication struct {
 	Secret    string
 	DB        r.QueryExecutor
 	providers map[string]provider.Provider
+	userShowAdminButton string
 }
 
 func Init(cfg cfg.Authentication, db r.QueryExecutor) *Authentication {
@@ -49,6 +51,7 @@ func Init(cfg cfg.Authentication, db r.QueryExecutor) *Authentication {
 		Secret:    cfg.Secret,
 		DB:        db,
 		providers: providers,
+		userShowAdminButton: cfg.UserShowAdminButton,
 	}
 }
 
@@ -301,4 +304,8 @@ func (a *Authentication) Check(ctx context.Context, ss string) error {
 	}
 
 	return nil
+}
+
+func (a *Authentication) UserShowAdminButton() string {
+	return a.userShowAdminButton
 }

@@ -150,11 +150,13 @@ func (a *AuthenticationServer) check(w http.ResponseWriter, r *http.Request) {
 
 type configJSON struct {
 	Providers []string `json:"providers"`
+	UserShowAdminButton string `json:"user_show_admin_button"`
 }
 
 func (a *AuthenticationServer) config(w http.ResponseWriter, r *http.Request) {
 	cfg := &configJSON{
 		Providers: a.Authentication.Providers(),
+		UserShowAdminButton: a.Authentication.UserShowAdminButton(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
