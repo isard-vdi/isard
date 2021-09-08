@@ -11,6 +11,7 @@ import './assets/styles_standard.css'
 import './assets/styles_xl.css'
 import './assets/styles_small.css'
 
+import VueCompositionAPI from '@vue/composition-api'
 import { BootstrapVue, IconsPlugin, VBTooltip } from 'bootstrap-vue'
 import { faCentos, faFedora, faGithub, faGoogle, faLinux, faUbuntu, faWindows } from '@fortawesome/free-brands-svg-icons'
 import { faDesktop, faPlay, faStop, faTrash } from '@fortawesome/free-solid-svg-icons'
@@ -44,6 +45,7 @@ Vue.component('font-awesome-icon', FontAwesomeIcon)
 Vue.use(BootstrapVue)
 Vue.use(IconsPlugin)
 Vue.use(Snotify)
+Vue.use(VueCompositionAPI)
 Vue.use(VueSocketIOExt, socket, { store })
 
 Vue.config.productionTip = false
