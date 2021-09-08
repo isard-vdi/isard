@@ -70,6 +70,10 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 		Category: categoryID,
 	}
 	if err := u.Load(ctx, l.db); err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return nil, "", ErrInvalidCredentials
+		}
+
 		return nil, "", fmt.Errorf("load user from DB: %w", err)
 	}
 
