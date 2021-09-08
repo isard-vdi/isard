@@ -98,7 +98,7 @@
                 </DesktopButton>
                 <DesktopButton v-if="data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )"
                     class="table-action-button"
-                    :active="![desktopStates.failed, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    :active="![desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
                     :buttColor = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
@@ -198,7 +198,8 @@ export default {
         stopped: 'btn-green',
         started: 'btn-red',
         waitingip: 'btn-red',
-        error: 'btn-red'
+        error: 'btn-red',
+        failed: 'btn-red'
       }
       return stateColors[state]
     },

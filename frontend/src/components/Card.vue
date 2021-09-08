@@ -32,7 +32,7 @@
                 </div>
 
                 <!-- Actions -->
-                <div v-if="desktopState.toLowerCase() !== desktopStates.failed" class='d-flex flex-row justify-content-start ml-3 mb-1'>
+                <div class='d-flex flex-row justify-content-start ml-3 mb-1'>
                   <DesktopButton v-if="!desktop.state || (desktop.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
                       class="card-button"
                       :active="true"
@@ -44,7 +44,7 @@
                   </DesktopButton>
                   <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
                       class="card-button"
-                      :active="![desktopStates.failed, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
+                      :active="![desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
                       @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
                       :buttColor = "buttCssColor"
                       :spinnerActive ="false"

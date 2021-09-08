@@ -2,11 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.3] - 2021-09-09
+
+### Added
+
+- Enable restart of failed desktops
+
 ## [3.1.2] - 2021-09-07
 
 ### Fixed
 
 - Login errors messages
+
 ## [3.1.1] - 2021-09-07
 
 ### Fixed

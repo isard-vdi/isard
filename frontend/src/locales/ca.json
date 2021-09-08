@@ -205,7 +205,7 @@
                 },
                 "failed": {
                     "text": "Fallat",
-                    "action": "Fallat"
+                    "action": "Reiniciar"
                 },
                 "started": {
                     "text": "Iniciat",
