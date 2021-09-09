@@ -27,12 +27,12 @@
 
                 <!-- State -->
                 <div class='ml-4 d-flex flex-row justify-left'>
-                  <b-spinner v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())" small variant='light' class='align-self-center mr-2 status-spinner'></b-spinner>
+                  <b-spinner v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())" small variant='light' class='align-self-center mr-2 status-spinner'></b-spinner>
                   <p class='mb-0 text-state font-weight-bold' :class="statusTextCssColor"> {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`)}}</p>
                 </div>
 
                 <!-- Actions -->
-                <div class='d-flex flex-row justify-content-start ml-3 mb-1'>
+                <div v-if="desktopState.toLowerCase() !== 'downloading'" class='d-flex flex-row justify-content-start ml-3 mb-1'>
                   <DesktopButton v-if="!desktop.state || (desktop.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
                       class="card-button"
                       :active="true"
@@ -190,7 +190,8 @@ export default {
         waitingip: 'status-orange',
         failed: 'status-red',
         'shutting-down': 'status-orange',
-        working: 'status-orange'
+        working: 'status-orange',
+        downloading: 'status-orange'
       }
       return stateColors[this.desktopState]
     },

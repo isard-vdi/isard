@@ -233,6 +233,9 @@
                 "shutting-down": {
                     "text": "Apagando",
                     "action": "Apagando"
+                },
+                "downloading": {
+                    "text": "Descargando"
                 }
             }
         },
