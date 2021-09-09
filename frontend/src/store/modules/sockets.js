@@ -3,6 +3,7 @@ import { socket } from '@/utils/socket-instance'
 export default {
   actions: {
     openSocket (context, { room, deploymentId }) {
+      console.log(room, 'opensocket room')
       socket.io.opts.query = {
         jwt: localStorage.token,
         room,

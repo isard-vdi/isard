@@ -103,6 +103,7 @@ export default {
     }
   },
   mounted () {
+    console.log('Home mounted')
     this.$store.dispatch('openSocket', { room: 'desktops' })
   },
   destroyed () {
