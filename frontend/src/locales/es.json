@@ -209,7 +209,7 @@
                 },
                 "failed": {
                     "text": "Fallido",
-                    "action": "Fallido"
+                    "action": "Restart"
                 },
                 "started": {
                     "text": "Iniciado",
