@@ -1,4 +1,4 @@
-FROM alpine:3.12.0 as build-qemu
+FROM alpine:3.14.0 as build-qemu
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache git \
@@ -22,10 +22,10 @@ RUN apk add --no-cache git \
     # ui/shader/
     # pulseaudio-dev \
     #alsa-lib-dev \
-    perl
-
+    perl \
+    samurai
 # Build QEMU
-RUN git clone --depth 1 --branch v5.1.0 https://github.com/qemu/qemu && \
+RUN git clone --depth 1 --branch v6.1.0 https://github.com/qemu/qemu && \
     cd qemu && \
     mkdir -p bin/debug/native && \
     cd bin/debug/native && \
@@ -34,7 +34,7 @@ RUN git clone --depth 1 --branch v5.1.0 https://github.com/qemu/qemu && \
     make -j8 install
 #--audio-drv-list=alsa &&\
 
-FROM alpine:3.12.0 as production
+FROM alpine:3.14.0 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
