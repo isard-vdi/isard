@@ -18,9 +18,12 @@
 // @ is an alias to /src
 
 export default {
-  methods: {
-    redirectLogin: function () {
-      this.$router.push({ path: '/' })
+  setup (props, context) {
+    const redirectLogin = () => {
+      context.root.$router.push({ path: '/' })
+    }
+    return {
+      redirectLogin
     }
   }
 }
