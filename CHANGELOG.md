@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.5] - 2021-09-09
+
+### Fixed
+
+- Show downloading status in frontend
 ## [3.1.4] - 2021-09-09
 
 ### Added

@@ -229,6 +229,9 @@
                 "shutting-down": {
                     "text": "Apagant",
                     "action": "Apagant"
+                },
+                "downloading": {
+                    "text": "Descarregant"
                 }
             }
         },
