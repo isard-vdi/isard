@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.13] - 2021-09.20
+
+### FIXED
+
+- Removed nginx cache to improve client performance
+
 ## [3.1.12] - 2021-09.20
 
 ### FIXED
