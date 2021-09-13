@@ -24,7 +24,8 @@ from flatten_dict import flatten
 from lxml import etree
 
 from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware, update_domain_dict_create_dict
-from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values, get_graphics_types
+from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values, get_graphics_types, \
+                               get_and_update_personal_vlan_id_from_domain_id, remove_fieds_when_stopped
 from engine.services.db.downloads import get_media
 from engine.services.lib.functions import randomMAC, pop_key_if_zero
 from engine.services.log import *
@@ -515,7 +516,7 @@ class DomainXML(object):
         self.add_device(xpath_same, new_disk, xpath_next=xpath_next, xpath_previous=xpath_previous)
         self.index_disks['sata'] += 1
 
-    def add_interface(self, type_interface, mac, model_type='virtio', net='default', qos=False):
+    def add_interface(self, type_interface, mac, id_domain, id_interface, model_type='virtio', net='default', qos=False):
         '''
         :param type_interface:' bridge' OR 'network' .
                      If bridge inserts xml code for bridge,
@@ -530,6 +531,31 @@ class DomainXML(object):
         elif type_interface == 'ovs':
             xml_snippet = XML_SNIPPET_OVS.format(vlan_id = net, ovs_br_name='ovsbr0')
             interface_etree = etree.parse(StringIO(xml_snippet))
+
+        elif type_interface == 'personal':
+            vlan_id = False
+            if type(net) == str:
+                if net.find('-') > 0 and len(net[net.find('-'):]) > 1:
+                    range=net.split('-')
+                    if range[0].isnumeric() is True and range[1].isnumeric() is True:
+                        if int(range[0]) < pow(2,12) and int(range[1])< pow(2,12) and int(range[1]) > int(range[0]):
+                            vlan_id = get_and_update_personal_vlan_id_from_domain_id(id_domain, id_interface, range_start=int(range[0]), range_end=int(range[1]))
+                            if vlan_id is not False:
+                                xml_snippet = XML_SNIPPET_OVS.format(vlan_id = vlan_id, ovs_br_name='ovsbr0')
+                                interface_etree = etree.parse(StringIO(xml_snippet))
+                            else:
+                                log.error(f'vlan_id not available for personal network')
+                        else:
+                            log.error(
+                                f'interface personal net with vlans_id numbers not valid (<4096?): {net}')
+                    else:
+                        log.error(f'interface personal net is not defined as a range of numeric vlans_id as xxxx-yyyy. net: {net}')
+                else:
+                    log.error(f'interface personal net is not defined as string with a range of vlans_id as xxxx-yyyy. net: {net}')
+            else:
+                log.error('interface personal net is not a string')
+            if vlan_id is False:
+                return -1
 
         elif type_interface.find('ovs') == 0 and len(type_interface) > 3:
             suffix_br = type_interface[3:]
@@ -985,6 +1011,7 @@ def create_template_from_dict(dict_template_new):
 
 
 def update_xml_from_dict_domain(id_domain, xml=None):
+    remove_fieds_when_stopped(id_domain)
     d = get_domain(id_domain)
     hw = d['hardware']
     if xml is None:
@@ -1088,6 +1115,8 @@ def update_xml_from_dict_domain(id_domain, xml=None):
         for d_interface in hw['interfaces']:
             v.add_interface(type_interface=d_interface['type'],
                             mac=d_interface['mac'],
+                            id_interface=d_interface['id'],
+                            id_domain=id_domain,
                             model_type=d_interface['model'],
                             net = d_interface['net'],
                             qos = d_interface.get('qos',False))
@@ -1281,8 +1310,9 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
 
     # ~ return d
 
-def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
-    dict_domain = get_domain(id)
+def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
+    remove_fieds_when_stopped(id_domain)
+    dict_domain = get_domain(id_domain)
 
     xml = dict_domain['xml']
     x = DomainXML(xml)
@@ -1317,7 +1347,7 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     except KeyError:
         list_interfaces = []
         list_interfaces_mac = []
-        log.info('domain {} withouth key interfaces in create_dict'.format(id))
+        log.info('domain {} withouth key interfaces in create_dict'.format(id_domain))
 
 
     # clean interfaces saving the mac...
@@ -1361,6 +1391,8 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
 
         x.add_interface(type_interface=d_interface['kind'],
                         model_type=d_interface['model'],
+                        id_interface=d_interface['id'],
+                        id_domain=id_domain,
                         net=d_interface['net'],
                         qos=dict_bandwidth,
                         mac=mac_selected)
@@ -1376,11 +1408,11 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     if dict_domain['hardware']['video']['type'].find('nvidia') == 0:
         x.vm_dict['video'] = dict_domain['hardware']['video'].copy()
     # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
-    update_domain_dict_hardware(id, x.vm_dict, xml=xml)
+    update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
     if 'viewer_passwd' in x.__dict__.keys():
         #update password in database
-        update_domain_viewer_started_values(id, passwd=x.viewer_passwd)
-        log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id))
+        update_domain_viewer_started_values(id_domain, passwd=x.viewer_passwd)
+        log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id_domain))
 
     xml = x.return_xml()
     # log.debug('#####################################################')

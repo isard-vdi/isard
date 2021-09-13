@@ -130,13 +130,15 @@ def update_domain_status(status, id_domain, hyp_id=None, detail='', keep_hyp_id=
         results = rtable.get_all(id_domain, index='id').update({'hyp_started': hyp_id,
                                                                 'status': status,
                                                                 'detail': json.dumps(detail)}).run(r_conn)
+
     if status == 'Stopped':
         stop_last_domain_status(id_domain)
+        remove_fieds_when_stopped(id_domain, conn=r_conn)
 
     close_rethink_connection(r_conn)
     # if results_zero(results):
     #
-    #     log.debug('id_domain {} in hyperviros {} does not exist in domain table'.format(id_domain,hyp_id))
+    #     logs.main.debug('id_domain {} in hyperviros {} does not exist in domain table'.format(id_domain,hyp_id))
 
     return results
 
@@ -358,7 +360,7 @@ def update_domain_dict_hardware(id, domain_dict, xml=False):
         results = rtable.get(id).update({'hardware': domain_dict, 'xml': xml}).run(r_conn)
 
     # if results_zero(results):
-    #     log.debug('id_domain {} does not exist in domain table'.format(id))
+    #     logs.main.debug('id_domain {} does not exist in domain table'.format(id))
 
     close_rethink_connection(r_conn)
     return results
@@ -408,7 +410,7 @@ def update_disk_backing_chain(id_domain, index_disk, path_disk, list_backing_cha
     return results
 
     # else:
-    #     log.error('update_disk_backing_chain FAILED: there is not path {} in disk_index {} in domain {}'.format(path_disk,index_disk,id_domain))
+    #     logs.main.error('update_disk_backing_chain FAILED: there is not path {} in disk_index {} in domain {}'.format(path_disk,index_disk,id_domain))
     #     return
 
 
@@ -498,14 +500,14 @@ def get_pool_from_domain(domain_id):
             if len(d['hypervisors_pools']) > 0:
                 pool = d['hypervisors_pools'][0]
             else:
-                log.error(f'domain: {domain_id} with not hypervisors_pools in list. Pool default forced.')
+                logs.main.error(f'domain: {domain_id} with not hypervisors_pools in list. Pool default forced.')
                 pool = 'default'
         else:
-            log.error(f'domain: {domain_id} withouth hypervisors_pools key defined. Pool default forced.')
+            logs.main.error(f'domain: {domain_id} withouth hypervisors_pools key defined. Pool default forced.')
             pool = 'default'
     except r.ReqlNonExistenceError:
-        log.error('domain_id {} does not exist in domains table'.format(domain_id))
-        log.debug('function: {}'.format(sys._getframe().f_code.co_name))
+        logs.main.error('domain_id {} does not exist in domains table'.format(domain_id))
+        logs.main.debug('function: {}'.format(sys._getframe().f_code.co_name))
         pool = 'default'
 
     close_rethink_connection(r_conn)
@@ -705,8 +707,8 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
     try:
         domain_fields = rtable.get(domain_id).pluck('history_domain', 'hyp_started').run(r_conn)
     except Exception as e:
-        log.error(f'domain {domain_id} does not exists in db and update_domain_history_from_id_domain is not posible')
-        log.error(e)
+        logs.main.error(f'domain {domain_id} does not exists in db and update_domain_history_from_id_domain is not posible')
+        logs.main.error(e)
         return False
     close_rethink_connection(r_conn)
 
@@ -948,3 +950,60 @@ def domain_stopped_update_nvidia_uids_status(domain_id,hyp_id):
 
     close_rethink_connection(r_conn)
     return result
+
+def remove_fieds_when_stopped(id_domain, conn=False):
+    if conn is False:
+        r_conn = new_rethink_connection()
+    else:
+        r_conn = conn
+
+    r.table('domains').get(id_domain).update({'create_dict':{'personal_vlans':False}}).run(r_conn)
+
+    if conn is False:
+        close_rethink_connection(r_conn)
+
+def get_and_update_personal_vlan_id_from_domain_id(id_domain, id_interface, range_start, range_end):
+    r_conn = new_rethink_connection()
+    user_id = dict(r.table('domains').get(id_domain).pluck('user').run(r_conn))['user']
+    desktops_up = list(r.table('domains').get_all(user_id, index='user').\
+        filter((r.row["status"] == 'Started') | (r.row["status"] == 'Shutting-down')).pluck('id').run(r_conn))
+    vlan_id = False
+    if len(desktops_up) > 0:
+        create_dict = r.table('domains').get(desktops_up[0]['id']).pluck('create_dict').run(r_conn)
+        if create_dict.get('personal_vlans',False) is not False:
+            if id_interface in create_dict['personal_vlans'].keys():
+                tmp_vlan_id = create_dict['personal_vlans'][id_interface]
+                if type(tmp_vlan_id) is int:
+                    if tmp_vlan_id <= range_end and tmp_vlan_id >= range_start:
+                        vlan_id = tmp_vlan_id
+                    else:
+                        logs.main.error(f'vlan_id {vlan_id} error: vlan_id > {range_end} or vlan_id < {range_start} in domain {id_domain}')
+                else:
+                    logs.main.error(f'vlan_id is not int in personal_vlans dict in create_dict for domain: {id_domain}')
+
+    if vlan_id is False:
+        l_all_vlans_active = list(r.table('domains').filter({'status':'Started'}).\
+                                  filter((r.row["status"] == 'Started') | (r.row["status"] == 'Shutting-down')).\
+                                  filter(~r.row['create_dict']['personal_vlans'] == False).\
+                                  pluck({'create_dict':'personal_vlans'}).run(r_conn))
+        a= [list(d.get('create_dict',{}).get('personal_vlans',{}).values()) for d in l_all_vlans_active]
+        l = []
+        for v in a:
+            l = l + v
+        set_vlans_active = set([i for i in l if type(i) is int])
+        set_vlans_infraestructure = set([int(d['net']) for d in r.table('interfaces').filter({'kind':'ovs'}).pluck('net').run(r_conn)])
+        set_all_range_vlans = set(range(range_start, range_end))
+        set_vlans_available = set_all_range_vlans - set_vlans_active - set_vlans_infraestructure
+
+        if len(set_vlans_available) > 0:
+            vlan_id = min(set_vlans_available)
+        else:
+            from pprint import pformat
+            logs.main.error(f'not vlans available for personal network: {id_interface}')
+            logs.main.debug('vlans_active' + pformat(set_vlans_active))
+            logs.main.debug('vlans_infraestructure' + pformat(set_vlans_active))
+            logs.main.debug('vlans_all_range' + pformat(set_vlans_active))
+
+    r.table('domains').get(id_domain).update({'create_dict': {'personal_vlans': {id_interface: vlan_id}}}).run(r_conn)
+    close_rethink_connection(r_conn)
+    return vlan_id

@@ -301,10 +301,14 @@ class hyp(object):
                                                          int(libvirt_version[-6:-3]),
                                                          int(libvirt_version[-3:]))
 
-        qemu_version = str(self.conn.getVersion())
-        self.info['qemu_version'] = '{}.{}.{}'.format(int(qemu_version[-9:-6]),
-                                                      int(qemu_version[-6:-3]),
-                                                      int(qemu_version[-3:]))
+        try:
+            qemu_version = str(self.conn.getVersion())
+            self.info['qemu_version'] = '{}.{}.{}'.format(int(qemu_version[-9:-6]),
+                                                          int(qemu_version[-6:-3]),
+                                                          int(qemu_version[-3:]))
+        except libvirt.libvirtError as e:
+            logs.workers.error(f'Exception when get qemu_version in hyp {self.id_hyp_rethink}: {e}')
+            self.info['qemu_version'] = '0.0.0'
 
         inf = self.conn.getInfo()
         self.info['arch'] = inf[0]
