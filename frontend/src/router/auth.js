@@ -19,7 +19,8 @@ export function auth (to, from, next) {
   } else {
     if (new Date() > new Date(JSON.parse(atob(localStorage.token.split('.')[1])).exp * 1000)) {
       store.dispatch('logout')
+    } else {
+      next()
     }
-    next()
   }
 }

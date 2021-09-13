@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.6] - 2021-09-10
+
+### Fixed
+
+- fix websockets connection after expired session
 ## [3.1.5] - 2021-09-09
 
 ### Fixed
