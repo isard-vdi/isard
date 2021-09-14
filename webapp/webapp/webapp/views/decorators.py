@@ -56,10 +56,11 @@ def ownsidortag(fn):
             except:
                 id = myargs['id']
         if current_user.role == 'manager' and current_user.category == id.split('-')[1]: return fn(*args, **kwargs)
-        if current_user.role == 'advanced':
-            with app.app_context():
-                if str(r.table('domains').get(id).pluck('tag').run(db.conn).get('tag',False)).startswith('_'+current_user.id):
-                    return fn(*args, **kwargs)
+        with app.app_context():
+            domain = r.table('domains').get(id).pluck('id','tag').run(db.conn)
+        if domain != None:
+            if domain.get('id','').startswith('_'+current_user.id): return fn(*args, **kwargs)
+            if current_user.role == 'advanced' and domain.get('tag','').startswith('_'+current_user.id): return fn(*args, **kwargs)
         logout_user()
         return render_template('login_category.html', category=False)
     return decorated_view

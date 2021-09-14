@@ -2,16 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.7] - 2021-09-13
+
+### Fixed
+
+- fix accessing details when user is not admin or manager in decorator @ownsidortag
+
 ## [3.1.6] - 2021-09-10
 
 ### Fixed
 
 - fix websockets connection after expired session
+
 ## [3.1.5] - 2021-09-09
 
 ### Fixed
 
 - Show downloading status in frontend
+
 ## [3.1.4] - 2021-09-09
 
 ### Added
