@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.8] - 2021-09-16
+
+### Fixed
+
+- fix bug when username has '_' character and uses deployments
+
 ## [3.1.7] - 2021-09-13
 
 ### Fixed
