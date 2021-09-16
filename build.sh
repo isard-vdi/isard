@@ -148,7 +148,6 @@ flavour video-standalone \
 	websockify \
 	squid \
 	guac \
-	stats \
 
 flavour web \
 	network \
@@ -161,10 +160,6 @@ flavour web \
 	api \
 	authentication \
         vpn \
-
-flavour stats \
-	network \
-	stats \
 
 ## BUILD_ROOT_PATH sed section
 # Fix the context parameter in the docker-compose file

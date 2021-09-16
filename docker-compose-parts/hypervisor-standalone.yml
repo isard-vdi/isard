@@ -5,6 +5,3 @@ services:
     # firewall-cmd --add-forward-port=port=5900-6899:proto=tcp:toport=5900-6899:toaddr=172.18.255.17
     # ports:
     #   - "5900-6899:5900-6899"
-  isard-stats:
-    depends_on:
-      - isard-hypervisor
