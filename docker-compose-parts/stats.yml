@@ -11,5 +11,7 @@ services:
     networks:
       isard-network: {}
     restart: unless-stopped
+    depends_on:
+      - isard-hypervisor
 #    volumes:
 #      - /opt/isard/sshkeys:/root/.ssh:ro
