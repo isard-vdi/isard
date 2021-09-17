@@ -43,12 +43,13 @@ class isard():
         if user is not False:
             if table not in ['domains','media']: 
                 return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
-            with app.app_context():
-                domain=r.table('domains').get(data['pk']).pluck('user','tag').run(db.conn)
-            if domain['user'] != user:
-                user_tag=domain['tag'].split('#')[0]
-                if user != user_tag:
-                    return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
+            if table == 'domains':
+                with app.app_context():
+                    domain=r.table('domains').get(data['pk']).pluck('user','tag').run(db.conn)
+                if domain['user'] != user:
+                    user_tag=domain['tag'].split('#')[0]
+                    if user != user_tag:
+                        return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
 
         item = (table.endswith('s') and table[:-1] or table).capitalize()
         with app.app_context():
@@ -668,49 +669,60 @@ class isard():
             data = [i for n, i in enumerate(data) if i not in data[n + 1:]]
             allowed_data=[]
             for d in data:
-                        d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
-                        if d['user']==user:
-                            allowed_data.append(d)
-                            continue
-                        # False doesn't check, [] means all allowed
-                        # Role is the master and user the least. If allowed in roles,
-                        #   won't check categories, groups, users
-                        #~ allowed=d['allowed']
-                        if d['allowed']['roles'] != False:
-                            if not d['allowed']['roles']:  # Len != 0
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['role'] in d['allowed']['roles']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['categories'] != False:
-                            if not d['allowed']['categories']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['category'] in d['allowed']['categories']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['groups'] != False:
-                            if not d['allowed']['groups']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['group'] in d['allowed']['groups']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['users'] != False:
-                            if not d['allowed']['users']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if user in d['allowed']['users']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
+                # Who belongs this resource (table)
+                userdata = r.table('users').get(d['user']).run(db.conn)
+                if userdata == None:
+                    ## The resource belongs to a user that does not exist (media, etc...)
+                    ## For now we will just show it to admin/managers that will get access
+                    if ud['role'] in ['admin','manager']:
+                        allowed_data.append(d)
+                        continue
+                    else:
+                        continue
+                d['username']=userdata['name']
+
+                if d['user']==user:
+                    allowed_data.append(d)
+                    continue
+                # False doesn't check, [] means all allowed
+                # Role is the master and user the least. If allowed in roles,
+                #   won't check categories, groups, users
+                #~ allowed=d['allowed']
+                if d['allowed']['roles'] != False:
+                    if not d['allowed']['roles']:  # Len != 0
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if ud['role'] in d['allowed']['roles']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                if d['allowed']['categories'] != False:
+                    if not d['allowed']['categories']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if ud['category'] in d['allowed']['categories']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                if d['allowed']['groups'] != False:
+                    if not d['allowed']['groups']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if ud['group'] in d['allowed']['groups']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                if d['allowed']['users'] != False:
+                    if not d['allowed']['users']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if user in d['allowed']['users']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
             return allowed_data
 
     def get_all_table_allowed_term(self, table, kind, field, value, user, pluck='default'):
