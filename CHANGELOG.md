@@ -2,12 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.10] - 2021-09-17
+
+### Added
+
+- Docker builds now use cache, reducing build times
+
 ## [3.1.9] - 2021-09-17
 
 ### Fixed
 
 - Fixed releaser script
-
 
 ## [3.1.8] - 2021-09-16
 
