@@ -9,7 +9,7 @@ ip link set vlan-wg up
 
 mkdir /var/run/dnsmasq
 mkdir /var/lib/dnsmasq
-cat <<EOT >> /etc/dnsmasq.d/vlan-wg.conf
+cat <<EOT > /etc/dnsmasq.d/vlan-wg.conf
 strict-order
 port=0
 pid-file=/var/run/ovs-vlan-wg.pid
