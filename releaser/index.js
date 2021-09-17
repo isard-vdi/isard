@@ -107,6 +107,10 @@ const changelogPath = process.argv[2];
         http: require("isomorphic-git/http/node"),
         dir: ".",
         ref: tagName,
+        onAuth: () => ({
+          username: process.env.GITLAB_LOGIN,
+          password: process.env.GITLAB_TOKEN
+        })
       });
 
       execSync(
