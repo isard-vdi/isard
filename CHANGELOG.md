@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.11] - 2021-09.17
+
+### FIXED
+
+- Access to resources that are owned by a user already deleted. 
+  Will allow access to those resources only to admin/manager roles.
+
 ## [3.1.10] - 2021-09-17
 
 ### Added
