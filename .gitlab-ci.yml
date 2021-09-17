@@ -20,9 +20,12 @@ docker-build:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
     - ./build.sh
+    - docker-compose -f docker-compose.yml pull
     - docker-compose -f docker-compose.build.yml build
+    - docker-compose -f docker-compose.video-standalone.yml pull
     - docker-compose -f docker-compose.video-standalone.build.yml build isard-video
     - docker-compose -f docker-compose.toolbox.build.yml build isard-toolbox
+    - docker-compose -f docker-compose.devel.yml pull
     - docker-compose -f docker-compose.devel.yml build isard-frontend-dev
     - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push
   artifacts:
