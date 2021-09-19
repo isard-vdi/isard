@@ -27,7 +27,8 @@ from engine.services.db.disk_operations import insert_disk_operation, update_dis
 from engine.services.db import update_disk_backing_chain, get_domain, get_disks_all_domains, insert_domain, \
     get_domain_spice, update_domain_createing_template
 from engine.services.db import get_domain_status, get_all_domains_with_id_and_status, delete_domain, update_domain_status
-from engine.services.db.domains import update_domain_progress, update_domain_status
+from engine.services.db.domains import update_domain_progress, update_domain_status, \
+    get_all_domains_with_id_status_hyp_started
 from engine.services.log import log,logs
 
 
@@ -153,7 +154,6 @@ def try_ssh_command(host,user,port):
     except Exception as e:
         error = f'testing ssh connection failed. Host: {host}, cmds: {cmds}, username={user}, port: {port}. Exception: {e}'
         return False, error
-
 
 def test_hypervisor_conn(uri):
     """ test hypervisor connecton, if fail an error message in log """
@@ -1080,8 +1080,31 @@ def analize_backing_chains_outputs(array_out_err=[], path_to_write_json=None, pa
 def engine_restart():
     exit()
 
+def domain_status_from_started_to_unknown():
+    all_domains_started = get_all_domains_with_id_and_status(status='Started')
+    [update_domain_status('Unknown', d['id'], keep_hyp_id = True,
+                          detail=f"change from started to unknown")
+     for d in all_domains_started]
+
+def clean_started_without_hyp():
+    status_to_failed = 'Started','Stopping','Shutting-down'
+    all_domains = get_all_domains_with_id_status_hyp_started()
+    for d in all_domains:
+        if type(d.get('hyp_started',None)) is not str:
+            update_domain_status('Failed', d['id'],
+                                 detail=f"Failed, previous status not permitted without hyp_started")
+            logs.main.error(f'domain d["id"] was with status d["status"] in database but hyp_started has None Value')
+        elif len(d.get('hyp_started')) == 0:
+            update_domain_status('Failed', d['id'],
+                                 detail=f"Failed, previous status not permitted without hyp_started")
+            logs.main.error(f'domain d["id"] was with status d["status"] in database but hyp_started has None Value')
+
+def update_status_db_from_running_domains(hyp_obj):
+    hyp_obj.get_domains()
+
+
 def clean_intermediate_status(reason='engine is restarting',only_domain_id=None):
-    status_to_delete = [ 'Creating', 'CreatingAndStarting', 'CreatingDiskFromScratch','CreatingFromBuilder']
+    status_to_delete = ['Creating', 'CreatingAndStarting', 'CreatingDiskFromScratch','CreatingFromBuilder']
     status_to_failed = ['Updating','Deleting']
     status_to_stopped = ['Starting']
     status_to_started = ['Stopping','Shutting-down']
@@ -1107,12 +1130,12 @@ def clean_intermediate_status(reason='engine is restarting',only_domain_id=None)
 
     #To stopped
     [update_domain_status('Stopped', d['id'],
-                          detail=f"change status in domain domain {d['id']} from {d['status']} to Failed when {reason}") for d in
+                          detail=f"change status in domain domain {d['id']} from {d['status']} to Stopped when {reason}") for d in
     all_domains if d['status'] in status_to_stopped]
 
     #To started
-    [update_domain_status('Started', d['id'],
-                          detail=f"change status in domain domain {d['id']} from {d['status']} to Failed when {reason}") for d in
+    [update_domain_status('Started', d['id'], keep_hyp_id = True,
+                          detail=f"change status in domain domain {d['id']} from {d['status']} to Started when {reason}") for d in
     all_domains if d['status'] in status_to_started]
 
 def flatten_dict(d):
@@ -1150,3 +1173,5 @@ class QueuesThreads:
         self.workers = {}
         self.quit = False
         self.action = ''
+
+

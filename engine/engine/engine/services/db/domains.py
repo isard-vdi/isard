@@ -15,6 +15,11 @@ from engine.services.db import new_rethink_connection, \
 from engine.services.db.db import new_rethink_connection, close_rethink_connection
 from engine.services.db.domains_status import stop_last_domain_status
 
+STATUS_STABLE_DOMAIN_RUNNING = ['Started', 'ShuttingDown', 'Paused']
+ALL_STATUS_RUNNING=['Stopping', 'Started','Stopping','Shutting-down']
+STATUS_TO_UNKNOWN = ['Started', 'Paused', 'Shutting-down', 'Stopping', 'Unknown']
+STATUS_TO_STOPPED = ['Starting', 'CreatingTemplate']
+
 DEBUG_CHANGES = True if logs.changes.handlers[0].level <= 10 else False
 if DEBUG_CHANGES:
     import inspect
@@ -186,7 +191,7 @@ def update_domain_hyp_stopped(id_domain, status='Stopped'):
 
 
 def update_all_domains_status(reset_status='Stopped',
-                              from_status=['Starting', 'Stopping', 'Started','Shutdown','Shutting-down']):
+                              from_status=ALL_STATUS_RUNNING):
     r_conn = new_rethink_connection()
     if from_status is None:
         results = r.table('domains').update({'status': reset_status}).run(r_conn)
@@ -473,17 +478,13 @@ def set_unknown_domains_not_in_hyps(hyps):
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
 
-    status_to_unknown = ['Started', 'Paused', 'Shutting-down', 'Shutdown', 'Unknown']
-
-    l = list(rtable.filter(lambda d: r.expr(status_to_unknown).contains(d['status'])).
+    l = list(rtable.filter(lambda d: r.expr(STATUS_TO_UNKNOWN).contains(d['status'])).
              filter(lambda d: r.not_(r.expr(hyps).contains(d['hyp_started']))).
              update({'status': 'Unknown'}).
              run(r_conn)
              )
 
-    status_to_stopped = ['Starting', 'CreatingTemplate']
-
-    l = list(rtable.filter(lambda d: r.expr(status_to_stopped).contains(d['status'])).
+    l = list(rtable.filter(lambda d: r.expr(STATUS_TO_STOPPED).contains(d['status'])).
              filter(lambda d: r.not_(r.expr(hyps).contains(d['hyp_started']))).
              update({'status': 'Stopped'}).
              run(r_conn)
@@ -791,6 +792,24 @@ def get_all_domains_with_id_and_status(status=None, kind='desktop'):
     close_rethink_connection(r_conn)
     return l
 
+def get_all_domains_with_hyp_started(hyp_started_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    l = list(rtable.filter({'hyp_started': hyp_started_id}).pluck('id', 'status', 'hyp_started').run(r_conn))
+    close_rethink_connection(r_conn)
+    return l
+
+def get_all_domains_with_id_status_hyp_started(status=None, kind='desktop'):
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    if status is None:
+        l = list(rtable.filter({'kind': kind}).pluck('id', 'status',  'hyp_started').run(r_conn))
+    else:
+        l = list(rtable.filter({'kind': kind, 'status': status}).pluck('id', 'status', 'hyp_started').run(r_conn))
+    close_rethink_connection(r_conn)
+    return l
+
+
 
 def get_domains_from_user(user, kind='desktop'):
     r_conn = new_rethink_connection()
@@ -839,20 +858,8 @@ def update_domain_createing_template(id_domain, template_field, status='Creating
         {'template_json': template_field, 'status': status}).run(r_conn)
     close_rethink_connection(r_conn)
 
-
-def get_domains_started_in_hyp(hyp_id):
-    # TODO, ASEGURARNOS QUE LOS status DE LOS DOMINIOS ESTÁN EN start,unknown,paused
-    # no deberían tener hypervisor activo en otro estado, pero por si las moscas
-    # y ya de paso quitar eh hyp_started si queda alguno
-    r_conn = new_rethink_connection()
-    rtable = r.table('domains')
-
-    list_domain = list(rtable.get_all(hyp_id, index='hyp_started').pluck('id').run(r_conn))
-
-    l = [d['id'] for d in list_domain]
-    close_rethink_connection(r_conn)
-    return l
-
+####################################################################
+#CLEAN STATUS
 
 def update_domains_started_in_hyp_to_unknown(hyp_id):
     # TODO, ASEGURARNOS QUE LOS status DE LOS DOMINIOS ESTÁN EN start,unknown,paused
@@ -951,6 +958,27 @@ def domain_stopped_update_nvidia_uids_status(domain_id,hyp_id):
     close_rethink_connection(r_conn)
     return result
 
+
+
+
+def get_domains_started_in_hyp(hyp_id,only_started=False,only_unknown=False):
+    # TODO, ASEGURARNOS QUE LOS status DE LOS DOMINIOS ESTÁN EN start,unknown,paused
+    # no deberían tener hypervisor activo en otro estado, pero por si las moscas
+    # y ya de paso quitar eh hyp_started si queda alguno
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+
+    list_domain = list(rtable.get_all(hyp_id, index='hyp_started').pluck('id','status').run(r_conn))
+
+    if only_started is True:
+        d = {d['id']:d['status'] for d in list_domain if d['status'] in STATUS_STABLE_DOMAIN_RUNNING}
+    elif only_unknown is True:
+        d = {d['id']:d['status'] for d in list_domain if d['status'] in 'Unknown'}
+    else:
+        d = {d['id']:d['status'] for d in list_domain}
+
+    close_rethink_connection(r_conn)
+    return d
 def remove_fieds_when_stopped(id_domain, conn=False):
     if conn is False:
         r_conn = new_rethink_connection()

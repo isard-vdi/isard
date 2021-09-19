@@ -37,7 +37,8 @@ from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, upd
 from engine.services.log import *
 from engine.config import *
 from engine.services.lib.functions import exec_remote_cmd
-from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list
+from engine.services.lib.libvirt_dicts import virDomainState
+from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list, get_domains_started_in_hyp
 from engine.models.nvidia_models import NVIDIA_MODELS
 from engine.services.lib.functions import execute_commands
 
@@ -64,11 +65,12 @@ class hyp(object):
     """
     operates with hypervisor
     """
-    def __init__(self, address, user='root', port=22, capture_events=False, try_ssh_autologin=False):
+    def __init__(self, address, user='root', port=22, capture_events=False, try_ssh_autologin=False, hyp_id =None):
 
         # dictionary of domains
         # self.id = 0
         self.domains = {}
+        self.domains_states = {}
         port=int(port)
         if (type(port) == int) and port > 1 and port < pow(2, 16):
             self.port = port
@@ -85,7 +87,8 @@ class hyp(object):
         self.info = {}
         self.info_stats = {}
         self.capture_events = capture_events
-        self.id_hyp_rethink = None
+        self.id_hyp_rethink = hyp_id
+        self.hyp_id = hyp_id
         self.has_nvidia = False
         self.gpus = {}
 
@@ -309,6 +312,8 @@ class hyp(object):
         except libvirt.libvirtError as e:
             logs.workers.error(f'Exception when get qemu_version in hyp {self.id_hyp_rethink}: {e}')
             self.info['qemu_version'] = '0.0.0'
+
+
 
         inf = self.conn.getInfo()
         self.info['arch'] = inf[0]

@@ -15,9 +15,12 @@ from libvirt import VIR_DOMAIN_START_PAUSED, libvirtError
 from libvirt import VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN
 
 from engine.models.hyp import hyp
-from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, get_hyp_status, \
-    update_domains_started_in_hyp_to_unknown, update_table_field, get_engine, update_domain_hw_stats, update_info_nvidia_hyp_domain
-from engine.services.lib.functions import get_tid, exec_remote_list_of_cmds_dict, engine_restart
+from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, \
+    get_hyp_status, \
+    update_domains_started_in_hyp_to_unknown, update_table_field, get_engine, update_domain_hw_stats, \
+    update_info_nvidia_hyp_domain, get_all_domains_with_id_status_hyp_started, get_domains_started_in_hyp
+from engine.services.lib.functions import get_tid, exec_remote_list_of_cmds_dict, engine_restart, \
+    update_status_db_from_running_domains
 from engine.services.log import logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_action_disk, RETRIES_HYP_IS_ALIVE, \
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE, launch_delete_media, launch_killall_curl
@@ -50,7 +53,7 @@ class HypWorkerThread(threading.Thread):
             port = int(port)
             self.hostname = host
             try:
-                self.h = hyp(self.hostname, user=user, port=port)
+                self.h = hyp(self.hostname, user=user, port=port, hyp_id=self.hyp_id)
                 if self.h.conn.isAlive() == 1:
                     # TRY IF SSH COMMAND RUN:
                     cmds = [{'cmd': 'uname -a'}]
@@ -62,6 +65,9 @@ class HypWorkerThread(threading.Thread):
                         if len(output) > 0:
                             #TEST OK
                             launch_killall_curl(self.hostname, user, port)
+                            # UPDATE DOMAIN STATUS
+                            self.h.update_domain_coherence_in_db()
+
                             update_hyp_thread_status('worker', self.hyp_id, 'Started')
                             self.q_event_register.put({'type': 'add_hyp_to_receive_events', 'hyp_id': self.hyp_id})
 
@@ -102,7 +108,6 @@ class HypWorkerThread(threading.Thread):
                                              "support (named VT-x for Intel processors and AMD-V for AMD processors). " +
                                              "Check CPU capabilities and enable virtualization support in your BIOS.")
                     self.stop = True
-
 
         while self.stop is not True:
             try:
@@ -348,6 +353,9 @@ class HypWorkerThread(threading.Thread):
 
                     pass
 
+                elif action['type'] == 'update_status_db_from_running_domains':
+                    update_status_db_from_running_domains(self.h)
+
 
                 elif action['type'] == 'hyp_info':
 
@@ -367,9 +375,8 @@ class HypWorkerThread(threading.Thread):
 
             except queue.Empty:
                 try:
+                    self.h.conn.isAlive()
                     self.h.conn.getLibVersion()
-                    pass
-                    # logs.workers.debug('hypervisor {} is alive'.format(host))
                 except:
                     logs.workers.info('trying to reconnect hypervisor {}, alive test in working thread failed'.format(host))
                     alive = False
@@ -387,6 +394,8 @@ class HypWorkerThread(threading.Thread):
                         try:
                             self.h.connect_to_hyp()
                             self.h.conn.getLibVersion()
+                            # UPDATE DOMAIN STATUS
+                            self.h.update_domain_coherence_in_db()
                             update_hyp_status(self.hyp_id, 'Online')
                         except:
                             logs.workers.debug('hypervisor {} failed'.format(host))
@@ -397,7 +406,7 @@ class HypWorkerThread(threading.Thread):
                                 update_hyp_status(self.hyp_id, 'Error', reason)
                             update_domains_started_in_hyp_to_unknown(self.hyp_id)
 
-                            list_works_in_queue = list(self.queue_actions.queue)
+                            #list_works_in_queue = list(self.queue_actions.queue)
                             logs.workers.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
                             self.error = True
                             self.stop = True

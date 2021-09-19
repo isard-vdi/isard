@@ -29,7 +29,8 @@ from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_
     set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain, \
     get_hypers_ids_with_status, delete_table_item
 from engine.services.db.domains import update_domain_status, update_domain_start_after_created, update_domain_delete_after_stopped
-from engine.services.lib.functions import get_threads_running, get_tid, engine_restart
+from engine.services.lib.functions import get_threads_running, get_tid, engine_restart, clean_started_without_hyp, \
+    domain_status_from_started_to_unknown
 from engine.services.lib.qcow import test_hypers_disk_operations
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
@@ -133,11 +134,12 @@ class Engine(object):
             # to Failed, Stopped or Delete
             clean_intermediate_status()
 
-            l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
-            # while len(l_hyps_to_test) == 0:
-            #     logs.main.error('no hypervisor enable, waiting for one hypervisor')
-            #     sleep(0.5)
-            #     l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
+            # if domains have no hyp_started if status if Started, Stopping... must be Failed
+            clean_started_without_hyp()
+
+            # now, all domains that has started change to Unknown waiting to hypervisor online that will change
+            # to Started/Stopped...
+            domain_status_from_started_to_unknown()
 
             l_old_threads_running = False
             threads_running = False

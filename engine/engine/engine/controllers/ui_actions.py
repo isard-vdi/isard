@@ -857,8 +857,16 @@ class UiActions(object):
 
         update_table_field('domains', id_domain, 'xml', xml_from)
 
+        try:
+            xml_raw = update_xml_from_dict_domain(id_domain)
+        except Exception as e:
+            logs.main.info(f'Exception updating xml from dict_domain: {e}')
+            update_domain_status(status='FailedCreatingDomain',
+                                 id_domain=id_domain,
+                                 detail='XML Parser Error, xml is not valid')
+            logs.main.error('##### Traceback: \n .{} \n######'.format(traceback.format_exc()))
+            return False
 
-        xml_raw = update_xml_from_dict_domain(id_domain)
         if xml_raw is False:
             update_domain_status(status='FailedCreatingDomain',
                                  id_domain=id_domain,

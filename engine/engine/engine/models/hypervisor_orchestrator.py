@@ -13,18 +13,24 @@ import pprint
 import os
 import traceback
 
+import socket
 from rethinkdb import r
 
+from engine.config import CONFIG_DICT
 from engine.controllers.events_recolector import launch_thread_hyps_event
 from engine.controllers.status import launch_thread_status
 from engine.models.pool_hypervisors import PoolHypervisors
 from engine.services.db.db import new_rethink_connection, \
     get_pools_from_hyp, update_table_field
-from engine.services.db.hypervisors import get_hypers_enabled_with_capabilities_status, get_hyps_ready_to_start, get_hypers_disk_operations, update_hyp_status, \
-    get_hyp_hostname_user_port_from_id, update_all_hyps_status, get_hyps_with_status, get_max_hyp_number, update_hyp_thread_status, get_hypers_ids_with_status
+from engine.services.db.hypervisors import get_hypers_enabled_with_capabilities_status, get_hyps_ready_to_start, \
+    get_hypers_disk_operations, update_hyp_status, \
+    get_hyp_hostname_user_port_from_id, update_all_hyps_status, get_hyps_with_status, get_max_hyp_number, \
+    update_hyp_thread_status, get_hypers_ids_with_status, get_hyp_hostname_from_id
 from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_created, \
-    set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain
-from engine.services.lib.functions import get_threads_running, get_tid, engine_restart, exec_remote_list_of_cmds_dict
+    set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain, \
+    update_domains_started_in_hyp_to_unknown
+from engine.services.lib.functions import get_threads_running, get_tid, engine_restart, exec_remote_list_of_cmds_dict, \
+    try_socket
 from engine.services.lib.qcow import test_hypers_disk_operations
 from engine.services.log import logs
 from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
@@ -205,10 +211,11 @@ class HypervisorsOrchestratorThread(threading.Thread):
                     pass
 
                 if action['type'] == 'enable_hyper':
-                    self.start_hyper_threads(action['hyp_id'],
-                                             action['capabilities'],
-                                             action['status'],
-                                             action['thread_status'])
+                    if action['status'] in ['Error', 'Offline']:
+                        self.start_hyper_threads(action['hyp_id'],
+                                                 action['capabilities'],
+                                                 action['status'],
+                                                 action['thread_status'])
 
                 if action['type'] == 'disable_hyper':
                     self.disable_hyper(action['hyp_id'],
@@ -221,6 +228,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
             except queue.Empty:
                 self.check_hyps_from_database()
+
                 pass
 
             except Exception as e:
@@ -236,6 +244,8 @@ class HypervisorsOrchestratorThread(threading.Thread):
         #status = get_hyp_status(hyp_id)
         if status == 'Online':
             update_hyp_status(hyp_id, 'Offline')
+
+        update_domains_started_in_hyp_to_unknown(hyp_id)
 
         if hyp_id in self.t_workers.keys():
             if thread_status['worker'] == 'Started':
@@ -265,17 +275,32 @@ class HypervisorsOrchestratorThread(threading.Thread):
             capabilities = d_hyp['capabilities']
             status = d_hyp['status']
             thread_status = d_hyp.get('thread_status',{})
-            self.start_hyper_threads(hyp_id,capabilities,status,thread_status)
+            #if status in Error or Offline start threads
+            if status in ['Error', 'Offline']:
+                self.start_hyper_threads(hyp_id,capabilities,status,thread_status)
+            else:
+                self.try_hyp_and_threads_alive(hyp_id)
+            #try
+
+    def try_hyp_and_threads_alive(self,hyp_id):
+        #try dns resolution
+        hostname, port, user = get_hyp_hostname_from_id(hyp_id)
+        try:
+            self.ip = socket.gethostbyname(hostname)
+        except:
+            logs.main.error(f'not resolving ip for hostname: {hyp_id}')
+
+        timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
+        socket_ok = try_socket(hostname, port, timeout)
 
     def start_hyper_threads(self,hyp_id,capabilities,status,thread_status):
-        if status in ['Error', 'Offline']:
-            logs.main.debug(f'hypervisor finded in database as hyper enabled and ready to start: try to add hyper {hyp_id} from status {status}')
-            if capabilities.get('hypervisor',False) is True and thread_status.get('worker','Stopped') == 'Stopped':
-                self.activate_hyp(hyp_id)
-            if capabilities.get('disk_operations',False) is True \
-                    and thread_status.get('disk_operations','Stopped') == 'Stopped' \
-                    and thread_status.get('long_operations','Stopped') == 'Stopped':
-                self.activate_disk_long_operations(hyp_id)
+        logs.main.debug(f'hypervisor finded in database as hyper enabled and ready to start: try to add hyper {hyp_id} from status {status}')
+        if capabilities.get('hypervisor',False) is True and thread_status.get('worker','Stopped') == 'Stopped':
+            self.activate_hyp(hyp_id)
+        if capabilities.get('disk_operations',False) is True \
+                and thread_status.get('disk_operations','Stopped') == 'Stopped' \
+                and thread_status.get('long_operations','Stopped') == 'Stopped':
+            self.activate_disk_long_operations(hyp_id)
 
     def activate_disk_long_operations(self,hyp_id,timeout=10):
         d = get_hyp_hostname_user_port_from_id(hyp_id)
