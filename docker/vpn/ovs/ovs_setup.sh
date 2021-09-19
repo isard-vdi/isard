@@ -22,6 +22,7 @@ dhcp-authoritative
 dhcp-lease-max=490
 dhcp-hostsfile=/var/lib/ovs-vlan-wg.hostsfile
 dhcp-option=121,10.0.0.0/14,10.2.0.1
+dhcp-option=26,1366
 #dhcp-option=vlan-wg,3,10.2.0.1
 dhcp-script=/dnsmasq-hook/update-client-ips.sh
 dhcp-leasefile=/var/lib/misc/vlan-wg.leases
