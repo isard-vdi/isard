@@ -6,6 +6,7 @@ FROM golang:1.16-alpine as build
 RUN apk add --no-cache \
     git \
     musl-dev \
+    build-base \
     pkgconfig \
     libvirt-dev
 
