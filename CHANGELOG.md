@@ -2,19 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
-## [3.1.13] - 2021-09.20
+## [3.1.15] - 2021-09-20
+
+### FIXED
+
+- Filter media by term
+
+## [3.1.14] - 2021-09-20
+
+### FIXED
+
+- Access to media when on desktop modal
+
+## [3.1.13] - 2021-09-20
 
 ### FIXED
 
 - Removed nginx cache to improve client performance
 
-## [3.1.12] - 2021-09.20
+## [3.1.12] - 2021-09-20
 
 ### FIXED
 
 - Fixed bug when showing multiple times the guest IP in viewers modal
 
-## [3.1.11] - 2021-09.17
+## [3.1.11] - 2021-09-17
 
 ### FIXED
 
