@@ -106,7 +106,7 @@ function setViewerButtons(data,socket,offer){
             html=br+html+prehtml+'<button data-pk="'+data.id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
     })
     if (data.create_dict.hardware.interfaces.includes("wireguard")) {
-        html+=prehtml+'<div id="vpn-ip" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa network-wired"></i> Desktop IP: </div>'+posthtml
+        html+=prehtml+'<div id="vpn-ip" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): </div>'+posthtml
     }
     $('#viewer-buttons').html(html);
     loading='<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>'
@@ -130,7 +130,7 @@ function setViewerButtons(data,socket,offer){
 }
 
 function viewerButtonsIP(ip){
-    $('#vpn-ip').append(ip)
+    $('#vpn-ip').html('<i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via vpn): '+ip)
     $('#vpn-ip i.fa-spinner').remove()
     $('#viewer-buttons button[data-type="rdp"]').prop("disabled", false)
     $('#viewer-buttons button[data-type="rdp"] i.fa-spinner').remove()

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.12] - 2021-09.20
+
+### FIXED
+
+- Fixed bug when showing multiple times the guest IP in viewers modal
+
 ## [3.1.11] - 2021-09.17
 
 ### FIXED
