@@ -1,10 +1,13 @@
-# Isard main config v0.2
+# Isard main config v0.3
 
 ## This server main domain/ip reacheable from other hosts
 DOMAIN=localhost
 
 ## Where the api can be reached from this host (usually your main isard install)
 ## API_DOMAIN=
+
+## Initial WEB admin user password
+WEBAPP_ADMIN_PWD=IsardVDI
 
 ## Frontend Administration Button
 ## With this variable you can control if there is a button in the simplified
@@ -13,21 +16,12 @@ DOMAIN=localhost
 ## False (or variable not defined): don't show the button
 FRONTEND_SHOW_ADMIN_BTN=True
 
-## Generate your own!:
+## Generate your own SECRETS!:
 ## openssl rand -base64 32
 WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
-
-## Generate your own!:
-## openssl rand -base64 32
 API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
-
 INFLUXDB_ADMIN_TOKEN_SECRET=9eFW/Qi29hL3hFGUP8wIGH89XKCH8s1k0il44GCRF2g=
-## Generate your own!:
-## openssl rand -base64 32
 API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
-
-## Initial WEB admin user password
-WEBAPP_ADMIN_PWD=IsardVDI
 
 # WEBAPP CERTIFICATES
 ## You can use your own certificates if you concatenate into 
@@ -35,14 +29,11 @@ WEBAPP_ADMIN_PWD=IsardVDI
 ## You can let isard generate autosigned certs (not recommended as
 ## html5 viewers will not work.
 ## Or you can let isard generate letsencrypt certs for your domain.
-## For this option to work be sure the domain points to this IP.
-## To avoid using letsencrypt set it to defaults enpty.
-## Note: if this only an hypervisor you should only set VIDEO_LETSENCRYPT
-##       variables down this file.
-#WEBAPP_LETSENCRYPT_DNS=your.domain.com
-#WEBAPP_LETSENCRYPT_EMAIL=info@domain.com
-WEBAPP_LETSENCRYPT_DNS=
-WEBAPP_LETSENCRYPT_EMAIL=
+## For this option to work be sure the DOMAIN points to this IP.
+## To avoid using letsencrypt let this variable commented.
+## The email will be used by letsencrypt to notify you expirations
+## although the renovation will be automatic.
+LETSENCRYPT_EMAIL=
 
 # GRAFANA
 ## Set grafana URl to your domain or IP
@@ -172,31 +163,6 @@ WG_INTERFACE=eth1
 ##       old cgroups add to /etc/default/grub:
 ##        GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"
 ##       and update-grub, and reboot.
-
-###################### Hypervisor video proxy
-
-## It should be the reacheable domain or IP for the video server
-## for this hypervisor.
-## Only modify it if this is an hypervisor with video or if this
-## is an standalone video host.
-## Defaults to localhost
-#VIDEO_DOMAIN=localhost
-
-## Only set this to different LETSENCRYPT domain if you are using
-## two different dns for web & hypervisor on the same host and you
-## want to use letsencrypt! (or this is a separate host with video)
-## If hypervisor domain is different from web domain then you can use
-## your own certificates concatenated in /opt/isard/certs/default/chain.pem
-## or set here your hypervisor domain name to let isard generate
-## letsencrypt certificate
-## Do not set if you don't know what you are doing.
-## Default empty
-## Set only this environment variables if you are setting an hypervisor
-## with video proxy or a video only proxy on a different host.
-# VIDEO_LETSENCRYPT_DNS=your.video.domain.com
-# VIDEO_LETSENCRYPT_EMAIL=info@domain.com
-VIDEO_LETSENCRYPT_DNS=
-VIDEO_LETSENCRYPT_EMAIL=
 
 ###################### ENGINE config
 
