@@ -46,7 +46,7 @@ func New() Cfg {
 func setDefaults() {
 	viper.BindEnv("domain", "DOMAIN")
 	viper.BindEnv("influxdb.host", "INFLUXDB_HOST")
-	viper.BindEnv("influxdb.token", "INFLUXDB_ADMIN_TOKEN")
+	viper.BindEnv("influxdb.token", "INFLUXDB_ADMIN_TOKEN_SECRET")
 	viper.BindEnv("influxdb.org", "STATS_INFLUXDB_ORG")
 
 	viper.SetDefault("influxdb", map[string]interface{}{
