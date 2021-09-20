@@ -600,20 +600,27 @@ class isard():
 
 
 
-    def get_all_alloweds_domains(self, user):
+    def get_all_alloweds_domains(self, userid):
         with app.app_context():
-            ud=r.table('users').get(user).run(db.conn)
+            ud=r.table('users').get(userid).run(db.conn)
+            # data = list(r.db('isard').table("domains").filter(r.row['kind'].match("template"))
+            #         .eq_join("user", r.db('isard').table("users"))
+            #         .without({"right": {"id": True}})
+            #         .pluck({"right" : "role"}, "left")
+            #         .zip()
+            #         .pluck('id','name','allowed','kind','group','role','icon','category','user','description','status')
+            #         .order_by('name')
+            #         .run(db.conn))
             data = list(r.db('isard').table("domains").filter(r.row['kind'].match("template"))
-                    .eq_join("user", r.db('isard').table("users"))
-                    .without({"right": {"id": True}})
-                    .pluck({"right" : "role"}, "left")
-                    .zip()
                     .pluck('id','name','allowed','kind','group','role','icon','category','user','description','status')
                     .order_by('name')
                     .run(db.conn))
         alloweds=[]
         for d in data:
-            d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
+            try:
+                d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
+            except:
+                d['username']='X '+d['user']
             if ud['role']=='admin': 
                 alloweds.append(d)
                 continue
@@ -651,7 +658,7 @@ class isard():
                 else:
                     if ud['id'] in d['allowed']['users']:
                         alloweds.append(d)
-                        continue   
+                        continue
         return alloweds
         
     def get_all_alloweds_table(self, table, userid, pluck='default'):
@@ -673,6 +680,10 @@ class isard():
             data = [i for n, i in enumerate(data) if i not in data[n + 1:]]
             allowed_data=[]
             for d in data:
+                try:
+                    d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
+                except:
+                    d['username']='X '+d['user']
                 # Who belongs this resource (table)
                 if userid == d['user']:
                     allowed_data.append(d)
@@ -814,7 +825,6 @@ class isard():
                         # False doesn't check, [] means all allowed
                         # Role is the master and user the least. If allowed in roles,
                         #   won't check categories, groups, users
-                        allowed=d['allowed']
                         if d['allowed']['roles'] != False:
                             if not d['allowed']['roles']:  # Len != 0
                                 if delete_allowed_key: d.pop('allowed', None)
