@@ -4,7 +4,9 @@
 FROM golang:1.16-alpine as build
 
 RUN apk add --no-cache \
-    git
+    git \
+    pkgconfig \
+    libvirt-dev
 
 WORKDIR /build
 
@@ -34,6 +36,7 @@ RUN apk add --no-cache \
     openssh-client \
     sshpass \
     socat \
+    pkgconfig \
     libvirt-dev
 
 COPY --from=build /build/stats/bin/stats /stats
