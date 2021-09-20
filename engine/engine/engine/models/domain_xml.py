@@ -777,11 +777,11 @@ class DomainXML(object):
                         print('ORDER NUM:'+str(order_num)+' REMAINING:'+str(remaining))
                         self.tree.xpath(xpath)[remaining-1].getparent().remove(self.tree.xpath(xpath)[remaining-1])
                         remaining = len(self.tree.xpath(xpath))
-                    return True                 
+                    return True
                 l = len(self.tree.xpath(xpath))
                 if order_num >= -1 and order_num < l:
                     self.tree.xpath(xpath)[order_num].getparent().remove(self.tree.xpath(xpath)[order_num])
-                    return True                   
+                    return True
                 else:
                     log.debug('index error in remove_device function')
             else:
@@ -1111,15 +1111,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     """ for interface_index in range(len(v.vm_dict['interfaces'])):
         v.(order=interface_index) """
 
-    if 'interfaces' in hw.keys():
-        for d_interface in hw['interfaces']:
-            v.add_interface(type_interface=d_interface['type'],
-                            mac=d_interface['mac'],
-                            id_interface=d_interface['id'],
-                            id_domain=id_domain,
-                            model_type=d_interface['model'],
-                            net = d_interface['net'],
-                            qos = d_interface.get('qos',False))
+    recreate_xml_interfaces(d, v)
 
     v.set_vcpu(hw['vcpus'])
     v.set_video_type(hw['video']['type'])
@@ -1215,7 +1207,7 @@ def populate_dict_hardware_from_create_dict(id_domain):
         update_domain_dict_create_dict(id_domain,create_dict)
 
     new_hardware_dict['interfaces'] = create_list_interfaces_from_list_ids(list_interfaces_id,list_interfaces_mac)
-    d_netnames_mac = {'macs':{d['original_id']:d['mac'] for d in new_hardware_dict['interfaces']}}
+    d_netnames_mac = {'macs':{d['id']:d['mac'] for d in new_hardware_dict['interfaces']}}
     d_netnames_mac_reset = {'macs':False}
     update_table_field('domains',id_domain,'create_dict',d_netnames_mac_reset)
     update_table_field('domains',id_domain,'create_dict',d_netnames_mac)
@@ -1265,8 +1257,7 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
                 #remove elements with zero
                 dict_bandwidth = pop_key_if_zero(dict_bandwidth)
                 return {'type': dict_net['kind'],
-                        'id': dict_net['ifname'],
-                        'original_id':dict_net['id'],
+                        'id': dict_net['id'],
                         'name': dict_net['name'],
                         'model': dict_net['model'],
                         'net': dict_net['net'],
@@ -1277,8 +1268,7 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
         except:
             log.error(f'net qos with id {qos_id} not defined in dict_qos table')
     return {'type': dict_net['kind'],
-            'id': dict_net['ifname'],
-            'original_id':dict_net['id'],
+            'id': dict_net['id'],
             'name': dict_net['name'],
             'model': dict_net['model'],
             'net': dict_net['net'],
@@ -1340,6 +1330,33 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     #add vlc access
     x.add_vlc_with_websockets()
 
+    #recreate xml interfaces from create_dict
+    recreate_xml_interfaces(dict_domain, x)
+
+    x.remove_selinux_options()
+
+    #remove boot order in disk definition that conflict with /os/boot order in xml
+    x.remove_boot_order_and_danger_options_from_disks()
+
+    x.dict_from_xml()
+    if dict_domain['hardware']['video']['type'].find('nvidia') == 0:
+        x.vm_dict['video'] = dict_domain['hardware']['video'].copy()
+    # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
+    update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
+    if 'viewer_passwd' in x.__dict__.keys():
+        #update password in database
+        update_domain_viewer_started_values(id_domain, passwd=x.viewer_passwd)
+        log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id_domain))
+
+    xml = x.return_xml()
+    # log.debug('#####################################################')
+    # log.debug(xml)
+    # log.debug('#####################################################')
+
+    return xml
+
+def recreate_xml_interfaces(dict_domain,x):
+    id_domain = dict_domain['id']
     # redo network
     try:
         list_interfaces = dict_domain['create_dict']['hardware']['interfaces']
@@ -1398,28 +1415,6 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
                         mac=mac_selected)
 
         interface_index += 1
-
-    x.remove_selinux_options()
-
-    #remove boot order in disk definition that conflict with /os/boot order in xml
-    x.remove_boot_order_and_danger_options_from_disks()
-
-    x.dict_from_xml()
-    if dict_domain['hardware']['video']['type'].find('nvidia') == 0:
-        x.vm_dict['video'] = dict_domain['hardware']['video'].copy()
-    # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
-    update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
-    if 'viewer_passwd' in x.__dict__.keys():
-        #update password in database
-        update_domain_viewer_started_values(id_domain, passwd=x.viewer_passwd)
-        log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id_domain))
-
-    xml = x.return_xml()
-    # log.debug('#####################################################')
-    # log.debug(xml)
-    # log.debug('#####################################################')
-
-    return xml
 
 def recreate_xml_if_gpu(id_domain,xml,next_hyp,extras,remove_graphics=False):
     xml = xml

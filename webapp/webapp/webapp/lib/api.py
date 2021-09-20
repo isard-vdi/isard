@@ -176,7 +176,7 @@ class isard():
                         if exceeded != False:
                             return json.dumps({'title':'Quota exceeded','text':item+' '+dom['name']+' can\'t be started. '+exceeded,'icon':'warning','type':'warning'}), 500, {'Content-Type':'application/json'}
 
-                        self.auto_interface_set(user,data['pk'],remote_addr)
+                        #self.auto_interface_set(user,data['pk'],remote_addr)
                         if 'ephimeral' in dom.keys():
                             try:
                                 trigger=list(r.table('scheduler_jobs').filter({'action':'check_ephimeral_status'}).run(db.conn))[0]
