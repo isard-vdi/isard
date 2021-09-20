@@ -276,6 +276,10 @@ class isard():
             domains+=list(r.table('domains').get_all(tag['id'], index='tag').without('xml','history_domain','allowed').run(db.conn))
         return domains
 
+    def get_user_media(self, userid):
+        with app.app_context():
+            return list(r.table('media').get_all(userid, index='user').run(db.conn))
+
     def get_domain(self, id, human_size=False, flatten=True):
         #~ Should verify something???
         with app.app_context():
@@ -389,7 +393,7 @@ class isard():
             except:
                 return False
 
-    def get_login_path():
+    def get_login_path(self):
         with app.app_context():
             category = (
                 r.table("categories")
@@ -650,40 +654,30 @@ class isard():
                         continue   
         return alloweds
         
-    def get_all_alloweds_table(self, table, user, pluck='default'):
+    def get_all_alloweds_table(self, table, userid, pluck='default'):
         if pluck == 'default':
             pluck=['id','name','allowed','kind','icon','description']
         if pluck != False:
             if 'user' not in pluck: pluck.append('user')
-            if 'allowed' not in pluck: pluck.append('allowed')            
+            if 'allowed' not in pluck: pluck.append('allowed')
         with app.app_context():
-            ud=r.table('users').get(user).run(db.conn)
+            ud=r.table('users').get(userid).run(db.conn)
             delete_allowed_key=False
             if pluck != False:
-                data1 = r.table(table).get_all(user, index='user').order_by('name').pluck(pluck).run(db.conn)
+                data1 = r.table(table).get_all(userid, index='user').order_by('name').pluck(pluck).run(db.conn)
                 data2 = r.table(table).filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck(pluck).run(db.conn)
             else:
-                data1 = r.table(table).get_all(user, index='user').order_by('name').run(db.conn)
+                data1 = r.table(table).get_all(userid, index='user').order_by('name').run(db.conn)
                 data2 = r.table(table).filter(lambda d: d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').run(db.conn)
             data=data1+data2
             data = [i for n, i in enumerate(data) if i not in data[n + 1:]]
             allowed_data=[]
             for d in data:
                 # Who belongs this resource (table)
-                userdata = r.table('users').get(d['user']).run(db.conn)
-                if userdata == None:
-                    ## The resource belongs to a user that does not exist (media, etc...)
-                    ## For now we will just show it to admin/managers that will get access
-                    if ud['role'] in ['admin','manager']:
-                        allowed_data.append(d)
-                        continue
-                    else:
-                        continue
-                d['username']=userdata['name']
-
-                if d['user']==user:
+                if userid == d['user']:
                     allowed_data.append(d)
                     continue
+
                 # False doesn't check, [] means all allowed
                 # Role is the master and user the least. If allowed in roles,
                 #   won't check categories, groups, users
@@ -720,69 +714,70 @@ class isard():
                         if delete_allowed_key: d.pop('allowed', None)
                         allowed_data.append(d)
                         continue
-                    if user in d['allowed']['users']:
+                    if userid in d['allowed']['users']:
                         if delete_allowed_key: d.pop('allowed', None)
                         allowed_data.append(d)
             return allowed_data
 
-    def get_all_table_allowed_term(self, table, kind, field, value, user, pluck='default'):
+    def get_all_table_allowed_term(self, table, kind, field, value, userid, pluck='default'):
         if pluck == 'default':
             pluck=['id','name','allowed','kind','icon','user','description']
         if pluck != False:
             if 'user' not in pluck: pluck.append('user')
             if 'allowed' not in pluck: pluck.append('allowed')
         with app.app_context():
-            ud=r.table('users').get(user).run(db.conn)
+            ud=r.table('users').get(userid).run(db.conn)
             delete_allowed_key=False
             if pluck != False:
-                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user'] is user or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck(pluck).run(db.conn)
+                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user'] is userid or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck(pluck).run(db.conn)
             else:
-                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user']==user or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').run(db.conn)
+                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user']==userid or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').run(db.conn)
             allowed_data=[]
             for d in data:
-                        d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
-                        if d['user']==user:
-                            allowed_data.append(d)
-                            continue
-                        # False doesn't check, [] means all allowed
-                        # Role is the master and user the least. If allowed in roles,
-                        #   won't check categories, groups, users
-                        #~ allowed=d['allowed']
-                        if d['allowed']['roles'] != False:
-                            if not d['allowed']['roles']:  # Len != 0
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['role'] in d['allowed']['roles']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['categories'] != False:
-                            if not d['allowed']['categories']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['category'] in d['allowed']['categories']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['groups'] != False:
-                            if not d['allowed']['groups']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if ud['group'] in d['allowed']['groups']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                        if d['allowed']['users'] != False:
-                            if not d['allowed']['users']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
-                                continue
-                            if user in d['allowed']['users']:
-                                if delete_allowed_key: d.pop('allowed', None)
-                                allowed_data.append(d)
+                # Who belongs this resource (table)
+                if userid == d['user']:
+                    allowed_data.append(d)
+                    continue
+
+                # False doesn't check, [] means all allowed
+                # Role is the master and user the least. If allowed in roles,
+                #   won't check categories, groups, users
+                #~ allowed=d['allowed']
+                if d['allowed']['roles'] != False:
+                    if not d['allowed']['roles']:  # Len != 0
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if ud['role'] in d['allowed']['roles']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                if d['allowed']['categories'] != False:
+                    if not d['allowed']['categories']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if ud['category'] in d['allowed']['categories']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                if d['allowed']['groups'] != False:
+                    if not d['allowed']['groups']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if ud['group'] in d['allowed']['groups']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                if d['allowed']['users'] != False:
+                    if not d['allowed']['users']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
+                        continue
+                    if userid in d['allowed']['users']:
+                        if delete_allowed_key: d.pop('allowed', None)
+                        allowed_data.append(d)
             return allowed_data
             
         
