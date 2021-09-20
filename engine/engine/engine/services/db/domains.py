@@ -969,7 +969,7 @@ def get_and_update_personal_vlan_id_from_domain_id(id_domain, id_interface, rang
         filter((r.row["status"] == 'Started') | (r.row["status"] == 'Shutting-down')).pluck('id').run(r_conn))
     vlan_id = False
     if len(desktops_up) > 0:
-        create_dict = r.table('domains').get(desktops_up[0]['id']).pluck('create_dict').run(r_conn)
+        create_dict = r.table('domains').get(desktops_up[0]['id']).pluck('create_dict').run(r_conn)['create_dict']
         if create_dict.get('personal_vlans',False) is not False:
             if id_interface in create_dict['personal_vlans'].keys():
                 tmp_vlan_id = create_dict['personal_vlans'][id_interface]
