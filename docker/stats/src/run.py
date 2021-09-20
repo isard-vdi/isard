@@ -5,7 +5,7 @@ from stats import HypStats
 
 hyp_hostname = os.environ.get('STATS_HYP_HOSTNAME', 'isard-hypervisor')
 hyp_user = os.environ.get('STATS_HYP_USER', 'root')
-hyp_port = int(os.environ.get('STATS_HYP_PORT', 22))
+hyp_port = int(os.environ.get('STATS_HYP_PORT', 2022))
 
 send_to_influx = True if os.environ.get('STATS_SEND_TO_INFLUX', 'true') == 'true' else False
 send_shutdown_if_no_viewer = True if os.environ.get('STATS_SEND_SHUTDOWN_IF_NO_VIEWER', 'true') == 'true' else False

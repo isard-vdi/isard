@@ -26,7 +26,8 @@ RUN apk del .build_deps
 
 RUN apk add util-linux \
     openssh-client \
-    sshpass
+    sshpass \
+    socat
 
 ADD docker/stats/src /src
 WORKDIR /src
