@@ -22,3 +22,18 @@ services:
       - /opt/isard/database:/mnt/database:ro
     env_file:
       - .env
+
+  isard-stats-go:
+    container_name: isard-stats-go
+    image: ${DOCKER_IMAGE_PREFIX}stats-go:${DOCKER_IMAGE_TAG-latest}
+    logging:
+      options:
+        max-size: "100m"
+    networks:
+      - isard-network:
+          ipv4_address: ${DOCKER_NET}.28
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env

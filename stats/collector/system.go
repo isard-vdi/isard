@@ -51,9 +51,15 @@ func (s *System) collectCPU() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("collect cpu stats: %w", err)
 	}
 
+	usage, err := cpu.Percent(5*time.Second, false)
+	if err != nil {
+		return nil, fmt.Errorf("collect cpu usage: %w", err)
+	}
+
 	return map[string]interface{}{
 		"cpu_cores":     info[0].Cores,
 		"cpu_threads":   len(info),
 		"cpu_frequency": info[0].Mhz,
+		"cpu_usage":     usage[0],
 	}, nil
 }
