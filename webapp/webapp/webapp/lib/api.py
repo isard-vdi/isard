@@ -740,15 +740,11 @@ class isard():
             ud=r.table('users').get(userid).run(db.conn)
             delete_allowed_key=False
             if pluck != False:
-                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user'] is userid or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck(pluck).run(db.conn)
+                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d[field].match('(?i)'+value)).filter(lambda d: d['user'] is userid or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').pluck(pluck).run(db.conn)
             else:
-                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d['user']==userid or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').run(db.conn)
+                data = r.table(table).get_all(kind, index='kind').filter(lambda d: d[field].match('(?i)'+value)).filter(lambda d: d['user'] is userid or d['allowed']['roles'] is not False or d['allowed']['groups'] is not False or d['allowed']['categories'] is not False or d['allowed']['users'] is not False).order_by('name').run(db.conn)
             allowed_data=[]
             for d in data:
-                try:
-                    d['username']=r.table('users').get(d['user']).pluck('name').run(db.conn)['name']
-                except:
-                    d['username']='X '+d['user']
                 # Who belongs this resource (table)
                 if userid == d['user']:
                     allowed_data.append(d)
@@ -1234,7 +1230,7 @@ class isard():
                     yield key, value
         return dict(items())
 
-    def unflatten_dict(dictionary):
+    def unflatten_dict(self,dictionary):
         resultDict = dict()
         for key, value in dictionary.items():
             parts = key.split("-")
