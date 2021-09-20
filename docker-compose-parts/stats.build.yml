@@ -5,3 +5,8 @@ services:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/stats/Dockerfile
       target: production
+
+  isard-stats-go:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: stats/build/package/Dockerfile
