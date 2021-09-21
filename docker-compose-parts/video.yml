@@ -8,11 +8,11 @@ services:
         max-size: "100m"
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET}.22
+        ipv4_address: ${DOCKER_NET:-172.18.255}.22
     ports:
-      - published: ${VIEWER_SPICE}
+      - published: ${VIEWER_SPICE:-80}
         target: 80
-      - published: ${VIEWER_BROWSER}
+      - published: ${VIEWER_BROWSER:-443}
         target: 443
       # - published: ${VIDEO_STATS_PORT}
       #   target: 8888

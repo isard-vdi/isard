@@ -11,7 +11,7 @@ from wgtools import Wg
 
 
 def dbConnect():
-    r.connect(host=os.environ['RETHINKDB_HOST'], port=os.environ['RETHINKDB_PORT'],db=os.environ['RETHINKDB_DB']).repl()
+    r.connect(host=os.environ.get('RETHINKDB_HOST','isard-db'), port=os.environ.get('RETHINKDB_PORT','28015'),db=os.environ.get('RETHINKDB_DB','isard')).repl()
 
 while True:
     try:

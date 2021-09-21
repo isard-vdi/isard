@@ -8,7 +8,7 @@ services:
         max-size: "100m"
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET}.15
+        ipv4_address: ${DOCKER_NET:-172.18.255}.15
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -38,7 +38,7 @@ services:
       #- INFLUXD_STORAGE_WAL_FSYNC_DELAY: 15m
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET}.12
+        ipv4_address: ${DOCKER_NET:-172.18.255}.12
     restart: unless-stopped
 
   # isard-chronograf:

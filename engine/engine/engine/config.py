@@ -10,9 +10,9 @@ from rethinkdb import r
 import os, time, sys
 
 try:
-    RETHINK_HOST = os.environ['RETHINKDB_HOST']
-    RETHINK_PORT = '28015'
-    RETHINK_DB   = 'isard'
+    RETHINK_HOST = os.environ.get('RETHINKDB_HOST','isard-db')
+    RETHINK_PORT = os.environ.get('RETHINKDB_PORT','28015')
+    RETHINK_DB   = os.environ.get('RETHINKDB_DB','isard')
 except Exception as e:
     print('Environtment variables in docker-compose not found or errors.')
     print(e)

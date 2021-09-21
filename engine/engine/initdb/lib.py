@@ -18,11 +18,11 @@ class loadConfig():
         None
             
     def cfg(self):
-        return {'RETHINKDB_HOST': os.environ['RETHINKDB_HOST'],
-                'RETHINKDB_PORT': os.environ['RETHINKDB_PORT'],
-                'RETHINKDB_DB': os.environ['RETHINKDB_DB'],
-                'LOG_LEVEL': os.environ['LOG_LEVEL'],
-                'WEBAPP_ADMIN_PWD': os.environ['WEBAPP_ADMIN_PWD']}
+        return {'RETHINKDB_HOST': os.environ.get('RETHINKDB_HOST','isard-db'),
+                'RETHINKDB_PORT': os.environ.get('RETHINKDB_PORT','28015'),
+                'RETHINKDB_DB': os.environ.get('RETHINKDB_DB','isard'),
+                'LOG_LEVEL': os.environ.get('LOG_LEVEL','INFO'),
+                'WEBAPP_ADMIN_PWD': os.environ.get('WEBAPP_ADMIN_PWD',False)}
 
 
 class Certificates(object):

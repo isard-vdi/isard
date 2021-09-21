@@ -21,8 +21,8 @@ def SetupHypervisor():
                 "cap_hyper":True,
                 "enabled":False,
                 "description":"Added through api",
-                "browser_port":os.environ['VIEWER_BROWSER'],
-                "spice_port":os.environ['VIEWER_SPICE'],
+                "browser_port":os.environ['VIEWER_BROWSER'] if os.environ.get('VIEWER_BROWSER', False) else '443',
+                "spice_port":os.environ['VIEWER_SPICE'] if os.environ.get('VIEWER_SPICE', False) else '80',
                 "isard_static_url":static_url,
                 "isard_video_url":video_domain,
                 "isard_proxy_hyper_url":"isard-hypervisor" if video_domain == hostname else hostname}

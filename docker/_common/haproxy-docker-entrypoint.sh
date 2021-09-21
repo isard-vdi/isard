@@ -3,6 +3,19 @@ set -e
 
 prepare.sh
 
+if [ ! -n "$WEBAPP_HOST" ]; then
+        export WEBAPP_HOST='isard-webapp'
+fi
+if [ ! -n "$RETHINKDB_HOST" ]; then
+        export RETHINKDB_HOST='isard-db'
+fi
+if [ ! -n "$GRAFANA_HOST" ]; then
+        export GRAFANA_HOST='isard-grafana'
+fi
+if [ ! -n "$INFLUXDB_HOST" ]; then
+        export INFLUXDB_HOST='isard-influxdb'
+fi
+
 if [ ! -f /certs/chain.pem ]; then
         auto-generate-certs.sh
 fi

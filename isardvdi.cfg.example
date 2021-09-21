@@ -1,29 +1,27 @@
 # Isard main config v0.3
 
+# Domain
 ## This server main domain/ip reacheable from other hosts
 DOMAIN=localhost
 
-## Where the api can be reached from this host (usually your main isard install)
-## API_DOMAIN=
-
-## Initial WEB admin user password
+# Admin password
+## Initial WEB admin user password. Used also in grafana, influxdb
+## and authenticated backend paths (/debug/...)
 WEBAPP_ADMIN_PWD=IsardVDI
 
-## Frontend Administration Button
-## With this variable you can control if there is a button in the simplified
-## interface (frontend) to go to administration login for users of role User.
-## True: show button
-## False (or variable not defined): don't show the button
+# Frontend Administration Button
+## Will show/hide Administration menu button for users of role User.
 FRONTEND_SHOW_ADMIN_BTN=True
 
-## Generate your own SECRETS!:
+# Secrets
+## Generate your own SECRETS!
 ## openssl rand -base64 32
 WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
 API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
 INFLUXDB_ADMIN_TOKEN_SECRET=9eFW/Qi29hL3hFGUP8wIGH89XKCH8s1k0il44GCRF2g=
 API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 
-# WEBAPP CERTIFICATES
+# LETSENCRYPT CERTIFICATE
 ## You can use your own certificates if you concatenate into 
 ## /opt/isard/certs/default/chain.pem
 ## You can let isard generate autosigned certs (not recommended as
@@ -33,19 +31,24 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## To avoid using letsencrypt let this variable commented.
 ## The email will be used by letsencrypt to notify you expirations
 ## although the renovation will be automatic.
-LETSENCRYPT_EMAIL=
+#LETSENCRYPT_EMAIL=
 
-# GRAFANA
-## Set grafana URl to your domain or IP
-#GRAFANA_URL=your.domain.com
-GRAFANA_URL=localhost
+# Authentication
 
-# TELEGRAM BOT ALERTS
-## TOKEN: https://core.telegram.org/bots#6-botfather
-TELEGRAM_BOT_TOKEN=
-## CHAT_ID: Add your bot to a group and get the chat_id from 
-## https://api.telegram.org/bot<YourBOTToken>/getUpdates response
-TELEGRAM_BOT_CHAT_ID=
+## Local
+### Local authentication agains isard database
+#AUTHENTICATION_AUTHENTICATION_LOCAL=true
+
+## Google
+### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
+### Authorized redirect URIs: https://domain.tld/authentication/callback
+### Change AUTHENTICATION_AUTHENTICATION_HOST to domain.tld
+#AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
+#AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
+
+
+
+
 
 ##################################################################
 ##################################################################
@@ -53,21 +56,80 @@ TELEGRAM_BOT_CHAT_ID=
 ##################################################################
 ##################################################################
 
-###################### DOCKER IMAGES
-
-# Assign a docker /24 network. The host part will be set by system
-DOCKER_NET=172.18.255
-
-# Image prefix that could include registry and repository
+# Docker images prefix
+## Image prefix that could include registry and repository
 DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
-# Image tag that could be tags or branches from the git repository
+
+# Docker images tags
+## Image tag that could be tags or branches from the git repository
+## Used for doing docker-compose pull
 DOCKER_IMAGE_TAG=main
 
-# Logging level
+# Logs
 LOG_LEVEL=INFO
 
-###################### Wireguard
+# Alerts
 
+## Telegram
+### TOKEN: https://core.telegram.org/bots#6-botfather
+#TELEGRAM_BOT_TOKEN=
+### CHAT_ID: Add your bot to a group and get the chat_id from 
+### https://api.telegram.org/bot<YourBOTToken>/getUpdates response
+#TELEGRAM_BOT_CHAT_ID=
+
+##################################################################
+## INFRASTRUCTURE PARAMETERS. Used on remote hypervisors        ##
+##################################################################
+## Remote hypervisors can be:
+## docker-compose.hypervisor.yml: Will have an isard-video
+## docker-compose.hypervisor-standalone.yml: Will get video on 
+## the VIDEO_HYPERVISOR_PORTS from the VIDEO_DOMAIN isard-video host.
+
+# Database host
+## Where is the database reacheable?
+## Not needed for remote hypervisors, only to split main web install.
+#RETHINKDB_HOST=isard-db
+#RETHINKDB_PORT=28015
+#RETHINKDB_DB=isard
+
+# Authentication host
+## Where is authentication reacheable?
+## Not needed for remote hypervisors, only to split main web install.
+#AUTHENTICATION_AUTHENTICATION_HOST=$DOMAIN
+#AUTHENTICATION_DB_HOST=isard-db
+
+# Api host
+## Where can we reach the isard-api from this host?
+## Needed for remote hypervisors 
+#API_DOMAIN=isard-api
+
+# Video host
+## Where is the isard-video for this hypervisor?
+## Needed for remote hypervisors:
+## hypervisor: Will have isard-video. Set it to DOMAIN
+## hypervisor-standalone: Will rely on a server with isard-video
+#VIDEO_DOMAIN=$DOMAIN
+
+# Video external NAT ports
+## Where the users browsers will connect to get the video stream for
+## their guests started in this hypervisor? (outside NAT ports)
+#VIEWER_SPICE=80
+#VIEWER_BROWSER=443
+
+# isard-video ACL
+## Is this host hosting the isard-video for other hypervisor-standalone
+## servers? Then allow here only the hostnames for those hypervisors as
+## seen from this host.
+#VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
+#VIDEO_HYPERVISOR_PORTS=5900-6899
+
+# Docker networking
+## Assign a docker /24 network. The host part will be set by system
+## You should avoid setting a network that exists in your infrastructure
+## or in isard configuration. Set only the /24 part!
+#DOCKER_NET=172.18.255
+
+# Guests networking
 ## All the sub networks needed for infrastructure wireguard will
 ## fall within this sub networks
 WG_MAIN_NET=10.0.0.0/14
@@ -100,50 +162,7 @@ WG_GUESTS_DHCP_MASK=23
 ## This sets a reserved dhcp range if you want.
 WG_GUESTS_RESERVED_HOSTS=20
 
-## This is the internal interface in wireguard and isard-hypervisor
-## containers. In docker it is the isard-vpn network.
-WG_INTERFACE=eth1
-
-##############################################################################
-##############################################################################
-## ANOTHER EXAMPLE DEFINING Wireguard NETWORKS
-# Lets get a range with enouth IPs to subdivide.
-# We need at least ranges for users, remote hypers and dhcp nets for
-# desktops in those remote hypers.
-# FULL WG RANGE: 128-135
-# WG_MAIN_NET=          192.168.128.0/21 
-
-# Now lets subdivide this full range in smaller ones
-# FIRST NETWORK: Users network
-# Range 128.1-129.254: 510 Maximum users that can get vpn config
-# WG_USERS_NET=             192.168.128.0/23
-
-# SECOND NETWORK: Hypervisors network
-# Range 130.1-131.254: 510 Maximum hypervisors connected from isard-vpnc
-# We will lose almost all this network
-# WG_HYPERS_NET=            192.168.130.0/23
-
-# THIRD NETWORK: Guests in hypervisors. Will be again subdivided with DHCP_MASK
-# Range 132.0-135.254
-# WG_GUESTS_NETS=           192.168.132.0/22
-
-# This third network should be subdivided for guests in hypervisors,
-# so balance between number of hypervisors and guests that can run there.
-# For example:
-# WG_GUESTS_DHCP_MASK=24        /24: 4 NETS/HYPERS WITH 253 DESKTOPS EACH (If RESERVED_HOSTS=0)
-#                               /25: 8 NETS/HYPERS WITH 125 DESKTOPS EACH (If RESERVED_HOSTS=0)
-# WG_GUESTS_RESERVED_HOSTS=20  Yo will lose those desktops from each WG_GUESTS_DHCP_MASK
-
-# And remember to set interface and UDP ports for this vpn connections
-# WG_INTERFACE=eth1     # this is the internal network name between isard-vpn
-#                           and isard-hypervisor containers
-# WG_USERS_PORT=443     # Users connect to main isard-vpn with this port
-# WG_HYPERS_PORT=4443   # Remote hypers connect isard-vpnc to main with this port
-##############################################################################
-##############################################################################
-
-###################### HYPERVISOR
-
+# Trunk port & vlans
 ## Uncomment to map host interface name inside hypervisor container.
 ## If static vlans are commented then hypervisor will initiate an 
 ## auto-discovery process. The discovery process will last for 260
@@ -164,51 +183,20 @@ WG_INTERFACE=eth1
 ##        GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"
 ##       and update-grub, and reboot.
 
-###################### ENGINE config
 
-## Main database reacheable host name
-## Defaults: isard-db
-RETHINKDB_HOST=isard-db
-RETHINKDB_PORT=28015
-RETHINKDB_DB=isard
 
-###################### WEBAPP config
 
-## Main database reacheable host name
-## Defaults: isard-db
-## Infrastructure: set it in host /etc/hosts: <IP> isard-db
-WEBAPP_HOST=isard-webapp
-WEBAPP_RETHINKDB_HOST=isard-db
-WEBAPP_RETHINKDB_PORT=28015
-WEBAPP_RETHINKDB_DB=isard
 
-###################### AUTHENTICATION config
 
-AUTHENTICATION_AUTHENTICATION_HOST=localhost
-AUTHENTICATION_DB_HOST=isard-db
 
-## Local
-# AUTHENTICATION_AUTHENTICATION_LOCAL=false
+###################### OVERRIDE HOSTS in isard-portal
+#WEBAPP_HOST=isard-webapp
+#GRAFANA_HOST=isard-grafana
+#INFLUXDB_HOST=isard-influxdb
 
-## Google
-# Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
-# Authorized redirect URIs: https://domain.tld/authentication/callback
-# Change AUTHENTICATION_AUTHENTICATION_HOST to domain.tld
-# AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
-# AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
 
-# EXTERNAL VIEWER PORTS
-###########################################################
-## Ports to access externally to browser viewers and spice.
-## Only applied if this is an hypervisor
-VIEWER_SPICE=80
-VIEWER_BROWSER=443
 
-## Squid video proxy acls
-### Comma separated fields of hypervisor hostnames allowed to be proxied.
-### Must be the same as the Viewer PROXY name in web ui hypervisor config.
-VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
-VIDEO_HYPERVISOR_PORTS=5900-6899
+
 
 # GRAPH host reacheable from this server
 ## All in one use defaults

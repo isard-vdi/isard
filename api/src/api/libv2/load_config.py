@@ -74,12 +74,12 @@ class loadConfig():
         Read RethinkDB configuration from environ
         '''     
         try:
-            app.config.setdefault('RETHINKDB_HOST', os.environ['RETHINKDB_HOST'])
-            app.config.setdefault('RETHINKDB_PORT', os.environ['RETHINKDB_PORT'])
+            app.config.setdefault('RETHINKDB_HOST', os.environ.get('RETHINKDB_HOST','isard-db'))
+            app.config.setdefault('RETHINKDB_PORT', os.environ.get('RETHINKDB_PORT','28015'))
             app.config.setdefault('RETHINKDB_AUTH', '')
-            app.config.setdefault('RETHINKDB_DB', os.environ['RETHINKDB_DB'])
+            app.config.setdefault('RETHINKDB_DB', os.environ.get('RETHINKDB_DB','isard'))
             
-            app.config.setdefault('LOG_LEVEL', os.environ['LOG_LEVEL'])
+            app.config.setdefault('LOG_LEVEL', os.environ.get('LOG_LEVEL','INFO'))
             app.config.setdefault('LOG_FILE', 'isard-api.log')
             app.debug=True if os.environ['LOG_LEVEL'] == 'DEBUG' else False
 

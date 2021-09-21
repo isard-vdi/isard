@@ -25,14 +25,14 @@ class loadConfig():
         RethinkDB, Telegram Bot, Session Cookie Name and Log Level
         '''
         try:
-            app.config.setdefault('RETHINKDB_HOST', os.environ['WEBAPP_RETHINKDB_HOST'])
-            app.config.setdefault('RETHINKDB_PORT', os.environ['WEBAPP_RETHINKDB_PORT'])
-            app.config.setdefault('RETHINKDB_DB', os.environ['WEBAPP_RETHINKDB_DB'])
+            app.config.setdefault('RETHINKDB_HOST', os.environ.get('RETHINKDB_HOST','isard-db'))
+            app.config.setdefault('RETHINKDB_PORT', os.environ.get('RETHINKDB_PORT','28015'))
+            app.config.setdefault('RETHINKDB_DB', os.environ.get('RETHINKDB_DB','isard'))
             app.config.setdefault('url', 'http://www.isardvdi.com:5050')
 
             app.config.setdefault('HOSTNAME', os.environ['HOSTNAME'])
-            app.config.setdefault('TELEGRAM_BOT_TOKEN', os.environ['TELEGRAM_BOT_TOKEN'])
-            app.config.setdefault('TELEGRAM_BOT_CHAT_ID', os.environ['TELEGRAM_BOT_CHAT_ID'])
+            app.config.setdefault('TELEGRAM_BOT_TOKEN', os.environ.get('TELEGRAM_BOT_TOKEN',False))
+            app.config.setdefault('TELEGRAM_BOT_CHAT_ID', os.environ.get('TELEGRAM_BOT_CHAT_ID',False))
 
             app.config['SESSION_COOKIE_NAME'] = 'isard-admin'
 
@@ -96,13 +96,13 @@ def load_config():
                         'hypervisors_pools': ['default'],
                         'enabled': True}                                                     
 
-            return {'RETHINKDB_HOST': os.environ['WEBAPP_RETHINKDB_HOST'],
-                    'RETHINKDB_PORT': os.environ['WEBAPP_RETHINKDB_PORT'],
-                    'RETHINKDB_DB':   os.environ['WEBAPP_RETHINKDB_DB'],
+            return {'RETHINKDB_HOST': os.environ.get('RETHINKDB_HOST','isard-db'),
+                    'RETHINKDB_PORT': os.environ.get('RETHINKDB_PORT','28015'),
+                    'RETHINKDB_DB':   os.environ.get('RETHINKDB_DB','isard'),
                     'HOSTNAME': os.environ['HOSTNAME'],
-                    'TELEGRAM_BOT_TOKEN': os.environ['TELEGRAM_BOT_TOKEN'],
-                    'TELEGRAM_BOT_CHAT_ID': os.environ['TELEGRAM_BOT_CHAT_ID'],
-                    'LOG_LEVEL': os.environ['LOG_LEVEL'],
+                    'TELEGRAM_BOT_TOKEN': os.environ.get('TELEGRAM_BOT_TOKEN',False),
+                    'TELEGRAM_BOT_CHAT_ID': os.environ.get('TELEGRAM_BOT_CHAT_ID',False),
+                    'LOG_LEVEL': os.environ.get('LOG_LEVEL','INFO'),
                     'url': 'http://www.isardvdi.com:5050',
 #                    'LOG_FILE': rcfg.get('LOG', 'FILE'),
                     'DEFAULT_HYPERVISORS': hyper}

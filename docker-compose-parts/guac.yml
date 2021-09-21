@@ -8,7 +8,7 @@ services:
       API_ISARDVDI_SECRET: ${API_ISARDVDI_SECRET}
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET}.16
+        ipv4_address: ${DOCKER_NET:-172.18.255}.16
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime
