@@ -47,6 +47,26 @@ def create_cmds_delete_disk(path_disk):
 
 # def check_upload_folder():
 
+def create_cmd_disk_from_uploaded_disk(path_new_disk,
+                                       path_uploaded_disk,
+                                       delete_when_copied=True,
+                                       user_owner='qemu',
+                                       group_owner='qemu'
+                                       ):
+    cmds1 = list()
+    path_dir = extract_dir_path(path_new_disk)
+    touch_test_path = path_dir + '/.touch_test'
+    cmds1.append({'title': 'mkdir dir', 'cmd': 'mkdir -p {}'.format(path_dir)})
+    cmds1.append({'title': 'pre-delete touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
+    cmds1.append({'title': 'touch', 'cmd': 'touch {}'.format(touch_test_path)})
+    cmds1.append({'title': 'readonly_touch', 'cmd': 'chmod a-wx,g+r,u+r {}'.format(touch_test_path)})
+    cmds1.append({'title': 'chgrp_touch', 'cmd': 'chgrp {} {}'.format(group_owner, touch_test_path)})
+    cmds1.append({'title': 'chown', 'cmd': 'chown {} {}'.format(user_owner, touch_test_path)})
+    cmds1.append({'title': 'verify_touch',
+                  'cmd': 'stat -c \'mountpoint:%m group:%G user:%U rights:%A\' {}'.format(touch_test_path)})
+    cmds1.append({'title': 'df_mountpoint', 'cmd': 'df $(stat -c \'%m\' {})'.format(touch_test_path)})
+    cmds1.append({'title': 'rm_touch', 'cmd': 'rm -f {}'.format(touch_test_path)})
+
 
 def create_cmd_disk_from_scratch(path_new_disk,
                                  size_str,
@@ -226,6 +246,7 @@ def create_cmds_custom_fd(path_new_disk, d_vars_to_flopy):
             print('#' + c['title'])
             print(c['cmd'])
     except Exception as e:
+        logs.exception_id.debug('0051')
         print(e)
 
     return cmds
@@ -293,6 +314,7 @@ def extract_list_backing_chain(out_cmd_qemu_img, json_format=True):
         try:
             out = json.loads(out)
         except Exception as e:
+            logs.exception_id.debug('0052')
             log.info('error reading backing chain, disk is created??')
             log.info(e)
             return []
@@ -675,6 +697,7 @@ def test_hypers_disk_operations(hyps_disk_operations):
                 list_hyps_ok.append(hyp_id)
 
         except Exception as e:
+            logs.exception_id.debug('0053')
             if __name__ == '__main__':
                 logs.main.err(f'Error when launch commands to test hypervisor {hyp_id} disk_operations: {e}')
 

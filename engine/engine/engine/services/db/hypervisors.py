@@ -1,7 +1,8 @@
 import logging
 import time
 
-import rethinkdb as r
+from rethinkdb import r
+from rethinkdb.errors import ReqlNonExistenceError
 
 from engine.services.db import new_rethink_connection, close_rethink_connection, MAX_LEN_PREV_STATUS_HYP
 from engine.services.log import log
@@ -74,6 +75,67 @@ def get_hypers_disk_operations():
 
     pass
 
+def update_hyp_thread_status(thread_type,hyp_id,status):
+
+    if thread_type in ['worker', 'disk_operations', 'long_operations'] and \
+            status in ['Started', 'Stopped', 'Starting', 'Stopping', 'Deleting']:
+
+        r_conn = new_rethink_connection()
+        rtable = r.table('hypervisors')
+        result = rtable.get(hyp_id).update({'thread_status': {thread_type: status}}).run(r_conn)
+
+        if status != 'Started':
+            d = rtable.get(hyp_id).pluck('thread_status', 'status', 'capabilities').run(r_conn)
+            status_hyp = d['status']
+            if status_hyp == 'Online':
+                update_hyp_status(hyp_id, 'Offline', f'thread {thread_type} is not Started. Status of thread: {status}')
+            elif status_hyp == 'Deleting':
+                ko_disk_operations = False
+                if d['capabilities'].get('disk_operations', False) is True:
+                    if d['thread_status'].get('disk_operations', '') == 'Stopped' and \
+                            d['thread_status'].get('long_operations', '') == 'Stopped':
+                        ko_disk_operations = True
+                elif d['capabilities'].get('disk_operations', True) is False:
+                    ko_disk_operations = True
+
+                ko_worker = False
+                if d['capabilities'].get('hypervisor', False) is True:
+                    if d['thread_status'].get('worker', '') == 'Stopped':
+                        ko_worker = True
+                elif d['capabilities'].get('hypervisor', True) is False:
+                    ko_worker = True
+
+                if ko_worker is True and ko_disk_operations is True:
+                    result = rtable.get(hyp_id).delete().run(r_conn)
+                    close_rethink_connection(r_conn)
+                    return result
+
+
+
+        elif status == 'Started':
+            d = rtable.get(hyp_id).pluck('thread_status', 'status', 'capabilities').run(r_conn)
+
+            ok_disk_operations = False
+            if d['capabilities'].get('disk_operations',False) is True:
+                if  d['thread_status'].get('disk_operations','') == 'Started' and \
+                                                d['thread_status'].get('long_operations','') == 'Started':
+                    ok_disk_operations = True
+            elif d['capabilities'].get('disk_operations', True) is False:
+                ok_disk_operations = True
+
+            ok_worker = False
+            if d['capabilities'].get('hypervisor',False) is True:
+                if d['thread_status'].get('worker', '') == 'Started':
+                    ok_worker = True
+            elif d['capabilities'].get('hypervisor',True) is False:
+                ok_worker = True
+
+            if ok_worker is True and ok_disk_operations is True:
+                update_hyp_status(hyp_id,'Online','all threads for hyp are Started')
+        close_rethink_connection(r_conn)
+        return result
+    else:
+        return False
 
 def update_hyp_status(id, status, detail='', uri=''):
     # INFO TO DEVELOPER: TODO debería pillar el estado anterior del hypervisor y ponerlo en un campo,
@@ -81,16 +143,20 @@ def update_hyp_status(id, status, detail='', uri=''):
     # en python puede ser internamente una cola de X elementos (número de elementos de configuración)
     # como una especie de log de cuando cambio de estado
 
+
     # INFO TO DEVELOPER: pasarlo a una función en functions
     defined_status = ['Offline',
-                      'TryConnection',
-                      'ReadyToStart',
-                      'StartingThreads',
+                      #'TryConnection',
+                      #'ReadyToStart',
+                      #'StartingThreads',
                       'Error',
-                      'Online',
-                      'Blocked',
-                      'DestroyingDomains',
-                      'StoppingThreads']
+                      'Deleting',
+                      'Online']
+                      #'Blocked',
+                      #'DestroyingDomains',
+                      #'StoppingThreads']
+    if status == 'Error':
+        pass
     if status in defined_status:
         r_conn = new_rethink_connection()
         rtable = r.table('hypervisors')
@@ -240,64 +306,69 @@ def update_uri_hyp(hyp_id, uri):
     close_rethink_connection(r_conn)
     return out
 
+def get_hyp_status(hyp_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+    try:
+        out = rtable.get(hyp_id). \
+            pluck('status'). \
+            run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False
 
-# def change_hyp_disk_operations(hyp_id):
-#     """
-#     NOT USED
-#     :param hyp_id:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#     rtable. \
-#         replace(r.row.without('disk_operations')). \
-#         run(r_conn)
-#     o = rtable.get(hyp_id). \
-#         update({'disk_operations': True}). \
-#         run(r_conn)
-#     close_rethink_connection(r_conn)
-#     return o
-
-
-# def get_hyp_id_from_hostname(hostname):
-#     """
-#     NOT USED
-#     :param hostname:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     l = r.table('hypervisors').filter({'hostname': hostname}).pluck('id').run(r_conn)
-#     close_rethink_connection(r_conn)
-#     if len(l) > 0:
-#         return l['id']
-#     else:
-#         return l
-
-
-# def get_hyp(id):
-#     """
-#     NOT USED
-#     :param id:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     l = r.table('hypervisors').get(id).run(r_conn)
-#     close_rethink_connection(r_conn)
-#     return l
-
+    close_rethink_connection(r_conn)
+    return out['status']
 
 def get_hyp_hostname_from_id(id):
     r_conn = new_rethink_connection()
-    l = r.table('hypervisors').get(id).pluck('hostname', 'port', 'user').run(r_conn)
-    close_rethink_connection(r_conn)
+    try:
+        l = r.table('hypervisors').get(id).pluck('hostname', 'port', 'user').run(r_conn)
+        close_rethink_connection(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False,False,False
     if len(l) > 0:
         if l.__contains__('user') and l.__contains__('port'):
             return l['hostname'], l['port'], l['user']
         else:
             log.error('hypervisor {} does not contain user or port in database'.format(id))
-            return False
+            return False,False,False
     else:
-        return False
+        return False,False,False
+
+def get_hypers_ids_with_status(status):
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+
+    l = list(rtable.filter({'status': status}).pluck('id').run(r_conn))
+    if len(l) > 0:
+        hypers = [d['id'] for d in l]
+    else:
+        hypers = []
+    close_rethink_connection(r_conn)
+    return hypers
+
+def get_hypers_enabled_with_capabilities_status():
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+
+    hypers = list(rtable.filter({'enabled': True}).pluck('capabilities','status','id','thread_status').run(r_conn))
+
+    close_rethink_connection(r_conn)
+    return hypers
+
+def get_max_hyp_number():
+    r_conn = new_rethink_connection()
+    rtable = r.table('hypervisors')
+
+    hypers = list(rtable.pluck('hypervisor_number').run(r_conn))
+
+    close_rethink_connection(r_conn)
+    if len(hypers) == 0:
+        return -1
+    else:
+        return max([d['hypervisor_number'] for d in hypers])
 
 
 def get_hyp_hostname_user_port_from_id(id):
@@ -315,9 +386,14 @@ def get_hyp_hostname_user_port_from_id(id):
         return False
 
 
-def update_all_hyps_status(reset_status='Offline'):
+def update_all_hyps_status(reset_status='Offline',reset_thread_status='Stopped'):
     r_conn = new_rethink_connection()
-    results = r.table('hypervisors').update({'status': reset_status}).run(r_conn)
+    d_reset_thread_status = {'worker':reset_thread_status,
+                             'long_operations': reset_thread_status,
+                             'disk_operations': reset_thread_status,
+                             }
+    results = r.table('hypervisors').update({'status': reset_status,
+                                             'thread_status': d_reset_thread_status}).run(r_conn)
     close_rethink_connection(r_conn)
     return results
 

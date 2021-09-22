@@ -127,9 +127,9 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
                                 if(full.status == 'Downloading'){
                                     return renderProgress(full);
+                                }else{
+                                    return data.progress.total;
                                 }
-                                if('progress-total' in full){return full['progress-total'];}
-                                return ''
 							}},
                             {
 							"targets": 7,
@@ -146,10 +146,14 @@ $(document).ready(function() {
                                         return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                                     }
                                     if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                        if(full.kind.startsWith('qcow')){
+                                            return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
+                                                    <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                    }else{
                                         return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
-                                                <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-                                                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                    //~ } 
+                                        <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
+                                        <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                    } 
                                 }
                                 //~ return full.status;                                 
                                 }}],
@@ -232,13 +236,19 @@ $(document).ready(function() {
                             icon: 'fa fa-alert-sign',
                             opacity: 1,
                             type: 'error'
-                        });                
-                }else{	
+                        });
+                }else{
                     $("#modalAddFromMedia #modalAdd")[0].reset();
                     setHardwareOptions('#modalAddFromMedia','iso');
                     $('#modalAddFromMedia #modalAdd #media').val(data.id);
+                    $('#modalAddFromMedia #modalAdd #kind').val(data.kind);
+                    if(data.kind.startsWith('qcow')){
+                        $('#modalAddFromMedia #modalAdd #disk_size').hide();
+                    }else{
+                        $('#modalAddFromMedia #modalAdd #disk_size').show()
+                    }
                     $('#modalAddFromMedia #modalAdd #media_name').html(data.name);
-                    $('#modalAddFromMedia #modalAdd #media_size').html(data['progress-total']);
+                    $('#modalAddFromMedia #modalAdd #media_size').html(data.progress.total);
                     $('#modalAddFromMedia').modal({
                         backdrop: 'static',
                         keyboard: false
@@ -271,8 +281,6 @@ $(document).ready(function() {
                 data=replaceAlloweds_arrays('#modalAddMediaForm #alloweds-add',data)
                 socket.emit('media_add',data)
             }
-            
-
         });
 
     // SocketIO
@@ -588,6 +596,7 @@ function modal_add_install_datatables(){
         } );
     } );
     
+    $("#modalAddFromMedia #send").off('click');
     $("#modalAddFromMedia #send").on('click', function(e){
             var form = $('#modalAddFromMedia #modalAdd');
             form.parsley().validate();

@@ -10,7 +10,7 @@ services:
     - NET_ADMIN    
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET}.18
+        ipv4_address: ${DOCKER_NET:-172.18.255}.18
     ports:
       - published: 80
         target: 80

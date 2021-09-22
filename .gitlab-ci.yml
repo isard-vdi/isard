@@ -54,8 +54,6 @@ docker-image:
           - websockify
       - DOCKER_COMPOSE: video-standalone.build
         IMAGE: video
-      - DOCKER_COMPOSE: hypervisor.build
-        IMAGE: vpnc
       - DOCKER_COMPOSE: toolbox.build
         IMAGE: toolbox
   script:

@@ -1261,6 +1261,18 @@ def socketio_admin_forcedhyp_update(data):
                     namespace='/isard-admin/sio_admins', 
                     room='domains')
 
+@socketio.on('create_dict-server', namespace='/isard-admin/sio_admins')
+def socketio_admin_server_update(data):
+    #remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+    res=app.adminapi.update_server(data['id'], data['create_dict-server'])
+    if res:
+        data=json.dumps({'id':data['id'], 'result':True,'title':'Updated desktop as server','text':'Server desktop has been updated...','icon':'success','type':'success'})
+    else:
+        data=json.dumps({'id':data['id'], 'result':False,'title':'Updated desktop as server','text':'Server desktop can\'t be updated.','icon':'warning','type':'error'})
+    socketio.emit('result',
+                    data,
+                    namespace='/isard-admin/sio_admins', 
+                    room='domains')
 
 @socketio.on('domain_edit', namespace='/isard-admin/sio_admins')
 def socketio_admins_domain_edit(form_data):
@@ -1441,7 +1453,7 @@ def socketio_admin_domains_viewer(data):
 @socketio.on('vpn', namespace='/isard-admin/sio_users')
 def socketio_vpn(data):
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
-    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],id=current_user.id)
+    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],current_user.id)
     if vpn_data:
         socketio.emit('vpn',
                         json.dumps(vpn_data),
@@ -1461,8 +1473,8 @@ def socketio_vpn(data):
 def socketio_admin_vpn(data):
     remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
     if current_user.role != 'admin': return False
-    id=current_user.id if data['vpn'] == 'users' else data['id']
-    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],id=id)
+    user_id=current_user.id if data['vpn'] == 'users' else data['id']
+    vpn_data=isardvpn.vpn_data(data['vpn'],data['kind'],data['os'],user_id)
     if vpn_data:
         socketio.emit('vpn',
                         json.dumps(vpn_data),
@@ -1582,23 +1594,42 @@ def socketio_admin_domains_media_add(form_data):
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardwareFromIso(create_dict)
 
-    create_dict['create_from_virt_install_xml']=create_dict.pop('install','')
-    disk_size=create_dict.pop('disk_size','15')+'G'
-    name=create_dict.pop('name','')
-    description=create_dict.pop('description','None')
-    hyper_pools=create_dict.pop('hypervisors_pools',['default'])
-    # ~ icon=create_dict['icon']
-    icon=create_dict.pop('icon','circle-o')
-    create_dict.pop('allowed',None)
-    res=app.adminapi.domain_from_media(current_user.id, name, description, icon, create_dict, hyper_pools, disk_size)
-    if res is True:
-        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
-    else:
-        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
-    socketio.emit('add_form_result',
-                    info,
-                    namespace='/isard-admin/sio_admins', 
-                    room='user_'+current_user.id)
+    if create_dict['kind'] == 'iso':
+        create_dict['create_from_virt_install_xml']=create_dict.pop('install','')
+        disk_size=create_dict.pop('disk_size','15')+'G'
+        name=create_dict.pop('name','')
+        description=create_dict.pop('description','None')
+        hyper_pools=create_dict.pop('hypervisors_pools',['default'])
+        # ~ icon=create_dict['icon']
+        icon=create_dict.pop('icon','circle-o')
+        create_dict.pop('allowed',None)
+        res=app.adminapi.domain_from_media(current_user.id, name, description, icon, create_dict, hyper_pools, disk_size)
+        if res is True:
+            info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        info,
+                        namespace='/isard-admin/sio_admins', 
+                        room='user_'+current_user.id)
+    if create_dict['kind'].startswith('qcow'):
+        create_dict['create_from_virt_install_xml']=create_dict.pop('install','')
+        create_dict.pop('disk_size')
+        name=create_dict.pop('name','')
+        description=create_dict.pop('description','None')
+        hyper_pools=create_dict.pop('hypervisors_pools',['default'])
+        # ~ icon=create_dict['icon']
+        icon=create_dict.pop('icon','hdd-o')
+        create_dict.pop('allowed',None)
+        res=app.adminapi.domain_from_disk(current_user.id, name, description, icon, create_dict, hyper_pools)
+        if res is True:
+            info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        info,
+                        namespace='/isard-admin/sio_admins', 
+                        room='user_'+current_user.id)
 
 @socketio.on('domain_media_add', namespace='/isard-admin/sio_users')
 def socketio_domains_media_add(form_data):
@@ -1614,24 +1645,42 @@ def socketio_domains_media_add(form_data):
     create_dict=app.isardapi.f.unflatten_dict(form_data)
     create_dict=parseHardwareFromIso(create_dict)
 
-    create_dict['create_from_virt_install_xml']=create_dict.pop('install','')
-    disk_size=create_dict.pop('disk_size','15')+'G'
-    name=create_dict.pop('name','')
-    description=create_dict.pop('description','None')
-    hyper_pools=create_dict.pop('hypervisors_pools',['default'])
-    # ~ icon=create_dict['icon']
-    icon=create_dict.pop('icon','circle-o')
-    create_dict.pop('allowed',None)
-    res=app.adminapi.domain_from_media(current_user.id, name, description, icon, create_dict, hyper_pools, disk_size)
-    if res is True:
-        info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
-    else:
-        info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
-    socketio.emit('add_form_result',
-                    info,
-                    namespace='/isard-admin/sio_users', 
-                    room='user_'+current_user.id)
-                    
+    if create_dict['kind'] == 'iso':
+        create_dict['create_from_virt_install_xml']=create_dict.pop('install','')
+        disk_size=create_dict.pop('disk_size','15')+'G'
+        name=create_dict.pop('name','')
+        description=create_dict.pop('description','None')
+        hyper_pools=create_dict.pop('hypervisors_pools',['default'])
+        # ~ icon=create_dict['icon']
+        icon=create_dict.pop('icon','circle-o')
+        create_dict.pop('allowed',None)
+        res=app.adminapi.domain_from_media(current_user.id, name, description, icon, create_dict, hyper_pools, disk_size)
+        if res is True:
+            info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        info,
+                        namespace='/isard-admin/sio_users', 
+                        room='user_'+current_user.id)
+    if create_dict['kind'].startswith('qcow'):
+        create_dict['create_from_virt_install_xml']=create_dict.pop('install','')
+        create_dict.pop('disk_size')
+        name=create_dict.pop('name','')
+        description=create_dict.pop('description','None')
+        hyper_pools=create_dict.pop('hypervisors_pools',['default'])
+        # ~ icon=create_dict['icon']
+        icon=create_dict.pop('icon','hdd-o')
+        create_dict.pop('allowed',None)
+        res=app.adminapi.domain_from_disk(current_user.id, name, description, icon, create_dict, hyper_pools)
+        if res is True:
+            info=json.dumps({'result':True,'title':'New desktop','text':'Desktop '+name+' is being created...','icon':'success','type':'success'})
+        else:
+            info=json.dumps({'result':False,'title':'New desktop','text':'Desktop '+name+' can\'t be created.','icon':'warning','type':'error'})
+        socketio.emit('add_form_result',
+                        info,
+                        namespace='/isard-admin/sio_users', 
+                        room='user_'+current_user.id)
 
 ## Resources
 @socketio.on('resources_insert_update', namespace='/isard-admin/sio_admins')

@@ -10,7 +10,7 @@ import logging as log
 from subprocess import check_call, check_output
 
 def dbConnect():
-    r.connect(host=os.environ['STATS_RETHINKDB_HOST'], port=os.environ['STATS_RETHINKDB_PORT'],db=os.environ['RETHINKDB_DB']).repl()
+    r.connect(host=os.environ.get('RETHINKDB_HOST','isard-db'), port=os.environ.get('STATS_RETHINKDB_PORT','28015'),db=os.environ.get('RETHINKDB_DB','isard')).repl()
 
 def add_hyper_keys(hyper,user,password,port):
     check_output(('/add-hypervisor.sh', 'HYPERVISOR='+hyper, 'USER='+user, 'PASSWORD='+password, +'PORT='+port), text=True).strip()

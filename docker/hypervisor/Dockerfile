@@ -87,10 +87,11 @@ RUN apk add --no-cache \
     #vde2-libs 
     #libpulse
 
-COPY docker/hypervisor/qemu-kvm /usr/libexec/qemu-kvm
-COPY docker/hypervisor/qemu-kvm /usr/bin/qemu-kvm
+COPY docker/hypervisor/kvm/qemu-kvm /usr/libexec/qemu-kvm
+COPY docker/hypervisor/kvm/qemu-kvm /usr/bin/qemu-kvm
 RUN chmod a+x /usr/bin/qemu-kvm
 RUN chmod a+x /usr/libexec/qemu-kvm
+RUN ln -s /usr/bin/qemu-system-x86_64 /usr/local/bin/qemu-system-x86_64
 
 # SSH configuration
 RUN echo "root:isard" |chpasswd
@@ -100,10 +101,11 @@ RUN sed -i \
     -e 's|[#]*ChallengeResponseAuthentication yes|ChallengeResponseAuthentication yes|g' \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' \
     -e 's|[#]*\(HostKey \)\(/etc/ssh/.*\)$|\1/usr/local\2|' \
+    -e 's|[#]*Port 22|Port 2022|g' \
     /etc/ssh/sshd_config
     
 # Libvirt configuration and certs
-COPY docker/hypervisor/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
+COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
 RUN sed -i "/^kvm:x:34:kvm/c\kvm:x:34:kvm,qemu" /etc/group
 RUN echo -e 'listen_tls = 0\n \
@@ -116,26 +118,43 @@ RUN echo -e 'spice_listen = "0.0.0.0"\n \
 
 # Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
+RUN mkdir /root/.ssh
 
-RUN apk add py3-pip
-RUN pip3 install --upgrade pip
-RUN pip3 install --no-cache-dir rethinkdb==2.3.0.post6
-
-COPY docker/hypervisor/checks/domain.xml /checks/
-COPY docker/hypervisor/auto-generate-certs.sh /
-COPY docker/hypervisor/vlans-add.sh /
-COPY docker/hypervisor/vlans-discover.sh /
-COPY docker/hypervisor/vlans-db.py /
-RUN apk add bash
-COPY docker/hypervisor/wireguard.sh /
-COPY docker/hypervisor/wireguard.py /
-COPY docker/hypervisor/update-client-ips.* /
-RUN chmod 744 /update-client-ips.sh
-COPY docker/hypervisor/api_client.py /
-COPY docker/hypervisor/run.sh /
-RUN chmod +x run.sh auto-generate-certs.sh
-
+# Add needed sources
 COPY docker/hypervisor/networks/ /etc/libvirt/qemu/networks/
-#COPY docker/hypervisor/networks/ /etc/libvirt/qemu/networks/autostart/
 
-CMD [ "sh", "run.sh"]
+# Api
+RUN apk add  --no-cache bash python3 py3-pip py3-requests
+RUN pip3 install --upgrade pip
+RUN apk add --no-cache --virtual .build_deps \
+    build-base \
+    python3-dev \
+    libffi-dev 
+RUN pip3 install --no-cache-dir python-jose==3.3.0 python-iptables==1.0.0 pythonping==1.0.15
+RUN apk del .build_deps
+
+# Openvswitch
+RUN apk add openvswitch
+RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
+RUN mkdir -pv /var/run/openvswitch/
+
+RUN apk add wireguard-tools
+
+# FILESYSTEMS
+## NFS client
+RUN apk add --no-cache nfs-utils
+
+## SEAWEEDFS
+#RUN wget https://github.com/chrislusf/seaweedfs/releases/download/2.64/linux_amd64_large_disk.tar.gz
+#RUN tar xvf linux_amd64_large_disk.tar.gz
+#RUN rm linux_amd64_large_disk.tar.gz
+#RUN mv weed /usr/local/bin/
+
+## CIFS
+RUN apk add --no-cache cifs-utils
+
+# RUNTIME
+COPY docker/hypervisor/src /src
+WORKDIR /src
+CMD [ "/src/start.sh"]
+

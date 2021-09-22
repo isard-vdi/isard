@@ -1,5 +1,14 @@
 #!/bin/bash
-HOSTS=$(echo $VIDEO_HYPERVISOR_HOSTNAMES |tr "," " ")
+if [ ! -n "$VIDEO_HYPERVISOR_HOSTNAMES" ]; then
+    HOSTS='isard-hypervisor'
+else
+    HOSTS=$(echo $VIDEO_HYPERVISOR_HOSTNAMES |tr "," " ")
+fi
+
+if [ ! -n "$VIDEO_HYPERVISOR_PORTS" ]; then
+    VIDEO_HYPERVISOR_PORTS='5900-6900'
+fi
+
 echo "read_timeout 120 minutes" > /etc/squid/squid.conf
 echo "half_closed_clients on" >> /etc/squid/squid.conf
 echo "acl SPICE_HOSTS dst $HOSTS" >> /etc/squid/squid.conf

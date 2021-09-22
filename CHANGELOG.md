@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] - 2021-09-28
+
+### Changed
+
+- There is OpenVswitch inside isard-vpn and inside isard-hypervisor (all). Isard-vpnc who went with remotehyper has disappeared. A wireguard 3-layer tunnel is created between isard-hypervisor and isard-vpn and another geneve-type layer 2 tunnel is set in. This allows encapsulating vlans inside the geneve tunnels.
+- All bridge type interfaces (with vlan id) that existed in the DB are passed to ovs type (openvswitch)
+- The wireguard interface is changed to an ovs interface with vlan id 4095 which is now wireguard.
+- All domains when adding an ovs-like network with an associated vlan tag are tagged by the engine to the xml with this tag and automatically pass through the geneve tunnels to (and from) isard-vpn and see each other.
+- There is now a dnsmasq in vlan 4095 inside isard-vpn which serves all directions dynamically towards all guests who have wireguard networking. It is also this dnsmasq who is responsible for updating the mac-ip-domain in the DB (in isard-engine he puts the mac and then isard-api when he receives dnsmasq info he seeks this mac in the domains and updates the guest wireguard IP).
+- If you put a trunk-type physical interface into the isard-hypervisor (with the pipework), when you want a machine to put a network with an existing vlan id into the trunk, you see the physical machines of that vlan.
+- Warning! Do not add more than one physical trunk interface to hypervisors as it will flood (storm). Only one hypervisor should be tight to the physical network now. Planning to add RSTP at ovs level.
+- Hypervisors are no longer created in the DB (may but will no longer work like this). When the hypervisor starts access to isard-api and adds itself to the bbdd. In this process, the engine connects and puts it online, and the hypervisor establishes the geneve tunnel for networks. When the hypervisor is destroyed (docker-compose down or shut down the machine) it also accesses the api to be removed. In this process the api first stops all the desktops it has (in the near future it will migrate to another hyper) and once finished it is removed from the bbdd.
+- There is an option in isard-engine to put the hypervisor into 'only forced' (not yet on the web). This option is very interesting because it will allow us to test a hyper with forced hyper domains before we can switch to production.
+- Now all goes with JWT (see isardvdi.cfg.example there is jwt for different services).
+- isardvdi.cfg has changed completely, and some wireguard and networks still need to be removed. It is self-documented.
+- The isard-engine is now much faster to detect states and change domains.
+- The isard-engine is more stable when working with hypervisors that enter and exit.
+- The option to put a domain as server appears as admin in domains. This makes him always try to get him off.
+- In terms of stats it has been changed and now sends the data that monitors thehyper to isard-influxdb and the new queries are in grafana (we are still making graphs). Influx also has a token to connect between stats and vpn.
+
+### New
+
+- A 'personal' network is created. This network defines a range of vlan ids (2000-3000). When a user adds the personal network to their desktops, they will all have the same interface to one of these vlans. More personal networks can be created with different ranks as well.
+- Scan storage files from isard-hypervisor and add the non used by domains nor already in media to the media of that user. This script can be run on an isard-hypervisor: docker exec isard-hypervisor python3 /src/lib/media-scan.py [all|media|groups]. This will allow to upload isos/qcows directly on the host storage path (/opt/isard/...), scan it with the script and create desktops from isos and desktops from the media menu.
+- Added filebrowser to access /opt/isard/{backups,templates,groups,media} folders from portal/video where an hypervisor is attached. The only writable (upload) folders are groups and media, others are read only (download). It can be accessed from hypervisor details in webapp.
+
 ## [3.3.0] - 2021-10-02
 
 ### Changed

@@ -49,6 +49,8 @@ log.basicConfig(
 logFormatter = log.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
 rootLogger = log.getLogger()
 
+rootLogger.setLevel(LOG_LEVEL_NUM)
+
 # fileHandler = logging.FileHandler("{0}/{1}.log".format(logPath, fileName))
 # fileHandler.setFormatter(logFormatter)
 # rootLogger.addHandler(fileHandler)
@@ -80,10 +82,16 @@ class Logs (object):
                              'bulk',
                              'eval',
                              'hmlog',
+                             'exception_id',
                              'main',
                              'broom']
         for n in self.names_for_loggers:
             self.create_logger(n)
+
+        if environ.get('LOG_EXCEPT_ID_LEVEL','') == 'DEBUG':
+            self.exception_id.setLevel('DEBUG')
+        else:
+            self.exception_id.setLevel('INFO')
 
     def create_logger(self, name):
         logger_obj = log.getLogger(name)
@@ -96,3 +104,4 @@ class Logs (object):
         setattr(self, name, logger_obj)
 
 logs = Logs()
+

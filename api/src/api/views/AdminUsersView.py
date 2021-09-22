@@ -269,7 +269,6 @@ def api_v3_admin_user_desktops(payload,id=False):
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"UserDesktops general exception: " + error }), 401, {'Content-Type': 'application/json'}
 
-
 @app.route('/api/v3/admin/category/<id>', methods=['GET'])
 @is_admin
 def api_v3_admin_category(id,payload):

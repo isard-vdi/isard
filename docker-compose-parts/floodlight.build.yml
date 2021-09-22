@@ -1,0 +1,6 @@
+version: '3.5'
+services:
+  isard-floodlight:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/floodlight/Dockerfile

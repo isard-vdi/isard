@@ -1,41 +1,8 @@
-FROM alpine:3.8 as production
-# Based on https://github.com/SchweizerischeBundesbahnen/docker-graphite and https://github.com/orangesys/alpine-grafana
+FROM alpine:3.11.3 as production
 
-# Install basic stuff =)
-RUN apk add --no-cache \
-  bash \
-  ca-certificates \
-  nginx \
-  openssl \
-  py2-pip \
-  supervisor \
-  tini \
-  && pip install \
-  supervisor-stdout \
-  gunicorn
+RUN apk add --no-cache bash tini
 
-# Install graphite
-ENV GRAPHITE_ROOT /opt/graphite
-
-RUN apk add --no-cache \
-  alpine-sdk \
-  fontconfig \
-  libffi \
-  libffi-dev \
-  python-dev \
-  py-cairo \
-  && export PYTHONPATH="/opt/graphite/lib/:/opt/graphite/webapp/" \
-  && pip install https://github.com/graphite-project/whisper/tarball/master \
-  && pip install https://github.com/graphite-project/carbon/tarball/master \
-  && pip install https://github.com/graphite-project/graphite-web/tarball/master \
-  && apk del \
-  alpine-sdk \
-  python-dev \
-  libffi-dev
-
-# Grafana
-ENV GRAFANA_VERSION=7.1.1
-
+ENV GRAFANA_VERSION=8.0.6
 RUN set -ex \
  && addgroup -S grafana \
  && adduser -S -G grafana grafana \
@@ -50,25 +17,12 @@ RUN set -ex \
  && chown -R grafana:grafana /grafana \
  && ln -s /grafana/plugins /var/lib/grafana/plugins \
  && grafana-cli plugins update-all \
+ && mkdir /grafana/conf \
+ && cp /tmp/setup/conf/defaults.ini /grafana/conf/defaults.ini \
  && rm -rf /tmp/setup
 
-ADD docker/grafana/grafana-defaults.ini /grafana/conf/defaults.ini
-
-#EXPOSE 8080
-#EXPOSE 3000
-#EXPOSE 2003
-#EXPOSE 2004
-#EXPOSE 7002
-
-VOLUME ["/opt/graphite/conf", "/opt/graphite/storage"]
-
 COPY docker/grafana/run.sh /run.sh
-COPY docker/grafana/etc/ /etc/
-COPY docker/grafana/data/ /grafana/data_init/
-COPY docker/grafana/conf/ /opt/graphite/conf.example/
+COPY docker/grafana/grafana.db /grafana/data_init/grafana.db
 
-# Enable tiny init
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/bin/bash", "/run.sh"]
-
-FROM alpine:3.8 as development

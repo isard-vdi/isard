@@ -32,18 +32,18 @@ NUM_TRY_REGISTER_EVENTS = 5
 SLEEP_BETWEEN_TRY_REGISTER_EVENTS = 1.0
 
 # Reference: https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
-from pprint import pprint
+import pprint
 def virEventLoopNativeRun(stop):
     while stop[0] is False:
         libvirt.virEventRunDefaultImpl()
 
 # Spawn a background thread to run the event loop
-def virEventLoopPureStart(stop):
-    #    global eventLoopThread
-    virEventLoopPureRegister()
-    eventLoopThread = threading.Thread(target=virEventLoopPureRun, name="libvirtEventLoop")
-    eventLoopThread.setDaemon(True)
-    eventLoopThread.start()
+# def virEventLoopPureStart(stop):
+#     #    global eventLoopThread
+#     virEventLoopPureRegister()
+#     eventLoopThread = threading.Thread(target=virEventLoopPureRun, name="libvirtEventLoop")
+#     eventLoopThread.setDaemon(True)
+#     eventLoopThread.start()
 
 
 # def virEventLoopNativeStart(hostname='unknowhost'):
@@ -97,6 +97,7 @@ def domDetailToString(event, detail):
     try:
         return DOM_EVENTS[event][1][detail]
     except Exception as e:
+        logs.exception_id.debug('0004')
         logs.status.error(f'Detail not defined in DOM_EVENTS. index_event:{event}, index_detail{detail}')
         logs.status.error(e)
         return 'Detail undefined'
@@ -289,7 +290,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
 
     if domain_status != None:
         if hyp_id is None or hyp_id == '':
-            logs.status.debug('event in Hypervisor not in database with uri.  hyp_id:{}, uri:{}'.dom_id, conn.getURI())
+            logs.status.debug('event in Hypervisor not in database with uri.  hyp_id:{}, uri:{}'.format(dom_id, conn.getURI()))
         r_status = opaque
 
         if dict_event['event'] in ('Started', 'Resumed'):
@@ -303,7 +304,10 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                 logs.status.info('Event Resumed Received but waiting for Paused to update status in database')
 
             elif domain_status == 'Started' and dict_event['event'] == 'Resumed':
-                logs.status.info('Event Resumed Received but is state is started in database')
+                logs.status.info('Event Resumed Received but his state is started in database')
+
+            elif domain_status == 'Starting' and dict_event['event'] == 'Resumed':
+                logs.status.info('Event Resumed Received but his state is Starting in database, waiting for started')
 
             else:
                 try:
@@ -315,13 +319,18 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                     #                                     vnc = vnc,vnc_websocket=vnc_websocket)
                     # logs.status.info(f'DOMAIN STARTED - {dom_id} in {hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})')
                     detail_event = domDetailToString(event, detail)
-                    logs.status.info(f'DOMAIN STARTED - event received: {detail_event} - {dom_id} in {hyp_id}')
-                    update_domain_status(id_domain=dom_id,
-                                         status=domEventToString(event),
-                                         hyp_id=hyp_id,
-                                         detail="Event received: " + detail_event
-                                         )
+                    if detail_event == 'Unpaused' and domain_status == 'Paused':
+                        status_to_update = 'Started'
+                    else:
+                        status_to_update = domEventToString(event)
+                        logs.status.info(f'DOMAIN STARTED - event received: {detail_event} - {dom_id} in {hyp_id}')
+                        update_domain_status(id_domain=dom_id,
+                                             status=status_to_update,
+                                             hyp_id=hyp_id,
+                                             detail="Event received: " + detail_event
+                                             )
                 except Exception as e:
+                    logs.exception_id.debug('0005')
                     logs.status.error(
                         'Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed'.format(
                             dom_id))
@@ -498,6 +507,7 @@ class ThreadHypEvents(threading.Thread):
             except queue.Empty:
                 pass
             except Exception as e:
+                logs.exception_id.debug('0006')
                 log.error('Exception in ThreadHypEvents main loop: {}'.format(e))
                 log.error('Action: {}'.format(pprint.pformat(action)))
                 log.error('Traceback: {}'.format(traceback.format_exc()))
@@ -522,6 +532,7 @@ class ThreadHypEvents(threading.Thread):
             update_uri_hyp(hyp_id, uri)
             conn_ok = True
         except Exception as e:
+            logs.exception_id.debug('0007')
             logs.status.error('libvirt connection read only in events thread in hypervisor: {}'.format(hyp_id))
             logs.status.error(e)
 
@@ -539,16 +550,22 @@ class ThreadHypEvents(threading.Thread):
 
 
     def del_hyp_to_receive_events(self, hyp_id):
-        self.unregister_events(self.hyps_conn[hyp_id], self.events_ids[hyp_id])
-        try:
-            self.hyps_conn[hyp_id].close()
-        except Exception as e:
-            logs.status.error('libvirt connection read only can not be closed: {}'.format(hyp_id))
-            logs.status.error(e)
+        if hyp_id in self.hyps_conn.keys():
+            try:
+                self.unregister_events(self.hyps_conn[hyp_id], self.events_ids[hyp_id])
+            except Exception as e:
+                logs.exception_id.debug('0008')
+                logs.status.error(f'Error unregistering event in hypervisor {hyp_id}. Exception: {e}')
+            try:
+                self.hyps_conn[hyp_id].close()
+            except Exception as e:
+                logs.exception_id.debug('0009')
+                logs.status.error('Error closing libvirt connection. libvirt connection events in read only can not be closed?: {}'.format(hyp_id))
+                logs.status.error(e)
 
-        self.hyps_conn.pop(hyp_id)
-        self.events_ids.pop(hyp_id)
-        self.hyps.pop(hyp_id)
+            self.hyps_conn.pop(hyp_id)
+            self.events_ids.pop(hyp_id)
+            self.hyps.pop(hyp_id)
 
     def register_events(self, hyp_libvirt_conn):
 

@@ -7,8 +7,9 @@ from flask import Blueprint, jsonify
 from flask import current_app
 from flask import request
 
-from engine.models.manager_hypervisors import ManagerHypervisors
+from engine.models.engine import Engine
 from engine.services.db.db import update_table_field
+from engine.services.log import logs
 
 api = Blueprint('api', __name__)
 
@@ -155,6 +156,7 @@ def engine_info():
         print('ERROR ----- ENGINE IS DEATH')
         return jsonify(d_engine), 200
     except Exception as e:
+        logs.exception_id.debug('0002')
         d_engine['is_alive'] = False
         print('ERROR ----- ENGINE IS DEATH AND EXCEPTION DETECTED')
         return jsonify(d_engine), 200

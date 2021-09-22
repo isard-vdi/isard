@@ -32,11 +32,13 @@ from libpci import LibPCI
 from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
 from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
 from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
-from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain, update_info_nvidia_hyp_domain
+from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain, update_info_nvidia_hyp_domain, \
+                               get_hyp, update_db_default_gpu_models, update_uids_for_nvidia_id
 from engine.services.log import *
 from engine.config import *
 from engine.services.lib.functions import exec_remote_cmd
-from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list
+from engine.services.lib.libvirt_dicts import virDomainState
+from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list, get_domains_started_in_hyp
 from engine.models.nvidia_models import NVIDIA_MODELS
 from engine.services.lib.functions import execute_commands
 
@@ -63,11 +65,12 @@ class hyp(object):
     """
     operates with hypervisor
     """
-    def __init__(self, address, user='root', port=22, capture_events=False, try_ssh_autologin=False):
+    def __init__(self, address, user='root', port=22, capture_events=False, try_ssh_autologin=False, hyp_id =None):
 
         # dictionary of domains
         # self.id = 0
         self.domains = {}
+        self.domains_states = {}
         port=int(port)
         if (type(port) == int) and port > 1 and port < pow(2, 16):
             self.port = port
@@ -84,7 +87,8 @@ class hyp(object):
         self.info = {}
         self.info_stats = {}
         self.capture_events = capture_events
-        self.id_hyp_rethink = None
+        self.id_hyp_rethink = hyp_id
+        self.hyp_id = hyp_id
         self.has_nvidia = False
         self.gpus = {}
 
@@ -117,7 +121,7 @@ class hyp(object):
             # ssh -o "HostKeyAlgorithms ssh-rsa" root@ajenti.escoladeltreball.org
 
             ssh.load_system_host_keys()
-            ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
+            # ssh.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
             # time.sleep(1)
             try:
                 # timelimit(3,test_hypervisor_conn,self.hostname,
@@ -140,6 +144,7 @@ class hyp(object):
                 self.fail_connected_reason = 'ssh authentication fail when connect: {}'.format(e)
                 self.ssh_autologin_fail = True
             except Exception as e:
+                logs.exception_id.debug('0026')
                 log.error(
                     "host {} with ip {} can't connect with ssh without password. Reasons? timeout, ssh authentication with keys is needed, port is correct?".format(
                         self.hostname, self.ip))
@@ -166,9 +171,11 @@ class hyp(object):
                         try:
                             self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
                         except Exception as e:
+                            logs.exception_id.debug('0027')
                             log.error('error when hypervisor have not rethink id. {}'.format(e))
-                    timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
-                    self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
+                    #timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
+                    #self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
+                    self.conn = test_hypervisor_conn(self.uri)
 
                     # timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
 
@@ -185,7 +192,7 @@ class hyp(object):
                         # y al ponerlo da error lo dejo comentado, pero en futuro hay que quitar
                         # esta línea si no sabemos bien que hace...
                         # self.conn.setKeepAlive(5, 3)
-                        log.debug("connected to hypervisor: %s" % self.hostname)
+                        log.info("connected to hypervisor: %s" % self.hostname)
                         self.set_status(HYP_STATUS_CONNECTED)
                         self.fail_connected_reason = ''
                         # para que le de tiempo a los eventos a quedarse registrados hay que esperar un poquillo, ya
@@ -210,6 +217,7 @@ class hyp(object):
                 #     return False
 
                 except Exception as e:
+                    logs.exception_id.debug('0028')
                     log.error('connection to hypervisor {} fail with unexpected error: {}'.format(self.hostname, e))
                     log.error('libvirt uri: {}'.format(self.uri))
                     self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
@@ -224,6 +232,7 @@ class hyp(object):
             return False
 
         except Exception as e:
+            logs.exception_id.debug('0029')
             log.error(e)
 
     def launch_events(self):
@@ -237,6 +246,30 @@ class hyp(object):
             self.connected = False
 
             # set_hyp_status(self.hostname,status_code)
+
+    def init_nvidia(self):
+        d_hyp = get_hyp(self.id_hyp_rethink)
+        default_gpu_models = d_hyp.get('default_gpu_models',{})
+        uuids_gpu = d_hyp.get('nvidia_uids',{})
+
+        if len(self.info['nvidia']) > 0:
+            if len(default_gpu_models) < len(self.info['nvidia']):
+
+                default_gpu_models = {k:a['type_max_gpus'] for k,a in self.info['nvidia'].items()}
+                update_db_default_gpu_models(self.id_hyp_rethink,default_gpu_models)
+
+            for gpu_id,d_info_gpu in self.info['nvidia'].items():
+                if gpu_id not in uuids_gpu.keys():
+                    d_uids = self.create_uuids(d_info_gpu)
+                    update_uids_for_nvidia_id(self.id_hyp_rethink,gpu_id,d_uids)
+
+            d_hyp = get_hyp(self.id_hyp_rethink)
+            for gpu_id,d_uids in d_hyp['nvidia_uids'].items():
+                selected_gpu_type = default_gpu_models[gpu_id]
+                info_nvidia = d_hyp['info']['nvidia'][gpu_id]
+                self.delete_and_create_devices_if_not_exist(gpu_id,d_uids,info_nvidia,selected_gpu_type,self.id_hyp_rethink)
+            if len(d_hyp['nvidia_uids']) > 0:
+                self.update_started_uids()
 
     def get_kvm_mod(self):
         for i in range(MAX_GET_KVM_RETRIES):
@@ -260,6 +293,7 @@ class hyp(object):
                 return True
 
             except Exception as e:
+                logs.exception_id.debug('0030')
                 log.error('Exception while executing remote command in hypervisor to list kvm modules: {}'.format(e))
                 log.error(f'Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second.')
             time.sleep(1)
@@ -275,10 +309,16 @@ class hyp(object):
                                                          int(libvirt_version[-6:-3]),
                                                          int(libvirt_version[-3:]))
 
-        qemu_version = str(self.conn.getVersion())
-        self.info['qemu_version'] = '{}.{}.{}'.format(int(qemu_version[-9:-6]),
-                                                      int(qemu_version[-6:-3]),
-                                                      int(qemu_version[-3:]))
+        try:
+            qemu_version = str(self.conn.getVersion())
+            self.info['qemu_version'] = '{}.{}.{}'.format(int(qemu_version[-9:-6]),
+                                                          int(qemu_version[-6:-3]),
+                                                          int(qemu_version[-3:]))
+        except libvirt.libvirtError as e:
+            logs.workers.error(f'Exception when get qemu_version in hyp {self.id_hyp_rethink}: {e}')
+            self.info['qemu_version'] = '0.0.0'
+
+
 
         inf = self.conn.getInfo()
         self.info['arch'] = inf[0]
@@ -311,6 +351,7 @@ class hyp(object):
                     self.info['memory_speed'] = "0"
 
         except Exception as e:
+            logs.exception_id.debug('0031')
             log.error('Exception when extract information with libvirt from hypervisor {}: {}'.format(self.hostname, e))
             log.error('Traceback: {}'.format(traceback.format_exc()))
 
@@ -490,12 +531,15 @@ class hyp(object):
                 xml_stopped = d.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
                 d.destroy()
             except Exception as e:
+                logs.exception_id.debug('0032')
                 log.error('error starting paused vm: {}'.format(e))
 
         except Exception as e:
+            logs.exception_id.debug('0033')
             log.error('error defining vm: {}'.format(e))
 
         return xml_stopped, xml_started
+
 
     def get_domains(self):
         """
@@ -503,12 +547,22 @@ class hyp(object):
         keys of dictionary are names
         domains can be started or paused
         """
+        self.domains = {}
+        self.domains_states = {}
         if self.connected:
-            self.domains = {}
             try:
                 for d in self.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
                     try:
                         domain_name = d.name()
+                        l_libvirt_state = d.state()
+                        state_id = l_libvirt_state[0]
+                        reason_id = -1 if len(l_libvirt_state) < 2 else l_libvirt_state[1]
+                        self.domains_states[domain_name] = {
+                             'status': virDomainState[state_id]['status'],
+                             'detail': virDomainState[state_id].get('reason',  {}).\
+                                                                get(reason_id, {}).\
+                                                                get('detail',  '')
+                             }
                     except:
                         log.info('unkown domain fail when trying to get his name, power off??')
                         continue
@@ -517,6 +571,35 @@ class hyp(object):
             except:
                 log.error('error when try to list domain in hypervisor {}'.format(self.hostname))
                 self.domains = {}
+
+        return self.domains_states
+
+    def update_domain_coherence_in_db(self):
+        d_domains_with_states = self.get_domains()
+        set_domains_running_in_hyps = set()
+        if self.id_hyp_rethink is None:
+            try:
+                self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
+                if self.id_hyp_rethink is None:
+                    log.error('error when hypervisor have not rethink id. {}'.format(e))
+                    raise TypeError
+            except Exception as e:
+                logs.exception_id.debug('0034')
+                log.error('error when hypervisor have not rethink id. {}'.format(e))
+                raise e
+        for domain_id, d in d_domains_with_states.items():
+            update_domain_status(d['status'],
+                                 domain_id,
+                                 hyp_id=self.id_hyp_rethink,
+                                 detail=d['detail'])
+            set_domains_running_in_hyps.add(domain_id)
+        domains_with_hyp_started_in_db = get_domains_started_in_hyp(self.id_hyp_rethink)
+        set_domains_with_hyp_started_in_db = set(list(domains_with_hyp_started_in_db.keys()))
+        domains_to_be_stopped = set_domains_with_hyp_started_in_db.difference(set_domains_running_in_hyps)
+        for domain_id in domains_to_be_stopped:
+            update_domain_status('Stopped',
+                                 domain_id,
+                                 detail=f'domain not running in hyp {self.id_hyp_rethink}')
 
     #
     # def hyp_worker_thread(self,queue_worker):
@@ -1043,6 +1126,7 @@ class hyp(object):
             try:
                 self.id_hyp_rethink = get_id_hyp_from_uri(hostname_to_uri(self.hostname, user=self.user, port=self.port))
             except Exception as e:
+                logs.exception_id.debug('0035')
                 log.error('error when hypervisor have not rethink id. {}'.format(e))
                 return False
         l_all_domains = get_domains_with_status_in_list(list_status=['Started', 'Shutting-down', 'Stopped', 'Failed'])

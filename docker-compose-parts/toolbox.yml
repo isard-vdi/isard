@@ -8,7 +8,7 @@ services:
         max-size: "100m"
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET}.21
+        ipv4_address: ${DOCKER_NET:-172.18.255}.21
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -16,7 +16,15 @@ services:
       - /opt/isard-local/logs:/isard/logs:rw
       - /opt/isard/templates:/isard/templates:rw
       - /opt/isard/groups:/isard/groups:rw
-      - /opt/isard/toolbox:/isard/toolbox:rw
-      - /opt/isard/media:/mnt/media:rw
+      - /opt/isard/templates:/isard/backups:ro
+      - /opt/isard/toolbox/src:/isard/toolbox:rw
+      - /opt/isard/media:/isard/media:rw
+      # FILEBROWSER VOLUMES
+      - ${BUILD_ROOT_PATH}/frontend/src/assets/logo.svg:/branding/img/logo.svg:ro
+      - /opt/isard-local/filebrowser:/config
     env_file:
       - .env
+    environment:
+      - FB_BASEURL=/storage
+      - WEBAPP_ADMIN_PWD=${WEBAPP_ADMIN_PWD}
+      - API_HYPERVISORS_SECRET=${API_HYPERVISORS_SECRET}

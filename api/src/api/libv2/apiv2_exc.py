@@ -15,6 +15,9 @@ class UserExists(Exception):
 class UserTemplatesError(Exception):
     pass
 
+class UserMediaError(Exception):
+    pass
+
 class UserDesktopsError(Exception):
     pass
 

@@ -117,6 +117,19 @@ def admin_domains_xml(id):
             return json.dumps(res), 500,  {'Content-Type': 'application/json'}
     return json.dumps(app.adminapi.get_admin_table('domains',pluck='xml',id=id)['xml']), 200, {'Content-Type': 'application/json'}
 
+@app.route('/isard-admin/admin/domains/server/<id>', methods=['POST','GET'])
+@login_required
+@isAdminManager
+def admin_domains_server(id):
+    if request.method == 'POST':
+        res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
+        if res:
+            return json.dumps(res), 200,  {'Content-Type': 'application/json'}
+        else:
+            return json.dumps(res), 500,  {'Content-Type': 'application/json'}
+    server = app.adminapi.get_admin_table('domains',pluck='create_dict',id=id,flatten=False)['create_dict']
+    return json.dumps(server.get('server',False)), 200, {'Content-Type': 'application/json'}
+
 
 @app.route('/isard-admin/admin/domains/events/<id>', methods=['GET'])
 @login_required

@@ -10,7 +10,7 @@ from datetime import datetime
 from time import sleep
 import pprint
 
-import rethinkdb as r
+from rethinkdb import r
 
 from engine.config import TEST_HYP_FAIL_INTERVAL, STATUS_POLLING_INTERVAL, TIME_BETWEEN_POLLING, \
     POLLING_INTERVAL_BACKGROUND
@@ -218,11 +218,7 @@ class ManagerHypervisors(object):
                     )
                     self.manager.t_long_operations[hyp_long_operations], \
                     self.manager.q_long_operations[hyp_long_operations] = launch_long_operations_thread(
-                        hyp_id=hyp_long_operations,
-                        hostname=d['hostname'],
-                        user=d['user'],
-                        port=d['port']
-                    )
+                        hyp_id=hyp_long_operations, hostname=d['hostname'], user=d['user'], port=d['port'])
 
         def test_hyps_and_start_threads(self):
             """If status of hypervisor is Error or Offline and are enabled,
@@ -292,10 +288,7 @@ class ManagerHypervisors(object):
                 #if hypervisor not in pools defined in manager add it
                 for id_pool in pools:
                     if id_pool not in self.manager.pools.keys():
-                        if self.manager.with_status_threads is True:
-                            self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager, len(dict_hyps_ready))
-                        else:
-                            self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager, len(dict_hyps_ready),with_status_threads=False)
+                        self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager)
 
         def run(self):
             self.tid = get_tid()
@@ -423,6 +416,7 @@ class ManagerHypervisors(object):
                 except queue.Empty:
                     pass
                 except Exception as e:
+                    logs.exception_id.debug('0037')
                     logs.main.error(e)
                     return False
 

@@ -69,6 +69,7 @@ class ThreadBroom(threading.Thread):
                             logs.broom.error('HYPERVISOR {} libvirt connection failed')
                         hyps_domain_started[hyp_id] = False
                 except Exception as e:
+                    logs.exception_id.debug('0003')
                     logs.broom.error('Exception when try to hypervisor {}: {}'.format(hyp_id, e))
                     logs.broom.error('Traceback: {}'.format(traceback.format_exc()))
 

@@ -188,3 +188,96 @@ def api_v3_persistent_desktop_new(payload):
     #except DesktopDeleteTimeout:
     #    log.error("Desktop delete "+desktop_id+", desktop delete timeout")
     #    return json.dumps({"code":4,"msg":"Desktop delete deleting timeout"}), 404, {'Content-Type': 'application/json'}
+
+
+@app.route('/api/v3/desktop/from/scratch', methods=['POST'])
+@has_token
+def api_v3_desktop_from_scratch(payload):
+    try:
+        name = request.form.get('name', type = str)
+        #Optionals but some required (check after)
+        if payload['role_id'] == 'admin':
+            user_id = payload.get('user_id','local-default-admin-admin')
+        else:
+            user_id = payload['user_id']
+
+        ## TODO: If role is manager can create in his category
+        ##      If role is teacher can create in his deployment?
+
+        description = request.form.get('description', '')
+        disk_user = request.form.get('disk_user', False)
+        disk_path = request.form.get('disk_path', False)
+        disk_path_selected = request.form.get('disk_path_selected', "/isard/groups")
+        disk_bus = request.form.get('disk_bus', "virtio")
+        disk_size = request.form.get('disk_size', False)
+        disks = request.form.get('disks', False)
+        isos = request.form.get('isos', [])
+        boot_order = request.form.get('boot_order', ["disk"])
+        vcpus = request.form.get('vcpus', 2)
+        memory = request.form.get('memory', 4096)
+        graphics = request.form.get('graphics', ["default"])
+        videos = request.form.get('videos', ["default"])
+        interfaces = request.form.get('interfaces', ["default"])
+        opsystem = request.form.get('opsystem', ["windows"])
+        icon = request.form.get('icon', ["fa-desktop"])
+        image = request.form.get('image', "")
+        forced_hyp = request.form.get('forced_hyp', False)
+        hypervisors_pools = request.form.get('hypervisors_pools', ["default"])
+        server = request.form.get('server', False)
+        virt_install_id = request.form.get('virt_install_id', False)
+        xml = request.form.get('xml', False)
+
+    except Exception as e:
+        return json.dumps({"code":8,"msg":"Incorrect access. exception: " + e }), 401, {'Content-Type': 'application/json'}
+
+    if name == None:
+        log.error("Incorrect access parameters. Check your query.")
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. At least desktop name parameter is required." }), 401, {'Content-Type': 'application/json'}
+
+    if not virt_install_id and not xml:
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. We need virt_install_id or xml." }), 401, {'Content-Type': 'application/json'}
+    if not disk_user and not disk_path and not disks:
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. We need disk_user or disk_path or disks." }), 401, {'Content-Type': 'application/json'}
+    if not boot_order not in ["disk","iso","pxe"]:
+        return json.dumps({"code":8,"msg":"Incorrect access parameters. Boot order items should be disk, iso or pxe." }), 401, {'Content-Type': 'application/json'}
+
+    # try:
+    #     quotas.DesktopCreate(user_id)
+    # except QuotaUserNewDesktopExceeded:
+    #     log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
+    #     return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+    # except QuotaGroupNewDesktopExceeded:
+    #     log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
+    #     return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+    # except QuotaCategoryNewDesktopExceeded:
+    #     log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
+    #     return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+    # except Exception as e:
+    #     error = traceback.format_exc()
+    #     return json.dumps({"code":9,"msg":"PersistentDesktopNew quota check general exception: " + error }), 401, {'Content-Type': 'application/json'}
+
+    try:
+        desktop_id = desktops.NewFromScratch(
+                                    name=name,
+                                    user_id=user_id,
+                                    description=description,
+                                    disk_user=disk_user,
+                                    disk_path=disk_path,disk_path_selected=disk_path_selected,disk_bus=disk_bus,disk_size=disk_size,
+                                    disks=disks, 
+                                    isos=isos, # ['_local-default-admin-admin-systemrescue-8.04-amd64.iso']
+                                    boot_order=boot_order,
+                                    vcpus=vcpus,memory=memory,
+                                    graphics=graphics,videos=videos,interfaces=interfaces,
+                                    opsystem=opsystem,
+                                    icon=icon,
+                                    image=image,
+                                    forced_hyp=forced_hyp,
+                                    hypervisors_pools=hypervisors_pools,
+                                    server=server,
+                                    virt_install_id=virt_install_id,
+                                    xml=xml)
+        return json.dumps({'id': desktop_id}), 200, {'Content-Type': 'application/json'}
+    ## TODO: Control all exceptions and return correct code
+    except Exception as e:
+        error = traceback.format_exc()
+        return json.dumps({"code":9,"msg":"PersistentDesktopNew general exception: " + error }), 401, {'Content-Type': 'application/json'}

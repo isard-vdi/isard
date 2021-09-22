@@ -24,7 +24,8 @@ from flatten_dict import flatten
 from lxml import etree
 
 from engine.services.db import get_dict_from_item_in_table, update_table_field, update_domain_dict_hardware, update_domain_dict_create_dict
-from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values, get_graphics_types
+from engine.services.db import get_interface, get_domain, update_domain_viewer_started_values, get_graphics_types, \
+                               get_and_update_personal_vlan_id_from_domain_id, remove_fieds_when_stopped
 from engine.services.db.downloads import get_media
 from engine.services.lib.functions import randomMAC, pop_key_if_zero
 from engine.services.log import *
@@ -52,6 +53,18 @@ XML_SNIPPET_BRIDGE = '''
       <source bridge='n2m-bridge'/>
       <mac address='52:54:00:eb:b1:aa'/>
       <model type='virtio'/>
+    </interface>
+'''
+
+XML_SNIPPET_OVS = '''
+    <interface type='bridge'>
+      <source bridge='{ovs_br_name}'/>
+      <mac address='52:54:00:eb:b1:aa'/>
+      <virtualport type='openvswitch'></virtualport>
+      <vlan>
+        <tag id='{vlan_id}'/>
+      </vlan>
+      <model type="virtio"/>
     </interface>
 '''
 
@@ -180,6 +193,7 @@ class DomainXML(object):
             self.tree = etree.parse(StringIO(xml), parser)
             self.parser = True
         except Exception as e:
+            logs.exception_id.debug('0022')
             log.error('Exception when parse xml: {}'.format(e))
             log.error('xml that fail: \n{}'.format(xml))
             log.error('Traceback: {}'.format(traceback.format_exc()))
@@ -503,7 +517,7 @@ class DomainXML(object):
         self.add_device(xpath_same, new_disk, xpath_next=xpath_next, xpath_previous=xpath_previous)
         self.index_disks['sata'] += 1
 
-    def add_interface(self, type_interface, mac, model_type='virtio', net='default', qos=False):
+    def add_interface(self, type_interface, mac, id_domain, id_interface, model_type='virtio', net='default', qos=False):
         '''
         :param type_interface:' bridge' OR 'network' .
                      If bridge inserts xml code for bridge,
@@ -514,6 +528,41 @@ class DomainXML(object):
         if type_interface == 'bridge':
             interface_etree = etree.parse(StringIO(XML_SNIPPET_BRIDGE))
             interface_etree.xpath('/interface')[0].xpath('source')[0].set('bridge', net)
+
+        elif type_interface == 'ovs':
+            xml_snippet = XML_SNIPPET_OVS.format(vlan_id = net, ovs_br_name='ovsbr0')
+            interface_etree = etree.parse(StringIO(xml_snippet))
+
+        elif type_interface == 'personal':
+            vlan_id = False
+            if type(net) == str:
+                if net.find('-') > 0 and len(net[net.find('-'):]) > 1:
+                    range=net.split('-')
+                    if range[0].isnumeric() is True and range[1].isnumeric() is True:
+                        if int(range[0]) < pow(2,12) and int(range[1])< pow(2,12) and int(range[1]) > int(range[0]):
+                            vlan_id = get_and_update_personal_vlan_id_from_domain_id(id_domain, id_interface, range_start=int(range[0]), range_end=int(range[1]))
+                            if vlan_id is not False:
+                                xml_snippet = XML_SNIPPET_OVS.format(vlan_id = vlan_id, ovs_br_name='ovsbr0')
+                                interface_etree = etree.parse(StringIO(xml_snippet))
+                            else:
+                                log.error(f'vlan_id not available for personal network')
+                        else:
+                            log.error(
+                                f'interface personal net with vlans_id numbers not valid (<4096?): {net}')
+                    else:
+                        log.error(f'interface personal net is not defined as a range of numeric vlans_id as xxxx-yyyy. net: {net}')
+                else:
+                    log.error(f'interface personal net is not defined as string with a range of vlans_id as xxxx-yyyy. net: {net}')
+            else:
+                log.error('interface personal net is not a string')
+            if vlan_id is False:
+                return -1
+
+        elif type_interface.find('ovs') == 0 and len(type_interface) > 3:
+            suffix_br = type_interface[3:]
+            ovs_br_name = 'ovsbr' + suffix_br
+            xml_snippet = XML_SNIPPET_OVS.format(vlan_id = net, ovs_br_name=ovs_br_name)
+            interface_etree = etree.parse(StringIO(xml_snippet))
 
         elif type_interface == 'network':
             interface_etree = etree.parse(StringIO(XML_SNIPPET_NETWORK))
@@ -607,6 +656,7 @@ class DomainXML(object):
                     try:
                         del self.tree.xpath('/domain/devices/video/model')[0].attrib[key]
                     except Exception as e:
+                        logs.exception_id.debug('0023')
                         print(f'Exception when remove attribute from video model none in xml: {e}')
 
         if type_video.find('nvidia-with-qxl') == 0:
@@ -729,11 +779,11 @@ class DomainXML(object):
                         print('ORDER NUM:'+str(order_num)+' REMAINING:'+str(remaining))
                         self.tree.xpath(xpath)[remaining-1].getparent().remove(self.tree.xpath(xpath)[remaining-1])
                         remaining = len(self.tree.xpath(xpath))
-                    return True                 
+                    return True
                 l = len(self.tree.xpath(xpath))
                 if order_num >= -1 and order_num < l:
                     self.tree.xpath(xpath)[order_num].getparent().remove(self.tree.xpath(xpath)[order_num])
-                    return True                   
+                    return True
                 else:
                     log.debug('index error in remove_device function')
             else:
@@ -914,10 +964,11 @@ class DomainXML(object):
 
             return path
 
-    def randomize_vm(self):
-        self.new_random_mac()
-        self.new_domain_uuid()
-
+    def randomize_vm(self,mac=False,uuid=True):
+        if mac:
+            self.new_random_mac()
+        if uuid:
+            self.new_domain_uuid()
         self.dict_from_xml()
 
     def print_vm_dict(self):
@@ -962,6 +1013,7 @@ def create_template_from_dict(dict_template_new):
 
 
 def update_xml_from_dict_domain(id_domain, xml=None):
+    remove_fieds_when_stopped(id_domain)
     d = get_domain(id_domain)
     hw = d['hardware']
     if xml is None:
@@ -1061,13 +1113,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     """ for interface_index in range(len(v.vm_dict['interfaces'])):
         v.(order=interface_index) """
 
-    if 'interfaces' in hw.keys():
-        for d_interface in hw['interfaces']:
-            v.add_interface(type_interface=d_interface['type'],
-                            mac=d_interface['mac'],
-                            model_type=d_interface['model'],
-                            net = d_interface['net'],
-                            qos = d_interface.get('qos',False))
+    recreate_xml_interfaces(d, v)
 
     v.set_vcpu(hw['vcpus'])
     v.set_video_type(hw['video']['type'])
@@ -1163,6 +1209,10 @@ def populate_dict_hardware_from_create_dict(id_domain):
         update_domain_dict_create_dict(id_domain,create_dict)
 
     new_hardware_dict['interfaces'] = create_list_interfaces_from_list_ids(list_interfaces_id,list_interfaces_mac)
+    d_netnames_mac = {'macs':{d['id']:d['mac'] for d in new_hardware_dict['interfaces']}}
+    d_netnames_mac_reset = {'macs':False}
+    update_table_field('domains',id_domain,'create_dict',d_netnames_mac_reset)
+    update_table_field('domains',id_domain,'create_dict',d_netnames_mac)
 
     # BOOT MENU
     if 'hardware' in create_dict.keys():
@@ -1209,7 +1259,7 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
                 #remove elements with zero
                 dict_bandwidth = pop_key_if_zero(dict_bandwidth)
                 return {'type': dict_net['kind'],
-                        'id': dict_net['ifname'],
+                        'id': dict_net['id'],
                         'name': dict_net['name'],
                         'model': dict_net['model'],
                         'net': dict_net['net'],
@@ -1220,7 +1270,7 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
         except:
             log.error(f'net qos with id {qos_id} not defined in dict_qos table')
     return {'type': dict_net['kind'],
-            'id': dict_net['ifname'],
+            'id': dict_net['id'],
             'name': dict_net['name'],
             'model': dict_net['model'],
             'net': dict_net['net'],
@@ -1252,8 +1302,9 @@ def create_dict_interface_hardware_from_id(id_net,mac_address):
 
     # ~ return d
 
-def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
-    dict_domain = get_domain(id)
+def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
+    remove_fieds_when_stopped(id_domain)
+    dict_domain = get_domain(id_domain)
 
     xml = dict_domain['xml']
     x = DomainXML(xml)
@@ -1281,6 +1332,33 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     #add vlc access
     x.add_vlc_with_websockets()
 
+    #recreate xml interfaces from create_dict
+    recreate_xml_interfaces(dict_domain, x)
+
+    x.remove_selinux_options()
+
+    #remove boot order in disk definition that conflict with /os/boot order in xml
+    x.remove_boot_order_and_danger_options_from_disks()
+
+    x.dict_from_xml()
+    if dict_domain['hardware']['video']['type'].find('nvidia') == 0:
+        x.vm_dict['video'] = dict_domain['hardware']['video'].copy()
+    # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
+    update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
+    if 'viewer_passwd' in x.__dict__.keys():
+        #update password in database
+        update_domain_viewer_started_values(id_domain, passwd=x.viewer_passwd)
+        log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id_domain))
+
+    xml = x.return_xml()
+    # log.debug('#####################################################')
+    # log.debug(xml)
+    # log.debug('#####################################################')
+
+    return xml
+
+def recreate_xml_interfaces(dict_domain,x):
+    id_domain = dict_domain['id']
     # redo network
     try:
         list_interfaces = dict_domain['create_dict']['hardware']['interfaces']
@@ -1288,7 +1366,7 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
     except KeyError:
         list_interfaces = []
         list_interfaces_mac = []
-        log.info('domain {} withouth key interfaces in create_dict'.format(id))
+        log.info('domain {} withouth key interfaces in create_dict'.format(id_domain))
 
 
     # clean interfaces saving the mac...
@@ -1332,33 +1410,13 @@ def recreate_xml_to_start(id, ssl=True, cpu_host_model=False):
 
         x.add_interface(type_interface=d_interface['kind'],
                         model_type=d_interface['model'],
+                        id_interface=d_interface['id'],
+                        id_domain=id_domain,
                         net=d_interface['net'],
                         qos=dict_bandwidth,
                         mac=mac_selected)
 
         interface_index += 1
-
-    x.remove_selinux_options()
-
-    #remove boot order in disk definition that conflict with /os/boot order in xml
-    x.remove_boot_order_and_danger_options_from_disks()
-
-    x.dict_from_xml()
-    if dict_domain['hardware']['video']['type'].find('nvidia') == 0:
-        x.vm_dict['video'] = dict_domain['hardware']['video'].copy()
-    # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
-    update_domain_dict_hardware(id, x.vm_dict, xml=xml)
-    if 'viewer_passwd' in x.__dict__.keys():
-        #update password in database
-        update_domain_viewer_started_values(id, passwd=x.viewer_passwd)
-        log.debug("updated viewer password {} in domain {}".format(x.viewer_passwd, id))
-
-    xml = x.return_xml()
-    # log.debug('#####################################################')
-    # log.debug(xml)
-    # log.debug('#####################################################')
-
-    return xml
 
 def recreate_xml_if_gpu(id_domain,xml,next_hyp,extras,remove_graphics=False):
     xml = xml
@@ -1367,6 +1425,7 @@ def recreate_xml_if_gpu(id_domain,xml,next_hyp,extras,remove_graphics=False):
     try:
         tree = etree.parse(StringIO(xml), parser)
     except Exception as e:
+        logs.exception_id.debug('0024')
         log.error('Exception when parse xml in recreate_xml_if_gpu: {}'.format(e))
         log.error('xml that fail: \n{}'.format(xml))
         log.error('Traceback: {}'.format(traceback.format_exc()))

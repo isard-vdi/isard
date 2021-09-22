@@ -1,4 +1,4 @@
-import rethinkdb as r
+from rethinkdb import r
 
 from engine.services.db import new_rethink_connection, close_rethink_connection
 from engine.services.log import *
@@ -34,6 +34,7 @@ def update_status_table(table,status,id_table,detail=""):
     try:
         r.table(table).get(id_table).update(d).run(r_conn)
     except Exception as e:
+        logs.exception_id.debug('0042')
         logs.main.error(f'Error when updated status in table: {table}, status: {status}, id: {id_table}, detail: {detail}')
     close_rethink_connection(r_conn)
 

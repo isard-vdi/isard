@@ -1,9 +1,9 @@
 from pprint import pformat
 
-import rethinkdb as r
+from rethinkdb import r
 
 from engine.services.db.db import new_rethink_connection, close_rethink_connection
-from engine.services.log import log
+from engine.services.log import log, logs
 
 
 class RethinkHypEvent(object):
@@ -18,6 +18,7 @@ class RethinkHypEvent(object):
             r.table('hypervisors_events').insert(dict_event).run(r_conn)
             close_rethink_connection(r_conn)
         except Exception as e:
+            logs.exception_id.debug('0038')
             log.error('rethink insert hyp event fail: {}'.format(e))
 
     def update_viewer_client(self, domain_id, phase, ip_client=False, when=False):

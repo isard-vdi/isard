@@ -7,7 +7,6 @@
 import time
 from api import app
 from datetime import datetime, timedelta
-import pprint
 
 from rethinkdb import RethinkDB; r = RethinkDB()
 from rethinkdb.errors import ReqlTimeoutError
@@ -148,5 +147,72 @@ def _parse_deployment_desktop(desktop):
 
     return desktop
 
+# suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+# def humansize(nbytes):
+#     i = 0
+#     while nbytes >= 1024 and i < len(suffixes)-1:
+#         nbytes /= 1024.
+#         i += 1
+#     f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
+#     return '%s %s' % (f, suffixes[i])
 
+
+def generate_db_media(path_downloaded,filesize):
+    parts=path_downloaded.split('/')
+    # /isard/media/default/default/local/admin-admin/dsl-4.4.10.iso
+    media_id='_'+parts[-3]+'-'+parts[-5]+'-'+parts[-2]+'-'+parts[-1]
+    group_id=parts[-5]+'-'+parts[-4]
+
+    icon = False
+    if path_downloaded.split('.')[-1] == 'iso': 
+        icon = "fa-circle-o"
+        kind = "iso"
+    if path_downloaded.split('.')[-1] == 'fd': 
+        icon = "fa-floppy-o"
+        kind = "floppy"
+    if path_downloaded.split('.')[-1].startswith('qcow'): 
+        icon = "fa-hdd-o"
+        kind = path_downloaded.split('.')[-1]
+    if not icon: 
+        log.warning('Skipping uploaded file as has unknown extension: '+parts[-1])
+        return False
+    return  {"accessed": time.time() ,
+            "allowed": {
+                "categories": False ,
+                "groups": False ,
+                "roles": False ,
+                "users": False
+            } ,
+            "category": parts[-5] ,
+            "description": "Scanned from storage." ,
+            "detail": "" ,
+            "group": group_id ,
+            "hypervisors_pools": [
+                "default"
+            ] ,
+            "icon": icon,
+            "id": media_id ,
+            "kind": kind,
+            "name": parts[-1],
+            "path": '/'.join(path_downloaded.rsplit('/',6)[2:]), #"default/default/local/admin-admin/dsl-4.4.10.iso" ,
+            "path_downloaded": path_downloaded ,
+            "progress": {
+                "received": filesize ,
+                "received_percent": 100 ,
+                "speed_current": "10M" ,
+                "speed_download_average": "10M" ,
+                "speed_upload_average": "0" ,
+                "time_left": "--:--:--" ,
+                "time_spent": "0:00:05" ,
+                "time_total": "0:00:05" ,
+                "total": filesize ,
+                "total_percent": 100 ,
+                "xferd": "0" ,
+                "xferd_percent": "0"
+            } ,
+            "status": "Downloaded" ,
+            "url-isard": False ,
+            "url-web": False,
+            "user": parts[-3]+'-'+parts[-5]+'-'+parts[-2], #"local-default-admin-admin" ,
+            "username": parts[-2].split('-')[1]}
 

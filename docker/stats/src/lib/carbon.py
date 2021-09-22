@@ -15,11 +15,11 @@ from threading import Thread
 class Carbon():
     def __init__(self,hostname=None,server=None,port=2004):
         if hostname is None:
-            self.hostname = os.environ['STATS_HOSTNAME']
+            self.hostname = os.environ['DOMAIN']
         else:
             self.hostname = hostname
         if server is None:
-            self.server = os.environ['STATS_SERVER']
+            self.server = os.environ['']
         self.port = port
         
     def send2carbon(self,dict):

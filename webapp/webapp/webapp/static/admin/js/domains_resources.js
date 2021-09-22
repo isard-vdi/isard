@@ -360,6 +360,21 @@ $(document).ready(function() {
 
 
     // INTERFACES
+
+    $('#kind').on('change', function () {
+        if($('#kind').val() == 'bridge'){
+            $('#ifname_label').html('Input interface name')
+        }
+        if($('#kind').val() == 'network'){
+            $('#ifname_label').html('Input network name')
+        }
+        if($('#kind').val() == 'ovs'){
+            $('#ifname_label').html('Input vlan ID number')
+        }
+        if($('#kind').val() == 'personal'){
+            $('#ifname_label').html('Input vlan range (2000-3000)')
+        }
+    });
     int_table=$('#table-interfaces').DataTable({
 			"ajax": {
 				"url": "/isard-admin/admin/load/interfaces/post",

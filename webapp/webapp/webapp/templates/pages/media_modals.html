@@ -43,6 +43,7 @@
                               <option value="">Choose..</option>
                               <option value="iso">ISO CD/DVD</option>
                               <option value="floppy">Floppy</option>
+                              <option value="qcow2">Qcow2</option>
                            </select>
                         </div>
                      </div>
@@ -129,13 +130,14 @@
                   <div class="col-md-12 col-sm-12 col-xs-12">
                      <div id="modalMedia" class="x_panel">
                         <div class="x_title">
-                           <h4><i class="fa fa-circle-o" aria-hidden="true"></i> Selected ISO/Floppy to boot from</h4>
+                           <h4><i class="fa fa-circle-o" aria-hidden="true"></i> Selected ISO/Floppy/HDD to boot from</h4>
                            <div class="clearfix"></div>
                        </div>
                         <div id="datatables-media-error-status"></div>
                         <input  id="media" name="media" type="hidden" required>
-                        <label  id="media_name" name="media_name"></label>
-                        <label  id="media_size" name="media_size"></label>
+                        <input  id="kind" name="kind" type="hidden" required>
+                        <b><label  id="media_name" name="media_name"></label></b>
+                        <i>(<label  id="media_size" name="media_size"></label>)</i>
  
                         <!--<div class="item form-group">
                               <label class="control-label col-md-3 col-sm-3 col-xs-12" for="add_virtio_iso">Windows install?

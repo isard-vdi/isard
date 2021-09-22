@@ -16,38 +16,100 @@ from libvirt import VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN
 
 from engine.models.hyp import hyp
 from engine.services.db import get_hyp_hostname_from_id, update_db_hyp_info, update_domain_status, update_hyp_status, \
-    update_domains_started_in_hyp_to_unknown, update_table_field, get_engine, update_domain_hw_stats, update_info_nvidia_hyp_domain
-from engine.services.lib.functions import get_tid, engine_restart
+    get_hyp_status, \
+    update_domains_started_in_hyp_to_unknown, update_table_field, get_engine, update_domain_hw_stats, \
+    update_info_nvidia_hyp_domain, get_all_domains_with_id_status_hyp_started, get_domains_started_in_hyp
+from engine.services.lib.functions import get_tid, exec_remote_list_of_cmds_dict, engine_restart, \
+    update_status_db_from_running_domains
 from engine.services.log import logs
 from engine.services.threads.threads import TIMEOUT_QUEUES, launch_action_disk, RETRIES_HYP_IS_ALIVE, \
     TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE, launch_delete_media, launch_killall_curl
 from engine.models.domain_xml import DomainXML
 from engine.services.db import update_domain_viewer_started_values, domain_stopped_update_nvidia_uids_status
 from engine.services.db import get_domain_hardware_dict
+from engine.services.db.hypervisors import update_hyp_thread_status
 from engine.models.domain_xml import XML_SNIPPET_CDROM, XML_SNIPPET_DISK_VIRTIO, XML_SNIPPET_DISK_CUSTOM
 
 class HypWorkerThread(threading.Thread):
-    def __init__(self, name, hyp_id, queue_actions, queue_master=None):
+    def __init__(self, name, hyp_id, queue_actions, q_event_register, queue_master):
         threading.Thread.__init__(self)
         self.name = name
         self.hyp_id = hyp_id
         self.stop = False
         self.queue_actions = queue_actions
         self.queue_master = queue_master
+        self.q_event_register = q_event_register
+        self.h = False
+        self.error = False
 
     def run(self):
         self.tid = get_tid()
         logs.workers.info('starting thread: {} (TID {})'.format(self.name, self.tid))
         host, port, user = get_hyp_hostname_from_id(self.hyp_id)
-        port = int(port)
-        self.hostname = host
-        self.h = hyp(self.hostname, user=user, port=port)
-        # self.h.get_kvm_mod()
-        # self.h.get_hyp_info()
+        if host is False:
+            self.stop = True
+            self.error = 'hostname not in database'
+        else:
+            port = int(port)
+            self.hostname = host
+            try:
+                self.h = hyp(self.hostname, user=user, port=port, hyp_id=self.hyp_id)
+                if self.h.conn.isAlive() == 1:
+                    # TRY IF SSH COMMAND RUN:
+                    cmds = [{'cmd': 'uname -a'}]
+                    try:
+                        array_out_err = exec_remote_list_of_cmds_dict(host, cmds, username=user,
+                                                                      port=port)
+                        output = array_out_err[0]['out']
+                        logs.main.debug(f'cmd: {cmds[0]}, output: {output}')
+                        if len(output) > 0:
+                            #TEST OK
+                            launch_killall_curl(self.hostname, user, port)
+                            # UPDATE DOMAIN STATUS
+                            self.h.update_domain_coherence_in_db()
 
+                            update_hyp_thread_status('worker', self.hyp_id, 'Started')
+                            self.q_event_register.put({'type': 'add_hyp_to_receive_events', 'hyp_id': self.hyp_id})
 
-        update_db_hyp_info(self.hyp_id, self.h.info)
-        hyp_id = self.hyp_id
+                        else:
+                            self.error = 'output from command uname -a is empty, ssh action failed'
+                            update_hyp_status(self.hyp_id, 'Error', detail=self.error)
+                            self.stop = True
+                    except Exception as e:
+                        logs.exception_id.debug('0058')
+                        self.error = 'testing ssh connection failed. Exception: {e}'
+                        update_hyp_status(self.hyp_id, 'Error', detail=self.error)
+                        self.stop = True
+                else:
+                    self.error = 'libvirt not alive'
+                    update_hyp_status(self.hyp_id, 'Error', detail=self.error)
+                    self.stop = True
+            except Exception as e:
+                logs.exception_id.debug('0059')
+                self.error = f'Exception: {e}'
+                update_hyp_status(self.hyp_id, 'Error', detail=self.error)
+                self.stop = True
+
+            hyp_id = self.hyp_id
+            if self.stop is not True:
+                self.h.id_hyp_rethink = hyp_id
+                self.h.get_kvm_mod()
+                self.h.get_hyp_info()
+                logs.workers.debug('hypervisor motherboard: {}'.format(self.h.info['motherboard_manufacturer']))
+                update_db_hyp_info(self.hyp_id, self.h.info)
+                self.h.init_nvidia()
+                logs.workers.debug(f'nvidia info updated in hypervisor {self.hyp_id}')
+
+                if self.h.info['kvm_module'] == 'intel' or self.h.info['kvm_module'] == 'amd':
+                    self.stop = False
+                else:
+                    logs.workers.error('hypervisor {} has not virtualization support (VT-x for Intel processors and AMD-V for AMD processors). '.format(
+                            hyp_id))
+                    update_hyp_status(hyp_id, 'Error',
+                                      detail="KVM requires that the virtual machine host's processor has virtualization " +
+                                             "support (named VT-x for Intel processors and AMD-V for AMD processors). " +
+                                             "Check CPU capabilities and enable virtualization support in your BIOS.")
+                    self.stop = True
 
         while self.stop is not True:
             try:
@@ -80,6 +142,7 @@ class HypWorkerThread(threading.Thread):
                                 try:
                                     domain.isActive()
                                 except Exception as e:
+                                    logs.exception_id.debug('0060')
                                     logs.workers.debug('verified domain {} is destroyed'.format(action['id_domain']))
                                     if nvidia_uid is not False:
                                         ok = update_info_nvidia_hyp_domain('started',nvidia_uid,hyp_id,action['id_domain'])
@@ -133,6 +196,7 @@ class HypWorkerThread(threading.Thread):
                             'Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} '.format(
                                 action['id_domain'], self.hyp_id, error_msg))
                     except Exception as e:
+                        logs.exception_id.debug('0061')
                         update_domain_status('Crashed', action['id_domain'], hyp_id=self.hyp_id,
                                              detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
                         logs.workers.error(
@@ -144,35 +208,55 @@ class HypWorkerThread(threading.Thread):
                     logs.workers.debug('xml to start some lines...: {}'.format(action['xml'][30:100]))
                     try:
                         dom = self.h.conn.createXML(action['xml'])
-                        xml_started = dom.XMLDesc()
-                        vm = DomainXML(xml_started)
-                        spice, spice_tls, vnc, vnc_websocket = vm.get_graphics_port()
-                        dom_id = action['id_domain']
-                        update_domain_status(id_domain=dom_id,
-                                             status='Started',
-                                             hyp_id=hyp_id,
-                                             detail="Domain started by worker"
-                                             )
-                        update_domain_viewer_started_values(dom_id, hyp_id=self.hyp_id,
-                                                            spice=spice, spice_tls=spice_tls,
-                                                            vnc=vnc, vnc_websocket=vnc_websocket)
-                        nvidia_uid = action.get('nvidia_uid',False)
-                        if nvidia_uid is not False:
-                            ok = update_info_nvidia_hyp_domain('started',nvidia_uid,hyp_id,dom_id)
-                        #logs.status.info(
-                        print(
-                            f'DOMAIN STARTED INFO WORKER - {dom_id} in {self.hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})')
-                        # wait to event started to save state in database
-                        #update_domain_status('Started', action['id_domain'], hyp_id=self.hyp_id, detail='Domain has started in worker thread')
-                        logs.workers.info('STARTED domain {}: createdXML action in hypervisor {} has been sent'.format(
-                            action['id_domain'], host))
                     except libvirtError as e:
-                        update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id,
-                                             detail=("Hypervisor can not create domain with libvirt exception: " + str(e)))
-                        logs.workers.debug('exception in starting domain {}: '.format(e))
-                    except Exception as e:
-                        update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=("Exception when starting domain: " + str(e)))
-                        logs.workers.debug('exception in starting domain {}: '.format(e))
+                        if str(e)[-17:].find('is already active') == 0:
+                            logs.workers.error('Domain {dom_id} has to be started, but when worker want to start it, it is already active!! Someone started this domain in this hyper manually or engine has a bug')
+                            update_domain_status(id_domain=dom_id,
+                                                 status='Started',
+                                                 hyp_id=hyp_id,
+                                                 detail="Ups, domain already active"
+                                                 )
+                        else:
+                            update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id,
+                                                 detail=("Hypervisor can not create domain with libvirt exception: " + str(
+                                                     e)))
+                            logs.workers.info('exception in starting domain {}: '.format(e))
+                    else:
+                        try:
+                            xml_started = dom.XMLDesc()
+                        except libvirtError as e:
+                            update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id,
+                                                 detail=("Hypervisor can not create domain with libvirt exception: " + str(
+                                                     e)))
+                            logs.workers.info('exception in starting domain {}: '.format(e))
+                        else:
+                            try:
+                                vm = DomainXML(xml_started)
+                                spice, spice_tls, vnc, vnc_websocket = vm.get_graphics_port()
+                                dom_id = action['id_domain']
+                                update_domain_status(id_domain=dom_id,
+                                                     status='Started',
+                                                     hyp_id=hyp_id,
+                                                     detail="Domain started by worker"
+                                                     )
+                                update_domain_viewer_started_values(dom_id, hyp_id=self.hyp_id,
+                                                                    spice=spice, spice_tls=spice_tls,
+                                                                    vnc=vnc, vnc_websocket=vnc_websocket)
+                                nvidia_uid = action.get('nvidia_uid',False)
+                                if nvidia_uid is not False:
+                                    ok = update_info_nvidia_hyp_domain('started',nvidia_uid,hyp_id,dom_id)
+                                #logs.status.info(
+                                print(
+                                    f'DOMAIN STARTED INFO WORKER - {dom_id} in {self.hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})')
+                                # wait to event started to save state in database
+                                #update_domain_status('Started', action['id_domain'], hyp_id=self.hyp_id, detail='Domain has started in worker thread')
+                                logs.workers.info('STARTED domain {}: createdXML action in hypervisor {} has been sent'.format(
+                                    action['id_domain'], host))
+
+                            except Exception as e:
+                                logs.exception_id.debug('0062')
+                                update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=("Exception when starting domain: " + str(e)))
+                                logs.workers.debug('exception in starting domain {}: '.format(e))
 
 
                 ## STOP DOMAIN
@@ -186,8 +270,9 @@ class HypWorkerThread(threading.Thread):
                         # using shutdownFlags you can control the behaviour of shutdown like virsh shutdown domain --mode MODE-LIST
                         domain_handler.shutdownFlags(VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN)
                         logs.workers.debug('SHUTTING-DOWN domain {}'.format(action['id_domain']))
-                        update_domain_status('Shutting-down', action['id_domain'], hyp_id=hyp_id)
+                        update_domain_status('Shutting-down', action['id_domain'], hyp_id=hyp_id, detail='shutdown ACPI_POWER_BTN launched in libvirt domain')
                     except Exception as e:
+                        logs.exception_id.debug('0063')
                         logs.workers.error('Exception in domain {} when shutdown action in hypervisor {}'.format(action['id_domain'],hyp_id))
                         logs.workers.error(f'Exception: {e}')
 
@@ -196,36 +281,6 @@ class HypWorkerThread(threading.Thread):
                 ## STOP DOMAIN
                 elif action['type'] == 'stop_domain':
                     logs.workers.debug('action stop domain: {}'.format(action['id_domain'][30:100]))
-                    hw_stats={}
-                    try:
-                        hw=get_domain_hardware_dict(action['id_domain'])
-                        domain_handler=self.h.conn.lookupByName(action['id_domain'])
-                        
-                        if len(hw['disks']) > 0:
-                            hw_stats['disks']=[]
-                            fields_block = ['allocation','capacity','physical']
-                            fields_stats = ['rd_req', 'rd_bytes', 'wr_req', 'wr_bytes', 'err']
-                            paths = [d['file'] for d in hw['disks']]
-                            for path in paths:
-                                hw_stats['disks'].append({'path':path,
-                                                          'block_info':dict(zip(fields_block,domain_handler.blockInfo(path))),
-                                                          'stats_info':dict(zip(fields_stats,domain_handler.blockStats(path)))})
-
-                        tree = ElementTree.fromstring(domain_handler.XMLDesc())
-                        ifaces = tree.findall('devices/interface/target')
-                        if len(ifaces) > 0:
-                            hw_stats['interfaces'] = []
-                            fields = ['rx_bytes', 'rx_packets', 'rx_err', 'rx_drop', 'tx_bytes', 'tx_packets', 'tx_err', 'tx_drop']
-                            for i in ifaces:
-                                iface = i.get('dev')
-                                raw_stats = domain_handler.interfaceStats(iface)
-                                hw_stats['interfaces'].append(dict(zip(fields,raw_stats)))
-
-                        hw_stats['cpu_stats'] = domain_handler.getCPUStats(1)
-                    except Exception as e:
-                        logs.workers.error('Exception when get stats from domain {} when stopping'.format(action['id_domain']))
-                        logs.workers.error(f'Exception: {e}')
-
                     try:
                         domain_handler.destroy()
                         #updated in events_recolector
@@ -240,10 +295,9 @@ class HypWorkerThread(threading.Thread):
                             update_domain_status('Deleting', action['id_domain'], hyp_id='')
                         else:
                             update_domain_status('Stopped', action['id_domain'], hyp_id='')
-                            update_domain_hw_stats(hw_stats, action['id_domain'])
-
 
                     except Exception as e:
+                        logs.exception_id.debug('0065')
                         update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
                         logs.workers.debug('exception in stopping domain {}: '.format(e))
 
@@ -270,26 +324,20 @@ class HypWorkerThread(threading.Thread):
                                        port,
                                        final_status=final_status)
 
-                    # ## DESTROY THREAD
-                    # elif action['type'] == 'destroy_thread':
-                    #     list_works_in_queue = list(self.queue_actions.queue)
-                    #     if self.queue_master != None:
-                    #         self.queue_master.put(['destroy_working_thread',self.hyp_id,list_works_in_queue])
-                    #     #INFO TO DEVELOPER, si entra aquí es porque no quedaba nada en cola, si no ya lo habrán matado antes
-                    #
-                    #     logs.workers.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
-                    #
-
-                    # raise 'destoyed'
-
                 elif action['type'] == 'create_disk':
 
                     pass
 
+                elif action['type'] == 'update_status_db_from_running_domains':
+                    update_status_db_from_running_domains(self.h)
+
 
                 elif action['type'] == 'hyp_info':
+
+                    self.h.get_kvm_mod()
                     self.h.get_hyp_info()
                     logs.workers.debug('hypervisor motherboard: {}'.format(self.h.info['motherboard_manufacturer']))
+                    update_db_hyp_info(self.hyp_id, self.h.info)
 
                 ## DESTROY THREAD
                 elif action['type'] == 'stop_thread':
@@ -302,52 +350,50 @@ class HypWorkerThread(threading.Thread):
 
             except queue.Empty:
                 try:
+                    self.h.conn.isAlive()
                     self.h.conn.getLibVersion()
-                    pass
-                    # logs.workers.debug('hypervisor {} is alive'.format(host))
                 except:
                     logs.workers.info('trying to reconnect hypervisor {}, alive test in working thread failed'.format(host))
                     alive = False
                     for i in range(RETRIES_HYP_IS_ALIVE):
+                        logs.workers.info(f'retry hyp connection {i}/{RETRIES_HYP_IS_ALIVE}')
                         try:
                             time.sleep(TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE)
                             self.h.conn.getLibVersion()
                             alive = True
                             logs.workers.info('hypervisor {} is alive'.format(host))
                             break
-                        except:
-                            logs.workers.info('hypervisor {} is NOT alive'.format(host))
+                        except Exception as e:
+                            logs.exception_id.debug('0066')
+                            logs.workers.info('hypervisor {} is NOT alive. Exception: {}'.format(host,e))
                     if alive is False:
                         try:
                             self.h.connect_to_hyp()
                             self.h.conn.getLibVersion()
+                            # UPDATE DOMAIN STATUS
+                            self.h.update_domain_coherence_in_db()
                             update_hyp_status(self.hyp_id, 'Online')
                         except:
                             logs.workers.debug('hypervisor {} failed'.format(host))
                             logs.workers.error('fail reconnecting to hypervisor {} in working thread'.format(host))
                             reason = self.h.fail_connected_reason
-                            update_hyp_status(self.hyp_id, 'Error', reason)
+                            status = get_hyp_status(self.hyp_id)
+                            if status in ['Online']:
+                                update_hyp_status(self.hyp_id, 'Error', reason)
                             update_domains_started_in_hyp_to_unknown(self.hyp_id)
 
-                            list_works_in_queue = list(self.queue_actions.queue)
-                            if self.queue_master != None:
-                                self.queue_master.put(['error_working_thread', self.hyp_id, list_works_in_queue])
+                            #list_works_in_queue = list(self.queue_actions.queue)
                             logs.workers.error('thread worker from hypervisor {} exit from error status'.format(hyp_id))
-                            self.active = False
+                            self.error = True
+                            self.stop = True
                             break
-        # ~ else:
-            # ~ update_hyp_status(self.hyp_id, 'Error','bios vmx or svm virtualization capabilities not activated')
-            # ~ update_table_field('hypervisors',self.hyp_id,'enabled',False)
-            # ~ logs.workers.error('hypervisor {} disabled: bios vmx or svm virtualization capabilities not activated')
-            # ~ #restart when engine is started (not starting)
-            # ~ timeout = 10
-            # ~ i = 0.0
-            # ~ while i < timeout:
-                # ~ if get_engine()['status_all_threads'] == 'Started':
-                    # ~ engine_restart()
-                    # ~ break
-                # ~ else:
-                    # ~ i + 0.2
-                    # ~ sleep(0.2)
+
+        update_hyp_thread_status('worker', self.hyp_id, 'Stopping')
+        self.h.disconnect()
+        self.q_event_register.put({'type': 'del_hyp_to_receive_events', 'hyp_id': self.hyp_id})
+        action = {}
+        action['type'] = 'thread_hyp_worker_dead'
+        action['hyp_id'] = self.hyp_id
+        self.queue_master.put(action)
 
 

@@ -788,6 +788,15 @@ class isardAdmin():
         except:
             None
         return False
+
+    def update_server(self,dom_id,server):
+        try:
+            with app.app_context():
+                r.table('domains').get(dom_id).update({'create_dict':{'server':server}}).run(db.conn)
+            return True
+        except:
+            None
+        return False
     '''
     HYPERVISORS
     '''
@@ -1355,6 +1364,43 @@ class isardAdmin():
                               'users': False}}
         with app.app_context():
             return self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted')
+
+    def domain_from_disk(self, user, name, description, icon, create_dict, hyper_pools):
+        with app.app_context():
+            userObj=r.table('users').get(user).pluck('id','category','group','provider','username','uid').run(db.conn)
+        
+        parsed_name = app.isardapi.parse_string(name)
+        # dir_disk, disk_filename = app.isardapi.get_disk_path(userObj, parsed_name)
+        media_id=create_dict.pop('media')
+        media=r.table('media').get(media_id).run(db.conn)
+        create_dict['hardware']['disks']=[{'file':media['path'],
+                                            'size':media['progress']['total']}]   # 15G as a format
+
+        new_domain={'id': '_'+user+'-'+parsed_name,
+                  'name': name,
+                  'description': description,
+                  'kind': 'desktop',
+                  'user': userObj['id'],
+                  'username': userObj['username'],
+                  'status': 'CreatingDiskFromScratch',
+                  'detail': None,
+                  'category': userObj['category'],
+                  'group': userObj['group'],
+                  'xml': None,
+                  'icon': icon,
+                  'server': False,
+                  'os': create_dict['create_from_virt_install_xml'],   #### Or name
+                  'options': {'viewers':{'spice':{'fullscreen':False}}},
+                  'create_dict': create_dict, 
+                  'hypervisors_pools': hyper_pools,
+                  'allowed': {'roles': False,
+                              'categories': False,
+                              'groups': False,
+                              'users': False}}
+        with app.app_context():
+            if self.check(r.table('domains').insert(new_domain).run(db.conn),'inserted'):
+                return self.check(r.table('media').get(media_id).delete().run(db.conn),'deleted')
+        return False
 
     def merge_nested_dict(self, old,new):
         for k, v in new.items():

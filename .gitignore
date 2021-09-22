@@ -70,3 +70,7 @@ database/
 tetris/.env
 
 /docker-compose*.yml
+
+#debug
+/debug.yml
+/engine/engine/debug.py

@@ -102,6 +102,12 @@ class ApiUsers():
                                         algorithm='HS256')
         raise UserLoginFailed
 
+    def LoginLdap(self,user_id,user_passwd):
+        user=self.au._check(user_id,user_passwd)
+        if user == False:
+            raise UserLoginFailed
+        return user.id
+
     def Exists(self,user_id):
         with app.app_context():
             user = r.table('users').get(user_id).run(db.conn)

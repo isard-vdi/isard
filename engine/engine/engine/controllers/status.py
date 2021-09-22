@@ -21,9 +21,6 @@ from engine.services.lib.functions import calcule_cpu_hyp_stats, calcule_disk_ne
 from engine.services.lib.functions import state_and_cause_to_str, dict_domain_libvirt_state_to_isard_state
 from engine.services.log import *
 
-max_len_fifo_domains = int(CONFIG_DICT['STATS']['max_queue_domains_status'])
-max_len_fifo_hyps = int(CONFIG_DICT['STATS']['max_queue_hyps_status'])
-
 max_len_queue_previous_hyp_stats = 10
 max_len_queue_previous_domain_stats = 10
 

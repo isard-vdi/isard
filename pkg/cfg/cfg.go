@@ -59,7 +59,7 @@ func New(name string, setDefaults func(), target interface{}) {
 			log.Fatal().Err(err).Msg("read configuration")
 		}
 
-		log.Warn().Msg("configuration file not found, using environment variables and defaults")
+		log.Warn().Msg("Configuration file not found, using environment variables and defaults")
 	}
 
 	if err := viper.Unmarshal(target); err != nil {
@@ -76,7 +76,7 @@ func setCommonDefaults() {
 
 func SetDBDefaults() {
 	viper.SetDefault("db", map[string]interface{}{
-		"host": "",
+		"host": "isard-db",
 		"port": 28015,
 		"usr":  "",
 		"pwd":  "",

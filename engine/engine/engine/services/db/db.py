@@ -7,7 +7,7 @@ import time
 from pprint import pprint, pformat
 
 # coding=utf-8
-import rethinkdb as r
+from rethinkdb import r
 
 from engine.config import RETHINK_HOST, RETHINK_PORT, RETHINK_DB, MAX_QUEUE_DOMAINS_STATUS
 from engine.services.log import *
@@ -61,10 +61,6 @@ def get_dict_from_item_in_table(table, id):
     return d
 
 
-def results_zero(results):
-    return reduce(lambda a, b: a + b, results.values())
-
-
 def get_xml_from_virt_viewer(id_virt_viewer):
     r_conn = new_rethink_connection()
     rtable = r.table('domains_virt_install')
@@ -72,15 +68,6 @@ def get_xml_from_virt_viewer(id_virt_viewer):
     dict_domain = rtable.get(id_virt_viewer).run(r_conn)
     close_rethink_connection(r_conn)
     return dict_domain['xml']
-
-
-def insert_ferrary(id, ferrary_list):
-    r_conn = new_rethink_connection()
-
-    results = rtable.get(id).delete().run(r_conn)
-    results = rtable.insert({'id': id, 'ferrary': ferrary_list}).run(r_conn)
-    close_rethink_connection(r_conn)
-    return results
 
 
 def get_ferrary(id):
@@ -140,6 +127,7 @@ def update_domain_viewer_started_values(id, hyp_id=False,
                             'tls': hp['viewer']
                             }
         except Exception as e:
+            logs.exception_id.debug('0040')
             log.error('hypervisor withouth viewer dict or pool withough viewer dict')
             log.error(e)
             dict_viewer = {'static': False,
@@ -346,6 +334,30 @@ def get_domains_running_hypervisor(hyp_id):
 def get_domains_from_template_origin():
     return []
 
+def insert_table_dict(table,d_new):
+    r_conn = new_rethink_connection()
+    rtable = r.table(table)
+
+    result = rtable.insert(d_new).run(r_conn)
+    close_rethink_connection(r_conn)
+
+    if result['inserted'] > 0:
+        return True
+    if result['errors'] > 0:
+        print(result['first_error'])
+    return False
+
+def delete_table_item(table, id_item):
+    r_conn = new_rethink_connection()
+    rtable = r.table(table)
+
+    result = rtable.get(id_item).delete().run(r_conn)
+    close_rethink_connection(r_conn)
+    if result['deleted'] > 0:
+        return True
+    if result['errors'] > 0:
+        print(result['first_error'])
+    return False
 
 def update_table_field(table, id_doc, field, value, merge_dict=True):
     r_conn = new_rethink_connection()
