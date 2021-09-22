@@ -87,16 +87,8 @@ RUN apk add --no-cache \
     #vde2-libs 
     #libpulse
 
-<<<<<<< HEAD
-COPY --from=build-qemu /usr/local/ /usr/local/
-RUN ln -s /usr/local/bin/qemu-img /usr/bin/qemu-img
-
-COPY docker/hypervisor/kvm/qemu-kvm /usr/libexec/qemu-kvm
-COPY docker/hypervisor/kvm/qemu-kvm /usr/bin/qemu-kvm
-=======
 COPY docker/hypervisor/qemu-kvm /usr/libexec/qemu-kvm
 COPY docker/hypervisor/qemu-kvm /usr/bin/qemu-kvm
->>>>>>> c0e1e2f2 (Use packaged QEMU in the hypervisor Docker instead of building it manually)
 RUN chmod a+x /usr/bin/qemu-kvm
 RUN chmod a+x /usr/libexec/qemu-kvm
 
