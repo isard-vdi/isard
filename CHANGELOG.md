@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.17] - 2021-09-22
+
+### FIXED
+
+- Bulk create desktops initializes iCheck incorrectly and leads to a mass creation to all the users
+
 ## [3.1.16] - 2021-09-22
 
 ### FIXED

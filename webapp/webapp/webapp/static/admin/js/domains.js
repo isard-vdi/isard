@@ -634,7 +634,7 @@ function actionsDomainDetail(){
             setDomainMediaDefaults('#modalTemplateDesktop',pk);
             setMedia_add('#modalTemplateDesktop #media-block')  
             
-            setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
+            setAlloweds_add('#modalTemplateDesktop #alloweds-add');
         }
 	});
     
