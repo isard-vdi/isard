@@ -603,18 +603,20 @@ class isard():
     def get_all_alloweds_domains(self, userid):
         with app.app_context():
             ud=r.table('users').get(userid).run(db.conn)
-            # data = list(r.db('isard').table("domains").filter(r.row['kind'].match("template"))
-            #         .eq_join("user", r.db('isard').table("users"))
-            #         .without({"right": {"id": True}})
-            #         .pluck({"right" : "role"}, "left")
-            #         .zip()
-            #         .pluck('id','name','allowed','kind','group','role','icon','category','user','description','status')
-            #         .order_by('name')
-            #         .run(db.conn))
+            ## If the user owner is deleted won't return the template
             data = list(r.db('isard').table("domains").filter(r.row['kind'].match("template"))
+                    .eq_join("user", r.db('isard').table("users"))
+                    .without({"right": {"id": True}})
+                    .pluck({"right" : "role"}, "left")
+                    .zip()
                     .pluck('id','name','allowed','kind','group','role','icon','category','user','description','status')
                     .order_by('name')
                     .run(db.conn))
+            ## This will get all but missing 'role' field of owner. Needs that function.
+            # data = list(r.db('isard').table("domains").filter(r.row['kind'].match("template"))
+            #         .pluck('id','name','allowed','kind','group','role','icon','category','user','description','status')
+            #         .order_by('name')
+            #         .run(db.conn))
         alloweds=[]
         for d in data:
             try:
