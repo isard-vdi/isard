@@ -104,7 +104,6 @@ RUN sed -i \
     /etc/ssh/sshd_config
     
 # Libvirt configuration and certs
-RUN useradd -u 1000 -ms /bin/sh qemu
 COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
 RUN sed -i "/^kvm:x:34:kvm/c\kvm:x:34:kvm,qemu" /etc/group
