@@ -87,8 +87,8 @@ RUN apk add --no-cache \
     #vde2-libs 
     #libpulse
 
-COPY docker/hypervisor/qemu-kvm /usr/libexec/qemu-kvm
-COPY docker/hypervisor/qemu-kvm /usr/bin/qemu-kvm
+COPY docker/hypervisor/kvm/qemu-kvm /usr/libexec/qemu-kvm
+COPY docker/hypervisor/kvm/qemu-kvm /usr/bin/qemu-kvm
 RUN chmod a+x /usr/bin/qemu-kvm
 RUN chmod a+x /usr/libexec/qemu-kvm
 
@@ -104,7 +104,7 @@ RUN sed -i \
     /etc/ssh/sshd_config
     
 # Libvirt configuration and certs
-COPY docker/hypervisor/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
+COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
 RUN sed -i "/^kvm:x:34:kvm/c\kvm:x:34:kvm,qemu" /etc/group
 RUN echo -e 'listen_tls = 0\n \
