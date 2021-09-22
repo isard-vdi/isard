@@ -28,7 +28,7 @@ All notable changes to this project will be documented in this file.
 
 ## [3.1.16] - 2021-09-22
 
-### Fixed
+### FIXED
 
 - Missing user role in template listing
 
