@@ -13,7 +13,6 @@ RUN apk del .build_deps
 
 RUN apk add --no-cache curl openssh-client
 
-COPY api/srcv2 /apiv2
 COPY api/src /api
 COPY api/docker/run.sh /
 #EXPOSE 7039

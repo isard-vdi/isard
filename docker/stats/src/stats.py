@@ -35,7 +35,7 @@ INFLUX_RETRY_PERIOD = int(os.environ.get('STATS_INFLUX_RETRY_PERIOD', 2))
 
 INFLUX_BUCKET = os.environ.get('STATS_INFLUX_BUCKET', 'isardvdi')
 INFLUX_ORG    = os.environ.get('STATS_INFLUX_ORG',    'isardvdi')
-INFLUX_TOKEN  = os.environ.get('STATS_INFLUX_TOKEN',  'xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=')
+# INFLUX_TOKEN  = os.environ.get('STATS_INFLUX_TOKEN',  'xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=')
 
 
 
@@ -47,7 +47,7 @@ class HypStats():
     def __init__(self,
                  hyp_hostname,
                  hyp_user='root',
-                 hyp_port=22,
+                 hyp_port=2022,
                  max_domains_bulk_extract=None,
                  interval_stats=None,
                  send_to_influx=True,

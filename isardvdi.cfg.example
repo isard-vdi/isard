@@ -1,19 +1,19 @@
 # Isard main config v0.3
 
-# Domain
+# ------ Domain --------------------------------------------------------------
 ## This server main domain/ip reacheable from other hosts
 DOMAIN=localhost
 
-# Admin password
+# ------ Admin password ------------------------------------------------------
 ## Initial WEB admin user password. Used also in grafana, influxdb
 ## and authenticated backend paths (/debug/...)
 WEBAPP_ADMIN_PWD=IsardVDI
 
-# Frontend Administration Button
+# ------ Frontend Administration Button --------------------------------------
 ## Will show/hide Administration menu button for users of role User.
 FRONTEND_SHOW_ADMIN_BTN=True
 
-# Secrets
+# ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
 ## openssl rand -base64 32
 WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
@@ -21,7 +21,7 @@ API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
 INFLUXDB_ADMIN_TOKEN_SECRET=9eFW/Qi29hL3hFGUP8wIGH89XKCH8s1k0il44GCRF2g=
 API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 
-# LETSENCRYPT CERTIFICATE
+# ------ Letsencrypt certificate ---------------------------------------------
 ## You can use your own certificates if you concatenate into 
 ## /opt/isard/certs/default/chain.pem
 ## You can let isard generate autosigned certs (not recommended as
@@ -33,7 +33,7 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## although the renovation will be automatic.
 #LETSENCRYPT_EMAIL=
 
-# Authentication
+# ------ Authentication ------------------------------------------------------
 
 ## Local
 ### Local authentication agains isard database
@@ -56,20 +56,19 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ##################################################################
 ##################################################################
 
-# Docker images prefix
+# ------ Docker images prefix ------------------------------------------------
 ## Image prefix that could include registry and repository
 DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 
-# Docker images tags
+# ------ Docker images tags --------------------------------------------------
 ## Image tag that could be tags or branches from the git repository
 ## Used for doing docker-compose pull
 DOCKER_IMAGE_TAG=main
 
-# Logs
+# ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
 
-# Alerts
-
+# ------ alerts --------------------------------------------------------------
 ## Telegram
 ### TOKEN: https://core.telegram.org/bots#6-botfather
 #TELEGRAM_BOT_TOKEN=
@@ -85,12 +84,14 @@ LOG_LEVEL=INFO
 ## docker-compose.hypervisor-standalone.yml: Will get video on 
 ## the VIDEO_HYPERVISOR_PORTS from the VIDEO_DOMAIN isard-video host.
 
-# Database host
+# ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?
 ## Not needed for remote hypervisors, only to split main web install.
 #RETHINKDB_HOST=isard-db
 #RETHINKDB_PORT=28015
 #RETHINKDB_DB=isard
+
+# ------ Authentication host -------------------------------------------------
 
 # Authentication host
 ## Where is authentication reacheable?
@@ -98,38 +99,38 @@ LOG_LEVEL=INFO
 #AUTHENTICATION_AUTHENTICATION_HOST=$DOMAIN
 #AUTHENTICATION_DB_HOST=isard-db
 
-# Api host
+# ------ Api host ------------------------------------------------------------
 ## Where can we reach the isard-api from this host?
 ## Needed for remote hypervisors 
 #API_DOMAIN=isard-api
 
-# Video host
+# ------ Video host ----------------------------------------------------------
 ## Where is the isard-video for this hypervisor?
 ## Needed for remote hypervisors:
 ## hypervisor: Will have isard-video. Set it to DOMAIN
 ## hypervisor-standalone: Will rely on a server with isard-video
 #VIDEO_DOMAIN=$DOMAIN
 
-# Video external NAT ports
+# ------ Video external NAT ports --------------------------------------------
 ## Where the users browsers will connect to get the video stream for
 ## their guests started in this hypervisor? (outside NAT ports)
 #VIEWER_SPICE=80
 #VIEWER_BROWSER=443
 
-# isard-video ACL
+# ------ Video proxy ACL -----------------------------------------------------
 ## Is this host hosting the isard-video for other hypervisor-standalone
 ## servers? Then allow here only the hostnames for those hypervisors as
 ## seen from this host.
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-6899
 
-# Docker networking
+# ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
 ## You should avoid setting a network that exists in your infrastructure
 ## or in isard configuration. Set only the /24 part!
 #DOCKER_NET=172.18.255
 
-# Guests networking
+# ------ Guests networking ---------------------------------------------------
 ## All the sub networks needed for infrastructure wireguard will
 ## fall within this sub networks
 WG_MAIN_NET=10.0.0.0/14
@@ -162,7 +163,7 @@ WG_GUESTS_DHCP_MASK=23
 ## This sets a reserved dhcp range if you want.
 WG_GUESTS_RESERVED_HOSTS=20
 
-# Trunk port & vlans
+# ------ Trunk port & vlans --------------------------------------------------
 ## Uncomment to map host interface name inside hypervisor container.
 ## If static vlans are commented then hypervisor will initiate an 
 ## auto-discovery process. The discovery process will last for 260
@@ -183,73 +184,22 @@ WG_GUESTS_RESERVED_HOSTS=20
 ##        GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"
 ##       and update-grub, and reboot.
 
-
-
-
-
-
-
-###################### OVERRIDE HOSTS in isard-portal
+# ------ Override hosts in isard-portal haproxy ------------------------------
 #WEBAPP_HOST=isard-webapp
 #GRAFANA_HOST=isard-grafana
 #INFLUXDB_HOST=isard-influxdb
 
 
+# ------ Stats ---------------------------------------------------------------
+## If you need to monitor a remote host be sure to add it's ssh keys
+## manually from inside the isard-stats container.
+## doker exec -t isard-stats ssh-keygen USER@HYPERHOST
+#STATS_HYP_HOSTNAME=isard-hypervisor
+#STATS_HYP_USER=root
+#STATS_HYP_PORT=2022
 
-
-
-# GRAPH host reacheable from this server
-## All in one use defaults
-GRAFANA_HOST=isard-grafana
-INFLUXDB_HOST=isard-influxdb
-#CHRONOGRAF_HOST=isard-chronograf
-
-## STATS: Hyper being monitored
-## if in the same compose use defaults
-STATS_HYP_HOSTNAME=isard-hypervisor
-STATS_HYP_USER=root
-STATS_HYP_PORT=2022
-
-
-
-# STATS host - EARLY DEPRECATED 
-###########################################################
-# This will identify all stats from this host in grafana
-STATS_HOSTNAME=localhost
-# This must be set to your grafana server hostname
-STATS_SERVER=isard-grafana
-
-## Stats database
-STATS_RETHINKDB_HOST=isard-db
-STATS_RETHINKDB_PORT=28015
-STATS_RETHINKDB_DB=isard
-
-
-
-## STATS: 
-STATS_MAX_DOMAINS_BULK_EXTRACT=100
-STATS_INTERVAL_STATS=10
-STATS_GRACE_NOVIEWER_SHUTDOWN_TIME=1800
-
-STATS_SEND_TO_INFLUX=true
-STATS_INFLUX_HOST=isard-influxdb
-STATS_INFLUX_PORT=8086
-STATS_INFLUX_DB=db0
-STATS_INFLUX_USER=isard
-STATS_INFLUX_PWD=pirineus
-STATS_INFLUX_BUCKET=isardvdi
-STATS_INFLUX_ORG=isardvdi
-STATS_INFLUX_TOKEN="xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4="
-
-STATS_SEND_SHUTDOWN_IF_NO_VIEWER=true
-STATS_SEND_SHUTDOWN_API_URL=http://isard-engine
-
-#method: ssh/socket
-STATS_HYP_METHOD=ssh
-#type: ssh/docker
-STATS_TYPE_CONN_SS=ssh
-
-
-
-###################### GUAC config
-# GUAC_API_HOST=isard-api:5000
+#STATS_SEND_TO_INFLUX=true
+#STATS_INFLUX_PORT=8086
+#STATS_INFLUX_BUCKET=isardvdi
+#STATS_INFLUX_ORG=isardvdi
+#STATS_TYPE_CONN_SS=ssh|docker

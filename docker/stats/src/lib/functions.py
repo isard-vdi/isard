@@ -6,10 +6,6 @@ import rethinkdb as r
 import os
 from pathlib import Path
 
-
-STATS_RETHINKDB_HOST='isard-db'
-STATS_RETHINKDB_PORT=28015
-STATS_RETHINKDB_DB='isard'
 RETHINKDB_HOST='isard-db'
 RETHINKDB_PORT=28015
 RETHINKDB_DB='isard'
@@ -39,19 +35,6 @@ def getHost(ip):
     except Exception:
         # fail gracefully
         return False
-
-def get_domain_info_from_rethink_db():
-    r_conn = r.connect(RETHINKDB_HOST, RETHINKDB_PORT, RETHINKDB_DB).repl()
-    out = r.table('domains').get(id_domain).pluck('parents', 'user', {'viewer': 'base_port'}).run(r_conn)
-    parent = out['parents'][-1]
-    baseport = out['viewer']['base_port']
-    id_user = out['user']
-    out = r.table('users').get(id_user).pluck('role', 'group', 'category').run(r_conn)
-    role = out['role']
-    group = out['group']
-    category = out['category']
-    r_conn.close()
-    return parent,baseport,role,category,group,id_user
 
 def save_dict_to_file(dict_name,d,with_pickle=True):
     base_dir = os.environ.get('DIR_JSONS',STATS_DIR_JSONS)
