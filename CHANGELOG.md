@@ -2,45 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2021-09-22
+
+### Changed
+
+- Use packaged QEMU in the hypervisor Docker instead of building it manually
+
 ## [3.1.17] - 2021-09-22
 
-### FIXED
+### Fixed
 
 - Bulk create desktops initializes iCheck incorrectly and leads to a mass creation to all the users
 
 ## [3.1.16] - 2021-09-22
 
-### FIXED
+### Fixed
 
 - Missing user role in template listing
 
 ## [3.1.15] - 2021-09-20
 
-### FIXED
+### Fixed
 
 - Filter media by term
 
 ## [3.1.14] - 2021-09-20
 
-### FIXED
+### Fixed
 
 - Access to media when on desktop modal
 
 ## [3.1.13] - 2021-09-20
 
-### FIXED
+### Fixed
 
 - Removed nginx cache to improve client performance
 
 ## [3.1.12] - 2021-09-20
 
-### FIXED
+### Fixed
 
 - Fixed bug when showing multiple times the guest IP in viewers modal
 
 ## [3.1.11] - 2021-09-17
 
-### FIXED
+### Fixed
 
 - Access to resources that are owned by a user already deleted. 
   Will allow access to those resources only to admin/manager roles.

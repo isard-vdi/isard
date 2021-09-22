@@ -1,40 +1,4 @@
-FROM alpine:3.12.0 as build-qemu
-MAINTAINER isard <info@isardvdi.com>
-
-RUN apk add --no-cache git \
-    # QEMU
-    make \
-    python3 \
-    gcc \
-    g++ \
-    libc-dev \
-    pkgconf \
-    linux-headers \
-    glib-dev glib-static \
-    zlib-dev zlib-static \
-    pixman-dev  \
-    bash \
-    # QXL
-    spice-dev \
-    # USB Network redirection
-    libusb-dev \
-    usbredir-dev \
-    # ui/shader/
-    # pulseaudio-dev \
-    #alsa-lib-dev \
-    perl
-
-# Build QEMU
-RUN git clone --depth 1 --branch v5.1.0 https://github.com/qemu/qemu && \
-    cd qemu && \
-    mkdir -p bin/debug/native && \
-    cd bin/debug/native && \
-    ../../../configure --target-list=x86_64-softmmu --enable-debug --disable-werror \
-	--enable-spice &&\
-    make -j8 install
-#--audio-drv-list=alsa &&\
-
-FROM alpine:3.12.0 as production
+FROM alpine:3.14 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
@@ -50,7 +14,11 @@ RUN apk add --no-cache \
     bridge-utils \
     shadow \
     tshark \
-    openssl
+    openssl \
+    qemu \
+    qemu-img \
+    qemu-modules \
+    qemu-system-x86_64
     
 
 RUN apk add --no-cache \
@@ -119,9 +87,6 @@ RUN apk add --no-cache \
     #vde2-libs 
     #libpulse
 
-COPY --from=build-qemu /usr/local/ /usr/local/
-RUN ln -s /usr/local/bin/qemu-img /usr/bin/qemu-img
-
 COPY docker/hypervisor/qemu-kvm /usr/libexec/qemu-kvm
 COPY docker/hypervisor/qemu-kvm /usr/bin/qemu-kvm
 RUN chmod a+x /usr/bin/qemu-kvm
@@ -138,7 +103,6 @@ RUN sed -i \
     /etc/ssh/sshd_config
     
 # Libvirt configuration and certs
-RUN useradd -ms /bin/sh qemu
 COPY docker/hypervisor/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
 RUN sed -i "/^kvm:x:34:kvm/c\kvm:x:34:kvm,qemu" /etc/group
