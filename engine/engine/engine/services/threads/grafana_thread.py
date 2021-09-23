@@ -150,6 +150,7 @@ class GrafanaThread(threading.Thread):
                 self.active = True
                 return True
         except Exception as e:
+            logs.exception_id.debug('0057')
             logs.main.error(f'grafana config error: {e}')
             self.active = False
             return False

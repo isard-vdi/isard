@@ -246,6 +246,7 @@ def create_cmds_custom_fd(path_new_disk, d_vars_to_flopy):
             print('#' + c['title'])
             print(c['cmd'])
     except Exception as e:
+        logs.exception_id.debug('0051')
         print(e)
 
     return cmds
@@ -313,6 +314,7 @@ def extract_list_backing_chain(out_cmd_qemu_img, json_format=True):
         try:
             out = json.loads(out)
         except Exception as e:
+            logs.exception_id.debug('0052')
             log.info('error reading backing chain, disk is created??')
             log.info(e)
             return []
@@ -695,6 +697,7 @@ def test_hypers_disk_operations(hyps_disk_operations):
                 list_hyps_ok.append(hyp_id)
 
         except Exception as e:
+            logs.exception_id.debug('0053')
             if __name__ == '__main__':
                 logs.main.err(f'Error when launch commands to test hypervisor {hyp_id} disk_operations: {e}')
 

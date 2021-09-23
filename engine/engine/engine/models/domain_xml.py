@@ -193,6 +193,7 @@ class DomainXML(object):
             self.tree = etree.parse(StringIO(xml), parser)
             self.parser = True
         except Exception as e:
+            logs.exception_id.debug('0022')
             log.error('Exception when parse xml: {}'.format(e))
             log.error('xml that fail: \n{}'.format(xml))
             log.error('Traceback: {}'.format(traceback.format_exc()))
@@ -655,6 +656,7 @@ class DomainXML(object):
                     try:
                         del self.tree.xpath('/domain/devices/video/model')[0].attrib[key]
                     except Exception as e:
+                        logs.exception_id.debug('0023')
                         print(f'Exception when remove attribute from video model none in xml: {e}')
 
         if type_video.find('nvidia-with-qxl') == 0:
@@ -1423,6 +1425,7 @@ def recreate_xml_if_gpu(id_domain,xml,next_hyp,extras,remove_graphics=False):
     try:
         tree = etree.parse(StringIO(xml), parser)
     except Exception as e:
+        logs.exception_id.debug('0024')
         log.error('Exception when parse xml in recreate_xml_if_gpu: {}'.format(e))
         log.error('xml that fail: \n{}'.format(xml))
         log.error('Traceback: {}'.format(traceback.format_exc()))

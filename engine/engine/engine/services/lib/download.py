@@ -1,5 +1,7 @@
 import requests
 
+from engine.services.log import logs
+
 
 def test_url_for_download(url,url_download_insecure_ssl=True,
                           timeout_time_limit=5, dict_header={}):
@@ -12,6 +14,7 @@ def test_url_for_download(url,url_download_insecure_ssl=True,
                                  timeout=timeout_time_limit,
                                  headers=dict_header)
     except requests.exceptions.RequestException as e:
+        logs.exception_id.debug('0046')
         return False,e
 
     if response.status_code != 200:

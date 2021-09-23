@@ -49,7 +49,7 @@ def threading_enumerate():
     l = [t._Thread__name for t in e]
     l.sort()
     for i in l:
-        threads_log.debug('Thread running: {}'.format(i))
+        logs.main.debug('Thread running: {}'.format(i))
     return e
 
 
@@ -127,6 +127,7 @@ def launch_killall_curl(hostname,user,port):
         logs.downloads.info(f'kill al curl process in hypervisor {hostname}: {out} {err}')
         return True
     except Exception as e:
+        logs.exception_id.debug('0068')
         logs.downloads.error(f'Kill all curl process in hypervisor {hostname} fail: {e}')
 
 def launch_delete_media(action,hostname,user,port,final_status='Deleted'):
@@ -341,6 +342,7 @@ def launch_try_hyps(dict_hyps, enabled_thread=True):
             hyps[hyp_id] = threads_try[hyp_id].hyp_obj
             return_state[hyp_id]['reason'] = hyps[hyp_id].fail_connected_reason
         except Exception as e:
+            logs.exception_id.debug('0069')
             log.error('try hypervisor fail - reason: {}'.format(e))
             return_state[hyp_id]['reason'] = 'threads_try fail {}'.format(e)
 
@@ -402,6 +404,7 @@ def try_hyp_connection(hyp_id, hostname, port, user):
         reason = hyp_obj.fail_connected_reason
         update_hypervisor_failed_connection(hyp_id, reason)
     except Exception as e:
+        logs.exception_id.debug('0070')
         log.error('try hyp {}, error: {}'.format(hyp_id, e))
         reason = 'no reason available'
         update_hypervisor_failed_connection(hyp_id, reason)

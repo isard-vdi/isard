@@ -416,6 +416,7 @@ class ManagerHypervisors(object):
                 except queue.Empty:
                     pass
                 except Exception as e:
+                    logs.exception_id.debug('0037')
                     logs.main.error(e)
                     return False
 

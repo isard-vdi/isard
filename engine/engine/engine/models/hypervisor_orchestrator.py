@@ -232,6 +232,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 pass
 
             except Exception as e:
+                logs.exception_id.debug('0036')
                 logs.main.error('ERROR MAIN LOOP IN HYPERVISOR ORCHESTRATOR')
                 logs.main.error(f'Exception: {e}')
                 logs.main.error('-- More info about exception -----')
@@ -291,6 +292,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
             logs.main.error(f'not resolving ip for hostname: {hyp_id}')
 
         timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
+        logs.main.debug(f'try socket {hostname}, {port}, {timeout}')
         socket_ok = try_socket(hostname, port, timeout)
 
     def start_hyper_threads(self,hyp_id,capabilities,status,thread_status):

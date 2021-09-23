@@ -76,6 +76,7 @@ class HypWorkerThread(threading.Thread):
                             update_hyp_status(self.hyp_id, 'Error', detail=self.error)
                             self.stop = True
                     except Exception as e:
+                        logs.exception_id.debug('0058')
                         self.error = 'testing ssh connection failed. Exception: {e}'
                         update_hyp_status(self.hyp_id, 'Error', detail=self.error)
                         self.stop = True
@@ -84,6 +85,7 @@ class HypWorkerThread(threading.Thread):
                     update_hyp_status(self.hyp_id, 'Error', detail=self.error)
                     self.stop = True
             except Exception as e:
+                logs.exception_id.debug('0059')
                 self.error = f'Exception: {e}'
                 update_hyp_status(self.hyp_id, 'Error', detail=self.error)
                 self.stop = True
@@ -140,6 +142,7 @@ class HypWorkerThread(threading.Thread):
                                 try:
                                     domain.isActive()
                                 except Exception as e:
+                                    logs.exception_id.debug('0060')
                                     logs.workers.debug('verified domain {} is destroyed'.format(action['id_domain']))
                                     if nvidia_uid is not False:
                                         ok = update_info_nvidia_hyp_domain('started',nvidia_uid,hyp_id,action['id_domain'])
@@ -193,6 +196,7 @@ class HypWorkerThread(threading.Thread):
                             'Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} '.format(
                                 action['id_domain'], self.hyp_id, error_msg))
                     except Exception as e:
+                        logs.exception_id.debug('0061')
                         update_domain_status('Crashed', action['id_domain'], hyp_id=self.hyp_id,
                                              detail='domain {} failed when try to start in pause mode in hypervisor {}. creating domain operation is aborted')
                         logs.workers.error(
@@ -250,6 +254,7 @@ class HypWorkerThread(threading.Thread):
                                     action['id_domain'], host))
 
                             except Exception as e:
+                                logs.exception_id.debug('0062')
                                 update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=("Exception when starting domain: " + str(e)))
                                 logs.workers.debug('exception in starting domain {}: '.format(e))
 
@@ -267,6 +272,7 @@ class HypWorkerThread(threading.Thread):
                         logs.workers.debug('SHUTTING-DOWN domain {}'.format(action['id_domain']))
                         update_domain_status('Shutting-down', action['id_domain'], hyp_id=hyp_id, detail='shutdown ACPI_POWER_BTN launched in libvirt domain')
                     except Exception as e:
+                        logs.exception_id.debug('0063')
                         logs.workers.error('Exception in domain {} when shutdown action in hypervisor {}'.format(action['id_domain'],hyp_id))
                         logs.workers.error(f'Exception: {e}')
 
@@ -302,6 +308,7 @@ class HypWorkerThread(threading.Thread):
 
                         hw_stats['cpu_stats'] = domain_handler.getCPUStats(1)
                     except Exception as e:
+                        logs.exception_id.debug('0064')
                         logs.workers.error('Exception when get stats from domain {} when stopping'.format(action['id_domain']))
                         logs.workers.error(f'Exception: {e}')
 
@@ -323,6 +330,7 @@ class HypWorkerThread(threading.Thread):
 
 
                     except Exception as e:
+                        logs.exception_id.debug('0065')
                         update_domain_status('Failed', action['id_domain'], hyp_id=self.hyp_id, detail=str(e))
                         logs.workers.debug('exception in stopping domain {}: '.format(e))
 
@@ -389,6 +397,7 @@ class HypWorkerThread(threading.Thread):
                             logs.workers.info('hypervisor {} is alive'.format(host))
                             break
                         except Exception as e:
+                            logs.exception_id.debug('0066')
                             logs.workers.info('hypervisor {} is NOT alive. Exception: {}'.format(host,e))
                     if alive is False:
                         try:

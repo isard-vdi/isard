@@ -70,4 +70,5 @@ def flatten_and_send_dict(d,sender,prefix='isard'):
         sender.sendall(size)
         sender.sendall(package)
     except Exception as e:
+        logs.exception_id.debug('0050')
         log.error(f'Exception when send dictionary of values to grafana: {e}')

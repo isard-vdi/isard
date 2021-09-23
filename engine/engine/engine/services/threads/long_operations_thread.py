@@ -86,6 +86,7 @@ class LongOperationsThread(threading.Thread):
             except queue.Empty:
                 pass
             except Exception as e:
+                logs.exception_id.debug('0067')
                 log.error('Exception in main loop in long operations therad: {}'.format(e))
                 log.error('Action: {}'.format(pprint.pformat(action)))
                 log.error('Traceback: {}'.format(traceback.format_exc()))

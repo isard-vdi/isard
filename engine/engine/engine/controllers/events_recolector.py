@@ -97,6 +97,7 @@ def domDetailToString(event, detail):
     try:
         return DOM_EVENTS[event][1][detail]
     except Exception as e:
+        logs.exception_id.debug('0004')
         logs.status.error(f'Detail not defined in DOM_EVENTS. index_event:{event}, index_detail{detail}')
         logs.status.error(e)
         return 'Detail undefined'
@@ -329,6 +330,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                                              detail="Event received: " + detail_event
                                              )
                 except Exception as e:
+                    logs.exception_id.debug('0005')
                     logs.status.error(
                         'Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed'.format(
                             dom_id))
@@ -505,6 +507,7 @@ class ThreadHypEvents(threading.Thread):
             except queue.Empty:
                 pass
             except Exception as e:
+                logs.exception_id.debug('0006')
                 log.error('Exception in ThreadHypEvents main loop: {}'.format(e))
                 log.error('Action: {}'.format(pprint.pformat(action)))
                 log.error('Traceback: {}'.format(traceback.format_exc()))
@@ -529,6 +532,7 @@ class ThreadHypEvents(threading.Thread):
             update_uri_hyp(hyp_id, uri)
             conn_ok = True
         except Exception as e:
+            logs.exception_id.debug('0007')
             logs.status.error('libvirt connection read only in events thread in hypervisor: {}'.format(hyp_id))
             logs.status.error(e)
 
@@ -550,10 +554,12 @@ class ThreadHypEvents(threading.Thread):
             try:
                 self.unregister_events(self.hyps_conn[hyp_id], self.events_ids[hyp_id])
             except Exception as e:
+                logs.exception_id.debug('0008')
                 logs.status.error(f'Error unregistering event in hypervisor {hyp_id}. Exception: {e}')
             try:
                 self.hyps_conn[hyp_id].close()
             except Exception as e:
+                logs.exception_id.debug('0009')
                 logs.status.error('Error closing libvirt connection. libvirt connection events in read only can not be closed?: {}'.format(hyp_id))
                 logs.status.error(e)
 

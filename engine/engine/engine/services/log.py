@@ -82,10 +82,16 @@ class Logs (object):
                              'bulk',
                              'eval',
                              'hmlog',
+                             'exception_id',
                              'main',
                              'broom']
         for n in self.names_for_loggers:
             self.create_logger(n)
+
+        if environ.get('LOG_EXCEPT_ID_LEVEL','') == 'DEBUG':
+            self.exception_id.setLevel('DEBUG')
+        else:
+            self.exception_id.setLevel('INFO')
 
     def create_logger(self, name):
         logger_obj = log.getLogger(name)

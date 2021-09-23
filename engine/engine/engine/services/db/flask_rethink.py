@@ -33,6 +33,7 @@ class RethinkDB(object):
                 rcfg = configparser.ConfigParser()
                 rcfg.read(os.path.join(os.path.dirname(__file__),'../../isard.conf'))
             except Exception as e:
+                logs.exception_id.debug('0043')
                 log.info('isard.conf file can not be opened. \n Exception: {}'.format(e))
                 sys.exit(0)
         else:
@@ -40,6 +41,7 @@ class RethinkDB(object):
                 rcfg = configparser.ConfigParser()
                 rcfg.read(os.path.join(os.path.dirname(__file__),'../config/isard.conf'))
             except Exception as e:
+                logs.exception_id.debug('0044')
                 log.info('Aborting. Please configure your RethinkDB database: config/isard.conf \n exception: {}'.format(e))
                 sys.exit(0)
             

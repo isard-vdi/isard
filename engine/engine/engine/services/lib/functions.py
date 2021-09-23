@@ -119,7 +119,7 @@ def try_socket(hostname, port, timeout):
     try:
         ip = socket.gethostbyname(hostname)
 
-        addr = (hostname, port)
+        addr = (ip, int(port))
         sock = socket.socket(2, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         try:
@@ -130,6 +130,7 @@ def try_socket(hostname, port, timeout):
             log.error('trying socket has error: {}'.format(e))
             return False
         except Exception as e:
+            logs.exception_id.debug('0047')
             log.error(e)
             return False
     except socket.error as e:
@@ -152,6 +153,7 @@ def try_ssh_command(host,user,port):
             error = 'output from command uname -a is empty, ssh action failed'
             return False, error
     except Exception as e:
+        logs.exception_id.debug('0048')
         error = f'testing ssh connection failed. Host: {host}, cmds: {cmds}, username={user}, port: {port}. Exception: {e}'
         return False, error
 
@@ -909,6 +911,7 @@ def try_ssh(hostname, port, user, timeout):
             return True
 
         except Exception as e:
+            logs.exception_id.debug('0049')
             try:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(hostname,

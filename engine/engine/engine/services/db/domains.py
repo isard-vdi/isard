@@ -708,6 +708,7 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
     try:
         domain_fields = rtable.get(domain_id).pluck('history_domain', 'hyp_started').run(r_conn)
     except Exception as e:
+        logs.exception_id.debug('0041')
         logs.main.error(f'domain {domain_id} does not exists in db and update_domain_history_from_id_domain is not posible')
         logs.main.error(e)
         return False

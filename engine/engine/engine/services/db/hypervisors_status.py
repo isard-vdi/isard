@@ -43,6 +43,7 @@ def  update_actual_stats_domain(id_domain, domain_stats, means):
     try:
         rtable.insert(d,conflict='update').run(r_conn, durability="soft", noreply=True)
     except Exception as e:
+        logs.exception_id.debug('0045')
         log.debug('Error inserting domain_stats: {}'.format(id_domain))
         log.debug(e)
     close_rethink_connection(r_conn)

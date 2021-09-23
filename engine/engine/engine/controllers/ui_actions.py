@@ -65,6 +65,7 @@ class UiActions(object):
         try:
             xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
         except Exception as e:
+            logs.exception_id.debug('0010')
             log.error('recreate_xml_to_start in domain {}'.format(id_domain))
             log.error('Traceback: \n .{}'.format(traceback.format_exc()))
             log.error('Exception message: {}'.format(e))
@@ -356,6 +357,7 @@ class UiActions(object):
 
                         self.manager.q.workers[next_hyp].put(action)
                     except Exception as e:
+                        logs.exception_id.debug('0011')
                         update_domain_status(status='Stopped',
                                              id_domain=id_domain,
                                              hyp_id=False,
@@ -451,6 +453,7 @@ class UiActions(object):
                                              self.manager.q_disk_operations[hyp_to_disk_create].qsize()))
                     self.manager.q_disk_operations[hyp_to_disk_create].put(action)
                 except Exception as e:
+                    logs.exception_id.debug('0012')
                     update_domain_status(status='Stopped',
                                          id_domain=id_domain,
                                          hyp_id=False,
@@ -600,6 +603,7 @@ class UiActions(object):
                     self.manager.q_disk_operations[hyp_to_disk_create].put(action)
 
                 except Exception as e:
+                    logs.exception_id.debug('0013')
                     update_domain_status(status='FailedCreatingDomain',
                                          id_domain=id_new,
                                          hyp_id=False,
@@ -671,6 +675,7 @@ class UiActions(object):
             self.manager.q_long_operations[hyp_to_disk_create].put(action)
 
         except Exception as e:
+            logs.exception_id.debug('0014')
             update_domain_status(status='FailedCreatingDomain',
                                  id_domain=id_new,
                                  hyp_id=False,
@@ -744,6 +749,7 @@ class UiActions(object):
                 self.manager.q_disk_operations[hyp_to_disk_create].put(action)
 
             except Exception as e:
+                logs.exception_id.debug('0015')
                 update_domain_status(status='FailedCreatingDomain',
                                      id_domain=id_new,
                                      hyp_id=False,
@@ -756,6 +762,7 @@ class UiActions(object):
         try:
             populate_dict_hardware_from_create_dict(id_domain)
         except Exception as e:
+            logs.exception_id.debug('0016')
             log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
             log.error('Traceback: \n .{}'.format(traceback.format_exc()))
             log.error('Exception message: {}'.format(e))
@@ -772,6 +779,7 @@ class UiActions(object):
                 return False
 
         except Exception as e:
+            logs.exception_id.debug('0017')
             log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
             log.error('Traceback: \n .{}'.format(traceback.format_exc()))
             log.error('Exception message: {}'.format(e))
@@ -795,6 +803,7 @@ class UiActions(object):
                 try:
                     xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
                 except Exception as e:
+                    logs.exception_id.debug('0018')
                     log.error('recreate_xml_to_start in domain {}'.format(id_domain))
                     log.error('Traceback: \n .{}'.format(traceback.format_exc()))
                     log.error('Exception message: {}'.format(e))
@@ -818,6 +827,7 @@ class UiActions(object):
             try:
                 populate_dict_hardware_from_create_dict(id_domain)
             except Exception as e:
+                logs.exception_id.debug('0019')
                 log.error('error when populate dict hardware from create dict in domain {}'.format(id_domain))
                 log.error('Traceback: \n .{}'.format(traceback.format_exc()))
                 log.error('Exception message: {}'.format(e))
@@ -860,6 +870,7 @@ class UiActions(object):
         try:
             xml_raw = update_xml_from_dict_domain(id_domain)
         except Exception as e:
+            logs.exception_id.debug('0020')
             logs.main.info(f'Exception updating xml from dict_domain: {e}')
             update_domain_status(status='FailedCreatingDomain',
                                  id_domain=id_domain,
@@ -893,6 +904,7 @@ class UiActions(object):
                 cpu_host_model = self.manager.pools[pool_id].conf.get('cpu_host_model', DEFAULT_HOST_MODE)
                 xml = recreate_xml_to_start(id_domain,ssl,cpu_host_model)
             except Exception as e:
+                logs.exception_id.debug('0021')
                 log.error('recreate_xml_to_start in domain {}'.format(id_domain))
                 log.error('Traceback: \n .{}'.format(traceback.format_exc()))
                 log.error('Exception message: {}'.format(e))

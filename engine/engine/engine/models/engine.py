@@ -274,6 +274,7 @@ class Engine(object):
                 except queue.Empty:
                     pass
                 except Exception as e:
+                    logs.exception_id.debug('0025')
                     logs.main.error(e)
                     return False
 

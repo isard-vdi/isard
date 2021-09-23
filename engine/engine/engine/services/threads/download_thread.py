@@ -205,6 +205,7 @@ class DownloadThread(threading.Thread, object):
                     try:
                         os.killpg(os.getpgid(p.pid), signal.SIGTERM)
                     except Exception as e:
+                        logs.exception_id.debug('0055')
                         logs.downloads.debug('ssh process not killed, has finalished')
 
                     if self.table == 'media':
@@ -349,6 +350,7 @@ class DownloadChangesThread(threading.Thread):
             self.q_workers[next_hyp].put(action)
             return True
         except Exception as e:
+            logs.exception_id.debug('0056')
             logs.downloads.error('next hypervisor fail: ' + str(e))
 
     def delete_media(self, dict_changes):

@@ -144,6 +144,7 @@ class hyp(object):
                 self.fail_connected_reason = 'ssh authentication fail when connect: {}'.format(e)
                 self.ssh_autologin_fail = True
             except Exception as e:
+                logs.exception_id.debug('0026')
                 log.error(
                     "host {} with ip {} can't connect with ssh without password. Reasons? timeout, ssh authentication with keys is needed, port is correct?".format(
                         self.hostname, self.ip))
@@ -170,6 +171,7 @@ class hyp(object):
                         try:
                             self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
                         except Exception as e:
+                            logs.exception_id.debug('0027')
                             log.error('error when hypervisor have not rethink id. {}'.format(e))
                     #timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
                     #self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
@@ -215,6 +217,7 @@ class hyp(object):
                 #     return False
 
                 except Exception as e:
+                    logs.exception_id.debug('0028')
                     log.error('connection to hypervisor {} fail with unexpected error: {}'.format(self.hostname, e))
                     log.error('libvirt uri: {}'.format(self.uri))
                     self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
@@ -229,6 +232,7 @@ class hyp(object):
             return False
 
         except Exception as e:
+            logs.exception_id.debug('0029')
             log.error(e)
 
     def launch_events(self):
@@ -289,6 +293,7 @@ class hyp(object):
                 return True
 
             except Exception as e:
+                logs.exception_id.debug('0030')
                 log.error('Exception while executing remote command in hypervisor to list kvm modules: {}'.format(e))
                 log.error(f'Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second.')
             time.sleep(1)
@@ -346,6 +351,7 @@ class hyp(object):
                     self.info['memory_speed'] = "0"
 
         except Exception as e:
+            logs.exception_id.debug('0031')
             log.error('Exception when extract information with libvirt from hypervisor {}: {}'.format(self.hostname, e))
             log.error('Traceback: {}'.format(traceback.format_exc()))
 
@@ -525,9 +531,11 @@ class hyp(object):
                 xml_stopped = d.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
                 d.destroy()
             except Exception as e:
+                logs.exception_id.debug('0032')
                 log.error('error starting paused vm: {}'.format(e))
 
         except Exception as e:
+            logs.exception_id.debug('0033')
             log.error('error defining vm: {}'.format(e))
 
         return xml_stopped, xml_started
@@ -576,6 +584,7 @@ class hyp(object):
                     log.error('error when hypervisor have not rethink id. {}'.format(e))
                     raise TypeError
             except Exception as e:
+                logs.exception_id.debug('0034')
                 log.error('error when hypervisor have not rethink id. {}'.format(e))
                 raise e
         for domain_id, d in d_domains_with_states.items():
@@ -1117,6 +1126,7 @@ class hyp(object):
             try:
                 self.id_hyp_rethink = get_id_hyp_from_uri(hostname_to_uri(self.hostname, user=self.user, port=self.port))
             except Exception as e:
+                logs.exception_id.debug('0035')
                 log.error('error when hypervisor have not rethink id. {}'.format(e))
                 return False
         l_all_domains = get_domains_with_status_in_list(list_status=['Started', 'Shutting-down', 'Stopped', 'Failed'])

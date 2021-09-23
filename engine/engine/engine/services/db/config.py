@@ -3,6 +3,7 @@ import traceback
 
 from engine.config import RETHINK_HOST, RETHINK_PORT, RETHINK_DB
 from engine.services.db import new_rethink_connection, close_rethink_connection
+from engine.services.log import logs
 
 
 def get_config():
@@ -49,6 +50,7 @@ def table_config_created_and_populated():
             else:
                 return False
     except Exception as e:
+        logs.exception_id.debug('0039')
         print(f'rethink db connectin failed with hostname {RETHINK_HOST} and port {RETHINK_PORT}')
         print(e)
         print('Traceback: \n .{}'.format(traceback.format_exc()))
