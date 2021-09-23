@@ -109,6 +109,13 @@ LOG_LEVEL=INFO
 ## Not needed if you have isard-static at the same host as API_DOMAIN
 #STATIC_DOMAIN=$DOMAIN
 
+# ------ Vpn host ------------------------------------------------------------
+## Where can we reach the isard-vpn from this host?
+## Needed for remote hypervisors 
+## VPN will be set against VPN_DOMAIN if set, else against API_DOMAIN if set
+## and by defaults against isard-vpn
+#VPN_DOMAIN=isard-vpn
+
 # ------ Video proxy host ----------------------------------------------------
 ## Where is the isard-video proxy for this hypervisor?
 ## Needed for client video browser/apps to reach this hypervisor guests:

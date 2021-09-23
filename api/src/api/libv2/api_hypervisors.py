@@ -57,7 +57,8 @@ class ApiHypervisors():
                 spice_port='80',
                 isard_static_url=os.environ['DOMAIN'],
                 isard_video_url=os.environ['DOMAIN'],
-                isard_proxy_hyper_url='isard-hypervisor'):
+                isard_proxy_hyper_url='isard-hypervisor',
+                isard_hyper_vpn_host='isard-vpn'):
         data={}
 
         # Check if it is in database
@@ -89,6 +90,7 @@ class ApiHypervisors():
                                 isard_static_url=isard_static_url,
                                 isard_video_url=isard_video_url,
                                 isard_proxy_hyper_url=isard_proxy_hyper_url,
+                                isard_hyper_vpn_host=isard_hyper_vpn_host,
                                 description="Added via api"),'inserted'): 
 
                 return {'status':False,'msg':'Unable to ssh-keyscan '+hostname+' port '+str(port)+'. Please ensure the port is opened in the hypervisor','data':data}
@@ -105,6 +107,7 @@ class ApiHypervisors():
                         isard_static_url=isard_static_url,
                         isard_video_url=isard_video_url,
                         isard_proxy_hyper_url=isard_proxy_hyper_url,
+                        isard_hyper_vpn_host=isard_hyper_vpn_host,
                         description="Added via api")
             #{'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result: return  {'status':False,'msg':'Unable to ssh-keyscan '+hostname+' port '+str(port)+'. Please ensure the port is opened in the hypervisor','data':data}
@@ -133,7 +136,8 @@ class ApiHypervisors():
                     spice_port='80',
                     isard_static_url=os.environ['DOMAIN'],
                     isard_video_url=os.environ['DOMAIN'],
-                    isard_proxy_hyper_url='isard-hypervisor'):
+                    isard_proxy_hyper_url='isard-hypervisor',
+                    isard_hyper_vpn_host='isard-vpn'):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hyp_id,port): return False
 
@@ -145,6 +149,7 @@ class ApiHypervisors():
                     "detail": "" ,
                     "enabled": enabled ,
                     "hostname": hyp_id ,
+                    "isard_hyper_vpn_host": isard_hyper_vpn_host,
                     "hypervisor_number": hyp_number ,
                     "hypervisors_pools": ["default"] ,
                     "id": hyp_id ,

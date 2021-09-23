@@ -105,8 +105,9 @@ def api_v3_hypervisor(hostname=False):
             browser_port = request.form.get('browser_port', default='443', type = str)
             spice_port = request.form.get('spice_port', default='80', type = str)
             isard_static_url = request.form.get('isard_static_url', default=os.environ['DOMAIN'], type = str)
-            isard_video_url = request.form.get('isard_video_url', os.environ['DOMAIN'], type = str)
+            isard_video_url = request.form.get('isard_video_url', default=os.environ['DOMAIN'], type = str)
             isard_proxy_hyper_url = request.form.get('isard_proxy_hyper_url', default='isard-hypervisor', type = str)
+            isard_hyper_vpn_host = request.form.get('isard_hyper_vpn_host', default=os.environ['DOMAIN'], type = str)
             description = request.form.get('description', default='Added via api', type = str)
 
         except Exception as e:
@@ -124,6 +125,7 @@ def api_v3_hypervisor(hostname=False):
                                         isard_static_url=isard_static_url,
                                         isard_video_url=isard_video_url,
                                         isard_proxy_hyper_url=isard_proxy_hyper_url,
+                                        isard_hyper_vpn_host=isard_hyper_vpn_host,
                                         description=description)
             if not data['status']:
                 log.warning(data)

@@ -13,6 +13,7 @@ except:
 hostname=os.environ['DOMAIN'] if os.environ.get('API_DOMAIN',False) else 'isard-hypervisor'
 video_domain=os.environ.get('VIDEO_DOMAIN',os.environ['DOMAIN'])
 static_url=os.environ.get('STATIC_DOMAIN',os.environ['DOMAIN'])
+isard_hyper_vpn_host=os.environ.get('VPN_DOMAIN',os.environ.get('API_DOMAIN','isard-vpn'))
 
 def SetupHypervisor():
     HYPERVISOR={"hostname":hostname,
@@ -25,7 +26,8 @@ def SetupHypervisor():
                 "spice_port":os.environ['VIEWER_SPICE'] if os.environ.get('VIEWER_SPICE', False) else '80',
                 "isard_static_url":static_url,
                 "isard_video_url":video_domain,
-                "isard_proxy_hyper_url":"isard-hypervisor" if video_domain == hostname else hostname}
+                "isard_proxy_hyper_url":"isard-hypervisor" if video_domain == hostname else hostname,
+                "isard_hyper_vpn_host": isard_hyper_vpn_host}
 
     ## Adding hyper. Received dict with certs and number
     ok=False

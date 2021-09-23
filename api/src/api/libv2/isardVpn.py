@@ -30,10 +30,10 @@ class isardVpn():
             endpoint=os.environ['DOMAIN']
         elif vpn == 'hypers':
             #if itemid.role != 'admin': return False
-            hyper=r.table('hypervisors').get(itemid).pluck('id','vpn').run(db.conn)
+            hyper=r.table('hypervisors').get(itemid).pluck('id','isard_hyper_vpn_host','vpn').run(db.conn)
             wgdata = hyper
             port='4443'
-            endpoint='isard-vpn' if itemid == 'isard-hypervisor' else os.environ['DOMAIN']
+            endpoint=hyper.get('isard_hyper_vpn_host','isard-vpn')
         else:
             return False
 
