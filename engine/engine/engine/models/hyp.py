@@ -532,18 +532,29 @@ class hyp(object):
 
         return xml_stopped, xml_started
 
+
     def get_domains(self):
         """
         return dictionary with domain objects of libvirt
         keys of dictionary are names
         domains can be started or paused
         """
+        self.domains = {}
+        self.domains_states = {}
         if self.connected:
-            self.domains = {}
             try:
                 for d in self.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
                     try:
                         domain_name = d.name()
+                        l_libvirt_state = d.state()
+                        state_id = l_libvirt_state[0]
+                        reason_id = -1 if len(l_libvirt_state) < 2 else l_libvirt_state[1]
+                        self.domains_states[domain_name] = {
+                             'status': virDomainState[state_id]['status'],
+                             'detail': virDomainState[state_id].get('reason',  {}).\
+                                                                get(reason_id, {}).\
+                                                                get('detail',  '')
+                             }
                     except:
                         log.info('unkown domain fail when trying to get his name, power off??')
                         continue
@@ -552,6 +563,34 @@ class hyp(object):
             except:
                 log.error('error when try to list domain in hypervisor {}'.format(self.hostname))
                 self.domains = {}
+
+        return self.domains_states
+
+    def update_domain_coherence_in_db(self):
+        d_domains_with_states = self.get_domains()
+        set_domains_running_in_hyps = set()
+        if self.id_hyp_rethink is None:
+            try:
+                self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
+                if self.id_hyp_rethink is None:
+                    log.error('error when hypervisor have not rethink id. {}'.format(e))
+                    raise TypeError
+            except Exception as e:
+                log.error('error when hypervisor have not rethink id. {}'.format(e))
+                raise e
+        for domain_id, d in d_domains_with_states.items():
+            update_domain_status(d['status'],
+                                 domain_id,
+                                 hyp_id=self.id_hyp_rethink,
+                                 detail=d['detail'])
+            set_domains_running_in_hyps.add(domain_id)
+        domains_with_hyp_started_in_db = get_domains_started_in_hyp(self.id_hyp_rethink)
+        set_domains_with_hyp_started_in_db = set(list(domains_with_hyp_started_in_db.keys()))
+        domains_to_be_stopped = set_domains_with_hyp_started_in_db.difference(set_domains_running_in_hyps)
+        for domain_id in domains_to_be_stopped:
+            update_domain_status('Stopped',
+                                 domain_id,
+                                 detail=f'domain not running in hyp {self.id_hyp_rethink}')
 
     #
     # def hyp_worker_thread(self,queue_worker):
