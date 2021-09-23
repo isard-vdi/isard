@@ -179,7 +179,15 @@ def api_v3_user_templates(payload):
 
     try:
         templates = users.Templates(payload)
-        dropdown_templates = [{'id':t['id'],'name':t['name'],'icon':t['icon'],'image':'','description':t['description']} for t in templates]
+        dropdown_templates = [{'id':t['id'],
+                                'name':t['name'],
+                                'category':t['category'],
+                                'group':t['group'].split('-')[1],
+                                'user_id':t['user'],
+                                'user_name':t['username'],
+                                'icon':t['icon'],
+                                'image':'',
+                                'description':t['description']} for t in templates]
         return json.dumps(dropdown_templates), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
         log.error("User "+payload['user_id']+" not in database.")

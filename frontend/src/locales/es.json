@@ -1,4 +1,33 @@
 {
+    "validations": {
+        "required": "El campo {property} es obligatorio.",
+        "minLengthValue": "El campo {property} es de {model} caracteres, el minimo es {min}.",
+        "maxLengthValue": "El campo {property} es de {model} caracteres, el máximo es {max}.",
+        "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _"
+    },
+    "forms": {
+        "new-desktop": {
+            "title": "Nuevo desktop:",
+            "section-title-template": "Selecciona un template:",
+            "desktop-name": "Nombre",
+            "desktop-description": "Descripción",
+            "desktop-template": "Template",
+            "filter": "Filtrar",
+            "filter-placeholder": "Escribe para filtrar",
+            "template-table-column-headers": {
+                "selected": "Seleccionado",
+                "name": "Nombre",
+                "description": "Descripción",
+                "category": "Categoría",
+                "group": "Grupo",
+                "user": "Usuario"
+            }
+        },
+        "clear": "Limpia",
+        "cancel": "Cancela",
+        "submit": "Envía",
+        "create": "Crea"
+    },
     "components": {
         "navbar": {
             "home": "Inicio",
@@ -257,5 +286,11 @@
                 "not-available": "Escritorio no disponible"
             }
         }
+    },
+    "errors": {
+        "create_desktop_user_quota": "Maximo de desktops para el usuario alcanzado",
+        "create_desktop_group_quota": "Maximo de desktops para el grupo alcanzado",
+        "create_desktop_category_quota": "Maximo de desktops para la categoría alcanzado",
+        "generic_error": "Se ha producido un error"
     }
 }

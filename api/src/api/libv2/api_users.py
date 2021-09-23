@@ -186,6 +186,10 @@ class ApiUsers():
             desktops = data1+data2
             alloweds=[]
             for desktop in desktops:
+                try:
+                    desktop['username']=r.table('users').get(desktop['user']).pluck('name').run(db.conn)['name']
+                except:
+                    desktop['username']='X '+desktop['user']
                 # with app.app_context():
                 #     desktop['username']=r.table('users').get(desktop['user']).pluck('name').run(db.conn)['name']
                 if payload['role_id']=='admin':

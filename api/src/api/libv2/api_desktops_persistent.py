@@ -41,7 +41,7 @@ class ApiDesktopsPersistent():
             raise DesktopNotFound
         ds.delete_desktop(desktop_id, desktop['status'])
 
-    def NewFromTemplate(self, desktop_name, template_id, payload):
+    def NewFromTemplate(self, desktop_name, desktop_description, template_id, payload):
         with app.app_context():
             template = r.table('domains').get(template_id).run(db.conn)
         if template == None:
@@ -59,8 +59,8 @@ class ApiDesktopsPersistent():
         create_dict=_parse_media_info(create_dict)
 
         new_desktop={'id': '_'+payload['user_id']+'-'+parsed_name,
-                  'name': parsed_name,
-                  'description': template['description'],
+                  'name': desktop_name,
+                  'description': desktop_description,
                   'kind': 'desktop',
                   'user': payload['user_id'],
                   'username': payload['user_id'].split('-')[-1],
@@ -81,7 +81,7 @@ class ApiDesktopsPersistent():
                               'groups': False,
                               'users': False},
                   'accessed': time.time(),
-                  'persistent':False,
+                  'persistent':True,
                   'from_template':template['id']}
 
         with app.app_context():

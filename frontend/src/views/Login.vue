@@ -180,7 +180,7 @@ export default {
   },
   beforeMount: async function () {
     if (localStorage.token) {
-      this.$router.push({ name: 'Home' })
+      this.$router.push({ name: 'desktops' })
     }
     this.$store.dispatch('removeAuthorizationCookie')
     this.$store.dispatch('fetchConfig')

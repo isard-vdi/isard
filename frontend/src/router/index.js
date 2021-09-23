@@ -4,13 +4,15 @@ import Login from '@/views/Login.vue'
 import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
 import Register from '@/views/Register.vue'
-import Home from '@/views/Home.vue'
 import Rdp from '@/views/Rdp.vue'
 import Deployments from '@/views/Deployments.vue'
 import Deployment from '@/views/Deployment.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { auth } from './auth'
+import MainLayout from '@/layouts/MainLayout.vue'
+import Desktops from '@/pages/Desktops.vue'
+import DesktopNew from '@/pages/DesktopNew.vue'
 
 Vue.use(VueRouter)
 
@@ -19,7 +21,20 @@ const router = new VueRouter({
     {
       path: '/',
       name: 'Home',
-      component: Home,
+      redirect: '/desktops',
+      component: MainLayout,
+      children: [
+        {
+          path: 'desktops',
+          name: 'desktops',
+          component: Desktops
+        },
+        {
+          path: 'desktops/new',
+          name: 'NewDesktop',
+          component: DesktopNew
+        }
+      ],
       meta: {
         requiresAuth: true
       }

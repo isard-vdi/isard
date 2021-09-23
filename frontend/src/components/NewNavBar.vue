@@ -10,7 +10,7 @@
 
         <b-collapse id="nav-collapse" is-nav>
           <b-navbar-nav id="left-side" class="mt-5 mt-lg-0">
-            <b-nav-item :to="{ name: 'Home' }">{{ $t("components.navbar.home") }}</b-nav-item>
+            <b-nav-item :to="{ name: 'desktops' }">{{ $t("components.navbar.home") }}</b-nav-item>
             <b-nav-item-dropdown v-if="getUser.role_id === 'advanced'" :text="$t('components.navbar.deployments.text')">
               <b-dropdown-item :to="{ name: 'Deployments' }">{{ $t("components.navbar.deployments.view") }}</b-dropdown-item>
               <b-dropdown-item href="/isard-admin/desktops/tags">{{ $t("components.navbar.deployments.manage") }}</b-dropdown-item>

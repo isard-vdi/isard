@@ -5,6 +5,8 @@ import router from '@/router'
 import { toast } from '@/store/index.js'
 import { apiV3Segment } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
+import { ErrorUtils } from '../../utils/errorUtils'
+import { get } from 'lodash'
 
 export default {
   state: {
@@ -234,6 +236,26 @@ export default {
           })
         })
       )
+    },
+    createNewDesktop (context, payload) {
+      const formData = new FormData()
+      formData.append('desktop_name', payload.name)
+      formData.append('desktop_description', payload.description)
+      formData.append('template_id', payload.id)
+
+      axios.post(`${apiV3Segment}/persistent_desktop`, formData).then(response => {
+        router.push({ name: 'desktops' })
+      }).catch(e => {
+        const errorMessageCode = ErrorUtils.errorMessageDefinition[get(e, 'response.status')] ? ErrorUtils.errorMessageDefinition[get(e, 'response.status')][get(e, 'response.data.code')] : undefined
+
+        this._vm.$snotify.error(ErrorUtils.getErrorMessageText(errorMessageCode), {
+          timeout: 2000,
+          showProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          position: 'centerTop'
+        })
+      })
     },
     deleteDesktop (context, desktopId) {
       return this._vm.$snotify.async(

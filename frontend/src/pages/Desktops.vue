@@ -1,10 +1,5 @@
 <template>
-  <div>
-    <div class="header-wrapper">
-      <NewNavBar/>
-      <StatusBar/>
-    </div>
-    <b-container fluid id="content">
+  <b-container fluid id="content">
       <div v-if="(getDesktopsLoaded && getTemplatesLoaded) && (getTemplates.length === 0 && getDesktops.length === 0)">
             <h3><strong>{{ $t('views.select-template.no-templates.title') }}</strong></h3>
             <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
@@ -56,21 +51,16 @@
         </b-tab>
       </b-tabs>
     </b-container>
-  </div>
 </template>
 
 <script>
 // @ is an alias to /src
 import { mapGetters } from 'vuex'
-import NewNavBar from '@/components/NewNavBar.vue'
-import StatusBar from '@/components/StatusBar.vue'
 import CardList from '@/components/CardList.vue'
 import TableList from '@/components/TableList.vue'
 
 export default {
   components: {
-    StatusBar,
-    NewNavBar,
     CardList,
     TableList
   },

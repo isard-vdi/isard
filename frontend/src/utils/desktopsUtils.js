@@ -25,14 +25,17 @@ export class DesktopUtils {
 
   static parseTemplates (items) {
     return items.map((item) => {
-      const { description, icon, id, name } = item
+      const { description, icon, id, name, category, group, user_name: userName } = item
       return {
         description,
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
         id,
         name,
         type: 'nonpersistent',
-        buttonIconName: 'play'
+        buttonIconName: 'play',
+        category,
+        group,
+        userName
       }
     }) || []
   }
