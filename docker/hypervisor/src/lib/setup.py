@@ -11,8 +11,8 @@ except:
     raise
 
 hostname=os.environ['DOMAIN'] if os.environ.get('API_DOMAIN',False) else 'isard-hypervisor'
-video_domain=os.environ['VIDEO_DOMAIN'] if os.environ.get('VIDEO_DOMAIN',False) else os.environ['DOMAIN']
-static_url=os.environ.get('API_DOMAIN',os.environ['DOMAIN'])
+video_domain=os.environ.get('VIDEO_DOMAIN',os.environ['DOMAIN'])
+static_url=os.environ.get('STATIC_DOMAIN',os.environ['DOMAIN'])
 
 def SetupHypervisor():
     HYPERVISOR={"hostname":hostname,

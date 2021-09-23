@@ -94,7 +94,7 @@ LOG_LEVEL=INFO
 # ------ Authentication host -------------------------------------------------
 
 # Authentication host
-## Where is authentication reacheable?
+## Where is isard-authentication reacheable from clients browser?
 ## Not needed for remote hypervisors, only to split main web install.
 #AUTHENTICATION_AUTHENTICATION_HOST=$DOMAIN
 #AUTHENTICATION_DB_HOST=isard-db
@@ -104,10 +104,15 @@ LOG_LEVEL=INFO
 ## Needed for remote hypervisors 
 #API_DOMAIN=isard-api
 
-# ------ Video host ----------------------------------------------------------
-## Where is the isard-video for this hypervisor?
-## Needed for remote hypervisors:
-## hypervisor: Will have isard-video. Set it to DOMAIN
+# ------ Static nginx host ----------------------------------------------------
+## Where the clients will load static when connecting to this host video?
+## Not needed if you have isard-static at the same host as API_DOMAIN
+#STATIC_DOMAIN=$DOMAIN
+
+# ------ Video proxy host ----------------------------------------------------
+## Where is the isard-video proxy for this hypervisor?
+## Needed for client video browser/apps to reach this hypervisor guests:
+## hypervisor: Will have isard-video. Set it to $DOMAIN
 ## hypervisor-standalone: Will rely on a server with isard-video
 #VIDEO_DOMAIN=$DOMAIN
 
@@ -120,7 +125,7 @@ LOG_LEVEL=INFO
 # ------ Video proxy ACL -----------------------------------------------------
 ## Is this host hosting the isard-video for other hypervisor-standalone
 ## servers? Then allow here only the hostnames for those hypervisors as
-## seen from this host.
+## seen from this host with comma (,) delimiters:
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-6899
 
