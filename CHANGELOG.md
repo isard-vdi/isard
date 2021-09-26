@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.1] - 2021-09-23
+
+### Fixed
+
+- Fix gitlab-ci docker push, regression of v3.1.10
+
 ## [3.2.0] - 2021-09-22
 
 ### Changed
