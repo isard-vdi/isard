@@ -63,7 +63,7 @@ PrivateKey = %s
 PublicKey = %s
 Endpoint = %s:%s
 AllowedIPs = %s
-PersistentKeepalive = 21
+PersistentKeepalive = 25
 """ % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],app.wireguard_server_keys['public'],endpoint,port,peer['vpn']['wireguard']['AllowedIPs'])
 
     def get_wireguard_install_script(self,endpoint,peer,op_sys):

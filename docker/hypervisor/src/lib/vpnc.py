@@ -42,6 +42,9 @@ while not ok:
             time.sleep(4)
         if peer.get('content'):
             connect(peer['content'])
+            gw = peer['content'].split('AllowedIPs = ')[1].split('/')[0]
+            if not reacheable(gw):
+                print('Could not connect to vpn internal gw: '+gw)
             ok=True
         else:
             print('Can not get hypervisor wg VPNc config from api. Retrying...')

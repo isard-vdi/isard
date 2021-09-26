@@ -7,7 +7,7 @@ from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError, ReqlOpFailedErro
 import logging as log
 
 from wgtools import Wg
-
+from update_vpn_status import start_monitoring_vpn_status
 
 
 def dbConnect():
@@ -22,6 +22,7 @@ while True:
         wg_users=Wg(interface='users',clients_net=os.environ['WG_USERS_NET'],table='users',server_port=os.environ['WG_USERS_PORT'],allowed_client_nets=os.environ['WG_GUESTS_NETS'],reset_client_certs=False)
         wg_hypers=Wg(interface='hypers',clients_net=os.environ['WG_HYPERS_NET'],table='hypervisors',server_port=os.environ['WG_HYPERS_PORT'],allowed_client_nets='10.1.0.1/32',reset_client_certs=False)
 
+        start_monitoring_vpn_status()
         print('Config regenerated from database...\nStarting to monitor users changes...')
         #for user in r.table('users').pluck('id','vpn').changes(include_initial=False).run():
         for data in r.table('users').pluck('id','vpn').merge({'table':'users'}).changes(include_initial=False).union(
@@ -44,7 +45,7 @@ while True:
                 if data['new_val']['table'] in ['users','remotevpn']:
                     wg_users.add_peer(data['new_val'], table=data['new_val']['table'])
                 elif data["new_val"]["table"] == "hypers":
-                    wg_hypers.add_peer(data['new_val'],'hypers')
+                    wg_hypers.add_peer(data['new_val'])
                 elif data["new_val"]["table"] == "domains":
                     wg_users.desktop_iptables(data)                    
             else:
@@ -66,14 +67,15 @@ while True:
                         continue
                         print('Modified wireguard config')
                         # who else could modify the wireguard config?? 
-                        if data['old_val']['table'] in ['users','remotevpn']:
-                            wg_users.update_peer(data['new_val'])
-                        else:
-                            wg_hypers.update_peer(data['new_val'])
+                        # if data['old_val']['table'] in ['users','remotevpn']:
+                        #     wg_users.update_peer(data['new_val'])
+                        # else:
+                        #     wg_hypers.update_peer(data['new_val'])
                 elif data['old_val']['table'] == 'domains':
                     wg_users.desktop_iptables(data) 
 
     except (ReqlDriverError, ReqlOpFailedError):
+        print(traceback.format_exc())
         print('Users: Rethink db connection missing!')
         log.error('Users: Rethink db connection missing!')
         time.sleep(.5)

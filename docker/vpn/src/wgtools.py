@@ -196,8 +196,8 @@ class Wg(object):
     def get_hyper_subnet(self,hypervisor_number):
         network=os.environ['WG_GUESTS_NETS']
         dhcp_mask=int(os.environ['WG_GUESTS_DHCP_MASK'])
-        reserved_hosts=int(os.environ['WG_GUESTS_RESERVED_HOSTS'])
-        users_net=os.environ['WG_USERS_NET']
+        # reserved_hosts=int(os.environ['WG_GUESTS_RESERVED_HOSTS'])
+        # users_net=os.environ['WG_USERS_NET']
 
         nparent = ipaddress.ip_network(network, strict=False)
         dhcpsubnets=list(nparent.subnets(new_prefix=dhcp_mask))
@@ -224,7 +224,7 @@ class Wg(object):
         else:
             address=peer['vpn']['wireguard']['Address']
         try:
-            check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'allowed-ips', address), text=True).strip()  
+            check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'allowed-ips', address, 'persistent-keepalive', '25'), text=True).strip()  
             if self.table == 'hypervisors':
                 check_output(('ovs-vsctl','add-port','ovsbr0',peer['id'],'--','set','interface',peer['id'],'type=geneve','options:remote_ip='+address), text=True).strip() 
                 pass
@@ -233,7 +233,7 @@ class Wg(object):
                 # check_output(('/usr/bin/wg-quick','down','hypers'), text=True)
                 # check_output(('/usr/bin/wg-quick','up','hypers'), text=True)
             return True
-        except Exception as e:
+        except:
             log.error('New peer up peer error: \n'+traceback.format_exc())
             return False
 
@@ -259,7 +259,7 @@ class Wg(object):
             check_output(('/usr/bin/wg', 'set', self.interface, 'peer', peer['vpn']['wireguard']['keys']['public'], 'remove'), text=True).strip()  
         self.uipt.remove_matching_rules(peer)
         if table=='hypervisors':
-            log.error(check_output(('ovs-vsctl','del-port',peer['id']), text=True).strip() )
+            print(check_output(('ovs-vsctl','del-port',peer['id']), text=True).strip() )
         #if self.table=='users':
         #    self.uipt.del_user(peer['id'],peer['vpn']['wireguard']['Address'])
 
@@ -297,7 +297,7 @@ PrivateKey = %s
 PublicKey = %s
 Endpoint = server:443
 AllowedIPs = 192.168.128.0/22
-PersistentKeepalive = 21
+PersistentKeepalive = 25
 """ % (peer['vpn']['wireguard']['AllowedIPs'],peer['vpn']['wireguard']['keys']['private'],self.keys.skeys['public'])
 
 # WireGuard introduces the concepts of Endpoints, Peers and AllowedIPs. 
