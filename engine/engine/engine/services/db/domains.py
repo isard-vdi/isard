@@ -703,7 +703,12 @@ def remove_domain(id):
 def get_domains_flag_server_to_starting():
     r_conn = new_rethink_connection()
     rtable = r.table('domains')
-    l = list(rtable.filter({'kind': 'desktop', 'create_dict':{'server':True}}).pluck('id', 'status').run(r_conn))
+    try:
+        l = list(rtable.get_all('desktop', index='kind').filter({'create_dict':{'server':True}}).pluck('id','status').run(r_conn))
+    except Exception as e:
+        logs.exception_id.debug('0040')
+        logs.main.error(e)
+        return []
     ids_servers_must_start = [d['id'] for d in l if d['status'] in STATUS_FROM_CAN_START]
     close_rethink_connection(r_conn)
     return ids_servers_must_start
