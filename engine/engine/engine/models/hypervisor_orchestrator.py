@@ -28,7 +28,7 @@ from engine.services.db.hypervisors import get_hypers_enabled_with_capabilities_
     update_hyp_thread_status, get_hypers_ids_with_status, get_hyp_hostname_from_id
 from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_created, \
     set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain, \
-    update_domains_started_in_hyp_to_unknown
+    update_domains_started_in_hyp_to_unknown, get_domains_flag_server_to_starting, update_domain_status
 from engine.services.lib.functions import get_threads_running, get_tid, engine_restart, exec_remote_list_of_cmds_dict, \
     try_socket
 from engine.services.lib.qcow import test_hypers_disk_operations
@@ -228,7 +228,8 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
             except queue.Empty:
                 self.check_hyps_from_database()
-
+                for server_id in get_domains_flag_server_to_starting():
+                    update_domain_status('Starting',server_id)
                 pass
 
             except Exception as e:

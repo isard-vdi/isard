@@ -19,6 +19,7 @@ STATUS_STABLE_DOMAIN_RUNNING = ['Started', 'ShuttingDown', 'Paused']
 ALL_STATUS_RUNNING=['Stopping', 'Started','Stopping','Shutting-down']
 STATUS_TO_UNKNOWN = ['Started', 'Paused', 'Shutting-down', 'Stopping', 'Unknown']
 STATUS_TO_STOPPED = ['Starting', 'CreatingTemplate']
+STATUS_FROM_CAN_START = ['Stopped', 'Failed']
 
 DEBUG_CHANGES = True if logs.changes.handlers[0].level <= 10 else False
 if DEBUG_CHANGES:
@@ -699,6 +700,13 @@ def remove_domain(id):
     close_rethink_connection(r_conn)
     return result
 
+def get_domains_flag_server_to_starting():
+    r_conn = new_rethink_connection()
+    rtable = r.table('domains')
+    l = list(rtable.filter({'kind': 'desktop', 'create_dict':{'server':True}}).pluck('id', 'status').run(r_conn))
+    ids_servers_must_start = [d['id'] for d in l if d['status'] in STATUS_FROM_CAN_START]
+    close_rethink_connection(r_conn)
+    return ids_servers_must_start
 
 def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now):
     r_conn = new_rethink_connection()
