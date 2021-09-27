@@ -34,7 +34,7 @@
                 },
                 "failed": {
                     "text": "Fehlgeschlagen",
-                    "action": "Fehlgeschlagen"
+                    "action": "Neu starten"
                 },
                 "notCreated": {
                     "action": "Erstellen"
@@ -53,6 +53,9 @@
                 },
                 "readyCreation": {
                     "text": "Bereit für die Erstellung"
+                },
+                "downloading": {
+                    "text": "Wird heruntergeladen"
                 }
             },
             "error": {
