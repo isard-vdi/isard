@@ -91,6 +91,7 @@ COPY docker/hypervisor/kvm/qemu-kvm /usr/libexec/qemu-kvm
 COPY docker/hypervisor/kvm/qemu-kvm /usr/bin/qemu-kvm
 RUN chmod a+x /usr/bin/qemu-kvm
 RUN chmod a+x /usr/libexec/qemu-kvm
+RUN ln -s /usr/bin/qemu-system-x86_64 /usr/local/bin/qemu-system-x86_64
 
 # SSH configuration
 RUN echo "root:isard" |chpasswd
