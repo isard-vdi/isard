@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.2] - 2021-09-27
+
+### Fixed
+
+- Missing translations of Catalan, French, German and Russian
+
 ## [3.2.1] - 2021-09-23
 
 ### Fixed

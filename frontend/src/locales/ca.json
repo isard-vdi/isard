@@ -79,7 +79,7 @@
         }
     },
     "views": {
-        "cancel" : "Cancelar",
+        "cancel": "Cancelar",
         "error": {
             "title": "Error",
             "codes": {
@@ -104,7 +104,11 @@
             },
             "other-logins": "O iniciar sessió amb",
             "powered-by": "Funciona amb",
-            "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard."
+            "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard.",
+            "errors": {
+                "500": "Error del servidor",
+                "401": "Usuari o contrasenya incorrecta"
+            }
         },
         "maintenance": {
             "title": "Actualment, el servei d'Isard es troba en manteniment",

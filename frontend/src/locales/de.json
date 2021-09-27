@@ -128,7 +128,12 @@
         "register": {
             "code": "Registrierungscode",
             "title": "Registrierung",
-            "register": "Registrieren"
+            "register": "Registrieren",
+            "errors": {
+                "500": "Serverfehler",
+                "401": "Sitzung abgelaufen",
+                "404": "Code nicht gefunden"
+            }
         },
         "login": {
             "other-logins": "Oder anmelden mit",
@@ -140,7 +145,11 @@
             },
             "title": "Anmelden",
             "isard-logo-alt": "Das IsardVDI-Logo ist ein Gämsenkopf.",
-            "powered-by": "Angetrieben von"
+            "powered-by": "Angetrieben von",
+            "errors": {
+                "500": "Serverfehler",
+                "401": "Falscher Benutzername oder falsches Passwort"
+            }
         },
         "expired-session": {
             "button": "Anmelden",
@@ -150,7 +159,18 @@
         "welcome": {
             "button": "Anmelden",
             "title": "Willkommen bei IsardVDI, dem Dienst für virtuelle Arbeitsoberflächen"
-        }
+        },
+        "deployment": {
+            "desktop": {
+                "not-available": "Arbeitoberfläche nicht verfügbar"
+            }
+        },
+        "deployments": {
+            "no-deployments": {
+                "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich bitte an den Administrator"
+            }
+        },
+        "cancel": "Abbrechen"
     },
     "components": {
         "navbar": {
@@ -166,7 +186,12 @@
                 },
                 "download": "VPN"
             },
-            "help": "Hilfe"
+            "help": "Hilfe",
+            "deployments": {
+                "manage": "Verwalten",
+                "view": "Ansehen"
+            },
+            "home": "Startseite"
         },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
