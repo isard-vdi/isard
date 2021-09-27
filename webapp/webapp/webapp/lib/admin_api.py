@@ -788,6 +788,15 @@ class isardAdmin():
         except:
             None
         return False
+
+    def update_server(self,dom_id,server):
+        try:
+            with app.app_context():
+                r.table('domains').get(dom_id).update({'create_dict':{'server':server}}).run(db.conn)
+            return True
+        except:
+            None
+        return False
     '''
     HYPERVISORS
     '''

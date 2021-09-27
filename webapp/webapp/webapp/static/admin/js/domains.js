@@ -16,7 +16,8 @@ columns= [
                 "data":           null,
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
-				{ "data": "icon" },
+                { "data": "icon" },
+                { "data": "server", "width": "10px"},
                 { "data": "hyp_started", "width": "100px"},
 				{ "data": "name"},
 				{ "data": "description"},
@@ -44,21 +45,30 @@ columnDefs = [
     },{
         "targets": 2,
         "render": function (data, type, full, meta) {
+            if('server' in full['create_dict']){
+                return full['create_dict']['server']
+            }else{
+                return false;
+            }
+        }
+    },{
+        "targets": 3,
+        "render": function (data, type, full, meta) {
             return renderHypStarted(full)
         }
     },{
-        "targets": 5,
+        "targets": 6,
         "width": "100px",
         "render": function (data, type, full, meta) {
             return renderAction(full) + renderDisplay(full)
         }
     },{
-        "targets": 6,
+        "targets": 7,
         "render": function (data, type, full, meta) {
             return renderStatus(full)
         }
     },{
-        "targets": 10,
+        "targets": 11,
         "render": function (data, type, full, meta) {
             if ( type === 'display' || type === 'filter' ) {
                 return moment.unix(full.accessed).fromNow()
@@ -69,15 +79,15 @@ columnDefs = [
 ]
 
 if(url!="Desktops"){
-    columns.splice(11, 1)
+    columns.splice(12, 1)
     columns.splice(
-        10,
+        11,
         0,
         {"data": "derivates"},
         {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
     );
-    columns.splice(5, 2)
-    columnDefs.splice(2, 2)
+    columns.splice(6, 2)
+    columnDefs.splice(3, 2)
 }
 
 $(document).ready(function() {
@@ -114,7 +124,7 @@ $(document).ready(function() {
                     $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
                 }
             }
-        });     
+        });
 
          if($('.limits-desktops-bar').attr('aria-valuenow') >=100){
             new PNotify({
@@ -125,7 +135,7 @@ $(document).ready(function() {
                     icon: 'fa fa-alert-sign',
                     opacity: 1,
                     type: 'error'
-                });                
+                });
         }else{	
             setHardwareOptions('#modalAddDesktop');
             $("#modalAdd")[0].reset();
@@ -177,7 +187,7 @@ $(document).ready(function() {
                         icon: 'fa fa-success',
                         opacity: 1,
                         type: 'success'
-                });                                
+                });
             }else{
                 new PNotify({
                         title: "Error deleting",
@@ -187,10 +197,10 @@ $(document).ready(function() {
                         icon: 'fa fa-warning',
                         opacity: 1,
                         type: 'error'
-                });                                
+                });
             }
             domains_table.ajax.reload()
-            $("#modalDeleteTemplate").modal('hide');                
+            $("#modalDeleteTemplate").modal('hide');
         });
              
     });
@@ -217,6 +227,15 @@ $(document).ready(function() {
 			"columns": columns,
 			 "order": [[5, 'asc']],
         "columnDefs": columnDefs,
+        "rowCallback": function (row, data) {
+            if('server' in data['create_dict']){
+                if(data['create_dict']['server'] == true){
+                    $(row).css("background-color", "#f7eac6");
+                }else{
+                    $(row).css("background-color", "#ffffff");
+                }
+            }
+        }
 		} );
 
     // Apply the search
@@ -568,6 +587,30 @@ function actionsDomainDetail(){
             //~ modal_edit_desktop_datatables(pk);
 	});
 
+    $('.btn-server').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        $("#modalServerForm")[0].reset();
+        $('#modalServer').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        $('#modalServerForm #id').val(pk);
+        $.ajax({
+            type: "GET",
+            url:"/isard-admin/admin/domains/server/" + pk,
+            success: function(data)
+            {
+                if(data == true){
+                    $('#modalServerForm #create_dict-server').iCheck('check').iCheck('update');
+                }else{
+                    $('#modalServerForm #create_dict-server').iCheck('unckeck').iCheck('update');
+                } 
+            }				
+        });
+        //~ $('#modalEdit').parsley();
+        //~ modal_edit_desktop_datatables(pk);
+});
+
 	$('.btn-events').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalShowInfoForm")[0].reset();
@@ -801,11 +844,21 @@ function actionsDomainDetail(){
     $("#modalForcedhyp #send").on('click', function(e){
         data=$('#modalForcedhypForm').serializeObject();
         if('forced_hyp' in data){
-            socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':[data.forced_hyp]})
+            socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':true})
         }else{
             socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':false})
         }
     });
+
+    $("#modalServer #send").on('click', function(e){
+        data=$('#modalServerForm').serializeObject();
+        if('create_dict-server' in data){
+            socket.emit('create_dict-server',{'id':data.id,'create_dict-server':true})
+        }else{
+            socket.emit('create_dict-server',{'id':data.id,'create_dict-server':false})
+        }
+    });
+
 }
 
 function HypervisorsDropdown(selected) {
@@ -852,10 +905,11 @@ function addDomainDetailPannel ( d ) {
 function setDomainDetailButtonsStatus(id,status){
     if(status=='Started' || status=='Starting'){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);           
+        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
     }else{
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
     }
+    $('#actions-'+id+' .btn-server').prop('disabled', false);
 }
 
 function icon(data){
