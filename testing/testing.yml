@@ -14,12 +14,17 @@ services:
       - ./engine/engine:/isard:ro
       - /opt/isard-local/.ipython:/root/.ipython:rw
       - ../isard-misc:/misc:rw
+      - ./testing/src:/testing
+    networks:
+      isard-network:
+        ipv4_address: 172.18.255.110
 
   chrome:
     image: selenium/node-chrome:4.0.0-rc-2-prerelease-20210923
     shm_size: 2gb
     depends_on:
       - selenium-hub
+    container_name: chrome
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
@@ -36,6 +41,7 @@ services:
     shm_size: 2gb
     depends_on:
       - selenium-hub
+    container_name: edge
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
@@ -49,11 +55,13 @@ services:
     shm_size: 2gb
     depends_on:
       - selenium-hub
+    container_name: firefox
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
       - SE_NODE_GRID_URL=http://localhost:4444
+      - SE_NODE_MAX_SESSIONS=5
     ports:
       - "6902:5900"
     networks:
