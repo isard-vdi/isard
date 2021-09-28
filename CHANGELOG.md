@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.5] - 2021-09-28
+
+### Fixed
+
+- Back to qemu 5 as qemu 6 misbehaves with mouse in html5
+
 ## [3.2.4] - 2021-09-28
 
 ### Fixed
