@@ -5,11 +5,16 @@
 version: "3"
 services:
   isard-testing:
-    image: registry.gitlab.com/isard/isardvdi/isard-testing:main
+    image: registry.gitlab.com/isard/isardvdi/isard-testing:develop
     container_name: isard-testing
     build:
       context: .
       dockerfile: testing/selenium/Dockerfile
+    volumes:
+      - ./engine/engine:/isard:ro
+      - /opt/isard-local/.ipython:/root/.ipython:rw
+      - ../isard-misc:/misc:rw
+
   chrome:
     image: selenium/node-chrome:4.0.0-rc-2-prerelease-20210923
     shm_size: 2gb
