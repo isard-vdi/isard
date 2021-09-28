@@ -1,4 +1,4 @@
-FROM alpine:3.14 as production
+FROM alpine:3.12 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
@@ -157,3 +157,4 @@ RUN apk add --no-cache cifs-utils
 COPY docker/hypervisor/src /src
 WORKDIR /src
 CMD [ "/src/start.sh"]
+

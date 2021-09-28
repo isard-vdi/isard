@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.3] - 2021-09-28
+
+### Reverted
+
+- Back to qemu 5 as mouse is not pointing correctly with resize ein qemu 6
+
 ## [3.2.2] - 2021-09-27
 
 ### Fixed
