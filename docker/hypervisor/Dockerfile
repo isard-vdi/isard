@@ -1,4 +1,40 @@
-FROM alpine:3.14 as production
+FROM alpine:3.14.0 as build-qemu
+MAINTAINER isard <info@isardvdi.com>
+
+RUN apk add --no-cache git \
+    # QEMU
+    make \
+    python3 \
+    gcc \
+    g++ \
+    libc-dev \
+    pkgconf \
+    linux-headers \
+    glib-dev glib-static \
+    zlib-dev zlib-static \
+    pixman-dev  \
+    bash \
+    # QXL
+    spice-dev \
+    # USB Network redirection
+    libusb-dev \
+    usbredir-dev \
+    # ui/shader/
+    # pulseaudio-dev \
+    #alsa-lib-dev \
+    perl \
+    samurai
+# Build QEMU
+RUN git clone --depth 1 --branch v6.1.0 https://github.com/qemu/qemu && \
+    cd qemu && \
+    mkdir -p bin/debug/native && \
+    cd bin/debug/native && \
+    ../../../configure --target-list=x86_64-softmmu --enable-debug --disable-werror \
+	--enable-spice &&\
+    make -j8 install
+#--audio-drv-list=alsa &&\
+
+FROM alpine:3.14.0 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
@@ -14,11 +50,7 @@ RUN apk add --no-cache \
     bridge-utils \
     shadow \
     tshark \
-    openssl \
-    qemu \
-    qemu-img \
-    qemu-modules \
-    qemu-system-x86_64
+    openssl
     
 
 RUN apk add --no-cache \
