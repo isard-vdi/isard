@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.4] - 2021-09-28
+
+### Fixed
+
+- Fix direct viewer url in isard-portal endpoint
+
 ## [3.2.3] - 2021-09-27
 
 ### Fixed
