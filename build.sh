@@ -36,7 +36,7 @@ merge(){
 		else
 			local delimiter="."
 		fi
-		docker-compose $args config > "docker-compose$delimiter$flavour.yml"
+	        docker-compose $args config > "docker-compose$delimiter$flavour.yml"
 	fi
 }
 parts_variant(){
@@ -117,6 +117,7 @@ flavour "" \
 	webapp \
 	grafana \
 	stats \
+	stats-go \
 	api \
 	authentication \
 	vpn \
@@ -129,6 +130,7 @@ flavour hypervisor \
 	websockify \
 	squid \
 	stats \
+	stats-go \
 	guac \
 	guac-vpnc \
 
@@ -141,6 +143,7 @@ flavour hypervisor-standalone \
 	hypervisor \
 	hypervisor-standalone \
 	stats \
+	stats-go \
 
 flavour video-standalone \
 	network \

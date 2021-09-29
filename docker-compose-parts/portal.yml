@@ -12,12 +12,8 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.18.255}.18
     ports:
-      - published: 80
-        target: 80
-        mode: host
-      - published: 443
-        target: 443
-        mode: host
+      - 80:80
+      - 443:443
     restart: unless-stopped
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
