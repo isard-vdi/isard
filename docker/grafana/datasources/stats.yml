@@ -1,0 +1,30 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: Graphite
+    orgId: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: ${INFLUXDB_ADDRESS}
+    isDefault: true
+    secureJsonData:
+      token: ${INFLUXDB_ADMIN_TOKEN_SECRET}
+    jsonData:
+      version: Flux
+      organization: isardvdi
+      defaultBucket: isardvdi
+      tlsSkipVerify: true
+
+  - name: Glances
+    type: influxdb
+    access: proxy
+    url: ${INFLUXDB_ADDRESS}
+    database: glances
+    jsonData:
+      httpMode: GET
+      httpHeaderName1: 'Authorization'
+    secureJsonData:
+      httpHeaderValue1: 'Token ${INFLUXDB_ADMIN_TOKEN_SECRET}'
