@@ -8,6 +8,16 @@ All notable changes to this project will be documented in this file.
 
 - Back to qemu 5 as qemu 6 misbehaves with mouse in html5
 
+### Update tricks
+
+#### After upgrade
+
+```sh
+docker-compose exec isard-hypervisor chown -R qemu /etc/pki/libvirt-spice
+```
+
+More info [here](https://gitlab.com/isard/isardvdi/-/issues/176)
+
 ## [3.2.4] - 2021-09-28
 
 ### Fixed
