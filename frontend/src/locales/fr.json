@@ -120,7 +120,7 @@
                 },
                 "failed": {
                     "text": "Échec",
-                    "action": "Échec"
+                    "action": "Redémarrer"
                 },
                 "waitingip": {
                     "action": "Arrêter",
@@ -136,6 +136,9 @@
                 },
                 "readyCreation": {
                     "text": "Prêt pour la création"
+                },
+                "downloading": {
+                    "text": "Téléchargement"
                 }
             },
             "remove": "Retirer",

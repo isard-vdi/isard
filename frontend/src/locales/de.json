@@ -34,7 +34,7 @@
                 },
                 "failed": {
                     "text": "Fehlgeschlagen",
-                    "action": "Fehlgeschlagen"
+                    "action": "Neu starten"
                 },
                 "notCreated": {
                     "action": "Erstellen"
@@ -53,6 +53,9 @@
                 },
                 "readyCreation": {
                     "text": "Bereit für die Erstellung"
+                },
+                "downloading": {
+                    "text": "Wird heruntergeladen"
                 }
             },
             "error": {
@@ -163,11 +166,15 @@
         "deployment": {
             "desktop": {
                 "not-available": "Arbeitoberfläche nicht verfügbar"
+            },
+            "no-started-desktops": {
+                "title": "Bei dieser Verteilung gibt es keine gestarteten Arbeitoberfläche"
             }
         },
         "deployments": {
             "no-deployments": {
-                "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich bitte an den Administrator"
+                "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich bitte an den Administrator",
+                "title": "Es gibt keine Verteilungen von diesem Benutzer"
             }
         },
         "cancel": "Abbrechen"
@@ -189,7 +196,8 @@
             "help": "Hilfe",
             "deployments": {
                 "manage": "Verwalten",
-                "view": "Ansehen"
+                "view": "Ansehen",
+                "text": "Verteilungen"
             },
             "home": "Startseite"
         },
