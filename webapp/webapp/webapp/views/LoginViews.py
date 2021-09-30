@@ -81,8 +81,18 @@ def remote_logout():
 @login_required
 def logout():
     login_path = app.isardapi.__class__.get_login_path()
-    response = make_response(redirect(login_path))
-    if not logout_backend(response):
-        log.error(f'Error clossing backend session for user {current_user.id}')
+    response = make_response(
+        f"""
+            <!DOCTYPE html>
+            <html>
+                <body>
+                    <script>
+                        localStorage.removeItem('token');
+                        window.location = '{login_path}';
+                    </script>
+                </body>
+            </html>
+        """
+    )
     remote_logout()
     return response

@@ -140,6 +140,13 @@ export default new Vuex.Store({
         router.push({ name: 'Login' })
       })
     },
+    watchToken (context) {
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'token' && e.newValue === null) {
+          store.dispatch('logout')
+        }
+      })
+    },
     handleError ({ commit }, error) {
       if (error.response.status === 503) {
         router.push({ name: 'Maintenance' })

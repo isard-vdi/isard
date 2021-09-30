@@ -393,7 +393,7 @@ class isard():
             except:
                 return False
 
-    def get_login_path(self):
+    def get_login_path():
         with app.app_context():
             category = (
                 r.table("categories")
