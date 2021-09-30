@@ -62,6 +62,7 @@ export default {
     }
   },
   mounted () {
+    this.$store.dispatch('watchToken')
     this.$store.dispatch('openSocket', { room: 'deploymentdesktops', deploymentId: this.$route.params.id })
   },
   destroyed () {

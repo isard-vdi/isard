@@ -39,7 +39,7 @@ export default {
       router.push({ name: 'Home' })
     },
     loginAdmin (context) {
-      axios.get(`${apiAdminSegment}/login/external`, {}, { timeout: 25000 }).catch(e => {
+      axios.get(`${apiAdminSegment}/login`, {}, { timeout: 25000 }).catch(e => {
         if (e.response.status === 503) {
           router.push({ name: 'Maintenance' })
         } else {

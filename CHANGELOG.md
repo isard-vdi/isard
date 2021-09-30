@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.7] - 2021-09-30
+
+### Fixed
+
+- Fix webapp logout, regression of v3.0.0 and v3.1.14
+
 ## [3.2.6] - 2021-09-30
 
 ### Fixed
