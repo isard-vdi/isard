@@ -6,17 +6,17 @@ workflow:
     - when: always
 
 stages:
- - build
+ - docker-compose
+ - docker-images
+ - docker-registry
  - changelog
  - force-changelog-retry
 
-docker-build:
+docker-compose:
   image: docker:latest
-  stage: build
+  stage: docker-compose
   services:
     - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - apk add bash git docker-compose
     # Use docker compose < 1.27 to avoid depends_on issue
@@ -27,15 +27,54 @@ docker-build:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
     - ./build.sh
-    - docker-compose -f docker-compose.build.yml build
-    - docker-compose -f docker-compose.video-standalone.build.yml build isard-video
-    - docker-compose -f docker-compose.hypervisor.build.yml build isard-vpnc
-    - docker-compose -f docker-compose.toolbox.build.yml build isard-toolbox
-    - docker-compose -f docker-compose.devel.yml build isard-frontend-dev
-    - docker images --format="{{.Repository}}:{{.Tag}}" | grep "^$CI_REGISTRY_IMAGE/" | xargs -n1 docker push
   artifacts:
     paths:
       - docker-compose*.yml
+
+docker-image:
+  image: docker:latest
+  stage: docker-images
+  services:
+    - docker:dind
+  parallel:
+    matrix:
+      - DOCKER_COMPOSE: build
+        IMAGE:
+          - api
+          - authentication
+          - engine
+          - grafana
+          - guac
+          - hypervisor
+          - portal
+          - squid
+          - static
+          - vpn
+          - webapp
+          - websockify
+      - DOCKER_COMPOSE: video-standalone.build
+        IMAGE: video
+      - DOCKER_COMPOSE: hypervisor.build
+        IMAGE: vpnc
+      - DOCKER_COMPOSE: toolbox.build
+        IMAGE: toolbox
+  script:
+    - apk add git docker-compose
+    - git submodule update --init --recursive --remote
+    - docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build isard-$IMAGE
+    - docker save -o docker-image-isard-$IMAGE.tar ${CI_REGISTRY_IMAGE}/${IMAGE}:$CI_COMMIT_REF_SLUG
+  artifacts:
+    paths:
+      - docker-image-isard-$IMAGE.tar
+
+docker-push:
+  stage: docker-registry
+  image:
+    name: gcr.io/go-containerregistry/crane:debug
+    entrypoint: [""]
+  script:
+    - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - ls docker-image-*.tar | xargs -P0 -I{} sh -c "crane push {} ${CI_REGISTRY_IMAGE}/\$(echo {} | sed -n 's/^docker-image-isard-\(.*\)\.tar$/\1/p'):$CI_COMMIT_REF_SLUG"
 
 .changelog:
   image: registry.gitlab.com/gitlab-org/release-cli
