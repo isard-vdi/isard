@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.8] - 2021-09-30
+
+### Fixed
+
+- Fix frontend login by always allowing login via category path
+
 ## [3.2.7] - 2021-09-30
 
 ### Fixed

@@ -9,10 +9,17 @@
         <b-row id="login" class="justify-content-left">
           <b-spinner v-if="loading" />
           <b-col v-else sm="12" md="10" lg="9" xl="9" class="d-flex flex-column justify-content-start text-left">
-            <h1 v-if="getCategories.length || getConfig['providers']">{{ $t('views.login.title') }}</h1>
+            <h1 v-if="show_login_extras">{{ $t('views.login.title') }}</h1>
             <h3 v-if="category_by_path">{{ category_name }}</h3>
-            <Language class="d-inline-block mt-5 mb-4"/>
-            <b-form v-if="getCategories.length" @submit.prevent="login('local')" class="m-0">
+            <Language
+              v-if="show_login_extras"
+              class="d-inline-block mt-5 mb-4"
+            />
+            <b-form
+              v-if="show_login_form"
+              @submit.prevent="login('local')"
+              class="m-0"
+            >
 
               <b-alert
                 v-model="showDismissibleAlert"
@@ -50,7 +57,7 @@
               <b-button type="submit" size="lg" class="btn-green w-100 rounded-pill mt-4">{{ $t('views.login.form.login') }}</b-button>
             </b-form>
 
-            <div v-if="getCategories.length && getConfig['providers'].length">
+            <div v-if="show_login_providers">
 
               <hr class="m-4" style="border-bottom: 1px solid #ececec;"/>
 
@@ -130,7 +137,19 @@ export default {
           name = category.name
         }
       })
+      if (!name) {
+        name = this.category
+      }
       return name
+    },
+    show_login_form () {
+      return this.getCategories.length || this.category_by_path
+    },
+    show_login_providers () {
+      return this.show_login_form && this.getConfig.providers.length
+    },
+    show_login_extras () {
+      return this.show_login_form || this.show_login_providers
     }
   },
   methods: {
@@ -166,16 +185,20 @@ export default {
     this.$store.dispatch('removeAuthorizationCookie')
     this.$store.dispatch('fetchConfig')
     this.$store.dispatch('fetchCategories').then(() => {
+      let defaultCategory = ''
       if (this.getCategories.length === 1) {
-        this.category = this.getCategories[0].id
+        defaultCategory = this.getCategories[0].id
+      }
+      if (this.category_by_path) {
+        this.category = this.$route.params.category
+      } else {
+        if (this.getCategories.map(i => i.id).includes(localStorage.category)) {
+          this.category = localStorage.category
+        } else {
+          this.category = defaultCategory
+        }
       }
     })
-
-    if (this.category_by_path) {
-      this.category = this.$route.params.category
-    } else {
-      this.category = localStorage.category || ''
-    }
   },
   watch: {
     category: function () {
