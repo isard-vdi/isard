@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0] - 2021-10-02
+
+### Changed
+
+- Use gitlab-ci parallel matrix feature to speed up builds
+
 ## [3.2.8] - 2021-09-30
 
 ### Fixed
