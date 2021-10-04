@@ -100,8 +100,5 @@ class IsardSelenium():
         button = self.wd.find_element_by_xpath("//button[contains(text(),'Login')]")
         button.click()
 
-    def goToAdmin(self):
-        # Click navbar button
-        navbar_link = self.wd.find_element_by_xpath("//a[contains(@class, 'nav-link') and text()='Administration']")
-        navbar_link.click()
-        # self.wd.get("{}/isard-admin/desktops".format(self.url))
+    def goToWebadmin(self):
+        self.wd.get(self.url + '/isard-admin/desktops')
