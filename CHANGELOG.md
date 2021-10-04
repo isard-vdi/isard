@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.1] - 2021-10-04
+
+### Fixed
+
+- Fix gitlab-ci by adding missing stats docker container
+
 ## [4.0.0] - 2021-09-28
 
 ### Changed
