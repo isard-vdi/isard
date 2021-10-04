@@ -49,6 +49,7 @@ docker-image:
           - portal
           - squid
           - static
+          - stats
           - vpn
           - webapp
           - websockify
