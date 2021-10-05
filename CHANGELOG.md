@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.3.0] - 2021-10-11
+
+### Added
+
+- Reduced isard-toolbox image size
+- Filebrowser has hooks that automates some events to isard-api More info [here](https://gitlab.com/isard/isardvdi/-/issues/186)
+
 ## [4.2.6] - 2021-10-11
 
 ### Fixed
