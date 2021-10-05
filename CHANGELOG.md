@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.1] - 2021-10-07
+
+### Fixed
+
+- Reduced isard-toolbox image size
+- Filebrowser in isard-toolbox has direct access link in hypervisors detail in webapp
+- Filebrowser has hooks that automates some events to isard-api More info [here](https://gitlab.com/isard/isardvdi/-/issues/186)
+
 ## [4.2.0] - 2021-10-07
 
 ### Added

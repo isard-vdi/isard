@@ -16,8 +16,8 @@ services:
       - /opt/isard-local/logs:/isard/logs:rw
       - /opt/isard/templates:/isard/templates:rw
       - /opt/isard/groups:/isard/groups:rw
-      - /opt/isard/templates:/isard/backups:ro
-      - /opt/isard/toolbox/src:/isard/toolbox:rw
+      - /opt/isard/backups:/isard/backups:ro
+      - /opt/isard/toolbox/src:/toolbox:rw
       - /opt/isard/media:/isard/media:rw
       # FILEBROWSER VOLUMES
       - ${BUILD_ROOT_PATH}/frontend/src/assets/logo.svg:/branding/img/logo.svg:ro
