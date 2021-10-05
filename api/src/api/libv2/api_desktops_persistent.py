@@ -41,7 +41,7 @@ class ApiDesktopsPersistent():
             raise DesktopNotFound
         ds.delete_desktop(desktop_id, desktop['status'])
 
-    def NewFromTemplate(self, desktop_name, desktop_description, template_id, payload):
+    def NewFromTemplate(self, desktop_name, desktop_description, template_id, payload, forced_hyp=False):
         with app.app_context():
             template = r.table('domains').get(template_id).run(db.conn)
         if template == None:
@@ -82,6 +82,7 @@ class ApiDesktopsPersistent():
                               'users': False},
                   'accessed': time.time(),
                   'persistent':True,
+                  'forced_hyp': forced_hyp,
                   'from_template':template['id']}
 
         with app.app_context():

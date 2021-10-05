@@ -130,6 +130,7 @@ def api_v3_persistent_desktop_new(payload):
         desktop_name = request.form.get('desktop_name', type = str)
         desktop_description = request.form.get('desktop_description', type = str)
         template_id = request.form.get('template_id', False)
+        forced_hyp = request.form.get('forced_hyp', False)
         user_id=payload['user_id']
     except Exception as e:
         return json.dumps({"code":8,"msg":"Incorrect access. exception: " + e }), 401, {'Content-Type': 'application/json'}
@@ -161,7 +162,8 @@ def api_v3_persistent_desktop_new(payload):
         desktop_id = desktops.NewFromTemplate(desktop_name=desktop_name,
                                             desktop_description=desktop_description,
                                             template_id=template_id,
-                                            payload=payload)
+                                            payload=payload,
+                                            forced_hyp=forced_hyp)
         return json.dumps({'id': desktop_id}), 200, {'Content-Type': 'application/json'}
     except UserNotFound:
         log.error("Desktop for user "+user_id+" from template "+template_id+", user not found")
