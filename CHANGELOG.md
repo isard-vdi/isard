@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.0] - 2021-10-07
+
+### Added
+
+- Support multiple configuration files
+
+    `build.sh` generates `docker-compose.yml` using `isardvdi.cfg`
+    and `docker-compose.my_config.yml` using `isardvdi.my_config.cfg`.
+    See new variables in `isardvdi.cfg.example` to select flavour and usage
+    type. Also, stats inclusion can be configured.
+
 ## [4.1.3] - 2021-10-07
 
 ### Fixed

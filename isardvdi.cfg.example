@@ -1,4 +1,33 @@
-# Isard main config v0.3
+# Isard main config v1.0.0
+
+# ------ Docker Compose ------------------------------------------------------
+
+## This configuration should generate docker-compose file for the following
+## flavour
+## Values: (first value is the default one)
+##  - all-in-one: all services except toolbox in one docker-compose file
+##  - hypervisor: hypervisor and related service to access to their desktops
+##  - hypervisor-standalone: hypervisor without related services
+##  - video-standalone: services to access to desktops
+##  - toolbox: service to manage desktops disks
+##  - web: services to manage desktops
+#FLAVOUR=all-in-one
+
+## This configuration should generate docker-compose file for the following
+## usage
+## Values: (first value is the default one)
+##  - production: docker-compose file without build section
+##      ready to pull and up
+##      (see also: https://github.com/docker/compose/issues/7873)
+##  - build: ready to build with build section
+##  - devel: host source code are mounted into docker volumes
+#USAGE=production
+
+## Should stats service will be included
+## Values: (first value is the default one)
+##  - true: add stats service
+##  - false: doesn't add stats sercice
+#ENABLE_STATS=true
 
 # ------ Domain --------------------------------------------------------------
 ## This server main domain/ip reacheable from other hosts
