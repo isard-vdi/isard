@@ -282,6 +282,7 @@ class HypWorkerThread(threading.Thread):
                 elif action['type'] == 'stop_domain':
                     logs.workers.debug('action stop domain: {}'.format(action['id_domain'][30:100]))
                     try:
+                        domain_handler=self.h.conn.lookupByName(action['id_domain'])
                         domain_handler.destroy()
                         #updated in events_recolector
                         domain_stopped_update_nvidia_uids_status(action['id_domain'],self.hyp_id)
