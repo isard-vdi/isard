@@ -18,7 +18,7 @@
     "@vue/composition-api": "^1.1.4",
     "@vuelidate/core": "^2.0.0-alpha.26",
     "@vuelidate/validators": "^2.0.0-alpha.22",
-    "axios": "^0.21.1",
+    "axios": "^0.21.2",
     "bootstrap": "^4.4.1",
     "bootstrap-vue": "^2.9.0",
     "core-js": "^3.6.4",
