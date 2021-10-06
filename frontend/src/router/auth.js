@@ -11,7 +11,7 @@ export function auth (to, from, next) {
       } else {
         localStorage.token = cookies.getCookie('authorization')
         store.dispatch('loginSuccess', localStorage.token)
-        next({ name: 'Home' })
+        next({ name: 'desktops' })
       }
     } else {
       next({ name: 'Login' })

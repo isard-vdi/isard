@@ -8,7 +8,7 @@
                     {{ $t('views.error.title') }}
                 </h1>
                 <h2>{{ error }}</h2>
-                <b-button @click="navigate('Home')">{{ $t('views.error.go-home') }}</b-button>
+                <b-button @click="navigate('desktops')">{{ $t('views.error.go-home') }}</b-button>
             </b-col>
             <b-col md="3" />
         </b-row>

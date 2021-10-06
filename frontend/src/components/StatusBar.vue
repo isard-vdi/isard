@@ -32,6 +32,7 @@
           </b-navbar-nav>
 
           <!-- Right aligned nav items-->
+          <b-button class="mr-3" variant="outline-primary" @click="navigate('NewDesktop')">New desktop</b-button>
           <b-navbar-nav class="ml-auto flex-row d-none d-xl-flex">
 
             <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
@@ -71,7 +72,8 @@ export default {
   methods: {
     ...mapActions([
       'setViewType',
-      'toggleShowStarted'
+      'toggleShowStarted',
+      'navigate'
     ]),
     toggleDesktopsFilter () {
       this.status = !this.status

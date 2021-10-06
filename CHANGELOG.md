@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.0] - 2021-10-06
+
+### Added
+
+- Create desktop from frontend
+
 ## [4.0.2] - 2021-10-05
 
 ### Fixed

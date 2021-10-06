@@ -128,6 +128,7 @@ def api_v3_desktop_stop(payload,desktop_id=False):
 def api_v3_persistent_desktop_new(payload):
     try:
         desktop_name = request.form.get('desktop_name', type = str)
+        desktop_description = request.form.get('desktop_description', type = str)
         template_id = request.form.get('template_id', False)
         user_id=payload['user_id']
     except Exception as e:
@@ -142,13 +143,13 @@ def api_v3_persistent_desktop_new(payload):
         quotas.DesktopCreate(user_id)
     except QuotaUserNewDesktopExceeded:
         log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":1,"msg":"PersistentDesktopNew user quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaGroupNewDesktopExceeded:
         log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":2,"msg":"PersistentDesktopNew user group quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except QuotaCategoryNewDesktopExceeded:
         log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
-        return json.dumps({"code":11,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+        return json.dumps({"code":3,"msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     except Exception as e:
         error = traceback.format_exc()
         return json.dumps({"code":9,"msg":"PersistentDesktopNew quota check general exception: " + error }), 401, {'Content-Type': 'application/json'}
@@ -158,6 +159,7 @@ def api_v3_persistent_desktop_new(payload):
         #desktop_id = app.lib.DesktopNewPersistent(name, user_id,memory,vcpus,xml_id=xml_id, disk_size=disk_size)
 
         desktop_id = desktops.NewFromTemplate(desktop_name=desktop_name,
+                                            desktop_description=desktop_description,
                                             template_id=template_id,
                                             payload=payload)
         return json.dumps({'id': desktop_id}), 200, {'Content-Type': 'application/json'}

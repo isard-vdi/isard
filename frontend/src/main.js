@@ -3,7 +3,8 @@ import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 // Custom css
 import '@/assets/global.css'
-import 'vue-snotify/styles/material.css'
+import 'vue-snotify/styles/simple.css'
+
 // Isard styles
 import './assets/styles.css'
 import './assets/table_styles.css'

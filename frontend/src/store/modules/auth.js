@@ -36,7 +36,7 @@ export default {
       localStorage.token = token
       store.dispatch('loginAdmin')
       store.dispatch('removeAuthorizationCookie')
-      router.push({ name: 'Home' })
+      router.push({ name: 'desktops' })
     },
     loginAdmin (context) {
       axios.get(`${apiAdminSegment}/login`, {}, { timeout: 25000 }).catch(e => {
