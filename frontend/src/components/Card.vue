@@ -1,15 +1,17 @@
 <template>
+        <b-overlay :show="show" rounded="lg">
           <b-card
             :img-src= "require(`../assets/img/cards/${imageId}.jpg`)"
             class='border-0 mx-3'
+            :aria-hidden="show ? 'true' : null"
             img-alt='' img-top no-body
           >
-            <!-- Info -->
-            <b-icon
-              icon='info-circle-fill'
-              class='info-icon position-absolute cursor-pointer'
-              v-b-tooltip="{ title: `${desktop.description ? desktop.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
-            ></b-icon>
+            <vue-fab mainBtnColor="#bcc6cc" class='info-icon position-absolute cursor-pointer' size='small' unfoldDirection='down' :scrollAutoHide="false">
+              <fab-item @clickItem="onClickDeleteDesktop" :idx="0" title="Delete" icon='delete' color='#e34934' titleBgColor='#e6e8eb'/>
+              <!-- <fab-item  :idx="1" title="Edit" icon='mode_edit' color='#c2d5f2' titleBgColor='#e6e8eb'/>
+              <fab-item  :idx="2" title="Template" icon='library_books' titleBgColor='#e6e8eb'/>
+              <fab-item  :idx="3" title="Change image" icon='autorenew' titleBgColor='#e6e8eb'/> -->
+            </vue-fab>
 
             <div class='p-2 h-100 d-flex flex-wrap flex-column' :class="{'startedHighlight': desktopState === desktopStates.started}">
               <div class='flex-grow-1'>
@@ -104,6 +106,7 @@
               </div>
             </div>
           </b-card>
+        </b-overlay>
 </template>
 
 <script>
@@ -142,6 +145,26 @@ export default {
     },
     isWaiting (viewer) {
       return this.getDefaultViewer && (this.waitingIp && DesktopUtils.viewerNeedsIp(viewer))
+    },
+    onClickDeleteDesktop (toast) {
+      const yesAction = () => {
+        toast.valid = true // default value
+        this.$snotify.remove(toast.id)
+        this.deleteDesktop(this.desktop.id)
+      }
+
+      const noAction = (toast) => {
+        this.$snotify.remove(toast.id) // default
+      }
+
+      this.$snotify.prompt('Desktop will be deleted, continue?', 'Delete', {
+        position: 'centerTop',
+        buttons: [
+          { text: 'Yes', action: yesAction, bold: true },
+          { text: 'No', action: noAction }
+        ],
+        placeholder: ''
+      })
     }
   },
   computed: {
@@ -249,7 +272,8 @@ export default {
       MAX_TITLE_SIZE,
       MAX_DESCRIPTION_SIZE,
       MAX_TEMPLATE_TEXT_SIZE,
-      MAX_VIEWER_TEXT_SIZE
+      MAX_VIEWER_TEXT_SIZE,
+      show: false
     }
   }
 }
