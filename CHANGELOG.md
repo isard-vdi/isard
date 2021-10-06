@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.2] - 2021-10-06
+
+### Fixed
+
+- Fixed wg MTU to 1600 at isard-vpn and hypers. This will allow at least in
+  infrastructure to get personal networks working with web.
+  To fix it on cloud refer to the links in isardvdi.cfg.example.
+
 ## [4.1.1] - 2021-10-06
 
 ### Fixed
