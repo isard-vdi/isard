@@ -844,7 +844,7 @@ function actionsDomainDetail(){
     $("#modalForcedhyp #send").on('click', function(e){
         data=$('#modalForcedhypForm').serializeObject();
         if('forced_hyp' in data){
-            socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':true})
+            socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':[data.forced_hyp]})
         }else{
             socket.emit('forcedhyp_update',{'id':data.id,'forced_hyp':false})
         }
