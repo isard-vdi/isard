@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.1] - 2021-10-06
+
+### Fixed
+
+- Forced hypervisor setting undefined after edit.
+
 ## [4.1.0] - 2021-10-06
 
 ### Added
