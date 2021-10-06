@@ -52,12 +52,16 @@
         },
         "statusbar": {
             "desktops-started": "Desktops started",
-            "checkbox-text": "Only started"
+            "checkbox-text": "Only started",
+            "new-desktop": "New Desktop"
         },
         "desktop-cards": {
+            "actions":  {
+                "delete" : "Delete"
+            },
             "table-header": {
                 "name": "Name",
-                "state": "Status",
+                "state": "State",
                 "description": "Description",
                 "action": "Action",
                 "viewers": "Viewers"
@@ -286,6 +290,16 @@
                 "not-available": "Desktop not available"
             }
         }
+    },
+    "messages": {
+        "title": {
+            "delete": "Delete"
+        },
+        "confirmation": {
+            "delete-desktop" : "will be deleted, continue?"
+        },
+        "yes": "Yes",
+        "no": "No"
     },
     "errors": {
         "create_desktop_user_quota": "Desktop creation user quota exceeded",

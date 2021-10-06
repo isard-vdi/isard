@@ -34,6 +34,9 @@ import axiosSetup from './utils/axios'
 import VueSocketIOExt from 'vue-socket.io-extended'
 import { socket } from './utils/socket-instance'
 
+// FloatingButton component
+import VueFab from 'vue-float-action-button'
+
 console.log(i18n.locale)
 
 axiosSetup()
@@ -47,6 +50,7 @@ Vue.use(BootstrapVue)
 Vue.use(IconsPlugin)
 Vue.use(Snotify)
 Vue.use(VueCompositionAPI)
+Vue.use(VueFab)
 Vue.use(VueSocketIOExt, socket, { store })
 
 Vue.config.productionTip = false

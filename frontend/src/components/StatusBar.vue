@@ -32,8 +32,8 @@
           </b-navbar-nav>
 
           <!-- Right aligned nav items-->
-          <b-button class="mr-3" variant="outline-primary" @click="navigate('NewDesktop')">New desktop</b-button>
-          <b-navbar-nav class="ml-auto flex-row d-none d-xl-flex">
+          <b-button v-if="locationDesktops && !creationMode" class="mr-3" variant="outline-primary" @click="navigate('NewDesktop')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button>
+          <b-navbar-nav v-if="locationDesktops && !creationMode" class="ml-auto flex-row d-none d-xl-flex">
 
             <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
               <b-icon
@@ -83,13 +83,22 @@ export default {
   computed: {
     ...mapGetters([
       'getViewType',
-      'getDesktops'
+      'getDesktops',
+      'getUrlTokens'
     ]),
     startedDesktops () {
       const startedDesktops = this.getDesktops.filter((item) => {
         return item && item.state.toLowerCase() === desktopStates.started
       })
       return startedDesktops.length
+    },
+    locationDesktops () {
+      const tokens = this.getUrlTokens
+      console.log(tokens)
+      return tokens.includes('desktops')
+    },
+    creationMode () {
+      return this.getUrlTokens.includes('new')
     }
   }
 }

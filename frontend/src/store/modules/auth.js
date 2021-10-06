@@ -9,7 +9,8 @@ export default {
     user: {},
     token: '',
     registerToken: '',
-    expirationDate: ''
+    expirationDate: '',
+    urlTokens: []
   },
   getters: {
     getUser: state => {
@@ -23,6 +24,9 @@ export default {
     },
     getExpirationDate: state => {
       return state.expirationDate
+    },
+    getUrlTokens: state => {
+      return state.urlTokens
     }
   },
   actions: {
@@ -47,6 +51,11 @@ export default {
         }
       })
     },
+    saveNavigation (context, payload) {
+      console.log(payload)
+      const tokens = payload.url.path.toString().split('/')
+      context.commit('setUrlTokens', tokens)
+    },
     removeAuthorizationCookie (context) {
       cookies.removeCookie('authorization')
     }
@@ -63,6 +72,9 @@ export default {
     },
     setExpirationDate (state, expirationDate) {
       state.expirationDate = expirationDate
+    },
+    setUrlTokens (state, tokens) {
+      state.urlTokens = tokens
     }
   }
 }

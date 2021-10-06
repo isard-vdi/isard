@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.4.0] - 2021-10-11
+
+### Added
+
+- Delete desktops from frontend
+
+### Fixed
+
+- fixed statusbar components visibility
+
 ## [4.3.0] - 2021-10-11
 
 ### Added

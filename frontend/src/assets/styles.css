@@ -227,9 +227,10 @@
 }
 
 .card-list .card .info-icon {
-  top: 10px;
-  right: 10px;
+  top: 20px;
+  right: 50px;
   fill: white;
+  z-index: 100 !important;
 }
 
 .card-list .card .card-img-top {
