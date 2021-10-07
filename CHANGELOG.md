@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.3] - 2021-10-07
+
+### Fixed
+
+- Missing translations of French
+
 ## [4.1.2] - 2021-10-06
 
 ### Fixed
