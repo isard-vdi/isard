@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.4.2] - 2021-10-13
+
+### Fixed
+
+- Media can retry to download again if previous downloads failed and can be deleted
+
 ## [4.4.1] - 2021-10-12
 
 ### Fixed

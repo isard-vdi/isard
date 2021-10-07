@@ -426,6 +426,10 @@ class DownloadChangesThread(threading.Thread):
             d_update_domain['hardware']['disks'][0]['path_selected'] = path_selected
             update_domain_dict_create_dict(id_down, d_update_domain)
 
+        if new_file_path in self.download_threads:
+            old_thread = self.download_threads.pop(new_file_path)
+            del(old_thread)
+
         if new_file_path not in self.download_threads:
             # launching download threads
             logs.downloads.debug(f'ready tu start DownloadThread --> url:{url} , path:{new_file_path}')
