@@ -116,6 +116,13 @@ LOG_LEVEL=INFO
 ## and by defaults against isard-vpn
 #VPN_DOMAIN=isard-vpn
 
+## The vpn mtu will allow for infrastructure connection (allow it in your
+## switches)
+## If using Internet to connect remote hypers this should be lowered.
+## https://keremerkan.net/posts/wireguard-mtu-fixes/
+## https://mail.openvswitch.org/pipermail/ovs-discuss/2018-June/046932.html
+#VPN_MTU=1600
+
 # ------ Video proxy host ----------------------------------------------------
 ## Where is the isard-video proxy for this hypervisor?
 ## Needed for client video browser/apps to reach this hypervisor guests:

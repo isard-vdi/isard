@@ -27,12 +27,16 @@ class isardVpn():
             if itemid == False: return False
             wgdata = r.table('users').get(itemid).pluck('id','vpn').run(db.conn)
             port='443'
+            mtu='1420'
+            postup=''
             endpoint=os.environ['DOMAIN']
         elif vpn == 'hypers':
             #if itemid.role != 'admin': return False
             hyper=r.table('hypervisors').get(itemid).pluck('id','isard_hyper_vpn_host','vpn').run(db.conn)
             wgdata = hyper
             port='4443'
+            mtu=os.environ.get('VPN_MTU','1600')
+            postup='iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu'
             endpoint=hyper.get('isard_hyper_vpn_host','isard-vpn')
         else:
             return False
@@ -49,24 +53,26 @@ class isardVpn():
             return False
 
         if kind == 'config':
-            return {'kind':'file','name':'isard-vpn','ext':'conf','mime':'text/plain','content':self.get_wireguard_file(endpoint,wgdata,port)} 
+            return {'kind':'file','name':'isard-vpn','ext':'conf','mime':'text/plain','content':self.get_wireguard_file(endpoint,wgdata,port,mtu,postup)} 
         elif kind == 'install':
             ext='sh' if op_sys == 'Linux' else 'vb'
             return {'kind':'file','name':'isard-vpn-setup','ext':ext,'mime':'text/plain','content':self.get_wireguard_install_script(endpoint,wgdata,op_sys)} 
 
         return False
 
-    def get_wireguard_file(self,endpoint,peer,port):
+    def get_wireguard_file(self,endpoint,peer,port,mtu,postup):
         return """[Interface]
 Address = %s
 PrivateKey = %s
+MTU = %s
+PostUp = %s
 
 [Peer]
 PublicKey = %s
 Endpoint = %s:%s
 AllowedIPs = %s
 PersistentKeepalive = 25
-""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],app.wireguard_server_keys['public'],endpoint,port,peer['vpn']['wireguard']['AllowedIPs'])
+""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],mtu,postup,app.wireguard_server_keys['public'],endpoint,port,peer['vpn']['wireguard']['AllowedIPs'])
 
     def get_wireguard_install_script(self,endpoint,peer,op_sys):
         return """#!/bin/bash

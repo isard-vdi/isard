@@ -111,7 +111,13 @@ class Wg(object):
             check_output(('/usr/bin/wg-quick', 'down', self.interface), text=True).strip()
         except:
             None
-        self.config=self.server_config()
+        if self.table == 'hypervisors':
+            mtu=os.environ.get('VPN_MTU','1600')
+            postup='iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu'
+        else:
+            mtu='1420'
+            postup=''
+        self.config=self.server_config(mtu,postup)
         #for k,v in self.peers.items():
         #    self.set_iptables(v)
         #    self.config=self.config+self.gen_peer_config(v)
@@ -278,15 +284,16 @@ class Wg(object):
     def set_iptables(self,peer):
         iptables=peer['vpn']['iptables']
 
-    def server_config(self):
+    def server_config(self,mtu,postup):
         return """[Interface]
 Address = %s/%s
 SaveConfig = false
 PrivateKey = %s
 ListenPort = %s
-PostUp = 
+MTU = %s
+PostUp = %s
 
-""" % (self.server_ip,self.server_mask,self.keys.skeys['private'],self.server_port)
+""" % (self.server_ip,self.server_mask,self.keys.skeys['private'],self.server_port,mtu,postup)
 
     def client_config(self,peer):
         return """[Interface]
