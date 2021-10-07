@@ -258,5 +258,40 @@
             "checkbox-text": "Nur gestartet",
             "desktops-started": "Arbeitoberfläche gestartet"
         }
+    },
+    "forms": {
+        "new-desktop": {
+            "template-table-column-headers": {
+                "name": "Name",
+                "category": "Kategorie",
+                "selected": "Ausgewählt",
+                "group": "Gruppe",
+                "description": "Beschreibung",
+                "user": "Benutzer"
+            },
+            "filter-placeholder": "Tippen, um zu suchen",
+            "title": "Neue Arbeitoberfläche erstellen:",
+            "section-title-template": "Wählen Sie eine Vorlage aus:",
+            "desktop-template": "Vorlage",
+            "filter": "Filter",
+            "desktop-name": "Arbeitoberflächename",
+            "desktop-description": "Arbeitoberflächenbeschreibung"
+        },
+        "create": "Erstellen",
+        "submit": "Einreichen",
+        "clear": "Löschen",
+        "cancel": "Abbrechen"
+    },
+    "errors": {
+        "create_desktop_user_quota": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
+        "create_desktop_group_quota": "Quote für Arbeitoberfläche-Erstellungsgruppe überschritten",
+        "create_desktop_category_quota": "Quote für Arbeitoberfläche-Erstellungskategorie überschritten",
+        "generic_error": "Es ist ein Fehler aufgetreten"
+    },
+    "validations": {
+        "maxLengthValue": "Das Feld {property} hat {model} Zeichen, darf aber maximal {max} lang sein.",
+        "inputFormat": "Gültige Zeichen sind Buchstaben, Zahlen, Komma, Punkt, -, _",
+        "required": "{property} ist erforderlich.",
+        "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben."
     }
 }
