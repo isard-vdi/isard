@@ -291,5 +291,40 @@
             "checkbox-text": "Seulement les démarrés",
             "desktops-started": "Bureaux démarrés"
         }
+    },
+    "errors": {
+        "create_desktop_group_quota": "Le quota du groupe de création de bureau est dépassé",
+        "create_desktop_category_quota": "Le quota de la catégorie de création de bureau est dépassé",
+        "generic_error": "Une erreur s'est produite",
+        "create_desktop_user_quota": "Le quota d'utilisateurs pour la création de bureau est dépassé"
+    },
+    "validations": {
+        "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
+        "inputFormat": "Les caractères valides sont les lettres, les chiffres, la virgule, le point, -, _.",
+        "required": "{property} est requis.",
+        "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}."
+    },
+    "forms": {
+        "new-desktop": {
+            "title": "Créer un nouveau bureau :",
+            "filter": "Filtre",
+            "template-table-column-headers": {
+                "name": "Nom",
+                "user": "Utilisateur",
+                "selected": "Sélectionné",
+                "description": "Description",
+                "category": "Catégorie",
+                "group": "Groupe"
+            },
+            "desktop-template": "Modèle",
+            "section-title-template": "Sélectionnez un modèle :",
+            "desktop-name": "Nom du bureau",
+            "desktop-description": "Description du bureau",
+            "filter-placeholder": "Tapez pour rechercher"
+        },
+        "clear": "Effacer",
+        "cancel": "Annuler",
+        "submit": "Soumettre",
+        "create": "Créer"
     }
 }
