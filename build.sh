@@ -1,18 +1,91 @@
 #!/bin/sh
 set -e
 
+PARTS_PATH=docker-compose-parts
+ALLINONE_KEY="all-in-one"
+ALLINONE_PARTS="
+	network
+	db
+	engine
+	static
+	portal
+	hypervisor
+	websockify
+	squid
+	webapp
+	grafana
+	stats
+	api
+	authentication
+	vpn
+	guac
+"
+HYPERVISOR_KEY="hypervisor"
+HYPERVISOR_PARTS="
+	network
+	video
+	hypervisor
+	websockify
+	squid
+	stats
+	guac
+	guac-vpnc
+"
+HYPERVISOR_STANDALONE_KEY="hypervisor-standalone"
+HYPERVISOR_STANDALONE_PARTS="
+	network
+	hypervisor
+	hypervisor-standalone
+	stats
+"
+VIDEO_STANDALONE_KEY="video-standalone"
+VIDEO_STANDALONE_PARTS="
+	network
+	video
+	websockify
+	squid
+	guac
+"
+TOOLBOX_KEY="toolbox"
+TOOLBOX_PARTS="
+	network
+	toolbox
+"
+WEB_KEY="web"
+WEB_PARTS="
+	network
+	db
+	engine
+	static
+	portal
+	webapp
+	grafana
+	api
+	authentication
+	vpn
+"
+
 git submodule init
 git submodule update --recursive --remote
 
-cp isardvdi.cfg .env
-## BUILD_ROOT_PATH env
-# This is a workarround for
-# https://github.com/docker/compose/issues/7873
-# See also BUILD_ROOT_PATH sed section at the end of file
-echo "BUILD_ROOT_PATH=$(pwd)" >> .env
 
-. ./.env
-PARTS_PATH=docker-compose-parts
+get_config_files(){
+	ls isardvdi*.cfg
+}
+
+get_config_name(){
+	echo "$1" | sed -n 's/^isardvdi\.\?\(.*\)\.cfg$/\1/p'
+}
+
+create_env(){
+	cp "$1" .env
+	## BUILD_ROOT_PATH env
+	# This is a workarround for
+	# https://github.com/docker/compose/issues/7873
+	# See also BUILD_ROOT_PATH sed section at the end of file
+	echo "BUILD_ROOT_PATH=$(pwd)" >> .env
+	. ./.env
+}
 
 parts_files(){
 	for part in $@
@@ -25,18 +98,18 @@ parts_files(){
 	done
 }
 merge(){
-	local flavour="$1"
+	local config_name="$1"
 	shift || return 0
 	local args="$(parts_files $@)"
 	if [ -n "$*" -a -n "$args" ]
 	then
-		if [ -z "$flavour" ]
+		if [ -z "$config_name" ]
 		then
 			local delimiter=""
 		else
 			local delimiter="."
 		fi
-		docker-compose $args config > "docker-compose$delimiter$flavour.yml"
+		docker-compose $args config > "docker-compose$delimiter$config_name.yml"
 	fi
 }
 parts_variant(){
@@ -48,22 +121,35 @@ parts_variant(){
 	done
 }
 variants(){
-	local flavour="$1"
+	local config_name="$1"
 	shift || return 0
-	if [ -z "$flavour" ]
-	then
-		local delimiter=""
-	else
-		local delimiter="."
-	fi
-	merge "$flavour" $@
-	merge "$flavour${delimiter}build" $@ $(parts_variant build $@)
-	merge "$flavour${delimiter}devel" $@ $(parts_variant build $@) $(parts_variant devel $@)
+	case $USAGE in
+		production)
+			merge "$config_name" $@
+			;;
+		build)
+			merge "$config_name" $@ $(parts_variant build $@)
+			;;
+		devel)
+			merge "$config_name" $@ $(parts_variant build $@) $(parts_variant devel $@)
+			;;
+		*)
+			echo "Error: unknow usage $USAGE"
+			exit 1
+			;;
+	esac
 }
 flavour(){
-	local flavour="$1"
+## Usage of flavour function
+#
+# flavour <config-name> <part-1> <part-2> ...
+# - <config-name> is used for the filename: docker-compose.<config-name>.yml
+# - <part-1> and <part-2> ... shoud be files like docker-compose-parts/<part-1>.yml
+# - variants build and devel sould be like docker-compose-parts/<part-1>.build.yml
+# and docker-compose-parts/<part-1>.devel.yml
+#
+	local config_name="$1"
 	shift || return 0
-	local no_stats_parts=""
 	local parts=""
 	for part in $@
 	do
@@ -71,7 +157,6 @@ flavour(){
 		if [ "$part" = "hypervisor" -a -n "$HYPERVISOR_HOST_TRUNK_INTERFACE" ]
 		then
 			parts="$parts hypervisor-vlans"
-			no_stats_parts="$no_stats_parts hypervisor-vlans"
                         echo "WARNING: Will take host interface $HYPERVISOR_HOST_TRUNK_INTERFACE and put it inside hypervisor container"
                         echo "         So interface WILL DISSAPPEAR from host"
                         echo "         With this configuration, when you restart container the interface could be missing,"
@@ -79,87 +164,58 @@ flavour(){
                         echo "         till the interface $HYPERVISOR_HOST_TRUNK_INTERFACE is visible in the host again!"
                         echo ""
 		fi
-		if [ "$part" != "stats" ]
-		then
-			no_stats_parts="$no_stats_parts $part"
-		fi
 	done
-	if [ -n "$no_stats_parts" -a "$no_stats_parts" != " network" ]
-	then
-		if [ -z "$flavour" ]
-		then
-			local delimiter=""
-		else
-			local delimiter="."
-		fi
-		variants "$flavour${delimiter}no-stats" $no_stats_parts
-	fi
-	variants "$flavour" $parts
+	variants "$config_name" $parts
 }
 
-## Usage of flavour function
-#
-# flavour <flavour-name> <part-1> <part-2> ...
-# - <flavour-name> is used for the filename: docker-compose.<flavour-name>.yml
-# - <part-1> and <part-2> ... shoud be files like docker-compose-parts/<part-1>.yml
-# - variants build and devel sould be like docker-compose-parts/<part-1>.build.yml
-# and docker-compose-parts/<part-1>.devel.yml
-#
-flavour "" \
-	network \
-	db \
-	engine \
-	static \
-	portal \
-	hypervisor \
-	websockify \
-	squid \
-	webapp \
-	grafana \
-	stats \
-	api \
-	authentication \
-	vpn \
-	guac \
+get_config_files | while read config_file
+do
+	create_env "$config_file"
+	config_name="$(get_config_name "$config_file")"
 
-flavour hypervisor \
-	network \
-	video \
-	hypervisor \
-	websockify \
-	squid \
-	stats \
-	guac \
-	guac-vpnc \
+	if [ -z "$USAGE" ]
+	then
+		USAGE="production"
+	fi
+	if [ -z "$ENABLE_STATS" ]
+	then
+		ENABLE_STATS="true"
+	fi
+	if [ -z "$FLAVOUR" ]
+	then
+		FLAVOUR="all-in-one"
+	fi
+	case $FLAVOUR in
+		$ALLINONE_KEY)
+			parts=$ALLINONE_PARTS
+			;;
+		$HYPERVISOR_KEY)
+		  parts=$HYPERVISOR_PARTS
+			;;
+		$HYPERVISOR_STANDALONE_KEY)
+			parts=$HYPERVISOR_STANDALONE_PARTS
+			;;
+		$VIDEO_STANDALONE_KEY)
+			parts=$VIDEO_STANDALONE_PARTS
+			;;
+		$TOOLBOX_KEY)
+			parts=$TOOLBOX_PARTS
+			;;
+		$WEB_KEY)
+			parts=$WEB_PARTS
+			;;
+		*)
+			echo "Error: Flavour $FLAVOUR of $config_file not found"
+			exit 1
+			;;
+	esac
 
-flavour toolbox \
-	network \
-	toolbox \
-
-flavour hypervisor-standalone \
-	network \
-	hypervisor \
-	hypervisor-standalone \
-	stats \
-
-flavour video-standalone \
-	network \
-	video \
-	websockify \
-	squid \
-	guac \
-
-flavour web \
-	network \
-	db \
-	engine \
-	static \
-	portal \
-	webapp \
-	grafana \
-	api \
-	authentication \
-    vpn \
+	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]
+	then
+		parts="$(echo $parts | sed 's/stats//')"
+	fi
+	flavour "$config_name" $parts
+done
 
 ## BUILD_ROOT_PATH sed section
 # Fix the context parameter in the docker-compose file

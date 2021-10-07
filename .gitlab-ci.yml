@@ -26,6 +26,12 @@ docker-compose:
     - cp isardvdi.cfg.example isardvdi.cfg
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
+    - cp isardvdi.cfg isardvdi.build.cfg
+    - echo "USAGE=build" >> isardvdi.build.cfg
+    - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
+    - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
+    - cp isardvdi.build.cfg isardvdi.toolbox.build.cfg
+    - echo "FLAVOUR=toolbox" >> isardvdi.toolbox.build.cfg
     - ./build.sh
   artifacts:
     paths:
