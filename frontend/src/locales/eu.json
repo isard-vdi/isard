@@ -134,7 +134,8 @@
                     "title": "Errorea"
                 },
                 "start-error": {
-                    "title": "Errorea"
+                    "title": "Errorea",
+                    "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu"
                 },
                 "create-quota": {
                     "description": "Mahaigain gehiegi dituzu",
