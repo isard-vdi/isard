@@ -209,7 +209,8 @@
                 "viewers": "Зрители",
                 "name": "Имя"
             },
-            "open-with": "Открыть с помощью"
+            "open-with": "Открыть с помощью",
+            "no-info-default": "Описание не доступно"
         },
         "rdp-modal": {
             "button-refresh": "Обновить",
