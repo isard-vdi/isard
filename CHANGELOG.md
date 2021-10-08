@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.3] - 2021-10-08
+
+### Fixed
+
+- How infrastructure hyper get registered in database
+
 ## [4.2.2] - 2021-10-08
 
 ### Fixed

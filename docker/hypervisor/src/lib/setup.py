@@ -10,10 +10,26 @@ try:
 except:
     raise
 
-hostname=os.environ['DOMAIN'] if os.environ.get('API_DOMAIN',False) else 'isard-hypervisor'
-video_domain=os.environ.get('VIDEO_DOMAIN',os.environ['DOMAIN'])
-static_url=os.environ.get('STATIC_DOMAIN',os.environ['DOMAIN'])
-isard_hyper_vpn_host=os.environ.get('VPN_DOMAIN',os.environ.get('API_DOMAIN','isard-vpn'))
+flavour=os.environ.get('FLAVOUR',False)
+## We only check the flavours that have hypervisor:
+## all-in-one, hypervisor, hypervisor-standalone
+if str(flavour) == 'all-in-one' or not flavour:
+    hostname = 'isard-hypervisor'
+    static_url      = os.environ.get('DOMAIN')
+    video_domain    = os.environ.get('DOMAIN')
+    proxy_hyper_url = 'isard-hypervisor'
+if str(flavour) == 'hypervisor':
+    hostname = os.environ.get('DOMAIN')
+    static_url      = os.environ.get('STATIC_DOMAIN')
+    video_domain    = os.environ.get('VIDEO_DOMAIN')
+    proxy_hyper_url = 'isard-hypervisor'
+if str(flavour) == 'hypervisor-standalone':
+    hostname = os.environ.get('DOMAIN')
+    static_url      = os.environ.get('STATIC_DOMAIN')
+    video_domain    = os.environ.get('VIDEO_DOMAIN')
+    proxy_hyper_url = os.environ.get('DOMAIN')
+
+isard_hyper_vpn_host = os.environ.get('VPN_DOMAIN','isard-vpn')
 
 def SetupHypervisor():
     HYPERVISOR={"hostname":hostname,
@@ -26,7 +42,7 @@ def SetupHypervisor():
                 "spice_port":os.environ['VIEWER_SPICE'] if os.environ.get('VIEWER_SPICE', False) else '80',
                 "isard_static_url":static_url,
                 "isard_video_url":video_domain,
-                "isard_proxy_hyper_url":"isard-hypervisor" if video_domain == hostname else hostname,
+                "isard_proxy_hyper_url":proxy_hyper_url,
                 "isard_hyper_vpn_host": isard_hyper_vpn_host}
 
     ## Adding hyper. Received dict with certs and number

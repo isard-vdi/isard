@@ -30,7 +30,9 @@
 #ENABLE_STATS=true
 
 # ------ Domain --------------------------------------------------------------
-## This server main domain/ip reacheable from other hosts
+## This server main public domain/ip.
+## NOTE: In infrastructure hypervisors should be the reacheable ip/dns from 
+##       isard-engine
 DOMAIN=localhost
 
 # ------ Admin password ------------------------------------------------------
@@ -129,20 +131,25 @@ LOG_LEVEL=INFO
 #AUTHENTICATION_DB_HOST=isard-db
 
 # ------ Api host ------------------------------------------------------------
-## Where can we reach the isard-api from this host?
-## Needed for remote hypervisors 
+## Where can this host reach the isard-api host?
+## Need to be set for flavours:
+##   - hypervisor
+##   - hypervisor-standalone
 #API_DOMAIN=isard-api
 
 # ------ Static nginx host ----------------------------------------------------
-## Where the clients will load static when connecting to this host video?
-## Not needed if you have isard-static at the same host as API_DOMAIN
+## Where the clients browsers will load static when connecting to this host 
+## html5 video?
+## Need to be set for flavours:
+##   - hypervisor
+##   - hypervisor-standalone
 #STATIC_DOMAIN=$DOMAIN
 
 # ------ Vpn host ------------------------------------------------------------
-## Where can we reach the isard-vpn from this host?
-## Needed for remote hypervisors 
-## VPN will be set against VPN_DOMAIN if set, else against API_DOMAIN if set
-## and by defaults against isard-vpn
+## Where can this host reach the isard-vpn host?
+## Need to be set for flavours:
+##   - hypervisor
+##   - hypervisor-standalone
 #VPN_DOMAIN=isard-vpn
 
 ## The vpn mtu will allow for infrastructure connection (allow it in your
@@ -153,10 +160,11 @@ LOG_LEVEL=INFO
 #VPN_MTU=1600
 
 # ------ Video proxy host ----------------------------------------------------
-## Where is the isard-video proxy for this hypervisor?
-## Needed for client video browser/apps to reach this hypervisor guests:
-## hypervisor: Will have isard-video. Set it to $DOMAIN
-## hypervisor-standalone: Will rely on a server with isard-video
+## Where will the client browser reach isard-video to this host?
+## Need to be set for flavours: 
+##   - video-standalone (to generate letsencrypt certs)
+##   - hypervisor (to generate letsencrypt certs and set up hyper in db)
+##   - hypervisor-standalone ( to set up hyper in db)
 #VIDEO_DOMAIN=$DOMAIN
 
 # ------ Video external NAT ports --------------------------------------------
