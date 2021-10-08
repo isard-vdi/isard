@@ -71,7 +71,8 @@
                 "login": "Saioa hasi"
             },
             "other-logins": "edo honako hauek erabiliz hasi:",
-            "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da."
+            "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da.",
+            "powered-by": "Egilea"
         },
         "maintenance": {
             "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
