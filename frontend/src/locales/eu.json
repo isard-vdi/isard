@@ -1,7 +1,16 @@
 {
     "components": {
         "navbar": {
-            "admin": "Administrazioa"
+            "admin": "Administrazioa",
+            "home": "Hasiera",
+            "help": "Laguntza",
+            "vpn": {
+                "downloaded": {
+                    "title": "Deskargatuta",
+                    "description": "VPN konfiguratzeko fitxategia ondo deskargatu da"
+                },
+                "download": "VPN"
+            }
         },
         "help": {
             "close-guide": "Gida itxi",
