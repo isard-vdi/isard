@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.2] - 2021-10-08
+
+### Fixed
+
+- Missing translations of French, German, Basque and Russian
+
 ## [4.2.1] - 2021-10-07
 
 - Fix docker-compose file build
