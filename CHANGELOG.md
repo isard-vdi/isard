@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.1] - 2021-10-07
+
+- Fix docker-compose file build
+
+    Fix multiple configuration files support by using new environment for
+    each configuration file.
+
+    Fix regression of v4.2.0 in docer-compose.yml generated via gitlab-ci
+
 ## [4.2.0] - 2021-10-07
 
 ### Added

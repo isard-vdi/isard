@@ -168,8 +168,8 @@ flavour(){
 	variants "$config_name" $parts
 }
 
-get_config_files | while read config_file
-do
+create_docker_compose_file(){
+	config_file="$1"
 	create_env "$config_file"
 	config_name="$(get_config_name "$config_file")"
 
@@ -215,6 +215,11 @@ do
 		parts="$(echo $parts | sed 's/stats//')"
 	fi
 	flavour "$config_name" $parts
+}
+
+get_config_files | while read config_file
+do
+	(create_docker_compose_file "$config_file")
 done
 
 ## BUILD_ROOT_PATH sed section
