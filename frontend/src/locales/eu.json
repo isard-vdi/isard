@@ -1,7 +1,16 @@
 {
     "components": {
         "navbar": {
-            "admin": "Administrazioa"
+            "admin": "Administrazioa",
+            "home": "Hasiera",
+            "help": "Laguntza",
+            "vpn": {
+                "downloaded": {
+                    "title": "Deskargatuta",
+                    "description": "VPN konfiguratzeko fitxategia ondo deskargatu da"
+                },
+                "download": "VPN"
+            }
         },
         "help": {
             "close-guide": "Gida itxi",
@@ -62,7 +71,8 @@
                 "login": "Saioa hasi"
             },
             "other-logins": "edo honako hauek erabiliz hasi:",
-            "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da."
+            "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da.",
+            "powered-by": "Egilea"
         },
         "maintenance": {
             "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
@@ -124,7 +134,8 @@
                     "title": "Errorea"
                 },
                 "start-error": {
-                    "title": "Errorea"
+                    "title": "Errorea",
+                    "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu"
                 },
                 "create-quota": {
                     "description": "Mahaigain gehiegi dituzu",
