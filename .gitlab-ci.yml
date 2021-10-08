@@ -64,22 +64,39 @@ docker-image:
       - DOCKER_COMPOSE: toolbox.build
         IMAGE: toolbox
   script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - apk add git docker-compose
     - git submodule update --init --recursive --remote
     - docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build isard-$IMAGE
-    - docker save -o docker-image-isard-$IMAGE.tar ${CI_REGISTRY_IMAGE}/${IMAGE}:$CI_COMMIT_REF_SLUG
-  artifacts:
-    paths:
-      - docker-image-isard-$IMAGE.tar
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
-docker-push:
+docker-tag:
   stage: docker-registry
   image:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
+  parallel:
+    matrix:
+      - IMAGE:
+          - api
+          - authentication
+          - engine
+          - grafana
+          - guac
+          - hypervisor
+          - portal
+          - squid
+          - static
+          - stats
+          - vpn
+          - webapp
+          - websockify
+          - video
+          - toolbox
   script:
     - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - ls docker-image-*.tar | xargs -P0 -I{} sh -c "crane push {} ${CI_REGISTRY_IMAGE}/\$(echo {} | sed -n 's/^docker-image-isard-\(.*\)\.tar$/\1/p'):$CI_COMMIT_REF_SLUG"
+    - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA $CI_COMMIT_REF_SLUG
 
 .changelog:
   image: registry.gitlab.com/gitlab-org/release-cli
