@@ -16,10 +16,11 @@ from .lib import *
 ''' 
 Update to new database release version when new code version release
 '''
-release_version = 17  #
-# branch new version 16 prepared with secondary wg_mac index
+release_version = 18
+# release 18: Replace deployment id # to = (and also to domains)
+# release 16: Added secondary wg_mac index
 tables = ['config', 'hypervisors', 'hypervisors_pools', 'domains', 'media', 'videos', 'graphics', 'users', 'roles',
-          'groups', 'interfaces']
+          'groups', 'interfaces', 'deployments']
 
 
 class Upgrade(object):
@@ -560,6 +561,36 @@ class Upgrade(object):
         if version == 16:
             try:
                 r.table(table).index_create('wg_mac', r.row["create_dict"]["macs"]["wireguard"]).run(self.conn)
+            except:
+                None
+
+        if version == 18:
+            try:
+                domains = r.table(table).with_fields('id','tag').run(self.conn)
+                for d in domains:
+                    if d['tag']: r.table(table).get(d['id']).update({'tag':d['tag'].replace('#','=')}).run(self.conn)
+            except:
+                None
+
+        return True
+
+    '''
+    DEPLOYMENTS TABLE UPGRADES
+    '''
+
+    def deployments(self, version):
+        table = 'deployments'
+        data = list(r.table(table).run(self.conn))
+        log.info('UPGRADING ' + table + ' VERSION ' + str(version))
+
+        if version == 18:
+            try:
+                deployments = list(r.table(table).run(self.conn))
+                for d in deployments:
+                    deployment = r.table(table).get(d['id']).run(self.conn)
+                    r.table(table).get(d['id']).delete().run(self.conn)
+                    deployment['id'] = deployment['id'].replace('#','=')
+                    r.table(table).insert(deployment).run(self.conn)
             except:
                 None
 

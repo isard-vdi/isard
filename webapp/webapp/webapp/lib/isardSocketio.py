@@ -131,7 +131,7 @@ class DomainsThread(threading.Thread):
 
                         ## Tagged desktops to advanced users
                         if data['kind']=='desktop' and data.get("tag", False):
-                                user = data['tag'].split('#')[0]
+                                user = data['tag'].split('=')[0]
                                 socketio.emit(original_event, 
                                                 json.dumps(data),
                                                 #~ json.dumps(app.isardapi.f.flatten_dict(data)), 
@@ -1088,7 +1088,7 @@ def socketio_advanced_domains_add(form_data):
     deployment_name=create_dict['tag']
     create_dict['tag']=app.isardapi.parse_string(deployment_name)
     create_dict['tag_name']=deployment_name
-    tag=current_user.id+'#'+create_dict['tag']
+    tag=current_user.id+'='+create_dict['tag']
 
     deployment_dict={   'id':tag,
                         'name':deployment_name,

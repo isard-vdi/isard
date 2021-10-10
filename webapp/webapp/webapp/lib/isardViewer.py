@@ -35,7 +35,8 @@ class isardViewer():
 
     def viewer_data(self,id,get_viewer='spice-client',current_user=False,default_viewer=False,get_cookie=True):
         try:
-            domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options','user','tag').run(db.conn)
+            with app.app_context():
+                domain =  r.table('domains').get(id).pluck('id','name','status','viewer','options','user','tag').run(db.conn)
         except DomainNotFound:
             raise
         if not domain["status"] in ["Started", "Shutting-down", "Stopping"]:
@@ -43,7 +44,9 @@ class isardViewer():
         if current_user != False:
             # if not owner and not his tag
             if domain['user'] != current_user.id:
-                if not (current_user.role == "advanced" and domain.get("tag") in current_user.tags and current_user.id == domain["tag"].split('_')[1]):
+                with app.app_context():
+                    deployment = r.table('deployments').get(domain['tag']).run(db.conn)
+                if deployment is None or deployment['user'] != current_user.id:
                     return False
 
         if  'preferred' not in domain['options']['viewers'].keys() or not domain['options']['viewers']['preferred'] == default_viewer:
@@ -51,7 +54,6 @@ class isardViewer():
 
         if get_viewer == 'rdp-client':
             return {'kind':'file','name':'isard-rdp','ext':'rdp','mime':'application/x-rdp','content':self.get_rdp_file(domain['viewer']['guest_ip'])} 
-
 
         if get_viewer == 'spice-html5':
             port=domain['viewer']['base_port']

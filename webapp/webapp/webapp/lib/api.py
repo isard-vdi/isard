@@ -47,7 +47,7 @@ class isard():
                 with app.app_context():
                     domain=r.table('domains').get(data['pk']).pluck('user','tag').run(db.conn)
                 if domain['user'] != user:
-                    user_tag=domain['tag'].split('#')[0]
+                    user_tag=domain['tag'].split('=')[0]
                     if user != user_tag:
                         return json.dumps({'title':'Method not allowed','text':'That action != allowed!','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
 
@@ -1039,7 +1039,7 @@ class isard():
             lst_existing_desktops=[ed['user'].split('-')[-1] for ed in existing_desktops]
             if not ignoreexisting: return ', '.join(lst_existing_desktops)
         if 'tag' in create_dict.keys():
-            create_dict['tag']=current_user.id+'#'+create_dict['tag']
+            create_dict['tag']=current_user.id+'='+create_dict['tag']
             user_reloader(current_user.id)
         for user in users:
             self.new_domain_from_tmpl(user,create_dict)
