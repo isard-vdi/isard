@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.4] - 2021-10-10
+
+### Fixed
+
+- Bug in deployments that didn't allow to get viewers from webapp and
+  blocked access through advanced user frontend to deployments
+
 ## [4.2.3] - 2021-10-08
 
 ### Fixed
