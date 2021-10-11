@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.5] - 2021-10-11
+
+### Fixed
+
+- Exception when the user is already logged out in webapp
+
 ## [4.2.4] - 2021-10-10
 
 ### Fixed
