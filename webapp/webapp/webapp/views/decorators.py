@@ -60,7 +60,7 @@ def ownsidortag(fn):
             domain = r.table('domains').get(id).pluck('id','tag').run(db.conn)
         if domain != None:
             if domain.get('id','').startswith('_'+current_user.id): return fn(*args, **kwargs)
-            if current_user.role == 'advanced' and domain.get('tag','').startswith('_'+current_user.id): return fn(*args, **kwargs)
+            if current_user.role == 'advanced' and str(domain.get('tag','')).startswith(current_user.id): return fn(*args, **kwargs)
         logout_user()
         return render_template('login_category.html', category=False)
     return decorated_view

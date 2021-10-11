@@ -99,7 +99,8 @@ class isardAdmin():
             if action == 'toggle_visible':
                 domains_shown=self.multiple_check_field(table,'tag_visible',True,ids)
                 domains_hidden=self.multiple_check_field(table,'tag_visible',False,ids)
-                res_shown=r.table(table).get_all(r.args(domains_hidden)).update({'tag_visible':True,'jumperurl':self.jumperurl_gencode()}).run(db.conn)
+                for domain_id in domains_hidden:
+                    r.table(table).get(domain_id).update({'tag_visible':True,'jumperurl':self.jumperurl_gencode()}).run(db.conn)
                 res_hidden=r.table(table).get_all(r.args(domains_shown)).filter({'status':'Started'}).update({'status':'Stopping'}).run(db.conn)
                 res_hidden=r.table(table).get_all(r.args(domains_shown)).update({'tag_visible':False,'viewer':False,'jumperurl':False}).run(db.conn)
                 return True
@@ -115,7 +116,7 @@ class isardAdmin():
                     result.append({'username':u['username'],
                                     'name':u['name'],
                                     'email':u['email'],
-                                    'url':'https://'+os.environ['WEBAPP_LETSENCRYPT_DNS']+'/vw/'+d['jumperurl']})
+                                    'url':'https://'+os.environ['DOMAIN']+'/vw/'+d['jumperurl']})
 
                 fieldnames=['username','name','email','url']
                 with io.StringIO() as csvfile:

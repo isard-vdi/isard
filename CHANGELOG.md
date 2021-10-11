@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.6] - 2021-10-11
+
+### Fixed
+
+- Fixes bug when accessing jumperurl in deployments and generation of same url for all 
+
 ## [4.2.5] - 2021-10-11
 
 ### Fixed
