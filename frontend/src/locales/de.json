@@ -233,11 +233,14 @@
                 "viewers": "Bildbetrachter",
                 "action": "Aktion",
                 "description": "Beschreibung",
-                "state": "Status",
+                "state": "Zustand",
                 "name": "Name"
             },
             "no-info-default": "Keine Beschreibung vorhanden",
-            "open-with": "Öffnen mit"
+            "open-with": "Öffnen mit",
+            "actions": {
+                "delete": "Löschen"
+            }
         },
         "rdp-modal": {
             "button-refresh": "Aktualisieren",
@@ -256,7 +259,8 @@
         },
         "statusbar": {
             "checkbox-text": "Nur gestartet",
-            "desktops-started": "Arbeitoberfläche gestartet"
+            "desktops-started": "Arbeitoberfläche gestartet",
+            "new-desktop": "Neue Arbeitoberfläche"
         }
     },
     "forms": {
@@ -293,5 +297,15 @@
         "inputFormat": "Gültige Zeichen sind Buchstaben, Zahlen, Komma, Punkt, -, _",
         "required": "{property} ist erforderlich.",
         "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben."
+    },
+    "messages": {
+        "no": "Nein",
+        "yes": "Ja",
+        "title": {
+            "delete": "Löschen"
+        },
+        "confirmation": {
+            "delete-desktop": "wird gelöscht werden, fortfahren?"
+        }
     }
 }
