@@ -192,6 +192,18 @@ def api_v3_hypervisor_disks_found():
         log.error("HypervisorDisksFound general exception" + error)
         return json.dumps({"code":9,"msg":"HypervisorDisksFound general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
+@app.route('/api/v3/hypervisor/media_delete', methods=['POST'])
+@is_hyper
+def api_v3_hypervisor_media_delete():
+    try:
+        api_hypervisors.delete_media(request.get_json(force=True))
+        return json.dumps(True), 200, {'Content-Type': 'application/json'}
+    except:
+        error = traceback.format_exc()
+        log.error("HypervisorMediaFound general exception" + error)
+        return json.dumps({"code":9,"msg":"HypervisorMediaFound general exception: " + error }), 500, {'Content-Type': 'application/json'}
+
+
 # @app.route('/api/v3/hypervisor/groups_found', methods=['POST'])
 # @is_hyper
 # def api_v3_hypervisor_groups_found():
