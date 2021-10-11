@@ -115,6 +115,11 @@
                     iconName = "trash">
                 </DesktopButton>
             </template>
+            <template #cell(delete)='data'>
+              <div class='d-flex justify-content-center align-items-center'>
+                <a class='cursor-pointer' @click="onClickDeleteDesktop(data.item)"><b-icon icon="trash" variant="danger"></b-icon></a>
+              </div>
+            </template>
           </b-table>
           </b-col>
       </b-row>
@@ -227,6 +232,27 @@ export default {
         }
       }
       return ''
+    },
+    onClickDeleteDesktop (desktop) {
+      this.$snotify.clear()
+
+      const yesAction = () => {
+        this.$snotify.remove()
+        this.deleteDesktop(desktop.id)
+      }
+
+      const noAction = () => {
+        this.$snotify.remove() // default
+      }
+
+      this.$snotify.prompt(`'${desktop.name}' ${i18n.t('messages.confirmation.delete-desktop')}`, `${i18n.t('messages.title.delete')}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: 'Yes', action: yesAction, bold: true },
+          { text: 'No', action: noAction }
+        ],
+        placeholder: ''
+      })
     }
   },
   data () {
@@ -244,14 +270,14 @@ export default {
         {
           key: 'name',
           sortable: true,
-          label: 'Nombre',
+          label: `${i18n.t('components.desktop-cards.table-header.name')}`,
           thStyle: { width: '20%' },
           tdClass: 'name'
         },
         {
           key: 'description',
           sortable: true,
-          label: 'Descripción',
+          label: `${i18n.t('components.desktop-cards.table-header.description')}`,
           thStyle: { width: '30%' },
           tdClass: 'description'
         },
@@ -265,24 +291,34 @@ export default {
         {
           key: 'state',
           sortable: true,
-          label: 'Estado',
+          label: `${i18n.t('components.desktop-cards.table-header.state')}`,
           thStyle: { width: '10%' },
           tdClass: 'state'
         },
         {
           key: 'viewers',
           thStyle: { width: '15%' },
-          label: 'Visor',
+          label: `${i18n.t('components.desktop-cards.table-header.viewers')}`,
           tdClass: 'viewers'
         },
         {
           key: 'action',
-          label: 'Acción',
+          label: `${i18n.t('components.desktop-cards.table-header.action')}`,
           thStyle: { width: '10%' },
           tdClass: 'px-4 action'
+        },
+        {
+          key: 'delete',
+          label: '',
+          thStyle: { width: '5%' },
+          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
+          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
         }
       ]
     }
+  },
+  destroyed () {
+    this.$snotify.clear()
   }
 }
 </script>

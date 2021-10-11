@@ -52,9 +52,13 @@
         },
         "statusbar": {
             "desktops-started": "Desktops arrancados",
-            "checkbox-text": "Solo arrancados"
+            "checkbox-text": "Solo arrancados",
+            "new-desktop": "Nuevo Escritorio"
         },        
         "desktop-cards": {
+            "actions":  {
+                "delete" : "Borrar"
+            },
             "table-header": {
                 "name": "Nombre",
                 "state": "Estado",
@@ -286,6 +290,16 @@
                 "not-available": "Escritorio no disponible"
             }
         }
+    },
+    "messages": {
+        "title": {
+            "delete": "Borrar"
+        },
+        "confirmation": {
+            "delete-desktop" : "Se borrará, continuar?"
+        },
+        "yes": "Si",
+        "no": "No"
     },
     "errors": {
         "create_desktop_user_quota": "Maximo de desktops para el usuario alcanzado",
