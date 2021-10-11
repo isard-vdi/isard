@@ -270,7 +270,10 @@
                 "name": "Nom"
             },
             "no-info-default": "Aucune description disponible",
-            "open-with": "Ouvrir avec"
+            "open-with": "Ouvrir avec",
+            "actions": {
+                "delete": "Supprimer"
+            }
         },
         "rdp-modal": {
             "button-refresh": "Actualiser",
@@ -289,7 +292,8 @@
         },
         "statusbar": {
             "checkbox-text": "Seulement les démarrés",
-            "desktops-started": "Bureaux démarrés"
+            "desktops-started": "Bureaux démarrés",
+            "new-desktop": "Nouveau bureau"
         }
     },
     "errors": {
@@ -326,5 +330,15 @@
         "cancel": "Annuler",
         "submit": "Soumettre",
         "create": "Créer"
+    },
+    "messages": {
+        "yes": "Oui",
+        "no": "Non",
+        "title": {
+            "delete": "Supprimer"
+        },
+        "confirmation": {
+            "delete-desktop": "sera supprimé, continuer ?"
+        }
     }
 }
