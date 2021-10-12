@@ -1,4 +1,4 @@
-FROM alpine:3.12.0 as production
+FROM alpine:3.14.0 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache --update wireguard-tools openssh python3

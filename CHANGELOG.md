@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.4.1] - 2021-10-12
+
+### Fixed
+
+- Fix libwebsockets package for guacamole by upgrading alpine to 3.14
+
 ## [4.4.0] - 2021-10-11
 
 ### Added
