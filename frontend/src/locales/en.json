@@ -18,7 +18,7 @@
                 "selected": "Selected",
                 "name": "Name",
                 "description": "Description",
-                "category": "Categoría",
+                "category": "Category",
                 "group": "Group",
                 "user": "User"
             }
@@ -56,8 +56,8 @@
             "new-desktop": "New Desktop"
         },
         "desktop-cards": {
-            "actions":  {
-                "delete" : "Delete"
+            "actions": {
+                "delete": "Delete"
             },
             "table-header": {
                 "name": "Name",
@@ -112,7 +112,7 @@
         }
     },
     "views": {
-        "cancel" : "Cancel",
+        "cancel": "Cancel",
         "error": {
             "title": "Error",
             "codes": {
@@ -296,7 +296,7 @@
             "delete": "Delete"
         },
         "confirmation": {
-            "delete-desktop" : "will be deleted, continue?"
+            "delete-desktop": "will be deleted, continue?"
         },
         "yes": "Yes",
         "no": "No"

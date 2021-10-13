@@ -8,12 +8,12 @@
     "forms": {
         "new-desktop": {
             "title": "Nuevo desktop:",
-            "section-title-template": "Selecciona un template:",
-            "desktop-name": "Nombre",
-            "desktop-description": "Descripción",
-            "desktop-template": "Template",
+            "section-title-template": "Selecciona una plantilla:",
+            "desktop-name": "Nombre del escritorio",
+            "desktop-description": "Descripción del escritorio",
+            "desktop-template": "Plantilla",
             "filter": "Filtrar",
-            "filter-placeholder": "Escribe para filtrar",
+            "filter-placeholder": "Escribe para buscar",
             "template-table-column-headers": {
                 "selected": "Seleccionado",
                 "name": "Nombre",
@@ -54,10 +54,10 @@
             "desktops-started": "Desktops arrancados",
             "checkbox-text": "Solo arrancados",
             "new-desktop": "Nuevo Escritorio"
-        },        
+        },
         "desktop-cards": {
-            "actions":  {
-                "delete" : "Borrar"
+            "actions": {
+                "delete": "Borrar"
             },
             "table-header": {
                 "name": "Nombre",
@@ -112,7 +112,7 @@
         }
     },
     "views": {
-        "cancel" : "Cancelar",
+        "cancel": "Cancelar",
         "error": {
             "title": "Error",
             "codes": {
@@ -261,7 +261,7 @@
                 },
                 "working": {
                     "text": "Esperando",
-                    "action": "working"
+                    "action": "trabajando"
                 },
                 "shutting-down": {
                     "text": "Apagando",
@@ -296,15 +296,15 @@
             "delete": "Borrar"
         },
         "confirmation": {
-            "delete-desktop" : "Se borrará, continuar?"
+            "delete-desktop": "Se borrará, continuar?"
         },
         "yes": "Si",
         "no": "No"
     },
     "errors": {
-        "create_desktop_user_quota": "Maximo de desktops para el usuario alcanzado",
-        "create_desktop_group_quota": "Maximo de desktops para el grupo alcanzado",
-        "create_desktop_category_quota": "Maximo de desktops para la categoría alcanzado",
+        "create_desktop_user_quota": "Cuota de usuario de creación de escritorios excedida",
+        "create_desktop_group_quota": "Cuota de grupo de creación de escritorios excedida",
+        "create_desktop_category_quota": "Cuota de categoría de creación de escritorios excedida",
         "generic_error": "Se ha producido un error"
     }
 }
