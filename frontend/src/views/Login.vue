@@ -76,11 +76,15 @@
 
             </div>
 
+            <!-- Powered By-->
             <b-row id="powered-by" align-h="center">
               <b-col class="text-center">
                 <a href="https://isardvdi.com/" target="_blank">
                   {{ $t('views.login.powered-by') }}
                   <strong>IsardVDI</strong>
+                </a>
+                <a href="isard_changelog_link" target="_blank">
+                  <p>isard_display_version</p>
                 </a>
               </b-col>
             </b-row>

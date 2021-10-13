@@ -88,6 +88,10 @@ create_env(){
 	# https://github.com/docker/compose/issues/7873
 	# See also BUILD_ROOT_PATH sed section at the end of file
 	echo "BUILD_ROOT_PATH=$(pwd)" >> .env
+	echo SRC_VERSION_LINK="https://gitlab.com/isard/isardvdi/-/blob/main/CHANGELOG.md#$(sed -n -e '/^##/p' CHANGELOG.md | head -n 1 | sed 's/##//g; s/ //g; s/\.//g; s/\[//g; s/\]//g;')" >> .env
+	VERSION_ID=$(sed -n -e '/^##/p' CHANGELOG.md | head -n 1 | cut -d "[" -f2 | cut -d "]" -f1)
+	VERSION_DATE=$(sed -n -e '/^##/p' CHANGELOG.md | head -n 1 | cut -d "]" -f2 | sed "s/ - //")
+	echo SRC_VERSION_ID="'$VERSION_ID $VERSION_DATE'" >> .env
 	. ./.env
 }
 

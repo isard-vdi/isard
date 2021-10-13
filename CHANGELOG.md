@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.7.0] - 2021-10-13
+
+### Added
+
+- Source version and link to changelog in frontend and webapp
+
 ## [4.6.0] - 2021-10-13
 
 ### Added

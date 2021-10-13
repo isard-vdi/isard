@@ -3,6 +3,12 @@ FROM node:alpine as frontend
 RUN mkdir /isard-frontend
 COPY frontend /isard-frontend
 
+ARG SRC_VERSION_ID
+ARG SRC_VERSION_LINK
+RUN echo ${SRC_VERSION}
+RUN sed -i "s/isard_display_version/${SRC_VERSION_ID}/g" /isard-frontend/src/views/Login.vue
+RUN sed -i "s,isard_changelog_link,${SRC_VERSION_LINK},g"  /isard-frontend/src/views/Login.vue
+
 WORKDIR /isard-frontend
 
 RUN apk add python3 make g++
