@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.0] - 2021-10-13
+
+### Added
+
+- Api allows to set forced hypervisor when creating persistent desktop from
+  template
+
 ## [4.7.2] - 2021-10-13
 
 ### Fixed
