@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.6.0] - 2021-10-13
+
+### Added
+
+- Upgrade cron script
+
 ## [4.5.0] - 2021-10-13
 
 ### Added
