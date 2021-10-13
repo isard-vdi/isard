@@ -36,7 +36,7 @@
                 "download": "VPN",
                 "downloaded": {
                     "title": "Downloaded",
-                    "description": "The VPN configuration file has been downloaded succesfully"
+                    "description": "The VPN configuration file has been downloaded successfully"
                 },
                 "downloadvpn-error": {
                     "title": "Error",
