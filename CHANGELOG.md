@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.5.0] - 2021-10-13
+
+### Added
+
+- Quicker toolbox build using precreated toolbox-base image
+
 ## [4.4.2] - 2021-10-13
 
 ### Fixed

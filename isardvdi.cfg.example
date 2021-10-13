@@ -10,6 +10,7 @@
 ##  - hypervisor-standalone: hypervisor without related services
 ##  - video-standalone: services to access to desktops
 ##  - toolbox: service to manage desktops disks
+##  - toolbox-base: base image for toolbox, just to improve CI/CD build
 ##  - web: services to manage desktops
 #FLAVOUR=all-in-one
 

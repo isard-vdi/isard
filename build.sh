@@ -51,6 +51,10 @@ TOOLBOX_PARTS="
 	network
 	toolbox
 "
+TOOLBOXBASE_KEY="toolbox-base"
+TOOLBOXBASE_PARTS="
+	toolbox-base
+"
 WEB_KEY="web"
 WEB_PARTS="
 	network
@@ -200,6 +204,9 @@ create_docker_compose_file(){
 			;;
 		$TOOLBOX_KEY)
 			parts=$TOOLBOX_PARTS
+			;;
+		$TOOLBOXBASE_KEY)
+			parts=$TOOLBOXBASE_PARTS
 			;;
 		$WEB_KEY)
 			parts=$WEB_PARTS
