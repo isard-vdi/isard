@@ -203,11 +203,11 @@
         },
         "desktop-cards": {
             "table-header": {
-                "state": "Статус",
+                "state": "Состояние",
                 "description": "Описание",
                 "action": "Действие",
                 "viewers": "Зрители",
-                "name": "Имя"
+                "name": "Название"
             },
             "open-with": "Открыть с помощью",
             "no-info-default": "Описание не доступно"
