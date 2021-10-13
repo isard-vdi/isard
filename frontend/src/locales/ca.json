@@ -23,7 +23,8 @@
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
-            "checkbox-text": "Només arrencats"
+            "checkbox-text": "Només arrencats",
+            "new-desktop": "Escriptori nou"
         },
         "desktop-cards": {
             "table-header": {
@@ -34,7 +35,10 @@
                 "viewers": "Visors"
             },
             "no-info-default": "No hi ha cap descripció disponible",
-            "open-with": "Accedeix amb"
+            "open-with": "Accedeix amb",
+            "actions": {
+                "delete": "Esborrar"
+            }
         },
         "help": {
             "close-guide": "Tancar la guia",
@@ -228,7 +232,7 @@
                 },
                 "working": {
                     "text": "Esperant",
-                    "action": "working"
+                    "action": "treballant"
                 },
                 "shutting-down": {
                     "text": "Apagant",
@@ -257,5 +261,50 @@
                 "not-available": "Escriptori no disponible"
             }
         }
+    },
+    "validations": {
+        "required": "El camp {property} és requerit.",
+        "minLengthValue": "El camp {property} te {model} caràcters, però el ha de tenir com a mínim una llargada de {min}.",
+        "maxLengthValue": "El camp {property} te {model} caràcters, però ha de tenir una com a màxim una llargada de {max}.",
+        "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _"
+    },
+    "forms": {
+        "new-desktop": {
+            "title": "Crear un nou escriptori:",
+            "section-title-template": "Seleccionar una plantilla:",
+            "desktop-name": "Nom de l'escriptori",
+            "desktop-description": "Descripció de l'escriptori",
+            "desktop-template": "Plantilla",
+            "filter": "Filtrar",
+            "filter-placeholder": "Escriu per cercar",
+            "template-table-column-headers": {
+                "selected": "Seleccionat",
+                "name": "Nom",
+                "description": "Descripció",
+                "category": "Categoria",
+                "group": "Grup",
+                "user": "Usuari"
+            }
+        },
+        "clear": "Neteja",
+        "cancel": "Canceŀla",
+        "submit": "Envia",
+        "create": "Crea"
+    },
+    "errors": {
+        "create_desktop_user_quota": "Quota d'usuari de creació d'escriptoris excedida",
+        "create_desktop_group_quota": "Quota de grup de creació d'escriptoris excedida",
+        "create_desktop_category_quota": "Quota de categoria de creació de escriptoris excedida",
+        "generic_error": "S'ha produït un error"
+    },
+    "messages": {
+        "title": {
+            "delete": "Esborrar"
+        },
+        "confirmation": {
+            "delete-desktop": "s'esborrarà, continuar?"
+        },
+        "yes": "Si",
+        "no": "No"
     }
 }
