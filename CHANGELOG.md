@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [4.7.1] - 2021-10-13
 
-  - Fix gitlab-ci parallel matrix big images
+### Fixed
+
+- Fix gitlab-ci parallel matrix big images
 
 ## [4.7.0] - 2021-10-13
 
@@ -51,7 +53,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Reduced isard-toolbox image size
-- Filebrowser has hooks that automates some events to isard-api More info [here](https://gitlab.com/isard/isardvdi/-/issues/186)
+- Filebrowser has hooks that automates some events to isard-api. More info [here](https://gitlab.com/isard/isardvdi/-/issues/186)
 
 ## [4.2.6] - 2021-10-11
 
@@ -85,6 +87,8 @@ All notable changes to this project will be documented in this file.
 - Missing translations of French, German, Basque and Russian
 
 ## [4.2.1] - 2021-10-07
+
+### Fixed
 
 - Fix docker-compose file build
 
