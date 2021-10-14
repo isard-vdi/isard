@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+GITLAB_PROJECT_ID="21522757"
+CHANGELOG_URL="https://gitlab.com/isard/isardvdi/-/blob/main/CHANGELOG.md"
+
 PARTS_PATH=docker-compose-parts
 ALLINONE_KEY="all-in-one"
 ALLINONE_PARTS="
@@ -81,6 +84,21 @@ get_config_name(){
 	echo "$1" | sed -n 's/^isardvdi\.\?\(.*\)\.cfg$/\1/p'
 }
 
+is_official_build(){
+	if \
+		${GITLAB_CI-false} \
+		&& [ "$CI_PROJECT_ID" = "$GITLAB_PROJECT_ID" ] \
+		&& (
+			[ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ] \
+			|| echo "$CI_COMMIT_TAG" | grep -q "^v"
+		)
+	then
+		return 0
+	else
+		return 1
+	fi
+}
+
 create_env(){
 	cp "$1" .env
 	## BUILD_ROOT_PATH env
@@ -88,11 +106,33 @@ create_env(){
 	# https://github.com/docker/compose/issues/7873
 	# See also BUILD_ROOT_PATH sed section at the end of file
 	echo "BUILD_ROOT_PATH=$(pwd)" >> .env
-	echo SRC_VERSION_LINK="https://gitlab.com/isard/isardvdi/-/blob/main/CHANGELOG.md#$(sed -n -e '/^##/p' CHANGELOG.md | head -n 1 | sed 's/##//g; s/ //g; s/\.//g; s/\[//g; s/\]//g;')" >> .env
-	VERSION_ID=$(sed -n -e '/^##/p' CHANGELOG.md | head -n 1 | cut -d "[" -f2 | cut -d "]" -f1)
-	VERSION_DATE=$(sed -n -e '/^##/p' CHANGELOG.md | head -n 1 | cut -d "]" -f2 | sed "s/ - //")
-	echo SRC_VERSION_ID="'$VERSION_ID $VERSION_DATE'" >> .env
-	. ./.env
+	# Only display numbered version in official builds via gitlab-ci
+	if is_official_build
+	then
+		version="$(sed -n '0,/^## /s/^## \[\([^\]\+\)\].*/\1/p' CHANGELOG.md)"
+		version_date="$(sed -n '0,/^## /s/^## \[[^\]\+\] - \([[:digit:]-]\+\).*$/\1/p' CHANGELOG.md)"
+		version_id="$version $version_date"
+		changelog_anchor="$(echo $version_id | tr -d "." | tr " " "-")"
+		echo SRC_VERSION_ID="$version_id" >> .env
+		echo SRC_VERSION_LINK="$CHANGELOG_URL#$changelog_anchor" >> .env
+	else
+		echo SRC_VERSION_LINK= >> .env
+		if [ -n "$CI_COMMIT_REF_SLUG" ]
+		then
+			echo SRC_VERSION_ID="$CI_COMMIT_REF_SLUG" >> .env
+		else
+			version="$(git name-rev --name-only --always --no-undefined HEAD)"
+			if ! git diff --quiet
+			then
+				version="$version-dirty"
+			fi
+			echo SRC_VERSION_ID="$version" >> .env
+		fi
+	fi
+	cp .env .env_sh
+	sed -i 's/^\([^=]\+=\)\(.*\)$/\1"\2"/' .env_sh
+	. ./.env_sh
+	rm .env_sh
 }
 
 parts_files(){
