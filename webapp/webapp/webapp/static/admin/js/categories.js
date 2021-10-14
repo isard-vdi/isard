@@ -362,9 +362,9 @@ function actionsCategoryDetail(){
 
     $('.btn-edit-limits').unbind().on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
-
         $("#modalEditLimitsForm")[0].reset();
         $('#modalEditLimitsForm #id').val(pk);
+        $("#modalEditLimitsForm #propagate").removeAttr('checked').iCheck('update')
         $('#modalEditLimits').modal({
             backdrop: 'static',
             keyboard: false

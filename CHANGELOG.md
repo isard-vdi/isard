@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.2] - 2021-10-14
+
+### Fixed
+
+- Bugs with quota/limits modals when showing
+
 ## [4.8.1] - 2021-10-14
 
 ### Fixed

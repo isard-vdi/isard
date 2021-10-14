@@ -1174,57 +1174,42 @@
                        <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i> Edit quota
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i> Edit quota (users)
                 </h4>
+                <h5>The quota will be applied to individual users in this category/group.</h5>
+                <h5>Propagate will overwrite existing quotas on child items.</h5>
+                <h5>It is applied to a user in this order:</h5>
+                <h5><ul><li>User quota, if set, else</li>
+                    <li>User group quota, if set, else</li>
+                    <li>User category quota, if set.</li>
+                </ul>.</h5>
             </div>
             
             <!-- Modal Body -->
             <div class="modal-body" style="padding: 7px;">
               <form id="modalEditQuotaForm" class="form-horizontal form-label-left" method="POST" novalidate>
-			  <div class="x_panel">
-					<div class="x_content">
-                    <input id="id" hidden/>
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Propagate to related
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                          <div class="checkbox">
-                            <label class="">
-                              <div class="icheckbox_flat-green" style="position: relative;">
-                                  <input type="checkbox" id="propagate" name="propagate" class="flat"  style="position: absolute; opacity: 0;">
-                                  <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                  </ins>
-                              </div>
-                            </label>
-                          </div>                
-                        </div>
-                     </div>
-                                          
-                    {% include '/snippets/quota_edit.html' %}                   
-				</div>
-			  </div>
-
-
+                <div class="x_panel">
+                        <div class="x_content">
+                            <input id="id" hidden/>
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Propagate to related
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <div class="checkbox">
-                                        <label class="">
-                                        <div class="icheckbox_flat-green" style="position: relative;">
-                                            <input type="checkbox" id="propagate" name="propagate" class="flat"  style="position: absolute; opacity: 0;">
-                                            <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                            </ins>
-                                        </div>
-                                        </label>
-                                    </div>                
+                                <div class="checkbox">
+                                    <label class="">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="propagate" name="propagate" class="flat"  style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                    </label>
+                                </div>
                                 </div>
                             </div>
-                                                
                             {% include '/snippets/quota_edit.html' %}
-                        </div>               
                     </div>
-                </form>
+                </div>
+              </form>
             </div>
             <!-- Modal Footer -->
             <div class="modal-footer">
@@ -1235,8 +1220,9 @@
                     <li><button id="send" type="button" class="btn btn-success">Update quota</button></li>
                 </ul>
             </div>
+            </div>
         </div>
-    </div>
+    
 </div>
 
 <div class="modal fade" id="modalEditLimits" tabindex="-1" role="dialog" aria-labelledby="modalEditLimits" aria-hidden="true">
@@ -1250,8 +1236,15 @@
                        <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-edit"> </i><i class="fa fa-circle-o"> </i> Edit limits
+                    <i class="fa fa-edit"> </i><i class="fa fa-circle-o"> </i> Edit limits (category/group)
                 </h4>
+                <h5>The limits will be applied as the absolute maximum for this category/group.</h5>
+                <h5>The limits for user category/group set have priority over user quota.</h5>
+                <h5>Propagate will overwrite existing limits on child items.</h5>
+                <h5>It is applied to a user in this order:</h5>
+                <h5><ul><li>User group limits, if set, else</li>
+                    <li>User category limits, if set</li>
+                </ul>.</h5>
             </div>
             
             <!-- Modal Body -->
@@ -1273,7 +1266,7 @@
                                             </ins>
                                         </div>
                                         </label>
-                                    </div>                
+                                    </div>
                                 </div>
                             </div>
                             {% with type="limits" %}
