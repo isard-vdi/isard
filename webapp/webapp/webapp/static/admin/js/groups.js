@@ -185,6 +185,7 @@ function actionsGroupDetail(){
         var pk=$(this).closest("div").attr("data-pk");
 
         $("#modalEditQuotaForm")[0].reset();
+        $("#modalEditQuotaForm #propagate").removeAttr('checked').iCheck('update')
         $('#modalEditQuotaForm #id').val(pk);
         $('#modalEditQuota').modal({
             backdrop: 'static',
