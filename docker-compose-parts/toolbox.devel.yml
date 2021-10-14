@@ -4,4 +4,3 @@ services:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/toolbox/filebrowser:/fb
     - ${BUILD_ROOT_PATH}/docker/toolbox/src:/src
-    command: sleep infinity
