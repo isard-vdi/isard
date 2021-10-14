@@ -1,6 +1,6 @@
 <template>
   <div class='table-list px-5'>
-    <b-container fluid class='px-0'>
+    <b-container fluid class='px-0 pt-2'>
       <b-skeleton-wrapper :loading="loading" class='pb-1 pt-4 justify-content-start'>
               <template #loading>
                 <b-col>
@@ -139,6 +139,7 @@ import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
+  setup () {},
   props: {
     listTitle: String,
     templates: {

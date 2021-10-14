@@ -24,6 +24,7 @@
         "statusbar": {
             "desktops-started": "Desktops arrencats",
             "checkbox-text": "Només arrencats",
+            "checkbox-text-short": "Arrencats",
             "new-desktop": "Escriptori nou"
         },
         "desktop-cards": {
@@ -138,8 +139,12 @@
             "template": "Plantilla",
             "loading": "Carregant plantilles",
             "no-templates": {
-                "title": "No hi ha cap plantilla per a aquest usuari!",
+                "title": "No hi ha cap plantilla o escriptori per a aquest usuari",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "no-desktops": {
+                "title": "No hi ha escriptoris per mostrar amb els filtres actuals",
+                "subtitle": "Podeu crear un escriptori nou amb el botó superior dret"
             },
             "which-template": "Quin escriptori vols fer servir?",
             "persistent": "Escriptoris persistents",

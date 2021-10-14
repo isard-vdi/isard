@@ -9,7 +9,7 @@
         "select-template": {
             "no-templates": {
                 "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich an den Administrator",
-                "title": "Es gibt keine Vorlagen für diesen Benutzer!"
+                "title": "Es gibt keine Vorlagen für diesen Benutzer"
             },
             "notification": {
                 "downloaded": {

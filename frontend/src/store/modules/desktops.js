@@ -14,7 +14,10 @@ export default {
     desktops: [],
     desktops_loaded: false,
     viewType: 'grid',
-    showStarted: false
+    showStarted: false,
+    filters: {
+      desktops: ''
+    }
   },
   getters: {
     getDesktops: state => {
@@ -31,6 +34,9 @@ export default {
     },
     getShowStarted: state => {
       return state.showStarted
+    },
+    getDesktopsFilter: state => {
+      return state.filters.desktops
     }
   },
   mutations: {
@@ -60,6 +66,9 @@ export default {
       if (desktopIndex !== -1) {
         state.desktops.splice(desktopIndex, 1)
       }
+    },
+    saveDesktopFilter: (state, payload) => {
+      state.filters.desktops = payload.filter
     }
   },
   actions: {
@@ -284,6 +293,9 @@ export default {
           })
         })
       )
+    },
+    updateDesktopsFilter (context, payload) {
+      context.commit('saveDesktopFilter', payload)
     },
     setViewType (context, viewType) {
       context.commit('setViewType', viewType)

@@ -3,19 +3,13 @@
     <b-container fluid class="px-0">
       <b-navbar toggleable="lg" type="light" variant="">
         <div class="separator"></div>
-
         <div class="d-flex flex-grow">
+           <!-- Left aligned nav items-->
           <b-navbar-nav id="statusbar-content" class="flex-grow flex-row">
-            <b-nav-item href="#" disabled>
-              <b-icon
-                icon="display-fill"
-                aria-hidden="true"
-                class="text-medium-gray mr-2 mr-lg-0"
-              ></b-icon>
-            </b-nav-item>
-            <!-- <b-nav-item href="#" class="mr-2 mr-lg-0">Desktops Creados: 85/100</b-nav-item> -->
-            <b-nav-item><span class="d-none d-lg-inline">{{`${$t("components.statusbar.desktops-started")}:`}}</span>{{ ` ${startedDesktops}` }}</b-nav-item>
-            <b-nav-item class="isard-navitem-margin" href="#" @click="toggleDesktopsFilter">
+            <!-- filter -->
+            <DesktopsFilter class="d-none d-lg-flex"></DesktopsFilter>
+            <!-- Only started checkbox -->
+            <b-nav-item class="ml-4" href="#" @click="toggleDesktopsFilter">
               <div>
                 <b-form-checkbox
                   id="started-checkbox"
@@ -25,16 +19,25 @@
                   unchecked-value=false
                   aria-hidden="true"
                   class="mr-2 mr-lg-0">
-                    {{$t("components.statusbar.checkbox-text")}}
+                    <p class="d-none d-md-inline p-0 m-0">{{$t("components.statusbar.checkbox-text")}}</p>
+                    <p class="d-inline d-md-none  p-0 m-0">{{$t("components.statusbar.checkbox-text-short")}}</p>
                 </b-form-checkbox>
               </div>
             </b-nav-item>
+            <!-- Started count -->
+            <b-nav-item disabled class="ml-4">
+              <b-icon
+                icon="display-fill"
+                aria-hidden="true"
+                class="text-medium-gray mr-2 mr-lg-0"
+              ></b-icon>
+            </b-nav-item>
+            <b-nav-item disabled><span class="d-none d-lg-inline text-medium-gray">{{`${$t("components.statusbar.desktops-started")}:`}}</span><span class="text-medium-gray">{{ ` ${startedDesktops}` }}</span></b-nav-item>
           </b-navbar-nav>
 
           <!-- Right aligned nav items-->
-          <b-button v-if="locationDesktops && !creationMode" class="mr-3" variant="outline-primary" @click="navigate('NewDesktop')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button>
+          <div class="pt-1"><b-button v-if="locationDesktops && !creationMode" :pill="true" class="mr-3" variant="outline-primary" size="sm" @click="navigate('NewDesktop')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button></div>
           <b-navbar-nav v-if="locationDesktops && !creationMode" class="ml-auto flex-row d-none d-xl-flex">
-
             <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
               <b-icon
                 icon="grid-fill"
@@ -42,7 +45,6 @@
                 class="text-medium-gray mt-1"
               ></b-icon>
             </b-nav-item>
-
             <b-nav-item href="#" @click="setViewType('list')" :class="{selectedView: getViewType === 'list'}" class="ml-sm-2 ml-xl-0">
               <b-icon
                 icon="list"
@@ -61,8 +63,12 @@
 <script>
 import { desktopStates } from '@/shared/constants'
 import { mapActions, mapGetters } from 'vuex'
+import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
 
 export default {
+  components: {
+    DesktopsFilter
+  },
   data () {
     return {
       status: false,
@@ -94,7 +100,6 @@ export default {
     },
     locationDesktops () {
       const tokens = this.getUrlTokens
-      console.log(tokens)
       return tokens.includes('desktops')
     },
     creationMode () {

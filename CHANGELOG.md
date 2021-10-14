@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.9.0] - 2021-10-21
+
+- Add filter to desktops and templates 
+
 ## [4.8.17] - 2021-10-21
 
 ### Fixed
