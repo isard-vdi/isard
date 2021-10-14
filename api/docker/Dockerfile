@@ -21,3 +21,5 @@ COPY api/docker/run.sh /
 
 CMD /run.sh
 
+ARG SRC_VERSION_ID
+RUN echo -n "$SRC_VERSION_ID" > /version

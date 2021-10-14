@@ -16,5 +16,15 @@ from ..auth.authentication import *
 
 @app.route('/isard-admin/about', methods=['GET'])
 def about():
-    return render_template('pages/about.html', title="About", header="About", nav="About", version=os.environ.get('SRC_VERSION_ID',''), version_link=os.environ.get('SRC_VERSION_LINK',''))
-
+    with open("/version", "r") as file:
+        version = file.read()
+    with open("/version_link", "r") as file:
+        version_link = file.read()
+    return render_template(
+        "pages/about.html",
+        title="About",
+        header="About",
+        nav="About",
+        version=version,
+        version_link=version_link,
+    )

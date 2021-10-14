@@ -19,7 +19,19 @@ users = ApiUsers()
 
 @app.route('/api/v3', methods=['GET'])
 def api_v3_test():
-    return json.dumps({"name":"IsardVDI","api_version": 3, "isardvdi_version":os.environ.get('SRC_VERSION_ID','')}), 200, {'Content-Type': 'application/json'}
+    with open("/version", "r") as file:
+        version = file.read()
+    return (
+        json.dumps(
+            {
+                "name": "IsardVDI",
+                "api_version": 3,
+                "isardvdi_version": version,
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 @app.route('/api/v3/login_ldap', methods=['POST'])
 def api_v3_login_ldap():
