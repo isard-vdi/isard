@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.1] - 2021-10-14
+
+### Fixed
+
+- Only display numbered version in official builds
+
 ## [4.8.0] - 2021-10-13
 
 ### Added
