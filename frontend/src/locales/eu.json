@@ -236,6 +236,11 @@
             "no-started-desktops": {
                 "title": "Ez dago inplementazio honetan hasitako mahaigainik"
             }
+        },
+        "deployments": {
+            "no-deployments": {
+                "subtitle": "Akats bat dela uste baduzu, jar zaitez harremanetan administratzailearekin."
+            }
         }
     },
     "forms": {
