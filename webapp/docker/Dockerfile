@@ -34,3 +34,8 @@ RUN cd /isard/webapp && yarn install
 EXPOSE 5000
 WORKDIR /isard
 CMD [ "python3", "start.py" ]
+
+ARG SRC_VERSION_ID
+ARG SRC_VERSION_LINK
+RUN echo -n "$SRC_VERSION_ID" > /version
+RUN echo -n "$SRC_VERSION_LINK" > /version_link

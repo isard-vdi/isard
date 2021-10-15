@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.3] - 2021-10-15
+
+### Fixed
+
+- Fix version display, regression of v4.8.1
+
 ## [4.8.2] - 2021-10-14
 
 ### Fixed
