@@ -16,7 +16,8 @@
                 }
             },
             "deployments": {
-                "manage": "Kudeatu"
+                "manage": "Kudeatu",
+                "text": "Hedapenak"
             }
         },
         "help": {
@@ -56,7 +57,8 @@
             "open-with": "Irekia",
             "actions": {
                 "delete": "Ezabatu"
-            }
+            },
+            "no-info-default": "Ez dago deskribapen erabilgarririk"
         },
         "rdp-modal": {
             "message": {
@@ -72,6 +74,10 @@
                 "unstable": "ezegonkor"
             },
             "button-refresh": "Eguneratu"
+        },
+        "statusbar": {
+            "desktops-started": "Idazmahaiak hasi dira",
+            "new-desktop": "Mahaigain berria"
         }
     },
     "views": {
@@ -120,7 +126,9 @@
             "code": "Erregistro-kodea",
             "register": "Izena eman",
             "errors": {
-                "500": "Zerbitzariaren errorea"
+                "500": "Zerbitzariaren errorea",
+                "401": "Amaitutako saioa",
+                "404": "Kodea ez da aurkitu"
             }
         },
         "select-template": {
@@ -210,6 +218,9 @@
                 "stop-error": {
                     "title": "Akats",
                     "description": "Ezin izan genuen mahai birtuala ireki akats baten ondorioz"
+                },
+                "create-timeout": {
+                    "title": "Denbora-mugaz kanpo"
                 }
             },
             "remove": "Ezabatu",
@@ -235,6 +246,9 @@
         "deployment": {
             "no-started-desktops": {
                 "title": "Ez dago inplementazio honetan hasitako mahaigainik"
+            },
+            "desktop": {
+                "not-available": "Mahaigaina ez dago eskuragarri"
             }
         },
         "deployments": {
@@ -268,7 +282,7 @@
     },
     "validations": {
         "required": "{property} derrigorrezkoa da.",
-        "minLengthValue": "{property} eremuak  {model} hizki ditu, baina gutxienez  {min} izan beharko lituzke.",
+        "minLengthValue": "{property} eremuak {model} hizki ditu, baina gutxienez {min} izan beharko lituzke.",
         "maxLengthValue": "{property} eremuak {model} hizki dauzka, baina gehienez {max} hizki izan ditzake.",
         "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_"
     },
