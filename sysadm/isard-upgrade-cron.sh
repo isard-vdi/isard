@@ -1,5 +1,9 @@
 #!/bin/sh -e
 
+# This script requires jq to work.
+# Debian derivates installation:
+# apt install jq
+
 ## Example cron:
 ## 12 4 * * * root /opt/isard/src/isardvdi/sysadm/isard-upgrade-cron.sh >/tmp/isard-upgrade.log 2>&1
 

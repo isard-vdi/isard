@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.4] - 2021-10-15
+
+### Fixed
+
+- Add a note in sysadm/isard-upgrade-cron.sh about its jq requirement
+
 ## [4.8.3] - 2021-10-15
 
 ### Fixed
