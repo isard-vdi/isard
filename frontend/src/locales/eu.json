@@ -9,7 +9,14 @@
                     "title": "Deskargatuta",
                     "description": "VPN konfiguratzeko fitxategia ondo deskargatu da"
                 },
-                "download": "VPN"
+                "download": "VPN",
+                "downloadvpn-error": {
+                    "title": "Akats",
+                    "description": "Ezin izan genuen VPN konfigurazio fitxategia deskargatu akats baten ondorioz"
+                }
+            },
+            "deployments": {
+                "manage": "Kudeatu"
             }
         },
         "help": {
@@ -45,7 +52,26 @@
                 "description": "Deskribapena",
                 "state": "Egoera",
                 "name": "Izena"
+            },
+            "open-with": "Irekia",
+            "actions": {
+                "delete": "Ezabatu"
             }
+        },
+        "rdp-modal": {
+            "message": {
+                "disconnected": "Deskonektatu egin zaituzte",
+                "connecting": "Zerbitzarira konektatutzen…",
+                "error": "Konexio-errorea",
+                "unstable": "Sareko konexio-zerbitzariak ezegonkorra dirudi"
+            },
+            "title": {
+                "disconnected": "lineaz kanpo",
+                "connecting": "Konektatzen",
+                "error": "Bezeroaren errorea",
+                "unstable": "ezegonkor"
+            },
+            "button-refresh": "Eguneratu"
         }
     },
     "views": {
@@ -55,7 +81,8 @@
                 "401": "Zure taldeak ez du baimenik orrialde honetan sartzeko",
                 "403": "Ez duzu baimenik orri honetan sartzeko",
                 "500": "Ustekabeko errorea"
-            }
+            },
+            "go-home": "Hasiera"
         },
         "expired-session": {
             "title": "Saioa iraungi egin da",
@@ -70,14 +97,19 @@
                 "pwd": "Pasahitza",
                 "login": "Saioa hasi"
             },
-            "other-logins": "edo honako hauek erabiliz hasi:",
+            "other-logins": "edo honako hauek erabiliz hasi",
             "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da.",
-            "powered-by": "Egilea"
+            "powered-by": "Egilea",
+            "errors": {
+                "500": "Zerbitzariaren errorea",
+                "401": "Erabiltzailea edo pasahitza ez dira zuzenak"
+            }
         },
         "maintenance": {
             "title": "Momentu honetan, Isard zerbitzua mantentze-lanetan dago",
             "the-service": "Zerbitzua berehala egongo da erabilgarri",
-            "sorry": "barkatu eragozpenak"
+            "sorry": "barkatu eragozpenak",
+            "go-login": "Joan saioa hastera"
         },
         "not-found": {
             "title": "Eskatutako helbidea ez dugu aurkitu",
@@ -86,7 +118,10 @@
         "register": {
             "title": "Erregistroa",
             "code": "Erregistro-kodea",
-            "register": "Izena eman"
+            "register": "Izena eman",
+            "errors": {
+                "500": "Zerbitzariaren errorea"
+            }
         },
         "select-template": {
             "no-templates": {
@@ -115,15 +150,35 @@
                     "text": "Hasia"
                 },
                 "failed": {
-                    "text": "Hutsegitea"
+                    "text": "Hutsegitea",
+                    "action": "Berrabiarazi"
                 },
                 "notCreated": {
                     "action": "Sortu"
+                },
+                "shutting-down": {
+                    "action": "Gelditu",
+                    "text": "Gelditu"
+                },
+                "waitingip": {
+                    "action": "Gelditu",
+                    "text": "Itxaroten IP"
+                },
+                "working": {
+                    "text": "Itxaroten",
+                    "action": "Lanean"
+                },
+                "readyCreation": {
+                    "text": "Sorkuntzarako prest"
+                },
+                "downloading": {
+                    "text": "Deskargatzen"
                 }
             },
             "error": {
                 "open-error": {
-                    "title": "Errorea"
+                    "title": "Errorea",
+                    "description": "Ezin izan genuen mahai birtuala ireki akats baten ondorioz"
                 },
                 "start-timeout": {
                     "description": "Mahaigaina abiatzen, minutuak behar izan ditzake",
@@ -144,22 +199,43 @@
                 "create-error": {
                     "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu",
                     "title": "Errorea"
+                },
+                "delete-error": {
+                    "description": "Ezin izan genuen mahai birtuala ezabatu akats baten ondorioz",
+                    "title": "Akats"
+                },
+                "stop-timeout": {
+                    "title": "Denboraz kanpo"
+                },
+                "stop-error": {
+                    "title": "Akats",
+                    "description": "Ezin izan genuen mahai birtuala ireki akats baten ondorioz"
                 }
             },
             "remove": "Ezabatu",
             "viewer-name": {
                 "browser-vnc": "Nabigatzailea",
-                "file-spice": "SPICE"
+                "file-spice": "SPICE",
+                "file-rdpvpn": "RDP",
+                "browser-rdp": "RDP nabigatzaile"
             },
             "viewer": "{name} bisorea",
             "viewers": "Bisoreak",
             "volatile": "Aldi baterako mahaigainak",
             "persistent": "Mahaigain iraunkorrak",
-            "template": "Txantiloia"
+            "template": "Txantiloia",
+            "volatile-compact": "Ez-iraunkorra",
+            "persistent-compact": "Iraunkor"
         },
         "welcome": {
             "title": "Ongi etorri IsardVDI-era, mahaigain birtualen sistemara",
             "button": "Identifikatu"
+        },
+        "cancel": "itxi",
+        "deployment": {
+            "no-started-desktops": {
+                "title": "Ez dago inplementazio honetan hasitako mahaigainik"
+            }
         }
     },
     "forms": {
@@ -172,10 +248,10 @@
                 "category": "Kategoria",
                 "user": "Erabiltzailea"
             },
-            "title": "Mahaigain  berria sortu:",
+            "title": "Mahaigain berria sortu:",
             "section-title-template": "Txantilloi bat aukeratu:",
-            "desktop-name": "Mahaigainaren Izena:",
-            "desktop-description": "Mahaigainaren  deskribapena",
+            "desktop-name": "Mahaigainaren Izena",
+            "desktop-description": "Mahaigainaren deskribapena",
             "desktop-template": "Txantiloia",
             "filter": "Iragazkia",
             "filter-placeholder": "Idatzi bilaketarako"
@@ -190,5 +266,20 @@
         "minLengthValue": "{property} eremuak  {model} hizki ditu, baina gutxienez  {min} izan beharko lituzke.",
         "maxLengthValue": "{property} eremuak {model} hizki dauzka, baina gehienez {max} hizki izan ditzake.",
         "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_"
+    },
+    "messages": {
+        "confirmation": {
+            "delete-desktop": "Ezabatu egingo da, jarraituko duzu?"
+        },
+        "title": {
+            "delete": "Ezabatu"
+        },
+        "yes": "Bai",
+        "no": "Ez"
+    },
+    "errors": {
+        "generic_error": "Errorea gertatu da",
+        "create_desktop_user_quota": "Mahaigaina sortzeko erabiltzaileen kuota gainditu zen",
+        "create_desktop_group_quota": "Mahaigainak sortzeko taldearen kuota gainditu zen"
     }
 }
