@@ -161,5 +161,34 @@
             "title": "Ongi etorri IsardVDI-era, mahaigain birtualen sistemara",
             "button": "Identifikatu"
         }
+    },
+    "forms": {
+        "new-desktop": {
+            "template-table-column-headers": {
+                "group": "Taldea",
+                "selected": "Aukeratuak",
+                "name": "Izena",
+                "description": "Deskribapena",
+                "category": "Kategoria",
+                "user": "Erabiltzailea"
+            },
+            "title": "Mahaigain  berria sortu:",
+            "section-title-template": "Txantilloi bat aukeratu:",
+            "desktop-name": "Mahaigainaren Izena:",
+            "desktop-description": "Mahaigainaren  deskribapena",
+            "desktop-template": "Txantiloia",
+            "filter": "Iragazkia",
+            "filter-placeholder": "Idatzi bilaketarako"
+        },
+        "clear": "Garbitu",
+        "cancel": "Baliogabetu",
+        "submit": "Bidali",
+        "create": "Sortu"
+    },
+    "validations": {
+        "required": "{property} derrigorrezkoa da.",
+        "minLengthValue": "{property} eremuak  {model} hizki ditu, baina gutxienez  {min} izan beharko lituzke.",
+        "maxLengthValue": "{property} eremuak {model} hizki dauzka, baina gehienez {max} hizki izan ditzake.",
+        "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_"
     }
 }
