@@ -17,7 +17,8 @@
             },
             "deployments": {
                 "manage": "Kudeatu",
-                "text": "Hedapenak"
+                "text": "Hedapenak",
+                "view": "Ikuspegia"
             }
         },
         "help": {
@@ -77,7 +78,8 @@
         },
         "statusbar": {
             "desktops-started": "Idazmahaiak hasi dira",
-            "new-desktop": "Mahaigain berria"
+            "new-desktop": "Mahaigain berria",
+            "checkbox-text": "Abiatuak soilik"
         }
     },
     "views": {
@@ -253,7 +255,8 @@
         },
         "deployments": {
             "no-deployments": {
-                "subtitle": "Akats bat dela uste baduzu, jar zaitez harremanetan administratzailearekin."
+                "subtitle": "Akats bat dela uste baduzu, jar zaitez harremanetan administratzailearekin.",
+                "title": "Erabiltzaile honentzat ez dago hedapenik"
             }
         }
     },
@@ -299,6 +302,7 @@
     "errors": {
         "generic_error": "Errorea gertatu da",
         "create_desktop_user_quota": "Mahaigaina sortzeko erabiltzaileen kuota gainditu zen",
-        "create_desktop_group_quota": "Mahaigainak sortzeko taldearen kuota gainditu zen"
+        "create_desktop_group_quota": "Mahaigainak sortzeko taldearen kuota gainditu zen",
+        "create_desktop_category_quota": "Mahaigaina sortzeko kategoriako kuota gainditu da"
     }
 }
