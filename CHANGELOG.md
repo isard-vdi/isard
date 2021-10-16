@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.5] - 2021-10-16
+
+### Fixed
+
+- Fix checkbox of Allows form
+
 ## [4.8.4] - 2021-10-15
 
 ### Fixed

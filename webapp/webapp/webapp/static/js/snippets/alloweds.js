@@ -59,8 +59,9 @@
 
 	function setAlloweds_add(parentid){
 		ids=['a-roles','a-categories','a-groups','a-users']
-		 $.each(ids,function(idx,id) 
-         {   $(parentid+' #'+id+'-cb').iCheck('uncheck');
+		$.each(ids,function(idx,id){
+			// https://github.com/dargullin/icheck/issues/159
+			$(parentid+' #'+id+'-cb').iCheck('uncheck').iCheck('update');
 			 $(parentid+' #'+id+'-cb').on('ifChecked', function(event){
 				  $(parentid+" #"+id).attr('disabled',false);
 			 });
