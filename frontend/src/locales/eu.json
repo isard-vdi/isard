@@ -215,14 +215,16 @@
                     "title": "Akats"
                 },
                 "stop-timeout": {
-                    "title": "Denboraz kanpo"
+                    "title": "Denboraz kanpo",
+                    "description": "Mahaigaina gelditzen ari da, honek minutu batzuk iraun ditzake"
                 },
                 "stop-error": {
                     "title": "Akats",
                     "description": "Ezin izan genuen mahai birtuala ireki akats baten ondorioz"
                 },
                 "create-timeout": {
-                    "title": "Denbora-mugaz kanpo"
+                    "title": "Denbora-mugaz kanpo",
+                    "description": "Mahaigaina sortzen ari da, eta horrek minutu batzuk iraun dezake"
                 }
             },
             "remove": "Ezabatu",
