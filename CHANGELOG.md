@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.9] - 2021-10-18
+
+### Fixed
+
+- Upgrade script comment: Paths for cron in upgrade script to avoid docker-compose to fail
+- Upgrade script comment: Git version should be at least 2.22 to allow show-current. More info [here](https://github.com/git/git/blob/master/Documentation/RelNotes/2.22.0.txt)
+
 ## [4.8.8] - 2021-10-18
 
 ### Fixed

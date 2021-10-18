@@ -4,7 +4,13 @@
 # Debian derivates installation:
 # apt install jq
 
+# Also requires git >= 2.22.0
+# In debian get the latest from backports.
+# apt install -t buster-backports git
+
 ## Example cron:
+#SHELL=/bin/bash
+#PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 ## 12 4 * * * root /opt/isard/src/isardvdi/sysadm/isard-upgrade-cron.sh >/tmp/isard-upgrade.log 2>&1
 
 KILL_SWITCH_URL="https://isardvdi.com/kill_switch"
