@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.6] - 2021-10-18
+
+### Fixed
+
+- Fix non persistent desktops name
+
 ## [4.8.5] - 2021-10-16
 
 ### Fixed
