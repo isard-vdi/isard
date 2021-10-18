@@ -172,7 +172,7 @@
                 },
                 "waitingip": {
                     "action": "Gelditu",
-                    "text": "Itxaroten IP"
+                    "text": "IPa itxaroten"
                 },
                 "working": {
                     "text": "Itxaroten",
