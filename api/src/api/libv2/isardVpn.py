@@ -38,6 +38,14 @@ class isardVpn():
             mtu=os.environ.get('VPN_MTU','1600')
             postup='iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu'
             endpoint=hyper.get('isard_hyper_vpn_host','isard-vpn')
+        if vpn == 'remotevpn':
+            if not itemid:
+                return False
+            wgdata = r.table('remotevpn').get(itemid).pluck('id','vpn').run(db.conn)
+            port='443'
+            mtu='1420'
+            postup=''
+            endpoint=os.environ['DOMAIN']
         else:
             return False
 
