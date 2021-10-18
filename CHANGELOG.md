@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.8] - 2021-10-18
+
+### Fixed
+
+- Fix download remote vpn config
+
 ## [4.8.7] - 2021-10-18
 
 ### Fixed

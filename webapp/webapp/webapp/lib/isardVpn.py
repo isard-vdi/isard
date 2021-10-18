@@ -35,8 +35,15 @@ class isardVpn():
             port='4443'
             mtu=os.environ.get('VPN_MTU','1600')
             postup='iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu'
-
             endpoint='isard-vpn' if itemid == 'isard-hypervisor' else os.environ['DOMAIN']
+        if vpn == 'remotevpn':
+            if not itemid:
+                return False
+            wgdata = r.table('remotevpn').get(itemid).pluck('id','vpn').run(db.conn)
+            port='443'
+            mtu='1420'
+            postup=''
+            endpoint=os.environ['DOMAIN']
         else:
             return False
 
@@ -46,7 +53,7 @@ class isardVpn():
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
         if not getattr(app, 'wireguard_server_keys', False):
             sysconfig = r.db('isard').table('config').get(1).run(db.conn)
-            app.wireguard_server_keys = sysconfig.get('vpn_'+vpn, {}).get('wireguard', {}).get('keys', False)
+            app.wireguard_server_keys = sysconfig.get('vpn_users', {}).get('wireguard', {}).get('keys', False)
         if not app.wireguard_server_keys:
             log.error('There are no wireguard keys in webapp config yet. Try again in a few seconds...')
             return False
