@@ -118,7 +118,7 @@ class ApiDesktopsNonPersistent():
         create_dict=_parse_media_info(create_dict)
 
         new_desktop={'id': '_'+user_id+'-'+parsed_name,
-                  'name': parsed_name,
+                  'name': template['name'],
                   'description': template['description'],
                   'kind': 'desktop',
                   'user': user_id,
