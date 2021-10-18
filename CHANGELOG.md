@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.10.0] - 2021-10-21
+
+### Added
+
+- Cron script with arguments: -c/--config, -h/--exclude-hyper, -n/--noup. Refer to the script for help
+- Added script to handle upgrades in pacemaker cron environments
+
 ## [4.9.5] - 2021-10-21
 
 ### Fixed
