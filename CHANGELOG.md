@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.10] - 2021-10-19
+
+### Fixed
+
+- Fix download user VPN configuration file, regression of v4.8.8
+
 ## [4.8.9] - 2021-10-18
 
 ### Fixed
