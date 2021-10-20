@@ -337,6 +337,11 @@ $(document).ready(function() {
     modal_add_desktops = $('#modal_add_desktops').DataTable()
     initalize_modal_all_desktops_events()
     $('.btn-add-desktop').on('click', function () {
+        $('#modalAddDesktop #alloweds-block #a-groups').closest('.x_panel').removeClass('datatables-error');
+        $('#modalAddDesktop #alloweds-block #a-groups-error-status').html('').removeClass('my-error');
+        $('#modalAddDesktop #alloweds-block #a-users').closest('.x_panel').removeClass('datatables-error');
+        $('#modalAddDesktop #alloweds-block #a-users-error-status').html('').removeClass('my-error');
+
         $('#allowed-title').html('')
         $('#alloweds_panel').css('display','block');
         setAlloweds_add('#alloweds-block');
@@ -349,12 +354,28 @@ $(document).ready(function() {
             var form = $('#modalAdd');
 
             form.parsley().validate();
-    
+
             if (form.parsley().isValid()){
                 template=$('#modalAddDesktop #template').val();
                 if (template !=''){
                     data=$('#modalAdd').serializeObject();
                     data=replaceAlloweds_arrays('#modalAddDesktop #alloweds-block',data)
+                    if(data.allowed.groups && data.allowed.groups.length == 0){
+                        $('#modalAddDesktop #alloweds-block #a-groups').closest('.x_panel').addClass('datatables-error');
+                        $('#modalAddDesktop #alloweds-block #a-groups-error-status').html('You should add at least one group').addClass('my-error');
+                        return
+                    }else{
+                        $('#modalAddDesktop #alloweds-block #a-groups').closest('.x_panel').removeClass('datatables-error');
+                        $('#modalAddDesktop #alloweds-block #a-groups-error-status').html('').removeClass('my-error');
+                    }
+                    if(data.allowed.users && data.allowed.users.length == 0){
+                        $('#modalAddDesktop #alloweds-block #a-users').closest('.x_panel').addClass('datatables-error');
+                        $('#modalAddDesktop #alloweds-block #a-users-error-status').html('You should add at least one user').addClass('my-error');
+                        return
+                    }else{
+                        $('#modalAddDesktop #alloweds-block #a-users').closest('.x_panel').removeClass('datatables-error');
+                        $('#modalAddDesktop #alloweds-block #a-users-error-status').html('').removeClass('my-error');
+                    }
                     if('tag_visible' in data){
                         data['tag_visible']=true
                     }else{
