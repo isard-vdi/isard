@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.13] - 2021-10-20
+
+### Fixed
+
+- Fix ordering to Action column in admin desktops table
+
 ## [4.8.12] - 2021-10-20
 
 ### Fixed
