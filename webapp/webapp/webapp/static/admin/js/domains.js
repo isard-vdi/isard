@@ -225,7 +225,7 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
 			"columns": columns,
-			 "order": [[5, 'asc']],
+			 "order": [[6, 'asc']],
         "columnDefs": columnDefs,
         "rowCallback": function (row, data) {
             if('server' in data['create_dict']){
