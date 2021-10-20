@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.12] - 2021-10-20
+
+### Fixed
+
+- Fix frontend version substitution, regression of v4.8.1
+
 ## [4.8.11] - 2021-10-20
 
 ### Fixed
