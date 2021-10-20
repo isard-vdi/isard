@@ -110,7 +110,9 @@ def admin_domains_get(kind=False):
 @isAdmin
 def admin_domains_xml(id):
     if request.method == 'POST':
-        res=app.adminapi.update_table_dict('domains',id,request.get_json(force=True))
+        data = request.get_json(force=True)
+        data['status']='Updating'
+        res=app.adminapi.update_table_dict('domains',id,data)
         if res:
             return json.dumps(res), 200,  {'Content-Type': 'application/json'}
         else:
