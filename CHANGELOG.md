@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.11] - 2021-10-20
+
+### Fixed
+
+- Fix Basque translation
+
 ## [4.8.10] - 2021-10-19
 
 ### Fixed
