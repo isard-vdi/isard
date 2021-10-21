@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.14] - 2021-10-21
+
+### Fixed
+
+- Fixed typo in webapp admin api
+
 ## [4.8.13] - 2021-10-20
 
 ### Fixed
