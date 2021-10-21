@@ -4,21 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [4.9.4] - 2021-10-21
 
+### Fixed
+
 - Fixes username in navbar is not clickable in frontend
 
 ## [4.9.3] - 2021-10-21
+
+### Fixed
 
 - Forbids deployment creation to all users by checking groups and users sharing fields
 
 ## [4.9.2] - 2021-10-21
 
+### Fixed
+
 - Fix webapp new desktop create from template inherits the media
 
 ## [4.9.1] - 2021-10-21
 
+### Fixed
+
 - Put domain in Updating state after editing XML as admin
 
 ## [4.9.0] - 2021-10-21
+
+### Added
 
 - Add filter to desktops and templates 
 
