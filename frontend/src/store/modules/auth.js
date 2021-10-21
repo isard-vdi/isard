@@ -52,7 +52,6 @@ export default {
       })
     },
     saveNavigation (context, payload) {
-      console.log(payload)
       const tokens = payload.url.path.toString().split('/')
       context.commit('setUrlTokens', tokens)
     },

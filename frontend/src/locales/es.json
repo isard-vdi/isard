@@ -53,6 +53,7 @@
         "statusbar": {
             "desktops-started": "Desktops arrancados",
             "checkbox-text": "Solo arrancados",
+            "checkbox-text-short": "Arrancados",
             "new-desktop": "Nuevo Escritorio"
         },
         "desktop-cards": {
@@ -67,7 +68,8 @@
                 "viewers": "Visores"
             },
             "no-info-default": "No hay descripción disponible",
-            "open-with": "Accede con"
+            "open-with": "Accede con",
+            "filter-label": "Filtrar"
         },
         "help": {
             "close-guide": "Cerrar la guía",
@@ -167,8 +169,12 @@
             "template": "Plantilla",
             "loading": "Cargando plantillas",
             "no-templates": {
-                "title": "No hay ninguna plantilla para éste usuario!",
+                "title": "No hay ninguna plantilla o escritorio para éste usuario",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "no-desktops": {
+                "title": "No hay escritorios para mostrar con los filtros actuales",
+                "subtitle": "Podéis crear un escritorio nuevo con el botón superior derecho"
             },
             "which-template": "¿Qué escritorio quieres usar?",
             "persistent": "Escritorios persistentes",

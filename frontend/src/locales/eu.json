@@ -135,7 +135,7 @@
         },
         "select-template": {
             "no-templates": {
-                "title": "Erabiltzaile honentzat ez dago txantiloirik!",
+                "title": "Erabiltzaile honentzat ez dago txantiloirik",
                 "subtitle": "Jarri harremanetan administratzailearekin akatsa dela uste baduzu"
             },
             "which-template": "Zein idazmahai erabili nahi duzu?",

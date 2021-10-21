@@ -18,7 +18,7 @@
             "which-template": "Quel bureau voulez-vous utiliser ?",
             "no-templates": {
                 "subtitle": "Si vous pensez qu’il s’agit d’une erreur, veuillez contacter l’administrateur",
-                "title": "Il n’y a pas de modèles pour cet utilisateur !"
+                "title": "Il n’y a pas de modèles pour cet utilisateur"
             },
             "notification": {
                 "downloaded": {

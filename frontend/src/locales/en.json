@@ -53,6 +53,7 @@
         "statusbar": {
             "desktops-started": "Desktops started",
             "checkbox-text": "Only started",
+            "checkbox-text-short": "Started",
             "new-desktop": "New Desktop"
         },
         "desktop-cards": {
@@ -67,7 +68,8 @@
                 "viewers": "Viewers"
             },
             "no-info-default": "No description available",
-            "open-with": "Open with"
+            "open-with": "Open with",
+            "filter-label": "Filter"
         },
         "help": {
             "close-guide": "Close guide",
@@ -167,8 +169,12 @@
             "template": "Template",
             "loading": "Loading templates",
             "no-templates": {
-                "title": "There are no templates for this user!",
+                "title": "There are no templates or desktops for this user",
                 "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "no-desktops": {
+                "title": "There are no desktops to display with current filters",
+                "subtitle": "You may create a new desktop with the top right button"
             },
             "which-template": "Which desktop do you want to use?",
             "persistent": "Persistent desktops",
