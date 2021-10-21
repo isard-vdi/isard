@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.15] - 2021-10-21
+
+### Fixed
+
+- Change gitignore to include all cfg files
+
 ## [4.8.14] - 2021-10-21
 
 ### Fixed
