@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.9.4] - 2021-10-21
+
+- Fixes username in navbar is not clickable in frontend
+
 ## [4.9.3] - 2021-10-21
 
 - Forbids deployment creation to all users by checking groups and users sharing fields
