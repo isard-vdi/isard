@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8.17] - 2021-10-21
+
+### Fixed
+
+- Fix add-hyper-rethink.py syntax
+
 ## [4.8.16] - 2021-10-21
 
 ### Fixed
