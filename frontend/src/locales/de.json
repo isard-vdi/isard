@@ -113,7 +113,11 @@
                 "browser-rdp": "RDP-Browser"
             },
             "viewer": "{name}-Bildbetrachter",
-            "viewers": "Bildbetrachter"
+            "viewers": "Bildbetrachter",
+            "no-desktops": {
+                "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen",
+                "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können"
+            }
         },
         "error": {
             "codes": {
@@ -240,7 +244,8 @@
             "open-with": "Öffnen mit",
             "actions": {
                 "delete": "Löschen"
-            }
+            },
+            "filter-label": "Filtern"
         },
         "rdp-modal": {
             "button-refresh": "Aktualisieren",
@@ -260,7 +265,8 @@
         "statusbar": {
             "checkbox-text": "Nur gestartet",
             "desktops-started": "Arbeitoberfläche gestartet",
-            "new-desktop": "Neue Arbeitoberfläche"
+            "new-desktop": "Neue Arbeitoberfläche",
+            "checkbox-text-short": "Gestartet"
         }
     },
     "forms": {
