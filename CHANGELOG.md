@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.9.5] - 2021-10-21
+
+### Fixed
+
+- Changelog
+
 ## [4.9.4] - 2021-10-21
 
 ### Fixed
