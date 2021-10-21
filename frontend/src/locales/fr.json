@@ -322,8 +322,8 @@
             },
             "desktop-template": "Modèle",
             "section-title-template": "Sélectionnez un modèle :",
-            "desktop-name": "Nom du bureau",
-            "desktop-description": "Description du bureau",
+            "name": "Nom",
+            "description": "Description",
             "filter-placeholder": "Tapez pour rechercher"
         },
         "clear": "Effacer",

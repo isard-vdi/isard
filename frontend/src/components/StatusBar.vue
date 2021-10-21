@@ -7,9 +7,9 @@
            <!-- Left aligned nav items-->
           <b-navbar-nav id="statusbar-content" class="flex-grow flex-row">
             <!-- filter -->
-            <DesktopsFilter class="d-none d-lg-flex"></DesktopsFilter>
+            <DesktopsFilter v-if="locationDesktops && !creationMode" class="d-none d-lg-flex"></DesktopsFilter>
             <!-- Only started checkbox -->
-            <b-nav-item class="ml-4" href="#" @click="toggleDesktopsFilter">
+            <b-nav-item v-if="locationDesktops && !creationMode" class="ml-2 ml-md-4" href="#" @click="toggleDesktopsFilter">
               <div>
                 <b-form-checkbox
                   id="started-checkbox"
@@ -25,7 +25,7 @@
               </div>
             </b-nav-item>
             <!-- Started count -->
-            <b-nav-item disabled class="ml-4">
+            <b-nav-item  disabled class="d-none d-md-inline ml-4">
               <b-icon
                 icon="display-fill"
                 aria-hidden="true"
@@ -36,7 +36,7 @@
           </b-navbar-nav>
 
           <!-- Right aligned nav items-->
-          <div class="pt-1"><b-button v-if="locationDesktops && !creationMode" :pill="true" class="mr-3" variant="outline-primary" size="sm" @click="navigate('NewDesktop')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button></div>
+          <div class="pt-1"><b-button v-if="locationDesktops && !creationMode" :pill="true" class="mr-0 mr-md-4" variant="outline-primary" size="sm" @click="navigate('NewDesktop')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button></div>
           <b-navbar-nav v-if="locationDesktops && !creationMode" class="ml-auto flex-row d-none d-xl-flex">
             <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
               <b-icon

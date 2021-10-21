@@ -408,8 +408,6 @@
 /* Form new desktop */
 .desktop-container {
   margin-top: 7rem !important;
-  padding-left: 7rem;
-  padding-right: 7rem;
 }
 
 .isard-form-error {
