@@ -43,7 +43,7 @@ class isardVpn():
                 return False
             wgdata = r.table('remotevpn').get(itemid).pluck('id','vpn').run(db.conn)
             port='443'
-            mtu='1420'
+            mtu=os.environ.get('VPN_MTU','1600')
             postup=''
             endpoint=os.environ['DOMAIN']
         else:
