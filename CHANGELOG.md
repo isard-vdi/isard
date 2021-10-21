@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.9.2] - 2021-10-21
+
+- Fix webapp new desktop create from template inherits the media
+
 ## [4.9.1] - 2021-10-21
 
 - Put domain in Updating state after editing XML as admin

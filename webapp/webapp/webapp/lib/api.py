@@ -1058,10 +1058,11 @@ class isard():
             ephimeral_group=r.table('groups').get(userObj['group']).pluck('ephimeral').run(db.conn)
         ephimeral = ephimeral_group if 'ephimeral' in ephimeral_group.keys() else  ephimeral_cat
         
-        dom=app.isardapi.get_domain(create_dict['template'])
+        with app.app_context():
+            dom = r.table('domains').get(create_dict['template']).without('xml','xml_to_start','history_domain','hw_stats','disks_info','progress','jumperurl','viewer').run(db.conn)
         if 'forced_hyp' not in dom.keys():
             dom['forced_hyp']=False
-        parent_disk=dom['hardware-disks'][0]['file']
+        parent_disk=dom['hardware']['disks'][0]['file']
 
         qos_id=create_dict.pop('qos_id') if 'qos_id' in create_dict.keys() else False
         parsed_name = self.parse_string(create_dict['name'])
@@ -1070,7 +1071,10 @@ class isard():
                                             'parent':parent_disk,
                                             'qos_id': qos_id}]
 
-        create_dict=self.parse_media_info(create_dict)
+        # In new desktop modal we don't have media, so just copy the media from original
+        create_dict['hardware']['isos']=dom['create_dict']['hardware'].get('isos',[])
+        create_dict['hardware']['floppies']=dom['create_dict']['hardware'].get('floppies',[])
+
         new_domain={'id': '_'+user+'-'+parsed_name,
                   'name': create_dict['name'],
                   'description': create_dict['description'],
