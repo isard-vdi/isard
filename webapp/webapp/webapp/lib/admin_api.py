@@ -249,7 +249,7 @@ class isardAdmin():
                     return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).pluck(pluck).run(db.conn))
                 else:
                     return self.f.table_values_bstrap(r.table(table).filter(lambda doc: doc[field].match('(?i)'+value)).run(db.conn))
-                
+
     def insert_table_dict(self, table, dict):
         with app.app_context():
             return self.check(r.table(table).insert(dict).run(db.conn), 'inserted')
@@ -257,7 +257,7 @@ class isardAdmin():
     def insert_or_update_table_dict(self, table, dict):
         with app.app_context():
             return r.table(table).insert(dict, conflict='update').run(db.conn)
-                                        
+
     def update_table_dict(self, table, id, dict, keep_missing_fields=False):
         with app.app_context():
             if keep_missing_fields == True:
@@ -269,7 +269,8 @@ class isardAdmin():
         with app.app_context():
             data = r.table(table).filter({key:oldvalue}).run(db.conn)
             if data != None:
-                return self,check(r.table(table).filter({key:oldvalue}).update({key:newvalue}).run(db.conn), 'replaced')
+                return self.check(r.table(table).filter({key:oldvalue}).update({key:newvalue}).run(db.conn), 'replaced')
+
     '''
     USERS
     '''
