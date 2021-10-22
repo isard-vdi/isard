@@ -13,12 +13,75 @@
 #PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 ## 12 4 * * * root /opt/isard/src/isardvdi/sysadm/isard-upgrade-cron.sh >/tmp/isard-upgrade.log 2>&1
 
+script_path=$(readlink -f "$0")
+lock_path="${script_path%/*/*/*}"
+
+lockdir=$lock_path/upgrade_lock
+pidfile=$lock_path/upgrade_lock/pid
+
+lock_upgrade(){
+  echo "Trying to lock $lockdir"
+  until mkdir "$lockdir" 2> /dev/null
+  do
+    echo "Lock Exists: $lockdir owned by $(cat $pidfile)"
+          sleep 10
+  done
+
+
+  echo "$(hostname) ($$)" > $pidfile
+  trap 'rm -rf "$lockdir"; exit $?' INT TERM EXIT
+}
+
+unlock_upgrade(){
+  rm -rf "$lockdir"
+  trap - INT TERM EXIT
+}
+
+
+lock_upgrade
+
 KILL_SWITCH_URL="https://isardvdi.com/kill_switch"
 GITLAB_PIPELINES_API="https://gitlab.com/api/v4/projects/21522757/pipelines"
 
-if [ -n "$1" ]
+CONFIG_NAME=""
+DOCKERCOMPOSE_UP=1
+EXCLUDE_HYPER=0
+
+while [ $# -gt 0 ]
+do
+  key="$1"
+  case $key in
+    -c|--config)
+      CONFIG_NAME="$2" # Defaults to use isardvdi.cfg. If set to VALUE will use isardvdi.VALUE.cfg
+      shift
+      shift
+      ;;
+    -h|--exclude-hyper) # This avoids bringing down started desktops
+      EXCLUDE_HYPER=1
+      shift
+      ;;
+    -n|--noup) # This avoid bringing up any container, it will only download newer images.
+      DOCKERCOMPOSE_UP=0
+      shift
+      ;;
+    *)
+      echo "ERROR: Bad flag $key" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ ! -z $CONFIG_NAME ]; then
+	CONFIG_NAME=".${CONFIG_NAME}"
+fi
+echo "- Using isardvdi$CONFIG_NAME.cfg"
+if [ $DOCKERCOMPOSE_UP = 0 ]
 then
-	CONFIG_NAME=".$1"
+	echo "- Will not bring up containers, just download newer images."
+fi
+if [ $EXCLUDE_HYPER = 1 ]
+then
+	echo "- Will not bring up isard-hypervisor."
 fi
 
 SRC=$(dirname $0)/..
@@ -70,7 +133,7 @@ Run the cron script now or wait for the cron to be executed automatically
 " >&2
 	exit 1
 fi
-echo "isardvdi.cfg.example has no changes. Proceeding to execute automatic upgrade"
+echo "isardvdi.cfg.example has no changes. Proceeding to execute automatic upgrade (it can take some minutes)"
 git stash -u
 if ! git merge --ff @{u}
 then
@@ -81,6 +144,20 @@ then
 fi
 git stash pop
 ./build.sh
-services="$(docker-compose -f docker-compose$CONFIG_NAME.yml config --services | sed '/^isard-hypervisor$/d' | sed '/^isard-pipework$/d')"
-docker-compose -f docker-compose$CONIG_NAME.yml pull $services
-docker-compose -f docker-compose$CONFIG_NAME.yml up -d $services
+if [ $EXCLUDE_HYPER = 1 ]
+then
+	services="$(docker-compose -f docker-compose$CONFIG_NAME.yml config --services | sed '/^isard-hypervisor$/d' | sed '/^isard-pipework$/d')"
+else
+	services="$(docker-compose -f docker-compose$CONFIG_NAME.yml config --services)"
+fi
+docker-compose -f docker-compose$CONFIG_NAME.yml pull $services
+
+if [ $DOCKERCOMPOSE_UP = 1 ]
+then
+  echo "Bringing up new images: ${services} (isard-hypervisor is kept running)."
+  docker-compose -f docker-compose$CONFIG_NAME.yml up -d $services
+else
+  echo "Not bringing up new images, they were only pulled."
+fi
+
+unlock_upgrade
