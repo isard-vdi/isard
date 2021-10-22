@@ -2,7 +2,7 @@
 set -e
 
 GITLAB_PROJECT_ID="21522757"
-CHANGELOG_URL="https://gitlab.com/isard/isardvdi/-/blob/main/CHANGELOG.md"
+CHANGELOG_URL="https://gitlab.com/isard/isardvdi/-/releases/"
 
 PARTS_PATH=docker-compose-parts
 ALLINONE_KEY="all-in-one"
@@ -111,12 +111,11 @@ create_env(){
 	# Only display numbered version in official builds via gitlab-ci
 	if is_official_build
 	then
-		version="$(sed -n '1,/^## /s/^## \[\([^\]\+\)\].*/\1/p' CHANGELOG.md)"
-		version_date="$(sed -n '1,/^## /s/^## \[[^\]\+\] - \([[:digit:]-]\+\).*$/\1/p' CHANGELOG.md)"
+		version="$(cat .VERSION)"
+		version_date="$(date +%Y-%m-%d)"
 		version_id="$version $version_date"
-		changelog_anchor="$(echo $version_id | tr -d "." | tr " " "-")"
 		echo SRC_VERSION_ID="$version_id" >> .env
-		echo SRC_VERSION_LINK="$CHANGELOG_URL#$changelog_anchor" >> .env
+		echo SRC_VERSION_LINK="${CHANGELOG_URL}v${version}" >> .env
 	else
 		echo SRC_VERSION_LINK= >> .env
 		if [ -n "$CI_COMMIT_REF_SLUG" ]
