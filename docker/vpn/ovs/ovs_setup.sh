@@ -23,7 +23,7 @@ interface=vlan-wg
 dhcp-range=10.2.0.21,10.2.255.254,255.255.0.0
 dhcp-no-override
 dhcp-authoritative
-dhcp-lease-max=490
+dhcp-lease-max=100000
 dhcp-hostsfile=/var/lib/ovs-vlan-wg.hostsfile
 dhcp-option=121,10.0.0.0/14,10.2.0.1
 dhcp-option=26,1366
@@ -31,6 +31,8 @@ dhcp-option=26,1366
 dhcp-script=/dnsmasq-hook/update-client-ips.sh
 dhcp-leasefile=/var/lib/misc/vlan-wg.leases
 dhcp-option=3
+dhcp-ignore-names
+dhcp-ignore-clid
 EOT
 
 
@@ -39,7 +41,7 @@ EOT
 # echo "dhcp-range=192.168.55.50,192.168.55.150,12h" > /etc/dnsmasq.d/vlan-wg.conf
 # echo "dhcp-script=/update-client-ips.sh"
 echo "$(date): INFO: Starting dnsmasq wireguard server"
-/usr/sbin/dnsmasq --conf-file=/etc/dnsmasq.d/vlan-wg.conf --leasefile-ro --dhcp-script=/dnsmasq-hook/update-client-ips.sh >> /var/log/dnsmasq 2>&1 &
+/usr/sbin/dnsmasq --conf-file=/etc/dnsmasq.d/vlan-wg.conf --dhcp-script=/dnsmasq-hook/update-client-ips.sh >> /var/log/dnsmasq 2>&1 &
 
 # ip a f eth0
 # #ovs-vsctl add-port ovsbr0 eth0
