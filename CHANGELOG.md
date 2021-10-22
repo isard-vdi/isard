@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.10.2] - 2021-10-22
+
+### Fixed
+
+- Fix by adding toolbox to all-in-one flavour
+
 ## [4.10.1] - 2021-10-22
 
 ### Fixed
