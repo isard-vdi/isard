@@ -1,6 +1,20 @@
 #!/bin/sh
 set -e
 
+if [ ! $(which docker) ]; then
+	echo "REQUIREMENT: docker not found in system."
+	echo "             Follow guide at https://docs.docker.com/engine/install/"
+	echo "             or use scripts in sysadmin folder."
+	exit 1
+fi
+
+if [ ! $(which docker-compose) ]; then
+	echo "REQUIREMENT: docker-compose not found in system."
+	echo "             Follow guide at https://docs.docker.com/compose/install/"
+	echo "             or use scripts in sysadmin folder."
+	exit 1
+fi
+
 GITLAB_PROJECT_ID="21522757"
 CHANGELOG_URL="https://gitlab.com/isard/isardvdi/-/blob/main/CHANGELOG.md"
 
