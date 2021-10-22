@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.10.1] - 2021-10-22
+
+### Fixed
+
+- Fixed pacemaker upgrade script by iterating over all isardvdi cfgs
+
 ## [4.10.0] - 2021-10-21
 
 ### Added
