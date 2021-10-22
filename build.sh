@@ -22,6 +22,7 @@ ALLINONE_PARTS="
 	authentication
 	vpn
 	guac
+	toolbox
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
