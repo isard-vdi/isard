@@ -150,12 +150,12 @@ then
 else
 	services="$(docker-compose -f docker-compose$CONFIG_NAME.yml config --services)"
 fi
-docker-compose -f docker-compose$CONFIG_NAME.yml pull $services
+docker-compose -f docker-compose$CONFIG_NAME.yml --ansi never pull $services
 
 if [ $DOCKERCOMPOSE_UP = 1 ]
 then
   echo "Bringing up new images: ${services} (isard-hypervisor is kept running)."
-  docker-compose -f docker-compose$CONFIG_NAME.yml up -d $services
+  docker-compose -f docker-compose$CONFIG_NAME.yml --ansi never up -d $services
 else
   echo "Not bringing up new images, they were only pulled."
 fi

@@ -4,25 +4,31 @@
 # the IsardVDI config. For example:
 # - Resource:     isard (ocf::heartbeat:compose):	Started cluster1-cs
 # - Config:       isardvdi.isard.cfg
-# Then set the configs/resource names that should be pulled and checked for restart.
+# The script will pull all the images coming from all *.cfg and will restart
+# only the one's running in this pacemaker cluster.
+# By default Hypervisor is excluded from restart. You can disable this by setting
+# in environment EXCLUDE_HYPER=0
 
-CONFIGS="isard hyper1 hyper2"
-EXCLUDE_HYPER=1
+EXCLUDE_HYPER=${EXCLUDE_HYPER-1}
 
-for CONFIG_NAME in $CONFIGS; do
+script_path=$(readlink -f "$0")
+cfgs_path="${script_path%/*/*}"
+
+ls $cfgs_path/isardvdi*.cfg | sed -n "s|^$cfgs_path/isardvdi\.\?\([^\.]*\)\.cfg$|\1|p" | while read config_name
+do
     # Download newer images for each flavour but do not bring it up
-    ./isard-upgrade-cron.sh -c $config -n
+    "${script_path%/*}"/isard-upgrade-cron.sh -c "$config_name" -n
     # Check which service is running in this host and restart only this one.
-     server=$(pcs resource status | awk "/\s*$CONFIG_NAME\s+\(ocf::heartbeat:compose\):/{print \$NF}")
+     server=$(pcs resource status | awk "/\s*$config_name\s+\(ocf::heartbeat:compose\):/{print \$NF}")
      if [ "$server" = "$(hostname)" ];then
          if [ $EXCLUDE_HYPER = 1 ]
          then
-            services="$(docker-compose -f ../docker-compose.$CONFIG_NAME.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
+            services="$(docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
          else
-            services="$(docker-compose -f ../docker-compose.$CONFIG_NAME.yml config --services)"
+            services="$(docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml config --services)"
          fi
-         pcs resource unmanage $CONFIG_NAME \
-         && docker-compose -f ../docker-compose.$CONFIG_NAME.yml up -d $services \
-         && pcs resource manage $CONFIG_NAME
+         pcs resource unmanage $config_name \
+         && docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml --ansi never up -d $services \
+         && pcs resource manage $config_name
      fi
 done
