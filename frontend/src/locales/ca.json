@@ -39,7 +39,8 @@
             "open-with": "Accedeix amb",
             "actions": {
                 "delete": "Esborrar"
-            }
+            },
+            "filter-label": "Filtre"
         },
         "help": {
             "close-guide": "Tancar la guia",
