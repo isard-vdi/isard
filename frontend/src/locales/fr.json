@@ -154,7 +154,11 @@
             "volatile-compact": "Temporaires",
             "persistent": "Bureaux permanents",
             "persistent-compact": "Permanents",
-            "template": "Modèle"
+            "template": "Modèle",
+            "no-desktops": {
+                "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels",
+                "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite"
+            }
         },
         "not-found": {
             "back": "Revenir au début",
@@ -273,7 +277,8 @@
             "open-with": "Ouvrir avec",
             "actions": {
                 "delete": "Supprimer"
-            }
+            },
+            "filter-label": "Filtrer"
         },
         "rdp-modal": {
             "button-refresh": "Actualiser",
@@ -293,7 +298,8 @@
         "statusbar": {
             "checkbox-text": "Seulement les démarrés",
             "desktops-started": "Bureaux démarrés",
-            "new-desktop": "Nouveau bureau"
+            "new-desktop": "Nouveau bureau",
+            "checkbox-text-short": "Démarrés"
         }
     },
     "errors": {
