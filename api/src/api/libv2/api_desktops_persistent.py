@@ -50,7 +50,14 @@ class ApiDesktopsPersistent():
         parsed_name = _parse_string(desktop_name)
 
         parent_disk=template['hardware']['disks'][0]['file']
-        dir_disk = payload['category_id']+'/'+payload['group_id']+'/'+payload['user_id']
+        dir_disk = "/".join(
+            (
+                payload['category_id'],
+                payload['group_id'].replace(f"{payload['category_id']}-", ""),
+                payload['user_id'].split("-", 1)[0],
+                "-".join(payload['user_id'].rsplit("-", 2)[-2:])
+            )
+        )
         disk_filename = parsed_name+'.qcow2'
 
         create_dict=template['create_dict']
