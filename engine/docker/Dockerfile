@@ -1,5 +1,6 @@
 FROM alpine:3.12.0 as production
 MAINTAINER isard <info@isard.com>
+WORKDIR /isard
 
 RUN apk add --no-cache \
     yarn \
@@ -35,7 +36,7 @@ RUN apk add --no-cache --virtual .build_deps \
 RUN apk upgrade openssh-client
 RUN pip3 install --upgrade pip
 COPY engine/docker/requirements.pip3 /requirements.pip3
-RUN pip3 install --no-cache-dir -r requirements.pip3
+RUN pip3 install --no-cache-dir -r /requirements.pip3
 RUN pip3 install tabulate pid
 RUN apk del .build_deps
 

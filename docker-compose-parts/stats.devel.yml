@@ -3,7 +3,6 @@ services:
   isard-stats:
     volumes:
       - ${BUILD_ROOT_PATH}/docker/stats/src:/src:rw
-    command: sleep infinity
     # environment:
     #   - STATS_HYP_HOSTNAME=isard-hypervisor
     #   - STATS_HYP_USER=root
