@@ -75,7 +75,7 @@ Follow the extensive documentation to get the most of your installation:
 
 ## Version upgrade notes:
 
-- See [CHANGELOG.md](CHANGELOG.md)
+- See [Release Notes](https://gitlab.com/isard/isardvdi/-/releases)
 
 
 
