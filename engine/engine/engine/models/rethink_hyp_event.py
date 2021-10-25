@@ -1,9 +1,8 @@
 from pprint import pformat
 
-from rethinkdb import r
-
-from engine.services.db.db import new_rethink_connection, close_rethink_connection
+from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.log import log, logs
+from rethinkdb import r
 
 
 class RethinkHypEvent(object):
@@ -15,11 +14,11 @@ class RethinkHypEvent(object):
         log.debug(pformat(dict_event))
         r_conn = new_rethink_connection()
         try:
-            r.table('hypervisors_events').insert(dict_event).run(r_conn)
+            r.table("hypervisors_events").insert(dict_event).run(r_conn)
             close_rethink_connection(r_conn)
         except Exception as e:
-            logs.exception_id.debug('0038')
-            log.error('rethink insert hyp event fail: {}'.format(e))
+            logs.exception_id.debug("0038")
+            log.error("rethink insert hyp event fail: {}".format(e))
 
     def update_viewer_client(self, domain_id, phase, ip_client=False, when=False):
 
@@ -28,16 +27,16 @@ class RethinkHypEvent(object):
 
         # PHASE == 0 => CONNECTED
         if phase == 0:
-            dict_viewer['client_addr'] = ip_client
-            dict_viewer['client_since'] = when
+            dict_viewer["client_addr"] = ip_client
+            dict_viewer["client_since"] = when
 
         # PHASE == 1 => DISCONNECT
         if phase > 1:
-            dict_viewer['client_addr'] = False
-            dict_viewer['client_since'] = False
+            dict_viewer["client_addr"] = False
+            dict_viewer["client_since"] = False
 
-        rtable = r.table('domains')
-        results = rtable.get(domain_id).update({'viewer': dict_viewer}).run(r_conn)
+        rtable = r.table("domains")
+        results = rtable.get(domain_id).update({"viewer": dict_viewer}).run(r_conn)
 
         close_rethink_connection(r_conn)
         return results

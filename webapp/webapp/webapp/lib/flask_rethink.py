@@ -7,16 +7,15 @@
 # coding=utf-8
 
 import rethinkdb as r
+
+# Since no older versions than 0.9 are supported for Flask, this is safe
+from flask import _app_ctx_stack as stack
 from flask import current_app
 
 from ..lib.log import *
 
-# Since no older versions than 0.9 are supported for Flask, this is safe
-from flask import _app_ctx_stack as stack
-
 
 class RethinkDB(object):
-
     def __init__(self, app=None, db=None):
         self.app = app
         self.db = db
@@ -27,19 +26,21 @@ class RethinkDB(object):
         @app.teardown_appcontext
         def teardown(exception):
             ctx = stack.top
-            if hasattr(ctx, 'rethinkdb'):
+            if hasattr(ctx, "rethinkdb"):
                 ctx.rethinkdb.close()
 
     def connect(self):
-        return r.connect(host=current_app.config['RETHINKDB_HOST'],
-                         port=current_app.config['RETHINKDB_PORT'],
-                         auth_key='',
-                         db=self.db or current_app.config['RETHINKDB_DB'])
+        return r.connect(
+            host=current_app.config["RETHINKDB_HOST"],
+            port=current_app.config["RETHINKDB_PORT"],
+            auth_key="",
+            db=self.db or current_app.config["RETHINKDB_DB"],
+        )
 
     @property
     def conn(self):
         ctx = stack.top
         if ctx != None:
-            if not hasattr(ctx, 'rethinkdb'):
+            if not hasattr(ctx, "rethinkdb"):
                 ctx.rethinkdb = self.connect()
             return ctx.rethinkdb

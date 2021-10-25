@@ -1,40 +1,46 @@
-import time, os
-#import subprocess,os
-import socket
+import os
 import pickle
-#import platform
-import struct 
-#import re
 
+# import subprocess,os
+import socket
+
+# import platform
+import struct
+import time
 from threading import Thread
+
+# import re
+
 
 # HOSTNAME=os.environ['HOSTNAME']
 # SERVER=os.environ['STATS_HOST']
 # PORT=2004
 
-class Carbon():
-    def __init__(self,hostname=None,server=None,port=2004):
+
+class Carbon:
+    def __init__(self, hostname=None, server=None, port=2004):
         if hostname is None:
-            self.hostname = os.environ['DOMAIN']
+            self.hostname = os.environ["DOMAIN"]
         else:
             self.hostname = hostname
         if server is None:
-            self.server = os.environ['']
+            self.server = os.environ[""]
         self.port = port
-        
-    def send2carbon(self,dict):
+
+    def send2carbon(self, dict):
         self.send(self.transform(dict))
-        
+
     def transform(self, dicts):
-        tuples = ([])
+        tuples = []
         now = int(time.time())
-        for k,d in dicts.items():
-            if d is False: continue
-            key='isard.sysstats.'+ self.hostname +'.'+k
-            for item,v in d.items():
+        for k, d in dicts.items():
+            if d is False:
+                continue
+            key = "isard.sysstats." + self.hostname + "." + k
+            for item, v in d.items():
                 if type(v) is bool:
                     v = 1 if v is True else 0
-                tuples.append((key+'.'+item, (now, v)))
+                tuples.append((key + "." + item, (now, v)))
         return tuples
 
     def conn(self):
@@ -50,7 +56,7 @@ class Carbon():
         sender = self.conn()
         if sender is not False:
             package = pickle.dumps(tuples, 1)
-            size = struct.pack('!L', len(package))
+            size = struct.pack("!L", len(package))
             sender.sendall(size)
             sender.sendall(package)
             return True

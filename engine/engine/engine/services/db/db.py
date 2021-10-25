@@ -4,13 +4,18 @@
 # License: AGPLv3
 
 import time
-from pprint import pprint, pformat
+from pprint import pformat, pprint
+
+from engine.config import (
+    MAX_QUEUE_DOMAINS_STATUS,
+    RETHINK_DB,
+    RETHINK_HOST,
+    RETHINK_PORT,
+)
+from engine.services.log import *
 
 # coding=utf-8
 from rethinkdb import r
-
-from engine.config import RETHINK_HOST, RETHINK_PORT, RETHINK_DB, MAX_QUEUE_DOMAINS_STATUS
-from engine.services.log import *
 
 ##INFO TO DEVELOPER => TODO: PASAR A config populate => se leerá del rethink
 ## alberto => lo he de hacer independientemente de josep maria
@@ -29,6 +34,7 @@ MAX_LEN_PREV_STATUS_HYP = 10
 #         r_conn_global = r.connect("localhost", 28015, db='isard')
 #         return r_conn_global
 
+
 def new_rethink_connection():
     r_conn = r.connect(RETHINK_HOST, RETHINK_PORT, db=RETHINK_DB)
     # r_conn = r.connect("localhost", 28015, db='isard')
@@ -40,6 +46,7 @@ def new_rethink_connection():
 #     #del r_conn
 #     return True
 
+
 def close_rethink_connection(r_conn):
     r_conn.close()
     del r_conn
@@ -49,9 +56,8 @@ def close_rethink_connection(r_conn):
 def insert_event_in_db(self, dict_event):
     log.debug(pformat(dict_event))
     r_conn = new_rethink_connection()
-    r.table('hypervisors_events').insert(dict_event).run(r_conn)
+    r.table("hypervisors_events").insert(dict_event).run(r_conn)
     close_rethink_connection(r_conn)
-
 
 
 def get_dict_from_item_in_table(table, id):
@@ -63,28 +69,31 @@ def get_dict_from_item_in_table(table, id):
 
 def get_xml_from_virt_viewer(id_virt_viewer):
     r_conn = new_rethink_connection()
-    rtable = r.table('domains_virt_install')
+    rtable = r.table("domains_virt_install")
 
     dict_domain = rtable.get(id_virt_viewer).run(r_conn)
     close_rethink_connection(r_conn)
-    return dict_domain['xml']
+    return dict_domain["xml"]
 
 
 def get_ferrary(id):
     r_conn = new_rethink_connection()
-    rtable = r.table('ferrarys')
+    rtable = r.table("ferrarys")
 
     results = rtable.get(id).run(r_conn)
     close_rethink_connection(r_conn)
-    return results['ferrary']
+    return results["ferrary"]
 
 
-def update_domain_viewer_started_values(id, hyp_id=False,
-                                        spice=False,
-                                        spice_tls=False,
-                                        vnc=False,
-                                        vnc_websocket=False,
-                                        passwd=False):
+def update_domain_viewer_started_values(
+    id,
+    hyp_id=False,
+    spice=False,
+    spice_tls=False,
+    vnc=False,
+    vnc_websocket=False,
+    passwd=False,
+):
     #
     # dict_event = {'domain':dom.name(),
     #               'hyp_id':hyp_id,
@@ -96,55 +105,63 @@ def update_domain_viewer_started_values(id, hyp_id=False,
     hostname_external = False
 
     if hyp_id is False:
-        dict_viewer = { 'static':   False,
-                        'proxy_video':   False,
-                        'proxy_hyper_host':  False,
-                        'base_port':     spice if spice is not False else False,
-                        'passwd':       passwd if passwd is not False else False,
-                        'client_addr':  False,
-                        'client_since': False,
-                        'tls': False
-                        }         
+        dict_viewer = {
+            "static": False,
+            "proxy_video": False,
+            "proxy_hyper_host": False,
+            "base_port": spice if spice is not False else False,
+            "passwd": passwd if passwd is not False else False,
+            "client_addr": False,
+            "client_since": False,
+            "tls": False,
+        }
         # ~ dict_viewer = { 'base_port':    spice if spice is not False else False,
-                        # ~ 'passwd':       passwd if passwd is not False else False,
-                        # ~ } 
+        # ~ 'passwd':       passwd if passwd is not False else False,
+        # ~ }
     else:
-        rtable = r.table('hypervisors')
+        rtable = r.table("hypervisors")
         try:
-            h = rtable.get(hyp_id).pluck('hypervisors_pools','viewer', 'id').run(r_conn)
+            h = (
+                rtable.get(hyp_id)
+                .pluck("hypervisors_pools", "viewer", "id")
+                .run(r_conn)
+            )
 
-            rtable = r.table('hypervisors_pools')
-            hp = rtable.get(h['hypervisors_pools'][0]).pluck('viewer').run(r_conn)
-            dict_viewer = { 'static':   h['viewer']['static'],
-                            'proxy_video':   h['viewer']['proxy_video'],
-                            'html5_ext_port':   h['viewer']['html5_ext_port'],
-                            'spice_ext_port':   h['viewer']['spice_ext_port'],
-                            'proxy_hyper_host':    h['viewer']['proxy_hyper_host'],
-                            'base_port':    int(spice),
-                            # ~ 'passwd':       passwd,
-                            'client_addr':  False,
-                            'client_since': False,
-                            'tls': hp['viewer']
-                            }
+            rtable = r.table("hypervisors_pools")
+            hp = rtable.get(h["hypervisors_pools"][0]).pluck("viewer").run(r_conn)
+            dict_viewer = {
+                "static": h["viewer"]["static"],
+                "proxy_video": h["viewer"]["proxy_video"],
+                "html5_ext_port": h["viewer"]["html5_ext_port"],
+                "spice_ext_port": h["viewer"]["spice_ext_port"],
+                "proxy_hyper_host": h["viewer"]["proxy_hyper_host"],
+                "base_port": int(spice),
+                # ~ 'passwd':       passwd,
+                "client_addr": False,
+                "client_since": False,
+                "tls": hp["viewer"],
+            }
         except Exception as e:
-            logs.exception_id.debug('0040')
-            log.error('hypervisor withouth viewer dict or pool withough viewer dict')
+            logs.exception_id.debug("0040")
+            log.error("hypervisor withouth viewer dict or pool withough viewer dict")
             log.error(e)
-            dict_viewer = {'static': False,
-                           'proxy_video': False,
-                           'proxy_hyper_host': False,
-                           'base_port': spice if spice is not False else False,
-                           'passwd': passwd if passwd is not False else False,
-                           'client_addr': False,
-                           'client_since': False,
-                           'tls': False
-                           }
+            dict_viewer = {
+                "static": False,
+                "proxy_video": False,
+                "proxy_hyper_host": False,
+                "base_port": spice if spice is not False else False,
+                "passwd": passwd if passwd is not False else False,
+                "client_addr": False,
+                "client_since": False,
+                "tls": False,
+            }
     if passwd is not False:
-        dict_viewer['passwd'] = passwd                        
-    results = r.table('domains').get(id).update({'viewer': dict_viewer}).run(r_conn)
+        dict_viewer["passwd"] = passwd
+    results = r.table("domains").get(id).update({"viewer": dict_viewer}).run(r_conn)
 
     close_rethink_connection(r_conn)
     return results
+
 
 #
 # INFO TO DEVELOPER, ELIMINAR ESTA FUNCION
@@ -161,23 +178,30 @@ def update_domain_viewer_started_values(id, hyp_id=False,
 
 def get_engine():
     r_conn = new_rethink_connection()
-    rtable = r.table('engine')
+    rtable = r.table("engine")
     engine = list(rtable.run(r_conn))[0]
     close_rethink_connection(r_conn)
     return engine
 
+
 def get_pool(id_pool):
     r_conn = new_rethink_connection()
-    rtable = r.table('hypervisors_pools')
+    rtable = r.table("hypervisors_pools")
     pool = rtable.get(id_pool).run(r_conn)
     close_rethink_connection(r_conn)
     return pool
 
-def update_pool_round_robin(round_robin_index,type_path,id_pool='default'):
+
+def update_pool_round_robin(round_robin_index, type_path, id_pool="default"):
     r_conn = new_rethink_connection()
-    rtable = r.table('hypervisors_pools')
-    result = rtable.get(id_pool).update({'round_robin_indexes':{type_path:round_robin_index}}).run(r_conn)
+    rtable = r.table("hypervisors_pools")
+    result = (
+        rtable.get(id_pool)
+        .update({"round_robin_indexes": {type_path: round_robin_index}})
+        .run(r_conn)
+    )
     close_rethink_connection(r_conn)
+
 
 # def update_domain_hyp_started(domain_id,hyp_id,detail=''):
 #     r_conn = new_rethink_connection()
@@ -187,25 +211,25 @@ def update_pool_round_robin(round_robin_index,type_path,id_pool='default'):
 #     close_rethink_connection(r_conn)
 #     return result
 
+
 def get_interface(id):
     r_conn = new_rethink_connection()
-    rtable = r.table('interfaces')
+    rtable = r.table("interfaces")
 
     try:
         dict_domain = rtable.get(id).run(r_conn)
     except:
-        log.error('interface with id {} not defined in database table interfaces')
+        log.error("interface with id {} not defined in database table interfaces")
         dict_domain = None
 
     close_rethink_connection(r_conn)
     return dict_domain
 
 
-def create_list_buffer_history_domain(new_status, when, history_domain, detail='', hyp_id=''):
-    d = {'when': when,
-         'status': new_status,
-         'detail': detail,
-         'hyp_id': hyp_id}
+def create_list_buffer_history_domain(
+    new_status, when, history_domain, detail="", hyp_id=""
+):
+    d = {"when": when, "status": new_status, "detail": detail, "hyp_id": hyp_id}
 
     new_history_domain = [d] + history_domain[:MAX_QUEUE_DOMAINS_STATUS]
     return new_history_domain
@@ -216,108 +240,104 @@ def create_list_buffer_history_domain(new_status, when, history_domain, detail='
     # return list(buffer_history_domain)
 
 
-def insert_place(id_place,
-                 name,
-                 rows,
-                 cols,
-                 network=None,
-                 enabled=True,
-                 description='',
-                 ssh_enable=False,
-                 ssh_user='',
-                 ssh_pwd=None,
-                 ssh_port=22,
-                 ssh_key_path=''):
+def insert_place(
+    id_place,
+    name,
+    rows,
+    cols,
+    network=None,
+    enabled=True,
+    description="",
+    ssh_enable=False,
+    ssh_user="",
+    ssh_pwd=None,
+    ssh_port=22,
+    ssh_key_path="",
+):
     r_conn = new_rethink_connection()
-    rtable = r.table('places')
+    rtable = r.table("places")
 
-    rtable.insert({'id': id_place,
-                   'name': name,
-                   'description': description,
-                   'enabled': enabled,
-                   'status': 'Unmanaged',  # Unmanaged / Managed
-                   'detail': 'new place created',
-                   'events_pending': [],
-                   'events_processed': [],
-                   'managed_by_user': None,
-                   'dimensions': {
-                       'w': cols,
-                       'h': rows
-                   },
-                   'network': network,
-                   'ssh': {
-                       'enabled': ssh_enable,
-                       'user': ssh_user,
-                       'pwd': ssh_pwd,
-                       'port': ssh_port,
-                       'ssh_key': ssh_key_path
-                   },
-                   'stats': {
-                       'total_hosts': 0,
-                       'total_ping': 0,
-                       'total_login': 0,
-                       'total_desktops': 0,
-                       'total_viewers': 0,
-                       'total_vcpus': 0,
-                       'total_memory': 0
-                   }
-                   }). \
-        run(r_conn)
+    rtable.insert(
+        {
+            "id": id_place,
+            "name": name,
+            "description": description,
+            "enabled": enabled,
+            "status": "Unmanaged",  # Unmanaged / Managed
+            "detail": "new place created",
+            "events_pending": [],
+            "events_processed": [],
+            "managed_by_user": None,
+            "dimensions": {"w": cols, "h": rows},
+            "network": network,
+            "ssh": {
+                "enabled": ssh_enable,
+                "user": ssh_user,
+                "pwd": ssh_pwd,
+                "port": ssh_port,
+                "ssh_key": ssh_key_path,
+            },
+            "stats": {
+                "total_hosts": 0,
+                "total_ping": 0,
+                "total_login": 0,
+                "total_desktops": 0,
+                "total_viewers": 0,
+                "total_vcpus": 0,
+                "total_memory": 0,
+            },
+        }
+    ).run(r_conn)
 
     close_rethink_connection(r_conn)
 
 
-def insert_host_viewer(hostname,
-                       description,
-                       place_id,
-                       ip,
-                       row,
-                       col,
-                       mac=None,
-                       enabled=True):
+def insert_host_viewer(
+    hostname, description, place_id, ip, row, col, mac=None, enabled=True
+):
     r_conn = new_rethink_connection()
-    rtable = r.table('hosts_viewers')
+    rtable = r.table("hosts_viewers")
 
-    rtable.insert({'hostname': hostname,
-                   'place_id': place_id,
-                   'id': ip,
-                   'position': {'row': row,
-                                'col': col,
-                                'size_x': 1,
-                                'size_y': 1},
-                   'description': description,
-                   'mac': mac,
-                   'enabled': enabled,
-                   'status': 'Offline',  # Offline, online, ready_to_launch_ssh_commands
-                   'logged_user': None,
-                   'desktops_running': [],
-                   'status_time': time.time()}). \
-        run(r_conn)
+    rtable.insert(
+        {
+            "hostname": hostname,
+            "place_id": place_id,
+            "id": ip,
+            "position": {"row": row, "col": col, "size_x": 1, "size_y": 1},
+            "description": description,
+            "mac": mac,
+            "enabled": enabled,
+            "status": "Offline",  # Offline, online, ready_to_launch_ssh_commands
+            "logged_user": None,
+            "desktops_running": [],
+            "status_time": time.time(),
+        }
+    ).run(r_conn)
 
     close_rethink_connection(r_conn)
 
 
 def get_pools_from_hyp(hyp_id):
     r_conn = new_rethink_connection()
-    rtable = r.table('hypervisors')
+    rtable = r.table("hypervisors")
 
-    d = rtable.get(hyp_id).pluck('hypervisors_pools').run(r_conn)
+    d = rtable.get(hyp_id).pluck("hypervisors_pools").run(r_conn)
 
     close_rethink_connection(r_conn)
-    return d['hypervisors_pools']
+    return d["hypervisors_pools"]
 
 
 def insert_action(id_action, parameters, debug=False):
     r_conn = new_rethink_connection()
-    rtable = r.table('actions')
+    rtable = r.table("actions")
 
-    d = {'action': id_action,
-         'parameters': parameters,
-         'debug': debug,
-         'when': time.time()
-         }
-    result = rtable.insert(d). \
-        run(r_conn)
+    d = {
+        "action": id_action,
+        "parameters": parameters,
+        "debug": debug,
+        "when": time.time(),
+    }
+    result = rtable.insert(d).run(r_conn)
     close_rethink_connection(r_conn)
 
     return result
@@ -334,18 +354,20 @@ def get_domains_running_hypervisor(hyp_id):
 def get_domains_from_template_origin():
     return []
 
-def insert_table_dict(table,d_new):
+
+def insert_table_dict(table, d_new):
     r_conn = new_rethink_connection()
     rtable = r.table(table)
 
     result = rtable.insert(d_new).run(r_conn)
     close_rethink_connection(r_conn)
 
-    if result['inserted'] > 0:
+    if result["inserted"] > 0:
         return True
-    if result['errors'] > 0:
-        print(result['first_error'])
+    if result["errors"] > 0:
+        print(result["first_error"])
     return False
+
 
 def delete_table_item(table, id_item):
     r_conn = new_rethink_connection()
@@ -353,53 +375,64 @@ def delete_table_item(table, id_item):
 
     result = rtable.get(id_item).delete().run(r_conn)
     close_rethink_connection(r_conn)
-    if result['deleted'] > 0:
+    if result["deleted"] > 0:
         return True
-    if result['errors'] > 0:
-        print(result['first_error'])
+    if result["errors"] > 0:
+        print(result["first_error"])
     return False
+
 
 def update_table_field(table, id_doc, field, value, merge_dict=True):
     r_conn = new_rethink_connection()
     rtable = r.table(table)
     if merge_dict is True:
-        result = rtable.get(id_doc).update(
-            {field: value}).run(r_conn)
+        result = rtable.get(id_doc).update({field: value}).run(r_conn)
     else:
-        result = rtable.get(id_doc).update(
-            {field: r.literal(value)}).run(r_conn)
+        result = rtable.get(id_doc).update({field: r.literal(value)}).run(r_conn)
     close_rethink_connection(r_conn)
     return result
 
+
 def get_user(id):
     r_conn = new_rethink_connection()
-    rtable = r.table('users')
+    rtable = r.table("users")
 
     dict_user = rtable.get(id).run(r_conn)
     close_rethink_connection(r_conn)
     return dict_user
 
-def update_quota_user(id_user,running_desktops, quota_desktops,quota_templates,mem_max,num_cpus):
-    r_conn = new_rethink_connection()
-    rtable = r.table('users')
 
-    d = { 'quota': {'domains': {'desktops': quota_desktops,
-                               'running': running_desktops,
-                               'templates': quota_templates},
-                              'hardware': {'memory': mem_max, 'vcpus': num_cpus}}}
+def update_quota_user(
+    id_user, running_desktops, quota_desktops, quota_templates, mem_max, num_cpus
+):
+    r_conn = new_rethink_connection()
+    rtable = r.table("users")
+
+    d = {
+        "quota": {
+            "domains": {
+                "desktops": quota_desktops,
+                "running": running_desktops,
+                "templates": quota_templates,
+            },
+            "hardware": {"memory": mem_max, "vcpus": num_cpus},
+        }
+    }
 
     result = rtable.get(id_user).update(d).run(r_conn)
 
     close_rethink_connection(r_conn)
     return result
 
+
 def remove_media(id):
     r_conn = new_rethink_connection()
-    rtable = r.table('media')
+    rtable = r.table("media")
 
     result = rtable.get(id).delete().run(r_conn)
     close_rethink_connection(r_conn)
     return result
+
 
 def get_media_with_status(status):
     """
@@ -408,27 +441,28 @@ def get_media_with_status(status):
     :return: list id_domains
     """
     r_conn = new_rethink_connection()
-    rtable = r.table('media')
+    rtable = r.table("media")
     try:
-        results = rtable.get_all(status, index='status').pluck('id').run(r_conn)
+        results = rtable.get_all(status, index="status").pluck("id").run(r_conn)
         close_rethink_connection(r_conn)
     except:
         # if results is None:
         close_rethink_connection(r_conn)
         return []
-    return [d['id'] for d in results]
+    return [d["id"] for d in results]
 
-def get_graphics_types(id_graphics='default'):
+
+def get_graphics_types(id_graphics="default"):
     """
     get spice graphics options like compression, audio...
     :param id_graphics:
     :return:
     """
     r_conn = new_rethink_connection()
-    rtable = r.table('graphics')
+    rtable = r.table("graphics")
     try:
-        types = rtable.get(id_graphics).pluck('types').run(r_conn)
-        d_types = types['types']
+        types = rtable.get(id_graphics).pluck("types").run(r_conn)
+        d_types = types["types"]
     except:
         d_types = None
     close_rethink_connection(r_conn)

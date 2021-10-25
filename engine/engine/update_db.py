@@ -9,5 +9,5 @@
 from initdb.populate import Populate
 from initdb.upgrade import Upgrade
 
-p=Populate()
-u=Upgrade()
+p = Populate()
+u = Upgrade()

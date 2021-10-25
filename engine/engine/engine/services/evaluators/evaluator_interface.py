@@ -4,5 +4,7 @@
 #      Daniel Criado Casas
 # License: AGPLv3
 
+
 class EvaluatorInterface(object):
-    def run(self): raise NotImplementedError
+    def run(self):
+        raise NotImplementedError

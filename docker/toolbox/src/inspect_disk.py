@@ -1,6 +1,7 @@
 # Example showing how to inspect a virtual machine disk.
- 
+
 import sys
+
 import guestfs
 
 if len(sys.argv) < 2:
@@ -31,9 +32,10 @@ for root in roots:
 
     # Print basic information about the operating system.
     print("  Product name: %s" % (g.inspect_get_product_name(root)))
-    print("  Version:      %d.%d" %
-        (g.inspect_get_major_version(root),
-        g.inspect_get_minor_version(root)))
+    print(
+        "  Version:      %d.%d"
+        % (g.inspect_get_major_version(root), g.inspect_get_minor_version(root))
+    )
     print("  Type:         %s" % (g.inspect_get_type(root)))
     print("  Distro:       %s" % (g.inspect_get_distro(root)))
 

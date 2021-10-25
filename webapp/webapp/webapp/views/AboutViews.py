@@ -3,18 +3,21 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import json
+import os
+
 #!flask/bin/python
 # coding=utf-8
-from flask import render_template, redirect, request, flash, url_for
+from flask import flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required, login_user, logout_user
+
 from webapp import app
-from flask_login import login_required, login_user, logout_user, current_user
-import json
+
+from ..auth.authentication import *
 from ..lib.log import *
 
-import os
-from ..auth.authentication import * 
 
-@app.route('/isard-admin/about', methods=['GET'])
+@app.route("/isard-admin/about", methods=["GET"])
 def about():
     with open("/version", "r") as file:
         version = file.read()

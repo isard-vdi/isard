@@ -5,9 +5,9 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-from api import app
-
 from rethinkdb import RethinkDB
+
+from api import app
 
 r = RethinkDB()
 
@@ -22,7 +22,6 @@ from ..libv2.isardViewer import isardViewer
 isardviewer = isardViewer()
 
 from .apiv2_exc import XmlNotFound
-
 from .ds import DS
 
 ds = DS()

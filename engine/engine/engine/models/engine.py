@@ -4,43 +4,77 @@
 # License: AGPLv3
 # coding=utf-8
 
+import pprint
 import queue
 import threading
 from datetime import datetime
 from time import sleep
-import pprint
-from tabulate import tabulate
 
-from rethinkdb import r
-
-from engine.models.hypervisor_orchestrator import HypervisorsOrchestratorThread
-from engine.config import TEST_HYP_FAIL_INTERVAL, STATUS_POLLING_INTERVAL, TIME_BETWEEN_POLLING, \
-    POLLING_INTERVAL_BACKGROUND
+from engine.config import (
+    POLLING_INTERVAL_BACKGROUND,
+    STATUS_POLLING_INTERVAL,
+    TEST_HYP_FAIL_INTERVAL,
+    TIME_BETWEEN_POLLING,
+)
+from engine.controllers.broom import launch_thread_broom
 from engine.controllers.events_recolector import launch_thread_hyps_event
 from engine.controllers.status import launch_thread_status
-from engine.controllers.broom import launch_thread_broom
 from engine.controllers.ui_actions import UiActions
+from engine.models.hypervisor_orchestrator import HypervisorsOrchestratorThread
 from engine.models.pool_hypervisors import PoolHypervisors
-from engine.services.db.db import new_rethink_connection, \
-    get_pools_from_hyp, update_table_field
-from engine.services.db.hypervisors import get_hyps_ready_to_start, get_hypers_disk_operations, update_hyp_status, \
-    get_hyp_hostname_user_port_from_id, update_all_hyps_status, get_hyps_with_status
-from engine.services.db import get_domain_hyp_started, get_if_all_disk_template_created, \
-    set_unknown_domains_not_in_hyps, get_domain, remove_domain, update_domain_history_from_id_domain, \
-    get_hypers_ids_with_status, delete_table_item
-from engine.services.db.domains import update_domain_status, update_domain_start_after_created, update_domain_delete_after_stopped
-from engine.services.lib.functions import get_threads_running, get_tid, engine_restart, clean_started_without_hyp, \
-    domain_status_from_started_to_unknown
+from engine.services.db import (
+    delete_table_item,
+    get_domain,
+    get_domain_hyp_started,
+    get_hypers_ids_with_status,
+    get_if_all_disk_template_created,
+    remove_domain,
+    set_unknown_domains_not_in_hyps,
+    update_domain_history_from_id_domain,
+)
+from engine.services.db.db import (
+    get_pools_from_hyp,
+    new_rethink_connection,
+    update_table_field,
+)
+from engine.services.db.domains import (
+    update_domain_delete_after_stopped,
+    update_domain_start_after_created,
+    update_domain_status,
+)
+from engine.services.db.hypervisors import (
+    get_hyp_hostname_user_port_from_id,
+    get_hypers_disk_operations,
+    get_hyps_ready_to_start,
+    get_hyps_with_status,
+    update_all_hyps_status,
+    update_hyp_status,
+)
+from engine.services.lib.functions import (
+    QueuesThreads,
+    clean_intermediate_status,
+    clean_started_without_hyp,
+    domain_status_from_started_to_unknown,
+    engine_restart,
+    get_threads_running,
+    get_tid,
+)
 from engine.services.lib.qcow import test_hypers_disk_operations
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
-from engine.services.threads.threads import launch_try_hyps, set_domains_coherence, launch_thread_worker, \
-    launch_disk_operations_thread, \
-    launch_long_operations_thread
-from engine.services.lib.functions import clean_intermediate_status, QueuesThreads
 from engine.services.threads.grafana_thread import launch_grafana_thread
+from engine.services.threads.threads import (
+    launch_disk_operations_thread,
+    launch_long_operations_thread,
+    launch_thread_worker,
+    launch_try_hyps,
+    set_domains_coherence,
+)
+from rethinkdb import r
+from tabulate import tabulate
 
 WAIT_HYP_ONLINE = 2.0
+
 
 class Engine(object):
     """Main class that control and launch all threads.
@@ -53,11 +87,15 @@ class Engine(object):
     test_hyp_fail_interval: seconds waiting between test if all is ok
                             in queue of actions in ThreadBackground"""
 
-    def __init__(self, launch_threads=True, with_status_threads=True,
-                 status_polling_interval=STATUS_POLLING_INTERVAL,
-                 test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL):
+    def __init__(
+        self,
+        launch_threads=True,
+        with_status_threads=True,
+        status_polling_interval=STATUS_POLLING_INTERVAL,
+        test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL,
+    ):
 
-        logs.main.info('MAIN TID: {}'.format(get_tid()))
+        logs.main.info("MAIN TID: {}".format(get_tid()))
 
         self.time_between_polling = TIME_BETWEEN_POLLING
         self.polling_interval_background = POLLING_INTERVAL_BACKGROUND
@@ -91,17 +129,19 @@ class Engine(object):
         self.TEST_HYP_FAIL_INTERVAL = test_hyp_fail_interval
 
         # delete hypervisors in status deleting
-        hypers_to_delete = get_hypers_ids_with_status('Deleting')
+        hypers_to_delete = get_hypers_ids_with_status("Deleting")
         for hyp_id_delete in hypers_to_delete:
-            logs.main.error(f'Deleting from database hypervisor {hyp_id_delete} with status Deleting')
-            delete_table_item('hypervisors', hyp_id_delete)
+            logs.main.error(
+                f"Deleting from database hypervisor {hyp_id_delete} with status Deleting"
+            )
+            delete_table_item("hypervisors", hyp_id_delete)
 
-        update_all_hyps_status(reset_status='Offline')
+        update_all_hyps_status(reset_status="Offline")
         if launch_threads is True:
             self.launch_thread_background_polling()
 
     def launch_thread_background_polling(self):
-        self.t_background = self.ThreadBackground(name='manager_pooling', parent=self)
+        self.t_background = self.ThreadBackground(name="manager_pooling", parent=self)
         self.t_background.daemon = True
         self.t_background.start()
 
@@ -120,15 +160,18 @@ class Engine(object):
         def check_and_start_hyps(self):
             pass
 
-
         def run(self):
             self.tid = get_tid()
-            logs.main.info('starting thread background: {} (TID {})'.format(self.name, self.tid))
+            logs.main.info(
+                "starting thread background: {} (TID {})".format(self.name, self.tid)
+            )
             q = self.manager.q.background
             first_loop = True
-            pool_id = 'default'
-            #can't launch downloads if download changes thread is not ready and hyps are not online
-            update_table_field('hypervisors_pools', pool_id, 'download_changes', 'Stopped')
+            pool_id = "default"
+            # can't launch downloads if download changes thread is not ready and hyps are not online
+            update_table_field(
+                "hypervisors_pools", pool_id, "download_changes", "Stopped"
+            )
 
             # if domains have intermedite states (updating, download_aborting...)
             # to Failed, Stopped or Delete
@@ -151,19 +194,52 @@ class Engine(object):
                 if threads_running is not False:
                     l_old_threads_running = l_threads_running.copy()
                 threads_running = get_threads_running()
-                l_threads_running = {t.ident:[t.name, t.native_id, t.tid if hasattr(t, 'tid') else 0,t.ident] for t in threads_running}
+                l_threads_running = {
+                    t.ident: [
+                        t.name,
+                        t.native_id,
+                        t.tid if hasattr(t, "tid") else 0,
+                        t.ident,
+                    ]
+                    for t in threads_running
+                }
                 if l_old_threads_running is not False:
-                    if len(set(l_old_threads_running.keys()).symmetric_difference(set(l_threads_running.keys()))) > 0:
-                        logs.main.info('#####  CHANGES IN THREADS THREADS ##################')
-                        threads_started = [l_threads_running[k] for k in set(l_threads_running.keys()).difference(set(l_old_threads_running.keys()))]
-                        threads_dead = [l_old_threads_running[k] for k in set(l_old_threads_running.keys()).difference(set(l_threads_running.keys()))]
+                    if (
+                        len(
+                            set(l_old_threads_running.keys()).symmetric_difference(
+                                set(l_threads_running.keys())
+                            )
+                        )
+                        > 0
+                    ):
+                        logs.main.info(
+                            "#####  CHANGES IN THREADS THREADS ##################"
+                        )
+                        threads_started = [
+                            l_threads_running[k]
+                            for k in set(l_threads_running.keys()).difference(
+                                set(l_old_threads_running.keys())
+                            )
+                        ]
+                        threads_dead = [
+                            l_old_threads_running[k]
+                            for k in set(l_old_threads_running.keys()).difference(
+                                set(l_threads_running.keys())
+                            )
+                        ]
 
-                        table = [['new'] + l for l in threads_started] + [['dead'] + l for l in threads_dead]
-                        table_tabulated = '\n' + tabulate(table, headers=['state','name','tid','id'],tablefmt="github")
+                        table = [["new"] + l for l in threads_started] + [
+                            ["dead"] + l for l in threads_dead
+                        ]
+                        table_tabulated = "\n" + tabulate(
+                            table,
+                            headers=["state", "name", "tid", "id"],
+                            tablefmt="github",
+                        )
                         logs.threads.info(table_tabulated)
 
-                #pprint.pprint(threads_running)
-                #self.manager.update_info_threads_engine()
+                # pprint.pprint(threads_running)
+                # self.manager.update_info_threads_engine()
 
                 # Threads that must be running always, with or withouth hypervisor:
                 # - changes_hyp
@@ -180,65 +256,82 @@ class Engine(object):
                 #     - worker
                 #     - status
 
-
                 # LAUNCH MAIN THREADS
                 if first_loop is True:
-                    update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
+                    update_table_field(
+                        "engine", "engine", "status_all_threads", "Starting"
+                    )
 
-                    #launch changes_domains_thread
-                    self.manager.t_changes_domains = self.manager.DomainsChangesThread('changes_domains', self.manager)
+                    # launch changes_domains_thread
+                    self.manager.t_changes_domains = self.manager.DomainsChangesThread(
+                        "changes_domains", self.manager
+                    )
                     self.manager.t_changes_domains.daemon = True
                     self.manager.t_changes_domains.start()
 
-                    #launch downloads changes thread
-                    logs.main.debug('Launching Download Changes Thread')
-                    self.manager.pools['default'] = PoolHypervisors('default')
-                    self.manager.t_downloads_changes = launch_thread_download_changes(self.manager.pools['default'],
-                                                                                      self.manager.q.workers,
-                                                                                      self.manager.t_disk_operations)
+                    # launch downloads changes thread
+                    logs.main.debug("Launching Download Changes Thread")
+                    self.manager.pools["default"] = PoolHypervisors("default")
+                    self.manager.t_downloads_changes = launch_thread_download_changes(
+                        self.manager.pools["default"],
+                        self.manager.q.workers,
+                        self.manager.t_disk_operations,
+                    )
 
-                    #launch brom thread
+                    # launch brom thread
                     self.manager.t_broom = launch_thread_broom(self.manager)
 
-                    #launch events thread
-                    logs.main.debug('launching hypervisor events thread')
+                    # launch events thread
+                    logs.main.debug("launching hypervisor events thread")
                     self.manager.t_events = launch_thread_hyps_event()
 
                     # launch orchestrator thread
-                    self.manager.t_orchestrator = HypervisorsOrchestratorThread('orchestrator',
-                                                                                t_workers=self.manager.t_workers,
-                                                                                t_events=self.manager.t_events,
-                                                                                t_disk_operations = self.manager.t_disk_operations,
-                                                                                q_disk_operations = self.manager.q_disk_operations,
-                                                                                t_long_operations = self.manager.t_long_operations,
-                                                                                q_long_operations = self.manager.q_long_operations,
-                                                                                queues_object=self.manager.q)
+                    self.manager.t_orchestrator = HypervisorsOrchestratorThread(
+                        "orchestrator",
+                        t_workers=self.manager.t_workers,
+                        t_events=self.manager.t_events,
+                        t_disk_operations=self.manager.t_disk_operations,
+                        q_disk_operations=self.manager.q_disk_operations,
+                        t_long_operations=self.manager.t_long_operations,
+                        q_long_operations=self.manager.q_long_operations,
+                        queues_object=self.manager.q,
+                    )
                     self.manager.t_orchestrator.daemon = True
                     self.manager.t_orchestrator.start()
 
+                    # launch grafana thread
+                    logs.main.debug("launching grafana thread")
+                    self.manager.t_grafana = launch_grafana_thread(
+                        self.manager.t_status, self.manager
+                    )
 
-
-                    #launch grafana thread
-                    logs.main.debug('launching grafana thread')
-                    self.manager.t_grafana = launch_grafana_thread(self.manager.t_status,self.manager)
-
-                    logs.main.info('THREADS LAUNCHED FROM BACKGROUND THREAD')
-                    update_table_field('engine', 'engine', 'status_all_threads', 'Starting')
+                    logs.main.info("THREADS LAUNCHED FROM BACKGROUND THREAD")
+                    update_table_field(
+                        "engine", "engine", "status_all_threads", "Starting"
+                    )
 
                     while True:
-                        #wait all
+                        # wait all
                         sleep(0.1)
                         self.manager.update_info_threads_engine()
 
-                        #if len(self.manager.threads_info_main['not_defined']) > 0 and len(self.manager.dict_hyps_ready) == 0:
-                        if len(self.manager.threads_info_main['not_defined']) > 0 or len(self.manager.threads_info_main['dead']) > 0:
-                            print('MAIN THREADS starting, wait a second extra')
+                        # if len(self.manager.threads_info_main['not_defined']) > 0 and len(self.manager.dict_hyps_ready) == 0:
+                        if (
+                            len(self.manager.threads_info_main["not_defined"]) > 0
+                            or len(self.manager.threads_info_main["dead"]) > 0
+                        ):
+                            print("MAIN THREADS starting, wait a second extra")
                             sleep(1)
                             self.manager.update_info_threads_engine()
                             pprint.pprint(self.manager.threads_info_main)
-                            #self.test_hyps_and_start_threads()
-                        if len(self.manager.threads_info_main['not_defined']) == 0 and len(self.manager.threads_info_main['dead']) == 0:
-                            update_table_field('engine', 'engine', 'status_all_threads', 'Started')
+                            # self.test_hyps_and_start_threads()
+                        if (
+                            len(self.manager.threads_info_main["not_defined"]) == 0
+                            and len(self.manager.threads_info_main["dead"]) == 0
+                        ):
+                            update_table_field(
+                                "engine", "engine", "status_all_threads", "Started"
+                            )
                             self.manager.threads_main_started = True
                             break
 
@@ -248,33 +341,40 @@ class Engine(object):
                     first_loop = False
 
                 self.manager.update_info_threads_engine()
-                if len(self.manager.threads_info_hyps['not_defined']) > 0:
-                    logs.main.error('something was wrong when launching threads for hypervisors, threads not defined')
+                if len(self.manager.threads_info_hyps["not_defined"]) > 0:
+                    logs.main.error(
+                        "something was wrong when launching threads for hypervisors, threads not defined"
+                    )
                     logs.main.error(pprint.pformat(self.manager.threads_info_hyps))
-                if len(self.manager.threads_info_hyps['dead']) > 0:
-                    logs.main.error('something was wrong when launching threads for hypervisors, threads are dead')
+                if len(self.manager.threads_info_hyps["dead"]) > 0:
+                    logs.main.error(
+                        "something was wrong when launching threads for hypervisors, threads are dead"
+                    )
                     logs.main.error(pprint.pformat(self.manager.threads_info_hyps))
-                if len(self.manager.threads_info_hyps['dead']) == 0 and len(self.manager.threads_info_hyps['not_defined']) == 0:
+                if (
+                    len(self.manager.threads_info_hyps["dead"]) == 0
+                    and len(self.manager.threads_info_hyps["not_defined"]) == 0
+                ):
                     pass
 
                 try:
                     if len(self.manager.t_workers) == 0:
                         timeout_queue = WAIT_HYP_ONLINE
-                        logs.main.debug('WAITING HYPERVISORS ONLINE...')
+                        logs.main.debug("WAITING HYPERVISORS ONLINE...")
                     else:
                         timeout_queue = TEST_HYP_FAIL_INTERVAL
 
-                    #ACTIONS TO DO IN MAIN THREAD WITH QUEUE
+                    # ACTIONS TO DO IN MAIN THREAD WITH QUEUE
                     action = q.get(timeout=timeout_queue)
-                    #STOP
-                    if action['type'] == 'stop':
+                    # STOP
+                    if action["type"] == "stop":
                         self.manager.quit = True
-                        logs.main.info('engine end')
+                        logs.main.info("engine end")
 
                 except queue.Empty:
                     pass
                 except Exception as e:
-                    logs.exception_id.debug('0025')
+                    logs.exception_id.debug("0025")
                     logs.main.error(e)
                     return False
 
@@ -288,52 +388,74 @@ class Engine(object):
 
         def run(self):
             self.tid = get_tid()
-            logs.changes.info('starting thread: {} (TID {})'.format(self.name, self.tid))
-            logs.changes.debug('^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^')
+            logs.changes.info(
+                "starting thread: {} (TID {})".format(self.name, self.tid)
+            )
+            logs.changes.debug(
+                "^^^^^^^^^^^^^^^^^^^ DOMAIN CHANGES THREAD ^^^^^^^^^^^^^^^^^"
+            )
             ui = UiActions(self.manager)
 
             self.r_conn = new_rethink_connection()
 
-            cursor = r.table('domains').pluck('id', 'kind', 'status', 'detail').merge({'table': 'domains'}).changes().\
-                union(r.table('engine').pluck('threads', 'status_all_threads').merge({'table': 'engine'}).changes()).\
-                run(self.r_conn)
+            cursor = (
+                r.table("domains")
+                .pluck("id", "kind", "status", "detail")
+                .merge({"table": "domains"})
+                .changes()
+                .union(
+                    r.table("engine")
+                    .pluck("threads", "status_all_threads")
+                    .merge({"table": "engine"})
+                    .changes()
+                )
+                .run(self.r_conn)
+            )
 
             for c in cursor:
 
                 if self.stop is True:
                     break
 
-                if c.get('new_val', None) != None:
-                    if c['new_val']['table'] == 'engine':
-                        if c['new_val']['status_all_threads'] == 'Stopping':
+                if c.get("new_val", None) != None:
+                    if c["new_val"]["table"] == "engine":
+                        if c["new_val"]["status_all_threads"] == "Stopping":
                             break
                         else:
                             continue
 
-                if c['old_val'] is None:
-                    domain_id_for_logs = c.get('new_val', {}).get('id', 'NODOMAIN')
-                    old_status_for_logs = 'NONE'
-                    new_status_for_logs = c.get('new_val', {}).get('status', 'NONE')
+                if c["old_val"] is None:
+                    domain_id_for_logs = c.get("new_val", {}).get("id", "NODOMAIN")
+                    old_status_for_logs = "NONE"
+                    new_status_for_logs = c.get("new_val", {}).get("status", "NONE")
 
-                elif c['new_val'] is None:
-                    domain_id_for_logs = c.get('old_val', {}).get('id', 'NODOMAIN')
-                    old_status_for_logs = c.get('old_val', {}).get('status', 'NONE'),
-                    new_status_for_logs = 'NONE'
+                elif c["new_val"] is None:
+                    domain_id_for_logs = c.get("old_val", {}).get("id", "NODOMAIN")
+                    old_status_for_logs = (c.get("old_val", {}).get("status", "NONE"),)
+                    new_status_for_logs = "NONE"
                 else:
-                    domain_id_for_logs = c.get('old_val', {}).get('id', c.get('new_val', {}).get('id', 'NODOMAIN'))
-                    old_status_for_logs = c.get('old_val',{}).get('status','NONE'),
-                    new_status_for_logs = c.get('new_val',{}).get('status','NONE')
-                logs.changes.debug('domain changes detected in main thread')
-                logs.changes.debug(f'** {domain_id_for_logs} :: {old_status_for_logs} --> {new_status_for_logs}')
+                    domain_id_for_logs = c.get("old_val", {}).get(
+                        "id", c.get("new_val", {}).get("id", "NODOMAIN")
+                    )
+                    old_status_for_logs = (c.get("old_val", {}).get("status", "NONE"),)
+                    new_status_for_logs = c.get("new_val", {}).get("status", "NONE")
+                logs.changes.debug("domain changes detected in main thread")
+                logs.changes.debug(
+                    f"** {domain_id_for_logs} :: {old_status_for_logs} --> {new_status_for_logs}"
+                )
 
-                detail_msg_if_no_hyps_online = 'No hypervisors Online in pool'
+                detail_msg_if_no_hyps_online = "No hypervisors Online in pool"
                 if self.manager.check_actions_domains_enabled() is False:
-                    if c.get('new_val', None) != None:
-                        if c.get('old_val', None) != None:
-                            if c['new_val']['status'][-3:] == 'ing':
-                                update_domain_status(c['old_val']['status'], c['old_val']['id'], detail=detail_msg_if_no_hyps_online)
+                    if c.get("new_val", None) != None:
+                        if c.get("old_val", None) != None:
+                            if c["new_val"]["status"][-3:] == "ing":
+                                update_domain_status(
+                                    c["old_val"]["status"],
+                                    c["old_val"]["id"],
+                                    detail=detail_msg_if_no_hyps_online,
+                                )
 
-                    #if no hypervisor availables no check status changes
+                    # if no hypervisor availables no check status changes
                     continue
 
                 new_domain = False
@@ -341,105 +463,138 @@ class Engine(object):
                 old_status = False
                 logs.changes.debug(pprint.pformat(c))
 
-
-
                 # action deleted
-                if c.get('new_val', None) is None:
+                if c.get("new_val", None) is None:
                     pass
                 # action created
-                if c.get('old_val', None) is None:
+                if c.get("old_val", None) is None:
                     new_domain = True
-                    new_status = c['new_val']['status']
-                    domain_id = c['new_val']['id']
-                    logs.changes.debug('domain_id: {}'.format(new_domain))
+                    new_status = c["new_val"]["status"]
+                    domain_id = c["new_val"]["id"]
+                    logs.changes.debug("domain_id: {}".format(new_domain))
                     # if engine is stopped/restarting or not hypervisors online
                     if self.manager.check_actions_domains_enabled() is False:
                         continue
                     pass
 
-                if c.get('new_val', None) != None and c.get('old_val', None) != None:
-                    old_status = c['old_val']['status']
-                    new_status = c['new_val']['status']
-                    new_detail = c['new_val']['detail']
-                    domain_id = c['new_val']['id']
-                    logs.changes.debug('domain_id: {}'.format(domain_id))
+                if c.get("new_val", None) != None and c.get("old_val", None) != None:
+                    old_status = c["old_val"]["status"]
+                    new_status = c["new_val"]["status"]
+                    new_detail = c["new_val"]["detail"]
+                    domain_id = c["new_val"]["id"]
+                    logs.changes.debug("domain_id: {}".format(domain_id))
                     # if engine is stopped/restarting or not hypervisors online
 
-
-
-
                     if old_status != new_status:
-
-
 
                         # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
                         # if new_status[-3:] == 'ing':
                         if 1 > 0:
                             date_now = datetime.now()
-                            update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now)
+                            update_domain_history_from_id_domain(
+                                domain_id, new_status, new_detail, date_now
+                            )
                     else:
                         # print('&&&&&&&ESTADOS IGUALES OJO &&&&&&&\n&&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.
                         #       format(domain_id,old_status,new_status,new_detail))
                         pass
 
-                if (new_domain is True and new_status == "CreatingDiskFromScratch") or \
-                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingDiskFromScratch"):
+                if (new_domain is True and new_status == "CreatingDiskFromScratch") or (
+                    old_status == "FailedCreatingDomain"
+                    and new_status == "CreatingDiskFromScratch"
+                ):
                     ui.creating_disk_from_scratch(domain_id)
 
-                if (new_domain is True and new_status == "Creating") or \
-                        (old_status == 'FailedCreatingDomain' and new_status == "Creating"):
+                if (new_domain is True and new_status == "Creating") or (
+                    old_status == "FailedCreatingDomain" and new_status == "Creating"
+                ):
                     ui.creating_disks_from_template(domain_id)
 
-                if (new_domain is True and new_status == "CreatingAndStarting"):
+                if new_domain is True and new_status == "CreatingAndStarting":
                     update_domain_start_after_created(domain_id)
                     ui.creating_disks_from_template(domain_id)
-
 
                     # INFO TO DEVELOPER
                     # recoger template de la que hay que derivar
                     # verificar que realmente es una template
                     # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                if (new_domain is True and new_status == "CreatingFromBuilder") or \
-                        (old_status == 'FailedCreatingDomain' and new_status == "CreatingFromBuilder"):
+                if (new_domain is True and new_status == "CreatingFromBuilder") or (
+                    old_status == "FailedCreatingDomain"
+                    and new_status == "CreatingFromBuilder"
+                ):
                     ui.creating_disk_from_virtbuilder(domain_id)
 
-                if (old_status in ['CreatingDisk','CreatingDiskFromScratch'] and new_status == "CreatingDomain") or \
-                   (new_domain is True and new_status == "CreatingDomainFromDisk") or \
-                        (old_status == 'RunningVirtBuilder' and new_status == "CreatingDomainFromBuilder"):
-                    logs.changes.debug('llamo a creating_and_test_xml con domain id {}'.format(domain_id))
+                if (
+                    (
+                        old_status in ["CreatingDisk", "CreatingDiskFromScratch"]
+                        and new_status == "CreatingDomain"
+                    )
+                    or (new_domain is True and new_status == "CreatingDomainFromDisk")
+                    or (
+                        old_status == "RunningVirtBuilder"
+                        and new_status == "CreatingDomainFromBuilder"
+                    )
+                ):
+                    logs.changes.debug(
+                        "llamo a creating_and_test_xml con domain id {}".format(
+                            domain_id
+                        )
+                    )
                     if new_status == "CreatingDomainFromBuilder":
-                        ui.creating_and_test_xml_start(domain_id,
-                                                       creating_from_create_dict=True,
-                                                       xml_from_virt_install=True,ssl=True)
-                    if new_status == "CreatingDomain" or new_status == "CreatingDomainFromDisk":
-                        ui.creating_and_test_xml_start(domain_id,
-                                                       creating_from_create_dict=True,ssl=True)
+                        ui.creating_and_test_xml_start(
+                            domain_id,
+                            creating_from_create_dict=True,
+                            xml_from_virt_install=True,
+                            ssl=True,
+                        )
+                    if (
+                        new_status == "CreatingDomain"
+                        or new_status == "CreatingDomainFromDisk"
+                    ):
+                        ui.creating_and_test_xml_start(
+                            domain_id, creating_from_create_dict=True, ssl=True
+                        )
 
-                if old_status == 'Stopped' and new_status == "CreatingTemplate":
+                if old_status == "Stopped" and new_status == "CreatingTemplate":
                     ui.create_template_disks_from_domain(domain_id)
 
-                if old_status not in ['Started','Shutting-down'] and new_status == "Deleting":
+                if (
+                    old_status not in ["Started", "Shutting-down"]
+                    and new_status == "Deleting"
+                ):
                     # or \
                     #     old_status == 'Failed' and new_status == "Deleting" or \
                     #     old_status == 'Downloaded' and new_status == "Deleting":
                     ui.deleting_disks_from_domain(domain_id)
 
-                if (old_status == 'Stopped' and new_status == "Updating") or \
-                   (old_status == 'Failed' and new_status == "Updating") or \
-                        (old_status == 'Downloaded' and new_status == "Updating"):
-                    ui.updating_from_create_dict(domain_id,ssl=True)
+                if (
+                    (old_status == "Stopped" and new_status == "Updating")
+                    or (old_status == "Failed" and new_status == "Updating")
+                    or (old_status == "Downloaded" and new_status == "Updating")
+                ):
+                    ui.updating_from_create_dict(domain_id, ssl=True)
 
-                if old_status == 'DeletingDomainDisk' and new_status == "DiskDeleted":
-                    logs.changes.debug('disk deleted, mow remove domain form database')
+                if old_status == "DeletingDomainDisk" and new_status == "DiskDeleted":
+                    logs.changes.debug("disk deleted, mow remove domain form database")
                     remove_domain(domain_id)
                     if get_domain(domain_id) is None:
-                        logs.changes.info('domain {} deleted from database'.format(domain_id))
+                        logs.changes.info(
+                            "domain {} deleted from database".format(domain_id)
+                        )
                     else:
-                        update_domain_status('Failed', domain_id,
-                                             detail='domain {} can not be deleted from database'.format(domain_id))
+                        update_domain_status(
+                            "Failed",
+                            domain_id,
+                            detail="domain {} can not be deleted from database".format(
+                                domain_id
+                            ),
+                        )
 
-                if old_status == 'CreatingTemplateDisk' and new_status == "TemplateDiskCreated":
+                if (
+                    old_status == "CreatingTemplateDisk"
+                    and new_status == "TemplateDiskCreated"
+                ):
                     # create_template_from_dict(dict_new_template)
                     if get_if_all_disk_template_created(domain_id):
                         ui.create_template_in_db(domain_id)
@@ -447,51 +602,71 @@ class Engine(object):
                         # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
                         # creación de una template con dos discos y ver si pasa por aquí
                         # waiting to create other disks
-                        update_domain_status(status='CreatingTemplateDisk',
-                                             id_domain=domain_id,
-                                             hyp_id=False,
-                                             detail='Waiting to create more disks for template')
+                        update_domain_status(
+                            status="CreatingTemplateDisk",
+                            id_domain=domain_id,
+                            hyp_id=False,
+                            detail="Waiting to create more disks for template",
+                        )
 
-                if (old_status == 'Stopped' and new_status == "StartingPaused") or \
-                        (old_status == 'Failed' and new_status == "StartingPaused"):
-                    ui.start_domain_from_id(id=domain_id, ssl=True, starting_paused=True)
+                if (old_status == "Stopped" and new_status == "StartingPaused") or (
+                    old_status == "Failed" and new_status == "StartingPaused"
+                ):
+                    ui.start_domain_from_id(
+                        id=domain_id, ssl=True, starting_paused=True
+                    )
 
-                if (old_status == 'Stopped' and new_status == "Starting") or \
-                        (old_status == 'Failed' and new_status == "Starting"):
+                if (old_status == "Stopped" and new_status == "Starting") or (
+                    old_status == "Failed" and new_status == "Starting"
+                ):
                     ui.start_domain_from_id(id=domain_id, ssl=True)
 
-                if (old_status == 'Started' and new_status == "Shutting-down" ):
+                if old_status == "Started" and new_status == "Shutting-down":
                     # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
                     # ui.stop_domain_from_id(id=domain_id)
                     hyp_started = get_domain_hyp_started(domain_id)
                     if hyp_started:
                         ui.shutdown_domain(id_domain=domain_id, hyp_id=hyp_started)
                     else:
-                        logs.main.error('domain without hyp_started can not be stopped: {}. '.format(domain_id))
+                        logs.main.error(
+                            "domain without hyp_started can not be stopped: {}. ".format(
+                                domain_id
+                            )
+                        )
 
-                if (old_status == 'Started' and new_status == "Stopping" ) or \
-                   (old_status == 'Shutting-down' and new_status == "Stopping" ) or \
-                        (old_status == 'Suspended' and new_status == "Stopping" ):
+                if (
+                    (old_status == "Started" and new_status == "Stopping")
+                    or (old_status == "Shutting-down" and new_status == "Stopping")
+                    or (old_status == "Suspended" and new_status == "Stopping")
+                ):
                     # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
                     # ui.stop_domain_from_id(id=domain_id)
                     hyp_started = get_domain_hyp_started(domain_id)
                     if hyp_started:
                         ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
                     else:
-                        logs.main.error('domain without hyp_started can not be stopped: {}. '.format(domain_id))
+                        logs.main.error(
+                            "domain without hyp_started can not be stopped: {}. ".format(
+                                domain_id
+                            )
+                        )
 
-                if (old_status == 'Started' and new_status == "StoppingAndDeleting" ) or \
-                        (old_status == 'Suspended' and new_status == "StoppingAndDeleting" ):
+                if (
+                    old_status == "Started" and new_status == "StoppingAndDeleting"
+                ) or (
+                    old_status == "Suspended" and new_status == "StoppingAndDeleting"
+                ):
                     # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
                     # ui.stop_domain_from_id(id=domain_id)
                     hyp_started = get_domain_hyp_started(domain_id)
                     print(hyp_started)
-                    ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started, delete_after_stopped=True)
+                    ui.stop_domain(
+                        id_domain=domain_id,
+                        hyp_id=hyp_started,
+                        delete_after_stopped=True,
+                    )
 
-            logs.main.info('finalished thread domain changes')
-
-
-
+            logs.main.info("finalished thread domain changes")
 
     def check_actions_domains_enabled(self):
         if len(self.t_workers) > 0 and self.threads_main_started is True:
@@ -501,55 +676,65 @@ class Engine(object):
 
     def update_info_threads_engine(self):
         d_mains = {}
-        alive=[]
-        dead=[]
-        not_defined=[]
-        #events,broom
-        for name in ['events','broom','downloads_changes','orchestrator','changes_domains']:
+        alive = []
+        dead = []
+        not_defined = []
+        # events,broom
+        for name in [
+            "events",
+            "broom",
+            "downloads_changes",
+            "orchestrator",
+            "changes_domains",
+        ]:
             try:
-                alive.append(name) if self.__getattribute__('t_'+name).is_alive() else dead.append(name)
+                alive.append(name) if self.__getattribute__(
+                    "t_" + name
+                ).is_alive() else dead.append(name)
             except:
-                #thread not defined
+                # thread not defined
                 not_defined.append(name)
 
-        d_mains['alive']=alive
-        d_mains['dead']=dead
-        d_mains['not_defined']=not_defined
+        d_mains["alive"] = alive
+        d_mains["dead"] = dead
+        d_mains["not_defined"] = not_defined
         self.threads_info_main = d_mains.copy()
 
         d_hyps = {}
-        alive=[]
-        dead=[]
-        not_defined=[]
-        for name in ['workers','status','disk_operations','long_operations']:
-            for hyp,t in self.__getattribute__('t_'+name).items():
+        alive = []
+        dead = []
+        not_defined = []
+        for name in ["workers", "status", "disk_operations", "long_operations"]:
+            for hyp, t in self.__getattribute__("t_" + name).items():
                 try:
-                    alive.append(name + '_' + hyp) if t.is_alive() else dead.append(name + '_' + hyp)
+                    alive.append(name + "_" + hyp) if t.is_alive() else dead.append(
+                        name + "_" + hyp
+                    )
                 except:
                     not_defined.append(name)
 
-        d_hyps['alive']=alive
-        d_hyps['dead']=dead
-        d_hyps['not_defined']=not_defined
+        d_hyps["alive"] = alive
+        d_hyps["dead"] = dead
+        d_hyps["not_defined"] = not_defined
         self.threads_info_hyps = d_hyps.copy()
-        update_table_field('engine', 'engine', 'threads_info_main', d_mains)
-        update_table_field('engine', 'engine', 'threads_info_hyps', d_hyps)
+        update_table_field("engine", "engine", "threads_info_main", d_mains)
+        update_table_field("engine", "engine", "threads_info_hyps", d_hyps)
 
         return True
 
     def stop_threads(self):
         # events and broom
-        #try:
+        # try:
         self.t_events.stop = True
         while True:
             if self.t_events.is_alive() is False:
                 break
             sleep(0.1)
-        #except TypeError:
+        # except TypeError:
         #    pass
         self.t_broom.stop = True
         # operations / status
-        for k,v in self.t_long_operations.items():
+        for k, v in self.t_long_operations.items():
             v.stop = True
         for k, v in self.t_disk_operations.items():
             v.stop = True
@@ -558,10 +743,5 @@ class Engine(object):
         for k, v in self.t_status.items():
             v.stop = True
 
-
-
         # changes
-        update_table_field('engine', 'engine', 'status_all_threads', 'Stopping')
-
-
-
+        update_table_field("engine", "engine", "status_all_threads", "Stopping")

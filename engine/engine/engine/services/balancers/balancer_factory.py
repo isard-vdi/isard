@@ -11,7 +11,8 @@ from engine.services.balancers.central_manager import CentralManager
 from engine.services.balancers.round_robin import RoundRobin
 from engine.services.log import logs
 
-BALANCER_TYPES = {'round_robin': RoundRobin, 'central_manager': CentralManager}
+BALANCER_TYPES = {"round_robin": RoundRobin, "central_manager": CentralManager}
+
 
 class BalancerFactory(object):
     @staticmethod
@@ -19,7 +20,7 @@ class BalancerFactory(object):
         try:
             balancer = BALANCER_TYPES[balancer_type.lower()]
             args = inspect.getfullargspec(balancer.__init__).args
-            params = {k:v for k,v in kwargs.items() if k in args}
+            params = {k: v for k, v in kwargs.items() if k in args}
             return balancer(**params)
         except Exception:
             logs.hmlog.debug(inspect.getfullargspec(balancer.__init__).args)

@@ -50,7 +50,7 @@ class CentralManager(BalancerInterface):
         weight_cpu_power = 0.1 if cpu_ratio > 1 else 0.2
         ps = (0.4 * cpu_free) + (0.4 * ram_free) + (weight_cpu_power * cpu_power)
         if cpu_ratio > 1:
-            i_cpu_ratio = 1/cpu_ratio
+            i_cpu_ratio = 1 / cpu_ratio
             ps += 0.1 * i_cpu_ratio
         return round(ps, 5)
 
@@ -59,16 +59,20 @@ class CentralManager(BalancerInterface):
             logs.hmlog.info("INIT HYP: {}".format(id))
             hyp.get_hyp_info()
             hyp.get_load()  # Trick for no wait for stats_hyp_now
-            logs.hmlog.info("cpu_cores: {}, "
-                       "cpu_threads: {}, "
-                       "log(cpu_threads): {}, "
-                       "cpu_ghz: {}".format(hyp.info["cpu_cores"],
-                                            hyp.info["cpu_threads"],
-                                            math.log(hyp.info["cpu_threads"]),
-                                            (hyp.info["cpu_mhz"] / 1000)))
+            logs.hmlog.info(
+                "cpu_cores: {}, "
+                "cpu_threads: {}, "
+                "log(cpu_threads): {}, "
+                "cpu_ghz: {}".format(
+                    hyp.info["cpu_cores"],
+                    hyp.info["cpu_threads"],
+                    math.log(hyp.info["cpu_threads"]),
+                    (hyp.info["cpu_mhz"] / 1000),
+                )
+            )
             c = hyp.info["cpu_cores"]
             t = max(math.log(hyp.info["cpu_threads"]), 1)
-            g = (hyp.info["cpu_mhz"] / 1000)  # GHz
+            g = hyp.info["cpu_mhz"] / 1000  # GHz
             hyp.info["cpu_power"] = round(c * t * g, 2)
             logs.hmlog.info("cpu_power: {}".format(round(c * t * g, 2)))
             # TODO: Wait for stats_hyp_now attr
@@ -77,7 +81,9 @@ class CentralManager(BalancerInterface):
             #     sleep(2)
         total_cpu_power = sum(hyp.info["cpu_power"] for hyp in self.hyps.values())
         for id, hyp in self.hyps.items():
-            hyp.info["cpu_power_normalized"] = round(hyp.info["cpu_power"] / total_cpu_power, 2)
+            hyp.info["cpu_power_normalized"] = round(
+                hyp.info["cpu_power"] / total_cpu_power, 2
+            )
 
     def _get_stats(self, hyp):
         cpu_free = hyp.balancer_load.get("cpu_free", 100)
@@ -93,7 +99,9 @@ class CentralManager(BalancerInterface):
         hyp_vcpus = hyp.balancer_load.get("vcpus", 0)
         sum_vcpus = hyp_vcpus + vcpus
         hyp.balancer_load["vcpus"] = sum_vcpus
-        hyp.balancer_load['vcpu_cpu_rate'] = round((sum_vcpus / hyp.info['cpu_threads']), 2)
+        hyp.balancer_load["vcpu_cpu_rate"] = round(
+            (sum_vcpus / hyp.info["cpu_threads"]), 2
+        )
         ram = domain["hardware"]["currentMemory"] / 1024  # Memory in MB
         hyp_ram = hyp.info["memory_in_MB"]
         ram_free = hyp.balancer_load.get("mem_free", 100)
@@ -109,12 +117,14 @@ class CentralManager(BalancerInterface):
         self.running_refresh_stats = False
 
     def _refresh_stats(self, interval):
-        while (self.running_refresh_stats):
+        while self.running_refresh_stats:
             self._get_actual_stats()
             sleep(interval)
 
     def _get_actual_stats(self):
         for id, hyp in self.hyps.items():
             hyp.balancer_load = hyp.stats_hyp_now.copy()
-            hyp.balancer_load["cpu_free"] = 100 - hyp.balancer_load.get('cpu_load', 0)
-            hyp.balancer_load["mem_free"] = 100 - hyp.balancer_load.get('mem_load_rate', 0)
+            hyp.balancer_load["cpu_free"] = 100 - hyp.balancer_load.get("cpu_load", 0)
+            hyp.balancer_load["mem_free"] = 100 - hyp.balancer_load.get(
+                "mem_load_rate", 0
+            )

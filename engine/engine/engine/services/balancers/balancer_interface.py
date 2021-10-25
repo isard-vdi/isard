@@ -4,5 +4,7 @@
 #      Daniel Criado Casas
 # License: AGPLv3
 
+
 class BalancerInterface(object):
-    def get_next(self, **kwargs): raise NotImplementedError
+    def get_next(self, **kwargs):
+        raise NotImplementedError
