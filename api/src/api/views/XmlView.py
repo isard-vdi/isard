@@ -6,16 +6,17 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-from api import app
-import traceback
-
-from uuid import uuid4
 import json
-from flask import request
-from ..libv2.apiv2_exc import *
-from ..libv2.quotas_exc import *
+import traceback
+from uuid import uuid4
 
+from flask import request
+
+from api import app
+
+from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
+from ..libv2.quotas_exc import *
 
 quotas = Quotas()
 

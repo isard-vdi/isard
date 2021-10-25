@@ -1,66 +1,71 @@
 import inspect
 import time
-from flask import jsonify, request
 
 from engine.controllers.eval_controller import EvalController
 from engine.services.csv.eval import eval_to_csv
 from engine.services.db.eval import insert_eval_result
+from flask import jsonify, request
+
 from . import api
 
 
-@api.route('/create_domains', methods=['GET'])
+@api.route("/create_domains", methods=["GET"])
 def create_domains():
     eval_ctrl = EvalController()
     data = eval_ctrl.create_domains()
     return jsonify(eval=data), 200
 
 
-@api.route('/destroy_domains', methods=['GET'])
+@api.route("/destroy_domains", methods=["GET"])
 def destroy_domains():
     eval_ctrl = EvalController()
     data = eval_ctrl.destroy_domains()
     return jsonify(eval=data), 200
 
-@api.route('/start_domains', methods=['GET'])
+
+@api.route("/start_domains", methods=["GET"])
 def start_domains():
     eval_ctrl = EvalController()
     data = eval_ctrl.start_domains()
     return jsonify(eval=data), 200
 
-@api.route('/stop_domains', methods=['GET'])
+
+@api.route("/stop_domains", methods=["GET"])
 def stop_domains():
     eval_ctrl = EvalController()
     data = eval_ctrl.stop_domains()
     return jsonify(eval=data), 200
 
 
-@api.route('/clear_domains', methods=['GET'])
+@api.route("/clear_domains", methods=["GET"])
 def clear_domains():
     eval_ctrl = EvalController()
     data = eval_ctrl.clear_domains()
-    return jsonify(eval={"clean":data}), 200
+    return jsonify(eval={"clean": data}), 200
 
 
-@api.route('/eval', methods=['GET'])
+@api.route("/eval", methods=["GET"])
 def eval():
     eval_ctrl = EvalController()
     data = eval_ctrl.run()
     return jsonify(eval=data), 200
 
 
-@api.route('/remove-eval', methods=['GET'])
+@api.route("/remove-eval", methods=["GET"])
 def remove_eval():
     eval_ctrl = EvalController()
     data = eval_ctrl._removeEvalDomains()
     return jsonify(eval=data), 200
 
-@api.route('/eval/statistics', methods=['GET'])
+
+@api.route("/eval/statistics", methods=["GET"])
 def eval_statistics():
     eval_ctrl = EvalController()
     data = eval_ctrl._evaluate()
     return jsonify(eval=data), 200
 
-@api.route('/eval', methods=['POST'])
+
+@api.route("/eval", methods=["POST"])
 def new_eval():
     """
     templates = [{'id': "_admin_ubuntu_17_eval_wget", 'weight': 100}]
@@ -74,7 +79,7 @@ def new_eval():
     params = {k: v for k, v in kwargs.items() if k in args}
     eval_ctrl = eval_ctrl_class(**params)
     iterations = kwargs.get("iterations", 1)
-    objs=[]
+    objs = []
     for i in range(iterations):
         data = eval_ctrl.run()
         now = time.time()
@@ -83,7 +88,7 @@ def new_eval():
             "code": code,
             "params": params,
             "result": data,
-            "when": now
+            "when": now,
         }
         insert_eval_result(obj)
         eval_to_csv(code, data)

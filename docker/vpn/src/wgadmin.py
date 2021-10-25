@@ -1,63 +1,111 @@
-import os, time, ipaddress
+import ipaddress
+import os
+import time
 import traceback
 
-from rethinkdb import RethinkDB; r = RethinkDB()
-from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError, ReqlOpFailedError
+from rethinkdb import RethinkDB
 
+r = RethinkDB()
 import logging as log
 
-from wgtools import Wg
+from rethinkdb.errors import ReqlDriverError, ReqlOpFailedError, ReqlTimeoutError
 from update_vpn_status import start_monitoring_vpn_status
+from wgtools import Wg
 
 
 def dbConnect():
-    r.connect(host=os.environ.get('RETHINKDB_HOST','isard-db'), port=os.environ.get('RETHINKDB_PORT','28015'),db=os.environ.get('RETHINKDB_DB','isard')).repl()
+    r.connect(
+        host=os.environ.get("RETHINKDB_HOST", "isard-db"),
+        port=os.environ.get("RETHINKDB_PORT", "28015"),
+        db=os.environ.get("RETHINKDB_DB", "isard"),
+    ).repl()
+
 
 while True:
     try:
         # App was restarted or db was lost. Just sync peers before get into changes.
-        print('Checking initial config...')
+        print("Checking initial config...")
         dbConnect()
 
-        wg_users=Wg(interface='users',clients_net=os.environ['WG_USERS_NET'],table='users',server_port=os.environ['WG_USERS_PORT'],allowed_client_nets=os.environ['WG_GUESTS_NETS'],reset_client_certs=False)
-        wg_hypers=Wg(interface='hypers',clients_net=os.environ['WG_HYPERS_NET'],table='hypervisors',server_port=os.environ['WG_HYPERS_PORT'],allowed_client_nets='10.1.0.1/32',reset_client_certs=False)
+        wg_users = Wg(
+            interface="users",
+            clients_net=os.environ["WG_USERS_NET"],
+            table="users",
+            server_port=os.environ["WG_USERS_PORT"],
+            allowed_client_nets=os.environ["WG_GUESTS_NETS"],
+            reset_client_certs=False,
+        )
+        wg_hypers = Wg(
+            interface="hypers",
+            clients_net=os.environ["WG_HYPERS_NET"],
+            table="hypervisors",
+            server_port=os.environ["WG_HYPERS_PORT"],
+            allowed_client_nets="10.1.0.1/32",
+            reset_client_certs=False,
+        )
 
         start_monitoring_vpn_status()
-        print('Config regenerated from database...\nStarting to monitor users changes...')
-        #for user in r.table('users').pluck('id','vpn').changes(include_initial=False).run():
-        for data in r.table('users').pluck('id','vpn').merge({'table':'users'}).changes(include_initial=False).union(
-            r.table('hypervisors').pluck('id','vpn','hypervisor_number').merge({'table':'hypers'}).changes(include_initial=False)).union(
-                r.table('remotevpn').pluck('id','vpn','nets').merge({'table':'remotevpn'}).changes(include_initial=False)).union(
-                    r.table('domains').pluck('id','user','vpn','status',{'viewer':'guest_ip'}).merge({'table':'domains'}).changes(include_initial=False)).run():
+        print(
+            "Config regenerated from database...\nStarting to monitor users changes..."
+        )
+        # for user in r.table('users').pluck('id','vpn').changes(include_initial=False).run():
+        for data in (
+            r.table("users")
+            .pluck("id", "vpn")
+            .merge({"table": "users"})
+            .changes(include_initial=False)
+            .union(
+                r.table("hypervisors")
+                .pluck("id", "vpn", "hypervisor_number")
+                .merge({"table": "hypers"})
+                .changes(include_initial=False)
+            )
+            .union(
+                r.table("remotevpn")
+                .pluck("id", "vpn", "nets")
+                .merge({"table": "remotevpn"})
+                .changes(include_initial=False)
+            )
+            .union(
+                r.table("domains")
+                .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+                .merge({"table": "domains"})
+                .changes(include_initial=False)
+            )
+            .run()
+        ):
 
-            if data['new_val'] == None:
+            if data["new_val"] == None:
                 ### Was deleted
-                if data['old_val']['table'] in ['users','remotevpn']:
-                    wg_users.remove_peer(data['old_val'])
-                elif data['old_val']['table'] == 'hypers':
-                    wg_hypers.remove_peer(data['old_val'])
-                elif data['old_val']['table'] == 'domains':
+                if data["old_val"]["table"] in ["users", "remotevpn"]:
+                    wg_users.remove_peer(data["old_val"])
+                elif data["old_val"]["table"] == "hypers":
+                    wg_hypers.remove_peer(data["old_val"])
+                elif data["old_val"]["table"] == "domains":
                     wg_users.desktop_iptables(data)
                 continue
             elif data["old_val"] is None:
-                ### New 
-                log.info('New: '+data['new_val']['id']+' found...')
-                if data['new_val']['table'] in ['users','remotevpn']:
-                    wg_users.add_peer(data['new_val'], table=data['new_val']['table'])
+                ### New
+                log.info("New: " + data["new_val"]["id"] + " found...")
+                if data["new_val"]["table"] in ["users", "remotevpn"]:
+                    wg_users.add_peer(data["new_val"], table=data["new_val"]["table"])
                 elif data["new_val"]["table"] == "hypers":
-                    wg_hypers.add_peer(data['new_val'])
+                    wg_hypers.add_peer(data["new_val"])
                 elif data["new_val"]["table"] == "domains":
-                    wg_users.desktop_iptables(data)                    
+                    wg_users.desktop_iptables(data)
             else:
                 ### Update
-                if data['old_val']['table'] in ['users','remotevpn','hypers']:
-                    if 'vpn' not in data['old_val']: 
-                        continue #Was just added
+                if data["old_val"]["table"] in ["users", "remotevpn", "hypers"]:
+                    if "vpn" not in data["old_val"]:
+                        continue  # Was just added
 
-                    if data['old_val']['vpn']['iptables'] != data['new_val']['vpn']['iptables']:
-                        print('Modified iptables')
-                        if data['old_val']['table'] in ['users','remotevpn']:
-                            wg_users.set_iptables(data['new_val'])
+                    if (
+                        data["old_val"]["vpn"]["iptables"]
+                        != data["new_val"]["vpn"]["iptables"]
+                    ):
+                        print("Modified iptables")
+                        if data["old_val"]["table"] in ["users", "remotevpn"]:
+                            wg_users.set_iptables(data["new_val"])
                         else:
                             ## Maybe just avoid rules on hypers table?????
                             ## I THINK THIS IS NOT NEEDED
@@ -65,24 +113,24 @@ while True:
                             pass
                     else:
                         continue
-                        print('Modified wireguard config')
-                        # who else could modify the wireguard config?? 
+                        print("Modified wireguard config")
+                        # who else could modify the wireguard config??
                         # if data['old_val']['table'] in ['users','remotevpn']:
                         #     wg_users.update_peer(data['new_val'])
                         # else:
                         #     wg_hypers.update_peer(data['new_val'])
-                elif data['old_val']['table'] == 'domains':
-                    wg_users.desktop_iptables(data) 
+                elif data["old_val"]["table"] == "domains":
+                    wg_users.desktop_iptables(data)
 
     except (ReqlDriverError, ReqlOpFailedError):
         print(traceback.format_exc())
-        print('Users: Rethink db connection missing!')
-        log.error('Users: Rethink db connection missing!')
-        time.sleep(.5)
+        print("Users: Rethink db connection missing!")
+        log.error("Users: Rethink db connection missing!")
+        time.sleep(0.5)
     except Exception as e:
-        print('Users internal error: \n'+traceback.format_exc())
-        log.error('Users internal error: \n'+traceback.format_exc())
-        #exit(1)
+        print("Users internal error: \n" + traceback.format_exc())
+        log.error("Users internal error: \n" + traceback.format_exc())
+        # exit(1)
 
-print('Thread ENDED!!!!!!!')
-log.error('Thread ENDED!!!!!!!')  
+print("Thread ENDED!!!!!!!")
+log.error("Thread ENDED!!!!!!!")

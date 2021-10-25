@@ -4,17 +4,18 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import time
-from api import app
-from datetime import datetime, timedelta
 import pprint
+import time
+from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
-r = RethinkDB()
-from rethinkdb.errors import ReqlTimeoutError
+from api import app
 
+r = RethinkDB()
 import logging as log
+
+from rethinkdb.errors import ReqlTimeoutError
 
 from .flask_rethink import RDB
 
@@ -26,23 +27,23 @@ from ..libv2.isardViewer import isardViewer
 isardviewer = isardViewer()
 
 from .apiv2_exc import *
-
 from .ds import DS
 
 ds = DS()
 
-from .helpers import _check, _parse_string, _parse_media_info, _disk_path
-
 import secrets
+
+from .helpers import _check, _disk_path, _parse_media_info, _parse_string
+
 
 class ApiDesktopsCommon:
     def __init__(self):
         None
 
     def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
-        if protocol in ['url','file']:
+        if protocol in ["url", "file"]:
             direct_protocol = protocol
-            protocol = 'browser-vnc'
+            protocol = "browser-vnc"
         else:
             direct_protocol = False
 
@@ -69,7 +70,7 @@ class ApiDesktopsCommon:
     def DesktopViewerFromToken(self, token):
         with app.app_context():
             domains = list(r.table("domains").filter({"jumperurl": token}).run(db.conn))
-        domains=[d for d in domains if d.get("tag_visible", True)]
+        domains = [d for d in domains if d.get("tag_visible", True)]
         if len(domains) == 0:
             raise DesktopNotFound
         if len(domains) == 1:
@@ -105,26 +106,37 @@ class ApiDesktopsCommon:
 
     def DesktopDirectViewer(self, desktop_id, viewer_txt, protocol):
         log.error(viewer_txt)
-        viewer_uri=viewer_txt['viewer'][0].split('/viewer/')[0]+'/vw/'
+        viewer_uri = viewer_txt["viewer"][0].split("/viewer/")[0] + "/vw/"
 
-        jumpertoken=False
+        jumpertoken = False
         with app.app_context():
             try:
-                jumpertoken = r.table("domains").get(desktop_id).pluck('jumperurl').run(db.conn)['jumperurl']
+                jumpertoken = (
+                    r.table("domains")
+                    .get(desktop_id)
+                    .pluck("jumperurl")
+                    .run(db.conn)["jumperurl"]
+                )
             except:
                 pass
         if jumpertoken == False:
             jumpertoken = self.gen_jumpertoken(desktop_id)
-        
-        return {'kind': protocol,'viewer':viewer_uri+jumpertoken+'?protocol='+protocol, 'cookie': False}
+
+        return {
+            "kind": protocol,
+            "viewer": viewer_uri + jumpertoken + "?protocol=" + protocol,
+            "cookie": False,
+        }
 
     def gen_jumpertoken(self, desktop_id, length=128):
         code = False
         while code == False:
-            code = secrets.token_urlsafe(length) 
-            found=list(r.table('domains').filter({'jumperurl':code}).run(db.conn))
+            code = secrets.token_urlsafe(length)
+            found = list(r.table("domains").filter({"jumperurl": code}).run(db.conn))
             if len(found) == 0:
                 with app.app_context():
-                    r.table('domains').get(desktop_id).update({'jumperurl':code}).run(db.conn)                
+                    r.table("domains").get(desktop_id).update({"jumperurl": code}).run(
+                        db.conn
+                    )
                 return code
         return False

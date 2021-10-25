@@ -3,78 +3,108 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import base64
+import json
+import os
+
 #!/usr/bin/env python
 # coding=utf-8
-import sys,base64,json,os
-from api import app
-from ..libv2.log import * 
+import sys
 
-from rethinkdb import RethinkDB; r = RethinkDB()
-from rethinkdb.errors import ReqlTimeoutError
+from rethinkdb import RethinkDB
+
+from api import app
+
+from ..libv2.log import *
+
+r = RethinkDB()
 import urllib
 
+from rethinkdb.errors import ReqlTimeoutError
+
 from ..libv2.flask_rethink import RDB
+
 db = RDB(app)
 db.init_app(app)
 
 
-class isardVpn():
+class isardVpn:
     def __init__(self):
         pass
 
-    def vpn_data(self,vpn,kind,op_sys,itemid=False):
-        if vpn == 'users':
-            if itemid == False: return False
-            wgdata = r.table('users').get(itemid).pluck('id','vpn').run(db.conn)
-            port='443'
-            mtu='1420'
-            postup=''
-            endpoint=os.environ['DOMAIN']
-        elif vpn == 'hypers':
-            #if itemid.role != 'admin': return False
-            hyper=r.table('hypervisors').get(itemid).pluck('id','isard_hyper_vpn_host','vpn').run(db.conn)
+    def vpn_data(self, vpn, kind, op_sys, itemid=False):
+        if vpn == "users":
+            if itemid == False:
+                return False
+            wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
+            port = "443"
+            mtu = "1420"
+            postup = ""
+            endpoint = os.environ["DOMAIN"]
+        elif vpn == "hypers":
+            # if itemid.role != 'admin': return False
+            hyper = (
+                r.table("hypervisors")
+                .get(itemid)
+                .pluck("id", "isard_hyper_vpn_host", "vpn")
+                .run(db.conn)
+            )
             wgdata = hyper
-            port='4443'
-            mtu=os.environ.get('VPN_MTU','1600')
-            postup='iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu'
-            endpoint=hyper.get('isard_hyper_vpn_host','isard-vpn')
-        elif vpn == 'remotevpn':
+            port = "4443"
+            mtu = os.environ.get("VPN_MTU", "1600")
+            postup = "iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
+            endpoint = hyper.get("isard_hyper_vpn_host", "isard-vpn")
+        elif vpn == "remotevpn":
             if not itemid:
                 return False
-            wgdata = r.table('remotevpn').get(itemid).pluck('id','vpn').run(db.conn)
-            port='443'
-            mtu=os.environ.get('VPN_MTU','1600')
-            postup=''
-            endpoint=os.environ['DOMAIN']
+            wgdata = r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
+            port = "443"
+            mtu = os.environ.get("VPN_MTU", "1600")
+            postup = ""
+            endpoint = os.environ["DOMAIN"]
         else:
             return False
 
-        if wgdata == None or 'vpn' not in wgdata.keys():
+        if wgdata == None or "vpn" not in wgdata.keys():
             return False
 
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
-        if not getattr(app, 'wireguard_server_keys', False):
+        if not getattr(app, "wireguard_server_keys", False):
             if vpn == "hypers":
                 vpn_kind_keys = "vpn_hypers"
             else:
                 vpn_kind_keys = "vpn_users"
-            sysconfig = r.db('isard').table('config').get(1).run(db.conn)
+            sysconfig = r.db("isard").table("config").get(1).run(db.conn)
             app.wireguard_server_keys = (
                 sysconfig.get(vpn_kind_keys, {}).get("wireguard", {}).get("keys", False)
             )
         if not app.wireguard_server_keys:
-            log.error('There are no wireguard keys in webapp config yet. Try again in a few seconds...')
+            log.error(
+                "There are no wireguard keys in webapp config yet. Try again in a few seconds..."
+            )
             return False
 
-        if kind == 'config':
-            return {'kind':'file','name':'isard-vpn','ext':'conf','mime':'text/plain','content':self.get_wireguard_file(endpoint,wgdata,port,mtu,postup)} 
-        elif kind == 'install':
-            ext='sh' if op_sys == 'Linux' else 'vb'
-            return {'kind':'file','name':'isard-vpn-setup','ext':ext,'mime':'text/plain','content':self.get_wireguard_install_script(endpoint,wgdata,op_sys)} 
+        if kind == "config":
+            return {
+                "kind": "file",
+                "name": "isard-vpn",
+                "ext": "conf",
+                "mime": "text/plain",
+                "content": self.get_wireguard_file(endpoint, wgdata, port, mtu, postup),
+            }
+        elif kind == "install":
+            ext = "sh" if op_sys == "Linux" else "vb"
+            return {
+                "kind": "file",
+                "name": "isard-vpn-setup",
+                "ext": ext,
+                "mime": "text/plain",
+                "content": self.get_wireguard_install_script(endpoint, wgdata, op_sys),
+            }
 
         return False
 
-    def get_wireguard_file(self,endpoint,peer,port,mtu,postup):
+    def get_wireguard_file(self, endpoint, peer, port, mtu, postup):
         return """[Interface]
 Address = %s
 PrivateKey = %s
@@ -86,9 +116,18 @@ PublicKey = %s
 Endpoint = %s:%s
 AllowedIPs = %s
 PersistentKeepalive = 25
-""" % (peer['vpn']['wireguard']['Address'],peer['vpn']['wireguard']['keys']['private'],mtu,postup,app.wireguard_server_keys['public'],endpoint,port,peer['vpn']['wireguard']['AllowedIPs'])
+""" % (
+            peer["vpn"]["wireguard"]["Address"],
+            peer["vpn"]["wireguard"]["keys"]["private"],
+            mtu,
+            postup,
+            app.wireguard_server_keys["public"],
+            endpoint,
+            port,
+            peer["vpn"]["wireguard"]["AllowedIPs"],
+        )
 
-    def get_wireguard_install_script(self,endpoint,peer,op_sys):
+    def get_wireguard_install_script(self, endpoint, peer, op_sys):
         return """#!/bin/bash
 echo "Installing wireguard. Ubuntu/Debian script."
 apt install -y wireguard git dh-autoreconf libglib2.0-dev intltool build-essential libgtk-3-dev libnma-dev libsecret-1-dev network-manager-dev resolvconf
@@ -100,4 +139,6 @@ make
 sudo make install
 cd ..
 echo "%s" > isard-vpn.conf
-echo "You have your user vpn configuration to use it with NetworkManager: isard-vpn.conf""" % self.get_wireguard_file(endpoint,peer)
+echo "You have your user vpn configuration to use it with NetworkManager: isard-vpn.conf""" % self.get_wireguard_file(
+            endpoint, peer
+        )

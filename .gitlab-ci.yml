@@ -40,6 +40,14 @@ version:
     paths:
       - .VERSION
 
+check-python:
+  stage: lint
+  image: python:3.10-bullseye
+  script:
+    - pip install isort black
+    - isort --check .
+    - black --check .
+
 docker-compose:
   image: docker:latest
   stage: docker-compose

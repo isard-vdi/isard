@@ -8,43 +8,40 @@
 # import coloredlogs
 import logging as log
 import os.path
+
 from engine.config import CONFIG_DICT
 
 environ = os.environ
 
-LOG_DIR = 'logs'
-#LOG_LEVEL = CONFIG_DICT["LOG"]["log_level"]
+LOG_DIR = "logs"
+# LOG_LEVEL = CONFIG_DICT["LOG"]["log_level"]
 LOG_LEVEL = environ.get("LOG_LEVEL")
 # LOG FORMATS
 
-#FORCE LOG_LEVEL IF EXISTS FILE
-if os.path.isfile('/isard/LOG_LEVEL_DEBUG'):
-    LOG_LEVEL = 'DEBUG'
-elif os.path.isfile('/isard/LOG_LEVEL_INFO'):
-    LOG_LEVEL = 'INFO'
-elif os.path.isfile('/isard/LOG_LEVEL_WARNING'):
-    LOG_LEVEL = 'WARNING'
-elif os.path.isfile('/isard/LOG_LEVEL_ERROR'):
-    LOG_LEVEL = 'ERROR'
-
+# FORCE LOG_LEVEL IF EXISTS FILE
+if os.path.isfile("/isard/LOG_LEVEL_DEBUG"):
+    LOG_LEVEL = "DEBUG"
+elif os.path.isfile("/isard/LOG_LEVEL_INFO"):
+    LOG_LEVEL = "INFO"
+elif os.path.isfile("/isard/LOG_LEVEL_WARNING"):
+    LOG_LEVEL = "WARNING"
+elif os.path.isfile("/isard/LOG_LEVEL_ERROR"):
+    LOG_LEVEL = "ERROR"
 
 
 # log_format='%(levelname)s:%(message)s'
-LOG_FORMAT = '%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s'
-LOG_DATE_FORMAT = '%Y/%m/%d %H:%M:%S'
+LOG_FORMAT = "%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s"
+LOG_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
 LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
-#print(f'LOGLEVEL ------ {LOG_LEVEL} - {LOG_LEVEL_NUM}')
+# print(f'LOGLEVEL ------ {LOG_LEVEL} - {LOG_LEVEL_NUM}')
 # logger = log.getLogger(CONFIG_DICT["LOG"]["log_name"])
 # logger = log.getLogger()
 # logger.setLevel(LOG_LEVEL_NUM)
 # log.Formatter(fmt=LOG_FORMAT,datefmt=LOG_DATE_FORMAT)
-print(f'Engine log level: {LOG_LEVEL} ({LOG_LEVEL_NUM})')
+print(f"Engine log level: {LOG_LEVEL} ({LOG_LEVEL_NUM})")
 
 # log.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
-log.basicConfig(
-                format=LOG_FORMAT,
-                datefmt=LOG_DATE_FORMAT,
-                level=LOG_LEVEL_NUM)
+log.basicConfig(format=LOG_FORMAT, datefmt=LOG_DATE_FORMAT, level=LOG_LEVEL_NUM)
 
 logFormatter = log.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
 rootLogger = log.getLogger()
@@ -72,36 +69,41 @@ rootLogger.addHandler(consoleHandler)
 # Eval Logger
 # create file handler which logs even debug messages
 
-class Logs (object):
+
+class Logs(object):
     def __init__(self):
-        self.names_for_loggers = ['threads',
-                             'workers',
-                             'status',
-                             'changes',
-                             'downloads',
-                             'bulk',
-                             'eval',
-                             'hmlog',
-                             'exception_id',
-                             'main',
-                             'broom']
+        self.names_for_loggers = [
+            "threads",
+            "workers",
+            "status",
+            "changes",
+            "downloads",
+            "bulk",
+            "eval",
+            "hmlog",
+            "exception_id",
+            "main",
+            "broom",
+        ]
         for n in self.names_for_loggers:
             self.create_logger(n)
 
-        if environ.get('LOG_EXCEPT_ID_LEVEL','') == 'DEBUG':
-            self.exception_id.setLevel('DEBUG')
+        if environ.get("LOG_EXCEPT_ID_LEVEL", "") == "DEBUG":
+            self.exception_id.setLevel("DEBUG")
         else:
-            self.exception_id.setLevel('INFO')
+            self.exception_id.setLevel("INFO")
 
     def create_logger(self, name):
         logger_obj = log.getLogger(name)
-        #logger_handler = log.FileHandler(LOG_DIR + '/' + name + '.log')
+        # logger_handler = log.FileHandler(LOG_DIR + '/' + name + '.log')
         logger_handler = log.StreamHandler()
         logger_handler.setLevel(LOG_LEVEL_NUM)
-        logger_formatter = log.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s')
+        logger_formatter = log.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s"
+        )
         logger_handler.setFormatter(logger_formatter)
         logger_obj.addHandler(logger_handler)
         setattr(self, name, logger_obj)
 
-logs = Logs()
 
+logs = Logs()

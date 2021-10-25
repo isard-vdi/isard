@@ -9,41 +9,60 @@ a module to control hypervisor functions and state. Overrides libvirt events and
 
 """
 
-import traceback
 import socket
-import time
 import threading
+import time
+import traceback
+import uuid
+from collections import deque
 from datetime import datetime
 from io import StringIO
-from collections import deque
 from statistics import mean
-import time
-import uuid
 
 import libvirt
 import paramiko
-from lxml import etree
 import xmltodict
+from engine.config import *
+from engine.models.nvidia_models import NVIDIA_MODELS
+from engine.services.db import (
+    get_hyp,
+    get_id_hyp_from_uri,
+    update_actual_stats_domain,
+    update_actual_stats_hyp,
+    update_db_default_gpu_models,
+    update_info_nvidia_hyp_domain,
+    update_uids_for_nvidia_id,
+)
+from engine.services.db.domains import (
+    get_domains_started_in_hyp,
+    get_domains_with_status_in_list,
+    update_domain_status,
+)
+from engine.services.lib.functions import (
+    calcule_cpu_hyp_stats,
+    exec_remote_cmd,
+    execute_commands,
+    get_tid,
+    hostname_to_uri,
+    new_dict_from_raw_dict_stats,
+    state_and_cause_to_str,
+    test_hypervisor_conn,
+    timelimit,
+    try_socket,
+)
+from engine.services.lib.libvirt_dicts import virDomainState
+from engine.services.log import *
 from flatten_dict import flatten
 from libpci import LibPCI
+from lxml import etree
 
 # ~ import pandas as pd
 
-from engine.services.lib.functions import state_and_cause_to_str, hostname_to_uri, try_socket
-from engine.services.lib.functions import test_hypervisor_conn, timelimit, new_dict_from_raw_dict_stats
-from engine.services.lib.functions import calcule_cpu_hyp_stats, get_tid
-from engine.services.db import get_id_hyp_from_uri, update_actual_stats_hyp, update_actual_stats_domain, update_info_nvidia_hyp_domain, \
-                               get_hyp, update_db_default_gpu_models, update_uids_for_nvidia_id
-from engine.services.log import *
-from engine.config import *
-from engine.services.lib.functions import exec_remote_cmd
-from engine.services.lib.libvirt_dicts import virDomainState
-from engine.services.db.domains import update_domain_status, get_domains_with_status_in_list, get_domains_started_in_hyp
-from engine.models.nvidia_models import NVIDIA_MODELS
-from engine.services.lib.functions import execute_commands
 
 TIMEOUT_QUEUE = 20
-TIMEOUT_CONN_HYPERVISOR = 4 #int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
+TIMEOUT_CONN_HYPERVISOR = (
+    4  # int(CONFIG_DICT['HYPERVISORS']['timeout_conn_hypervisor'])
+)
 
 
 # > 1 is connected
@@ -61,28 +80,38 @@ HYP_STATUS_NOT_ALIVE = -10
 
 MAX_GET_KVM_RETRIES = 3
 
+
 class hyp(object):
     """
     operates with hypervisor
     """
-    def __init__(self, address, user='root', port=22, capture_events=False, try_ssh_autologin=False, hyp_id =None):
+
+    def __init__(
+        self,
+        address,
+        user="root",
+        port=22,
+        capture_events=False,
+        try_ssh_autologin=False,
+        hyp_id=None,
+    ):
 
         # dictionary of domains
         # self.id = 0
         self.domains = {}
         self.domains_states = {}
-        port=int(port)
+        port = int(port)
         if (type(port) == int) and port > 1 and port < pow(2, 16):
             self.port = port
         else:
             self.port = 22
-        #log.info('El port es: '+str(self.port))
+        # log.info('El port es: '+str(self.port))
         self.try_ssh_autologin = try_ssh_autologin
         self.user = user
         self.hostname = address
         self.connected = False
         self.ssh_autologin_fail = False
-        self.fail_connected_reason = ''
+        self.fail_connected_reason = ""
         self.eventLoopThread = None
         self.info = {}
         self.info_stats = {}
@@ -105,11 +134,10 @@ class hyp(object):
             if self.capture_events:
                 self.launch_events()
 
-
     def try_ssh(self):
 
         # try socket
-        timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
+        timeout = float(CONFIG_DICT["TIMEOUTS"]["ssh_paramiko_hyp_test_connection"])
         if try_socket(self.hostname, self.port, timeout):
 
             # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -128,34 +156,55 @@ class hyp(object):
                 #             username=self.user,
                 #             port= self.port,
                 #             timeout=CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
-                ssh.connect(self.hostname,
-                            username=self.user,
-                            port=self.port,
-                            timeout=timeout, banner_timeout=timeout)
+                ssh.connect(
+                    self.hostname,
+                    username=self.user,
+                    port=self.port,
+                    timeout=timeout,
+                    banner_timeout=timeout,
+                )
 
-                log.debug("host {} with ip {} TEST CONNECTION OK, ssh connect without password".format(self.hostname,
-                                                                                                       self.ip))
+                log.debug(
+                    "host {} with ip {} TEST CONNECTION OK, ssh connect without password".format(
+                        self.hostname, self.ip
+                    )
+                )
                 ssh.close()
             except paramiko.SSHException as e:
-                log.error("host {} with ip {} can't connect with ssh without password. Paramiko except Reason: {}".format(self.hostname,
-                                                                                                                          self.ip, e))
+                log.error(
+                    "host {} with ip {} can't connect with ssh without password. Paramiko except Reason: {}".format(
+                        self.hostname, self.ip, e
+                    )
+                )
                 log.error("")
                 # message when host not found or key format not supported: not found in known_hosts
-                self.fail_connected_reason = 'ssh authentication fail when connect: {}'.format(e)
+                self.fail_connected_reason = (
+                    "ssh authentication fail when connect: {}".format(e)
+                )
                 self.ssh_autologin_fail = True
             except Exception as e:
-                logs.exception_id.debug('0026')
+                logs.exception_id.debug("0026")
                 log.error(
                     "host {} with ip {} can't connect with ssh without password. Reasons? timeout, ssh authentication with keys is needed, port is correct?".format(
-                        self.hostname, self.ip))
-                log.error('reason: {}'.format(e))
-                self.fail_connected_reason = 'ssh authentication fail when connect: {}'.format(e)
+                        self.hostname, self.ip
+                    )
+                )
+                log.error("reason: {}".format(e))
+                self.fail_connected_reason = (
+                    "ssh authentication fail when connect: {}".format(e)
+                )
                 self.ssh_autologin_fail = True
 
         else:
             self.ssh_autologin_fail = True
-            self.fail_connected_reason = 'socket error in ssh port, sshd disabled or firewall'
-            log.error('socket error, try if ssh is listen in hostname {} with ip address {} and port {}'.format(self.hostname,self.ip,self.port))
+            self.fail_connected_reason = (
+                "socket error in ssh port, sshd disabled or firewall"
+            )
+            log.error(
+                "socket error, try if ssh is listen in hostname {} with ip address {} and port {}".format(
+                    self.hostname, self.ip, self.port
+                )
+            )
 
     def connect_to_hyp(self):
         try:
@@ -166,27 +215,31 @@ class hyp(object):
 
             if self.ssh_autologin_fail is False:
                 try:
-                    self.uri = hostname_to_uri(self.hostname, user=self.user, port=self.port)
+                    self.uri = hostname_to_uri(
+                        self.hostname, user=self.user, port=self.port
+                    )
                     if self.id_hyp_rethink is None:
                         try:
                             self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
                         except Exception as e:
-                            logs.exception_id.debug('0027')
-                            log.error('error when hypervisor have not rethink id. {}'.format(e))
-                    #timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
-                    #self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
+                            logs.exception_id.debug("0027")
+                            log.error(
+                                "error when hypervisor have not rethink id. {}".format(
+                                    e
+                                )
+                            )
+                    # timeout_libvirt = float(CONFIG_DICT['TIMEOUTS']['libvirt_hypervisor_timeout_connection'])
+                    # self.conn = timelimit(timeout_libvirt, test_hypervisor_conn, self.uri)
                     self.conn = test_hypervisor_conn(self.uri)
 
                     # timeout = float(CONFIG_DICT['TIMEOUTS']['ssh_paramiko_hyp_test_connection'])
 
-                    if (self.conn != False):
+                    if self.conn != False:
                         self.connected = True
                         # prueba de alberto para que indique cuando ha caído y para que mantenga alive la conexión
 
-
                         # OJO INFO TO DEVELOPER
                         # self.startEvent()
-
 
                         # este setKeepAlive no tengo claro que haga algo, pero bueno...
                         # y al ponerlo da error lo dejo comentado, pero en futuro hay que quitar
@@ -194,19 +247,25 @@ class hyp(object):
                         # self.conn.setKeepAlive(5, 3)
                         log.info("connected to hypervisor: %s" % self.hostname)
                         self.set_status(HYP_STATUS_CONNECTED)
-                        self.fail_connected_reason = ''
+                        self.fail_connected_reason = ""
                         # para que le de tiempo a los eventos a quedarse registrados hay que esperar un poquillo, ya
                         # que se arranca otro thread
                         # self.get_hyp_info()
                         return True
                     else:
-                        log.error('libvirt can\'t connect to hypervisor {}'.format(self.hostname))
-                        log.info("""connection to hypervisor fail, try policykit or permissions,
+                        log.error(
+                            "libvirt can't connect to hypervisor {}".format(
+                                self.hostname
+                            )
+                        )
+                        log.info(
+                            """connection to hypervisor fail, try policykit or permissions,
                               or try in the hypervisor if libvirtd service is started
                               (in Fedora/Centos: systemctl status libvirtd )
-                              or if the port 22 is open""")
+                              or if the port 22 is open"""
+                        )
                         self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
-                        self.fail_connected_reason = 'Hypervisor policykit or permissions or libvirtd has not started'
+                        self.fail_connected_reason = "Hypervisor policykit or permissions or libvirtd has not started"
 
                         return False
 
@@ -217,22 +276,31 @@ class hyp(object):
                 #     return False
 
                 except Exception as e:
-                    logs.exception_id.debug('0028')
-                    log.error('connection to hypervisor {} fail with unexpected error: {}'.format(self.hostname, e))
-                    log.error('libvirt uri: {}'.format(self.uri))
+                    logs.exception_id.debug("0028")
+                    log.error(
+                        "connection to hypervisor {} fail with unexpected error: {}".format(
+                            self.hostname, e
+                        )
+                    )
+                    log.error("libvirt uri: {}".format(self.uri))
                     self.set_status(HYP_STATUS_ERROR_WHEN_CONNECT)
-                    self.fail_connected_reason = 'connection to hypervisor {} fail with unexpected error'.format(
-                        self.hostname)
+                    self.fail_connected_reason = (
+                        "connection to hypervisor {} fail with unexpected error".format(
+                            self.hostname
+                        )
+                    )
                     return False
 
         except socket.error as e:
             log.error(e)
-            log.error('not resolves ip from hostname: {}'.format(self.hostname))
-            self.fail_connected_reason = 'not resolves ip from hostname: {}'.format(self.hostname)
+            log.error("not resolves ip from hostname: {}".format(self.hostname))
+            self.fail_connected_reason = "not resolves ip from hostname: {}".format(
+                self.hostname
+            )
             return False
 
         except Exception as e:
-            logs.exception_id.debug('0029')
+            logs.exception_id.debug("0029")
             log.error(e)
 
     def launch_events(self):
@@ -249,261 +317,343 @@ class hyp(object):
 
     def init_nvidia(self):
         d_hyp = get_hyp(self.id_hyp_rethink)
-        default_gpu_models = d_hyp.get('default_gpu_models',{})
-        uuids_gpu = d_hyp.get('nvidia_uids',{})
+        default_gpu_models = d_hyp.get("default_gpu_models", {})
+        uuids_gpu = d_hyp.get("nvidia_uids", {})
 
-        if len(self.info['nvidia']) > 0:
-            if len(default_gpu_models) < len(self.info['nvidia']):
+        if len(self.info["nvidia"]) > 0:
+            if len(default_gpu_models) < len(self.info["nvidia"]):
 
-                default_gpu_models = {k:a['type_max_gpus'] for k,a in self.info['nvidia'].items()}
-                update_db_default_gpu_models(self.id_hyp_rethink,default_gpu_models)
+                default_gpu_models = {
+                    k: a["type_max_gpus"] for k, a in self.info["nvidia"].items()
+                }
+                update_db_default_gpu_models(self.id_hyp_rethink, default_gpu_models)
 
-            for gpu_id,d_info_gpu in self.info['nvidia'].items():
+            for gpu_id, d_info_gpu in self.info["nvidia"].items():
                 if gpu_id not in uuids_gpu.keys():
                     d_uids = self.create_uuids(d_info_gpu)
-                    update_uids_for_nvidia_id(self.id_hyp_rethink,gpu_id,d_uids)
+                    update_uids_for_nvidia_id(self.id_hyp_rethink, gpu_id, d_uids)
 
             d_hyp = get_hyp(self.id_hyp_rethink)
-            for gpu_id,d_uids in d_hyp['nvidia_uids'].items():
+            for gpu_id, d_uids in d_hyp["nvidia_uids"].items():
                 selected_gpu_type = default_gpu_models[gpu_id]
-                info_nvidia = d_hyp['info']['nvidia'][gpu_id]
-                self.delete_and_create_devices_if_not_exist(gpu_id,d_uids,info_nvidia,selected_gpu_type,self.id_hyp_rethink)
-            if len(d_hyp['nvidia_uids']) > 0:
+                info_nvidia = d_hyp["info"]["nvidia"][gpu_id]
+                self.delete_and_create_devices_if_not_exist(
+                    gpu_id, d_uids, info_nvidia, selected_gpu_type, self.id_hyp_rethink
+                )
+            if len(d_hyp["nvidia_uids"]) > 0:
                 self.update_started_uids()
 
     def get_kvm_mod(self):
         for i in range(MAX_GET_KVM_RETRIES):
             try:
-                d = exec_remote_cmd('lsmod |grep kvm',self.hostname,username=self.user,port=self.port)
-                if len(d['err']) > 0:
-                    log.error('error {} returned from command: lsmod |grep kvm'.format(d['err'].decode('utf-8')))
+                d = exec_remote_cmd(
+                    "lsmod |grep kvm", self.hostname, username=self.user, port=self.port
+                )
+                if len(d["err"]) > 0:
+                    log.error(
+                        "error {} returned from command: lsmod |grep kvm".format(
+                            d["err"].decode("utf-8")
+                        )
+                    )
                 else:
-                    s = d['out'].decode('utf-8')
-                    if s.find('kvm_intel') >= 0:
-                        self.info['kvm_module'] = 'intel'
-                    elif s.find('kvm_amd') >= 0:
-                        self.info['kvm_module'] = 'amd'
-                    elif s.find('kvm') >= 0:
-                        self.info['kvm_module'] = 'bios_disabled'
-                        log.error('No kvm module kvm_amd or kvm_intel activated. You must review your BIOS')
-                        log.error('Hardware acceleration is supported, but disabled in the BIOS settings')
+                    s = d["out"].decode("utf-8")
+                    if s.find("kvm_intel") >= 0:
+                        self.info["kvm_module"] = "intel"
+                    elif s.find("kvm_amd") >= 0:
+                        self.info["kvm_module"] = "amd"
+                    elif s.find("kvm") >= 0:
+                        self.info["kvm_module"] = "bios_disabled"
+                        log.error(
+                            "No kvm module kvm_amd or kvm_intel activated. You must review your BIOS"
+                        )
+                        log.error(
+                            "Hardware acceleration is supported, but disabled in the BIOS settings"
+                        )
                     else:
-                        self.info['kvm_module'] = False
-                        log.error('No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities')
+                        self.info["kvm_module"] = False
+                        log.error(
+                            "No kvm module installed. You must review if qemu-kvm is installed and CPU capabilities"
+                        )
                 return True
 
             except Exception as e:
-                logs.exception_id.debug('0030')
-                log.error('Exception while executing remote command in hypervisor to list kvm modules: {}'.format(e))
-                log.error(f'Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second.')
+                logs.exception_id.debug("0030")
+                log.error(
+                    "Exception while executing remote command in hypervisor to list kvm modules: {}".format(
+                        e
+                    )
+                )
+                log.error(
+                    f"Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second."
+                )
             time.sleep(1)
 
-        self.info['kvm_module'] = False
-        log.error(f'remote ssh command in hypervisor {hostname} fail with {MAX_GET_KVM_RETRIES} retries')
+        self.info["kvm_module"] = False
+        log.error(
+            f"remote ssh command in hypervisor {hostname} fail with {MAX_GET_KVM_RETRIES} retries"
+        )
         return False
 
     def get_hyp_info(self):
 
         libvirt_version = str(self.conn.getLibVersion())
-        self.info['libvirt_version'] = '{}.{}.{}'.format(int(libvirt_version[-9:-6]),
-                                                         int(libvirt_version[-6:-3]),
-                                                         int(libvirt_version[-3:]))
+        self.info["libvirt_version"] = "{}.{}.{}".format(
+            int(libvirt_version[-9:-6]),
+            int(libvirt_version[-6:-3]),
+            int(libvirt_version[-3:]),
+        )
 
         try:
             qemu_version = str(self.conn.getVersion())
-            self.info['qemu_version'] = '{}.{}.{}'.format(int(qemu_version[-9:-6]),
-                                                          int(qemu_version[-6:-3]),
-                                                          int(qemu_version[-3:]))
+            self.info["qemu_version"] = "{}.{}.{}".format(
+                int(qemu_version[-9:-6]),
+                int(qemu_version[-6:-3]),
+                int(qemu_version[-3:]),
+            )
         except libvirt.libvirtError as e:
-            logs.workers.error(f'Exception when get qemu_version in hyp {self.id_hyp_rethink}: {e}')
-            self.info['qemu_version'] = '0.0.0'
-
-
+            logs.workers.error(
+                f"Exception when get qemu_version in hyp {self.id_hyp_rethink}: {e}"
+            )
+            self.info["qemu_version"] = "0.0.0"
 
         inf = self.conn.getInfo()
-        self.info['arch'] = inf[0]
-        self.info['memory_in_MB'] = inf[1]
-        self.info['cpu_threads'] = inf[2]
-        self.info['cpu_mhz'] = inf[3]
-        self.info['numa_nodes'] = inf[4]
-        self.info['cpu_cores'] = inf[6]
-        self.info['threads_x_core'] = inf[7]
+        self.info["arch"] = inf[0]
+        self.info["memory_in_MB"] = inf[1]
+        self.info["cpu_threads"] = inf[2]
+        self.info["cpu_mhz"] = inf[3]
+        self.info["numa_nodes"] = inf[4]
+        self.info["cpu_cores"] = inf[6]
+        self.info["threads_x_core"] = inf[7]
         xml = self.conn.getSysinfo()
         parser = etree.XMLParser(remove_blank_text=True)
         tree = etree.parse(StringIO(xml), parser)
 
         try:
             if tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]'):
-                self.info['cpu_model'] = tree.xpath('/sysinfo/processor/entry[@name="socket_destination"]')[0].text
+                self.info["cpu_model"] = tree.xpath(
+                    '/sysinfo/processor/entry[@name="socket_destination"]'
+                )[0].text
 
             if tree.xpath('/sysinfo/system/entry[@name="manufacturer"]'):
-                self.info['motherboard_manufacturer'] = tree.xpath('/sysinfo/system/entry[@name="manufacturer"]')[0].text
+                self.info["motherboard_manufacturer"] = tree.xpath(
+                    '/sysinfo/system/entry[@name="manufacturer"]'
+                )[0].text
 
             if tree.xpath('/sysinfo/system/entry[@name="product"]'):
-                self.info['motherboard_model'] = tree.xpath('/sysinfo/system/entry[@name="product"]')[0].text
+                self.info["motherboard_model"] = tree.xpath(
+                    '/sysinfo/system/entry[@name="product"]'
+                )[0].text
 
-            if tree.xpath('/sysinfo/memory_device'):
-                self.info['memory_banks'] = len(tree.xpath('/sysinfo/memory_device'))
-                self.info['memory_type'] = tree.xpath('/sysinfo/memory_device/entry[@name="type"]')[0].text
+            if tree.xpath("/sysinfo/memory_device"):
+                self.info["memory_banks"] = len(tree.xpath("/sysinfo/memory_device"))
+                self.info["memory_type"] = tree.xpath(
+                    '/sysinfo/memory_device/entry[@name="type"]'
+                )[0].text
                 try:
-                    self.info['memory_speed'] = tree.xpath('/sysinfo/memory_device/entry[@name="speed"]')[0].text
+                    self.info["memory_speed"] = tree.xpath(
+                        '/sysinfo/memory_device/entry[@name="speed"]'
+                    )[0].text
                 except:
-                    self.info['memory_speed'] = "0"
+                    self.info["memory_speed"] = "0"
 
         except Exception as e:
-            logs.exception_id.debug('0031')
-            log.error('Exception when extract information with libvirt from hypervisor {}: {}'.format(self.hostname, e))
-            log.error('Traceback: {}'.format(traceback.format_exc()))
+            logs.exception_id.debug("0031")
+            log.error(
+                "Exception when extract information with libvirt from hypervisor {}: {}".format(
+                    self.hostname, e
+                )
+            )
+            log.error("Traceback: {}".format(traceback.format_exc()))
 
         xml = self.conn.getCapabilities()
         parser = etree.XMLParser(remove_blank_text=True)
         tree = etree.parse(StringIO(xml), parser)
 
-        if tree.xpath('/capabilities/host/cpu/model'):
-            self.info['cpu_model_type'] = tree.xpath('/capabilities/host/cpu/model')[0].text
+        if tree.xpath("/capabilities/host/cpu/model"):
+            self.info["cpu_model_type"] = tree.xpath("/capabilities/host/cpu/model")[
+                0
+            ].text
 
-        if tree.xpath('/capabilities/guest/arch/domain[@type="kvm"]/machine[@canonical]'):
-            self.info['kvm_type_machine_canonical'] = \
-                tree.xpath('/capabilities/guest/arch/domain[@type="kvm"]/machine[@canonical]')[0].get('canonical')
+        if tree.xpath(
+            '/capabilities/guest/arch/domain[@type="kvm"]/machine[@canonical]'
+        ):
+            self.info["kvm_type_machine_canonical"] = tree.xpath(
+                '/capabilities/guest/arch/domain[@type="kvm"]/machine[@canonical]'
+            )[0].get("canonical")
 
         # intel virtualization => cpu feature vmx
         #   amd virtualization => cpu feature svm
         if tree.xpath('/capabilities/host/cpu/feature[@name="vmx"]'):
-            self.info['virtualization_capabilities'] = 'vmx'
+            self.info["virtualization_capabilities"] = "vmx"
         elif tree.xpath('/capabilities/host/cpu/feature[@name="svm"]'):
-            self.info['virtualization_capabilities'] = 'svm'
+            self.info["virtualization_capabilities"] = "svm"
         else:
-            self.info['virtualization_capabilities'] = False
+            self.info["virtualization_capabilities"] = False
 
         # read_gpu
         self.get_nvidia_capabilities()
 
-    def get_nvidia_available_instances_of_type(self,vgpu_id):
+    def get_nvidia_available_instances_of_type(self, vgpu_id):
         self.get_nvidia_capabilities(only_get_availables=True)
         d_available = {}
-        for pci_id,info_nvidia in self.info['nvidia'].items():
-            d_available[pci_id] = info_nvidia['types'][vgpu_id]['available']
+        for pci_id, info_nvidia in self.info["nvidia"].items():
+            d_available[pci_id] = info_nvidia["types"][vgpu_id]["available"]
         return d_available
 
-
-    def get_nvidia_capabilities(self,only_get_availables=False):
+    def get_nvidia_capabilities(self, only_get_availables=False):
         d_info_nvidia = {}
-        mdev_names = self.conn.listDevices('mdev_types')
+        mdev_names = self.conn.listDevices("mdev_types")
         mdev_devices = [a for a in self.conn.listAllDevices() if a.name() in mdev_names]
         if len(mdev_devices) > 0:
             l_dict_mdev = [xmltodict.parse(a.XMLDesc()) for a in mdev_devices]
-            l_nvidia_devices = [a for a in l_dict_mdev if a['device']['driver']['name'] == 'nvidia']
+            l_nvidia_devices = [
+                a for a in l_dict_mdev if a["device"]["driver"]["name"] == "nvidia"
+            ]
             if len(l_nvidia_devices) > 0:
                 self.has_nvidia = True
                 for d in l_nvidia_devices:
                     info_nvidia = {}
                     try:
                         try:
-                            max_count = d['device']['capability']['capability'][0]['@maxCount']
+                            max_count = d["device"]["capability"]["capability"][0][
+                                "@maxCount"
+                            ]
                         except:
                             max_count = 0
-                        name = d['device']['name']
-                        path = d['device']['path']
-                        parent = d['device']['parent']
-                        vendor_pci_id = int(d['device']['capability']['vendor']['@id'],base=0)
-                        device_pci_id = int(d['device']['capability']['product']['@id'],base=0)
+                        name = d["device"]["name"]
+                        path = d["device"]["path"]
+                        parent = d["device"]["parent"]
+                        vendor_pci_id = int(
+                            d["device"]["capability"]["vendor"]["@id"], base=0
+                        )
+                        device_pci_id = int(
+                            d["device"]["capability"]["product"]["@id"], base=0
+                        )
                         if only_get_availables is False:
                             pci = LibPCI()
-                            device_name = pci.lookup_device_name(vendor_pci_id,device_pci_id)
+                            device_name = pci.lookup_device_name(
+                                vendor_pci_id, device_pci_id
+                            )
                         else:
-                            device_name = self.info['nvidia'].get(name,'')
+                            device_name = self.info["nvidia"].get(name, "")
                     except:
                         max_count = 0
                     try:
-                        #only Q-Series Virtual GPU Types (Required license edition: vWS)
-                        if type(d['device']['capability']['capability']) is list:  ## T4
-                            types = d['device']['capability']['capability'][1]['type']
+                        # only Q-Series Virtual GPU Types (Required license edition: vWS)
+                        if type(d["device"]["capability"]["capability"]) is list:  ## T4
+                            types = d["device"]["capability"]["capability"][1]["type"]
                         else:
-                            types = d['device']['capability']['capability']['type']
-                        l_types = [dict(a) for a in types if a['name'][-1] == 'Q']
+                            types = d["device"]["capability"]["capability"]["type"]
+                        l_types = [dict(a) for a in types if a["name"][-1] == "Q"]
                         for a in l_types:
-                            a['name'] =a['name'].replace('GRID ','')
-                        l_types.sort(key=lambda r: int(r['name'].split('Q')[0].split('-')[-1]))
-                        type_max_gpus = l_types[0]['name']
-                        d_types = {a['name']:{'id':a['@id'],
-                                              'available':int(a['availableInstances']),
-                                              'memory':NVIDIA_MODELS.get(a['name'],{}).get('mb'),
-                                              'max':NVIDIA_MODELS.get(a['name'],{}).get('max'),
-                                              } for a in l_types}
+                            a["name"] = a["name"].replace("GRID ", "")
+                        l_types.sort(
+                            key=lambda r: int(r["name"].split("Q")[0].split("-")[-1])
+                        )
+                        type_max_gpus = l_types[0]["name"]
+                        d_types = {
+                            a["name"]: {
+                                "id": a["@id"],
+                                "available": int(a["availableInstances"]),
+                                "memory": NVIDIA_MODELS.get(a["name"], {}).get("mb"),
+                                "max": NVIDIA_MODELS.get(a["name"], {}).get("max"),
+                            }
+                            for a in l_types
+                        }
                     except:
                         d_types = {}
-                    info_nvidia['types'] = d_types
-                    info_nvidia['type_max_gpus'] = type_max_gpus
-                    info_nvidia['device_name'] = device_name
-                    info_nvidia['pci_id'] = name
-                    info_nvidia['path'] = path
-                    info_nvidia['parent'] = parent
-                    info_nvidia['max_count'] = max_count
-                    info_nvidia['max_gpus'] = d_types[type_max_gpus]['max']
-                    info_nvidia['model'] = type_max_gpus.split('-')[0]
+                    info_nvidia["types"] = d_types
+                    info_nvidia["type_max_gpus"] = type_max_gpus
+                    info_nvidia["device_name"] = device_name
+                    info_nvidia["pci_id"] = name
+                    info_nvidia["path"] = path
+                    info_nvidia["parent"] = parent
+                    info_nvidia["max_count"] = max_count
+                    info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
+                    info_nvidia["model"] = type_max_gpus.split("-")[0]
                     d_info_nvidia[name] = info_nvidia
-        self.info['nvidia'] = d_info_nvidia
+        self.info["nvidia"] = d_info_nvidia
 
-    def create_uuids(self,d_info_gpu):
+    def create_uuids(self, d_info_gpu):
         d_uids = {}
-        for name,d_type in d_info_gpu['types'].items():
+        for name, d_type in d_info_gpu["types"].items():
             d = {}
-            #in some nvidia cards as A40 d['max'] is None
-            if d_type.get('max') is None:
-                d_type['max'] = d_type.get('available',1)
-            total_available = max(d_type.get('max',1),d_type.get('available',1))
+            # in some nvidia cards as A40 d['max'] is None
+            if d_type.get("max") is None:
+                d_type["max"] = d_type.get("available", 1)
+            total_available = max(d_type.get("max", 1), d_type.get("available", 1))
             for i in range(total_available):
                 uid = str(uuid.uuid4())
-                d[uid] = {'created':False,
-                          'reserved':False,
-                          'started':False}
+                d[uid] = {"created": False, "reserved": False, "started": False}
             d_uids[name] = d
         return d_uids
 
-    def delete_and_create_devices_if_not_exist(self,gpu_id,d_uids,info_nvidia,selected_gpu_type,hyp_id):
+    def delete_and_create_devices_if_not_exist(
+        self, gpu_id, d_uids, info_nvidia, selected_gpu_type, hyp_id
+    ):
         cmds1 = list()
-        path = info_nvidia['path']
+        path = info_nvidia["path"]
         for type in d_uids.keys():
-            id_type = info_nvidia['types'][type]['id']
-            dir = f'{path}/mdev_supported_types/{id_type}'
-            cmds1.append({'title': f'{type}', 'cmd': f'ls "{dir}/devices"'})
+            id_type = info_nvidia["types"][type]["id"]
+            dir = f"{path}/mdev_supported_types/{id_type}"
+            cmds1.append({"title": f"{type}", "cmd": f'ls "{dir}/devices"'})
 
-        array_out_err = execute_commands(self.hostname, cmds1, port=self.port, dict_mode=True)
-        uids_in_hyp_now = {d['title']:d['out'].splitlines() for d in array_out_err}
+        array_out_err = execute_commands(
+            self.hostname, cmds1, port=self.port, dict_mode=True
+        )
+        uids_in_hyp_now = {d["title"]: d["out"].splitlines() for d in array_out_err}
 
         # DELETE  UUIDS
         cmds1 = list()
-        for type,l_uids_now in uids_in_hyp_now.items():
-            id_type = info_nvidia['types'][type]['id']
-            dir = f'{path}/mdev_supported_types/{id_type}'
+        for type, l_uids_now in uids_in_hyp_now.items():
+            id_type = info_nvidia["types"][type]["id"]
+            dir = f"{path}/mdev_supported_types/{id_type}"
 
             for uid_now in l_uids_now:
-                if (type != selected_gpu_type) or ((type == selected_gpu_type) and (uid_now not in d_uids[type])):
-                        cmds1.append({'title': f'remove uuid to {type}: {uid_now}', 'cmd': f'echo "1" > "{dir}/devices/{uid_now}/remove"'})
+                if (type != selected_gpu_type) or (
+                    (type == selected_gpu_type) and (uid_now not in d_uids[type])
+                ):
+                    cmds1.append(
+                        {
+                            "title": f"remove uuid to {type}: {uid_now}",
+                            "cmd": f'echo "1" > "{dir}/devices/{uid_now}/remove"',
+                        }
+                    )
         # CREATE  UUIDS
         created = []
-        for type,l_uids_now in uids_in_hyp_now.items():
-            id_type = info_nvidia['types'][type]['id']
-            dir = f'{path}/mdev_supported_types/{id_type}'
+        for type, l_uids_now in uids_in_hyp_now.items():
+            id_type = info_nvidia["types"][type]["id"]
+            dir = f"{path}/mdev_supported_types/{id_type}"
             if type == selected_gpu_type:
                 for uid in d_uids[type]:
                     if uid not in l_uids_now:
-                        cmds1.append({'title': f'create uuid to {type}: {uid}', 'cmd': f'echo "{uid}" > "{dir}/create"'})
+                        cmds1.append(
+                            {
+                                "title": f"create uuid to {type}: {uid}",
+                                "cmd": f'echo "{uid}" > "{dir}/create"',
+                            }
+                        )
                     else:
                         created.append(uid)
 
         if len(cmds1) > 0:
-            array_out_err = execute_commands(self.hostname, cmds1, port=self.port, dict_mode=True)
-            output_ok = [d['title'] for d in array_out_err if len(d['err']) == 0]
-            append_uids = [a.split(':')[1].strip() for a in output_ok if a.find('create uuid')==0]
-            remove_uids = [a.split(':')[1].strip() for a in output_ok if a.find('remove uuid')==0]
+            array_out_err = execute_commands(
+                self.hostname, cmds1, port=self.port, dict_mode=True
+            )
+            output_ok = [d["title"] for d in array_out_err if len(d["err"]) == 0]
+            append_uids = [
+                a.split(":")[1].strip() for a in output_ok if a.find("create uuid") == 0
+            ]
+            remove_uids = [
+                a.split(":")[1].strip() for a in output_ok if a.find("remove uuid") == 0
+            ]
             if len(remove_uids) > 0:
-                ok = update_info_nvidia_hyp_domain('removed',remove_uids,hyp_id)
+                ok = update_info_nvidia_hyp_domain("removed", remove_uids, hyp_id)
             created += append_uids
             if len(created) > 0:
-                ok = update_info_nvidia_hyp_domain('created',created,hyp_id)
-            if len([d['err'] for d in array_out_err if len(d['err'])>0]) > 0:
-                print('errors creating uids')
+                ok = update_info_nvidia_hyp_domain("created", created, hyp_id)
+            if len([d["err"] for d in array_out_err if len(d["err"]) > 0]) > 0:
+                print("errors creating uids")
                 return False
             return True
         else:
@@ -520,8 +670,8 @@ class hyp(object):
         # TODO INFO TO DEVELOPER: igual se podría verificar si arrancando el dominio sin definirlo
         # con la opción XML_INACTIVE sería suficiente
         # o quizás lo mejor sería arrancar con createXML(libvirt.VIR_DOMAIN_START_PAUSED)
-        xml_stopped = ''
-        xml_started = ''
+        xml_stopped = ""
+        xml_started = ""
         try:
             d = self.conn.defineXML(xml_text)
             d.undefine()
@@ -531,15 +681,14 @@ class hyp(object):
                 xml_stopped = d.XMLDesc(libvirt.VIR_DOMAIN_XML_INACTIVE)
                 d.destroy()
             except Exception as e:
-                logs.exception_id.debug('0032')
-                log.error('error starting paused vm: {}'.format(e))
+                logs.exception_id.debug("0032")
+                log.error("error starting paused vm: {}".format(e))
 
         except Exception as e:
-            logs.exception_id.debug('0033')
-            log.error('error defining vm: {}'.format(e))
+            logs.exception_id.debug("0033")
+            log.error("error defining vm: {}".format(e))
 
         return xml_stopped, xml_started
-
 
     def get_domains(self):
         """
@@ -551,25 +700,36 @@ class hyp(object):
         self.domains_states = {}
         if self.connected:
             try:
-                for d in self.conn.listAllDomains(libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE):
+                for d in self.conn.listAllDomains(
+                    libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE
+                ):
                     try:
                         domain_name = d.name()
                         l_libvirt_state = d.state()
                         state_id = l_libvirt_state[0]
-                        reason_id = -1 if len(l_libvirt_state) < 2 else l_libvirt_state[1]
+                        reason_id = (
+                            -1 if len(l_libvirt_state) < 2 else l_libvirt_state[1]
+                        )
                         self.domains_states[domain_name] = {
-                             'status': virDomainState[state_id]['status'],
-                             'detail': virDomainState[state_id].get('reason',  {}).\
-                                                                get(reason_id, {}).\
-                                                                get('detail',  '')
-                             }
+                            "status": virDomainState[state_id]["status"],
+                            "detail": virDomainState[state_id]
+                            .get("reason", {})
+                            .get(reason_id, {})
+                            .get("detail", ""),
+                        }
                     except:
-                        log.info('unkown domain fail when trying to get his name, power off??')
+                        log.info(
+                            "unkown domain fail when trying to get his name, power off??"
+                        )
                         continue
-                    if domain_name[0] == '_':
+                    if domain_name[0] == "_":
                         self.domains[domain_name] = d
             except:
-                log.error('error when try to list domain in hypervisor {}'.format(self.hostname))
+                log.error(
+                    "error when try to list domain in hypervisor {}".format(
+                        self.hostname
+                    )
+                )
                 self.domains = {}
 
         return self.domains_states
@@ -581,25 +741,30 @@ class hyp(object):
             try:
                 self.id_hyp_rethink = get_id_hyp_from_uri(self.uri)
                 if self.id_hyp_rethink is None:
-                    log.error('error when hypervisor have not rethink id. {}'.format(e))
+                    log.error("error when hypervisor have not rethink id. {}".format(e))
                     raise TypeError
             except Exception as e:
-                logs.exception_id.debug('0034')
-                log.error('error when hypervisor have not rethink id. {}'.format(e))
+                logs.exception_id.debug("0034")
+                log.error("error when hypervisor have not rethink id. {}".format(e))
                 raise e
         for domain_id, d in d_domains_with_states.items():
-            update_domain_status(d['status'],
-                                 domain_id,
-                                 hyp_id=self.id_hyp_rethink,
-                                 detail=d['detail'])
+            update_domain_status(
+                d["status"], domain_id, hyp_id=self.id_hyp_rethink, detail=d["detail"]
+            )
             set_domains_running_in_hyps.add(domain_id)
         domains_with_hyp_started_in_db = get_domains_started_in_hyp(self.id_hyp_rethink)
-        set_domains_with_hyp_started_in_db = set(list(domains_with_hyp_started_in_db.keys()))
-        domains_to_be_stopped = set_domains_with_hyp_started_in_db.difference(set_domains_running_in_hyps)
+        set_domains_with_hyp_started_in_db = set(
+            list(domains_with_hyp_started_in_db.keys())
+        )
+        domains_to_be_stopped = set_domains_with_hyp_started_in_db.difference(
+            set_domains_running_in_hyps
+        )
         for domain_id in domains_to_be_stopped:
-            update_domain_status('Stopped',
-                                 domain_id,
-                                 detail=f'domain not running in hyp {self.id_hyp_rethink}')
+            update_domain_status(
+                "Stopped",
+                domain_id,
+                detail=f"domain not running in hyp {self.id_hyp_rethink}",
+            )
 
     #
     # def hyp_worker_thread(self,queue_worker):
@@ -639,7 +804,7 @@ class hyp(object):
             self.conn.close()
             self.set_status(HYP_STATUS_READY)
         except:
-            log.error('error closing connexion for hypervisor {}'.format(self.hostname))
+            log.error("error closing connexion for hypervisor {}".format(self.hostname))
             self.set_status(HYP_STATUS_ERROR_WHEN_CLOSE_CONNEXION)
 
     def get_stats_from_libvirt(self, exclude_domains_not_isard=True):
@@ -647,46 +812,55 @@ class hyp(object):
         if self.connected:
             # get CPU Stats
             try:
-                raw_stats['cpu'] = self.conn.getCPUStats(libvirt.VIR_NODE_CPU_STATS_ALL_CPUS)
+                raw_stats["cpu"] = self.conn.getCPUStats(
+                    libvirt.VIR_NODE_CPU_STATS_ALL_CPUS
+                )
             except:
-                log.error('getCPUStats fail in hypervisor {}'.format(self.hostname))
+                log.error("getCPUStats fail in hypervisor {}".format(self.hostname))
                 return False
 
             # get Memory Stats
             try:
-                raw_stats['memory'] = self.conn.getMemoryStats(-1, 0)
+                raw_stats["memory"] = self.conn.getMemoryStats(-1, 0)
             except:
-                log.error('getMemoryStats fail in hypervisor {}'.format(self.hostname))
+                log.error("getMemoryStats fail in hypervisor {}".format(self.hostname))
                 return False
 
             # get All Domain Stats
             try:
                 # l_stats = self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_GET_ALL_DOMAINS_STATS_ACTIVE)
-                raw_stats['domains'] = {l[0].name(): {'stats': l[1],
-                                                      'state': l[0].state(),
-                                                      'd'    : l[0]}
-                                        for l in
-                                        self.conn.getAllDomainStats(flags=libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE)}
+                raw_stats["domains"] = {
+                    l[0].name(): {"stats": l[1], "state": l[0].state(), "d": l[0]}
+                    for l in self.conn.getAllDomainStats(
+                        flags=libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE
+                    )
+                }
 
-                raw_stats['time_utc'] = time.time()
+                raw_stats["time_utc"] = time.time()
 
                 # remove stats from domains not started with _ (all domains in isard start with _)
                 if exclude_domains_not_isard is True:
-                    for domain_name in list(raw_stats['domains'].keys()):
-                        if domain_name[0] != '_':
-                            del raw_stats['domains'][domain_name]
+                    for domain_name in list(raw_stats["domains"].keys()):
+                        if domain_name[0] != "_":
+                            del raw_stats["domains"][domain_name]
 
             except:
-                log.error('getAllDomainStats fail in hypervisor {}'.format(self.hostname))
+                log.error(
+                    "getAllDomainStats fail in hypervisor {}".format(self.hostname)
+                )
                 return False
 
             return raw_stats
 
         else:
-            log.error('can not get stats from libvirt if hypervisor {} is not connected'.format(self.hostname))
+            log.error(
+                "can not get stats from libvirt if hypervisor {} is not connected".format(
+                    self.hostname
+                )
+            )
             return False
 
-    def     process_hypervisor_stats(self, raw_stats):
+    def process_hypervisor_stats(self, raw_stats):
         return True
         # ~ if len(self.info) == 0:
         # ~ self.get_hyp_info()
@@ -816,7 +990,6 @@ class hyp(object):
 
         # ~ self.stats_raw_domains[d].append(raw['stats'])
 
-
         # ~ if len(self.stats_raw_domains[d]) > 1:
 
         # ~ sum_domains += 1
@@ -928,7 +1101,6 @@ class hyp(object):
         # ~ self.stats_domains_now[d] = d_stats.copy()
         # ~ self.update_domain_means_and_data_frames(d, d_stats, timestamp)
 
-
         # ~ if len(self.stats_domains_now) > 0:
         # ~ try:
         # ~ mean_vcpu_load = sum([j['vcpu_load'] for j in self.stats_domains_now.values()]) / len(self.stats_domains_now)
@@ -1018,8 +1190,7 @@ class hyp(object):
 
         # ~ self.stats_domains[d]['means_total'] = self.stats_domains[d]['long_df'].mean().to_dict()
 
-
-    def create_stats_vars(self,testing=True):
+    def create_stats_vars(self, testing=True):
         return True
         # ~ self.stats_queue_lenght_hyp_raw_stats = 3
         # ~ self.stats_queue_lenght_domains_raw_stats = 3
@@ -1047,7 +1218,6 @@ class hyp(object):
         # ~ self.stats_medium_sample_period = 10
         # ~ self.stats_long_sample_period = 60
 
-
         # ~ self.stats_hyp_now = dict()
         # ~ self.stats_domains_now = dict()
         # ~ self.stats_raw_hyp = deque(maxlen=self.stats_queue_lenght_hyp_raw_stats)
@@ -1070,8 +1240,7 @@ class hyp(object):
         # ~ #Thread to polling stats
         # ~ self.polling_thread = False
 
-
-    def launch_thread_status_polling(self,polling_interval=0):
+    def launch_thread_status_polling(self, polling_interval=0):
         self.polling_thread = self.PollingStats(self, polling_interval)
         self.polling_thread.daemon = True
         self.polling_thread.start()
@@ -1079,7 +1248,7 @@ class hyp(object):
     class PollingStats(threading.Thread):
         def __init__(self, hyp_obj, polling_interval=0, stop=False):
             threading.Thread.__init__(self)
-            self.name = 'PollingStats_{}'.format(hyp_obj.hostname)
+            self.name = "PollingStats_{}".format(hyp_obj.hostname)
             self.hyp_obj = hyp_obj
             if polling_interval == 0:
                 self.polling_interval = self.stats_polling_interval
@@ -1090,7 +1259,7 @@ class hyp(object):
 
         def run(self):
             self.tid = get_tid()
-            log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+            log.info("starting thread: {} (TID {})".format(self.name, self.tid))
             while self.stop is not True:
                 self.hyp_obj.get_load()
                 interval = 0.0
@@ -1110,8 +1279,8 @@ class hyp(object):
         if raw_stats is False:
             return False
 
-        domains_with_stats = list(raw_stats['domains'].keys())
-        #broom action: domains that are started or stopped in stats that have errors in database
+        domains_with_stats = list(raw_stats["domains"].keys())
+        # broom action: domains that are started or stopped in stats that have errors in database
         self.update_domains_started_and_stopped(domains_with_stats)
 
         self.process_hypervisor_stats(raw_stats)
@@ -1121,67 +1290,85 @@ class hyp(object):
 
         return True
 
-    def update_domains_started_and_stopped(self,domains_with_stats):
+    def update_domains_started_and_stopped(self, domains_with_stats):
         if self.id_hyp_rethink is None:
             try:
-                self.id_hyp_rethink = get_id_hyp_from_uri(hostname_to_uri(self.hostname, user=self.user, port=self.port))
+                self.id_hyp_rethink = get_id_hyp_from_uri(
+                    hostname_to_uri(self.hostname, user=self.user, port=self.port)
+                )
             except Exception as e:
-                logs.exception_id.debug('0035')
-                log.error('error when hypervisor have not rethink id. {}'.format(e))
+                logs.exception_id.debug("0035")
+                log.error("error when hypervisor have not rethink id. {}".format(e))
                 return False
-        l_all_domains = get_domains_with_status_in_list(list_status=['Started', 'Shutting-down', 'Stopped', 'Failed'])
+        l_all_domains = get_domains_with_status_in_list(
+            list_status=["Started", "Shutting-down", "Stopped", "Failed"]
+        )
         for d in l_all_domains:
-            if d['id'] in domains_with_stats:
-                if d['status'] == 'Started' or d['status'] == 'Shutting-down':
-                    #if status started check if has the same hypervisor
-                    if d['hyp_started'] != self.id_hyp_rethink:
-                        log.error(f"Domain {d['id']} started in hypervisor ({self.id_hyp_rethink}) but database says that is started in {d['hyp_started']} !! ")
-                        update_domain_status(status=d['status'],
-                                             id_domain='_admin_downloaded_tetros',
-                                             detail=f'Started in other hypervisor!! {self.id_hyp_rethink}. Updated by status thread',
-                                             hyp_id=self.id_hyp_rethink)
+            if d["id"] in domains_with_stats:
+                if d["status"] == "Started" or d["status"] == "Shutting-down":
+                    # if status started check if has the same hypervisor
+                    if d["hyp_started"] != self.id_hyp_rethink:
+                        log.error(
+                            f"Domain {d['id']} started in hypervisor ({self.id_hyp_rethink}) but database says that is started in {d['hyp_started']} !! "
+                        )
+                        update_domain_status(
+                            status=d["status"],
+                            id_domain="_admin_downloaded_tetros",
+                            detail=f"Started in other hypervisor!! {self.id_hyp_rethink}. Updated by status thread",
+                            hyp_id=self.id_hyp_rethink,
+                        )
                 else:
-                    #if status is Stopped or Failed update, the domain is started
-                    log.info('Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread')
-                    update_domain_status(status='Started',
-                                         id_domain='_admin_downloaded_tetros',
-                                         detail=f'Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread',
-                                         hyp_id=self.id_hyp_rethink)
+                    # if status is Stopped or Failed update, the domain is started
+                    log.info(
+                        "Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread"
+                    )
+                    update_domain_status(
+                        status="Started",
+                        id_domain="_admin_downloaded_tetros",
+                        detail=f"Domain is started in {self.id_hyp_rethink} but in database was Stopped or Failed, updated by status thread",
+                        hyp_id=self.id_hyp_rethink,
+                    )
 
-            elif d['hyp_started'] == self.id_hyp_rethink:
-                #Domain is started in this hypervisor in database, but is stopped
-                if d['status'] == 'Started':
-                    update_domain_status(status='Stopped',
-                                         id_domain='_admin_downloaded_tetros',
-                                         detail=f'Domain is stopped in {self.id_hyp_rethink} but in database was Started, updated by status thread',
-                                         )
+            elif d["hyp_started"] == self.id_hyp_rethink:
+                # Domain is started in this hypervisor in database, but is stopped
+                if d["status"] == "Started":
+                    update_domain_status(
+                        status="Stopped",
+                        id_domain="_admin_downloaded_tetros",
+                        detail=f"Domain is stopped in {self.id_hyp_rethink} but in database was Started, updated by status thread",
+                    )
 
     def send_stats(self):
-        #hypervisors
+        # hypervisors
         send_stats_to_rethink = True
         if self.id_hyp_rethink is None:
-            #self.id_hyp_rethink = get_id_hyp_from_uri('qemu+ssh://root@isard-hypervisor:22/system')
-            self.id_hyp_rethink = get_id_hyp_from_uri(hostname_to_uri(self.hostname, user=self.user, port=self.port))
+            # self.id_hyp_rethink = get_id_hyp_from_uri('qemu+ssh://root@isard-hypervisor:22/system')
+            self.id_hyp_rethink = get_id_hyp_from_uri(
+                hostname_to_uri(self.hostname, user=self.user, port=self.port)
+            )
         if send_stats_to_rethink:
-            update_actual_stats_hyp(self.id_hyp_rethink,
-                                    self.stats_hyp_now)
+            update_actual_stats_hyp(self.id_hyp_rethink, self.stats_hyp_now)
 
             for id_domain, s in self.stats_domains_now.items():
 
-                means = {'near':   self.stats_domains[id_domain].get('means_near',False),
-                         'medium': self.stats_domains[id_domain].get('means_medium',False),
-                         'long':   self.stats_domains[id_domain].get('means_long',False),
-                         'total':  self.stats_domains[id_domain].get('means_total',False),
-                         'boot':   self.stats_domains[id_domain].get('means_boot',False)}
+                means = {
+                    "near": self.stats_domains[id_domain].get("means_near", False),
+                    "medium": self.stats_domains[id_domain].get("means_medium", False),
+                    "long": self.stats_domains[id_domain].get("means_long", False),
+                    "total": self.stats_domains[id_domain].get("means_total", False),
+                    "boot": self.stats_domains[id_domain].get("means_boot", False),
+                }
                 update_actual_stats_domain(id_domain, s, means)
-            #for (h in )
+            # for (h in )
 
     def get_eval_statistics(self):
-        cpu_percent_free = 100 - self.stats_hyp_now.get('cpu_load', 0)
-        ram_percent_free = 100 - self.stats_hyp_now.get('mem_load_rate', 0)
-        data = {"cpu_percent_free": cpu_percent_free,
-                "ram_percent_free": ram_percent_free,
-                "domains": list(self.stats_domains_now.keys())}
+        cpu_percent_free = 100 - self.stats_hyp_now.get("cpu_load", 0)
+        ram_percent_free = 100 - self.stats_hyp_now.get("mem_load_rate", 0)
+        data = {
+            "cpu_percent_free": cpu_percent_free,
+            "ram_percent_free": ram_percent_free,
+            "domains": list(self.stats_domains_now.keys()),
+        }
         return data
 
     def get_ux_eval_statistics(self, domain_id):
@@ -1197,10 +1384,10 @@ class hyp(object):
         self.stats_hyp_now.get('mem_load_rate')
         """
         data = {}
-        data["ram_hyp_usage"] = self.stats_hyp_now.get('mem_load_rate')
-        data["cpu_hyp_usage"] = self.stats_hyp_now.get('cpu_load')
-        data["cpu_hyp_iowait"] = self.stats_hyp_now.get('cpu_iowait')
+        data["ram_hyp_usage"] = self.stats_hyp_now.get("mem_load_rate")
+        data["cpu_hyp_usage"] = self.stats_hyp_now.get("cpu_load")
+        data["cpu_hyp_iowait"] = self.stats_hyp_now.get("cpu_iowait")
         domain_stats = self.stats_domains_now.get(domain_id)
         if domain_stats:
-            data["cpu_usage"] = domain_stats.get('cpu_load')
+            data["cpu_usage"] = domain_stats.get("cpu_load")
         return data

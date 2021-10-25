@@ -1,31 +1,33 @@
-
+import os
 from pprint import pprint
 
-import os
-from rethinkdb import RethinkDB; r = RethinkDB()
-from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
+from rethinkdb import RethinkDB
 
-from subprocess import check_call, check_output
+r = RethinkDB()
 import ipaddress
 import traceback
+from subprocess import check_call, check_output
 
 import iptc
+from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
-REJECT={'target': {'REJECT': {'reject-with': 'icmp-host-prohibited'}}}
+REJECT = {"target": {"REJECT": {"reject-with": "icmp-host-prohibited"}}}
+
 
 class IpTools(object):
     def __init__(self):
         None
 
-    def add_rule(self, rule, table=iptc.Table.FILTER, chain='FORWARD'):
+    def add_rule(self, rule, table=iptc.Table.FILTER, chain="FORWARD"):
         table = iptc.Table(table)
         chain = iptc.Chain(table, chain)
         rule = iptc.easy.encode_iptc_rule(rule)
-        chain.insert_rule(rule) 
+        chain.insert_rule(rule)
 
     def add_chain(self, name, table=iptc.Table.FILTER):
         table = iptc.Table(table)
-        if table.is_chain(name): return
+        if table.is_chain(name):
+            return
         chain = table.create_chain(name)
 
     def add_dependency_chain(self, child, parent, table=iptc.Table.FILTER):
@@ -34,22 +36,22 @@ class IpTools(object):
         rule = iptc.Rule()
         rule.target = iptc.Target(rule, parent)
         chain.insert_rule(rule)
-        #iptables -A user-name -j fw-users
+        # iptables -A user-name -j fw-users
 
     def reject_chain(self, chain):
-        self.add_rule(REJECT,chain=chain)
+        self.add_rule(REJECT, chain=chain)
 
-    def flush_chains(self,table=iptc.Table.FILTER):
+    def flush_chains(self, table=iptc.Table.FILTER):
         table = iptc.Table(table)
         table.flush()
 
-    def flush_rules(self,chain,table=iptc.Table.FILTER):
+    def flush_rules(self, chain, table=iptc.Table.FILTER):
         table = iptc.Table(table)
         if table.is_chain(chain):
             chain = iptc.Chain(table, chain)
             chain.flush()
 
-    def delete_rule(self,chain,src=False,dst=False,table=iptc.Table.FILTER):
+    def delete_rule(self, chain, src=False, dst=False, table=iptc.Table.FILTER):
         table = iptc.Table(table)
         table.autocommit = False
         chain = iptc.Chain(table, chain)

@@ -16,10 +16,12 @@ class TryHypConnectionThread(threading.Thread):
 
     def run(self):
         self.tid = get_tid()
-        log.info('starting thread: {} (TID {})'.format(self.name, self.tid))
+        log.info("starting thread: {} (TID {})".format(self.name, self.tid))
 
-        self.hyp_obj, self.ok = try_hyp_connection(self.hyp_id, self.hostname, self.port, self.user)
+        self.hyp_obj, self.ok = try_hyp_connection(
+            self.hyp_id, self.hostname, self.port, self.user
+        )
 
-        log.debug('Exiting from thread {} try_hyp {}'.format(self.name, self.hostname))
+        log.debug("Exiting from thread {} try_hyp {}".format(self.name, self.hostname))
 
         return self.ok
