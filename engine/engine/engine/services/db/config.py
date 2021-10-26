@@ -1,7 +1,7 @@
 import traceback
 
 from engine.config import RETHINK_DB, RETHINK_HOST, RETHINK_PORT
-from engine.services.db import close_rethink_connection, new_rethink_connection
+from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.log import logs
 from rethinkdb import r
 
