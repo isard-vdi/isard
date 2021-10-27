@@ -34,12 +34,9 @@ def reacheable(hostname, waittime=1000):
 ok = False
 while not ok:
     try:
-        if os.environ.get("API_DOMAIN", False):
-            hypervisor = os.environ["DOMAIN"]
-        else:
-            hypervisor = os.environ.get("HYPER_ID", "isard-hypervisor")
+        hyper_id = os.environ.get("HYPER_ID", "isard-hypervisor")
 
-        peer = apic.get("hypervisor_vpn/" + hypervisor)
+        peer = apic.get("hypervisor_vpn/" + hyper_id)
         if not peer:
             print("Api unable to connect to this host:port through ssh-keyscan.")
             time.sleep(4)
