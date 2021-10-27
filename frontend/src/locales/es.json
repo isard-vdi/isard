@@ -9,8 +9,8 @@
         "new-desktop": {
             "title": "Nuevo desktop:",
             "section-title-template": "Selecciona una plantilla:",
-            "desktop-name": "Nombre del escritorio",
-            "desktop-description": "Descripción del escritorio",
+            "name": "Nombre",
+            "description": "Descripción",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
             "filter-placeholder": "Escribe para buscar",

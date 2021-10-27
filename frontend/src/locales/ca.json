@@ -278,8 +278,8 @@
         "new-desktop": {
             "title": "Crear un nou escriptori:",
             "section-title-template": "Seleccionar una plantilla:",
-            "desktop-name": "Nom de l'escriptori",
-            "desktop-description": "Descripció de l'escriptori",
+            "name": "Nom",
+            "description": "Descripció",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
             "filter-placeholder": "Escriu per cercar",

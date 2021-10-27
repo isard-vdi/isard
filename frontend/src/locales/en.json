@@ -9,8 +9,8 @@
         "new-desktop": {
             "title": "Create new desktop:",
             "section-title-template": "Select a template:",
-            "desktop-name": "Desktop Name",
-            "desktop-description": "Desktop Description",
+            "name": "Name",
+            "description": "Description",
             "desktop-template": "Template",
             "filter": "Filter",
             "filter-placeholder": "Type to search",
