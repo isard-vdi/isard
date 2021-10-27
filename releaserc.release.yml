@@ -5,4 +5,4 @@ plugins:
     - preset: conventionalcommits
   - - "@semantic-release/gitlab"
     - assets:
-        - docker-compose*.yml
+        - docker-compose.yml
