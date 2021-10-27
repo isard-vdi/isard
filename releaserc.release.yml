@@ -1,5 +1,3 @@
-branches:
-  - "main"
 plugins:
   - - "@semantic-release/commit-analyzer"
     - preset: conventionalcommits
@@ -8,4 +6,3 @@ plugins:
   - - "@semantic-release/gitlab"
     - assets:
         - docker-compose*.yml
-

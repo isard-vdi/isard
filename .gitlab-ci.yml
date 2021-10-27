@@ -1,7 +1,7 @@
 # https://docs.gitlab.com/ee/ci/yaml/index.html#switch-between-branch-pipelines-and-merge-request-pipelines
 workflow:
   rules:
-    - if: '$CI_COMMIT_BRANCH && $CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS'
+    - if: $CI_COMMIT_BRANCH && $CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS || $CI_COMMIT_TAG
       when: never
     - when: always
 
@@ -11,34 +11,44 @@ stages:
  - docker-compose
  - docker-images
  - docker-registry
- - changelog
+ - release
 
 commit-lint:
-  image: alpine
   stage: lint
-  rules:
-    - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
-  before_script:
-    - apk add --no-cache nodejs npm git
-    - npm i --save @commitlint/config-conventional
+  image: node
   script:
-    - echo "${CI_COMMIT_TITLE}\n\n${CI_COMMIT_DESCRIPTION}" | npx commitlint -x "@commitlint/config-conventional"
+    - npm i --save @commitlint/config-conventional
+    - git fetch https://gitlab.com/isard/isardvdi.git main
+    - npx commitlint -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
 
 version:
-  image: alpine
   stage: version
+  image: node
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  before_script:
-    - apk add --no-cache nodejs npm git
-    - npm install -g semantic-release @semantic-release/exec @semantic-release/gitlab conventional-changelog-conventionalcommits
+    # semantic-release checks repository write access and we cannot use
+    # GITLAB_TOKEN in unprotected branches due to security reasons.
+    # https://github.com/semantic-release/semantic-release/issues/2207
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
-    - |
-      echo "{ 'branches': ['$CI_DEFAULT_BRANCH', '$CI_COMMIT_REF_NAME'], 'plugins': [['@semantic-release/commit-analyzer', { 'preset': 'conventionalcommits' }], ['@semantic-release/exec', { 'verifyReleaseCmd': 'echo \${nextRelease.version} > .VERSION' }]] }" > .releaserc && rm .releaserc.yml
-    - semantic-release --no-ci
+    - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits
+    - cp releaserc.version.yml .releaserc.yml
+    - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
   artifacts:
     paths:
       - .VERSION
+
+changelog-preview:
+  # This is a workarround to show changelog preview without semantic-release
+  # see comment in job "version".
+  stage: version
+  image: node
+  script:
+    - npm install -g conventional-changelog-cli conventional-changelog-conventionalcommits
+    - conventional-changelog -p conventionalcommits -o CHANGELOG.md
+    - cat CHANGELOG.md
+  artifacts:
+    paths:
+      - CHANGELOG.md
 
 check-python:
   stage: lint
@@ -54,6 +64,7 @@ docker-compose:
   services:
     - docker:dind
   script:
+    - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
     - apk add bash git docker-compose
     # Use docker compose < 1.27 to avoid depends_on issue
     # https://github.com/isard-vdi/isard/issues/390
@@ -100,6 +111,7 @@ docker-image:
       - DOCKER_COMPOSE: toolbox.build
         IMAGE: toolbox
   script:
+    - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - apk add git docker-compose
     - git submodule update --init --recursive --remote
@@ -131,17 +143,20 @@ docker-tag:
           - video
           - toolbox
   script:
+    - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
     - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA $CI_COMMIT_REF_SLUG
+    - test ! -e ".VERSION" && exit 0
+    - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA v$(cat .VERSION | tr '.' '-')
 
-changelog:
-  image: alpine
-  stage: changelog
+release:
+  stage: release
+  image: node
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  before_script:
-    - apk add --no-cache nodejs npm git
-    - npm install -g semantic-release @semantic-release/gitlab conventional-changelog-conventionalcommits
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
-    - semantic-release
-
+    - test ! -e ".VERSION" && exit 0
+    - 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
+    - npm install -g semantic-release @semantic-release/gitlab conventional-changelog-conventionalcommits
+    - cp releaserc.release.yml .releaserc.yml
+    - semantic-release --branches $CI_DEFAULT_BRANCH
