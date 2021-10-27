@@ -33,7 +33,7 @@ export default {
     setSession (context, token) {
       context.commit('setToken', token)
       context.commit('setExpirationDate', JSON.parse(atob(token.split('.')[1])).exp * 1000)
-      context.commit('setUser', JSON.parse(atob(token.split('.')[1])).data)
+      context.commit('setUser', JSON.parse(decodeURIComponent(escape(atob(token.split('.')[1])))).data)
     },
     loginSuccess (context, token) {
       context.dispatch('setSession', token)
