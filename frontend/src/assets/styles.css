@@ -142,7 +142,7 @@
 .text-state {
   margin-top: 0.3rem;
   margin-bottom: 0.3rem;
-  font-size: large;
+  font-size: calc(0.8rem + 0.2vw);
   color: #89ce6d;
 }
 
@@ -356,7 +356,7 @@
 }
 
 .status-green {
-  color: #53bb03
+  color: #87ad69
 }
 
 .status-orange {
@@ -368,7 +368,7 @@
 }
 
 .status-gray {
-  color: black
+  color: #495057;
 }
 
 .table-action-button {

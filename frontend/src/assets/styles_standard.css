@@ -6,7 +6,8 @@
     }
     
     .card-list .card-title {
-      font-size: 1vw;
+      color: #2d3436;
+      font-size: calc(1rem + 0.2vw);
       padding-left: 16px;
       padding-right: 16px;
     }
