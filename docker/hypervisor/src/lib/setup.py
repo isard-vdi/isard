@@ -37,6 +37,7 @@ isard_hyper_vpn_host = os.environ.get("VPN_DOMAIN", "isard-vpn")
 
 def SetupHypervisor():
     HYPERVISOR = {
+        "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
         "hostname": hostname,
         "port": "2022",
         "cap_disk": True,
@@ -113,8 +114,8 @@ def SetupHypervisor():
 
 
 def DeleteHypervisor():
-    return apic.delete("hypervisor/" + hostname)
+    return apic.delete("hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"))
 
 
 def EnableHypervisor():
-    return apic.update("hypervisor/" + hostname)
+    return apic.update("hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"))

@@ -124,11 +124,12 @@ def api_v3_guest_addr():
 
 
 @app.route("/api/v3/hypervisor", methods=["POST"])
-@app.route("/api/v3/hypervisor/<hostname>", methods=["DELETE", "PUT"])
+@app.route("/api/v3/hypervisor/<hyper_id>", methods=["DELETE", "PUT"])
 @is_hyper
-def api_v3_hypervisor(hostname=False):
+def api_v3_hypervisor(hyper_id=False):
     if request.method == "POST":
         try:
+            hyper_id = request.form.get("hyper_id", type=str)
             hostname = request.form.get("hostname", type=str)
             port = request.form.get("port", default="2022", type=str)
             cap_hyper = request.form.get("cap_hyper", default=True, type=bool)
@@ -162,6 +163,7 @@ def api_v3_hypervisor(hostname=False):
 
         try:
             data = api_hypervisors.hyper(
+                hyper_id,
                 hostname,
                 port=port,
                 cap_disk=cap_disk,
@@ -195,7 +197,7 @@ def api_v3_hypervisor(hostname=False):
             )
     if request.method == "DELETE":
         try:
-            data = api_hypervisors.remove_hyper(hostname)
+            data = api_hypervisors.remove_hyper(hyper_id)
             if not data["status"]:
                 log.warning(data)
                 return (
@@ -218,8 +220,8 @@ def api_v3_hypervisor(hostname=False):
             )
     if request.method == "PUT":
         try:
-            log.warning("Enabling hypervisor: " + hostname)
-            data = api_hypervisors.enable_hyper(hostname)
+            log.warning("Enabling hypervisor: " + hyper_id)
+            data = api_hypervisors.enable_hyper(hyper_id)
             if not data["status"]:
                 log.warning(data)
                 return (

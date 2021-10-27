@@ -60,6 +60,7 @@ class ApiHypervisors:
 
     def hyper(
         self,
+        hyper_id,
         hostname,
         port="2022",
         cap_disk=True,
@@ -77,7 +78,7 @@ class ApiHypervisors:
 
         # Check if it is in database
         with app.app_context():
-            hypervisor = r.table("hypervisors").get(hostname).run(db.conn)
+            hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
         if hypervisor is None:
             # Hypervisor not in database
             with app.app_context():
@@ -103,6 +104,7 @@ class ApiHypervisors:
 
             if not self.check(
                 self.add_hyper(
+                    hyper_id,
                     hostname,
                     hypervisor_number,
                     port=port,
@@ -129,9 +131,10 @@ class ApiHypervisors:
                     + ". Please ensure the port is opened in the hypervisor",
                     "data": data,
                 }
-            log.info("Hypervisor " + hostname + "added to database")
+            log.info("Hypervisor " + hyper_id + "added to database")
         else:
             result = self.add_hyper(
+                hyper_id,
                 hostname,
                 hypervisor["hypervisor_number"],
                 port=port,
@@ -185,7 +188,8 @@ class ApiHypervisors:
 
     def add_hyper(
         self,
-        hyp_id,
+        hyper_id,
+        hostname,
         hyp_number,
         port="2022",
         cap_disk=True,
@@ -200,7 +204,7 @@ class ApiHypervisors:
         isard_hyper_vpn_host="isard-vpn",
     ):
         # If we can't connect why we should add it? Just return False!
-        if not self.update_fingerprint(hyp_id, port):
+        if not self.update_fingerprint(hostname, port):
             return False
 
         hypervisor = {
@@ -208,11 +212,11 @@ class ApiHypervisors:
             "description": description,
             "detail": "",
             "enabled": enabled,
-            "hostname": hyp_id,
+            "hostname": hostname,
             "isard_hyper_vpn_host": isard_hyper_vpn_host,
             "hypervisor_number": hyp_number,
             "hypervisors_pools": ["default"],
-            "id": hyp_id,
+            "id": hyper_id,
             "port": port,
             "status": "Offline",
             "status_time": False,
@@ -233,8 +237,8 @@ class ApiHypervisors:
                     paths = r.table("hypervisors_pools").get(hp).run(db.conn)["paths"]
                 for p in paths:
                     for i, path_data in enumerate(paths[p]):
-                        if hyp_id not in path_data["disk_operations"]:
-                            path_data["disk_operations"].append(hyp_id)
+                        if hyper_id not in path_data["disk_operations"]:
+                            path_data["disk_operations"].append(hyper_id)
                             paths[p][i]["disk_operations"] = path_data[
                                 "disk_operations"
                             ]
@@ -253,22 +257,22 @@ class ApiHypervisors:
             )
         return result
 
-    def enable_hyper(self, hostname):
+    def enable_hyper(self, hyper_id):
         with app.app_context():
-            hypervisor = r.table("hypervisors").get(hostname).run(db.conn)
+            hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
         if hypervisor == None:
             return {"status": False, "msg": "Hypervisor not found", "data": {}}
 
         with app.app_context():
-            r.table("hypervisors").get(hostname).update({"enabled": True}).run(db.conn)
+            r.table("hypervisors").get(hyper_id).update({"enabled": True}).run(db.conn)
 
         self.engine_restart()
         return {"status": True, "msg": "Hypervisor enabled", "data": {}}
 
-    def remove_hyper(self, hostname, restart=True):
-        self.stop_hyper_domains(hostname)
+    def remove_hyper(self, hyper_id, restart=True):
+        self.stop_hyper_domains(hyper_id)
         with app.app_context():
-            hypervisor = r.table("hypervisors").get(hostname).run(db.conn)
+            hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
         if hypervisor == None:
             return {"status": False, "msg": "Hypervisor not found", "data": {}}
         for hp in hypervisor["hypervisors_pools"]:
@@ -276,8 +280,8 @@ class ApiHypervisors:
                 paths = r.table("hypervisors_pools").get(hp).run(db.conn)["paths"]
             for p in paths:
                 for i, path_data in enumerate(paths[p]):
-                    if hostname in path_data["disk_operations"]:
-                        path_data["disk_operations"].remove(hostname)
+                    if hyper_id in path_data["disk_operations"]:
+                        path_data["disk_operations"].remove(hyper_id)
                         paths[p][i]["disk_operations"] = path_data["disk_operations"]
             with app.app_context():
                 r.table("hypervisors_pools").get(hp).update(
@@ -285,7 +289,7 @@ class ApiHypervisors:
                 ).run(db.conn)
 
         with app.app_context():
-            r.table("hypervisors").get(hostname).update(
+            r.table("hypervisors").get(hyper_id).update(
                 {"enabled": False, "status": "Deleting"}
             ).run(db.conn)
             now = time.time()
@@ -293,14 +297,9 @@ class ApiHypervisors:
             while time.time() - now < 10:
                 time.sleep(1)
                 try:
-                    r.table("hypervisors").get(hostname)
+                    r.table("hypervisors").get(hyper_id)
                 except ReqlNonExistenceError:
                     return {"status": True, "msg": "Removed from database", "data": {}}
-
-            # time.sleep(2)
-            # r.table('hypervisors').get(hostname).update({'status':'Deleting'}).run(db.conn)
-            # time.sleep(2)
-            # r.table('hypervisors').get(hostname).delete().run(db.conn)
 
         # if restart: self.engine_restart()
         return {
@@ -309,12 +308,12 @@ class ApiHypervisors:
             "data": {},
         }
 
-    def stop_hyper_domains(self, hostname):
+    def stop_hyper_domains(self, hyper_id):
         with app.app_context():
             domains = list(
                 r.table("domains")
                 .get_all("Started", index="status")
-                .filter({"hyp_started": hostname})
+                .filter({"hyp_started": hyper_id})
                 .update({"status": "Stopping"})
                 .run(db.conn)
             )
@@ -323,7 +322,7 @@ class ApiHypervisors:
             list(
                 r.table("domains")
                 .get_all("Started", index="status")
-                .filter({"hyp_started": hostname})
+                .filter({"hyp_started": hyper_id})
                 .run(db.conn)
             )
         ):
@@ -424,8 +423,8 @@ class ApiHypervisors:
                 # print(traceback.format_exc())
                 return False
 
-    def get_hypervisor_vpn(self, hyp_id):
-        return isardVpn.vpn_data("hypers", "config", "", hyp_id)
+    def get_hypervisor_vpn(self, hyper_id):
+        return isardVpn.vpn_data("hypers", "config", "", hyper_id)
 
     def get_vlans(self):
         with app.app_context():
