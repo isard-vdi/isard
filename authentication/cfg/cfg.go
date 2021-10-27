@@ -8,10 +8,11 @@ import (
 )
 
 type Cfg struct {
-	Log            cfg.Log
-	DB             cfg.DB
-	HTTP           cfg.HTTP
-	Authentication Authentication
+	Log             cfg.Log
+	DB              cfg.DB
+	HTTP            cfg.HTTP
+	Authentication 	Authentication
+	ShowAdminButton	string `mapstructure:"show_admin_button"`
 }
 
 type HTTP struct {
@@ -61,4 +62,6 @@ func setDefaults() {
 			"client_secret": "",
 		},
 	})
+
+	viper.BindEnv("show_admin_button", "FRONTEND_SHOW_ADMIN_BTN")
 }
