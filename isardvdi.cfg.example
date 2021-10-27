@@ -1,4 +1,4 @@
-# Isard main config v1.0.0
+# Isard main config v1.1.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -115,6 +115,10 @@ LOG_LEVEL=INFO
 ## docker-compose.hypervisor.yml: Will have an isard-video
 ## docker-compose.hypervisor-standalone.yml: Will get video on 
 ## the VIDEO_HYPERVISOR_PORTS from the VIDEO_DOMAIN isard-video host.
+
+# ------ Hypervisor Identifier -----------------------------------------------
+## Set it to a unique name for hypervisor
+#HYPER_ID=isard-hypervisor
 
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?

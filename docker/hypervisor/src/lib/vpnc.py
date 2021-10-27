@@ -37,7 +37,7 @@ while not ok:
         if os.environ.get("API_DOMAIN", False):
             hypervisor = os.environ["DOMAIN"]
         else:
-            hypervisor = "isard-hypervisor"
+            hypervisor = os.environ.get("HYPER_ID", "isard-hypervisor")
 
         peer = apic.get("hypervisor_vpn/" + hypervisor)
         if not peer:
