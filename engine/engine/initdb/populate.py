@@ -104,13 +104,15 @@ class Populate(object):
             "places",
             "scheduler_jobs",
             "backups",
-            "config",
             "engine",
             "qos_net",
             "qos_disk",
             "remotevpn",
             "deployments",
             "secrets",
+            # config should be the last table to be created
+            # api waits for config table to start
+            "config",
         ]
         tables_to_create = list(set(newtables) - set(dbtables))
         d = {k: v for v, k in enumerate(newtables)}
