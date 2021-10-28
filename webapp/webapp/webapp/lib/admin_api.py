@@ -1740,6 +1740,48 @@ class isardAdmin:
                 r.table("domains").get(domid).update(dom).run(db.conn)
         return True
 
+    def interface_delete_list(self, if_id):
+        with app.app_context():
+            return list(
+                r.table("domains")
+                .filter(
+                    lambda dom: dom["create_dict"]["hardware"]["interfaces"].contains(
+                        lambda interface: interface.eq(if_id)
+                    )
+                )
+                .pluck(
+                    "id",
+                    "status",
+                    {
+                        "create_dict": [
+                            "macs",
+                            {"hardware": ["interfaces", "interfaces_mac"]},
+                        ]
+                    },
+                )
+                .run(db.conn)
+            )
+
+    def interface_delete(self, if_id):
+        ## Needs optimization by directly doing operation in nested array of dicts in reql
+        domains = self.interface_delete_list(if_id)
+        for dom in domains:
+            index = dom["create_dict"]["hardware"]["interfaces"].index(if_id)
+            dom["create_dict"]["hardware"]["interfaces"].remove(if_id)
+            del dom["create_dict"]["hardware"]["interfaces_mac"][index]
+            dom["create_dict"]["macs"].pop(if_id)
+
+            dom_id = dom.pop("id", None)
+            dom_status = dom.pop("status")
+
+            with app.app_context():
+                r.table("domains").get(dom_id).update(dom).run(db.conn)
+            ds.update_desktop(dom_id, dom_status)
+
+        with app.app_context():
+            r.table("interfaces").get(if_id).delete().run(db.conn)
+        return True
+
         # ~ domids=[d['id'] for d in self.media_delete_list(id)]
         # ~ with app.app_context():
         # ~ r.table('domains').get_all(r.args(domids)).update(

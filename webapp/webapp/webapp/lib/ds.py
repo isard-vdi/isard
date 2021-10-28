@@ -90,6 +90,34 @@ class DS:
         for desktop in desktops_to_delete:
             ds.delete_desktop(desktop["id"], desktop["status"])
 
+    def stop_desktop(self, desktop_id, status):
+        if status == "Started":
+            transition_status = "Stopping"
+            final_status = "Stopped"
+            try:
+                self.WaitStatus(desktop_id, status, transition_status, final_status)
+                status = "Stopped"
+            except (ReqlTimeoutError, DesktopWaitFailed):
+                with app.app_context():
+                    r.table("domains").get(desktop_id).update({"status": "Failed"}).run(
+                        db.conn
+                    )
+                    status = "Failed"
+        return status
+
+    def update_desktop(self, desktop_id, status):
+        status = self.stop_desktop(desktop_id, status)
+        if status in ["Stopped", "Failed"]:
+            transition_status = "Updating"
+            final_status = "Stopped"
+            try:
+                self.WaitStatus(desktop_id, status, transition_status, final_status)
+            except (ReqlTimeoutError, DesktopWaitFailed):
+                with app.app_context():
+                    r.table("domains").get(desktop_id).update({"status": "Failed"}).run(
+                        db.conn
+                    )
+
     def WaitStatus(self, desktop_id, original_status, transition_status, final_status):
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(
