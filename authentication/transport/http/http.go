@@ -149,12 +149,14 @@ func (a *AuthenticationServer) check(w http.ResponseWriter, r *http.Request) {
 }
 
 type configJSON struct {
-	Providers []string `json:"providers"`
+	Providers       []string `json:"providers"`
+	ShowAdminButton bool     `json:"show_admin_button"`
 }
 
 func (a *AuthenticationServer) config(w http.ResponseWriter, r *http.Request) {
 	cfg := &configJSON{
 		Providers: a.Authentication.Providers(),
+		ShowAdminButton: a.Authentication.GetShowAdminButton(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

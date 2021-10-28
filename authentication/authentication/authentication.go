@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"strconv"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -16,6 +17,7 @@ import (
 
 type Interface interface {
 	Providers() []string
+	GetShowAdminButton() bool
 	Provider(provider string) provider.Provider
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
@@ -25,30 +27,37 @@ type Interface interface {
 }
 
 type Authentication struct {
-	Secret    string
-	DB        r.QueryExecutor
-	providers map[string]provider.Provider
+	Secret          string
+	DB              r.QueryExecutor
+	providers       map[string]provider.Provider
+	ShowAdminButton bool
 }
 
-func Init(cfg cfg.Authentication, db r.QueryExecutor) *Authentication {
+func Init(cfg cfg.Cfg, db r.QueryExecutor) *Authentication {
 	providers := map[string]provider.Provider{
 		"unknown": &provider.Unknown{},
 	}
 
-	if cfg.Local {
+	if cfg.Authentication.Local {
 		local := provider.InitLocal(db)
 		providers[local.String()] = local
 	}
 
-	if cfg.Google.ClientID != "" && cfg.Google.ClientSecret != "" {
-		google := provider.InitGoogle(cfg)
+	if cfg.Authentication.Google.ClientID != "" && cfg.Authentication.Google.ClientSecret != "" {
+		google := provider.InitGoogle(cfg.Authentication)
 		providers[google.String()] = google
 	}
 
+	b, err := strconv.ParseBool(cfg.ShowAdminButton)
+	if err != nil {
+		b = true
+	}
+
 	return &Authentication{
-		Secret:    cfg.Secret,
+		Secret:    cfg.Authentication.Secret,
 		DB:        db,
 		providers: providers,
+		ShowAdminButton: b,
 	}
 }
 
@@ -63,6 +72,10 @@ func (a *Authentication) Providers() []string {
 	}
 
 	return providers
+}
+
+func (a *Authentication) GetShowAdminButton() bool {
+	return a.ShowAdminButton
 }
 
 func (a *Authentication) Provider(p string) provider.Provider {

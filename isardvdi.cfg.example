@@ -43,7 +43,7 @@ WEBAPP_ADMIN_PWD=IsardVDI
 
 # ------ Frontend Administration Button --------------------------------------
 ## Will show/hide Administration menu button for users of role User.
-FRONTEND_SHOW_ADMIN_BTN=True
+#FRONTEND_SHOW_ADMIN_BTN=True
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
