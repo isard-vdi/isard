@@ -39,7 +39,9 @@ class isardVpn:
             wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
             port = "443"
             mtu = "1420"
-            postup = ""
+            # Wireguard Windows client doesn't support PostUp empty value
+            # colon command does nothing on Windows and GNU/Linux
+            postup = ":"
             endpoint = os.environ["DOMAIN"]
         elif vpn == "hypers":
             # if itemid.role != 'admin': return False
@@ -60,7 +62,9 @@ class isardVpn:
             wgdata = r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
             port = "443"
             mtu = os.environ.get("VPN_MTU", "1600")
-            postup = ""
+            # Windows client doesn't support PostUp empty value
+            # colon command does nothing on Windows and GNU/Linux
+            postup = ":"
             endpoint = os.environ["DOMAIN"]
         else:
             return False
