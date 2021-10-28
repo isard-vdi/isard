@@ -33,7 +33,9 @@ class isardVpn:
             wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
             port = "443"
             mtu = "1420"
-            postup = ""
+            # Wireguard Windows client doesn't support PostUp empty value
+            # colon command does nothing on Windows and GNU/Linux
+            postup = ":"
             endpoint = os.environ["DOMAIN"]
         elif vpn == "hypers":
             # if itemid.role != 'admin': return False
@@ -51,7 +53,9 @@ class isardVpn:
             wgdata = r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
             port = "443"
             mtu = os.environ.get("VPN_MTU", "1600")
-            postup = ""
+            # Wireguard Windows client doesn't support PostUp empty value
+            # colon command does nothing on Windows and GNU/Linux
+            postup = ":"
             endpoint = os.environ["DOMAIN"]
         else:
             return False
@@ -66,22 +70,23 @@ class isardVpn:
             else:
                 vpn_kind_keys = "vpn_users"
             sysconfig = r.db("isard").table("config").get(1).run(db.conn)
-            app.wireguard_server_keys = (
+            wireguard_server_keys = (
                 sysconfig.get(vpn_kind_keys, {}).get("wireguard", {}).get("keys", False)
             )
-        if not app.wireguard_server_keys:
+        if not wireguard_server_keys:
             log.error(
                 "There are no wireguard keys in webapp config yet. Try again in a few seconds..."
             )
             return False
 
+        wireguard_data = [endpoint, wgdata, port, mtu, postup, wireguard_server_keys]
         if kind == "config":
             return {
                 "kind": "file",
                 "name": "isard-vpn",
                 "ext": "conf",
                 "mime": "text/plain",
-                "content": self.get_wireguard_file(endpoint, wgdata, port, mtu, postup),
+                "content": self.get_wireguard_file(*wireguard_data),
             }
         elif kind == "install":
             ext = "sh" if op_sys == "Linux" else "vb"
@@ -90,12 +95,14 @@ class isardVpn:
                 "name": "isard-vpn-setup",
                 "ext": ext,
                 "mime": "text/plain",
-                "content": self.get_wireguard_install_script(endpoint, wgdata, op_sys),
+                "content": self.get_wireguard_install_script(wireguard_data),
             }
 
         return False
 
-    def get_wireguard_file(self, endpoint, peer, port, mtu, postup):
+    def get_wireguard_file(
+        self, endpoint, peer, port, mtu, postup, wireguard_server_keys
+    ):
         return """[Interface]
 Address = %s
 PrivateKey = %s
@@ -112,14 +119,15 @@ PersistentKeepalive = 25
             peer["vpn"]["wireguard"]["keys"]["private"],
             mtu,
             postup,
-            app.wireguard_server_keys["public"],
+            wireguard_server_keys["public"],
             endpoint,
             port,
             peer["vpn"]["wireguard"]["AllowedIPs"],
         )
 
-    def get_wireguard_install_script(self, endpoint, peer, op_sys):
-        return """#!/bin/bash
+    def get_wireguard_install_script(self, wireguard_data):
+        wireguard_file_contents = self.get_wireguard_file(*wireguard_data)
+        return f"""#!/bin/bash
 echo "Installing wireguard. Ubuntu/Debian script."
 apt install -y wireguard git dh-autoreconf libglib2.0-dev intltool build-essential libgtk-3-dev libnma-dev libsecret-1-dev network-manager-dev resolvconf
 git clone https://github.com/max-moser/network-manager-wireguard
@@ -129,7 +137,5 @@ cd network-manager-wireguard
 make   
 sudo make install
 cd ..
-echo "%s" > isard-vpn.conf
-echo "You have your user vpn configuration to use it with NetworkManager: isard-vpn.conf""" % self.get_wireguard_file(
-            endpoint, peer
-        )
+echo "{wireguard_file_contents}" > isard-vpn.conf
+echo "You have your user vpn configuration to use it with NetworkManager: isard-vpn.conf"""
