@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 18
+release_version = 19
+# release 19: Update hypervisors_pools based on actual hypervisors in db
 # release 18: Replace deployment id # to = (and also to domains)
 # release 16: Added secondary wg_mac index
 tables = [
@@ -597,6 +598,34 @@ class Upgrade(object):
                     log.error("Something went wrong while upgrading hypervisors!")
                     log.error(e)
                     exit(1)
+
+        if version == 19:
+            hypervisors = [
+                h
+                for h in list(
+                    r.table("hypervisors")
+                    .pluck(
+                        "id", "hypervisors_pools", {"capabilities": "disk_operations"}
+                    )
+                    .run(self.conn)
+                )
+                if h["capabilities"]["disk_operations"]
+            ]
+            pools = list(r.table("hypervisors_pools").run(self.conn))
+
+            for hp in pools:
+                hypervisors_in_pool = [
+                    hypervisor["id"]
+                    for hypervisor in hypervisors
+                    if hp["id"] in hypervisor["hypervisors_pools"]
+                ]
+                paths = hp["paths"]
+                for p in paths:
+                    for i, item in enumerate(paths[p]):
+                        paths[p][i]["disk_operations"] = hypervisors_in_pool
+                r.table("hypervisors_pools").get(hp["id"]).update(
+                    {"paths": paths, "enabled": False}
+                ).run(self.conn)
 
         return True
 

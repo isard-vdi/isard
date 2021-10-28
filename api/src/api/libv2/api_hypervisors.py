@@ -79,7 +79,7 @@ class ApiHypervisors:
         # Check if it is in database
         with app.app_context():
             hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
-        if hypervisor is None:
+        if not hypervisor:
             # Hypervisor not in database
             with app.app_context():
                 hyper_numbers = list(
@@ -231,37 +231,21 @@ class ApiHypervisors:
             },
         }
 
-        if cap_disk:
-            for hp in hypervisor["hypervisors_pools"]:
-                with app.app_context():
-                    paths = r.table("hypervisors_pools").get(hp).run(db.conn)["paths"]
-                for p in paths:
-                    for i, path_data in enumerate(paths[p]):
-                        if hyper_id not in path_data["disk_operations"]:
-                            path_data["disk_operations"].append(hyper_id)
-                            paths[p][i]["disk_operations"] = path_data[
-                                "disk_operations"
-                            ]
-                with app.app_context():
-                    result = (
-                        r.table("hypervisors_pools")
-                        .get(hp)
-                        .update({"paths": paths, "enabled": False})
-                        .run(db.conn)
-                    )
         with app.app_context():
             result = (
                 r.table("hypervisors")
                 .insert(hypervisor, conflict="update")
                 .run(db.conn)
             )
-        return result
+        if cap_disk and self.check(result, "inserted"):
+            self.update_hypervisors_pools()
+            return result
+        return False
 
     def enable_hyper(self, hyper_id):
         with app.app_context():
-            hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
-        if hypervisor == None:
-            return {"status": False, "msg": "Hypervisor not found", "data": {}}
+            if not r.table("hypervisors").get(hyper_id).run(db.conn):
+                return {"status": False, "msg": "Hypervisor not found", "data": {}}
 
         with app.app_context():
             r.table("hypervisors").get(hyper_id).update({"enabled": True}).run(db.conn)
@@ -272,36 +256,28 @@ class ApiHypervisors:
     def remove_hyper(self, hyper_id, restart=True):
         self.stop_hyper_domains(hyper_id)
         with app.app_context():
-            hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
-        if hypervisor == None:
-            return {"status": False, "msg": "Hypervisor not found", "data": {}}
-        for hp in hypervisor["hypervisors_pools"]:
-            with app.app_context():
-                paths = r.table("hypervisors_pools").get(hp).run(db.conn)["paths"]
-            for p in paths:
-                for i, path_data in enumerate(paths[p]):
-                    if hyper_id in path_data["disk_operations"]:
-                        path_data["disk_operations"].remove(hyper_id)
-                        paths[p][i]["disk_operations"] = path_data["disk_operations"]
-            with app.app_context():
-                r.table("hypervisors_pools").get(hp).update(
-                    {"paths": paths, "enabled": False}
-                ).run(db.conn)
+            if not r.table("hypervisors").get(hyper_id).run(db.conn):
+                return {"status": False, "msg": "Hypervisor not found", "data": {}}
 
         with app.app_context():
             r.table("hypervisors").get(hyper_id).update(
                 {"enabled": False, "status": "Deleting"}
             ).run(db.conn)
 
-            now = time.time()
-            while time.time() - now < 10:
-                time.sleep(1)
+        now = time.time()
+        while time.time() - now < 20:
+            time.sleep(1)
+            with app.app_context():
                 if not r.table("hypervisors").get(hyper_id).run(db.conn):
-                    return {"status": True, "msg": "Removed from database", "data": {}}
+                    self.update_hypervisors_pools()
+                    return {
+                        "status": True,
+                        "msg": "Removed from database",
+                        "data": {},
+                    }
 
-        # if restart: self.engine_restart()
         return {
-            "status": True,
+            "status": False,
             "msg": "Hypervisor yet in database, timeout waiting to delete",
             "data": {},
         }
@@ -328,12 +304,10 @@ class ApiHypervisors:
 
     def engine_restart(self):
         try:
-            res = requests.get("http://isard-engine:5555/engine_restart")
+            requests.get("http://isard-engine:5000/engine_restart")
         except:
-            ## The procedure jusr restart engine, so no answer is expected:
-            return True
-            log.error("Could not restart engine after adding hypervisor")
-            return False
+            ## The procedure just restarts engine, so no answer is expected:
+            pass
 
     def hypervisors_max_networks(self):
         ### There will be much more hypervisor networks available than dhcpsubnets
@@ -514,6 +488,35 @@ class ApiHypervisors:
                     .delete()
                     .run(db.conn)
                 )
+
+    def update_hypervisors_pools(self):
+        with app.app_context():
+            hypervisors = [
+                h
+                for h in list(
+                    r.table("hypervisors")
+                    .pluck(
+                        "id", "hypervisors_pools", {"capabilities": "disk_operations"}
+                    )
+                    .run(db.conn)
+                )
+                if h["capabilities"]["disk_operations"]
+            ]
+            pools = list(r.table("hypervisors_pools").run(db.conn))
+        for hp in pools:
+            hypervisors_in_pool = [
+                hypervisor["id"]
+                for hypervisor in hypervisors
+                if hp["id"] in hypervisor["hypervisors_pools"]
+            ]
+            paths = hp["paths"]
+            for p in paths:
+                for i, item in enumerate(paths[p]):
+                    paths[p][i]["disk_operations"] = hypervisors_in_pool
+            with app.app_context():
+                r.table("hypervisors_pools").get(hp["id"]).update(
+                    {"paths": paths, "enabled": False}
+                ).run(db.conn)
 
     def check(self, dict, action):
         # ~ These are the actions:
