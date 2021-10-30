@@ -244,11 +244,11 @@ def api_v3_hypervisor(hyper_id=False):
             )
 
 
-@app.route("/api/v3/hypervisor_vpn/<hyp_id>", methods=["GET"])
+@app.route("/api/v3/hypervisor_vpn/<hyper_id>", methods=["GET"])
 @is_hyper
-def api_v3_hypervisor_vpn(hyp_id):
+def api_v3_hypervisor_vpn(hyper_id):
     try:
-        vpn = api_hypervisors.get_hypervisor_vpn(hyp_id)
+        vpn = api_hypervisors.get_hypervisor_vpn(hyper_id)
         return json.dumps(vpn), 200, {"Content-Type": "application/json"}
     except Exception as e:
         error = traceback.format_exc()
