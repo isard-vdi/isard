@@ -155,8 +155,8 @@ type configJSON struct {
 
 func (a *AuthenticationServer) config(w http.ResponseWriter, r *http.Request) {
 	cfg := &configJSON{
-		Providers: a.Authentication.Providers(),
-		ShowAdminButton: a.Authentication.GetShowAdminButton(),
+		Providers:       a.Authentication.Providers(),
+		ShowAdminButton: a.Authentication.ShowAdminButton(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

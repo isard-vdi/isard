@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"strconv"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -17,7 +16,7 @@ import (
 
 type Interface interface {
 	Providers() []string
-	GetShowAdminButton() bool
+	ShowAdminButton() bool
 	Provider(provider string) provider.Provider
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
@@ -30,7 +29,7 @@ type Authentication struct {
 	Secret          string
 	DB              r.QueryExecutor
 	providers       map[string]provider.Provider
-	ShowAdminButton bool
+	showAdminButton bool
 }
 
 func Init(cfg cfg.Cfg, db r.QueryExecutor) *Authentication {
@@ -48,16 +47,11 @@ func Init(cfg cfg.Cfg, db r.QueryExecutor) *Authentication {
 		providers[google.String()] = google
 	}
 
-	b, err := strconv.ParseBool(cfg.ShowAdminButton)
-	if err != nil {
-		b = true
-	}
-
 	return &Authentication{
-		Secret:    cfg.Authentication.Secret,
-		DB:        db,
-		providers: providers,
-		ShowAdminButton: b,
+		Secret:          cfg.Authentication.Secret,
+		DB:              db,
+		providers:       providers,
+		showAdminButton: cfg.ShowAdminButton,
 	}
 }
 
@@ -74,8 +68,8 @@ func (a *Authentication) Providers() []string {
 	return providers
 }
 
-func (a *Authentication) GetShowAdminButton() bool {
-	return a.ShowAdminButton
+func (a *Authentication) ShowAdminButton() bool {
+	return a.showAdminButton
 }
 
 func (a *Authentication) Provider(p string) provider.Provider {

@@ -11,8 +11,8 @@ type Cfg struct {
 	Log             cfg.Log
 	DB              cfg.DB
 	HTTP            cfg.HTTP
-	Authentication 	Authentication
-	ShowAdminButton	string `mapstructure:"show_admin_button"`
+	Authentication  Authentication
+	ShowAdminButton bool `mapstructure:"show_admin_button"`
 }
 
 type HTTP struct {
@@ -52,6 +52,7 @@ func setDefaults() {
 	cfg.SetHTTPDefaults()
 
 	viper.BindEnv("authentication.secret", "API_ISARDVDI_SECRET")
+	viper.BindEnv("show_admin_button", "FRONTEND_SHOW_ADMIN_BTN")
 
 	viper.SetDefault("authentication", map[string]interface{}{
 		"host":   getEnv("AUTHENTICATION_AUTHENTICATION_HOST", os.Getenv("DOMAIN")),
@@ -63,5 +64,5 @@ func setDefaults() {
 		},
 	})
 
-	viper.BindEnv("show_admin_button", "FRONTEND_SHOW_ADMIN_BTN")
+	viper.SetDefault("show_admin_button", true)
 }
