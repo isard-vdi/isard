@@ -157,7 +157,12 @@ def ownsDomainId(payload, desktop_id):
 
 def allowedTemplateId(payload, template_id):
     try:
-        template = r.table("domains").get(template_id).pluck("allowed").run(db.conn)
+        template = (
+            r.table("domains")
+            .get(template_id)
+            .pluck("allowed", "category")
+            .run(db.conn)
+        )
     except:
         raise AuthError({"code": 1, "msg": "Not found template " + template_id}, 401)
     alloweds = template["allowed"]
