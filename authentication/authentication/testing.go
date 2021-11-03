@@ -34,3 +34,8 @@ func (m *AuthenticationMock) Provider(prv string) provider.Provider {
 	mArgs := m.Called(prv)
 	return mArgs.Get(0).(provider.Provider)
 }
+
+func (m *AuthenticationMock) ShowAdminButton() bool {
+	mArgs := m.Called()
+	return mArgs.Bool(0)
+}
