@@ -50,9 +50,7 @@ def humansize(nbytes):
 def process_items(dir_name, suffixes, endpoint):
     print("#### Scanning " + dir_name + " ####")
     list_of_files = {
-        str(p.resolve())
-        for p in Path(dir_name).glob("**/*")
-        if p.suffix in size_suffixes
+        str(p.resolve()) for p in Path(dir_name).glob("**/*") if p.suffix in suffixes
     }
     files_with_size = [
         (file_path, humansize(os.stat(file_path).st_size))
