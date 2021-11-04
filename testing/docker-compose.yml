@@ -13,6 +13,9 @@ services:
       - ./testing/src:/testing
     networks:
       isard-network:
+    depends_on:
+      selenium-hub:
+        condition: service_healthy
 
   chrome:
     image: selenium/node-chrome:4.0.0-rc-2-prerelease-20210923
@@ -57,4 +60,5 @@ services:
       - "4444:4444"
     networks:
       isard-network:
-
+    healthcheck:
+      test: curl -f http://localhost:4444
