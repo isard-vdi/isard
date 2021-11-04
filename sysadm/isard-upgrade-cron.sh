@@ -156,6 +156,7 @@ if [ $DOCKERCOMPOSE_UP = 1 ]
 then
   echo "Bringing up new images: ${services} (isard-hypervisor is kept running)."
   docker-compose -f docker-compose$CONFIG_NAME.yml --ansi never up -d $services
+  docker image prune -f --filter "until=72h"
 else
   echo "Not bringing up new images, they were only pulled."
 fi
