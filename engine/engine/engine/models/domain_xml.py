@@ -384,9 +384,7 @@ class DomainXML(object):
 
                 if tree.xpath("bandwidth"):
                     bandwith_tree = tree.xpath("bandwidth")[0]
-                    bandwidth_xml = indent(
-                        etree.tostring(bandwith_tree, encoding="unicode")
-                    )
+                    bandwidth_xml = etree.tostring(bandwith_tree, encoding="unicode")
                     list_dict["qos"] = xmltodict.parse(bandwidth_xml)["bandwidth"]
                 else:
                     list_dict["qos"] = False
