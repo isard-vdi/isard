@@ -471,7 +471,6 @@ $(document).ready(function() {
         data = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()){   
-            data['allowed']={'roles':false,'categories':false,'groups':false,'users':false}
             if(data['id']==""){
                 //Insert
                 data['id']=false;
