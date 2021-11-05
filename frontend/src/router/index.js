@@ -13,6 +13,7 @@ import { auth } from './auth'
 import MainLayout from '@/layouts/MainLayout.vue'
 import Desktops from '@/pages/Desktops.vue'
 import DesktopNew from '@/pages/DesktopNew.vue'
+import { appTitle } from '../shared/constants'
 
 Vue.use(VueRouter)
 
@@ -27,12 +28,18 @@ const router = new VueRouter({
         {
           path: 'desktops',
           name: 'desktops',
-          component: Desktops
+          component: Desktops,
+          meta: {
+            title: 'Desktops'
+          }
         },
         {
           path: 'desktops/new',
           name: 'NewDesktop',
-          component: DesktopNew
+          component: DesktopNew,
+          meta: {
+            title: 'New Desktop'
+          }
         }
       ],
       meta: {
@@ -98,6 +105,8 @@ const router = new VueRouter({
 })
 
 router.beforeEach((to, from, next) => {
+  document.title = to.meta.title ? `${appTitle} - ${to.meta.title}` : appTitle
+
   if (to.matched.some(record => record.meta.requiresAuth)) {
     auth(to, from, next)
   } else {
