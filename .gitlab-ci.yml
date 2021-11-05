@@ -21,6 +21,14 @@ commit-lint:
     - git fetch https://gitlab.com/isard/isardvdi.git main
     - npx commitlint -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
 
+check-python:
+  stage: lint
+  image: python:3.10-bullseye
+  script:
+    - pip install isort black
+    - isort --check .
+    - black --check .
+
 version:
   stage: version
   image: node
@@ -49,14 +57,6 @@ changelog-preview:
   artifacts:
     paths:
       - CHANGELOG.md
-
-check-python:
-  stage: lint
-  image: python:3.10-bullseye
-  script:
-    - pip install isort black
-    - isort --check .
-    - black --check .
 
 docker-compose:
   image: docker:latest
