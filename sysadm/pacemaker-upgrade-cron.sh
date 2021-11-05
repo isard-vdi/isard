@@ -30,5 +30,6 @@ do
          pcs resource unmanage $config_name \
          && docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml --ansi never up -d $services \
          && pcs resource manage $config_name
+         docker image prune -f --filter "until=72h"
      fi
 done
