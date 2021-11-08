@@ -189,7 +189,7 @@ LOG_LEVEL=INFO
 ## Assign a docker /24 network. The host part will be set by system
 ## You should avoid setting a network that exists in your infrastructure
 ## or in isard configuration. Set only the /24 part!
-#DOCKER_NET=172.18.255
+#DOCKER_NET=172.31.255
 
 # ------ Guests networking ---------------------------------------------------
 ## All the sub networks needed for infrastructure wireguard will

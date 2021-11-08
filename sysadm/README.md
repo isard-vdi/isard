@@ -51,13 +51,13 @@ firewall-cmd --permanent --zone=hyper --add-source=172.16.254.201/32
 firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.200/32" port port="2022" protocol="tcp" accept' --permanent
 firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.201/32" port port="2022" protocol="tcp" accept' --permanent
 # Forward this port to isard-hypervisor internal IP
-firewall-cmd --permanent --zone=hyper --add-forward-port=port=2022:proto=tcp:toport=2022:toaddr=172.18.255.17 --permanent
+firewall-cmd --permanent --zone=hyper --add-forward-port=port=2022:proto=tcp:toport=2022:toaddr=172.31.255.17 --permanent
 
 # Video ports without proxy
 firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.200/32" port port="5900-6899" protocol="tcp" accept' --permanent
 firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.201/32" port port="5900-6899" protocol="tcp" accept' --permanent
 # Forward those ports to isard-hypervisor internal IP
-firewall-cmd --permanent --zone=hyper --add-forward-port=port=5900-6899:proto=tcp:toport=5900-6899:toaddr=172.18.255.17 --permanent
+firewall-cmd --permanent --zone=hyper --add-forward-port=port=5900-6899:proto=tcp:toport=5900-6899:toaddr=172.31.255.17 --permanent
 ```
 
 ## Publicy visible hypervisors
@@ -88,7 +88,7 @@ firewall-cmd --permanent --zone=hyper --add-source=83.53.72.181/32
 
 # Hypervisor ssh port from isard-engine
 firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="83.53.72.181/32" port port="2022" protocol="tcp" accept' --permanent
-firewall-cmd --permanent --zone=hyper --add-forward-port=port=2022:proto=tcp:toport=2022:toaddr=172.18.255.17 --permanent
+firewall-cmd --permanent --zone=hyper --add-forward-port=port=2022:proto=tcp:toport=2022:toaddr=172.31.255.17 --permanent
 
 ```
 * Access from outside world to proxy videos, by default ports 80 and 443

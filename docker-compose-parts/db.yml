@@ -8,7 +8,7 @@ services:
         max-size: "100m"
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET:-172.18.255}.13
+        ipv4_address: ${DOCKER_NET:-172.31.255}.13
     volumes:
     - /etc/localtime:/etc/localtime:ro
     - /opt/isard/database:/data:rw
