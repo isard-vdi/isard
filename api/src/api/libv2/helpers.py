@@ -191,7 +191,7 @@ def _parse_desktop(desktop):
 
 def _parse_deployment_desktop(desktop):
     user = desktop["user"]
-    if desktop["status"] == "Started" and desktop.get("viewer").get("static"):
+    if desktop["status"] == "Started" and desktop.get("viewer", {}).get("static"):
         viewer = isardviewer.viewer_data(
             desktop["id"],
             "browser-vnc",
