@@ -283,7 +283,9 @@
             "desktop-description": "Mahaigainaren deskribapena",
             "desktop-template": "Txantiloia",
             "filter": "Iragazkia",
-            "filter-placeholder": "Idatzi bilaketarako"
+            "filter-placeholder": "Idatzi bilaketarako",
+            "name": "Izena",
+            "description": "Deskribapena"
         },
         "clear": "Garbitu",
         "cancel": "Baliogabetu",
