@@ -11,7 +11,6 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.10
     restart: unless-stopped
     volumes:
-      - /etc/localtime:/etc/localtime:ro
       - /opt/isard/sshkeys/:/sshkeys:rw
       - /opt/isard/certs/viewers:/viewers:ro
     env_file:

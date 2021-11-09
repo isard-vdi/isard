@@ -10,6 +10,7 @@ stages:
  - version
  - docker-compose
  - docker-images
+ - test
  - docker-registry
  - release
 
@@ -118,6 +119,20 @@ docker-image:
     - docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build isard-$IMAGE
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+
+test:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - apk add bash git docker-compose
+    - cp isardvdi.cfg.example isardvdi.cfg
+    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
+    - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.cfg
+    - ./build.sh
+    - docker-compose -f docker-compose.yml -f testing/docker-compose.yml up -d
+    - docker-compose -f docker-compose.yml -f testing/docker-compose.yml exec -T isard-testing pytest testing
 
 docker-tag:
   stage: docker-registry

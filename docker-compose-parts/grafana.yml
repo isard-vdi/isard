@@ -11,7 +11,6 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.15
     restart: unless-stopped
     volumes:
-      - /etc/localtime:/etc/localtime:ro
       - ${BUILD_ROOT_PATH}/docker/grafana/provisioning:/grafana/conf/provisioning
       - /opt/isard-local/grafana/data:/grafana/data:rw
     env_file:
@@ -23,7 +22,6 @@ services:
     image: influxdb:2.0-alpine
     container_name: isard-influxdb
     volumes:
-      - /etc/localtime:/etc/localtime:ro
       - /opt/isard-local/stats/influxdb/data:/var/lib/influxdb2:rw
       - /opt/isard-local/stats/influxdb/config:/etc/influxdb2:rw
       #- ${BUILD_ROOT_PATH}/docker/influxdb/init_scripts:/docker-entrypoint-initdb.d:ro

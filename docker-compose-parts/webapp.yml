@@ -11,7 +11,6 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.26
     restart: unless-stopped
     volumes:
-      - /etc/localtime:/etc/localtime:ro
       - /opt/isard/backups:/isard/backups:rw
     labels:
       - "traefik.enable=true"
