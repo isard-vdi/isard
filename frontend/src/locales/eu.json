@@ -240,7 +240,11 @@
             "persistent": "Mahaigain iraunkorrak",
             "template": "Txantiloia",
             "volatile-compact": "Ez-iraunkorra",
-            "persistent-compact": "Iraunkor"
+            "persistent-compact": "Iraunkor",
+            "no-desktops": {
+                "subtitle": "Mahaigain berri bat sor dezakezu goiko eskuineko botoiarekin",
+                "title": "Ez dago erakusteko mahaigainik oraingo iragazkiekin"
+            }
         },
         "welcome": {
             "title": "Ongi etorri IsardVDI-era, mahaigain birtualen sistemara",
