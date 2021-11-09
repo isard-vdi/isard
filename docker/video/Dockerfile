@@ -1,4 +1,4 @@
-FROM haproxy:2.3-alpine as production
+FROM haproxy:2.3.9-alpine as production
 RUN apk add openssl certbot
 COPY docker/video/prepare.sh /usr/local/sbin/
 COPY docker/_common/letsencrypt-hook-deploy-concatenante.sh /
