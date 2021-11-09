@@ -104,7 +104,14 @@ export default new Vuex.Store({
       return new Promise((resolve, reject) => {
         axios.post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
           const token = response.data
-          store.dispatch('loginSuccess', token)
+          const tokenType = JSON.parse(atob(response.data.split('.')[1])).type || ''
+
+          if (tokenType === 'register') {
+            store.dispatch('formSuccess', token)
+          } else {
+            store.dispatch('loginSuccess', token)
+          }
+
           resolve()
         }).catch(e => {
           console.log(e)

@@ -34,15 +34,11 @@ type Authentication struct {
 
 func Init(cfg cfg.Cfg, db r.QueryExecutor) *Authentication {
 	providers := map[string]provider.Provider{
-		"unknown": &provider.Unknown{},
+		provider.UnknownString: &provider.Unknown{},
+		provider.FormString:    provider.InitForm(cfg.Authentication, db),
 	}
 
-	if cfg.Authentication.Local {
-		local := provider.InitLocal(db)
-		providers[local.String()] = local
-	}
-
-	if cfg.Authentication.Google.ClientID != "" && cfg.Authentication.Google.ClientSecret != "" {
+	if cfg.Authentication.Google.Enabled {
 		google := provider.InitGoogle(cfg.Authentication)
 		providers[google.String()] = google
 	}
@@ -58,7 +54,7 @@ func Init(cfg cfg.Cfg, db r.QueryExecutor) *Authentication {
 func (a *Authentication) Providers() []string {
 	providers := []string{}
 	for k := range a.providers {
-		if k == provider.UnknownString || k == provider.LocalString {
+		if k == provider.UnknownString || k == provider.FormString {
 			continue
 		}
 
@@ -234,6 +230,10 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
 			ss, err := a.signRegister(u)
 			return ss, "", err
+		}
+
+		if err := u.Load(ctx, a.DB); err != nil {
+			return "", "", fmt.Errorf("load user from DB: %w", err)
 		}
 	}
 

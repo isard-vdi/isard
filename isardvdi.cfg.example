@@ -68,16 +68,45 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 # ------ Authentication ------------------------------------------------------
 
 ## Local
-### Local authentication agains isard database
-#AUTHENTICATION_AUTHENTICATION_LOCAL=true
+### Local authentication against isard database
+#AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED=true
+
+## LDAP
+#AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED=false
+#AUTHENTICATION_AUTHENTICATION_LDAP_PROTOCOL=ldap
+#AUTHENTICATION_AUTHENTICATION_LDAP_HOST=
+#AUTHENTICATION_AUTHENTICATION_LDAP_PORT=389
+
+### Credentials used for querying the LDAP
+#AUTHENTICATION_AUTHENTICATION_LDAP_BIND_DN=
+#AUTHENTICATION_AUTHENTICATION_LDAP_PASSWORD=
+
+### Base Search is the DN that all the users share, e.g. ou=people,dc=example,dc=com
+#AUTHENTICATION_AUTHENTICATION_LDAP_BASE_SEARCH=
+### Filter is the actual filter used to search users. The '%s' represents the user that is sent through the form
+### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
+#AUTHENTICATION_AUTHENTICATION_LDAP_FILTER="(&(objectClass=person)(uid=%s))"
+
+### These are the fields that the LDAP search responds. For example, in some installations, the field for the email is called 'mail'
+### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_UID=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_UID=.*
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_USERNAME=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_USERNAME=.*
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_NAME=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_NAME=.*
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_EMAIL=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_EMAIL=.*
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_PHOTO=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_PHOTO=.*
 
 ## Google
 ### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
 ### Authorized redirect URIs: https://domain.tld/authentication/callback
 ### Change AUTHENTICATION_AUTHENTICATION_HOST to domain.tld
+#AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED=false
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
-
 
 
 
