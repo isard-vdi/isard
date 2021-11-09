@@ -23,3 +23,9 @@ services:
       - ${BUILD_ROOT_PATH}/docker/hypervisor/src/ovs:/src/ovs
     env_file:
       - .env
+    environment:
+      HYPER_ID:
+      DOMAIN:
+      VIDEO_DOMAIN:
+      VIEWER_SPICE:
+      VIEWER_BROWSER:
