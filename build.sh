@@ -123,7 +123,7 @@ create_env(){
 	echo "BUILD_ROOT_PATH=$(pwd)" >> .env
 	. ./.env
 	# Only display numbered version in official builds via gitlab-ci
-	if is_official_build
+	if is_official_build && test -e .VERSION
 	then
 		version="$(cat .VERSION)"
 		version_date="$(date +%Y-%m-%d)"
