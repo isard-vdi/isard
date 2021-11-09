@@ -59,7 +59,8 @@
             "actions": {
                 "delete": "Ezabatu"
             },
-            "no-info-default": "Ez dago deskribapen erabilgarririk"
+            "no-info-default": "Ez dago deskribapen erabilgarririk",
+            "filter-label": "Iragazi"
         },
         "rdp-modal": {
             "message": {
@@ -282,7 +283,9 @@
             "desktop-description": "Mahaigainaren deskribapena",
             "desktop-template": "Txantiloia",
             "filter": "Iragazkia",
-            "filter-placeholder": "Idatzi bilaketarako"
+            "filter-placeholder": "Idatzi bilaketarako",
+            "name": "Izena",
+            "description": "Deskribapena"
         },
         "clear": "Garbitu",
         "cancel": "Baliogabetu",
