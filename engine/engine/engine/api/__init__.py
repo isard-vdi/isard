@@ -134,6 +134,7 @@ def engine_restart():
 @api.route("/engine_info", methods=["GET"])
 def engine_info():
     d_engine = {}
+    http_code = 503
     # if len(app.db.get_hyp_hostnames_online()) > 0:
     try:
         if app.m.t_background != None:
@@ -141,7 +142,7 @@ def engine_info():
                 app.m.t_background.is_alive()
             except AttributeError:
                 d_engine["background_is_alive"] = False
-                return jsonify(d_engine), 200
+                return jsonify(d_engine), http_code
 
             if app.m.t_background.is_alive():
                 manager = app.m
@@ -157,17 +158,17 @@ def engine_info():
                     if app.m.t_downloads_changes != None
                     else False
                 )
-
-                d_engine["changes_hyps_thread_is_alive"] = (
-                    app.m.t_changes_hyps.is_alive()
-                    if app.m.t_changes_hyps != None
-                    else False
-                )
+                d_engine["orchestrator_thread_is_alive"] = getattr(
+                    app.m.t_orchestrator, "is_alive", bool
+                )()
                 d_engine["changes_domains_thread_is_alive"] = (
                     app.m.t_changes_domains.is_alive()
                     if app.m.t_changes_domains != None
                     else False
                 )
+                d_engine["grafana_thread_is_alive"] = getattr(
+                    app.m.t_grafana, "is_alive", bool
+                )()
                 d_engine["working_threads"] = list(app.m.t_workers.keys())
                 d_engine["status_threads"] = list(app.m.t_status.keys())
                 d_engine["disk_operations_threads"] = list(
@@ -197,20 +198,25 @@ def engine_info():
                 d_engine["queue_disk_operations_threads"] = {
                     k: q.qsize() for k, q in app.m.q_disk_operations.items()
                 }
+                d_engine["queue_long_operations_threads"] = {
+                    k: q.qsize() for k, q in app.m.q_long_operations.items()
+                }
+                d_engine["is_alive"] = True
+                http_code = 200
             else:
                 d_engine["is_alive"] = False
         else:
             d_engine["is_alive"] = False
-        return jsonify(d_engine), 200
+        return jsonify(d_engine), http_code
     except AttributeError:
         d_engine["is_alive"] = False
-        print("ERROR ----- ENGINE IS DEATH")
-        return jsonify(d_engine), 200
+        print("ERROR ----- ENGINE IS DEATH", flush=True)
+        return jsonify(d_engine), http_code
     except Exception as e:
         logs.exception_id.debug("0002")
         d_engine["is_alive"] = False
-        print("ERROR ----- ENGINE IS DEATH AND EXCEPTION DETECTED")
-        return jsonify(d_engine), 200
+        print("ERROR ----- ENGINE IS DEATH AND EXCEPTION DETECTED", flush=True)
+        return jsonify(d_engine), http_code
 
 
 @api.route("/domains/user/<string:username>", methods=["GET"])
