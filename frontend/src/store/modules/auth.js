@@ -35,6 +35,11 @@ export default {
       context.commit('setExpirationDate', JSON.parse(atob(token.split('.')[1])).exp * 1000)
       context.commit('setUser', JSON.parse(decodeURIComponent(escape(atob(token.split('.')[1])))).data)
     },
+    deleteSessionAndGoToLogin (context) {
+      localStorage.token = ''
+      context.commit('resetStore')
+      router.push({ name: 'Login' })
+    },
     loginSuccess (context, token) {
       context.dispatch('setSession', token)
       localStorage.token = token
