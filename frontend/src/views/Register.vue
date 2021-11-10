@@ -20,7 +20,7 @@
                     :placeholder="$t('views.register.code')"
                 />
                   <b-button type="submit" variant="warning" size="lg">{{ $t('views.register.register') }}</b-button>
-                  <b-button @click="redirectLogin()" class="ml-3" variant="primary" size="lg">{{ $t('views.cancel') }}</b-button>
+                  <b-button @click="deleteSessionAndGoToLogin()" class="ml-3" variant="primary" size="lg">{{ $t('views.cancel') }}</b-button>
                 </b-form>
             </b-col>
         </b-row>
@@ -38,11 +38,9 @@ export default {
   },
   methods: {
     ...mapActions([
-      'register'
-    ]),
-    redirectLogin: function () {
-      this.$router.push({ name: 'Login' })
-    }
+      'register',
+      'deleteSessionAndGoToLogin'
+    ])
   },
   computed: {
     ...mapGetters([
