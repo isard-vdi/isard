@@ -83,8 +83,8 @@ export default {
     const persistentDesktops = computed(() => desktops.value.filter(desktop => showStarted.value ? desktop.type === 'persistent' && desktop.state === 'Started' : desktop.type === 'persistent'))
     const nonpersistentDesktops = computed(() => templates.value.map(template => desktops.value.find((desktop) => template.id === desktop.template && desktop.type === 'nonpersistent') || template))
 
-    const filteredPersistentDesktops = computed(() => persistentDesktops.value.filter(desktop => desktop.name.toLowerCase().includes(filterDesktopsText.value)))
-    const filteredNonPersistentDesktops = computed(() => nonpersistentDesktops.value.filter(desktop => desktop.name.toLowerCase().includes(filterDesktopsText.value)))
+    const filteredPersistentDesktops = computed(() => persistentDesktops.value.filter(desktop => desktop.name.toLowerCase().includes(filterDesktopsText.value.toLowerCase())))
+    const filteredNonPersistentDesktops = computed(() => nonpersistentDesktops.value.filter(desktop => desktop.name.toLowerCase().includes(filterDesktopsText.value.toLowerCase())))
 
     const visibleNonPersistentDesktops = computed(() => filteredNonPersistentDesktops.value.filter(desktop => showStarted.value ? desktop.state : desktop.name))
 
