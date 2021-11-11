@@ -115,12 +115,8 @@
 
       <!-- Buttons -->
       <b-row align-h="end">
-        <b-col sm="3" md="2" lg="2" xl="1">
-          <b-button size="md" class="btn-red w-100 rounded-pill mt-4 p-1" @click="navigate('desktops')">{{ $t('forms.cancel') }}</b-button>
-        </b-col>
-        <b-col sm="3" md="2" lg="2" xl="1">
-          <b-button type="submit" size="md" class="btn-green w-100 rounded-pill mt-4 p-1">{{ $t('forms.create') }}</b-button>
-        </b-col>
+        <b-button size="md" class="btn-red rounded-pill mt-4 mr-2" @click="navigate('desktops')">{{ $t('forms.cancel') }}</b-button>
+        <b-button type="submit" size="md" class="btn-green rounded-pill mt-4 ml-2 mr-5">{{ $t('forms.create') }}</b-button>
       </b-row>
   </b-form>
   </b-container>
