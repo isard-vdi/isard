@@ -80,7 +80,8 @@
         "statusbar": {
             "desktops-started": "Idazmahaiak hasi dira",
             "new-desktop": "Mahaigain berria",
-            "checkbox-text": "Abiatuak soilik"
+            "checkbox-text": "Abiatuak soilik",
+            "checkbox-text-short": "Hasita"
         }
     },
     "views": {
