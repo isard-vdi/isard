@@ -268,12 +268,13 @@ class ApiUsers:
             alloweds = []
             for desktop in desktops:
                 try:
-                    desktop["username"] = (
-                        r.table("users")
-                        .get(desktop["user"])
-                        .pluck("name")
-                        .run(db.conn)["name"]
-                    )
+                    with app.app_context():
+                        desktop["username"] = (
+                            r.table("users")
+                            .get(desktop["user"])
+                            .pluck("name")
+                            .run(db.conn)["name"]
+                        )
                 except:
                     desktop["username"] = "X " + desktop["user"]
                 # with app.app_context():
@@ -437,8 +438,11 @@ class ApiUsers:
             except:
                 raise
         # self._delete_non_persistent(user_id)
-        if not _check(r.table("users").get(user_id).delete().run(db.conn), "deleted"):
-            raise UserDeleteFailed
+        with app.app_context():
+            if not _check(
+                r.table("users").get(user_id).delete().run(db.conn), "deleted"
+            ):
+                raise UserDeleteFailed
 
     def _user_delete_checks(self, user_id):
         with app.app_context():

@@ -70,9 +70,10 @@ class isardViewer:
             "preferred" not in domain["options"]["viewers"].keys()
             or not domain["options"]["viewers"]["preferred"] == default_viewer
         ):
-            r.table("domains").get(id).update(
-                {"options": {"viewers": {"preferred": default_viewer}}}
-            ).run(db.conn)
+            with app.app_context():
+                r.table("domains").get(id).update(
+                    {"options": {"viewers": {"preferred": default_viewer}}}
+                ).run(db.conn)
 
         if get_viewer == "rdp-client":
             return {

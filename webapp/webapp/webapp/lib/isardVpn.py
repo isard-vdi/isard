@@ -30,7 +30,8 @@ class isardVpn:
         if vpn == "users":
             if itemid == False:
                 return False
-            wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
+            with app.app_context():
+                wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
             port = "443"
             mtu = "1420"
             # Wireguard Windows client doesn't support PostUp empty value
@@ -39,7 +40,10 @@ class isardVpn:
             endpoint = os.environ["DOMAIN"]
         elif vpn == "hypers":
             # if itemid.role != 'admin': return False
-            hyper = r.table("hypervisors").get(itemid).pluck("id", "vpn").run(db.conn)
+            with app.app_context():
+                hyper = (
+                    r.table("hypervisors").get(itemid).pluck("id", "vpn").run(db.conn)
+                )
             wgdata = hyper
             port = "4443"
             mtu = os.environ.get("VPN_MTU", "1600")
@@ -50,7 +54,10 @@ class isardVpn:
         elif vpn == "remotevpn":
             if not itemid:
                 return False
-            wgdata = r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
+            with app.app_context():
+                wgdata = (
+                    r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
+                )
             port = "443"
             mtu = os.environ.get("VPN_MTU", "1600")
             # Wireguard Windows client doesn't support PostUp empty value

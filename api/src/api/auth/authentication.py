@@ -121,7 +121,8 @@ class auth(object):
             return False
         ldap_auth = cfg["auth"]["ldap"]
         local_auth = cfg["auth"]["local"]
-        local_user = r.table("users").get(username).run(db.conn)
+        with app.app_context():
+            local_user = r.table("users").get(username).run(db.conn)
         if local_user != None:
             if local_user["provider"] == "local" and local_auth["active"]:
                 user_validated = self.authentication_local(username, password)
@@ -142,29 +143,30 @@ class auth(object):
                     user = self.authentication_ldap(
                         username, password, returnObject=False
                     )
-                    if r.table("categories").get(user["category"]).run(db.conn) == None:
-                        r.table("categories").insert(
-                            {
-                                "id": user["category"],
-                                "name": user["category"],
-                                "description": "",
-                                "quota": r.table("roles")
-                                .get(user["role"])
-                                .run(db.conn)["quota"],
-                            }
-                        ).run(db.conn)
-                    if r.table("groups").get(user["group"]).run(db.conn) == None:
-                        r.table("groups").insert(
-                            {
-                                "id": user["group"],
-                                "name": user["group"],
-                                "description": "",
-                                "quota": r.table("categories")
-                                .get(user["category"])
-                                .run(db.conn)["quota"],
-                            }
-                        ).run(db.conn)
-                    r.table("users").insert(user).run(db.conn)
+                    with app.app_context():
+                        if not r.table("categories").get(user["category"]).run(db.conn):
+                            r.table("categories").insert(
+                                {
+                                    "id": user["category"],
+                                    "name": user["category"],
+                                    "description": "",
+                                    "quota": r.table("roles")
+                                    .get(user["role"])
+                                    .run(db.conn)["quota"],
+                                }
+                            ).run(db.conn)
+                        if not r.table("groups").get(user["group"]).run(db.conn):
+                            r.table("groups").insert(
+                                {
+                                    "id": user["group"],
+                                    "name": user["group"],
+                                    "description": "",
+                                    "quota": r.table("categories")
+                                    .get(user["category"])
+                                    .run(db.conn)["quota"],
+                                }
+                            ).run(db.conn)
+                        r.table("users").insert(user).run(db.conn)
                     self.update_access(username)
                     return User(user)
                 else:
@@ -188,7 +190,8 @@ class auth(object):
             return False
 
     def authentication_ldap(self, username, password, returnObject=True):
-        cfg = r.table("config").get(1).run(db.conn)["auth"]
+        with app.app_context():
+            cfg = r.table("config").get(1).run(db.conn)["auth"]
         try:
             conn = ldap.initialize(cfg["ldap"]["ldap_server"])
             id_conn = conn.search(
@@ -244,13 +247,14 @@ class auth(object):
             )
 
     def ldap_users_exists(self, commit=False):
-        cfg = r.table("config").get(1).run(db.conn)["auth"]
-        users = list(
-            r.table("users")
-            .filter({"active": True, "provider": "ldap"})
-            .pluck("id", "name", "accessed")
-            .run(db.conn)
-        )
+        with app.app_context():
+            cfg = r.table("config").get(1).run(db.conn)["auth"]
+            users = list(
+                r.table("users")
+                .filter({"active": True, "provider": "ldap"})
+                .pluck("id", "name", "accessed")
+                .run(db.conn)
+            )
         nonvalid = []
         valid = []
         for u in users:
@@ -265,12 +269,13 @@ class auth(object):
                 nonvalid.append(u)
         if commit:
             nonvalid_list = [u["id"] for u in nonvalid]
-            return (
-                r.table("users")
-                .get_all(r.args(nonvalid_list))
-                .update({"active": False})
-                .run(db.conn)
-            )
+            with app.app_context():
+                return (
+                    r.table("users")
+                    .get_all(r.args(nonvalid_list))
+                    .update({"active": False})
+                    .run(db.conn)
+                )
         else:
             return {"nonvalid": nonvalid, "valid": valid}
         # ~ print(nonvalid)
@@ -343,46 +348,52 @@ class auth_voucher(object):
         self.email = Email()
 
     def check_voucher(self, voucher):
-        dbv = r.table("vouchers").get(voucher).run(db.conn)
+        with app.app_context():
+            dbv = r.table("vouchers").get(voucher).run(db.conn)
         if dbv == None:
             return False
         return True
 
     def check_validation(self, code):
-        user = list(r.table("users").filter({"code": code}).run(db.conn))
+        with app.app_context():
+            user = list(r.table("users").filter({"code": code}).run(db.conn))
         if not len(user):
             return False
         return True
 
     def check_user_exists(self, email):
-        user = r.table("users").get(email).run(db.conn)
+        with app.app_context():
+            user = r.table("users").get(email).run(db.conn)
         if user == None:
             return False
         return True
 
     def register_user(self, voucher, email, remote_addr):
         user = self.user_tmpl(voucher, email, remote_addr)
-        if r.table("categories").get(user["category"]).run(db.conn) == None:
-            r.table("categories").insert(
-                {
-                    "id": user["category"],
-                    "name": user["category"],
-                    "description": "",
-                    "quota": r.table("roles").get(user["role"]).run(db.conn)["quota"],
-                }
-            ).run(db.conn)
-        if r.table("groups").get(user["group"]).run(db.conn) == None:
-            r.table("groups").insert(
-                {
-                    "id": user["group"],
-                    "name": user["group"],
-                    "description": "",
-                    "quota": r.table("categories")
-                    .get(user["category"])
-                    .run(db.conn)["quota"],
-                }
-            ).run(db.conn)
-        r.table("users").insert(user, conflict="update").run(db.conn)
+        with app.app_context():
+            if not r.table("categories").get(user["category"]).run(db.conn):
+                r.table("categories").insert(
+                    {
+                        "id": user["category"],
+                        "name": user["category"],
+                        "description": "",
+                        "quota": r.table("roles")
+                        .get(user["role"])
+                        .run(db.conn)["quota"],
+                    }
+                ).run(db.conn)
+            if not r.table("groups").get(user["group"]).run(db.conn):
+                r.table("groups").insert(
+                    {
+                        "id": user["group"],
+                        "name": user["group"],
+                        "description": "",
+                        "quota": r.table("categories")
+                        .get(user["category"])
+                        .run(db.conn)["quota"],
+                    }
+                ).run(db.conn)
+            r.table("users").insert(user, conflict="update").run(db.conn)
 
         # Send email with code=user['code']
         self.email.email_validation(email, user["code"])
@@ -390,18 +401,25 @@ class auth_voucher(object):
         # ~ return False
 
     def activate_user(self, code, remote_addr):
-        user = list(r.table("users").filter({"code": code}).run(db.conn))
+        with app.app_context():
+            user = list(r.table("users").filter({"code": code}).run(db.conn))
         if len(user):
             user = user[0]
             key = self.pw.generate_human()
-            r.table("users").filter({"code": code}).update(
-                {"active": True, "password": self.pw.encrypt(key)}
-            ).run(db.conn)
-            log = list(r.table("users").filter({"code": code}).run(db.conn))[0]["log"]
+            with app.app_context():
+                r.table("users").filter({"code": code}).update(
+                    {"active": True, "password": self.pw.encrypt(key)}
+                ).run(db.conn)
+                log = list(r.table("users").filter({"code": code}).run(db.conn))[0][
+                    "log"
+                ]
             log.append(
                 {"when": time.time(), "ip": remote_addr, "action": "Activate user"}
             )
-            r.table("users").filter({"code": code}).update({"log": log}).run(db.conn)
+            with app.app_context():
+                r.table("users").filter({"code": code}).update({"log": log}).run(
+                    db.conn
+                )
             # Send email with email=user['email'], user=user['username'], key
             self.email.account_activation(user["email"], user["username"], key)
             return True
@@ -441,7 +459,8 @@ class auth_voucher(object):
                 "hardware": {"vcpus": 2, "memory": 20000000},
             },  # 2GB
         }
-        r.table("users").insert(usr, conflict="update").run(db.conn)
+        with app.app_context():
+            r.table("users").insert(usr, conflict="update").run(db.conn)
         return usr
 
     def update_access(self, username):

@@ -162,7 +162,8 @@ class auth(object):
             return False
         ldap_auth = cfg["auth"]["ldap"]
         local_auth = cfg["auth"]["local"]
-        local_user = r.table("users").get(username).run(db.conn)
+        with app.app_context():
+            local_user = r.table("users").get(username).run(db.conn)
         if local_user != None:
             if local_user["provider"] == "local" and local_auth["active"]:
                 user_validated = self.authentication_local(username, password)
@@ -183,29 +184,30 @@ class auth(object):
                     user = self.authentication_ldap(
                         username, password, returnObject=False
                     )
-                    if r.table("categories").get(user["category"]).run(db.conn) is None:
-                        r.table("categories").insert(
-                            {
-                                "id": user["category"],
-                                "name": user["category"],
-                                "description": "",
-                                "quota": r.table("roles")
-                                .get(user["role"])
-                                .run(db.conn)["quota"],
-                            }
-                        ).run(db.conn)
-                    if r.table("groups").get(user["group"]).run(db.conn) is None:
-                        r.table("groups").insert(
-                            {
-                                "id": user["group"],
-                                "name": user["group"],
-                                "description": "",
-                                "quota": r.table("categories")
-                                .get(user["category"])
-                                .run(db.conn)["quota"],
-                            }
-                        ).run(db.conn)
-                    r.table("users").insert(user).run(db.conn)
+                    with app.app_context():
+                        if not r.table("categories").get(user["category"]).run(db.conn):
+                            r.table("categories").insert(
+                                {
+                                    "id": user["category"],
+                                    "name": user["category"],
+                                    "description": "",
+                                    "quota": r.table("roles")
+                                    .get(user["role"])
+                                    .run(db.conn)["quota"],
+                                }
+                            ).run(db.conn)
+                        if not r.table("groups").get(user["group"]).run(db.conn):
+                            r.table("groups").insert(
+                                {
+                                    "id": user["group"],
+                                    "name": user["group"],
+                                    "description": "",
+                                    "quota": r.table("categories")
+                                    .get(user["category"])
+                                    .run(db.conn)["quota"],
+                                }
+                            ).run(db.conn)
+                        r.table("users").insert(user).run(db.conn)
                     self.update_access(username)
                     return User(user)
                 else:
@@ -263,12 +265,12 @@ class auth(object):
     def ldap_users_exists(self, commit=False):
         with app.app_context():
             cfg = r.table("config").get(1).run(db.conn)["auth"]
-        users = list(
-            r.table("users")
-            .filter({"active": True, "provider": "ldap"})
-            .pluck("id", "name", "accessed")
-            .run(db.conn)
-        )
+            users = list(
+                r.table("users")
+                .filter({"active": True, "provider": "ldap"})
+                .pluck("id", "name", "accessed")
+                .run(db.conn)
+            )
         nonvalid = []
         valid = []
         for u in users:
@@ -283,12 +285,13 @@ class auth(object):
                 nonvalid.append(u)
         if commit:
             nonvalid_list = [u["id"] for u in nonvalid]
-            return (
-                r.table("users")
-                .get_all(r.args(nonvalid_list))
-                .update({"active": False})
-                .run(db.conn)
-            )
+            with app.app_context():
+                return (
+                    r.table("users")
+                    .get_all(r.args(nonvalid_list))
+                    .update({"active": False})
+                    .run(db.conn)
+                )
         else:
             return {"nonvalid": nonvalid, "valid": valid}
 
