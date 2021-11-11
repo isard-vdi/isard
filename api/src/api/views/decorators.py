@@ -189,7 +189,7 @@ def allowedTemplateId(payload, template_id):
         if payload["group_id"] in alloweds["groups"]:
             return True
     if alloweds["users"] != False:
-        if alloweds["groups"] == []:
+        if alloweds["users"] == []:
             return True
         if payload["user_id"] in alloweds["users"]:
             return True
