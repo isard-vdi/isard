@@ -473,8 +473,8 @@ class QuotaLimits:
             vcpus = vcpus + s["hardware"]["vcpus"]
             memory = memory + s["hardware"]["memory"]
         memory = memory / 1000000
-
-        users = r.table("users").count().run(db.conn)
+        with app.app_context():
+            users = r.table("users").count().run(db.conn)
 
         return {
             "d": desktops,

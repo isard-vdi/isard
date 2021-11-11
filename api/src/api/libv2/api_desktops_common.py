@@ -132,7 +132,10 @@ class ApiDesktopsCommon:
         code = False
         while code == False:
             code = secrets.token_urlsafe(length)
-            found = list(r.table("domains").filter({"jumperurl": code}).run(db.conn))
+            with app.app_context():
+                found = list(
+                    r.table("domains").filter({"jumperurl": code}).run(db.conn)
+                )
             if len(found) == 0:
                 with app.app_context():
                     r.table("domains").get(desktop_id).update({"jumperurl": code}).run(

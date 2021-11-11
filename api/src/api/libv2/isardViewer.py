@@ -53,12 +53,13 @@ class isardViewer:
     ):
         if not domain:
             try:
-                domain = (
-                    r.table("domains")
-                    .get(id)
-                    .pluck("id", "name", "status", "viewer", "options")
-                    .run(db.conn)
-                )
+                with app.app_context():
+                    domain = (
+                        r.table("domains")
+                        .get(id)
+                        .pluck("id", "name", "status", "viewer", "options")
+                        .run(db.conn)
+                    )
             except ReqlNonExistenceError:
                 raise DesktopNotFound
         if not domain["status"] == "Started":
@@ -71,9 +72,10 @@ class isardViewer:
             "preferred" not in domain["options"]["viewers"].keys()
             or not domain["options"]["viewers"]["preferred"] == default_viewer
         ):
-            r.table("domains").get(id).update(
-                {"options": {"viewers": {"preferred": default_viewer}}}
-            ).run(db.conn)
+            with app.app_context():
+                r.table("domains").get(id).update(
+                    {"options": {"viewers": {"preferred": default_viewer}}}
+                ).run(db.conn)
 
         ### File viewers
         if get_viewer == "file-spice":
