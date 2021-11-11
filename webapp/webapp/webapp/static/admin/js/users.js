@@ -219,6 +219,7 @@ $(document).ready(function() {
             { "data": "username"},
             { "data": "role", "width": "10px"},
             { "data": "group", "width": "10px"},
+            { "data": "vpn-wireguard-connected", "width": "10px", "defaultContent": 'NaN'},
             //~ {
                 //~ "data": null,
                 //~ className: "center xe-password",
@@ -243,12 +244,21 @@ $(document).ready(function() {
                                         }
                                     }
                                     return data;
-                                        }},
+                            }},
+                            {
+                            "targets": 9,
+                            "render": function ( data, type, full, meta ) {
+                                if(full['vpn-wireguard-connected']){
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn-wireguard-remote_ip"]+':'+full["vpn-wireguard-remote_port"]+'"></i>'
+                                }else{
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                                }
+                            }},
 							{
-							"targets":9,
+							"targets":10,
 							"render": function ( data, type, full, meta ) {
                                         return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ"); //moment.unix(full.accessed).fromNow();
-                                        }}                            
+                                        }}
              ]
         });
     //~ });

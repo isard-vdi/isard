@@ -5,8 +5,9 @@ from rethinkdb import RethinkDB
 r = RethinkDB()
 import ipaddress
 import logging as log
+import subprocess
 import traceback
-from subprocess import check_call, check_output
+from subprocess import check_output
 
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
@@ -134,11 +135,11 @@ class Wg(object):
     def init_server(self):
         ## Server config
         try:
-            check_output(
-                ("/usr/bin/wg-quick", "down", self.interface), text=True
-            ).strip()
+            subprocess.run(["ip", "address", "show", self.interface])
+            log.info("Bringing down wireguard " + self.interface + " interface")
+            subprocess.run(["/usr/bin/wg-quick", "down", self.interface])
         except:
-            None
+            log.info("Wireguard interface " + self.interface + " already exists")
         if self.table == "hypervisors":
             mtu = os.environ.get("VPN_MTU", "1600")
             postup = "iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
@@ -151,6 +152,7 @@ class Wg(object):
         #    self.config=self.config+self.gen_peer_config(v)
         with open("/etc/wireguard/" + self.interface + ".conf", "w") as f:
             f.write(self.config)
+        log.info("Bringing up wireguard " + self.interface + " interface")
         check_output(("/usr/bin/wg-quick", "up", self.interface), text=True).strip()
         ## End server config
 
@@ -282,8 +284,8 @@ class Wg(object):
         else:
             address = peer["vpn"]["wireguard"]["Address"]
         try:
-            check_output(
-                (
+            subprocess.run(
+                [
                     "/usr/bin/wg",
                     "set",
                     self.interface,
@@ -293,26 +295,29 @@ class Wg(object):
                     address,
                     "persistent-keepalive",
                     "25",
-                ),
-                text=True,
-            ).strip()
+                ]
+            )
             if self.table == "hypervisors":
-                check_output(
-                    (
-                        "ovs-vsctl",
-                        "add-port",
-                        "ovsbr0",
-                        peer["id"],
-                        "--",
-                        "set",
-                        "interface",
-                        peer["id"],
-                        "type=geneve",
-                        "options:remote_ip=" + address,
-                    ),
-                    text=True,
-                ).strip()
-                pass
+                if peer["id"] not in (
+                    check_output(
+                        ("ovs-vsctl", "show"),
+                        text=True,
+                    ).strip()
+                ):
+                    subprocess.run(
+                        [
+                            "ovs-vsctl",
+                            "add-port",
+                            "ovsbr0",
+                            peer["id"],
+                            "--",
+                            "set",
+                            "interface",
+                            peer["id"],
+                            "type=geneve",
+                            "options:remote_ip=" + address,
+                        ]
+                    )
                 # There seems to be a bug because the route is not applied so we need to force again...
                 # check_output(('/usr/bin/wg-quick','save','hypers'), text=True)
                 # check_output(('/usr/bin/wg-quick','down','hypers'), text=True)

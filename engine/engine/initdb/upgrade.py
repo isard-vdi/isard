@@ -18,11 +18,14 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 20
+release_version = 21
+# release 21: Added secondary wg_client_ip index to users.
+#             Added secondary wg_client_ip index to remotevpn
 # release 20: forced_hyp should be a list if not False
 # release 19: Update hypervisors_pools based on actual hypervisors in db
 # release 18: Replace deployment id # to = (and also to domains)
-# release 16: Added secondary wg_mac index
+# release 16: Added secondary wg_mac index to domains
+
 tables = [
     "config",
     "hypervisors",
@@ -36,6 +39,7 @@ tables = [
     "groups",
     "interfaces",
     "deployments",
+    "remotevpn",
 ]
 
 
@@ -523,6 +527,21 @@ class Upgrade(object):
                     log.error("Error detail: " + str(e))
 
                 """ REMOVE FIELDS PRE CHECKS """
+
+        if version == 21:
+            try:
+                r.table(table).index_create(
+                    "wg_client_ip", r.row["vpn"]["wireguard"]["Address"]
+                ).run(self.conn)
+            except:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " index creation for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
 
         return True
 
@@ -1048,6 +1067,21 @@ class Upgrade(object):
                 self.conn
             )
 
+        if version == 21:
+            try:
+                r.table(table).index_create(
+                    "wg_client_ip", r.row["vpn"]["wireguard"]["Address"]
+                ).run(self.conn)
+            except:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " index_create for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
         return True
 
     """
@@ -1228,6 +1262,18 @@ class Upgrade(object):
             # ~ log.error('Error detail: '+str(e))
 
         return True
+
+    def remotevpn(self, version):
+        table = "remotevpn"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+
+        if version == 21:
+            try:
+                r.table(table).index_create(
+                    "wg_client_ip", r.row["vpn"]["wireguard"]["Address"]
+                ).run(self.conn)
+            except:
+                None
 
     """
     Upgrade general actions

@@ -92,6 +92,10 @@ $(document).ready(function() {
             { "data": "hypervisor_number" , "width": "5px" },
             { "data": "id" , "width": "10px" },
             { "data": "hostname" , "width": "100px" },
+            { "data": "vpn-wireguard-connected" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "viewer-static" , "width": "10px" },
+            { "data": "viewer-proxy_video" , "width": "10px" },
+            { "data": "viewer-proxy_hyper_host" , "width": "10px" },
             { "data": "info-qemu_version" , "width": "10px", "defaultContent": 'NaN'},
             { "data": "info-libvirt_version" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info-virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },
@@ -99,9 +103,6 @@ $(document).ready(function() {
             { "data": "info-virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },            
             { "data": "capabilities-disk_operations" , "width": "10px" },
             { "data": "capabilities-hypervisor" , "width": "10px" },
-            { "data": "viewer-static" , "width": "10px" },
-            { "data": "viewer-proxy_video" , "width": "10px" },
-            { "data": "viewer-proxy_hyper_host" , "width": "10px" },
             { "data": "status_time" , "width": "10px" }],
             
           /*   { "data": "started_domains", "width": "10px", "defaultContent": 0}, */
@@ -119,22 +120,49 @@ $(document).ready(function() {
                               return renderStatus(full);
                             }},
                             {
-                            "targets": 9,
+                            "targets": 6,
                             "render": function ( data, type, full, meta ) {
-                                return Math.round(data/1024 * 10) / 10 +'GB';
+                                if(full['vpn-wireguard-connected']){
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
+                                }else{
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                                }
                             }},
                             {
-                            "targets": 10,
-                            "render": function ( data, type, full, meta ) {
-                                return full['info-cpu_cores']*full['info-threads_x_core'];
-                            }},
-                            {
-                            "targets": 14,
+                            "targets": 8,
                             "render": function ( data, type, full, meta ) {
                                 return full['viewer-proxy_video']+' ('+full['viewer-spice_ext_port']+','+full['viewer-html5_ext_port']+')';
                             }},
                             {
+                            "targets": 13,
+                            "render": function ( data, type, full, meta ) {
+                                return Math.round(data/1024 * 10) / 10 +'GB';
+                            }},
+                            {
+                            "targets": 14,
+                            "render": function ( data, type, full, meta ) {
+                                return full['info-cpu_cores']*full['info-threads_x_core'];
+                            }},
+                            {
+                            "targets": 15,
+                            "render": function ( data, type, full, meta ) {
+                                if(full['capabilities-disk_operations']){
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
+                                }else{
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                                }
+                            }},
+                            {
                             "targets": 16,
+                            "render": function ( data, type, full, meta ) {
+                                if(full['capabilities-hypervisor']){
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
+                                }else{
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                                }
+                            }},
+                            {
+                            "targets": 17,
                             "render": function ( data, type, full, meta ) {
                               return moment.unix(full.status_time).fromNow();
                             }}

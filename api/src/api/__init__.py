@@ -72,4 +72,5 @@ from .views import (
     PublicView,
     TemplatesView,
     UsersView,
+    VpnViews,
 )

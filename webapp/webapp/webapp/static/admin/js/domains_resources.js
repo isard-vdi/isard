@@ -33,10 +33,12 @@ $(document).ready(function() {
             { "data": "description"},
             { "data": null},
             { "data": null},
+            { "data": "vpn-wireguard-connected" , "width": "10px", "defaultContent": 'NaN' },
             {
             "className":      'actions-control',
             "orderable":      false,
             "data":           null,
+            "width":          "290px",
             "defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
                                 <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> \
                                 <button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkgreen"></i></button>'
@@ -62,6 +64,15 @@ $(document).ready(function() {
                     return '-'
                 }
             }},
+            {
+                "targets": 5,
+                "render": function ( data, type, full, meta ) {
+                    if('vpn' in full && full['vpn']['wireguard']['connected']){
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
+                    }else{
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                    }
+                }},
             ]
     } );
 
@@ -408,7 +419,7 @@ $(document).ready(function() {
                                     <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                 },
                 ],
-            "order": [[1, 'asc']]
+            "order": [[1, 'asc']],
     } );
 
     $('#table-interfaces').find(' tbody').on( 'click', 'button', function () {
