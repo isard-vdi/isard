@@ -6,7 +6,7 @@
             :aria-hidden="show ? 'true' : null"
             img-alt='' img-top no-body
           >
-            <vue-fab v-if="desktop.type === 'persistent'" mainBtnColor="#bcc6cc" class='info-icon position-absolute' size='small' unfoldDirection='down' :scrollAutoHide="false">
+            <vue-fab v-if="desktop.type === 'persistent'" icon="more_vert" mainBtnColor="#bcc6cc" class='info-icon position-absolute' size='small' unfoldDirection='down' :scrollAutoHide="false">
                 <fab-item @clickItem="onClickDeleteDesktop" :idx="0" icon='delete' color='#e34934' titleBgColor='#e6e8eb' v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.delete')}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
                 </fab-item>
               <!-- <fab-item  :idx="1" title="Edit" icon='mode_edit' color='#c2d5f2' titleBgColor='#e6e8eb'/>
