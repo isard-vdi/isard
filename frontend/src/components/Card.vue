@@ -35,8 +35,9 @@
                 </div>
 
                 <!-- Actions -->
-                <div v-if="desktopState.toLowerCase() !== 'downloading'" class='d-flex flex-row justify-content-start ml-3 mb-1'>
-                  <DesktopButton v-if="!desktop.state || (desktop.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
+                <div v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState)" class='d-flex flex-row justify-content-start ml-3 mb-1'>
+                  <!-- Main action button nonpersistent -->
+                  <DesktopButton v-if="!desktop.state"
                       class="card-button"
                       :active="true"
                       @buttonClicked="chooseDesktop(desktop.id)"
@@ -45,16 +46,18 @@
                       :buttText = "$t('views.select-template.status.notCreated.action')"
                       :iconName = "desktop.buttonIconName">
                   </DesktopButton>
+                  <!-- Main action button persistent-->
                   <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
                       class="card-button"
-                      :active="![desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
+                      active="true"
                       @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
                       :buttColor = "buttCssColor"
                       :spinnerActive ="false"
                       :buttText = "$t(`views.select-template.status.${desktopState}.action`)"
                       :iconName = "desktop.buttonIconName">
                   </DesktopButton>
-                  <DesktopButton v-if="(desktop.state && desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState))"
+                  <!-- Delete action button-->
+                  <DesktopButton v-if="desktop.state && desktop.type === 'nonpersistent'"
                       class="card-button"
                       :active="true"
                       @buttonClicked="deleteDesktop(desktop.id)"

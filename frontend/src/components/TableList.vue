@@ -87,7 +87,8 @@
               </div>
             </template>
             <template #cell(action)='data'>
-              <DesktopButton v-if="!data.item.state || (data.item.type === 'nonpersistent' && ![desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
+               <!-- Main action button nonpersistent -->
+              <DesktopButton v-if="!data.item.state"
                     class="table-action-button"
                     :active="true"
                     @buttonClicked="chooseDesktop(data.item.id)"
@@ -96,15 +97,17 @@
                     :buttText = "$t('views.select-template.status.notCreated.action')"
                     :iconName = "data.item.buttonIconName">
                 </DesktopButton>
-                <DesktopButton v-if="data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )"
+                <!-- Main action button persistent-->
+                <DesktopButton v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )) && ![desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
                     class="table-action-button"
-                    :active="![desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    active="true"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
                     :buttColor = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
                     :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                     :iconName = "data.item.buttonIconName">
                 </DesktopButton>
+                <!-- Delete action button-->
                 <DesktopButton v-if="(data.item.state && data.item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
                     class="table-action-button"
                     :active="true"
