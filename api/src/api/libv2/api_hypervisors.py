@@ -292,13 +292,11 @@ class ApiHypervisors:
             r.table("hypervisors").get(hyper_id).update(
                 {"enabled": False, "status": "Deleting"}
             ).run(db.conn)
-            now = time.time()
 
+            now = time.time()
             while time.time() - now < 10:
                 time.sleep(1)
-                try:
-                    r.table("hypervisors").get(hyper_id)
-                except ReqlNonExistenceError:
+                if not r.table("hypervisors").get(hyper_id).run(db.conn):
                     return {"status": True, "msg": "Removed from database", "data": {}}
 
         # if restart: self.engine_restart()
