@@ -86,7 +86,7 @@ export default {
     const filteredPersistentDesktops = computed(() => persistentDesktops.value.filter(desktop => desktop.name.toLowerCase().includes(filterDesktopsText.value.toLowerCase())))
     const filteredNonPersistentDesktops = computed(() => nonpersistentDesktops.value.filter(desktop => desktop.name.toLowerCase().includes(filterDesktopsText.value.toLowerCase())))
 
-    const visibleNonPersistentDesktops = computed(() => filteredNonPersistentDesktops.value.filter(desktop => showStarted.value ? desktop.state : desktop.name))
+    const visibleNonPersistentDesktops = computed(() => filteredNonPersistentDesktops.value.filter(desktop => showStarted.value ? desktop.state && desktop.state.toLowerCase() === 'started' : desktop.name))
 
     return {
       filteredPersistentDesktops,
