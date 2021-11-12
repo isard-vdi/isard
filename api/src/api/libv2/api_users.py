@@ -355,6 +355,7 @@ class ApiUsers:
                             "tag_visible",
                             {"viewer": "guest_ip"},
                             {"create_dict": {"hardware": ["interfaces", "videos"]}},
+                            "progress",
                         ]
                     )
                     .run(db.conn)

@@ -175,6 +175,17 @@ def _parse_desktop(desktop):
             if desktop["os"].startswith("win"):
                 desktop["viewers"].extend(["file-rdpvpn", "browser-rdp"])
 
+    if desktop["status"] == "Downloading":
+        progress = {
+            "percentage": desktop.get("progress", {}).get("received_percent"),
+            "throughput_average": desktop.get("progress", {}).get(
+                "speed_download_average"
+            ),
+            "time_left": desktop.get("progress", {}).get("time_left"),
+            "size": desktop.get("progress", {}).get("total"),
+        }
+    else:
+        progress = None
     return {
         "id": desktop["id"],
         "name": desktop["name"],
@@ -186,6 +197,7 @@ def _parse_desktop(desktop):
         "image": desktop["image"],
         "description": desktop["description"],
         "ip": desktop.get("ip"),
+        "progress": progress,
     }
 
 

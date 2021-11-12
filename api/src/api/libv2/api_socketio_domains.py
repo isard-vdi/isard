@@ -82,6 +82,7 @@ class DomainsThread(threading.Thread):
                                 {"create_dict": {"hardware": ["interfaces", "videos"]}},
                                 "kind",
                                 "tag",
+                                "progress",
                             ]
                         )
                         .changes(include_initial=False)
@@ -112,6 +113,8 @@ class DomainsThread(threading.Thread):
                                 "Starting",
                                 "Started",
                                 "Failed",
+                                "Downloading",
+                                "DownloadStarting",
                             ]:
                                 continue
 
