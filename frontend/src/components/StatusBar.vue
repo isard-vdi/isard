@@ -1,5 +1,5 @@
 <template>
-  <div id="statusbar" class="px-0 px-lg-5 pl-2">
+  <div id="statusbar" class="px-0 px-lg-5 pl-2" style="min-height: 3.6rem;">
     <b-container fluid class="px-0">
       <b-navbar toggleable="lg" type="light" variant="">
         <div class="separator"></div>
@@ -25,14 +25,14 @@
               </div>
             </b-nav-item>
             <!-- Started count -->
-            <b-nav-item  disabled class="d-none d-md-inline ml-4">
+            <b-nav-item v-if="locationDesktops && !creationMode"  disabled class="d-none d-md-inline ml-4">
               <b-icon
                 icon="display-fill"
                 aria-hidden="true"
-                class="text-medium-gray mr-2 mr-lg-0"
-              ></b-icon>
+                class="text-medium-gray mr-2 mr-lg-0">
+              </b-icon>
             </b-nav-item>
-            <b-nav-item disabled><span class="d-none d-lg-inline text-medium-gray">{{`${$t("components.statusbar.desktops-started")}:`}}</span><span class="text-medium-gray">{{ ` ${startedDesktops}` }}</span></b-nav-item>
+            <b-nav-item v-if="locationDesktops && !creationMode" disabled><span class="d-none d-lg-inline text-medium-gray">{{`${$t("components.statusbar.desktops-started")}:`}}</span><span class="text-medium-gray">{{ ` ${startedDesktops}` }}</span></b-nav-item>
           </b-navbar-nav>
 
           <!-- Right aligned nav items-->
