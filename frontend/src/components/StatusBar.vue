@@ -14,7 +14,7 @@
                 <b-form-checkbox
                   id="started-checkbox"
                   name="checkbox-1"
-                  v-model="status"
+                  v-model="started"
                   value=true
                   unchecked-value=false
                   aria-hidden="true"
@@ -71,7 +71,7 @@ export default {
   },
   data () {
     return {
-      status: false,
+      started: false,
       showStarted: 'false'
     }
   },
@@ -82,7 +82,7 @@ export default {
       'navigate'
     ]),
     toggleDesktopsFilter () {
-      this.status = !this.status
+      this.started = !this.started
       this.toggleShowStarted()
     }
   },
