@@ -44,24 +44,33 @@ def api_v3_desktop_new(payload):
         user_id = payload["user_id"]
         template_id = request.form.get("template", type=str)
     except Exception as e:
+        error = traceback.format_exc()
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access. Exception: " + error,
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
     if user_id == None or template_id == None:
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
     if not allowedTemplateId(payload, template_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "forbidden", "msg": "Forbidden template"}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -76,7 +85,10 @@ def api_v3_desktop_new(payload):
             log.error("Quota for user " + user_id + " to create a desktop exceeded")
             return (
                 json.dumps(
-                    {"code": 11, "msg": "DesktopNew user desktop quota CREATE exceeded"}
+                    {
+                        "error": "desktop_new_user_quota_exceeded",
+                        "msg": "DesktopNew user desktop quota CREATE exceeded",
+                    }
                 ),
                 507,
                 {"Content-Type": "application/json"},
@@ -90,7 +102,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_new_group_quota_exceeded",
                         "msg": "DesktopNew group desktop limits CREATE exceeded",
                     }
                 ),
@@ -106,7 +118,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_new_category_quota_exceeded",
                         "msg": "DesktopNew category desktop limits CREATE exceeded",
                     }
                 ),
@@ -118,7 +130,10 @@ def api_v3_desktop_new(payload):
             log.error("Quota for user " + user_id + " to start a desktop is exceeded")
             return (
                 json.dumps(
-                    {"code": 11, "msg": "DesktopNew user quota CONCURRENT exceeded"}
+                    {
+                        "error": "desktop_start_user_quota_exceeded",
+                        "msg": "DesktopNew user quota CONCURRENT exceeded",
+                    }
                 ),
                 507,
                 {"Content-Type": "application/json"},
@@ -131,7 +146,10 @@ def api_v3_desktop_new(payload):
             )
             return (
                 json.dumps(
-                    {"code": 11, "msg": "DesktopNew user limits CONCURRENT exceeded"}
+                    {
+                        "error": "desktop_start_group_quota_exceeded",
+                        "msg": "DesktopNew user group limits CONCURRENT exceeded",
+                    }
                 ),
                 507,
                 {"Content-Type": "application/json"},
@@ -145,7 +163,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_category_quota_exceeded",
                         "msg": "DesktopNew user category limits CONCURRENT exceeded",
                     }
                 ),
@@ -158,7 +176,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_vcpu_quota_exceeded",
                         "msg": "DesktopNew user quota vCPU allocation exceeded",
                     }
                 ),
@@ -174,7 +192,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_group_vcpu_quota_exceeded",
                         "msg": "DesktopNew user group limits vCPU allocation exceeded",
                     }
                 ),
@@ -190,7 +208,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_category_vcpu_quota_exceeded",
                         "msg": "DesktopNew user category limits vCPU allocation exceeded",
                     }
                 ),
@@ -203,7 +221,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_memory_quota_exceeded",
                         "msg": "DesktopNew user quota MEMORY allocation exceeded",
                     }
                 ),
@@ -219,7 +237,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_group_memory_quota_exceeded",
                         "msg": "DesktopNew user group limits MEMORY allocation exceeded",
                     }
                 ),
@@ -235,7 +253,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_category_memory_quota_exceeded",
                         "msg": "DesktopNew user category limits MEMORY allocation exceeded",
                     }
                 ),
@@ -248,11 +266,11 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 9,
+                        "error": "quota_general_exception",
                         "msg": "DesktopNew quota check general exception: " + error,
                     }
                 ),
-                401,
+                500,
                 {"Content-Type": "application/json"},
             )
 
@@ -263,7 +281,10 @@ def api_v3_desktop_new(payload):
             log.error("Quota for user " + user_id + " to start a desktop is exceeded")
             return (
                 json.dumps(
-                    {"code": 11, "msg": "DesktopNew user quota CONCURRENT exceeded"}
+                    {
+                        "error": "desktop_start_user_quota_exceeded",
+                        "msg": "DesktopNew user quota CONCURRENT exceeded",
+                    }
                 ),
                 507,
                 {"Content-Type": "application/json"},
@@ -276,7 +297,10 @@ def api_v3_desktop_new(payload):
             )
             return (
                 json.dumps(
-                    {"code": 11, "msg": "DesktopNew user limits CONCURRENT exceeded"}
+                    {
+                        "error": "desktop_start_group_quota_exceeded",
+                        "msg": "DesktopNew user group limits CONCURRENT exceeded",
+                    }
                 ),
                 507,
                 {"Content-Type": "application/json"},
@@ -290,7 +314,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_category_quota_exceeded",
                         "msg": "DesktopNew user category limits CONCURRENT exceeded",
                     }
                 ),
@@ -303,7 +327,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_vcpu_quota_exceeded",
                         "msg": "DesktopNew user quota vCPU allocation exceeded",
                     }
                 ),
@@ -319,7 +343,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_group_vcpu_quota_exceeded",
                         "msg": "DesktopNew user group limits vCPU allocation exceeded",
                     }
                 ),
@@ -335,7 +359,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_category_vcpu_quota_exceeded",
                         "msg": "DesktopNew user category limits vCPU allocation exceeded",
                     }
                 ),
@@ -348,7 +372,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_memory_quota_exceeded",
                         "msg": "DesktopNew user quota MEMORY allocation exceeded",
                     }
                 ),
@@ -364,7 +388,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_group_memory_quota_exceeded",
                         "msg": "DesktopNew user group limits MEMORY allocation exceeded",
                     }
                 ),
@@ -380,7 +404,7 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 11,
+                        "error": "desktop_start_category_memory_quota_exceeded",
                         "msg": "DesktopNew user category limits MEMORY allocation exceeded",
                     }
                 ),
@@ -393,11 +417,11 @@ def api_v3_desktop_new(payload):
             return (
                 json.dumps(
                     {
-                        "code": 9,
+                        "error": "quota_general_exception",
                         "msg": "DesktopNew quota check general exception: " + error,
                     }
                 ),
-                401,
+                500,
                 {"Content-Type": "application/json"},
             )
 
@@ -406,11 +430,11 @@ def api_v3_desktop_new(payload):
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "generic_error",
                     "msg": "DesktopNew previous checks general exception: " + error,
                 }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -428,7 +452,12 @@ def api_v3_desktop_new(payload):
             + ", user not found"
         )
         return (
-            json.dumps({"code": 1, "msg": "DesktopNew user not found"}),
+            json.dumps(
+                {
+                    "error": "user_not_found",
+                    "msg": "DesktopNew user not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -441,7 +470,12 @@ def api_v3_desktop_new(payload):
             + " template not found."
         )
         return (
-            json.dumps({"code": 2, "msg": "DesktopNew template not found"}),
+            json.dumps(
+                {
+                    "error": "template_not_found",
+                    "msg": "DesktopNew template not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -454,7 +488,12 @@ def api_v3_desktop_new(payload):
             + " creation failed."
         )
         return (
-            json.dumps({"code": 1, "msg": "DesktopNew not created"}),
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopNew not created",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -467,8 +506,10 @@ def api_v3_desktop_new(payload):
             + " start timeout."
         )
         return (
-            json.dumps({"code": 2, "msg": "DesktopNew start timeout"}),
-            408,
+            json.dumps(
+                {"error": "desktop_start_timeout", "msg": "DesktopNew start timeout"}
+            ),
+            504,
             {"Content-Type": "application/json"},
         )
     except DesktopActionFailed:
@@ -480,15 +521,25 @@ def api_v3_desktop_new(payload):
             + " start failed."
         )
         return (
-            json.dumps({"code": 3, "msg": "DesktopNew start failed"}),
-            404,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopNew start failed",
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "DesktopNew general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopNew general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -500,15 +551,18 @@ def api_v3_desktop_delete(payload, desktop_id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
     if not ownsDomainId(payload, desktop_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "forbidden", "msg": "Forbidden domain"}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -518,21 +572,33 @@ def api_v3_desktop_delete(payload, desktop_id=False):
     except DesktopNotFound:
         log.error("Desktop delete " + desktop_id + ", desktop not found")
         return (
-            json.dumps({"code": 1, "msg": "Desktop delete id not found"}),
+            json.dumps(
+                {"error": "desktop_not_found", "msg": "Desktop delete id not found"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopDeleteFailed:
         log.error("Desktop delete " + desktop_id + ", desktop delete failed")
         return (
-            json.dumps({"code": 5, "msg": "Desktop delete deleting failed"}),
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Desktop delete, deleting failed",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "DesktopDelete general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopDelete general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )

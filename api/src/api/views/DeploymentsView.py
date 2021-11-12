@@ -47,8 +47,13 @@ def api_v3_deployment(payload, deployment_id):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "DeploymentGet general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DeploymentGet general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -64,8 +69,11 @@ def api_v3_deployments(payload):
         error = traceback.format_exc()
         return (
             json.dumps(
-                {"code": 9, "msg": "DeploymentsList general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "DeploymentsList general exception: " + error,
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )

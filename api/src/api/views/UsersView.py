@@ -54,15 +54,22 @@ def api_v3_user_exists(payload):
     except UserNotFound:
         log.error("User " + id + " not in database.")
         return (
-            json.dumps({"code": 1, "msg": "User not exists in database"}),
+            json.dumps(
+                {"error": "undefined_error", "msg": "User not exists in database"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserExists general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserExists general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -75,7 +82,9 @@ def api_v3_user_register(payload):
         # domain = request.form.get("email").split("@")[-1]
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + e}),
+            json.dumps(
+                {"error": "undefined_error", "msg": "Incorrect access. exception: " + e}
+            ),
             401,
             {"Content-Type": "application/json"},
         )
@@ -86,15 +95,25 @@ def api_v3_user_register(payload):
     except CodeNotFound:
         log.error("Code not in database.")
         return (
-            json.dumps({"code": 1, "msg": "Code " + code + " not exists in database"}),
+            json.dumps(
+                {
+                    "error": "undefined_error",
+                    "msg": "Code " + code + " not exists in database",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "Register general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Register general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -116,21 +135,21 @@ def api_v3_user_register(payload):
     except RoleNotFound:
         log.error("Role " + data.get("role") + " not found.")
         return (
-            json.dumps({"code": 2, "msg": "Role not found"}),
+            json.dumps({"error": "undefined_error", "msg": "Role not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except CategoryNotFound:
         log.error("Category " + payload["category_id"] + " not found.")
         return (
-            json.dumps({"code": 3, "msg": "Category not found"}),
+            json.dumps({"error": "undefined_error", "msg": "Category not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except GroupNotFound:
         log.error("Group " + data.get("group") + " not found.")
         return (
-            json.dumps({"code": 4, "msg": "Group not found"}),
+            json.dumps({"error": "undefined_error", "msg": "Group not found"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -141,7 +160,7 @@ def api_v3_user_register(payload):
         return (
             json.dumps(
                 {
-                    "code": 5,
+                    "error": "undefined_error",
                     "msg": "User could not be inserted into database. Already exists!",
                 }
             ),
@@ -151,8 +170,13 @@ def api_v3_user_register(payload):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserUpdate general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserUpdate general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -165,7 +189,12 @@ def api_v3_user_owns_desktop(payload):
         ip = request.form.get("ip", False)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
+            json.dumps(
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access. exception: " + str(e),
+                }
+            ),
             401,
             {"Content-Type": "application/json"},
         )
@@ -175,7 +204,7 @@ def api_v3_user_owns_desktop(payload):
         return (
             json.dumps(
                 {
-                    "code": 8,
+                    "error": "undefined_error",
                     "msg": "Incorrect access parameters. Check your query. At least one parameter should be specified.",
                 }
             ),
@@ -191,7 +220,7 @@ def api_v3_user_owns_desktop(payload):
         return (
             json.dumps(
                 {
-                    "code": 1,
+                    "error": "undefined_error",
                     "msg": "User " + payload["username"] + " not owns the desktop ip",
                 }
             ),
@@ -201,7 +230,12 @@ def api_v3_user_owns_desktop(payload):
     except:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "OwnsDesktop general exception: " + error}),
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "OwnsDesktop general exception: " + error,
+                }
+            ),
             500,
             {"Content-Type": "application/json"},
         )
@@ -216,9 +250,15 @@ def api_v3_user_update(payload):
         email = request.form.get("email", "")
         photo = request.form.get("photo", "")
     except Exception as e:
+        error = traceback.format_exc()
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Incorrect access. exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -227,7 +267,7 @@ def api_v3_user_update(payload):
         return (
             json.dumps(
                 {
-                    "code": 8,
+                    "error": "undefined_error",
                     "msg": "Incorrect access parameters. Check your query. At least one parameter should be specified.",
                 }
             ),
@@ -242,15 +282,20 @@ def api_v3_user_update(payload):
     except UpdateFailed:
         log.error("User " + id + " update failed.")
         return (
-            json.dumps({"code": 1, "msg": "User update failed"}),
+            json.dumps({"error": "undefined_error", "msg": "User update failed"}),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserUpdate general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserUpdate general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -264,29 +309,36 @@ def api_v3_user_delete(payload):
     except UserNotFound:
         log.error("User delete " + payload["user_id"] + ", user not found")
         return (
-            json.dumps({"code": 1, "msg": "User delete id not found"}),
+            json.dumps({"error": "undefined_error", "msg": "User delete id not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except UserDeleteFailed:
         log.error("User delete " + payload["user_id"] + ", user delete failed")
         return (
-            json.dumps({"code": 2, "msg": "User delete failed"}),
+            json.dumps({"error": "undefined_error", "msg": "User delete failed"}),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopDeleteFailed:
         log.error("User delete for user " + payload["user_id"] + ", user delete failed")
         return (
-            json.dumps({"code": 5, "msg": "User delete, user deleting failed"}),
+            json.dumps(
+                {"error": "undefined_error", "msg": "User delete, user deleting failed"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserDelete general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserDelete general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -298,7 +350,10 @@ def api_v3_user_templates(payload):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -325,7 +380,10 @@ def api_v3_user_templates(payload):
         log.error("User " + payload["user_id"] + " not in database.")
         return (
             json.dumps(
-                {"code": 1, "msg": "UserTemplates: User not exists in database"}
+                {
+                    "error": "undefined_error",
+                    "msg": "UserTemplates: User not exists in database",
+                }
             ),
             404,
             {"Content-Type": "application/json"},
@@ -333,15 +391,22 @@ def api_v3_user_templates(payload):
     except UserTemplatesError:
         log.error("Template list for user " + payload["user_id"] + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserTemplates: list error"}),
+            json.dumps(
+                {"error": "undefined_error", "msg": "UserTemplates: list error"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserTemplates general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserTemplates general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -355,22 +420,32 @@ def api_v3_user_desktops(payload):
     except UserNotFound:
         log.error("User " + payload["user_id"] + " not in database.")
         return (
-            json.dumps({"code": 1, "msg": "UserDesktops: User not exists in database"}),
+            json.dumps(
+                {
+                    "error": "undefined_error",
+                    "msg": "UserDesktops: User not exists in database",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except UserDesktopsError:
         log.error("Desktops list for user " + payload["user_id"] + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserDesktops: list error"}),
+            json.dumps({"error": "undefined_error", "msg": "UserDesktops: list error"}),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserDesktops general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserDesktops general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -396,29 +471,39 @@ def api_v3_user_desktop(payload, desktop_id):
     except UserNotFound:
         log.error("User " + payload["user_id"] + " not in database.")
         return (
-            json.dumps({"code": 1, "msg": "UserDesktops: User not exists in database"}),
+            json.dumps(
+                {
+                    "error": "undefined_error",
+                    "msg": "UserDesktops: User not exists in database",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except UserDesktopsError:
         log.error("Desktops get for user " + payload["user_id"] + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserDesktops: list error"}),
+            json.dumps({"error": "undefined_error", "msg": "UserDesktops: list error"}),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopNotFound:
         log.error("Desktops get for user " + payload["user_id"] + " not found.")
         return (
-            json.dumps({"code": 3, "msg": "UserDesktops: not found"}),
+            json.dumps({"error": "undefined_error", "msg": "UserDesktops: not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserDesktops general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserDesktops general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -431,7 +516,7 @@ def api_v3_user_desktop(payload, desktop_id):
 def api_v3_user_vpn(payload, kind, os=False):
     if not os and kind != "config":
         return (
-            json.dumps({"code": 9, "msg": "UserVpn: no OS supplied"}),
+            json.dumps({"error": "undefined_error", "msg": "UserVpn: no OS supplied"}),
             401,
             {"Content-Type": "application/json"},
         )
@@ -442,7 +527,7 @@ def api_v3_user_vpn(payload, kind, os=False):
         return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}
     else:
         return (
-            json.dumps({"code": 9, "msg": "UserVpn no VPN data"}),
+            json.dumps({"error": "undefined_error", "msg": "UserVpn no VPN data"}),
             401,
             {"Content-Type": "application/json"},
         )

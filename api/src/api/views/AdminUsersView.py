@@ -40,7 +40,7 @@ def api_v3_admin_jwt(payload, user_id):
     if ownsUserId(payload, user_id):
         return users.Jwt(user_id)
     return (
-        json.dumps({"code": 10, "msg": "Forbidden: "}),
+        json.dumps({"error": "forbidden", "msg": "Forbidden: "}),
         403,
         {"Content-Type": "application/json"},
     )
@@ -53,7 +53,10 @@ def api_v3_admin_user_exists(payload, id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -61,7 +64,7 @@ def api_v3_admin_user_exists(payload, id=False):
 
     if not ownsUserId(payload, id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "forbidden", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -71,15 +74,22 @@ def api_v3_admin_user_exists(payload, id=False):
     except UserNotFound:
         log.error("User " + id + " not in database.")
         return (
-            json.dumps({"code": 1, "msg": "User not exists in database"}),
+            json.dumps(
+                {"error": "user_not_found", "msg": "User not exists in database"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserExists general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserExists general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -94,7 +104,7 @@ def api_v3_admin_users(payload):
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "generic_error",
                     "msg": "Users list general exception: " + traceback.format_exc(),
                 }
             ),
@@ -110,7 +120,7 @@ def api_v3_admin_users(payload):
         ]
         return json.dumps(filtered_users), 200, {"Content-Type": "application/json"}
     return (
-        json.dumps({"code": 10, "msg": "Forbidden"}),
+        json.dumps({"error": "forbidden", "msg": "Forbidden"}),
         403,
         {"Content-Type": "application/json"},
     )
@@ -124,15 +134,18 @@ def api_v3_admin_user_update(payload, id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
     if not ownsUserId(payload, id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "forbidden", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -141,9 +154,15 @@ def api_v3_admin_user_update(payload, id=False):
         email = request.form.get("email", "")
         photo = request.form.get("photo", "")
     except Exception as e:
+        error = traceback.format_exc()
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Incorrect access. exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -152,11 +171,11 @@ def api_v3_admin_user_update(payload, id=False):
         return (
             json.dumps(
                 {
-                    "code": 8,
+                    "error": "bad_request",
                     "msg": "Incorrect access parameters. Check your query. At least one parameter should be specified.",
                 }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
     try:
@@ -165,15 +184,20 @@ def api_v3_admin_user_update(payload, id=False):
     except UpdateFailed:
         log.error("User " + id + " update failed.")
         return (
-            json.dumps({"code": 1, "msg": "User update failed"}),
+            json.dumps({"error": "undefined_error", "msg": "User update failed"}),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserUpdate general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserUpdate general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -198,9 +222,15 @@ def api_v3_admin_user_insert(payload):
         photo = request.form.get("photo", "", type=str)
         email = request.form.get("email", "", type=str)
     except Exception as e:
+        error = traceback.format_exc()
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Incorrect access. exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     if (
@@ -213,7 +243,10 @@ def api_v3_admin_user_insert(payload):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -223,7 +256,7 @@ def api_v3_admin_user_insert(payload):
 
     if not ownsCategoryId(payload, category_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -237,7 +270,10 @@ def api_v3_admin_user_insert(payload):
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "UserNew category quota for adding user exceeded"}
+                {
+                    "error": "undefined_error",
+                    "msg": "UserNew category quota for adding user exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -248,7 +284,10 @@ def api_v3_admin_user_insert(payload):
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "UserNew group quota for adding user exceeded"}
+                {
+                    "error": "undefined_error",
+                    "msg": "UserNew group quota for adding user exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -257,9 +296,12 @@ def api_v3_admin_user_insert(payload):
         error = traceback.format_exc()
         return (
             json.dumps(
-                {"code": 9, "msg": "UserNew quota check general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "UserNew quota check general exception: " + error,
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -284,21 +326,21 @@ def api_v3_admin_user_insert(payload):
     except RoleNotFound:
         log.error("Role " + role_username + " not found.")
         return (
-            json.dumps({"code": 2, "msg": "Role not found"}),
+            json.dumps({"error": "undefined_error", "msg": "Role not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except CategoryNotFound:
         log.error("Category " + category_id + " not found.")
         return (
-            json.dumps({"code": 3, "msg": "Category not found"}),
+            json.dumps({"error": "undefined_error", "msg": "Category not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except GroupNotFound:
         log.error("Group " + group_id + " not found.")
         return (
-            json.dumps({"code": 4, "msg": "Group not found"}),
+            json.dumps({"error": "undefined_error", "msg": "Group not found"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -307,7 +349,7 @@ def api_v3_admin_user_insert(payload):
         return (
             json.dumps(
                 {
-                    "code": 5,
+                    "error": "undefined_error",
                     "msg": "User could not be inserted into database. Already exists!",
                 }
             ),
@@ -317,8 +359,13 @@ def api_v3_admin_user_insert(payload):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserUpdate general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserUpdate general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -329,7 +376,7 @@ def api_v3_admin_user_delete(payload, user_id):
 
     if not ownsUserId(payload, user_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -339,29 +386,39 @@ def api_v3_admin_user_delete(payload, user_id):
     except UserNotFound:
         log.error("User delete " + user_id + ", user not found")
         return (
-            json.dumps({"code": 1, "msg": "User delete id not found"}),
+            json.dumps({"error": "undefined_error", "msg": "User delete id not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except UserDeleteFailed:
         log.error("User delete " + user_id + ", user delete failed")
         return (
-            json.dumps({"code": 2, "msg": "User delete failed"}),
+            json.dumps({"error": "undefined_error", "msg": "User delete failed"}),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopDeleteFailed:
         log.error("User delete for user " + user_id + ", desktop delete failed")
         return (
-            json.dumps({"code": 5, "msg": "User delete, desktop deleting failed"}),
+            json.dumps(
+                {
+                    "error": "undefined_error",
+                    "msg": "User delete, desktop deleting failed",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserDelete general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserDelete general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -373,7 +430,10 @@ def api_v3_admin_templates(payload):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -396,7 +456,10 @@ def api_v3_admin_templates(payload):
         log.error("User " + payload["user_id"] + " not in database.")
         return (
             json.dumps(
-                {"code": 1, "msg": "UserTemplates: User not exists in database"}
+                {
+                    "error": "undefined_error",
+                    "msg": "UserTemplates: User not exists in database",
+                }
             ),
             404,
             {"Content-Type": "application/json"},
@@ -404,15 +467,22 @@ def api_v3_admin_templates(payload):
     except UserTemplatesError:
         log.error("Template list for user " + payload["user_id"] + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserTemplates: list error"}),
+            json.dumps(
+                {"error": "undefined_error", "msg": "UserTemplates: list error"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserTemplates general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserTemplates general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -424,7 +494,10 @@ def api_v3_admin_user_templates(payload, id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -432,7 +505,7 @@ def api_v3_admin_user_templates(payload, id=False):
 
     if not ownsUserId(payload, id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -454,7 +527,10 @@ def api_v3_admin_user_templates(payload, id=False):
         log.error("User " + id + " not in database.")
         return (
             json.dumps(
-                {"code": 1, "msg": "UserTemplates: User not exists in database"}
+                {
+                    "error": "undefined_error",
+                    "msg": "UserTemplates: User not exists in database",
+                }
             ),
             404,
             {"Content-Type": "application/json"},
@@ -462,15 +538,22 @@ def api_v3_admin_user_templates(payload, id=False):
     except UserTemplatesError:
         log.error("Template list for user " + id + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserTemplates: list error"}),
+            json.dumps(
+                {"error": "undefined_error", "msg": "UserTemplates: list error"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserTemplates general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserTemplates general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -482,7 +565,10 @@ def api_v3_admin_user_desktops(payload, id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -490,7 +576,7 @@ def api_v3_admin_user_desktops(payload, id=False):
 
     if not ownsUserId(payload, id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -515,22 +601,32 @@ def api_v3_admin_user_desktops(payload, id=False):
     except UserNotFound:
         log.error("User " + id + " not in database.")
         return (
-            json.dumps({"code": 1, "msg": "UserDesktops: User not exists in database"}),
+            json.dumps(
+                {
+                    "error": "undefined_error",
+                    "msg": "UserDesktops: User not exists in database",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except UserDesktopsError:
         log.error("Desktops list for user " + id + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserDesktops: list error"}),
+            json.dumps({"error": "undefined_error", "msg": "UserDesktops: list error"}),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "UserDesktops general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserDesktops general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -544,7 +640,10 @@ def api_v3_admin_category(id, payload):
     except CategoryNotFound:
         return (
             json.dumps(
-                {"code": 1, "msg": "Category " + id + " not exists in database"}
+                {
+                    "error": "undefined_error",
+                    "msg": "Category " + id + " not exists in database",
+                }
             ),
             404,
             {"Content-Type": "application/json"},
@@ -553,7 +652,12 @@ def api_v3_admin_category(id, payload):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "Register general exception: " + error}),
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Register general exception: " + error,
+                }
+            ),
             500,
             {"Content-Type": "application/json"},
         )
@@ -595,15 +699,23 @@ def api_v3_admin_category_insert(payload):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Incorrect access. exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     if category_name == None:
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -629,11 +741,11 @@ def api_v3_admin_category_insert(payload):
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "generic_error",
                     "msg": "General exception when creating category pair: " + error,
                 }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -667,15 +779,23 @@ def api_v3_admin_group_insert(payload):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Incorrect access. exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     if category_id == None:
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -683,7 +803,7 @@ def api_v3_admin_group_insert(payload):
 
     if not ownsCategoryId(payload, category_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -705,9 +825,12 @@ def api_v3_admin_group_insert(payload):
         error = traceback.format_exc()
         return (
             json.dumps(
-                {"code": 9, "msg": "General exception when creating group: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "General exception when creating group: " + error,
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -732,8 +855,13 @@ def api_v3_admin_categories(payload, frontend=False):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "CategoriesGet general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "CategoriesGet general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -752,7 +880,7 @@ def api_v3_admin_category_delete(category_id, payload):
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "undefined_error",
                     "msg": "CategoryDelete general exception: "
                     + traceback.format_exc(),
                 }
@@ -767,7 +895,7 @@ def api_v3_admin_category_delete(category_id, payload):
 def api_v3_admin_groups(payload):
     if payload["role_id"] not in ["admin", "manager"]:
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -784,7 +912,7 @@ def api_v3_admin_groups(payload):
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "undefined_error",
                     "msg": "GroupsGet general exception: " + traceback.format_exc(),
                 }
             ),
@@ -807,7 +935,7 @@ def api_v3_admin_group_delete(group_id, payload):
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "undefined_error",
                     "msg": "GroupDelete general exception: " + traceback.format_exc(),
                 }
             ),
@@ -824,13 +952,13 @@ def api_v3_admin_group_delete(group_id, payload):
 def api_v3_admin_user_vpn(payload, id, kind, os=False):
     if not ownsUserId(payload, id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
     if not os and kind != "config":
         return (
-            json.dumps({"code": 9, "msg": "UserVpn: no OS supplied"}),
+            json.dumps({"error": "undefined_error", "msg": "UserVpn: no OS supplied"}),
             401,
             {"Content-Type": "application/json"},
         )
@@ -841,7 +969,7 @@ def api_v3_admin_user_vpn(payload, id, kind, os=False):
         return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}
     else:
         return (
-            json.dumps({"code": 9, "msg": "UserVpn no VPN data"}),
+            json.dumps({"error": "undefined_error", "msg": "UserVpn no VPN data"}),
             401,
             {"Content-Type": "application/json"},
         )
@@ -861,8 +989,13 @@ def api_v3_admin_secret(payload):
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Incorrect access. exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -870,7 +1003,10 @@ def api_v3_admin_secret(payload):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             401,
             {"Content-Type": "application/json"},

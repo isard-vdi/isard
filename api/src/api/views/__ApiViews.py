@@ -31,7 +31,10 @@ def api_v3_category(id):
     except CategoryNotFound:
         return (
             json.dumps(
-                {"code": 1, "msg": "Category " + id + " not exists in database"}
+                {
+                    "error": "category_not_found",
+                    "msg": "Category " + id + " not exists in database",
+                }
             ),
             404,
             {"Content-Type": "application/json"},
@@ -42,7 +45,12 @@ def api_v3_category(id):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "Register general exception: " + str(e)}),
+            json.dumps(
+                {
+                    "error": "category_generic_exception",
+                    "msg": "General exception: " + str(e),
+                }
+            ),
             500,
             {"Content-Type": "application/json"},
         )
@@ -54,8 +62,13 @@ def api_v3_register():
         code = request.form.get("code", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Bad request. exception: " + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -65,7 +78,12 @@ def api_v3_register():
     except CodeNotFound:
         log.error("Code not in database.")
         return (
-            json.dumps({"code": 1, "msg": "Code " + code + " not exists in database"}),
+            json.dumps(
+                {
+                    "error": "registration_code_not_found",
+                    "msg": "Registration code " + code + " not exists in database",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -74,8 +92,13 @@ def api_v3_register():
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "Register general exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "register_generic_exception",
+                    "msg": "Register general exception: " + str(e),
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -86,9 +109,12 @@ def api_v3_user_exists(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -98,7 +124,9 @@ def api_v3_user_exists(id=False):
     except UserNotFound:
         log.error("User " + id + " not in database.")
         return (
-            json.dumps({"code": 1, "msg": "User not exists in database"}),
+            json.dumps(
+                {"error": "user_not_found", "msg": "User not exists in database"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -107,8 +135,13 @@ def api_v3_user_exists(id=False):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "UserExists general exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "General exception retrieving user: " + str(e),
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -120,9 +153,12 @@ def api_v3_user_update(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -132,8 +168,13 @@ def api_v3_user_update(id=False):
         photo = request.form.get("photo", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Error retrieving field changes. exception: " + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -144,9 +185,12 @@ def api_v3_user_update(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
     try:
@@ -155,8 +199,10 @@ def api_v3_user_update(id=False):
     except UpdateFailed:
         log.error("User " + id + " update failed.")
         return (
-            json.dumps({"code": 1, "msg": "User update failed"}),
-            404,
+            json.dumps(
+                {"error": "update_generic_exception", "msg": "User update failed"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
@@ -164,8 +210,13 @@ def api_v3_user_update(id=False):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "UserUpdate general exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "update_generic_exception",
+                    "msg": "UserUpdate general exception: " + str(e),
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -183,8 +234,13 @@ def api_v3_user_insert():
         password = request.form.get("password", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access. exception: " + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
     if (
@@ -196,9 +252,12 @@ def api_v3_user_insert():
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
     if password == None:
@@ -214,7 +273,10 @@ def api_v3_user_insert():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "UserNew category quota for adding user exceeded"}
+                {
+                    "error": "user_new_category_cuota_exceeded",
+                    "msg": "UserNew category quota for adding user exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -225,7 +287,10 @@ def api_v3_user_insert():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "UserNew group quota for adding user exceeded"}
+                {
+                    "error": "user_new_group_cuota_exceeded",
+                    "msg": "UserNew group quota for adding user exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -236,7 +301,10 @@ def api_v3_user_insert():
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
             json.dumps(
-                {"code": 9, "msg": "UserNew quota check general exception: " + str(e)}
+                {
+                    "error": "quota_general_exception",
+                    "msg": "UserNew quota check general exception: " + str(e),
+                }
             ),
             401,
             {"Content-Type": "application/json"},
@@ -250,28 +318,28 @@ def api_v3_user_insert():
     except UserExists:
         log.error("User " + user_username + " already exists.")
         return (
-            json.dumps({"code": 1, "msg": "User already exists"}),
+            json.dumps({"error": "username_exists", "msg": "User already exists"}),
             404,
             {"Content-Type": "application/json"},
         )
     except RoleNotFound:
         log.error("Role " + role_username + " not found.")
         return (
-            json.dumps({"code": 2, "msg": "Role not found"}),
+            json.dumps({"error": "role_not_found", "msg": "Role not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except CategoryNotFound:
         log.error("Category " + category_id + " not found.")
         return (
-            json.dumps({"code": 3, "msg": "Category not found"}),
+            json.dumps({"error": "category_not_found", "msg": "Category not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except GroupNotFound:
         log.error("Group " + group_id + " not found.")
         return (
-            json.dumps({"code": 4, "msg": "Group not found"}),
+            json.dumps({"error": "group_not_found", "msg": "Group not found"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -280,11 +348,11 @@ def api_v3_user_insert():
         return (
             json.dumps(
                 {
-                    "code": 5,
-                    "msg": "User could not be inserted into database. Already exists!",
+                    "error": "user_new_generic_exception",
+                    "msg": "User could not be inserted into database.",
                 }
             ),
-            404,
+            500,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
@@ -292,7 +360,12 @@ def api_v3_user_insert():
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "UserUpdate general exception: " + str(e)}),
+            json.dumps(
+                {
+                    "error": "user_new_generic_exception",
+                    "msg": "UserNew general exception: " + str(e),
+                }
+            ),
             401,
             {"Content-Type": "application/json"},
         )
@@ -306,21 +379,28 @@ def api_v3_user_delete(user_id):
     except UserNotFound:
         log.error("User delete " + user_id + ", user not found")
         return (
-            json.dumps({"code": 1, "msg": "User delete id not found"}),
+            json.dumps({"error": "user_not_found", "msg": "User delete id not found"}),
             404,
             {"Content-Type": "application/json"},
         )
     except UserDeleteFailed:
         log.error("User delete " + user_id + ", user delete failed")
         return (
-            json.dumps({"code": 2, "msg": "User delete failed"}),
+            json.dumps(
+                {"error": "user_delete_generic_exception", "msg": "User delete failed"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopDeleteFailed:
         log.error("User delete for user " + user_id + ", desktop delete failed")
         return (
-            json.dumps({"code": 5, "msg": "User delete, desktop deleting failed"}),
+            json.dumps(
+                {
+                    "error": "user_delete_generic_exception",
+                    "msg": "User delete failed",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -329,7 +409,12 @@ def api_v3_user_delete(user_id):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "UserDelete general exception: " + str(e)}),
+            json.dumps(
+                {
+                    "error": "user_delete_generic_exception",
+                    "msg": "UserDelete general exception: " + str(e),
+                }
+            ),
             401,
             {"Content-Type": "application/json"},
         )
@@ -341,9 +426,12 @@ def api_v3_user_templates(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -363,7 +451,10 @@ def api_v3_user_templates(id=False):
         log.error("User " + id + " not in database.")
         return (
             json.dumps(
-                {"code": 1, "msg": "UserTemplates: User not exists in database"}
+                {
+                    "error": "user_not_found",
+                    "msg": "UserTemplates: User not exists in database",
+                }
             ),
             404,
             {"Content-Type": "application/json"},
@@ -371,8 +462,10 @@ def api_v3_user_templates(id=False):
     except UserTemplatesError:
         log.error("Template list for user " + id + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserTemplates: list error"}),
-            404,
+            json.dumps(
+                {"error": "templates_get_error", "msg": "UserTemplates: list error"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
@@ -381,9 +474,12 @@ def api_v3_user_templates(id=False):
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
             json.dumps(
-                {"code": 9, "msg": "UserTemplates general exception: " + str(e)}
+                {
+                    "error": "templates_get_error",
+                    "msg": "UserTemplates general exception: " + str(e),
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -394,9 +490,12 @@ def api_v3_user_desktops(id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -416,14 +515,21 @@ def api_v3_user_desktops(id=False):
     except UserNotFound:
         log.error("User " + id + " not in database.")
         return (
-            json.dumps({"code": 1, "msg": "UserDesktops: User not exists in database"}),
+            json.dumps(
+                {
+                    "error": "user_not_found",
+                    "msg": "UserDesktops: User not exists in database",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except UserDesktopsError:
         log.error("Template list for user " + id + " failed.")
         return (
-            json.dumps({"code": 2, "msg": "UserDesktops: list error"}),
+            json.dumps(
+                {"error": "desktops_get_error", "msg": "UserDesktops: list error"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -432,8 +538,13 @@ def api_v3_user_desktops(id=False):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "UserDesktops general exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "desktops_get_error",
+                    "msg": "UserDesktops general exception: " + str(e),
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -445,17 +556,25 @@ def api_v3_login():
         passwd = request.form.get("passwd", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access. exception: " + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
     if id == None or passwd == None:
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -465,7 +584,7 @@ def api_v3_login():
     except UserLoginFailed:
         log.error("User " + id + " login failed.")
         return (
-            json.dumps({"code": 1, "msg": "User login failed"}),
+            json.dumps({"error": "login_failed", "msg": "User login failed"}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -474,7 +593,12 @@ def api_v3_login():
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "UserExists general exception: " + str(e)}),
+            json.dumps(
+                {
+                    "error": "login_failed",
+                    "msg": "UserLogin general exception: " + str(e),
+                }
+            ),
             401,
             {"Content-Type": "application/json"},
         )
@@ -487,17 +611,25 @@ def api_v3_desktop_new():
         template = request.form.get("template", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access. exception: " + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
     if user_id == None or template == None:
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -509,7 +641,10 @@ def api_v3_desktop_new():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "DesktopNew user quota CONCURRENT exceeded"}
+                {
+                    "error": "desktop_start_user_quota_exceeded",
+                    "msg": "DesktopNew user quota CONCURRENT exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -523,7 +658,7 @@ def api_v3_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 11,
+                    "error": "desktop_start_category_quota_exceeded",
                     "msg": "DesktopNew user category quota CONCURRENT exceeded",
                 }
             ),
@@ -539,7 +674,7 @@ def api_v3_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 11,
+                    "error": "desktop_start_category_vcpu_quota_exceeded",
                     "msg": "DesktopNew user category quota vCPU allocation exceeded",
                 }
             ),
@@ -555,7 +690,7 @@ def api_v3_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 11,
+                    "error": "desktop_start_category_memory_quota_exceeded",
                     "msg": "DesktopNew user category quota MEMORY allocation exceeded",
                 }
             ),
@@ -568,7 +703,10 @@ def api_v3_desktop_new():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "DesktopNew user category quota CREATE exceeded"}
+                {
+                    "error": "desktop_new_user_quota_exceeded",
+                    "msg": "DesktopNew user quota CREATE exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -581,7 +719,10 @@ def api_v3_desktop_new():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "DesktopNew user category quota CREATE exceeded"}
+                {
+                    "error": "desktop_new_group_quota_exceeded",
+                    "msg": "DesktopNew user group quota CREATE exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -594,7 +735,10 @@ def api_v3_desktop_new():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "DesktopNew user category quota CREATE exceeded"}
+                {
+                    "error": "desktop_new_category_quota_exceeded",
+                    "msg": "DesktopNew user category quota CREATE exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -606,7 +750,7 @@ def api_v3_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "quota_general_exception",
                     "msg": "DesktopNew quota check general exception: " + str(e),
                 }
             ),
@@ -627,7 +771,7 @@ def api_v3_desktop_new():
             + ", user not found"
         )
         return (
-            json.dumps({"code": 1, "msg": "DesktopNew user not found"}),
+            json.dumps({"error": "user_not_found", "msg": "DesktopNew user not found"}),
             404,
             {"Content-Type": "application/json"},
         )
@@ -640,7 +784,12 @@ def api_v3_desktop_new():
             + " template not found."
         )
         return (
-            json.dumps({"code": 2, "msg": "DesktopNew template not found"}),
+            json.dumps(
+                {
+                    "error": "template_not_found",
+                    "msg": "DesktopNew template not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -653,7 +802,12 @@ def api_v3_desktop_new():
             + " creation failed."
         )
         return (
-            json.dumps({"code": 1, "msg": "DesktopNew not created"}),
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopNew not created",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -666,7 +820,9 @@ def api_v3_desktop_new():
             + " start timeout."
         )
         return (
-            json.dumps({"code": 2, "msg": "DesktopNew start timeout"}),
+            json.dumps(
+                {"error": "desktop_start_timeout", "msg": "DesktopNew start timeout"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -679,8 +835,10 @@ def api_v3_desktop_new():
             + " start failed."
         )
         return (
-            json.dumps({"code": 3, "msg": "DesktopNew start failed"}),
-            404,
+            json.dumps(
+                {"error": "desktop_action_failed", "msg": "DesktopNew start failed"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
@@ -688,8 +846,13 @@ def api_v3_desktop_new():
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "DesktopNew general exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopNew general exception: " + str(e),
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -700,9 +863,12 @@ def api_v3_desktop_viewer(desktop_id=False, protocol=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -718,7 +884,9 @@ def api_v3_desktop_viewer(desktop_id=False, protocol=False):
             + ", desktop not found"
         )
         return (
-            json.dumps({"code": 1, "msg": "Desktop viewer id not found"}),
+            json.dumps(
+                {"error": "viewer_not_found", "msg": "Desktop viewer id not found"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -731,8 +899,10 @@ def api_v3_desktop_viewer(desktop_id=False, protocol=False):
             + ", desktop not started"
         )
         return (
-            json.dumps({"code": 2, "msg": "Desktop viewer is not started"}),
-            404,
+            json.dumps(
+                {"error": "viewer_not_started", "msg": "Desktop viewer is not started"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except NotAllowed:
@@ -744,8 +914,13 @@ def api_v3_desktop_viewer(desktop_id=False, protocol=False):
             + ", viewer access not allowed"
         )
         return (
-            json.dumps({"code": 3, "msg": "Desktop viewer id not owned by user"}),
-            404,
+            json.dumps(
+                {
+                    "error": "forbidden",
+                    "msg": "Desktop viewer is not owned by user",
+                }
+            ),
+            403,
             {"Content-Type": "application/json"},
         )
     except ViewerProtocolNotFound:
@@ -757,7 +932,12 @@ def api_v3_desktop_viewer(desktop_id=False, protocol=False):
             + ", viewer protocol not found"
         )
         return (
-            json.dumps({"code": 4, "msg": "Desktop viewer protocol not found"}),
+            json.dumps(
+                {
+                    "error": "viewer_protocol_not_found",
+                    "msg": "Desktop viewer protocol not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -770,7 +950,12 @@ def api_v3_desktop_viewer(desktop_id=False, protocol=False):
             + ", viewer protocol not implemented"
         )
         return (
-            json.dumps({"code": 5, "msg": "Desktop viewer protocol not implemented"}),
+            json.dumps(
+                {
+                    "error": "viewer_protocol_not_found",
+                    "msg": "Desktop viewer protocol not implemented",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -780,9 +965,12 @@ def api_v3_desktop_viewer(desktop_id=False, protocol=False):
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
             json.dumps(
-                {"code": 9, "msg": "DesktopViewer general exception: " + str(e)}
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopViewer general exception: " + str(e),
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -793,9 +981,12 @@ def api_v3_desktop_delete(desktop_id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -806,15 +997,22 @@ def api_v3_desktop_delete(desktop_id=False):
     except DesktopNotFound:
         log.error("Desktop delete " + desktop_id + ", desktop not found")
         return (
-            json.dumps({"code": 1, "msg": "Desktop delete id not found"}),
+            json.dumps(
+                {"error": "desktop_not_found", "msg": "Desktop delete id not found"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopDeleteFailed:
         log.error("Desktop delete " + desktop_id + ", desktop delete failed")
         return (
-            json.dumps({"code": 5, "msg": "Desktop delete deleting failed"}),
-            404,
+            json.dumps(
+                {
+                    "error": "desktop_action_failed",
+                    "msg": "Desktop delete deleting failed",
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
@@ -823,9 +1021,12 @@ def api_v3_desktop_delete(desktop_id=False):
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
             json.dumps(
-                {"code": 9, "msg": "DesktopDelete general exception: " + str(e)}
+                {
+                    "error": "desktop_action_failed",
+                    "msg": "DesktopDelete general exception: " + str(e),
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -844,8 +1045,13 @@ def api_v3_persistent_desktop_new():
         disk_size = request.form.get("disk_size", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access. exception: " + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -853,9 +1059,12 @@ def api_v3_persistent_desktop_new():
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -868,8 +1077,8 @@ def api_v3_persistent_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 11,
-                    "msg": "PersistentDesktopNew user category quota CREATE exceeded",
+                    "error": "desktop_new_user_quota_exceeded",
+                    "msg": "PersistentDesktopNew user quota CREATE exceeded",
                 }
             ),
             507,
@@ -884,8 +1093,8 @@ def api_v3_persistent_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 11,
-                    "msg": "PersistentDesktopNew user category quota CREATE exceeded",
+                    "error": "desktop_new_group_quota_exceeded",
+                    "msg": "PersistentDesktopNew user group quota CREATE exceeded",
                 }
             ),
             507,
@@ -900,7 +1109,7 @@ def api_v3_persistent_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 11,
+                    "error": "desktop_new_category_quota_exceeded",
                     "msg": "PersistentDesktopNew user category quota CREATE exceeded",
                 }
             ),
@@ -914,7 +1123,7 @@ def api_v3_persistent_desktop_new():
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "quota_general_exception",
                     "msg": "PersistentDesktopNew quota check general exception: "
                     + str(e),
                 }
@@ -944,7 +1153,12 @@ def api_v3_persistent_desktop_new():
             + ", user not found"
         )
         return (
-            json.dumps({"code": 1, "msg": "PersistentDesktopNew user not found"}),
+            json.dumps(
+                {
+                    "error": "user_not_found",
+                    "msg": "PersistentDesktopNew user not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -957,7 +1171,12 @@ def api_v3_persistent_desktop_new():
             + " template not found."
         )
         return (
-            json.dumps({"code": 2, "msg": "PersistentDesktopNew template not found"}),
+            json.dumps(
+                {
+                    "error": "template_not_found",
+                    "msg": "PersistentDesktopNew template not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -970,8 +1189,13 @@ def api_v3_persistent_desktop_new():
             + " creation failed."
         )
         return (
-            json.dumps({"code": 1, "msg": "PersistentDesktopNew not created"}),
-            404,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "PersistentDesktopNew not created",
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     ### Needs more!
@@ -981,9 +1205,12 @@ def api_v3_persistent_desktop_new():
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
             json.dumps(
-                {"code": 9, "msg": "PersistentDesktopNew general exception: " + str(e)}
+                {
+                    "error": "generic_error",
+                    "msg": "PersistentDesktopNew general exception: " + str(e),
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -996,8 +1223,13 @@ def api_v3_template_new():
         desktop_id = request.form.get("desktop_id", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access. exception: " + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -1005,9 +1237,12 @@ def api_v3_template_new():
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -1019,7 +1254,10 @@ def api_v3_template_new():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "TemplateNew user category quota CREATE exceeded"}
+                {
+                    "error": "template_new_user_quota_exceeded",
+                    "msg": "TemplateNew user quota CREATE exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -1032,7 +1270,10 @@ def api_v3_template_new():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "TemplateNew user category quota CREATE exceeded"}
+                {
+                    "error": "template_new_group_quota_exceeded",
+                    "msg": "TemplateNew user group quota CREATE exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -1045,7 +1286,10 @@ def api_v3_template_new():
         )
         return (
             json.dumps(
-                {"code": 11, "msg": "TemplateNew user category quota CREATE exceeded"}
+                {
+                    "error": "template_new_category_quota_exceeded",
+                    "msg": "TemplateNew user category quota CREATE exceeded",
+                }
             ),
             507,
             {"Content-Type": "application/json"},
@@ -1057,11 +1301,11 @@ def api_v3_template_new():
         return (
             json.dumps(
                 {
-                    "code": 9,
+                    "error": "quota_general_exception",
                     "msg": "TemplateNew quota check general exception: " + str(e),
                 }
             ),
-            401,
+            507,
             {"Content-Type": "application/json"},
         )
 
@@ -1083,7 +1327,9 @@ def api_v3_template_new():
             + ", user not found"
         )
         return (
-            json.dumps({"code": 1, "msg": "TemplateNew user not found"}),
+            json.dumps(
+                {"error": "user_not_found", "msg": "TemplateNew user not found"}
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -1096,7 +1342,12 @@ def api_v3_template_new():
             + " template not found."
         )
         return (
-            json.dumps({"code": 2, "msg": "TemplateNew template not found"}),
+            json.dumps(
+                {
+                    "error": "template_not_found",
+                    "msg": "TemplateNew template not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
@@ -1109,8 +1360,10 @@ def api_v3_template_new():
             + " creation failed."
         )
         return (
-            json.dumps({"code": 1, "msg": "TemplateNew not created"}),
-            404,
+            json.dumps(
+                {"error": "template_new_not_created", "msg": "TemplateNew not created"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     ### Needs more!
@@ -1119,17 +1372,22 @@ def api_v3_template_new():
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "TemplateNew general exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "template_new_not_created",
+                    "msg": "TemplateNew general exception: " + str(e),
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
     # except DesktopActionTimeout:
     #    log.error("Desktop delete "+desktop_id+", desktop stop timeout")
-    #    return json.dumps({"code":2,"msg":"Desktop delete stopping timeout"}), 404, {'Content-Type': 'application/json'}
+    #    return json.dumps({"error": "undefined_error","msg":"Desktop delete stopping timeout"}), 404, {'Content-Type': 'application/json'}
     # except DesktopActionFailed:
     #    log.error("Desktop delete "+desktop_id+", desktop stop failed")
-    #    return json.dumps({"code":3,"msg":"Desktop delete stopping failed"}), 404, {'Content-Type': 'application/json'}
+    #    return json.dumps({"error": "undefined_error","msg":"Desktop delete stopping failed"}), 404, {'Content-Type': 'application/json'}
     # except DesktopDeleteTimeout:
     #    log.error("Desktop delete "+desktop_id+", desktop delete timeout")
-    #    return json.dumps({"code":4,"msg":"Desktop delete deleting timeout"}), 404, {'Content-Type': 'application/json'}
+    #    return json.dumps({"error": "undefined_error","msg":"Desktop delete deleting timeout"}), 404, {'Content-Type': 'application/json'}

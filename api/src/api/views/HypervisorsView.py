@@ -39,22 +39,22 @@ from .decorators import is_hyper
 #     except:
 #         error = traceback.format_exc()
 #         log.error("Guest addr incorrect access" + error)
-#         return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
+#         return json.dumps({"error": "undefined_error","msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 #     if domain_id == None or ip == None:
 #         log.warning("Incorrect access parameters. Check your query.")
-#         return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 500, {'Content-Type': 'application/json'}
+#         return json.dumps({"error": "undefined_error","msg":"Incorrect access parameters. Check your query." }), 500, {'Content-Type': 'application/json'}
 
 #     try:
 #         api_hypervisors.update_guest_addr(domain_id,{'viewer':{'guest_ip':ip}})
 #         return json.dumps({"domain":domain_id,"guest_ip":ip,"action":"updated"}), 200, {'Content-Type': 'application/json'}
 #     except UpdateFailed:
 #         log.error("Update guest addr for domain "+domain_id+" with IP "+ip+", failed!")
-#         return json.dumps({"code":1,"msg":"UpdateGuestAddr update failed"}), 301, {'Content-Type': 'application/json'}
+#         return json.dumps({"error": "undefined_error","msg":"UpdateGuestAddr update failed"}), 301, {'Content-Type': 'application/json'}
 #     except Exception as e:
 #         error = traceback.format_exc()
 #         log.error("Update guest addr general exception" + error)
-#         return json.dumps({"code":9,"msg":"Update guest addr general exception: " + error }), 500, {'Content-Type': 'application/json'}
+#         return json.dumps({"error": "undefined_error","msg":"Update guest addr general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 
 @app.route("/api/v3/hypervisor/vm/wg_addr", methods=["POST"])
@@ -67,7 +67,12 @@ def api_v3_guest_addr():
         error = traceback.format_exc()
         log.error("Guest addr incorrect access" + error)
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Incorrect access. exception: " + error,
+                }
+            ),
             500,
             {"Content-Type": "application/json"},
         )
@@ -76,7 +81,10 @@ def api_v3_guest_addr():
         log.warning("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "undefined_error",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
             500,
             {"Content-Type": "application/json"},
@@ -95,7 +103,9 @@ def api_v3_guest_addr():
                 "Update guest addr for mac " + mac + " with IP " + ip + ", failed!"
             )
             return (
-                json.dumps({"code": 1, "msg": "UpdateWgAddr update failed"}),
+                json.dumps(
+                    {"error": "undefined_error", "msg": "UpdateWgAddr update failed"}
+                ),
                 301,
                 {"Content-Type": "application/json"},
             )
@@ -104,7 +114,10 @@ def api_v3_guest_addr():
         log.error("Update guest addr general exception" + error)
         return (
             json.dumps(
-                {"code": 9, "msg": "Update guest addr general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "Update guest addr general exception: " + error,
+                }
             ),
             500,
             {"Content-Type": "application/json"},
@@ -120,7 +133,7 @@ def api_v3_guest_addr():
 #     except Exception as e:
 #         error = traceback.format_exc()
 #         log.error("ViewerCerts general exception" + error)
-#         return json.dumps({"code":9,"msg":"ViewerCerts general exception: " + error }), 500, {'Content-Type': 'application/json'}
+#         return json.dumps({"error": "undefined_error","msg":"ViewerCerts general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 
 @app.route("/api/v3/hypervisor", methods=["POST"])
@@ -156,7 +169,12 @@ def api_v3_hypervisor(hyper_id=False):
         except Exception as e:
             error = traceback.format_exc()
             return (
-                json.dumps({"code": 8, "msg": "Incorrect access. exception: " + error}),
+                json.dumps(
+                    {
+                        "error": "generic_error",
+                        "msg": "Incorrect access. exception: " + error,
+                    }
+                ),
                 500,
                 {"Content-Type": "application/json"},
             )
@@ -180,7 +198,12 @@ def api_v3_hypervisor(hyper_id=False):
             if not data["status"]:
                 log.warning(data)
                 return (
-                    json.dumps({"code": 1, "msg": "Failed hypervisor: " + data["msg"]}),
+                    json.dumps(
+                        {
+                            "error": "undefined_error",
+                            "msg": "Failed hypervisor: " + data["msg"],
+                        }
+                    ),
                     301,
                     {"Content-Type": "application/json"},
                 )
@@ -190,7 +213,10 @@ def api_v3_hypervisor(hyper_id=False):
             log.error("Hypervisor general exception" + error)
             return (
                 json.dumps(
-                    {"code": 9, "msg": "Hypervisor general exception: " + error}
+                    {
+                        "error": "generic_error",
+                        "msg": "Hypervisor general exception: " + error,
+                    }
                 ),
                 500,
                 {"Content-Type": "application/json"},
@@ -202,7 +228,10 @@ def api_v3_hypervisor(hyper_id=False):
                 log.warning(data)
                 return (
                     json.dumps(
-                        {"code": 1, "msg": "Failed removing hypervisor: " + data["msg"]}
+                        {
+                            "error": "undefined_error",
+                            "msg": "Failed removing hypervisor: " + data["msg"],
+                        }
                     ),
                     301,
                     {"Content-Type": "application/json"},
@@ -213,7 +242,10 @@ def api_v3_hypervisor(hyper_id=False):
             log.error("Hypervisor general exception" + error)
             return (
                 json.dumps(
-                    {"code": 9, "msg": "Hypervisor general exception: " + error}
+                    {
+                        "error": "generic_error",
+                        "msg": "Hypervisor general exception: " + error,
+                    }
                 ),
                 500,
                 {"Content-Type": "application/json"},
@@ -226,7 +258,10 @@ def api_v3_hypervisor(hyper_id=False):
                 log.warning(data)
                 return (
                     json.dumps(
-                        {"code": 1, "msg": "Failed updating hypervisor: " + data["msg"]}
+                        {
+                            "error": "undefined_error",
+                            "msg": "Failed updating hypervisor: " + data["msg"],
+                        }
                     ),
                     301,
                     {"Content-Type": "application/json"},
@@ -237,7 +272,10 @@ def api_v3_hypervisor(hyper_id=False):
             log.error("Hypervisor general exception" + error)
             return (
                 json.dumps(
-                    {"code": 9, "msg": "Hypervisor general exception: " + error}
+                    {
+                        "error": "generic_error",
+                        "msg": "Hypervisor general exception: " + error,
+                    }
                 ),
                 500,
                 {"Content-Type": "application/json"},
@@ -254,7 +292,12 @@ def api_v3_hypervisor_vpn(hyper_id):
         error = traceback.format_exc()
         log.error("HypervisorVpn general exception" + error)
         return (
-            json.dumps({"code": 9, "msg": "HypervisorVpn general exception: " + error}),
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "HypervisorVpn general exception: " + error,
+                }
+            ),
             500,
             {"Content-Type": "application/json"},
         )
@@ -271,7 +314,10 @@ def api_v3_hypervisor_media_found():
         log.error("HypervisorMediaFound general exception" + error)
         return (
             json.dumps(
-                {"code": 9, "msg": "HypervisorMediaFound general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "HypervisorMediaFound general exception: " + error,
+                }
             ),
             500,
             {"Content-Type": "application/json"},
@@ -289,7 +335,10 @@ def api_v3_hypervisor_disks_found():
         log.error("HypervisorDisksFound general exception" + error)
         return (
             json.dumps(
-                {"code": 9, "msg": "HypervisorDisksFound general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "HypervisorDisksFound general exception: " + error,
+                }
             ),
             500,
             {"Content-Type": "application/json"},
@@ -307,7 +356,10 @@ def api_v3_hypervisor_media_delete():
         log.error("HypervisorMediaFound general exception" + error)
         return (
             json.dumps(
-                {"code": 9, "msg": "HypervisorMediaFound general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "HypervisorMediaFound general exception: " + error,
+                }
             ),
             500,
             {"Content-Type": "application/json"},
@@ -323,7 +375,7 @@ def api_v3_hypervisor_media_delete():
 #     except Exception as e:
 #         error = traceback.format_exc()
 #         log.error("HypervisorMediaFound general exception" + error)
-#         return json.dumps({"code":9,"msg":"HypervisorMediaFound general exception: " + error }), 500, {'Content-Type': 'application/json'}
+#         return json.dumps({"error": "undefined_error","msg":"HypervisorMediaFound general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 
 # @app.route('/api/v3/vlans', methods=['GET','POST'])
@@ -334,7 +386,7 @@ def api_v3_hypervisor_media_delete():
 #             vlans = request.get_json(force=True)
 #         except Exception as e:
 #             error = traceback.format_exc()
-#             return json.dumps({"code":8,"msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
+#             return json.dumps({"error": "undefined_error","msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 #         try:
 #             api_hypervisors.add_vlans(vlans)
@@ -342,7 +394,7 @@ def api_v3_hypervisor_media_delete():
 #         except Exception as e:
 #             error = traceback.format_exc()
 #             log.error("Vlans add general exception" + error)
-#             return json.dumps({"code":9,"msg":"Vlans add general exception: " + error }), 500, {'Content-Type': 'application/json'}
+#             return json.dumps({"error": "undefined_error","msg":"Vlans add general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 #     if request.method == 'GET':
 #         try:
@@ -351,7 +403,7 @@ def api_v3_hypervisor_media_delete():
 #         except Exception as e:
 #             error = traceback.format_exc()
 #             log.error("Vlans general exception" + error)
-#             return json.dumps({"code":9,"msg":"Vlans general exception: " + error }), 500, {'Content-Type': 'application/json'}
+#             return json.dumps({"error": "undefined_error","msg":"Vlans general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 #     log.error("Incorrect access parameters. Check your query.")
-#     return json.dumps({"code":8,"msg":"Incorrect access parameters. Check your query." }), 500, {'Content-Type': 'application/json'}
+#     return json.dumps({"error": "undefined_error","msg":"Incorrect access parameters. Check your query." }), 500, {'Content-Type': 'application/json'}
