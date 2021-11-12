@@ -109,7 +109,11 @@ $(document).ready(function() {
                                     if(full.status == 'Downloading'){
                                         return renderProgress(full);
                                     }else{
-                                        return data.progress.total;
+                                        if('progress' in data && 'total' in data.progress){
+                                            return data.progress.total;
+                                        }else{
+                                            return '';
+                                        }
                                     }
                                 }},
                             {
