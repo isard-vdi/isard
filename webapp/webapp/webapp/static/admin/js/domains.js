@@ -611,43 +611,6 @@ function actionsDomainDetail(){
         //~ modal_edit_desktop_datatables(pk);
 });
 
-	$('.btn-events').on('click', function () {
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-            $("#modalShowInfoForm")[0].reset();
-			$('#modalShowInfo').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalShowInfoForm #id').val(pk);
-            $.ajax({
-                type: "GET",
-                url:"/isard-admin/admin/domains/events/" + pk,
-                success: function(data)
-                {
-                    $('#modalShowInfoForm #xml').val(JSON.stringify(data, undefined, 4));
-                }				
-            });
-	});
-
-	$('.btn-messages').on('click', function () {
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-            $("#modalShowInfoForm")[0].reset();
-			$('#modalShowInfo').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalShowInfoForm #id').val(pk);
-            $.ajax({
-                type: "GET",
-                url:"/isard-admin/admin/domains/messages/" + pk,
-                success: function(data)
-                {
-                    //~ var data = JSON.parse(data);
-                    $('#modalShowInfoForm #xml').val(JSON.stringify(data, undefined, 4));
-                }				
-            });
-	});	    
-
     if(url=="Desktops"){
         $('.btn-delete-template').remove()
 

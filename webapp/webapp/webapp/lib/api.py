@@ -604,31 +604,6 @@ class isard:
             data = r.table("virt_install").run(db.conn)
             return self.f.table_values_bstrap(data)
 
-    """     
-    STATUS
-    """
-
-    def get_domain_last_messages(self, id):
-        with app.app_context():
-            return (
-                r.table("domains_status")
-                .get_all(id, index="name")
-                .order_by(r.desc("when"))
-                .pluck("when", {"status": ["state", "state_reason"]})
-                .limit(10)
-                .run(db.conn)
-            )
-
-    def get_domain_last_events(self, id):
-        with app.app_context():
-            return (
-                r.table("hypervisors_events")
-                .get_all(id, index="domain")
-                .order_by(r.desc("when"))
-                .limit(10)
-                .run(db.conn)
-            )
-
     """
     USER
     """

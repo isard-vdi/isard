@@ -155,55 +155,6 @@ class isardScheduler:
     def backup_database():
         app.adminapi.backup_db()
 
-    def delete_old_stats(reduce_interval=300, delete_interval=86400):  # 24h
-        with app.app_context():
-            # domains_status
-            r.table("domains_status_history").filter(
-                r.row["when"] < int(time.time()) - delete_interval
-            ).delete().run(db.conn)
-            reduced = []
-            cursor = (
-                r.table("domains_status")
-                .filter(r.row["when"] < int(time.time()) - reduce_interval)
-                .order_by("when")
-                .run(db.conn)
-            )
-            r.table("domains_status").filter(
-                r.row["when"] < int(time.time()) - reduce_interval
-            ).delete().run(db.conn)
-            i = 0
-            for c in cursor:
-                if i % 50 == 0:
-                    reduced.append(c)
-                i += 1
-            r.table("domains_status_history").insert(reduced).run(db.conn)
-
-            # Hypervisors_status
-            r.table("hypervisors_status_history").filter(
-                r.row["when"] < int(time.time()) - delete_interval
-            ).delete().run(db.conn)
-            reduced = []
-            cursor = (
-                r.table("hypervisors_status")
-                .filter(r.row["when"] < int(time.time()) - reduce_interval)
-                .order_by("when")
-                .run(db.conn)
-            )
-            r.table("hypervisors_status").filter(
-                r.row["when"] < int(time.time()) - reduce_interval
-            ).delete().run(db.conn)
-            i = 0
-            for c in cursor:
-                if i % 50 == 0:
-                    reduced.append(c)
-                i += 1
-            r.table("hypervisors_status_history").insert(reduced).run(db.conn)
-
-            # Hypervisors_events (does not grow at the same speed)
-            r.table("hypervisors_events").filter(
-                r.row["when"] < int(time.time()) - delete_interval
-            ).delete().run(db.conn)
-
     def turnOff(self):
         self.scheduler.shutdown()
 

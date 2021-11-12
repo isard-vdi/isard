@@ -53,11 +53,13 @@ def close_rethink_connection(r_conn):
     return True
 
 
+## TO BE DELETED
 def insert_event_in_db(self, dict_event):
-    log.debug(pformat(dict_event))
-    r_conn = new_rethink_connection()
-    r.table("hypervisors_events").insert(dict_event).run(r_conn)
-    close_rethink_connection(r_conn)
+    return
+    # log.debug(pformat(dict_event))
+    # r_conn = new_rethink_connection()
+    # r.table("hypervisors_events").insert(dict_event).run(r_conn)
+    # close_rethink_connection(r_conn)
 
 
 def get_dict_from_item_in_table(table, id):

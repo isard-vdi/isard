@@ -42,9 +42,7 @@ class Downloads(object):
         self.kinds = [
             "media",
             "domains",
-            "builders",
             "virt_install",
-            "virt_builder",
             "videos",
             "viewers",
         ]
@@ -201,7 +199,7 @@ class Downloads(object):
                 return w
         return False
 
-    def getKind(self, kind="builders"):
+    def getKind(self, kind):
         try:
             req = requests.post(
                 self.url + "/get/" + kind + "/list",

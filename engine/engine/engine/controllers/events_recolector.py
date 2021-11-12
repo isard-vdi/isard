@@ -534,7 +534,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                 )
                 domain_stopped_update_nvidia_uids_status(dict_event["domain"], hyp_id)
 
-        r_status.insert_event_in_db(dict_event)
+        # TODO: Send event to influxdb?
         if dict_event["event"] in (
             "Defined",
             "Undefined",
@@ -652,10 +652,14 @@ def myDomainEventGraphicsCallbackRethink(
 
             r_status = opaque
 
-            r_status.insert_event_in_db(dict_event)
-            r_status.update_viewer_client(
-                domain_name, phase, ip_client=remoteAddr["node"], when=now
-            )
+            # TODO: SEND STATUS TO INFLUXDB
+
+            # with new stats we can update this info can be updated from API call
+            # from stats. With ss we can extract info of remote ip from socket and update
+            # if there are client ip on or off. If we use only the event from libvirt
+            # r_status.update_viewer_client(
+            #     domain_name, phase, ip_client=remoteAddr["node"], when=now
+            # )
 
             logs.status.debug(
                 "myDomainEventGraphicsCallback: Domain %s(%s) %s"

@@ -210,114 +210,6 @@ def start_domains_thread():
         log.info("DomainsThread Started")
 
 
-## Domains Stats Threading
-################ NOT USED
-class DomainsStatsThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.stop = False
-        self.domains = dict()
-
-    def run(self):
-        while True:
-            try:
-                with app.app_context():
-                    for c in (
-                        r.table("domains_status")
-                        .pluck("name", "when", "status")
-                        .merge({"table": "stats"})
-                        .changes(include_initial=False)
-                        .union(
-                            r.table("domains")
-                            .get_all(
-                                r.args(["Started", "Stopping", "Stopped"]),
-                                index="status",
-                            )
-                            .pluck("id", "name", "os", "hyp_started", "status")
-                            .merge({"table": "domains"})
-                            .changes(include_initial=False)
-                        )
-                        .run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
-
-                        if c["new_val"] != None:
-                            if not c["new_val"]["name"].startswith("_"):
-                                continue
-                            if c["new_val"]["name"] not in self.domains.keys():
-                                if (
-                                    r.table("domains")
-                                    .get(c["new_val"]["name"])
-                                    .run(db.conn)
-                                    == None
-                                ):
-                                    continue
-                                domain = (
-                                    r.table("domains")
-                                    .get(c["new_val"]["name"])
-                                    .pluck("id", "name", "status", "hyp_started", "os")
-                                    .run(db.conn)
-                                )
-                                self.domains[c["new_val"]["name"]] = domain
-                            else:
-                                domain = self.domains[c["new_val"]["name"]]
-                            if (
-                                domain != None
-                            ):  # This if can be removed when vimet is shutdown
-                                new_dom = domain.copy()
-                                if domain["status"] == "Started":
-                                    new_dom["status"] = c["new_val"]["status"]
-                                    socketio.emit(
-                                        "desktop_status",
-                                        json.dumps(new_dom),
-                                        namespace="/isard-admin/sio_users",
-                                        room="user_"
-                                        + c["new_val"]["name"].split("_")[1],
-                                    )
-                                    socketio.emit(
-                                        "desktop_status",
-                                        json.dumps(new_dom),
-                                        namespace="/isard-admin/sio_admins",
-                                        room="domains_status",
-                                    )
-
-                                else:
-                                    self.domains.pop(c["new_val"]["name"], None)
-                                    socketio.emit(
-                                        "desktop_stopped",
-                                        json.dumps(new_dom),
-                                        namespace="/isard-admin/sio_admins",
-                                        room="domains_status",
-                                    )
-                                new_dom = None
-
-            except ReqlDriverError:
-                print("DomainsStatsThread: Rethink db connection lost!")
-                log.error("DomainsStatsThread: Rethink db connection lost!")
-                time.sleep(1)
-            except Exception as e:
-                print("DomainsStatsThread internal error: \n" + traceback.format_exc())
-                log.error(
-                    "DomainsStatsThread internal error: \n" + traceback.format_exc()
-                )
-
-        print("DomainsStatsThread ENDED!!!!!!!")
-        log.error("DomainsStatsThread ENDED!!!!!!!")
-
-
-def start_domains_stats_thread():
-    global threads
-
-    if "domains_stats" not in threads:
-        threads["domains_stats"] = None
-    if threads["domains_stats"] == None:
-        threads["domains_stats"] = DomainsStatsThread()
-        threads["domains_stats"].daemon = True
-        threads["domains_stats"].start()
-        log.info("DomainsStatsThread Started")
-
-
 ## MEDIA Threading
 class MediaThread(threading.Thread):
     def __init__(self):
@@ -694,51 +586,21 @@ class HypervisorsThread(threading.Thread):
                 with app.app_context():
                     for c in (
                         r.table("hypervisors")
-                        .merge({"table": "hyper"})
                         .changes(include_initial=False)
-                        .union(
-                            r.table("hypervisors_status")
-                            .pluck(
-                                "hyp_id",
-                                "domains",
-                                {"cpu_percent": {"used"}},
-                                {"load": {"percent_free"}},
-                            )
-                            .merge({"table": "hyper_status"})
-                            .changes(include_initial=False)
-                        )
                         .run(db.conn)
                     ):
-                        # ~ .union(
-                        # ~ r.table('domains').get_all(r.args(['Started','Stopping','Stopped']),index='status').pluck('id','name','hyp_started','status').merge({"table": "domains"}).changes(include_initial=False)).run(db.conn):
                         if self.stop == True:
                             break
                         if c["new_val"] == None:
-                            if c["old_val"]["table"] == "hyper":
-                                socketio.emit(
-                                    "hyper_deleted",
-                                    json.dumps(c["old_val"]["id"]),
-                                    namespace="/isard-admin/sio_admins",
-                                    room="hyper",
-                                )
-                        else:
-                            if c["new_val"]["table"] == "hyper":
-                                event = "hyper_data"
-                            if c["new_val"]["table"] == "hyper_status":
-                                event = "hyper_status"
-                                c["new_val"]["domains"] = len(c["new_val"]["domains"])
-                                c["new_val"]["cpu_percent"][
-                                    "used"
-                                ] = 0  # round(c['new_val']['cpu_percent']['used'])
-                                c["new_val"]["load"][
-                                    "percent_free"
-                                ] = 100  # round(c['new_val']['load']['percent_free'])
-                            # ~ if c['new_val']['table']=='domains' and c['new_val']['id'].startswith('_') :
-                            # ~ if c['new_val']['status'] == 'Stopping': continue
-                            # ~ event='domain_event'
-                            # ~ if c['new_val']['status']=='Stopped': c['new_val']['hyp_started']=c['old_val']['hyp_started']
                             socketio.emit(
-                                event,
+                                "hyper_deleted",
+                                json.dumps(c["old_val"]["id"]),
+                                namespace="/isard-admin/sio_admins",
+                                room="hyper",
+                            )
+                        else:
+                            socketio.emit(
+                                "hyper_data",
                                 json.dumps(app.isardapi.f.flatten_dict(c["new_val"])),
                                 namespace="/isard-admin/sio_admins",
                                 room="hyper",
