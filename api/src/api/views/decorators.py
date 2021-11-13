@@ -161,11 +161,13 @@ def allowedTemplateId(payload, template_id):
             template = (
                 r.table("domains")
                 .get(template_id)
-                .pluck("allowed", "category")
+                .pluck("user", "allowed", "category")
                 .run(db.conn)
             )
     except:
         raise AuthError({"code": 1, "msg": "Not found template " + template_id}, 401)
+    if payload["user_id"] == template["user"]:
+        return True
     alloweds = template["allowed"]
     if payload["role_id"] == "admin":
         return True
