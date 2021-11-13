@@ -123,14 +123,18 @@ $(document).ready(function() {
 							  return full.username;
 							}},
                             {
-							"targets": 6,
-							"render": function ( data, type, full, meta ) {
-                                if(full.status == 'Downloading'){
-                                    return renderProgress(full);
-                                }else{
-                                    return data.progress.total;
-                                }
-							}},
+                                "targets": 6,
+                                "render": function ( data, type, full, meta ) {
+                                    if(full.status == 'Downloading'){
+                                        return renderProgress(full);
+                                    }else{
+                                        if('progress' in data && 'total' in data.progress){
+                                            return data.progress.total;
+                                        }else{
+                                            return '';
+                                        }
+                                    }
+                                }},
                             {
 							"targets": 7,
 							"render": function ( data, type, full, meta ) { 
