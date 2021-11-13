@@ -888,12 +888,6 @@ def socketio_hyper_add(form_data):
                         "type": "success",
                     }
                 )
-                ### Engine restart needed
-                try:
-                    requests.get("http://isard-engine:5555/engine_restart")
-                except:
-                    None
-                ### Warning
             elif res == False:
                 info = json.dumps(
                     {
@@ -1016,12 +1010,6 @@ def socketio_hyper_edit(form_data):
                         "type": "success",
                     }
                 )
-                ### Engine restart needed
-                try:
-                    requests.get("http://isard-engine:5555/engine_restart")
-                except:
-                    None
-                ### Warning
             elif res == False:
                 info = json.dumps(
                     {
@@ -1086,10 +1074,6 @@ def socketio_hyper_delete(data):
                     "type": "success",
                 }
             )
-            try:
-                requests.get("http://isard-engine:5555/engine_restart")
-            except:
-                None
         else:
             info = json.dumps(
                 {
@@ -1120,10 +1104,6 @@ def socketio_hyper_toggle(data):
                     "type": "success",
                 }
             )
-            try:
-                requests.get("http://isard-engine:5555/engine_restart")
-            except:
-                None
         else:
             info = json.dumps(
                 {
