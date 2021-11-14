@@ -25,7 +25,7 @@
               <!-- IMAGE -->
               <div
                 class='rounded-circle bg-red'
-                :style="{'background-image': 'url(' + require('../assets/img/cards/' + imageId(data.item, data.item.desktop)+ '.jpg') + ')'}"
+                :style="{'background-image': `url('..${data.item.image.url}')`}"
               ></div>
             </template>
             <template #cell(name)='data'>

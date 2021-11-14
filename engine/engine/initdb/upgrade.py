@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 21
+release_version = 22
+# release 22: Upgrade domains image field
 # release 21: Added secondary wg_client_ip index to users.
 #             Added secondary wg_client_ip index to remotevpn
 # release 20: forced_hyp should be a list if not False
@@ -779,6 +780,22 @@ class Upgrade(object):
                         self.conn
                     )
 
+        if version == 22:
+            try:
+                r.table(table).index_create("image_id", r.row["image"]["id"]).run(
+                    self.conn
+                )
+            except:
+                None
+            try:
+                ids = [d["id"] for d in r.table(table).pluck("id").run(self.conn)]
+                for domain_id in ids:
+                    r.table("domains").get(domain_id).update(
+                        {"image": self.get_domain_stock_card(domain_id)}
+                    ).run(self.conn)
+            except:
+                None
+
         return True
 
     """
@@ -1345,3 +1362,18 @@ class Upgrade(object):
         for i in apply_indexes:
             r.table(table).index_create(i).run(self.conn)
             r.table(table).index_wait(i).run(self.conn)
+
+    ## To upgrade to default cards
+    def get_domain_stock_card(self, domain_id):
+        total = 0
+        for i in range(0, len(domain_id)):
+            total += total + ord(domain_id[i])
+        total = total % 48 + 1
+        return self.get_card(str(total) + ".jpg", "stock")
+
+    def get_card(self, card_id, type):
+        return {
+            "id": card_id,
+            "url": "/assets/img/desktops/" + type + "/" + card_id,
+            "type": type,
+        }

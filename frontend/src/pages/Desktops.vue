@@ -9,7 +9,9 @@
             <p>{{ $t('views.select-template.no-desktops.subtitle') }}</p>
       </div>
       <b-tabs v-else>
-        <b-tab v-if="!(getDesktopsLoaded && getTemplatesLoaded) || filteredPersistentDesktops.length > 0" active>
+        <b-tab v-if="!(getDesktopsLoaded && getTemplatesLoaded) || filteredPersistentDesktops.length > 0"
+          :active="currentTab === 'desktops'"
+          @click="updateCurrentTab('desktops')">
           <template #title>
             <b-spinner v-if="!(getDesktopsLoaded && getTemplatesLoaded)" type="border" small></b-spinner>
             <span class="d-inline d-xl-none">{{ $t('views.select-template.persistent-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.persistent') }}</span>
@@ -31,7 +33,9 @@
             </template>
         </b-tab>
 
-        <b-tab v-if="!(getDesktopsLoaded && getTemplatesLoaded)  || visibleNonPersistentDesktops.length > 0">
+        <b-tab v-if="!(getDesktopsLoaded && getTemplatesLoaded)  || visibleNonPersistentDesktops.length > 0"
+          :active="currentTab === 'templates'"
+          @click="updateCurrentTab('templates')">
           <template #title>
             <b-spinner v-if="!(getDesktopsLoaded && getTemplatesLoaded)" type="border" small></b-spinner>
             <span class="d-inline d-xl-none">{{ $t('views.select-template.volatile-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.volatile') }}</span>
@@ -59,7 +63,7 @@
 
 <script>
 // @ is an alias to /src
-import { mapGetters } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
 import CardList from '@/components/CardList.vue'
 import TableList from '@/components/TableList.vue'
 import { computed } from '@vue/composition-api'
@@ -75,6 +79,7 @@ export default {
     $store.dispatch('fetchDesktops')
     $store.dispatch('fetchTemplates')
 
+    const currentTab = computed(() => $store.getters.getCurrentTab)
     const showStarted = computed(() => $store.getters.getShowStarted)
     const desktops = computed(() => $store.getters.getDesktops)
     const templates = computed(() => $store.getters.getTemplates)
@@ -90,8 +95,14 @@ export default {
 
     return {
       filteredPersistentDesktops,
-      visibleNonPersistentDesktops
+      visibleNonPersistentDesktops,
+      currentTab
     }
+  },
+  methods: {
+    ...mapActions([
+      'updateCurrentTab'
+    ])
   },
   computed: {
     ...mapGetters([

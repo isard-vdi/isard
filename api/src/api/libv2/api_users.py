@@ -239,6 +239,7 @@ class ApiUsers:
                             "category",
                             "group",
                             "icon",
+                            "image",
                             "user",
                             "description",
                         }
@@ -258,6 +259,7 @@ class ApiUsers:
                             "category",
                             "group",
                             "icon",
+                            "image",
                             "user",
                             "description",
                         }
@@ -277,20 +279,24 @@ class ApiUsers:
                         )
                 except:
                     desktop["username"] = "X " + desktop["user"]
+                desktop["editable"] = False
                 # with app.app_context():
                 #     desktop['username']=r.table('users').get(desktop['user']).pluck('name').run(db.conn)['name']
                 if payload["role_id"] == "admin":
+                    desktop["editable"] = True
                     alloweds.append(desktop)
                     continue
                 if (
                     payload["role_id"] == "manager"
                     and payload["category_id"] == desktop["category"]
                 ):
+                    desktop["editable"] = True
                     alloweds.append(desktop)
                     continue
                 if not payload.get("user_id", False):
                     continue
                 if desktop["user"] == payload["user_id"]:
+                    desktop["editable"] = True
                     alloweds.append(desktop)
                     continue
                 if desktop["allowed"]["roles"] is not False:

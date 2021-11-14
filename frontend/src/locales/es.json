@@ -19,6 +19,7 @@
             "filter-placeholder": "Escribe para buscar",
             "template-table-column-headers": {
                 "selected": "Seleccionado",
+                "image": "Imagen",
                 "name": "Nombre",
                 "description": "Descripción",
                 "category": "Categoría",
@@ -57,7 +58,10 @@
             "desktops-started": "Escritorios arrancados",
             "checkbox-text": "Solo arrancados",
             "checkbox-text-short": "Arrancados",
-            "new-desktop": "Nuevo Escritorio"
+            "new-desktop": "Nuevo Escritorio",
+            "upload-file": "Subir Fichero",
+            "cancel": "Cancelar",
+            "select": "Selecciona"
         },
         "desktop-cards": {
             "actions": {
@@ -314,7 +318,8 @@
             "delete": "Borrar"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' se borrará, continuar?"
+            "delete-desktop": "'{name}' se borrará, continuar?",
+            "change-image": "Seleccionar la nueva imagen para el escritorio?"
         },
         "yes": "Si",
         "no": "No",

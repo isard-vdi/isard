@@ -89,7 +89,8 @@ $(document).ready(function() {
         "columnDefs": [ {
                             "targets": 1,
                             "render": function ( data, type, full, meta ) {
-                                return renderIcon(full);
+                                url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
+                                return "<img src='"+url+"' width='50px'>"
                             }},
                             {
                             "targets": 2,
@@ -569,10 +570,6 @@ function renderName(data){
                 </h4> \
                 <p class="excerpt" >'+data.description+'</p> \
                 </div>'
-}
-
-function renderIcon(data){
-    return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
 }
 
 function renderStatus(data,table){

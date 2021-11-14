@@ -8,7 +8,7 @@ export class DesktopUtils {
   }
 
   static parseDesktop (item) {
-    const { description, icon, id, name, state, type, viewers, ip, template, progress } = item
+    const { description, icon, id, name, state, type, viewers, ip, template, progress, image } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -20,13 +20,15 @@ export class DesktopUtils {
       viewers: (viewers !== undefined && viewers !== null) ? viewers : [],
       template,
       buttonIconName: this.buttonIconName(item),
-      progress
+      progress,
+      image,
+      editable: true
     }
   }
 
   static parseTemplates (items) {
     return items.map((item) => {
-      const { description, icon, id, name, category, group, user_name: userName } = item
+      const { description, icon, id, name, category, group, user_name: userName, image, editable } = item
       return {
         description,
         icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -36,7 +38,9 @@ export class DesktopUtils {
         buttonIconName: 'play',
         category,
         group,
-        userName
+        userName,
+        image,
+        editable
       }
     }) || []
   }

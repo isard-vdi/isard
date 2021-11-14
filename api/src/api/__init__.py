@@ -7,11 +7,44 @@
 # coding=utf-8
 
 import os
+import shutil
 
 from flask import Flask, render_template, send_from_directory
 
 app = Flask(__name__, static_url_path="")
 app.url_map.strict_slashes = False
+
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+app.STOCK_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/stock")
+if not os.path.exists(app.STOCK_CARDS):
+    os.mkdir(app.STOCK_CARDS)
+app.USERS_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/user")
+if not os.path.exists(app.USERS_CARDS):
+    os.mkdir(app.USERS_CARDS)
+
+# Copy only new stock images
+stock_folder = os.path.join(APP_ROOT, "static/stock_assets")
+for filename in os.listdir(stock_folder):
+    if os.path.isfile(os.path.join(app.STOCK_CARDS, filename)):
+        if (
+            os.stat(os.path.join(stock_folder, filename)).st_mtime
+            - os.stat(os.path.join(app.STOCK_CARDS, filename)).st_mtime
+            > 1
+        ):
+            print("Updating stock photo: " + filename)
+            shutil.copy2(
+                os.path.join(stock_folder, filename),
+                os.path.join(app.STOCK_CARDS, filename),
+            )
+    else:
+        print("Adding new stock photo: " + filename)
+        shutil.copy(
+            os.path.join(stock_folder, filename),
+            os.path.join(app.STOCK_CARDS, filename),
+        )
+
+# Max upload size
+app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 
 # '''
 # App secret key for encrypting cookies
@@ -62,6 +95,7 @@ Import all views
 # from .views import XmlView
 from .views import (
     AdminUsersView,
+    CardsView,
     CommonView,
     DeploymentsView,
     DesktopsNonPersistentView,

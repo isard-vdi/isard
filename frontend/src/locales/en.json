@@ -19,6 +19,7 @@
             "filter-placeholder": "Type to search",
             "template-table-column-headers": {
                 "selected": "Selected",
+                "image": "Image",
                 "name": "Name",
                 "description": "Description",
                 "category": "Category",
@@ -57,7 +58,10 @@
             "desktops-started": "Desktops started",
             "checkbox-text": "Only started",
             "checkbox-text-short": "Started",
-            "new-desktop": "New Desktop"
+            "new-desktop": "New Desktop",
+            "upload-file": "Upload File",
+            "cancel": "Cancel",
+            "select": "Select"
         },
         "desktop-cards": {
             "actions": {
@@ -314,7 +318,8 @@
             "delete": "Delete"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' will be deleted, continue?"
+            "delete-desktop": "'{name}' will be deleted, continue?",
+            "change-image": "Select the new image for the desktop?"
         },
         "yes": "Yes",
         "no": "No",

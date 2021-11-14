@@ -88,7 +88,8 @@
           selected-variant="primary"
           selectable
           @row-selected="onRowSelected">
-            <!-- Scoped slot for line selected column -->
+
+          <!-- Scoped slot for line selected column -->
           <template #cell(selected)="{ rowSelected }">
             <template v-if="rowSelected">
               <span aria-hidden="true">&check;</span>
@@ -97,9 +98,15 @@
               <span aria-hidden="true">&nbsp;</span>
             </template>
           </template>
+
+           <!-- Scoped slot for image -->
+          <template #cell(image)="data">
+            <img :src="`..${data.item.image.url}`" alt="" style="height: 2rem; border: 1px solid #555;">
+          </template>
         </b-table>
         </b-col>
       </b-row>
+
       <!-- Pagination -->
       <b-row>
         <b-col>
@@ -154,6 +161,12 @@ export default {
         label: i18n.t('forms.new-desktop.template-table-column-headers.selected'),
         thClass: 'col-1',
         tdClass: 'col-1'
+      },
+      {
+        key: 'image',
+        sortable: false,
+        label: i18n.t('forms.new-desktop.template-table-column-headers.image'),
+        thClass: 'col-1'
       },
       {
         key: 'name',

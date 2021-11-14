@@ -462,7 +462,8 @@ def api_v3_user_templates(payload):
                 "user_id": t["user"],
                 "user_name": t["username"],
                 "icon": t["icon"],
-                "image": "",
+                "image": t["image"],
+                "editable": t["editable"],
                 "description": t["description"],
             }
             for t in templates

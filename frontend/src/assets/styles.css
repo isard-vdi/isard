@@ -455,6 +455,8 @@
 /* Form new desktop */
 .desktop-container {
   margin-top: 7rem !important;
+  height: calc(100vh - 120px);
+  overflow-y: auto;
 }
 
 .isard-form-error {
@@ -477,4 +479,21 @@
   height: calc(100vh - 120px);
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* Images */
+.image-wrapper img {
+  filter: brightness(80%);
+  transition: all ease 0.3s;
+}
+
+.image-wrapper .desktop-image {
+  background-color: #ffffff !important;
+  transition: all ease 0.3s;
+}
+
+.image-wrapper img:hover {
+  filter: brightness(100%);
+  background-color: #0c8ac5 !important;
+  cursor: pointer;
 }

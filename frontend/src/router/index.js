@@ -15,6 +15,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import Desktops from '@/pages/Desktops.vue'
 import DesktopNew from '@/pages/DesktopNew.vue'
 import { appTitle } from '../shared/constants'
+import ImagesList from '@/views/ImagesList.vue'
 
 Vue.use(VueRouter)
 
@@ -40,6 +41,14 @@ const router = new VueRouter({
           component: DesktopNew,
           meta: {
             title: 'New Desktop'
+          }
+        },
+        {
+          path: 'images',
+          name: 'Images',
+          component: ImagesList,
+          meta: {
+            title: 'Images'
           }
         }
       ],

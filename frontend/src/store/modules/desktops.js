@@ -5,12 +5,16 @@ import router from '@/router'
 import { apiV3Segment } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
-import { get } from 'lodash'
+import { get, orderBy } from 'lodash'
+import { ImageUtils } from '../../utils/imageUtils'
 
 export default {
   state: {
     viewers: localStorage.viewers ? JSON.parse(localStorage.viewers) : {},
     desktops: [],
+    currentTab: 'desktops',
+    images: [],
+    imagesListItemId: '',
     directViewer: {
       name: '',
       description: '',
@@ -45,6 +49,15 @@ export default {
     },
     getDirectViewer: state => {
       return state.directViewer
+    },
+    getImages: state => {
+      return state.images
+    },
+    getImagesListItemId: state => {
+      return state.imagesListItemId
+    },
+    getCurrentTab: state => {
+      return state.currentTab
     }
   },
   mutations: {
@@ -85,6 +98,16 @@ export default {
     },
     setDirectViewerErrorState: (state) => {
       state.directViewer.state = 'error'
+    },
+    setImages: (state, images) => {
+      state.images = images
+    },
+    setImagesListItemId: (state, payload) => {
+      state.imagesListItemId = payload.itemId
+      state.imagesListReturnPage = payload.returnPage
+    },
+    setCurrentTab: (state, currentTab) => {
+      state.currentTab = currentTab
     }
   },
   actions: {
@@ -228,6 +251,51 @@ export default {
       document.body.appendChild(el)
       el.click()
       document.body.removeChild(el)
+    },
+    fetchDesktopImages (context) {
+      const itemId = context.getters.getImagesListItemId
+      const data = { params: { desktop_id: itemId } }
+      axios.get(`${apiV3Segment}/images/desktops`, data).then(response => {
+        context.commit('setImages', ImageUtils.parseImages(orderBy(orderBy(response.data, ['id'], ['desc']), ['type'], ['desc'])))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    goToImagesList (context, payload) {
+      context.commit('setImagesListItemId', payload)
+      context.dispatch('navigate', 'Images')
+    },
+    async changeImage (context, payload) {
+      const itemId = context.getters.getImagesListItemId
+      const data = { image: { type: payload.type, id: payload.id } }
+      axios.put(`${apiV3Segment}/desktop/${itemId}`, data).then(response => {
+        context.dispatch('navigate', 'desktops')
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    async uploadImageFile (context, payload) {
+      const itemId = context.getters.getImagesListItemId
+
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result
+          .replace('data:', '')
+          .replace(/^.+,/, '')
+
+        const data = `{"image": {"type": "user","file": {"data": "${decodeURIComponent(base64String)}", "filename": "${payload.filename}"}}}`
+
+        axios.put(`${apiV3Segment}/desktop/${itemId}`, JSON.stringify(JSON.parse(data)), { headers: { 'Content-Type': 'application/json' } }).then(response => {
+          context.dispatch('navigate', 'desktops')
+        }).catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+      }
+
+      await reader.readAsDataURL(payload.file)
+    },
+    updateCurrentTab (context, currentTab) {
+      context.commit('setCurrentTab', currentTab)
     }
   }
 }

@@ -6,6 +6,9 @@
 import json
 import logging as log
 import os
+
+#!flask/bin/python
+# coding=utf-8
 import sys
 import time
 import traceback
@@ -14,8 +17,6 @@ from uuid import uuid4
 from flask import request
 from schema import And, Optional, Schema, SchemaError, Use
 
-#!flask/bin/python
-# coding=utf-8
 from api import app
 
 from ..libv2.apiv2_exc import *
@@ -29,6 +30,9 @@ from ..libv2.api_hypervisors import get_hypervisors
 
 desktops = ApiDesktopsPersistent()
 
+from ..libv2.api_cards import ApiCards
+
+api_cards = ApiCards()
 
 from .decorators import (
     allowedTemplateId,
@@ -53,8 +57,13 @@ def validate_desktop_schema(desktop_data, validate=True):
                 }
             },
             Optional("image"): {
-                "type": And(Use(str), lambda t: t in ["user", "stock"])
-            },  # Needs processing
+                "type": And(Use(str), lambda t: t in ["user", "stock"]),
+                Optional("id"): And(Use(str)),
+                Optional("file"): {
+                    "data": And(Use(str)),
+                    "filename": And(Use(str)),
+                },
+            },
         }
     )
     if validate:
@@ -67,7 +76,7 @@ def validate_desktop_schema(desktop_data, validate=True):
                     if forced_hyp in [hyp["id"] for hyp in hypervisors]:
                         return True
                 return False
-            return True
+            return desktop_schema_template.validate(desktop_data)
         except SchemaError:
             return False
     else:
@@ -816,7 +825,7 @@ def api_v3_desktop_edit(payload, desktop_id):
             json.dumps(
                 {
                     "error": "bad_request",
-                    "msg": "Incorrect parameters starting desktop. Check your query to match parameters: %s"
+                    "msg": "Incorrect parameters updating desktop. Check your query to match parameters: %s"
                     % (validate_desktop_schema(data, validate=False)),
                 }
             ),
@@ -824,28 +833,52 @@ def api_v3_desktop_edit(payload, desktop_id):
             {"Content-Type": "application/json"},
         )
 
-    ## Remove from data the fields that need processing
-
+    ## Pop image from data if exists and process
     if data.get("image"):
         image_data = data.pop("image")
-        ## Process image (cards) functions
-        ## TODO: When desktop_images MR gets into main
 
-    ## Just update the remaining data dictionary for desktop
-    try:
-        return (
-            json.dumps(desktops.Update(desktop_id, data)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopUpdate general exception: " + traceback.format_exc(),
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+        if not image_data.get("file"):
+            try:
+                img_uuid = api_cards.update(
+                    desktop_id, image_data["id"], image_data["type"]
+                )
+                card = api_cards.get_card(img_uuid, image_data["type"])
+                return json.dumps(card), 200, {"Content-Type": "application/json"}
+            except:
+                return (
+                    json.dumps(
+                        {
+                            "error": "generic_error",
+                            "msg": "DesktopStart exception: " + traceback.format_exc(),
+                        }
+                    ),
+                    500,
+                    {"Content-Type": "application/json"},
+                )
+        else:
+            try:
+                img_uuid = api_cards.upload(desktop_id, image_data)
+                card = api_cards.get_card(img_uuid, image_data["type"])
+                return json.dumps(card), 200, {"Content-Type": "application/json"}
+            except:
+                return (
+                    json.dumps(
+                        {
+                            "error": "generic_error",
+                            "msg": "DesktopStart exception: " + traceback.format_exc(),
+                        }
+                    ),
+                    500,
+                    {"Content-Type": "application/json"},
+                )
+
+    return (
+        json.dumps(
+            {
+                "error": "bad_request",
+                "msg": "Incorrect access. exception: " + e,
+            }
+        ),
+        400,
+        {"Content-Type": "application/json"},
+    )

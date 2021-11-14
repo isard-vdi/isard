@@ -1,17 +1,28 @@
 <template>
         <b-overlay :show="show" rounded="lg">
           <b-card
-            :img-src= "require(`../assets/img/cards/${imageId}.jpg`)"
+            :img-src= "`..${desktop.image.url}`"
             class='border-0 mx-3'
             :aria-hidden="show ? 'true' : null"
             img-alt='' img-top no-body
           >
-            <vue-fab v-if="desktop.type === 'persistent'" icon="more_vert" mainBtnColor="#bcc6cc" class='info-icon position-absolute' size='small' unfoldDirection='down' :scrollAutoHide="false">
-                <fab-item @clickItem="onClickDeleteDesktop" :idx="0" icon='delete' color='#e34934' titleBgColor='#e6e8eb' v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.delete')}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
+            <vue-fab v-if="desktop.editable && !(desktop.state && desktop.type === 'nonpersistent')" icon="more_vert" mainBtnColor="#bcc6cc" class='info-icon position-absolute' size='small' unfoldDirection='down' :scrollAutoHide="false">
+               <fab-item v-if="desktop.type === 'persistent'" :idx="1"
+                 @clickItem="onClickDeleteDesktop"
+                  icon='delete' color='#e34934'
+                  v-b-tooltip="{  title: `${$t('components.desktop-cards.actions.delete')}`,
+                                  placement: 'top',
+                                 customClass: 'isard-tooltip',
+                                  trigger: 'hover' }">
                 </fab-item>
-              <!-- <fab-item  :idx="1" title="Edit" icon='mode_edit' color='#c2d5f2' titleBgColor='#e6e8eb'/>
-              <fab-item  :idx="2" title="Template" icon='library_books' titleBgColor='#e6e8eb'/>
-              <fab-item  :idx="3" title="Change image" icon='autorenew' titleBgColor='#e6e8eb'/> -->
+                <fab-item  :idx="0"
+                @clickItem="goToImagesList({itemId: desktop.id, returnPage: currentRouteName})"
+                  icon='image' color='#318bb5'
+                  v-b-tooltip="{  title: 'Change Image',
+                                  placement: 'top',
+                                  customClass: 'isard-tooltip',
+                                  trigger: 'hover' }">
+                 </fab-item>
             </vue-fab>
 
             <div class='p-2 h-100 d-flex flex-wrap flex-column' :class="{'startedHighlight': desktopState === desktopStates.started}">
@@ -149,7 +160,9 @@ export default {
       'deleteDesktop',
       'openDesktop',
       'changeDesktopStatus',
-      'createDesktop'
+      'createDesktop',
+      'navigate',
+      'goToImagesList'
     ]),
     chooseDesktop (template) {
       const data = new FormData()
@@ -183,7 +196,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getViewers']),
+    ...mapGetters(['getViewers', 'getCurrentTab']),
     filterViewerFromList () {
       return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },
@@ -236,9 +249,6 @@ export default {
     desktopState () {
       return (this.desktop.state && this.desktop.state.toLowerCase()) || desktopStates.stopped
     },
-    imageId () {
-      return this.desktop.state && this.desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip].includes(this.desktopState) ? DesktopUtils.hash(this.template.id) : this.desktop.id && DesktopUtils.hash(this.desktop.id)
-    },
     waitingIp () {
       return this.desktopState === desktopStates.waitingip
     },
@@ -276,6 +286,9 @@ export default {
         return false
       }
       return DesktopUtils.viewerNeedsIp(this.desktop.viewers[0])
+    },
+    currentRouteName () {
+      return this.$route.name
     }
   },
   data () {
