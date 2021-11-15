@@ -63,13 +63,23 @@ def domain_stats_as_dicts(raw_stats_domains):
             d_domain_info = {}
             domain_name = domain.name()
             try:
-                d_domain_info["user"] = domain_name.split("-")[3]
-                d_domain_info["group"] = domain_name.split("-")[2]
-                d_domain_info["category"] = domain_name.split("-")[1]
+                d_domain_info["user"] = d_xml["domain"]["metadata"]["isard:isard"][
+                    "isard:who"
+                ]["@user_id"]
+                d_domain_info["group"] = d_xml["domain"]["metadata"]["isard:isard"][
+                    "isard:who"
+                ]["@group_id"]
+                d_domain_info["category"] = d_xml["domain"]["metadata"]["isard:isard"][
+                    "isard:who"
+                ]["@category_id"]
+                d_domain_info["template"] = d_xml["domain"]["metadata"]["isard:isard"][
+                    "isard:parent"
+                ]["@parent_id"]
             except:
                 d_domain_info["group"] = "NO_GROUP"
                 d_domain_info["category"] = "NO_CATEGORY"
                 d_domain_info["user"] = "NO_USER"
+                d_domain_info["template"] = "NO_PARENT"
 
             d_stats[domain_name] = l[1]
             d_domains_objects[domain_name] = domain
@@ -123,17 +133,6 @@ def domain_stats_as_dicts(raw_stats_domains):
                 d_domain_info["port_spice_tls"] = 0
                 d_domain_info["port_spice"] = 0
                 d_domain_info["port_vnc"] = 0
-
-            try:
-                d_domain_info["path_template"] = path_template = d_disk["backingStore"][
-                    "source"
-                ]["@file"]
-                d_domain_info["template"] = (
-                    "_" + "_".join(path_template.split("/")[-5:])
-                ).split(".qcow")[0]
-            except:
-                d_domain_info["path_template"] = "NO_PATH_TEMPLATE"
-                d_domain_info["template"] = "NOTEMPLATE"
 
             d_domains_info[domain_name] = d_domain_info
 
