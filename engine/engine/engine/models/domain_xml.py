@@ -108,6 +108,17 @@ XML_SNIPPET_DISK_CUSTOM = """
     </disk>
 """
 
+XML_SNIPPET_METADATA = """
+  <metadata>
+    <isard:isard xmlns:isard="http://isardvdi.com">
+      <isard:who user_id="{user_id}" group_id="{group_id}" category_id="{category_id}"/>
+      <isard:parent parent_id="{parent_id}"/>
+    </isard:isard>
+  </metadata>
+
+"""
+
+
 CPU_MODEL_NAMES = [
     "486",
     "pentium",
@@ -792,6 +803,20 @@ class DomainXML(object):
         if type_video.find("nvidia-with-qxl") == 0:
             type_video = "qxl"
         self.tree.xpath("/domain/devices/video/model")[0].set("type", type_video)
+
+    def add_metadata_isard(self, user_id, group_id, category_id, parent_id):
+        xpath_same = "/domain/metadata"
+        xpath_previous = "/domain/name"
+        xpath_next = "/domain/memory"
+        xml_snippet = XML_SNIPPET_METADATA.format(
+            user_id=user_id,
+            group_id=group_id,
+            category_id=category_id,
+            parent_id=parent_id,
+        )
+
+        metadata_etree = etree.parse(StringIO(xml_snippet)).getroot()
+        self.add_to_domain(xpath_same, metadata_etree, xpath_next, xpath_previous)
 
     def add_vlc_with_websockets(self):
         xpath_same = "/domain/devices/graphics"
@@ -1549,6 +1574,13 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         return False
 
     ##### actions to customize xml
+
+    # metadata
+    user_id = dict_domain["user"]
+    group_id = dict_domain["group"]
+    category_id = dict_domain["category"]
+    parent_id = dict_domain["create_dict"].get("origin", "")
+    x.add_metadata_isard(user_id, group_id, category_id, parent_id)
 
     if dict_domain.get("not_change_cpu_section", False) is False:
         x.set_cpu_host_model(cpu_host_model)
