@@ -31,18 +31,23 @@ def api_v3_admin_media(payload):
         return json.dumps(medias), 200, {"Content-Type": "application/json"}
     # except MediaNotFound:
     #     log.error("User "+id+" not in database.")
-    #     return json.dumps({"code":1,"msg":"UserDesktops: User not exists in database"}), 404, {'Content-Type': 'application/json'}
+    #     return json.dumps({"error": "undefined_error","msg":"UserDesktops: User not exists in database"}), 404, {'Content-Type': 'application/json'}
     except UserMediaError:
         log.error("Media listing failed.")
         return (
-            json.dumps({"code": 2, "msg": "MediaGet: list error"}),
+            json.dumps({"error": "undefined_error", "msg": "MediaGet: list error"}),
             404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "MediaGet general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "MediaGet general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )

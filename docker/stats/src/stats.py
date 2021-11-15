@@ -263,9 +263,7 @@ class HypStats:
             data.append(
                 {
                     "measurement": "hypervisors",
-                    "tags": {
-                        "hypervisor": HYP_NAME,
-                    },
+                    "tags": {"hypervisor": HYP_NAME},
                     "fields": flatted_hyp_stats,
                     "time": start_time,
                 }

@@ -44,8 +44,14 @@ def api_v3_template_new(payload):
         desktop_id = request.form.get("desktop_id", type=str)
     except Exception as e:
         return (
-            json.dumps({"code": 8, "msg": "Incorrect access. exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect parameters creating Template. exception: "
+                    + str(e),
+                }
+            ),
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -63,15 +69,23 @@ def api_v3_template_new(payload):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
     if not ownsDomainId(payload, desktop_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps(
+                {
+                    "error": "forbidden",
+                    "msg": "Domain forbidden",
+                }
+            ),
             403,
             {"Content-Type": "application/json"},
         )
@@ -79,18 +93,18 @@ def api_v3_template_new(payload):
     #     quotas.DesktopCreate(user_id)
     # except QuotaUserNewDesktopExceeded:
     #     log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
-    #     return json.dumps({"code":11,"msg":"TemplateNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+    #     return json.dumps({"error": "undefined_error","msg":"TemplateNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     # except QuotaGroupNewDesktopExceeded:
     #     log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
-    #     return json.dumps({"code":11,"msg":"TemplateNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+    #     return json.dumps({"error": "undefined_error","msg":"TemplateNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     # except QuotaCategoryNewDesktopExceeded:
     #     log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
-    #     return json.dumps({"code":11,"msg":"TemplateNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
+    #     return json.dumps({"error": "undefined_error","msg":"TemplateNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
     # except Exception as e:
     #     exc_type, exc_obj, exc_tb = sys.exc_info()
     #     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
     #     log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
-    #     return json.dumps({"code":9,"msg":"TemplateNew quota check general exception: " + str(e) }), 401, {'Content-Type': 'application/json'}
+    #     return json.dumps({"error": "undefined_error","msg":"TemplateNew quota check general exception: " + str(e) }), 401, {'Content-Type': 'application/json'}
 
     try:
         template_id = templates.New(
@@ -108,28 +122,38 @@ def api_v3_template_new(payload):
         )
     # except UserNotFound:
     #     log.error("Template for user "+user_id+" from desktop "+desktop_id+", user not found")
-    #     return json.dumps({"code":1,"msg":"TemplateNew user not found"}), 404, {'Content-Type': 'application/json'}
+    #     return json.dumps({"error": "undefined_error","msg":"TemplateNew user not found"}), 404, {'Content-Type': 'application/json'}
     except DesktopNotFound:
-        log.error("Template from desktop " + desktop_id + " template not found.")
+        log.error("Template from desktop " + desktop_id + " desktop not found.")
         return (
-            json.dumps({"code": 2, "msg": "TemplateNew template not found"}),
+            json.dumps(
+                {
+                    "error": "desktop_not_found",
+                    "msg": "TemplateNew, desktop not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopNotCreated:
         log.error("Template from desktop " + desktop_id + " creation failed.")
         return (
-            json.dumps({"code": 1, "msg": "TemplateNew not created"}),
-            404,
+            json.dumps(
+                {"error": "template_new_not_created", "msg": "TemplateNew not created"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except TemplateExists:
         log.error("Template from desktop " + desktop_id + " template id exists.")
         return (
             json.dumps(
-                {"code": 3, "msg": "TemplateNew not created: template id exists"}
+                {
+                    "error": "template_new_not_created",
+                    "msg": "TemplateNew not created: template id exists",
+                }
             ),
-            404,
+            500,
             {"Content-Type": "application/json"},
         )
     ### Needs more!
@@ -138,8 +162,13 @@ def api_v3_template_new(payload):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         log.error(str(exc_type), str(fname), str(exc_tb.tb_lineno))
         return (
-            json.dumps({"code": 9, "msg": "TemplateNew general exception: " + str(e)}),
-            401,
+            json.dumps(
+                {
+                    "error": "template_new_not_created",
+                    "msg": "TemplateNew general exception: " + str(e),
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -151,15 +180,18 @@ def api_v3_template(payload, template_id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
     if not allowedTemplateId(payload, template_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "forbidden", "msg": "Template access forbidden"}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -168,15 +200,20 @@ def api_v3_template(payload, template_id=False):
         if template:
             return json.dumps(template), 200, {"Content-Type": "application/json"}
         return (
-            json.dumps({"code": 2, "msg": "Template not found"}),
-            401,
+            json.dumps({"error": "template_not_found", "msg": "Template not found"}),
+            404,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
-            json.dumps({"code": 9, "msg": "Template general exception: " + error}),
-            401,
+            json.dumps(
+                {
+                    "error": "get_generic_exception",
+                    "msg": "Template general exception: " + error,
+                }
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
 
@@ -188,15 +225,18 @@ def api_v3_template_delete(payload, template_id=False):
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
-                {"code": 8, "msg": "Incorrect access parameters. Check your query."}
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
             ),
-            401,
+            400,
             {"Content-Type": "application/json"},
         )
 
     if not ownsDomainId(payload, template_id):
         return (
-            json.dumps({"code": 10, "msg": "Forbidden: "}),
+            json.dumps({"error": "forbidden", "msg": "Forbidden domain"}),
             403,
             {"Content-Type": "application/json"},
         )
@@ -206,30 +246,42 @@ def api_v3_template_delete(payload, template_id=False):
     except DesktopNotFound:
         log.error("Template delete " + template_id + ", template not found")
         return (
-            json.dumps({"code": 1, "msg": "Template delete id not found"}),
+            json.dumps(
+                {
+                    "error": "template_not_found",
+                    "msg": "Template delete id not found",
+                }
+            ),
             404,
             {"Content-Type": "application/json"},
         )
     except DesktopActionFailed:
         log.error("Template delete " + template_id + ", template delete failed")
         return (
-            json.dumps({"code": 5, "msg": "Template delete deleting failed"}),
-            404,
+            json.dumps(
+                {"error": "generic_error", "msg": "Template delete deleting failed"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except DesktopActionTimeout:
         log.error("Template delete " + template_id + ", template delete timeout")
         return (
-            json.dumps({"code": 6, "msg": "Template delete deleting timeout"}),
-            404,
+            json.dumps(
+                {"error": "generic_error", "msg": "Template delete deleting timeout"}
+            ),
+            500,
             {"Content-Type": "application/json"},
         )
     except Exception as e:
         error = traceback.format_exc()
         return (
             json.dumps(
-                {"code": 9, "msg": "TemplateDelete general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "TemplateDelete general exception: " + error,
+                }
             ),
-            401,
+            500,
             {"Content-Type": "application/json"},
         )

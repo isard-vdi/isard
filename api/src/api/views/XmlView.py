@@ -33,7 +33,10 @@ def api_v3_xml_virt_install(id):
     except XmlNotFound:
         return (
             json.dumps(
-                {"code": 1, "msg": "VirtInstall " + id + " not exists in database"}
+                {
+                    "error": "undefined_error",
+                    "msg": "VirtInstall " + id + " not exists in database",
+                }
             ),
             404,
             {"Content-Type": "application/json"},
@@ -43,7 +46,10 @@ def api_v3_xml_virt_install(id):
         error = traceback.format_exc()
         return (
             json.dumps(
-                {"code": 9, "msg": "VirtInstallGet general exception: " + error}
+                {
+                    "error": "generic_error",
+                    "msg": "VirtInstallGet general exception: " + error,
+                }
             ),
             500,
             {"Content-Type": "application/json"},

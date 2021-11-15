@@ -40,7 +40,7 @@ def has_token(f):
         kwargs["payload"] = payload
         return f(*args, **kwargs)
         raise AuthError(
-            {"code": "not_allowed", "description": "Not enough rights" " token."}, 401
+            {"error": "not_allowed", "description": "Not enough rights" " token."}, 401
         )
 
     return decorated
@@ -54,7 +54,7 @@ def is_register(f):
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise AuthError(
-            {"code": "not_allowed", "description": "Not register" " token."}, 401
+            {"error": "not_allowed", "description": "Not register" " token."}, 401
         )
 
     return decorated
@@ -68,7 +68,7 @@ def is_admin(f):
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise AuthError(
-            {"code": "not_allowed", "description": "Not enough rights" " token."}, 401
+            {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
         )
 
     return decorated
@@ -82,7 +82,7 @@ def is_admin_user(f):
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise AuthError(
-            {"code": "not_allowed", "description": "Not enough rights" " token."}, 401
+            {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
         )
 
     return decorated
@@ -165,7 +165,13 @@ def allowedTemplateId(payload, template_id):
                 .run(db.conn)
             )
     except:
-        raise AuthError({"code": 1, "msg": "Not found template " + template_id}, 401)
+        raise AuthError(
+            {
+                "error": "template_not_found",
+                "msg": "Not found template " + template_id,
+            },
+            404,
+        )
     if payload["user_id"] == template["user"]:
         return True
     alloweds = template["allowed"]

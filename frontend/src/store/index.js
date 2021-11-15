@@ -159,15 +159,15 @@ export default new Vuex.Store({
         router.push({ name: 'Maintenance' })
         return
       } else if (error.response.status === 404) {
-        if (error.response.data.code === 1) { // Register code not found
+        if (error.response.data.error === 'registration_code_not_found') { // Register code not found
           commit('setPageErrorMessage', i18n.t('views.register.errors.404'))
           return
         }
       } else if (error.response.status === 401) {
-        if (error.response.data.code === 'authorization_header_missing') { // jwt header not sent
+        if (error.response.data.error === 'authorization_header_missing') { // jwt header not sent
           commit('setPageErrorMessage', i18n.t('views.register.errors.401'))
           return
-        } else if (error.response.data.code === 'not_allowed') { // jwt token not present
+        } else if (error.response.data.error === 'not_allowed') { // jwt token not present
           commit('setPageErrorMessage', i18n.t('views.register.errors.401'))
           return
         }

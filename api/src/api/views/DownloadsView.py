@@ -51,7 +51,7 @@ def api_v3_admin_downloads_desktops_download(desktop_id, payload):
     downloads = Downloads()
     res = downloads.download_desktop(desktop_id, payload["user_id"])
     if not res:
-        json.dumps({"code": 8, "description": "Could not download desktop"}), 401, {
-            "Content-Type": "application/json"
-        }
+        json.dumps(
+            {"error": "undefined_error", "description": "Could not download desktop"}
+        ), 401, {"Content-Type": "application/json"}
     return json.dumps({}), 200, {"Content-Type": "application/json"}
