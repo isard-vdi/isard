@@ -283,7 +283,7 @@ class HypStats:
                                 "hypervisor": HYP_NAME,
                                 "category": domain_info["category"],
                                 "group": domain_info["group"],
-                                "user": domain_info["group"],
+                                "user": domain_info["user"],
                                 "template": domain_info["template"],
                                 "id_domain": id_domain,
                             },
