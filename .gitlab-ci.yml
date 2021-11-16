@@ -111,6 +111,7 @@ docker-image:
         IMAGE:
           - api
           - authentication
+          - db
           - engine
           - grafana
           - guac
@@ -158,6 +159,7 @@ docker-tag:
       - IMAGE:
           - api
           - authentication
+          - db
           - engine
           - grafana
           - guac

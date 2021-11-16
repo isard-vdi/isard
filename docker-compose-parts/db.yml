@@ -2,7 +2,7 @@ version: '3.5'
 services:
   isard-db:
     container_name: isard-db
-    image: rethinkdb
+    image: ${DOCKER_IMAGE_PREFIX}db:${DOCKER_IMAGE_TAG:-latest}
     logging:
       options:
         max-size: "100m"
