@@ -7,8 +7,8 @@ ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=interna
 ip a a 10.2.0.1/16 dev vlan-wg
 ip link set vlan-wg up
 
-mkdir /var/run/dnsmasq
-mkdir /var/lib/dnsmasq
+mkdir -p /var/run/dnsmasq
+mkdir -p /var/lib/dnsmasq
 cat <<EOT > /etc/dnsmasq.d/vlan-wg.conf
 strict-order
 port=0
