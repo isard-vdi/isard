@@ -41,6 +41,7 @@ ALLINONE_PARTS="
 	vpn
 	guac
 	toolbox
+	backupninja
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -252,6 +253,14 @@ create_docker_compose_file(){
 	then
 		ENABLE_STATS="true"
 	fi
+	if [ -z "$BACKUP_DB_ENABLED" ]
+	then
+		BACKUP_DB_ENABLED="false"
+	fi
+	if [ -z "$BACKUP_DISKS_ENABLED" ]
+	then
+		BACKUP_DISKS_ENABLED="false"
+	fi
 	if [ -z "$FLAVOUR" ]
 	then
 		FLAVOUR="all-in-one"
@@ -287,6 +296,10 @@ create_docker_compose_file(){
 	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]
 	then
 		parts="$(echo $parts | sed 's/stats//')"
+	fi
+	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ]
+	then
+		parts="$(echo $parts | sed 's/backupninja//')"
 	fi
 	flavour "$config_name" $parts
 }
