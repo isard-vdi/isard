@@ -75,7 +75,7 @@ docker-compose-demo:
     - cp isardvdi.cfg.example isardvdi.cfg
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
-    - ./build.sh
+    - SKIP_CHECK_DOCKER_COMPOSE_VERSION=true ./build.sh
   artifacts:
     paths:
       - docker-compose*.yml
