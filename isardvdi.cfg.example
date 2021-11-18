@@ -1,4 +1,4 @@
-# Isard main config v1.1.0
+# Isard main config v1.1.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -273,6 +273,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 ##       old cgroups add to /etc/default/grub:
 ##        GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"
 ##       and update-grub, and reboot.
+
+# ------ Override default paths ----------------------------------------------
+#PATH_VPN_CERTS=/opt/isard-local/wireguard/certs
 
 # ------ Override hosts in isard-portal haproxy ------------------------------
 #WEBAPP_HOST=isard-webapp
