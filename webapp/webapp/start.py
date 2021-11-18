@@ -15,7 +15,7 @@ socketio = SocketIO(app)
 
 app.isardapi = api.isard()
 
-from webapp.lib import engineMonitor, isardSocketio
+from webapp.lib import isardSocketio
 
 ## Main
 if __name__ == "__main__":
@@ -27,8 +27,6 @@ if __name__ == "__main__":
     isardSocketio.start_hypervisors_thread()
     isardSocketio.start_config_thread()
     isardSocketio.start_resources_thread()
-
-    engineMonitor.start_thread()
 
     import logging
 
