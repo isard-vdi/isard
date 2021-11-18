@@ -34,7 +34,6 @@ EOT
 
 # echo "dhcp-range=192.168.55.50,192.168.55.150,12h" > /etc/dnsmasq.d/vlan-wg.conf
 # echo "dhcp-script=/update-client-ips.sh"
-env > /tmp/env # This is needed by the dnsmasq-hook to get the envvars
 /usr/sbin/dnsmasq --conf-file=/etc/dnsmasq.d/vlan-wg.conf --leasefile-ro --dhcp-script=/dnsmasq-hook/update-client-ips.sh &
 
 ovs-vsctl show
