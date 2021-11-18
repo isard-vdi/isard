@@ -402,11 +402,11 @@ $(document).ready(function() {
                 "className":      'actions-control',
                 "orderable":      false,
                 "data":           null,
+                "width":          "91px",
                 "defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-                                    <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
-                                //~ <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                    
-                },                
+                                    <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
+                                    <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                },
                 ],
             "order": [[1, 'asc']]
     } );
@@ -438,10 +438,31 @@ $(document).ready(function() {
                     $('#modalInterfacesForm #description').val(interface.description);
                     $.each(interface,function(key,value){
                         $('#modalInterfacesForm #'+key).val(value)
-                    });             
+                    });
                 });
-            break;
-                
+                break;
+                case 'btn-delete':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                        text: "Are you sure you want to delete: "+data.name+"? WARNING: ALL STARTED DESKTOPS WITH THIS INTERFACE WILL BE STOPPED before the interface will be removed from all depending desktops & templates.",
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center'
+                    }).get().on('pnotify.confirm', function() {
+                        socket.emit('interface_delete',{'pk':data.id,'name':data.name})
+                    }).on('pnotify.cancel', function() {
+                });
+                break;
         }
     });
 

@@ -1544,6 +1544,35 @@ def socketio_user_toggle(data):
         )
 
 
+@socketio.on("interface_delete", namespace="/isard-admin/sio_admins")
+def socketio_interface_delete(data):
+    log.info("DELETE SOCKET EVENT")
+    if current_user.role == "admin":
+        # ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
+        res = app.adminapi.interface_delete(data["pk"])
+        if res is True:
+            info = json.dumps(
+                {
+                    "result": True,
+                    "title": "Delete interface",
+                    "text": "Interface " + data["name"] + " removed successfully.",
+                    "icon": "success",
+                    "type": "success",
+                }
+            )
+        else:
+            info = json.dumps(
+                {
+                    "result": False,
+                    "title": "Delete interface",
+                    "text": "Interface " + data["name"] + " could not be deleted!",
+                    "icon": "warning",
+                    "type": "error",
+                }
+            )
+        socketio.emit("result", info, namespace="/isard-admin/sio_admins", room="users")
+
+
 @socketio.on("role_category_group_add", namespace="/isard-admin/sio_admins")
 def socketio_role_category_group_add(form_data):
     if current_user.role == "manager":
