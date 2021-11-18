@@ -15,6 +15,10 @@ if [ ! $(which docker-compose) ]; then
 	exit 1
 fi
 
+# docker-compose < 1.26 preserves environment variable quotations
+# Use SKIP_CHECK_DOCKER_COMPOSE_VERSION=true environment variable to skip the check
+REQUIRED_DOCKER_COMPOSE_VERSION="1.26"
+
 GITLAB_PROJECT_ID="21522757"
 CHANGELOG_URL="https://gitlab.com/isard/isardvdi/-/releases/"
 
@@ -87,9 +91,17 @@ WEB_PARTS="
 	vpn
 "
 
-git submodule init
-git submodule update --recursive --remote
+docker_compose_version(){
+	docker-compose --version | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
+}
 
+check_docker_compose_version(){
+	# We cannot use sort -C because is not included in BusyBox v1.33.1 of docker:dind image
+	{
+		echo "$REQUIRED_DOCKER_COMPOSE_VERSION"
+		docker_compose_version
+	} | sort -c -V 2> /dev/null
+}
 
 get_config_files(){
 	ls isardvdi*.cfg
@@ -278,6 +290,16 @@ create_docker_compose_file(){
 	fi
 	flavour "$config_name" $parts
 }
+
+if !(${SKIP_CHECK_DOCKER_COMPOSE_VERSION-false} || check_docker_compose_version)
+then
+	echo "ERROR: Please use docker-compose greather than or equal to $REQUIRED_DOCKER_COMPOSE_VERSION.
+Use SKIP_CHECK_DOCKER_COMPOSE_VERSION=true environment variable to skip the check" >&2
+	exit 1
+fi
+
+git submodule init
+git submodule update --recursive --remote
 
 get_config_files | while read config_file
 do
