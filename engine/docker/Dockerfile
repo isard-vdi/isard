@@ -6,7 +6,6 @@ RUN apk add --no-cache \
     yarn \
     py3-libvirt \
     py3-paramiko \
-    py3-lxml\
     py3-openssl \
     py3-bcrypt \
     py3-gevent \
