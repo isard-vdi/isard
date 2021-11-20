@@ -308,7 +308,9 @@
         "generic_error": "Une erreur s'est produite",
         "create_desktop_user_quota": "Le quota d'utilisateurs pour la création de bureau est dépassé",
         "desktop_new_user_quota_exceeded": "Le quota d'utilisateurs pour la création de bureau est dépassé",
-        "desktop_new_group_quota_exceeded": "La limite du groupe de création de bureau est dépassée"
+        "desktop_new_group_quota_exceeded": "La limite du groupe de création de bureau est dépassée",
+        "desktop_new_category_quota_exceeded": "La limite de catégorie de création de bureau est dépassée",
+        "desktop_start_user_quota_exceeded": "Le quota de bureaux démarrés pour cet utilisateur est dépassé"
     },
     "validations": {
         "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",

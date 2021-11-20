@@ -301,7 +301,8 @@
         "create_desktop_user_quota": "Quota d'usuari de creació d'escriptoris excedida",
         "create_desktop_group_quota": "Quota de grup de creació d'escriptoris excedida",
         "create_desktop_category_quota": "Quota de categoria de creació de escriptoris excedida",
-        "generic_error": "S'ha produït un error"
+        "generic_error": "S'ha produït un error",
+        "desktop_start_user_quota_exceeded": "S'ha accedit la quota d'escriptoris arrencats per aquest usuari"
     },
     "messages": {
         "title": {
@@ -311,6 +312,12 @@
             "delete-desktop": "s'esborrarà, continuar?"
         },
         "yes": "Si",
-        "no": "No"
+        "no": "No",
+        "info": {
+            "deleting-desktop": "Esborrant escriptori",
+            "opening-desktop": "Obrint Escriptori",
+            "creating-desktop": "Creant Escriptori",
+            "file-downloaded": "Fitxer descarregat"
+        }
     }
 }
