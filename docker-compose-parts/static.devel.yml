@@ -14,6 +14,5 @@ services:
       isard-network:
     working_dir: /usr/local/src/isard-frontend/
     command: sh -c "yarn install && yarn serve"
-    restart: unless-stopped
     volumes:
     - ${BUILD_ROOT_PATH}/frontend/:/usr/local/src/isard-frontend/

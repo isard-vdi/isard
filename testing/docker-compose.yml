@@ -16,6 +16,10 @@ services:
     depends_on:
       selenium-hub:
         condition: service_healthy
+      isard-api:
+        condition: service_healthy
+      isard-webapp:
+        condition: service_healthy
 
   chrome:
     image: selenium/node-chrome:4.0.0-rc-2-prerelease-20210923

@@ -23,7 +23,6 @@ services:
     volumes:
       - /sys:/sys:rw
       - ${PATH_VPN_CERTS-/opt/isard-local/wireguard/certs}:/certs
-    restart: unless-stopped
     env_file:
       - .env  
 

@@ -12,7 +12,6 @@ services:
       options:
         max-size: "100m"
     container_name: isard-pipework
-    restart: always
     volumes:
       - /var/run/docker.sock:/docker.sock
     privileged: true
