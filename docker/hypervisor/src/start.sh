@@ -64,8 +64,13 @@ echo "---> Checking hypervisor by creating/destroying test domain..."
 virsh create /src/checks/domain.xml
 virsh destroy domain
 
-echo "---> Enabling hypervisor..."
-python3 /src/lib/hypervisor.py enable
+if [ -z "$HYPER_ENABLED" ] || [ "$HYPER_ENABLED" == "true" ]
+then
+  echo "---> Enabling hypervisor..."
+  python3 /src/lib/hypervisor.py enable
+else
+  echo "---> NOT enabling hypervisor because HYPER_ENABLED envvar missing or not true."
+fi
 
 echo "---> HYPERVISOR READY <---"
 while true

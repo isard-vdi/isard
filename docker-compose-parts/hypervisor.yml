@@ -25,6 +25,7 @@ services:
       - .env
     environment:
       HYPER_ID:
+      HYPER_ENABLED:
       DOMAIN:
       VIDEO_DOMAIN:
       VIEWER_SPICE:
