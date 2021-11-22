@@ -176,28 +176,6 @@ def admin_domains_server(id):
     )
 
 
-@app.route("/isard-admin/admin/domains/events/<id>", methods=["GET"])
-@login_required
-@isAdmin
-def admin_domains_events(id):
-    return (
-        json.dumps(app.isardapi.get_domain_last_events(id)),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
-@app.route("/isard-admin/admin/domains/messages/<id>", methods=["GET"])
-@login_required
-@isAdmin
-def admin_domains_messages(id):
-    return (
-        json.dumps(app.isardapi.get_domain_last_messages(id)),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 @app.route("/isard-admin/admin/domains/todelete/<id>", methods=["POST"])
 @app.route("/isard-admin/admin/domains/todelete/<id>", methods=["GET"])
 @login_required

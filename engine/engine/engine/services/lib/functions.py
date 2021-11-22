@@ -16,6 +16,7 @@ import sys
 import threading
 import time
 from copy import deepcopy
+from pprint import pformat, pprint
 from time import sleep
 
 import libvirt
@@ -34,10 +35,6 @@ from engine.services.db import (
     update_domain_status,
 )
 from engine.services.db.config import get_config, table_config_created_and_populated
-from engine.services.db.disk_operations import (
-    insert_disk_operation,
-    update_disk_operation,
-)
 from engine.services.db.domains import (
     STATUS_TO_FAILED,
     get_all_domains_with_id_status_hyp_started,
@@ -1027,7 +1024,6 @@ def try_ssh(hostname, port, user, timeout):
 
 
 def execute_commands(hostname, ssh_commands, dict_mode=False, user="root", port=22):
-    id = insert_disk_operation({"commands": ssh_commands})
     before = time.time()
     dict_mode = True if type(ssh_commands[0]) is dict else False
     if dict_mode == True:
@@ -1040,23 +1036,20 @@ def execute_commands(hostname, ssh_commands, dict_mode=False, user="root", port=
         )
     after = time.time()
     time_elapsed = after - before
-    update_disk_operation(
-        id,
-        {
-            "time_elapsed": time_elapsed,
-            "host": hostname,
-            "commands": ssh_commands,
-            "results": array_out_err,
-        },
-    )
+    d_log = {
+        "time_elapsed": time_elapsed,
+        "host": hostname,
+        "commands": ssh_commands,
+        "results": array_out_err,
+    }
+    s_to_log = pformat(d_log)
+    logs.main.debug(s_to_log)
     return array_out_err
 
 
 def execute_command_with_progress(
     hostname, ssh_command, id_domain=None, user="root", port=22
 ):
-    # INFO TO DEVELOPER, QUIZÁS DEBERÍA ARRANCAR ESTA OPCIÓN EN OTRO THREAD, PARA NO COLAPSAR EL THREAD DE DISK OPERATIONS
-    id = insert_disk_operation({"commands": [ssh_command]})
     before = time.time()
     progress = []
     array_out_err = exec_remote_updating_progress(
@@ -1064,15 +1057,15 @@ def execute_command_with_progress(
     )
     after = time.time()
     time_elapsed = after - before
-    update_disk_operation(
-        id,
-        {
-            "time_elapsed": time_elapsed,
-            "host": hostname,
-            "commands": [ssh_command],
-            "results": array_out_err,
-        },
-    )
+    d_log = {
+        "time_elapsed": time_elapsed,
+        "host": hostname,
+        "commands": ssh_command,
+        "results": array_out_err,
+    }
+    s_to_log = pformat(d_log)
+    logs.main.debug(s_to_log)
+
     return array_out_err
 
 
@@ -1090,8 +1083,6 @@ def size_format(b):
 
 
 def check_all_backing_chains(hostname, path_to_write_json=None):
-    from pprint import pprint
-
     tuples_domain_disk = get_disks_all_domains()
     # pprint(tuples_domain_disk)
     cmds1 = list()
@@ -1124,8 +1115,6 @@ def check_all_os(hostname, path_to_write_json=None):
     cmds1 = list()
     for domain_id, path_domain_disk in tuples_domain_disk:
         cmds1.append({"title": domain_id, "cmd": cmd_check_os(path_domain_disk)})
-
-    from pprint import pprint
 
     # pprint(cmds1)
     array_out_err = execute_commands(hostname, cmds1, dict_mode=True)

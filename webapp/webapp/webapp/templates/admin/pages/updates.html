@@ -149,9 +149,9 @@
   <div class="col-md-6 col-sm-6 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
-        <h3><i class="fa fa-book"></i> Builders <small>Create your desktops</small></h3>
+        <h3><i class="fa fa-video-camera"></i> Videos <small>Video resources</small></h3>
         <ul class="nav navbar-left panel_toolbox">
-            <li><a id="builders" class="btn-new update-all"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
+            <li><a id="videos" class="btn-new update-all"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
             </li>
         </ul>
         <ul class="nav navbar-right panel_toolbox">
@@ -160,8 +160,8 @@
         </ul>
         <div class="clearfix"></div>
       </div>
-      <div class="x_content" style="display:none;">                    
-        <table id="builders_tbl" class="table" width="100%">
+      <div class="x_content" style="display:none;">
+        <table id="videos_tbl" class="table" width="100%">
           <thead>
             <tr>
               <th></th>
@@ -169,9 +169,9 @@
               <th>Name</th>
               <th></th>
             </tr>
-          </thead>
-          <tbody>
-          </tbody>
+            </thead>
+            <tbody>
+            </tbody>
         </table>
       </div>
     </div>
@@ -212,69 +212,6 @@
   <div class="col-md-6 col-sm-6 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
-        <h3><i class="fa fa-wrench"></i> Virt builders <small>Already created minimal OSs</small></h3>
-        <ul class="nav navbar-left panel_toolbox">
-          <li><a id="virt_builder" class="btn-new update-all"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
-          </li>
-        </ul>
-        <ul class="nav navbar-right panel_toolbox">
-          <li><a class="collapse-link"><i class="fa fa-chevron-down" style="color: #0055ff;"></i></a>
-          </li>
-        </ul>
-        <div class="clearfix"></div>
-      </div>
-      <div class="x_content" style="display:none;">
-        <table id="virt_builder_tbl" class="table" width="100%">
-          <thead>
-            <tr>
-              <th></th>
-              <th></th>
-              <th>Name</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="row">
-  <div class="col-md-6 col-sm-6 col-xs-12">
-    <div class="x_panel">
-      <div class="x_title">
-        <h3><i class="fa fa-video-camera"></i> Videos <small>Video resources</small></h3>
-        <ul class="nav navbar-left panel_toolbox">
-            <li><a id="videos" class="btn-new update-all"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
-            </li>
-        </ul>
-        <ul class="nav navbar-right panel_toolbox">
-            <li><a class="collapse-link"><i class="fa fa-chevron-down" style="color: #0055ff;"></i></a>
-            </li>
-        </ul>
-        <div class="clearfix"></div>
-      </div>
-      <div class="x_content" style="display:none;">
-        <table id="videos_tbl" class="table" width="100%">
-          <thead>
-            <tr>
-              <th></th>
-              <th></th>
-              <th>Name</th>
-              <th></th>
-            </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-6 col-sm-6 col-xs-12">
-    <div class="x_panel">
-      <div class="x_title">
         <h3><i class="fa fa-eye"></i> Viewers <small>Microsoft spice viewers</small></h3>
         <ul class="nav navbar-left panel_toolbox">
           <!--<li><a id="media" class="btn-new update-all"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a></li>-->
@@ -302,38 +239,7 @@
   </div>
 </div>
 {% endif %}
-<!--
-              <div class="col-md-6 col-sm-6 col-xs-12">
-                <div class="x_panel">
-                  <div class="x_title">
-                    <h2>Virt builders <small>Already created minimal OSs</small></h2>
-                        <li class="">
-                            <ul class="nav navbar-right panel_toolbox">
-                                <li><a id="virt_builder" class="btn-new update-all"><span style="color: #5499c7; "><i class="fa fa-download"></i> Download all</span></a>
-                               </li>
-                          <li><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
-                          </li>
-                            </ul>
-                        </li>
-                    <div class="clearfix"></div>
-                  </div>
-                  <div class="x_content" style="display:none;">
-					<table id="virt_builder_tbl" class="table table-striped" width="100%">
-					   <thead>
-						  <tr>
-                             <th></th>
-							 <th></th>
-							 <th>Name</th>
-                             <th></th>
-						  </tr>
-					   </thead>
-					   <tbody>
-					   </tbody>
-					</table>
-                  </div>
-                </div>
-              </div>
--->
+
 {% endblock %}
 {% block pagescript %}
     <!-- bootstrap-progressbar -->

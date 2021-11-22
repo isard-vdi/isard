@@ -9,17 +9,6 @@ class RethinkHypEvent(object):
     def __init__(self):
         pass
 
-    def insert_event_in_db(self, dict_event):
-
-        log.debug(pformat(dict_event))
-        r_conn = new_rethink_connection()
-        try:
-            r.table("hypervisors_events").insert(dict_event).run(r_conn)
-            close_rethink_connection(r_conn)
-        except Exception as e:
-            logs.exception_id.debug("0038")
-            log.error("rethink insert hyp event fail: {}".format(e))
-
     def update_viewer_client(self, domain_id, phase, ip_client=False, when=False):
 
         dict_viewer = {}

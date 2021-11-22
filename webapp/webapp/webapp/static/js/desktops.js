@@ -439,48 +439,6 @@ function actionsDesktopDetail(){
             //~ modal_edit_desktop_datatables(pk);
     });
 
-    $('.btn-events').on('click', function () {
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-            $("#modalShowInfoForm")[0].reset();
-            $('#modalShowInfo').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            $('#modalShowInfoForm #id').val(pk);
-            $.ajax({
-                type: "GET",
-                url:"/isard-admin/admin/domains/events/" + pk,
-                success: function(data)
-                {
-                    var data = JSON.parse(data);
-            $('#xml').val(JSON.stringify(data, undefined, 4));
-                }               
-            });
-            //~ $('#modalEdit').parsley();
-            //~ modal_edit_desktop_datatables(pk);
-    });
-
-    $('.btn-messages').on('click', function () {
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-            $("#modalShowInfoForm")[0].reset();
-            $('#modalShowInfo').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            $('#modalShowInfoForm #id').val(pk);
-            $.ajax({
-                type: "GET",
-                url:"/isard-admin/admin/domains/messages/" + pk,
-                success: function(data)
-                {
-                    var data = JSON.parse(data);
-                    $('#xml').val(JSON.stringify(data, undefined, 4));
-                }               
-            });
-            //~ $('#modalEdit').parsley();
-            //~ modal_edit_desktop_datatables(pk);
-    });
-
     $('.btn-jumperurl').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
         $("#modalJumperurlForm")[0].reset();

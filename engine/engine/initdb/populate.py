@@ -87,21 +87,10 @@ class Populate(object):
             "interfaces",
             "graphics",
             "videos",
-            "disks",
             "domains",
-            "domains_status",
-            "domains_status_history",
-            "virt_builder",
             "virt_install",
-            "builders",
             "media",
             "boots",
-            "hypervisors_events",
-            "hypervisors_status",
-            "hypervisors_status_history",
-            "disk_operations",
-            "hosts_viewers",
-            "places",
             "scheduler_jobs",
             "backups",
             "engine",
@@ -130,10 +119,6 @@ class Populate(object):
             for t in tables_to_create:
                 try:
                     table = t
-                    if table.startswith("hypervisors_status"):
-                        table = "hypervisors_status"
-                    if table.startswith("domains_status"):
-                        table = "domains_status"
                     log.info("Creating new table: " + t)
                     # CREATING TABLES WITH eval self.{name_of_table}
                     log.info("  Result: " + str(eval("self." + table + "()")))
@@ -896,39 +881,6 @@ class Populate(object):
             return True
 
     """
-    DISKS
-    """
-
-    def disks(self):
-
-        if not r.table_list().contains("disks").run(self.conn):
-            log.info("Table disks not found, creating and populating default disk...")
-            r.table_create("disks", primary_key="id").run(self.conn)
-            self.result(
-                r.table("disks")
-                .insert(
-                    [
-                        {
-                            "id": "default",
-                            "name": "Default",
-                            "description": "Default",
-                            "bus": "virtio",
-                            "dev": "vda",
-                            "type": "qcow2",
-                            "allowed": {
-                                "roles": [],
-                                "categories": [],
-                                "groups": [],
-                                "users": [],
-                            },
-                        }
-                    ]
-                )
-                .run(self.conn)
-            )
-        return True
-
-    """
     ISOS and FLOPPY:
     """
 
@@ -1059,36 +1011,6 @@ class Populate(object):
         return True
 
     """
-    HYPERVISORS_EVENTS
-    """
-
-    def hypervisors_events(self):
-
-        if not r.table_list().contains("hypervisors_events").run(self.conn):
-            log.info("Table hypervisors_events not found, creating...")
-            r.table_create("hypervisors_events", primary_key="id").run(self.conn)
-        self.index_create("hypervisors_events", ["domain", "event", "hyp_id"])
-        return True
-
-    """
-    HYPERVISORS_STATUS
-    """
-
-    def hypervisors_status(self):
-
-        if not r.table_list().contains("hypervisors_status").run(self.conn):
-            log.info("Table hypervisors_status not found, creating...")
-            r.table_create("hypervisors_status", primary_key="id").run(self.conn)
-        self.index_create("hypervisors_status", ["connected", "hyp_id"])
-        if not r.table_list().contains("hypervisors_status_history").run(self.conn):
-            log.info("Table hypervisors_status_history not found, creating...")
-            r.table_create("hypervisors_status_history", primary_key="id").run(
-                self.conn
-            )
-        self.index_create("hypervisors_status_history", ["connected", "hyp_id"])
-        return True
-
-    """
     DOMAINS
     """
 
@@ -1100,22 +1022,6 @@ class Populate(object):
         self.index_create(
             "domains", ["status", "hyp_started", "user", "group", "category", "kind"]
         )
-        return True
-
-    """
-    DOMAINS_STATUS
-    """
-
-    def domains_status(self):
-
-        if not r.table_list().contains("domains_status").run(self.conn):
-            log.info("Table domains_status not found, creating...")
-            r.table_create("domains_status", primary_key="id").run(self.conn)
-        self.index_create("domains_status", ["name", "hyp_id"])
-        if not r.table_list().contains("domains_status_history").run(self.conn):
-            log.info("Table domains_status_history not found, creating...")
-            r.table_create("domains_status_history", primary_key="id").run(self.conn)
-        self.index_create("domains_status_history", ["name", "hyp_id"])
         return True
 
     """
@@ -1169,58 +1075,6 @@ class Populate(object):
             return viewer_hostname
 
         return
-
-    """
-    LOCATIONS
-    """
-
-    def hosts_viewers(self):
-
-        if not r.table_list().contains("hosts_viewers").run(self.conn):
-            log.info("Table hosts_viewers not found, creating...")
-            r.table_create("hosts_viewers", primary_key="id").run(self.conn)
-            r.table("hosts_viewers").index_create("hostname").run(self.conn)
-            r.table("hosts_viewers").index_wait("hostname").run(self.conn)
-            r.table("hosts_viewers").index_create("mac").run(self.conn)
-            r.table("hosts_viewers").index_wait("mac").run(self.conn)
-            r.table("hosts_viewers").index_create("place_id").run(self.conn)
-            r.table("hosts_viewers").index_wait("place_id").run(self.conn)
-        self.index_create("hosts_viewers", ["hostname", "mac", "place_id"])
-        return True
-
-    """
-    PLACES
-    """
-
-    def places(self):
-
-        if not r.table_list().contains("places").run(self.conn):
-            log.info("Table places not found, creating...")
-            r.table_create("places", primary_key="id").run(self.conn)
-        self.index_create("places", ["network", "status"])
-        return True
-
-    """
-    BUILDER
-    """
-
-    def builders(self):
-
-        if not r.table_list().contains("builders").run(self.conn):
-            log.info("Table builders not found, creating...")
-            r.table_create("builders", primary_key="id").run(self.conn)
-        return True
-
-    """
-    VIRT BUILDER
-    """
-
-    def virt_builder(self):
-
-        if not r.table_list().contains("virt_builder").run(self.conn):
-            log.info("Table virt_builder not found, creating...")
-            r.table_create("virt_builder", primary_key="id").run(self.conn)
-        return True
 
     """
     VIRT INSTALL
