@@ -37,6 +37,9 @@ VDESKTOP_DISK_OPERATINOS = CONFIG_DICT["REMOTEOPERATIONS"][
     "host_remote_disk_operatinos"
 ]
 
+QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
+QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
+
 
 def create_cmds_delete_disk(path_disk):
     cmds = list()
@@ -106,20 +109,22 @@ def create_cmd_disk_from_uploaded_disk(
 def create_cmd_disk_from_scratch(
     path_new_disk,
     size_str,
-    cluster_size="4k",
+    cluster_size=QCOW2_CLUSTER_SIZE,
     disk_type="qcow2",
     incremental=True,
     user_owner="qemu",
     group_owner="qemu",
+    extended_l2=QCOW2_EXTENDED_L2,
 ):
     cmds1 = list()
     path_dir = extract_dir_path(path_new_disk)
     touch_test_path = path_dir + "/.touch_test"
-    cmd_qemu_img = "qemu-img create -f {disk_type} -o cluster_size={cluster_size} {file_path} {size_str}".format(
+    cmd_qemu_img = "qemu-img create -f {disk_type} -o cluster_size={cluster_size},extended_l2={extended_l2} {file_path} {size_str}".format(
         disk_type=disk_type,
         size_str=size_str,
         cluster_size=cluster_size,
         file_path=path_new_disk,
+        extended_l2=extended_l2,
     )
 
     cmds1.append({"title": "mkdir dir", "cmd": "mkdir -p {}".format(path_dir)})
@@ -253,7 +258,7 @@ def create_cmd_disk_from_virtbuilder(
     return cmds1
 
 
-def create_cmds_disk_from_base(path_base, path_new, clustersize="4k"):
+def create_cmds_disk_from_base(path_base, path_new, clustersize=QCOW2_CLUSTER_SIZE):
     # INFO TO DEVELOPER todo: hay que verificar primero si el disco no existe, ya que si no lo machaca creo
     # no se bien cuaqndo hacerlo y si vale la pena, habríamos de manejarlo como una excepción
     # o hacer un stat una vez creado y verificar que devuelve algo
@@ -381,7 +386,7 @@ def create_cmds_disk_template_from_domain(
     path_domain_disk,
     user_owner="qemu",
     group_owner="qemu",
-    clustersize="4k",
+    clustersize=QCOW2_CLUSTER_SIZE,
 ):
     # INFO TO DEVELOPER, OJO SI NOS PASAN UN PATH CON ESPACIOS,HABRÍA QUE PONER COMILLAS EN TODOS LOS COMANDOS
     cmds1 = list()
@@ -796,9 +801,19 @@ def verify_output_cmds1_template_from_domain(
     return error_severity, move_tool, cmd_to_move
 
 
-def create_disk_from_base_cmd(filename, basename, clustersize="4k"):
-    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize} -b "{basename}" -F qcow2 "{filename}"'
-    cmd = cmd.format(filename=filename, basename=basename, clustersize=clustersize)
+def create_disk_from_base_cmd(
+    filename,
+    basename,
+    clustersize=QCOW2_CLUSTER_SIZE,
+    extended_l2=QCOW2_EXTENDED_L2,
+):
+    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2} -b "{basename}" -F qcow2 "{filename}"'
+    cmd = cmd.format(
+        filename=filename,
+        basename=basename,
+        clustersize=clustersize,
+        extended_l2=extended_l2,
+    )
     return cmd
 
 

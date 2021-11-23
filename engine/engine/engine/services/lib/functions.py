@@ -43,6 +43,9 @@ from engine.services.db.domains import (
 )
 from engine.services.log import log, logs
 
+QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
+QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
+
 
 def check_tables_populated():
     while True:
@@ -206,9 +209,16 @@ def calcule_cpu_hyp_stats(start, end, round_digits=3):
 DEFAULT_SIZE_TO_DISK = "10G"
 
 
-def create_new_disk_cmd(filename, size=DEFAULT_SIZE_TO_DISK, clustersize="4k"):
-    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize} "{filename}" {size}'
-    cmd = cmd.format(filename=filename, size=size, clustersize=clustersize)
+def create_new_disk_cmd(
+    filename,
+    size=DEFAULT_SIZE_TO_DISK,
+    clustersize=QCOW2_CLUSTER_SIZE,
+    extended_l2=QCOW2_EXTENDED_L2,
+):
+    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2} "{filename}" {size}'
+    cmd = cmd.format(
+        filename=filename, size=size, clustersize=clustersize, extended_l2=extended_l2
+    )
     return cmd
 
 

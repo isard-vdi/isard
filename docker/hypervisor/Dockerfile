@@ -1,4 +1,4 @@
-FROM alpine:3.12 as production
+FROM alpine:3.15 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache \
@@ -102,7 +102,10 @@ RUN sed -i \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' \
     -e 's|[#]*Port 22|Port 2022|g' \
     /etc/ssh/sshd_config
-    
+
+# enable ssh-rsa for backward compatibility
+RUN echo -e 'PubkeyAcceptedAlgorithms +ssh-rsa\n' >> /etc/ssh/sshd_config
+
 # Libvirt configuration and certs
 COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
