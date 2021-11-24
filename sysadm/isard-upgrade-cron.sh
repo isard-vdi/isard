@@ -134,15 +134,25 @@ Run the cron script now or wait for the cron to be executed automatically
 	exit 1
 fi
 echo "isardvdi.cfg.example has no changes. Proceeding to execute automatic upgrade (it can take some minutes)"
-git stash -u
+if [ -n "$(git status --ignore-submodules --porcelain)" ]
+then
+  git stash -u
+  stashed=true
+fi
 if ! git merge --ff @{u}
 then
-	git merge --abort
-	git stash pop
-	echo "Error: merge conflicts" >&2
-	exit 1
+  git merge --abort
+  echo "Error: merge conflicts" >&2
+  error=true
 fi
-git stash pop
+if ${stashed-false}
+then
+  git stash pop
+fi
+if ${error-false}
+then
+  exit 1
+fi
 ./build.sh
 if [ $EXCLUDE_HYPER = 1 ]
 then
