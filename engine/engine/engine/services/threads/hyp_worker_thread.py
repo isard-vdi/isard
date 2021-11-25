@@ -81,7 +81,11 @@ class HypWorkerThread(threading.Thread):
             self.hostname = host
             try:
                 self.h = hyp(self.hostname, user=user, port=port, hyp_id=self.hyp_id)
-                if self.h.conn.isAlive() == 1:
+                if not self.h.conn:
+                    self.error = "cannot connect to libvirt"
+                    update_hyp_status(self.hyp_id, "Error", detail=self.error)
+                    self.stop = True
+                elif self.h.conn.isAlive() == 1:
                     # TRY IF SSH COMMAND RUN:
                     cmds = [{"cmd": "uname -a"}]
                     try:
