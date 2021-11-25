@@ -18,11 +18,14 @@ const LDAPString = "ldap"
 type LDAP struct {
 	cfg cfg.AuthenticationLDAP
 
-	ReUID      *regexp.Regexp
-	ReUsername *regexp.Regexp
-	ReName     *regexp.Regexp
-	ReEmail    *regexp.Regexp
-	RePhoto    *regexp.Regexp
+	ReUID          *regexp.Regexp
+	ReCategory     *regexp.Regexp
+	ReGroup        *regexp.Regexp
+	ReUsername     *regexp.Regexp
+	ReName         *regexp.Regexp
+	ReEmail        *regexp.Regexp
+	RePhoto        *regexp.Regexp
+	ReGroupsSearch *regexp.Regexp
 }
 
 func InitLDAP(cfg cfg.AuthenticationLDAP) *LDAP {
@@ -57,6 +60,26 @@ func InitLDAP(cfg cfg.AuthenticationLDAP) *LDAP {
 		log.Fatalf("invalid photo regex: %v", err)
 	}
 	l.RePhoto = re
+
+	if l.AutoRegister() {
+		re, err = regexp.Compile(cfg.RegexCategory)
+		if err != nil {
+			log.Fatalf("invalid category regex: %v", err)
+		}
+		l.ReCategory = re
+
+		re, err = regexp.Compile(cfg.RegexGroup)
+		if err != nil {
+			log.Fatalf("invalid group regex: %v", err)
+		}
+		l.ReGroup = re
+
+		re, err = regexp.Compile(cfg.GroupsSearchRegex)
+		if err != nil {
+			log.Fatalf("invalid search group regex: %v", err)
+		}
+		l.ReGroupsSearch = re
+	}
 
 	return l
 }
@@ -96,19 +119,83 @@ func parseLDAPArgs(args map[string]string) (string, string, error) {
 	return username, password, nil
 }
 
+func matchRegex(re *regexp.Regexp, s string) string {
+	result := re.FindStringSubmatch(s)
+	// the first submatch is the whole match, the 2nd is the 1st group
+	if len(result) > 1 {
+		return result[1]
+	}
+
+	return re.FindString(s)
+}
+
+func (l *LDAP) newConn() (*ldap.Conn, error) {
+	conn, err := ldap.DialURL(fmt.Sprintf("%s://%s:%d", l.cfg.Protocol, l.cfg.Host, l.cfg.Port))
+	if err != nil {
+		return nil, fmt.Errorf("connect to the LDAP server: : %w", err)
+	}
+
+	if err := conn.Bind(l.cfg.BindDN, l.cfg.Password); err != nil {
+		return nil, fmt.Errorf("bind using the configuration user: %w", err)
+	}
+
+	return conn, nil
+}
+
+func (l *LDAP) listAllGroups(usr string) ([]string, error) {
+	conn, err := l.newConn()
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	req := ldap.NewSearchRequest(
+		l.cfg.GroupsSearch,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf(l.cfg.GroupsFilter, ldap.EscapeFilter(usr)),
+		[]string{l.cfg.GroupsSearchField},
+		nil,
+	)
+
+	rsp, err := conn.Search(req)
+	if err != nil {
+		if ldap.IsErrorWithCode(err, ldap.LDAPResultNoSuchObject) {
+			return nil, ErrInvalidCredentials
+		}
+
+		return nil, fmt.Errorf("get all the user groups: %w", err)
+	}
+
+	if len(rsp.Entries) == 0 {
+		return nil, ErrInvalidCredentials
+	}
+
+	groups := []string{}
+	for _, entry := range rsp.Entries {
+		if g := matchRegex(l.ReGroupsSearch, entry.GetAttributeValue(l.cfg.GroupsSearchField)); g != "" {
+			groups = append(groups, g)
+		}
+	}
+
+	return groups, nil
+}
+
 func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]string) (*model.User, string, error) {
 	usr, pwd, err := parseLDAPArgs(args)
 	if err != nil {
 		return nil, "", err
 	}
 
-	conn, err := ldap.DialURL(fmt.Sprintf("%s://%s:%d", l.cfg.Protocol, l.cfg.Host, l.cfg.Port))
+	conn, err := l.newConn()
 	if err != nil {
-		return nil, "", fmt.Errorf("connect to the LDAP server: : %w", err)
+		return nil, "", err
 	}
+	defer conn.Close()
 
-	if err := conn.Bind(l.cfg.BindDN, l.cfg.Password); err != nil {
-		return nil, "", fmt.Errorf("bind using the configuration user: %w", err)
+	attributes := []string{"dn", l.cfg.FieldUID, l.cfg.FieldUsername, l.cfg.FieldName, l.cfg.FieldEmail, l.cfg.FieldPhoto}
+	if l.AutoRegister() {
+		attributes = append(attributes, l.cfg.FieldCategory, l.cfg.FieldGroup)
 	}
 
 	req := ldap.NewSearchRequest(
@@ -116,14 +203,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(l.cfg.Filter, ldap.EscapeFilter(usr)),
-		[]string{
-			"dn",
-			l.cfg.FieldUID,
-			l.cfg.FieldUsername,
-			l.cfg.FieldName,
-			l.cfg.FieldEmail,
-			l.cfg.FieldPhoto,
-		},
+		attributes,
 		nil,
 	)
 
@@ -153,13 +233,50 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	}
 
 	u := &model.User{
-		UID:      l.ReUID.FindString(entry.GetAttributeValue(l.cfg.FieldUID)),
+		UID:      matchRegex(l.ReUID, entry.GetAttributeValue(l.cfg.FieldUID)),
 		Provider: LDAPString,
 		Category: categoryID,
-		Username: l.ReUsername.FindString(entry.GetAttributeValue(l.cfg.FieldUsername)),
-		Name:     l.ReName.FindString(entry.GetAttributeValue(l.cfg.FieldName)),
-		Email:    l.ReEmail.FindString(entry.GetAttributeValue(l.cfg.FieldEmail)),
-		Photo:    l.RePhoto.FindString(entry.GetAttributeValue(l.cfg.FieldPhoto)),
+		Username: matchRegex(l.ReUsername, entry.GetAttributeValue(l.cfg.FieldUsername)),
+		Name:     matchRegex(l.ReName, entry.GetAttributeValue(l.cfg.FieldName)),
+		Email:    matchRegex(l.ReEmail, entry.GetAttributeValue(l.cfg.FieldEmail)),
+		Photo:    matchRegex(l.RePhoto, entry.GetAttributeValue(l.cfg.FieldPhoto)),
+	}
+
+	if l.cfg.GuessCategory {
+		u.Category = matchRegex(l.ReCategory, entry.GetAttributeValue(l.cfg.FieldCategory))
+	}
+
+	if l.AutoRegister() {
+		if !l.cfg.GuessCategory && u.Category != categoryID {
+			return nil, "", ErrInvalidCredentials
+		}
+
+		grp := &model.Group{
+			Name:     matchRegex(l.ReGroup, entry.GetAttributeValue(l.cfg.FieldGroup)),
+			Category: u.Category,
+		}
+		u.Group = grp.ID()
+
+		allUsrGrps, err := l.listAllGroups(usr)
+		if err != nil {
+			return nil, "", err
+		}
+
+		roles := []model.Role{model.RoleAdmin, model.RoleManager, model.RoleAdvanced, model.RoleUser}
+		for i, groups := range [][]string{l.cfg.RoleAdminGroups, l.cfg.RoleManagerGroups, l.cfg.RoleAdvancedGroups, l.cfg.RoleUserGroups} {
+			for _, g := range groups {
+				for _, uGrp := range allUsrGrps {
+					if uGrp == g {
+						if roles[i].HasMorePrivileges(u.Role) {
+							u.Role = roles[i]
+						}
+					}
+				}
+			}
+		}
+		if u.Role == "" {
+			u.Role = l.cfg.RoleDefault
+		}
 	}
 
 	return u, "", nil
@@ -167,6 +284,10 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 func (l *LDAP) Callback(context.Context, *CallbackClaims, map[string]string) (*model.User, string, error) {
 	return nil, "", errInvalidIDP
+}
+
+func (l *LDAP) AutoRegister() bool {
+	return l.cfg.AutoRegister
 }
 
 func (l *LDAP) String() string {

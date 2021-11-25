@@ -34,9 +34,19 @@ def get_header_jwt_payload():
     return get_token_payload(get_token_auth_header())
 
 
-def get_token_auth_header():
-    """Obtains the Access Token from the Authorization Header"""
-    auth = request.headers.get("Authorization", None)
+def get_auto_register_jwt_payload():
+    register_payload = get_token_payload(get_token_auth_header())
+    login_payload = get_token_payload(get_token_header("Login-Claims"))
+
+    register_payload["role"] = login_payload["role_id"]
+    register_payload["group"] = login_payload["group_id"]
+
+    return register_payload
+
+
+def get_token_header(header):
+    """Obtains the Access Token from the a Header"""
+    auth = request.headers.get(header, None)
     if not auth:
         raise AuthError(
             {
@@ -69,6 +79,10 @@ def get_token_auth_header():
 
     token = parts[1]
     return token
+
+
+def get_token_auth_header():
+    return get_token_header("Authorization")
 
 
 def get_token_payload(token):

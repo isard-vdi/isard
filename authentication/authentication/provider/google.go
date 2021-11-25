@@ -102,6 +102,10 @@ func (g *Google) Callback(ctx context.Context, claims *CallbackClaims, args map[
 	return u, "", nil
 }
 
+func (Google) AutoRegister() bool {
+	return false
+}
+
 func (g *Google) String() string {
 	return GoogleString
 }

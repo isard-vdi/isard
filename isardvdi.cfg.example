@@ -89,7 +89,8 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 #AUTHENTICATION_AUTHENTICATION_LDAP_FILTER="(&(objectClass=person)(uid=%s))"
 
 ### These are the fields that the LDAP search responds. For example, in some installations, the field for the email is called 'mail'
-### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field
+### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
+### regex match tries to extract the first group, but if there's no group it will extract the whole match
 #AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_UID=
 #AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_UID=.*
 #AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_USERNAME=
@@ -100,6 +101,34 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 #AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_EMAIL=.*
 #AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_PHOTO=
 #AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_PHOTO=.*
+
+### Auto Register the existing ldap users into IsardVDI
+#AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER=false
+### Try guessing the category based in the LDAP search results (must have AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY configured)
+#AUTHENTICATION_AUTHENTICATION_LDAP_GUESS_CATEGORY=false
+### These are the fields that the LDAP search responds. For example, in some installations, the field for the group is called 'group'
+### Then, a regex is applied to this field, in case we needed to filter inside a LDAP field. By default it collects the whole field. The 
+### regex match tries to extract the first group, but if there's no group it will extract the whole match
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_CATEGORY=.*
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP=.*
+### The base search for listing all the groups of a user
+#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH=
+### Filter is the actual filter used to search all the groups of a user. The '%s' represents the user that is sent through the form
+### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
+#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
+### The field that contains the group in the AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_FILTER search
+#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_FIELD=
+#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_REGEX=.*
+### All the users that are in at least one of the groups specified here, will be created in the admin role (comma separated)
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADMIN_GROUPS=
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_MANAGER_GROUPS=
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADVANCED_GROUPS=
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_USER_GROUPS=
+# This is the default role that users will have if they don't match in any of the previous groups.
+# Values can be 'admin', 'manager', 'advanced', 'user'
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_DEFAULT=user
 
 ## Google
 ### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
