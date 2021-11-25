@@ -108,8 +108,21 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
 
+# ------ Backups -------------------------------------------------------------
 
+## Automated backups (https://0xacab.org/liberate/backupninja)
+#BACKUP_DIR=/opt/isard-local/backup
 
+#BACKUP_DB_ENABLED=false
+#BACKUP_DB_WHEN="everyday at 01"
+#BACKUP_DB_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
+
+#BACKUP_DISKS_ENABLED=false
+#BACKUP_DISKS_WHEN="everyday at 01"
+#BACKUP_DISKS_PRUNE="--keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space"
+#BACKUP_DISKS_TEMPLATES_ENABLED=false
+#BACKUP_DISKS_GROUPS_ENABLED=false
+#BACKUP_DISKS_MEDIA_ENABLED=false
 
 ##################################################################
 ##################################################################

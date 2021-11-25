@@ -95,7 +95,7 @@ docker-compose-build:
     - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
     - cp isardvdi.build.cfg isardvdi.toolbox.build.cfg
     - echo "FLAVOUR=toolbox" >> isardvdi.toolbox.build.cfg
-    - ./build.sh
+    - BACKUP_DB_ENABLED=true ./build.sh
   artifacts:
     paths:
       - docker-compose*.yml
@@ -111,6 +111,7 @@ docker-image:
         IMAGE:
           - api
           - authentication
+          - backupninja
           - db
           - engine
           - grafana
@@ -159,6 +160,7 @@ docker-tag:
       - IMAGE:
           - api
           - authentication
+          - backupninja
           - db
           - engine
           - grafana

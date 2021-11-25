@@ -1,0 +1,31 @@
+version: '3.5'
+services:
+  isard-backupninja:
+    container_name: isard-backupninja
+    image: ${DOCKER_IMAGE_PREFIX}backupninja:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      options:
+        max-size: "100m"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.88
+    restart: unless-stopped
+    volumes:
+      - ${BACKUP_DIR-/opt/isard-local/backup}:/backup:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /opt/isard/templates:/opt/isard/templates:ro
+      - /opt/isard/groups:/opt/isard/groups:ro
+      - /opt/isard/media:/opt/isard/media:ro
+    environment:
+      - BACKUP_DIR=${BACKUP_DIR-/opt/isard-local/backup}
+      - BACKUP_DB_ENABLED=${BACKUP_DB_ENABLED-false}
+      - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
+      - BACKUP_DB_WHEN=${BACKUP_DB_WHEN-everyday at 04:01}
+      - BACKUP_DB_PRUNE=${BACKUP_DB_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
+      - BACKUP_DISKS_ENABLED=${BACKUP_DISKS_ENABLED-false}
+      - BACKUP_DISKS_WHEN=${BACKUP_DISKS_WHEN-everyday at 04:01}
+      - BACKUP_DISKS_PRUNE=${BACKUP_DISKS_PRUNE---keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space}
+      - BACKUP_DISKS_TEMPLATES_ENABLED=${BACKUP_DISKS_TEMPLATES_ENABLED-false}
+      - BACKUP_DISKS_GROUPS_ENABLED=${BACKUP_DISKS_GROUPS_ENABLED-false}
+      - BACKUP_DISKS_MEDIA_ENABLED=${BACKUP_DISKS_MEDIA_ENABLED-false}
