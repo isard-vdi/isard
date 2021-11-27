@@ -248,7 +248,7 @@ $(document).ready(function() {
          
         new PNotify({
                 title: "Hypervisor deleted",
-                text: "Hypervisor "+data.name+" has been deleted",
+                text: "Hypervisor "+data+" has been deleted",
                 hide: true,
                 delay: 4000,
                 icon: 'fa fa-success',
@@ -315,7 +315,7 @@ function formatHypervisorData(data){
 function formatHypervisorPanel( d ) {
         $newPanel = $hypervisor_template.clone();
         $newPanel.html(function(i, oldHtml){
-            return oldHtml.replace(/d.id/g, d.id).replace(/d.hostname/g, d.hostname);
+            return oldHtml.replace(/d.id/g, d.id);
         });
         return $newPanel
 }
@@ -368,10 +368,9 @@ function actionsHyperDetail(){
         $('.btn-enable').on('click', function () {
                 var closest=$(this).closest("div");
                 var pk=closest.attr("data-pk");
-                var name=closest.attr("data-name");
                 new PNotify({
                         title: 'Confirmation Needed',
-                            text: "Are you sure you want to enable/disable: "+name+"?",
+                            text: "Are you sure you want to enable/disable: "+pk+"?",
                             hide: false,
                             opacity: 0.9,
                             confirm: {
@@ -386,17 +385,16 @@ function actionsHyperDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_toggle',{'pk':pk,'name':name})
+                            socket.emit('hyper_toggle', {'pk':pk})
                         }).on('pnotify.cancel', function() {
                     }); 
                 });
 
         $('.btn-delete').on('click', function () {
                 var pk=$(this).closest("div").attr("data-pk");
-                var name=$(this).closest("div").attr("data-name");
                 new PNotify({
                         title: 'Confirmation Needed',
-                            text: "Are you sure you want to delete hypervisor: "+name+"?",
+                            text: "Are you sure you want to delete hypervisor: "+pk+"?",
                             hide: false,
                             opacity: 0.9,
                             confirm: {
@@ -411,17 +409,16 @@ function actionsHyperDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_delete',{'pk':pk,'name':name})
+                            socket.emit('hyper_delete', {'pk':pk})
                         }).on('pnotify.cancel', function() {
                 }); 
             });  
 
         $('.btn-domstop').on('click', function () {
                 var pk=$(this).closest("div").attr("data-pk");
-                var name=$(this).closest("div").attr("data-name");
                 new PNotify({
                         title: 'Confirmation Needed',
-                            text: "Are you sure you want to FORCE stop all domains in hypervisor: "+name+"?",
+                            text: "Are you sure you want to FORCE stop all domains in hypervisor: "+pk+"?",
                             hide: false,
                             opacity: 0.9,
                             confirm: {
@@ -436,17 +433,16 @@ function actionsHyperDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':false})
+                            socket.emit('hyper_domains_stop', {'pk':pk, 'without_viewer':false})
                         }).on('pnotify.cancel', function() {
                 }); 
             }); 
 
         $('.btn-domstop-woviewer').on('click', function () {
                 var pk=$(this).closest("div").attr("data-pk");
-                var name=$(this).closest("div").attr("data-name");
                 new PNotify({
                         title: 'Confirmation Needed',
-                            text: "Are you sure you want to FORCE stop all domains in hypervisor "+name+" that doesn't have a client viewer now?",
+                            text: "Are you sure you want to FORCE stop all domains in hypervisor "+pk+" that doesn't have a client viewer now?",
                             hide: false,
                             opacity: 0.9,
                             confirm: {
@@ -461,7 +457,7 @@ function actionsHyperDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_domains_stop',{'pk':pk,'name':name,'without_viewer':true})
+                            socket.emit('hyper_domains_stop', {'pk':pk, 'without_viewer':true})
                         }).on('pnotify.cancel', function() {
                 }); 
             });
@@ -475,7 +471,6 @@ function actionsHyperDetail(){
 
     $('.btn-edit').on('click', function () {
                 var pk=$(this).closest("div").attr("data-pk");
-                var name=$(this).closest("div").attr("data-name");
             $("#modalEdit")[0].reset();
             $("#modalEditHyper #hypervisors_pools_dropdown").find('option').remove();
             
