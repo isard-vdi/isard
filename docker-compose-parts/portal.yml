@@ -18,7 +18,6 @@ services:
       - published: 443
         target: 443
         mode: host
-    restart: unless-stopped
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
       - /opt/isard/certs/default:/certs:rw

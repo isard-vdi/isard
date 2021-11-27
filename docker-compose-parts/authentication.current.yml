@@ -1,0 +1,6 @@
+version: '3.5'
+services:
+  isard-authentication:
+    depends_on:
+      isard-api:
+        condition: service_healthy

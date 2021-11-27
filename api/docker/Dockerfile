@@ -20,6 +20,7 @@ COPY api/docker/run.sh /
 # CMD [ "python3", "start.py" ]
 
 CMD /run.sh
+HEALTHCHECK --interval=10s CMD curl -f http://localhost:5000/api/v3
 
 ARG SRC_VERSION_ID
 RUN echo -n "$SRC_VERSION_ID" > /version

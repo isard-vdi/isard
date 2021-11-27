@@ -12,4 +12,3 @@ services:
     ports:
       - "8080:8080"
       - "6653:6653"
-    restart: unless-stopped

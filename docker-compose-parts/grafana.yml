@@ -9,7 +9,6 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.15
-    restart: unless-stopped
     volumes:
       - ${BUILD_ROOT_PATH}/docker/grafana/provisioning:/grafana/conf/provisioning
       - /opt/isard-local/grafana/data:/grafana/data:rw
@@ -37,7 +36,6 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.12
-    restart: unless-stopped
 
   # isard-chronograf:
   #   image: chronograf:1.8-alpine
@@ -57,4 +55,3 @@ services:
   #     - BASE_PATH=/debug/chronograf
   #   networks:
   #     - isard-network
-  #   restart: unless-stopped

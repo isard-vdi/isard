@@ -6,7 +6,6 @@ services:
     ports:
       - "7039:7039"
       - "5000:5000"
-    restart: unless-stopped
     volumes:
     - ${BUILD_ROOT_PATH}/api/src:/api
     - ${BUILD_ROOT_PATH}/api/srcv2:/apiv2

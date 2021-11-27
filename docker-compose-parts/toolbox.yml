@@ -9,7 +9,6 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.21
-    restart: unless-stopped
     volumes:
       #- /opt/isard-local/sockets/:/var/run/libvirt/
       - /opt/isard-local/logs:/isard/logs:rw

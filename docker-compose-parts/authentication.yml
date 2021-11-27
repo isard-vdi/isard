@@ -9,7 +9,6 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.11
-    restart: unless-stopped
     volumes:
       - "/opt/isard/backend/keys:/keys"
       - "/opt/isard/backend/metadata:/metadata"

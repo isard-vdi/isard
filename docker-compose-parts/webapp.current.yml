@@ -1,0 +1,8 @@
+version: '3.5'
+services:
+  isard-webapp:
+    depends_on:
+      isard-engine:
+        condition: service_healthy
+      isard-api:
+        condition: service_healthy

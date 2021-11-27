@@ -9,6 +9,5 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.27
-    restart: unless-stopped
     env_file:
       - .env
