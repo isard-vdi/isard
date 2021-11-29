@@ -61,3 +61,5 @@ export const status = {
     icon: ''
   }
 }
+
+export const localClientInstructionsUrl = 'https://isard.gitlab.io/isardvdi-docs/user/local-client/'

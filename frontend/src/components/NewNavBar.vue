@@ -2,11 +2,10 @@
   <div id="navbar" class="bg-darkgray px-0 px-lg-5 pl-4">
     <b-container fluid class="px-0">
       <b-navbar toggleable="lg" type="dark" variant="">
-        <b-navbar-brand href="#" id="logo">
-         <div class="rounded-circle bg-red" style="background-image: url(/custom/logo.svg);background-size: 70px 70px;"></div>
-        </b-navbar-brand>
-
-        <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
+          <div id="logo-wrapper">
+            <Logo/>
+          </div>
+        <b-navbar-toggle class="ml-auto" target="nav-collapse"></b-navbar-toggle>
 
         <b-collapse id="nav-collapse" is-nav>
           <b-navbar-nav id="left-side" class="mt-5 mt-lg-0">
@@ -44,10 +43,12 @@
 <script>
 import Help from '@/components/Help.vue'
 import { mapActions, mapGetters } from 'vuex'
+import Logo from '@/components/Logo.vue'
 
 export default {
   components: {
-    Help
+    Help,
+    Logo
   },
   beforeMount: async function () {
     this.fetchConfig()

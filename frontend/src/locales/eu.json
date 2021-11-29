@@ -109,7 +109,7 @@
             },
             "other-logins": "edo honako hauek erabiliz hasi",
             "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da.",
-            "powered-by": "Egilea",
+            "powered-by": "Egilea {isardvdi}",
             "errors": {
                 "500": "Zerbitzariaren errorea",
                 "401": "Erabiltzailea edo pasahitza ez dira zuzenak"

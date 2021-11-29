@@ -2,7 +2,7 @@
   <b-container fluid id="login" style="height: 100vh;">
     <b-row class="h-100">
       <b-col sm="12" md="6" lg="6" xl="8" class="justify-content-center align-content-center h-100 d-flex right-separator-border">
-          <Logo/>
+          <Logo style="margin-top: 20px;max-width: 250px;"/>
       </b-col>
 
       <b-col sm="12" md="6" lg="6" xl="4" class="d-flex flex-column justify-content-center align-content-start">
@@ -75,14 +75,10 @@
               </div>
 
             </div>
-
             <!-- Powered By-->
             <b-row id="powered-by" align-h="center">
               <b-col class="text-center">
-                <a href="https://isardvdi.com/" target="_blank">
-                  {{ $t('views.login.powered-by') }}
-                  <strong>IsardVDI</strong>
-                </a>
+                <PoweredBy/>
                 <a href="isard_changelog_link" target="_blank">
                   <p>isard_display_version</p>
                 </a>
@@ -100,12 +96,14 @@ import { mapGetters } from 'vuex'
 import Language from '@/components/Language.vue'
 import Logo from '@/components/Logo.vue'
 import { authenticationSegment } from '@/shared/constants'
+import PoweredBy from '@/components/shared/PoweredBy.vue'
 
 export default {
   name: 'login',
   components: {
     Language,
-    Logo
+    Logo,
+    PoweredBy
   },
   data () {
     return {

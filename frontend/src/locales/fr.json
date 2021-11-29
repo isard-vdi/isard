@@ -186,7 +186,7 @@
         },
         "login": {
             "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
-            "powered-by": "Propulsé par",
+            "powered-by": "Propulsé par {isardvdi}",
             "other-logins": "Ou se connecter avec",
             "form": {
                 "login": "Se connecter",

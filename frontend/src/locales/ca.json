@@ -109,7 +109,7 @@
                 "login": "Iniciar sessió"
             },
             "other-logins": "O iniciar sessió amb",
-            "powered-by": "Funciona amb",
+            "powered-by": "Funciona amb {isardvdi}",
             "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard.",
             "errors": {
                 "500": "Error del servidor",
@@ -365,6 +365,7 @@
             "opening-desktop": "Obrint Escriptori",
             "creating-desktop": "Creant Escriptori",
             "file-downloaded": "Fitxer descarregat"
-        }
+        },
+        "loading": "Carregant"
     }
 }
