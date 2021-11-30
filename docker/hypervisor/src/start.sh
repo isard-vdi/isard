@@ -17,7 +17,7 @@ echo "---> Setting ssh password to API_HYPERVISORS_SECRET"
 echo "root:$API_HYPERVISORS_SECRET" |chpasswd
 
 echo "---> Starting sshd server..."
-ssh-keygen -A -f /usr/local/
+ssh-keygen -A
 /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config &
 
 echo "---> Setting up hypervisor certificates from api..."

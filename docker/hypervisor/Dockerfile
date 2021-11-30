@@ -100,7 +100,6 @@ RUN sed -i \
     -e 's|[#]*PasswordAuthentication yes|PasswordAuthentication yes|g' \
     -e 's|[#]*ChallengeResponseAuthentication yes|ChallengeResponseAuthentication yes|g' \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' \
-    -e 's|[#]*\(HostKey \)\(/etc/ssh/.*\)$|\1/usr/local\2|' \
     -e 's|[#]*Port 22|Port 2022|g' \
     /etc/ssh/sshd_config
     
