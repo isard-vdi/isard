@@ -302,7 +302,7 @@
             "delete": "Borrar"
         },
         "confirmation": {
-            "delete-desktop": "Se borrará, continuar?"
+            "delete-desktop": "'{name}' se borrará, continuar?"
         },
         "yes": "Si",
         "no": "No",

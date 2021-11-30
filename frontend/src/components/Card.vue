@@ -163,7 +163,7 @@ export default {
         this.$snotify.remove(toast.id) // default
       }
 
-      this.$snotify.prompt(`'${this.getCardTitle}' ${i18n.t('messages.confirmation.delete-desktop')}`, `${i18n.t('messages.title.delete')}`, {
+      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: this.getCardTitle })}`, {
         position: 'centerTop',
         buttons: [
           { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },

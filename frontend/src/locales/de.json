@@ -311,7 +311,7 @@
             "delete": "Löschen"
         },
         "confirmation": {
-            "delete-desktop": "wird gelöscht werden, fortfahren?"
+            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?"
         }
     }
 }

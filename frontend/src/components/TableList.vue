@@ -249,7 +249,7 @@ export default {
         this.$snotify.remove() // default
       }
 
-      this.$snotify.prompt(`'${desktop.name}' ${i18n.t('messages.confirmation.delete-desktop')}`, `${i18n.t('messages.title.delete')}`, {
+      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: desktop.name })}`, {
         position: 'centerTop',
         buttons: [
           { text: 'Yes', action: yesAction, bold: true },
