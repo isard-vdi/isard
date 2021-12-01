@@ -301,7 +301,7 @@
     },
     "messages": {
         "confirmation": {
-            "delete-desktop": "Ezabatu egingo da, jarraituko duzu?"
+            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?"
         },
         "title": {
             "delete": "Ezabatu"
