@@ -131,7 +131,7 @@ export default new Vuex.Store({
       await axios.post(`${apiV3Segment}/user/register`, data).then(response => {
         store.dispatch('login')
       }).catch(e => {
-        store.dispatch('handleError', e)
+        store.dispatch('handleRegisterError', e)
       })
     },
     logout (context) {
@@ -154,15 +154,13 @@ export default new Vuex.Store({
         }
       })
     },
-    handleError ({ commit }, error) {
+    handleRegisterError ({ commit }, error) {
       if (error.response.status === 503) {
         router.push({ name: 'Maintenance' })
         return
       } else if (error.response.status === 404) {
-        if (error.response.data.error === 'registration_code_not_found') { // Register code not found
-          commit('setPageErrorMessage', i18n.t('views.register.errors.404'))
-          return
-        }
+        commit('setPageErrorMessage', i18n.t('views.register.errors.404'))
+        return
       } else if (error.response.status === 401) {
         if (error.response.data.error === 'authorization_header_missing') { // jwt header not sent
           commit('setPageErrorMessage', i18n.t('views.register.errors.401'))
