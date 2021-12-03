@@ -1,26 +1,37 @@
 <template>
-  <b-container fluid id="login" style="height: 100vh;">
-    <b-row class="h-100">
-      <b-col sm="12" md="6" lg="6" xl="8" class="justify-content-center align-content-center h-100 d-flex right-separator-border">
-          <Logo style="margin-top: 20px;max-width: 250px;"/>
+  <b-container fluid id="login" class="h-100 w-100 pt-5 pt-md-0">
+    <b-row class="h-100 justify-content-center ml-2 mr-2 mr-md-5" align-v="center">
+      <b-col cols="3" sm="3" md="6" lg="8" xl="8" class="d-flex justify-content-center">
+        <Logo style="max-width: 18rem;"/>
       </b-col>
-
-      <b-col sm="12" md="6" lg="6" xl="4" class="d-flex flex-column justify-content-center align-content-start">
-        <b-row id="login" class="justify-content-left">
-          <b-spinner v-if="loading" />
-          <b-col v-else sm="12" md="10" lg="9" xl="9" class="d-flex flex-column justify-content-start text-left">
-            <h1 v-if="show_login_extras">{{ $t('views.login.title') }}</h1>
-            <h3 v-if="category_by_path">{{ category_name }}</h3>
-            <Language
+      <b-col cols="12" sm="12" md="6" lg="4" xl="4" class="pb-5 mb-5 pb-md-0 mb-md-0 d-flex flex-column align-content-center">
+        <b-row class="mr-xl-5 pr-xl-3">
+          <b-col class="d-flex flex-column">
+            <!-- Spacer -->
+            <b-row class="justify-content-center mb-md-3" style="height: 2rem">
+            </b-row>
+            <!-- Title -->
+            <b-row class="justify-content-center mb-3">
+              <h1 v-if="show_login_extras">{{ $t('views.login.title') }}</h1>
+            </b-row>
+            <!-- Category by path display -->
+            <b-row v-if="category_by_path" class="ml-2 mt-2">
+              <h3>{{ category_name }}</h3>
+            </b-row>
+            <!-- Language selection -->
+            <b-row>
+              <Language
               v-if="show_login_extras"
-              class="d-inline-block mt-5 mb-4"
+              class="ml-3 mt-2 mt-md-4 mb-3"
             />
+            </b-row>
+            <!-- Login form -->
             <b-form
               v-if="show_login_form"
               @submit.prevent="login('form')"
               class="m-0"
             >
-
+              <!-- Error message -->
               <b-alert
                 v-model="showDismissibleAlert"
                 dismissible
@@ -28,12 +39,11 @@
               >
                 {{ this.error }}
               </b-alert>
-
+              <!-- Category selection -->
               <b-form-select
                 v-if="!category_by_path && getCategories.length > 1"
+                class="mb-3"
                 size="md"
-                class="mb-4"
-                style="height:52px;"
                 required
                 :options="categories_select"
                 v-model="category"
@@ -43,45 +53,38 @@
                   <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
                 </template>
               </b-form-select>
-
-              <b-form-input v-model="usr" type="text" class="mb-4 py-4" required :placeholder="$t('views.login.form.usr')" />
-
+              <b-form-input v-model="usr" type="text" required :placeholder="$t('views.login.form.usr')" />
               <b-form-input
                 type="password"
                 required
                 v-model="pwd"
-                class="py-4"
                 :placeholder="$t('views.login.form.pwd')"
               />
-
-              <b-button type="submit" size="lg" class="btn-green w-100 rounded-pill mt-4">{{ $t('views.login.form.login') }}</b-button>
+              <b-button type="submit" size="lg" class="btn-green w-100 rounded-pill mt-2 mt-md-5">{{ $t('views.login.form.login') }}</b-button>
             </b-form>
-
             <div v-if="show_login_providers">
-
               <hr class="m-4" style="border-bottom: 1px solid #ececec;"/>
-
               <div class="d-flex flex-row flex-wrap justify-content-center align-items-center">
-                <p class="mb-3 w-100 text-center">{{ $t('views.login.other-logins') }}</p>
+                <p class="w-100 text-center">{{ $t('views.login.other-logins') }}</p>
                 <b-button
                   v-for="provider in getConfig['providers']"
                   v-bind:key="provider"
                   @click="login(provider.toLowerCase())"
-                  :class="'rounded-pill btn-sm login-btn btn-' + provider.toLowerCase()"
+                  :class="'rounded-pill mt-0 btn-sm login-btn btn-' + provider.toLowerCase()"
                 >
                   <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
                   {{ provider }}
                 </b-button>
               </div>
-
             </div>
             <!-- Powered By-->
-            <b-row id="powered-by" align-h="center">
+            <b-row id="powered-by" align-h="center" class="mt-5">
               <b-col class="text-center">
                 <PoweredBy/>
                 <a href="isard_changelog_link" target="_blank">
                   <p>isard_display_version</p>
                 </a>
+                <b-spinner v-if="loading" />
               </b-col>
             </b-row>
           </b-col>
@@ -258,5 +261,4 @@ export default {
   color: inherit !important;
   text-decoration: none !important;
 }
-
 </style>
