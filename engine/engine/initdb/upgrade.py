@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 19
+release_version = 20
+# release 20: forced_hyp should be a list if not False
 # release 19: Update hypervisors_pools based on actual hypervisors in db
 # release 18: Replace deployment id # to = (and also to domains)
 # release 16: Added secondary wg_mac index
@@ -746,6 +747,18 @@ class Upgrade(object):
                         ).run(self.conn)
             except:
                 None
+
+        if version == 20:
+            domains = r.table(table).with_fields("id", "forced_hyp").run(self.conn)
+            for domain in domains:
+                if domain["forced_hyp"] and not isinstance(domain["forced_hyp"], list):
+                    r.table(table).get(domain["id"]).update(
+                        {"forced_hyp": [domain["forced_hyp"]]}
+                    ).run(self.conn)
+                if domain["forced_hyp"] == ["false"]:
+                    r.table(table).get(domain["id"]).update({"forced_hyp": False}).run(
+                        self.conn
+                    )
 
         return True
 
