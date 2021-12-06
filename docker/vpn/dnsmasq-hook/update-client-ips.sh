@@ -4,7 +4,5 @@
 #$3 - 192.168.128.76 
 #$4 - slax
 
-#export HOSTNAME=$HOSTNAME
-[[ ! -z "$API_DOMAIN" ]] && export API_DOMAIN=$DOMAIN
 export API_HYPERVISORS_SECRET=$API_HYPERVISORS_SECRET
 /usr/bin/python3 /dnsmasq-hook/update-client-ips.py "$@"
