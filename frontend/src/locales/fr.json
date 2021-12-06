@@ -350,7 +350,7 @@
             "delete": "Supprimer"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' sera supprimé, continuer?"
+            "delete-desktop": "'{name}' sera supprimé, continuer  ?"
         },
         "info": {
             "deleting-desktop": "Suppression du bureau",
