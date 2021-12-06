@@ -349,7 +349,7 @@
         "category_generic_exception": "Error recuperando la categoría",
         "register_generic_exception": "Error durante el proceso de registro",
         "update_generic_exception": "Error durante la actualización",
-        "desktop_action_failed": "Error ejecutando la acción en el desktop",
+        "desktop_action_failed": "Error ejecutando la acción en el escriptorio",
         "template_new_not_created": "Error creando la plantilla",
         "get_generic_exception": "Error recuperando los datos",
         "user_new_generic_exception": "Error creando el usuario",
