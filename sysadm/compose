@@ -402,7 +402,6 @@ docker_start()
         run_opts=$OCF_RESKEY_run_opts
     fi
 
-    /usr/bin/docker ps -q -a | xargs -r /usr/bin/docker rm -f
     evaluate_env
     ocf_run $COMPOSE -f ${OCF_RESKEY_conf} up -d ${run_opts}
 
