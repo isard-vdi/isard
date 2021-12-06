@@ -307,7 +307,13 @@
             "delete": "Ezabatu"
         },
         "yes": "Bai",
-        "no": "Ez"
+        "no": "Ez",
+        "info": {
+            "creating-desktop": "Mahaigaina sortzen",
+            "file-downloaded": "Fitxategia deskargatzen",
+            "deleting-desktop": "Mahaigaina ezabatzen",
+            "opening-desktop": "Mahaigaina zabaltzen"
+        }
     },
     "errors": {
         "generic_error": "Errorea gertatu da",
