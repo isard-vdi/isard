@@ -129,12 +129,12 @@ class DownloadThread(threading.Thread, object):
                 )
                 if self.table == "domains":
                     update_domain_status(
-                        "Failed",
+                        "DownloadFailed",
                         self.id,
                         detail="No hypervisor could do the disk_operations.",
                     )
                 else:
-                    update_status_table(self.table, "Failed", self.id)
+                    update_status_table(self.table, "DownloadFailed", self.id)
                 self.finalished_threads.append(self.path)
                 return False
 
