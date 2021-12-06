@@ -333,7 +333,23 @@
         "desktop_not_found": "No s'ha trobat l'escriptori",
         "viewer_not_found": "No s'ha trobat el visor",
         "viewer_protocol_not_found": "No s'ha trobat el protocol del visor",
-        "user_not_found": "No s'ha trobat l'usuari"
+        "user_not_found": "No s'ha trobat l'usuari",
+        "category_generic_exception": "S'ha produït un error recuperant la categoria",
+        "register_generic_exception": "S'ha produït un error durant el procés de registre",
+        "update_generic_exception": "S'ha produït un error durant l'actualització",
+        "template_new_not_created": "S'ha produït un error creant la plantilla",
+        "get_generic_exception": "S'ha produït un error recuperant les dades",
+        "user_new_generic_exception": "S'ha produït un error creant l'usuari",
+        "user_delete_generic_exception": "S'ha produït un error esborrant l'usuari",
+        "desktop_action_failed": "Error al completar l'acció al escriptori",
+        "templates_get_error": "S'ha produït un error recuperant les plantilles",
+        "desktops_get_error": "S'ha produït un error recuperant els escriptoris",
+        "viewer_not_started": "El visor no està engegat",
+        "desktop_start_timeout": "Temps exhaurit engegant l'escriptori",
+        "desktop_stop_timeout": "Temps exhaurit durant l'aturada de l'escriptori",
+        "bad_request": "Els paràmetres de la petició són incorrectes",
+        "bad_request_title": "Error de petició",
+        "undefined_error": "S'ha produït un error"
     },
     "messages": {
         "title": {
