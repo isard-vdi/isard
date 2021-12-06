@@ -83,11 +83,15 @@ def update_domain_forced_hyp(id_domain, hyp_id=None):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
 
-    if hyp_id is None:
-        hyp_id = ""
+    if hyp_id:
+        forced_hyp = [hyp_id]
+    else:
+        forced_hyp = False
 
     results = (
-        rtable.get_all(id_domain, index="id").update({"forced_hyp": hyp_id}).run(r_conn)
+        rtable.get_all(id_domain, index="id")
+        .update({"forced_hyp": forced_hyp})
+        .run(r_conn)
     )
 
     close_rethink_connection(r_conn)
@@ -653,14 +657,11 @@ def get_domain_forced_hyp(id_domain):
         return False, False
     forced_hyp = d.get("forced_hyp", False)
     preferred_hyp = d.get("preferred_hyp", False)
-    if isinstance(forced_hyp, list) and len(forced_hyp) > 0:
-        ## By now, even the webapp will update it as a list, only lets
-        ## to set one forced_hyp
-        if forced_hyp[0] == "false":
-            forced_hyp = False
-        else:
-            forced_hyp = forced_hyp[0]
-    elif forced_hyp == "false":
+    ## By now, even the webapp will update it as a list, only lets
+    ## to set one forced_hyp
+    if forced_hyp:
+        forced_hyp = forced_hyp[0]
+    else:
         forced_hyp = False
     if isinstance(preferred_hyp, list) and len(preferred_hyp) > 0:
         ## By now, even the webapp will update it as a list, only lets
