@@ -7,3 +7,9 @@ services:
     #   - STATS_HYP_HOSTNAME=isard-hypervisor
     #   - STATS_HYP_USER=root
     #   - STATS_HYP_PORT=22
+  isard-grafana:
+    ports:
+      - '3000:3000'
+  isard-influxdb:
+    ports:
+      - '8086:8086'

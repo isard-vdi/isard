@@ -15,3 +15,38 @@ services:
       - isard-hypervisor
 #    volumes:
 #      - /opt/isard/sshkeys:/root/.ssh:ro
+  isard-grafana:
+    container_name: isard-grafana
+    image: ${DOCKER_IMAGE_PREFIX}grafana:${DOCKER_IMAGE_TAG-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.15
+    volumes:
+      - ${BUILD_ROOT_PATH}/docker/grafana/provisioning:/grafana/conf/provisioning
+      - /opt/isard-local/grafana/data:/grafana/data:rw
+    env_file:
+      - .env
+
+  isard-influxdb:
+    # The newer versions can't use python-influxdb, should use python-client-influxdb
+    #image: ${DOCKER_IMAGE_PREFIX}influxdb:${DOCKER_IMAGE_TAG-latest}
+    image: influxdb:2.0-alpine
+    container_name: isard-influxdb
+    volumes:
+      - /opt/isard-local/stats/influxdb/data:/var/lib/influxdb2:rw
+      - /opt/isard-local/stats/influxdb/config:/etc/influxdb2:rw
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${WEBAPP_ADMIN_PWD}
+      - DOCKER_INFLUXDB_INIT_ORG=isardvdi
+      - DOCKER_INFLUXDB_INIT_BUCKET=isardvdi
+      - DOCKER_INFLUXDB_INIT_RETENTION=2w
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN_SECRET}
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.12
