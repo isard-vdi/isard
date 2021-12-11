@@ -112,6 +112,7 @@ docker-image:
           - api
           - authentication
           - backupninja
+          - cypress
           - db
           - engine
           - grafana
@@ -136,7 +137,7 @@ docker-image:
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
-test:
+test-selenium:
   stage: test
   image: docker:latest
   services:
@@ -150,6 +151,27 @@ test:
     - docker-compose -f docker-compose.yml -f testing/docker-compose.yml up -d
     - docker-compose -f docker-compose.yml -f testing/docker-compose.yml exec -T isard-testing pytest testing
 
+test-cypress:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - apk add bash git docker-compose
+    - cp isardvdi.cfg.example isardvdi.cfg
+    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
+    - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.cfg
+    - echo "USAGE=test" >> isardvdi.cfg
+    - ./build.sh
+    - docker-compose --profile test pull
+    - docker-compose up -d
+    - docker-compose run -v $(pwd)/captures:/usr/local/src/isard-frontend/tests/e2e/captures isard-cypress
+  artifacts:
+    when: always
+    paths:
+      - captures/videos/**/*.mp4
+      - captures/screenshots/**/*.png
+
 docker-tag:
   stage: docker-registry
   image:
@@ -161,6 +183,7 @@ docker-tag:
           - api
           - authentication
           - backupninja
+          - cypress
           - db
           - engine
           - grafana

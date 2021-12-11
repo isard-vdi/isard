@@ -13,6 +13,11 @@ services:
     networks:
       isard-network:
     working_dir: /usr/local/src/isard-frontend/
+    environment:
+      CYPRESS_CACHE_FOLDER: /usr/local/src/isard-frontend/node_modules/.cache/cypress
     command: sh -c "yarn install && yarn serve"
     volumes:
     - ${BUILD_ROOT_PATH}/frontend/:/usr/local/src/isard-frontend/
+  isard-cypress:
+    volumes:
+      - ${BUILD_ROOT_PATH}/frontend/:/usr/local/src/isard-frontend/

@@ -15,10 +15,11 @@ if [ ! $(which docker-compose) ]; then
 	exit 1
 fi
 
-# We need docker-compose >= 1.27.3 to use depends_on with service_healthy
+# We need docker-compose >= 1.28 to use service profiles
+# docker-compose >= 1.27.3 to use depends_on with service_healthy
 # docker-compose < 1.26 preserves environment variable quotations
 # Use SKIP_CHECK_DOCKER_COMPOSE_VERSION=true environment variable to skip the check
-REQUIRED_DOCKER_COMPOSE_VERSION="1.27.3"
+REQUIRED_DOCKER_COMPOSE_VERSION="1.28"
 
 GITLAB_PROJECT_ID="21522757"
 CHANGELOG_URL="https://gitlab.com/isard/isardvdi/-/releases/"
@@ -206,11 +207,14 @@ variants(){
 		production)
 			merge "$config_name" $@ $version_parts
 			;;
+		test)
+			merge "$config_name" $@ $(parts_variant test $@) $version_parts
+			;;
 		build)
-			merge "$config_name" $@ $(parts_variant build $@) $version_parts
+			merge "$config_name" $@ $(parts_variant test $@) $(parts_variant build $@) $version_parts
 			;;
 		devel)
-			merge "$config_name" $@ $(parts_variant build $@) $(parts_variant devel $@) $version_parts
+			merge "$config_name" $@ $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@) $version_parts
 			;;
 		*)
 			echo "Error: unknow usage $USAGE"
