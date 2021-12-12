@@ -9,6 +9,8 @@ if [ -z ${HYPERVISOR_HOST_TRUNK_INTERFACE+x} ];
 then
     echo "No vlan interface set in isardvdi.cfg";
 else
+    echo "Activating RTSP"
+    ovs-vsctl set Bridge ovsbr0 rstp_enable=true
     echo "Setting vlan interface: '$HYPERVISOR_HOST_TRUNK_INTERFACE'";
     ovs-vsctl add-port ovsbr0 $HYPERVISOR_HOST_TRUNK_INTERFACE
 fi
