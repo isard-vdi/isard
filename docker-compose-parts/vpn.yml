@@ -4,6 +4,7 @@ services:
     container_name: isard-vpn 
     image: ${DOCKER_IMAGE_PREFIX}vpn:${DOCKER_IMAGE_TAG:-latest}     
     logging:
+      driver: "json-file"
       options:
         max-size: "100m"
     cap_add:

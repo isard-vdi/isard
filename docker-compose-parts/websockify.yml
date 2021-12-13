@@ -4,6 +4,7 @@ services:
     container_name: isard-websockify
     image: ${DOCKER_IMAGE_PREFIX}websockify:${DOCKER_IMAGE_TAG-latest}
     logging:
+      driver: "json-file"
       options:
         max-size: "100m"
     networks:
