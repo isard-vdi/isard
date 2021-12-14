@@ -4,6 +4,7 @@ services:
     image: ${DOCKER_IMAGE_PREFIX}stats:${DOCKER_IMAGE_TAG-latest}
     container_name: isard-stats
     logging:
+      driver: "json-file"
       options:
         max-size: "100m"
     env_file:

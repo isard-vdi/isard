@@ -4,6 +4,7 @@ services:
     container_name: isard-static
     image: ${DOCKER_IMAGE_PREFIX}static:${DOCKER_IMAGE_TAG-latest}
     logging:
+      driver: "json-file"
       options:
         max-size: "100m"
     networks:

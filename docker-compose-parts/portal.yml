@@ -4,6 +4,7 @@ services:
     container_name: isard-portal
     image: ${DOCKER_IMAGE_PREFIX}portal:${DOCKER_IMAGE_TAG-latest}
     logging:
+      driver: "json-file"
       options:
         max-size: "100m"
     cap_add:
