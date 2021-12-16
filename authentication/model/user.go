@@ -19,6 +19,7 @@ type User struct {
 	Username string `rethinkdb:"username"`
 	Password string `rethinkdb:"password"`
 	Provider string `rethinkdb:"provider"`
+	Active   bool   `rethinkdb:"active"`
 
 	Category string `rethinkdb:"category"`
 	Role     Role   `rethinkdb:"role"`

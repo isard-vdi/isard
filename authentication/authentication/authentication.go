@@ -325,6 +325,11 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		}
 	}
 
+	// Check if the user is disabled
+	if !u.Active {
+		return "", "", provider.ErrUserDisabled
+	}
+
 	u.Accessed = float64(time.Now().Unix())
 
 	u2 := model.UserFromID(u.ID())
@@ -378,6 +383,11 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 	if exists {
 		if err := u.Load(ctx, a.DB); err != nil {
 			return "", "", fmt.Errorf("load user from DB: %w", err)
+		}
+
+		// Check if the user is disabled
+		if !u.Active {
+			return "", "", provider.ErrUserDisabled
 		}
 
 		ss, err = a.signToken(u)

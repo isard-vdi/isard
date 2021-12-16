@@ -360,6 +360,7 @@
         "role_not_found": "Role not found",
         "registration_code_not_found": "Registration code not found",
         "user_not_found": "User not found",
+        "user_disabled": "The user is disabled",
         "template_not_found": "Error retrieving template",
         "desktop_not_found": "Desktop not found",
         "viewer_not_found": "Viewer not found",
