@@ -564,7 +564,7 @@ function renderDisplay(data){
 
 function renderName(data){
         return '<div class="block_content" > \
-                <h4 class="title" style="height: 4px; margin-top: 0px;"> \
+                <h4 class="title" style="margin-bottom: 0.1rem; margin-top: 0px;"> \
                 '+data.name+' \
                 </h4> \
                 <p class="excerpt" >'+data.description+'</p> \
