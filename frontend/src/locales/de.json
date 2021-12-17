@@ -152,7 +152,7 @@
             },
             "title": "Anmelden",
             "isard-logo-alt": "Das IsardVDI-Logo ist ein Gämsenkopf.",
-            "powered-by": "Angetrieben von",
+            "powered-by": "Angetrieben von {isardvdi}",
             "errors": {
                 "500": "Serverfehler",
                 "401": "Falscher Benutzername oder falsches Passwort"

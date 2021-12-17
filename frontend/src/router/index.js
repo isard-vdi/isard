@@ -7,6 +7,7 @@ import Register from '@/views/Register.vue'
 import Rdp from '@/views/Rdp.vue'
 import Deployments from '@/views/Deployments.vue'
 import Deployment from '@/views/Deployment.vue'
+import DirectViewer from '@/views/DirectViewer.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { auth } from './auth'
@@ -99,6 +100,11 @@ const router = new VueRouter({
       path: '/expired_session',
       name: 'ExpiredSession',
       component: ExpiredSession
+    },
+    {
+      path: '/vw/*',
+      name: 'DirectViewer',
+      component: DirectViewer
     }
   ],
   mode: 'history'

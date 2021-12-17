@@ -142,7 +142,7 @@
                 "500": "Error en el servidor"
             },
             "other-logins": "O iniciar sesión con",
-            "powered-by": "Funciona con",
+            "powered-by": "Funciona con {isardvdi}",
             "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
         },
         "maintenance": {
@@ -295,6 +295,14 @@
             "desktop": {
                 "not-available": "Escritorio no disponible"
             }
+        },
+        "direct-viewer": {
+            "local-client-help": "Instrucciones de instalación del cliente local",
+            "title": "Visor Directo",
+            "button": {
+                "browser": "Navegador",
+                "spice": "Spice"
+            }
         }
     },
     "messages": {
@@ -311,7 +319,8 @@
             "opening-desktop": "Abriendo escritorio",
             "creating-desktop": "Creando escritorio",
             "file-downloaded": "Fichero descargado"
-        }
+        },
+        "loading": "Cargando"
     },
     "errors": {
         "desktop_new_user_quota_exceeded": "Cuota de usuario de creación de escritorios excedida",

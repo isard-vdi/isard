@@ -142,7 +142,7 @@
                 "500": "Server error"
             },
             "other-logins": "Or login with",
-            "powered-by": "Powered by",
+            "powered-by": "Powered by {isardvdi}",
             "isard-logo-alt": "The IsardVDI logo is a chamois head."
         },
         "maintenance": {
@@ -295,6 +295,14 @@
             "desktop": {
                 "not-available": "Desktop not available"
             }
+        },
+        "direct-viewer": {
+            "local-client-help": "Local client installation instructions",
+            "title": "Direct Viewer",
+            "button": {
+                "browser": "Browser",
+                "spice": "Spice"
+            }
         }
     },
     "messages": {
@@ -311,7 +319,8 @@
             "opening-desktop": "Opening Desktop",
             "creating-desktop": "Creating Desktop",
             "file-downloaded": "File downloaded"
-        }
+        },
+        "loading": "Loading"
     },
     "errors": {
         "desktop_new_user_quota_exceeded": "Desktop creation user quota exceeded",

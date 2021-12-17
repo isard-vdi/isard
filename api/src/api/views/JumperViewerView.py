@@ -11,15 +11,7 @@ import time
 import traceback
 from uuid import uuid4
 
-from flask import (
-    Response,
-    redirect,
-    render_template,
-    request,
-    send_file,
-    send_from_directory,
-    url_for,
-)
+from flask import Response, redirect, request, url_for
 
 #!flask/bin/python
 # coding=utf-8
@@ -36,41 +28,72 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 common = ApiDesktopsCommon()
 
 
-@app.route("/vw/img/<img>", methods=["GET"])
-def api_v3_img(img):
-    return send_from_directory("templates/", img)
-
-
-@app.route("/vw/<token>", methods=["GET"])
+@app.route("/api/v3/direct/<token>", methods=["GET"])
 def api_v3_viewer(token):
     try:
         viewers = common.DesktopViewerFromToken(token)
-        protocol = request.args.get("protocol", default=False)
-        return render_template(
-            "jumper.html",
-            vmName=viewers["vmName"],
-            vmDescription=viewers["vmDescription"],
-            viewers=json.dumps(viewers),
+        return (
+            json.dumps(
+                {
+                    "vmName": viewers["vmName"],
+                    "vmDescription": viewers["vmDescription"],
+                    "viewers": viewers,
+                }
+            ),
+            200,
+            {"Content-Type": "application/json"},
         )
-        # return render_template('jumper.html', data='')
     except DesktopNotFound:
         log.error("Jumper viewer desktop not found")
-        return render_template("error.html", error="Incorrect access")
-        # return json.dumps({"error": "undefined_error","msg":"Jumper viewer token not found"}), 404, {'Content-Type': 'application/json'}
+        return (
+            json.dumps(
+                {
+                    "error": "desktop_not_found",
+                    "msg": "Jumper viewer desktop not found",
+                }
+            ),
+            404,
+            {"Content-Type": "application/json"},
+        )
     except DesktopNotStarted:
         log.error("Jumper viewer desktop not started")
-        return render_template(
-            "error.html", error="Desktop could not be started. Try again in a while..."
+        return (
+            json.dumps(
+                {
+                    "error": "desktop_not_started",
+                    "msg": "Jumper viewer desktop not started",
+                }
+            ),
+            500,
+            {"Content-Type": "application/json"},
         )
-        # return json.dumps({"error": "undefined_error","msg":"Jumper viewer desktop is not started"}), 404, {'Content-Type': 'application/json'}
     except DesktopActionTimeout:
         log.error("Jumper viewer desktop start timeout.")
-        return render_template(
-            "error.html", error="Desktop start timed out. Try again in a while..."
+        return (
+            json.dumps(
+                {
+                    "error": "desktop_start_timeout",
+                    "msg": "Jumper viewer desktop start timeout",
+                }
+            ),
+            408,
+            {"Content-Type": "application/json"},
         )
-        # return json.dumps({"error": "undefined_error","msg":"Jumper viewer start timeout"}), 404, {'Content-Type': 'application/json'}
-    except Exception as e:
+    except:
+        log.error("Jumper viewer general exception: " + traceback.format_exc())
         error = traceback.format_exc()
-        log.error("Jumper viewer general exception: " + error)
-        return render_template("error.html", error="Incorrect access.")
-        # return json.dumps({"error": "undefined_error","msg":"JumperViewer general exception: " + error }), 401, {'Content-Type': 'application/json'}
+        return (
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "Jumper viewer general exception: " + error,
+                }
+            ),
+            500,
+            {"Content-Type": "application/json"},
+        )
+    return (
+        json.dumps({"error": "bad_request", "msg": "Incorrect access. exception: "}),
+        400,
+        {"Content-Type": "application/json"},
+    )

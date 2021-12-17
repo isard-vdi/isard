@@ -5,11 +5,18 @@ import router from '@/router'
 import { apiV3Segment } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
+import { get } from 'lodash'
 
 export default {
   state: {
     viewers: localStorage.viewers ? JSON.parse(localStorage.viewers) : {},
     desktops: [],
+    directViewer: {
+      name: '',
+      description: '',
+      viewers: [],
+      state: ''
+    },
     desktops_loaded: false,
     viewType: 'grid',
     showStarted: false,
@@ -35,6 +42,9 @@ export default {
     },
     getDesktopsFilter: state => {
       return state.filters.desktops
+    },
+    getDirectViewer: state => {
+      return state.directViewer
     }
   },
   mutations: {
@@ -67,6 +77,14 @@ export default {
     },
     saveDesktopFilter: (state, payload) => {
       state.filters.desktops = payload.filter
+    },
+    saveDirectViewer: (state, payload) => {
+      state.directViewer.name = payload.name
+      state.directViewer.description = payload.description
+      state.directViewer.viewers = payload.viewers
+    },
+    setDirectViewerErrorState: (state) => {
+      state.directViewer.state = 'error'
     }
   },
   actions: {
@@ -178,6 +196,38 @@ export default {
     },
     navigate (context, path) {
       router.push({ name: path })
+    },
+    getDirectViewers (context, payload) {
+      axios.get(`/api/v3/direct/${payload.token}`).then(response => {
+        const name = get(response, 'data.viewers.vmName')
+        const description = get(response, 'data.viewers.vmDescription')
+        const viewers = Object.values(get(response, 'data.viewers')).filter(e => typeof e !== 'string')
+
+        context.commit('saveDirectViewer', { name, description, viewers })
+      }).catch(e => {
+        context.commit('setDirectViewerErrorState')
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    openDirectViewerDesktop (_, payload) {
+      const el = document.createElement('a')
+
+      if (payload.kind === 'file') {
+        el.setAttribute(
+          'href',
+            `data:${payload.mime};charset=utf-8,${encodeURIComponent(payload.content)}`
+        )
+        el.setAttribute('download', `${payload.name}.${payload.ext}`)
+      } else if (payload.kind === 'browser') {
+        cookies.setCookie('browser_viewer', payload.cookie)
+        el.setAttribute('href', payload.viewer)
+        el.setAttribute('target', '_blank')
+      }
+
+      el.style.display = 'none'
+      document.body.appendChild(el)
+      el.click()
+      document.body.removeChild(el)
     }
   }
 }
