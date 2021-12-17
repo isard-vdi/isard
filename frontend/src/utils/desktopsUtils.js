@@ -8,7 +8,7 @@ export class DesktopUtils {
   }
 
   static parseDesktop (item) {
-    const { description, icon, id, name, state, type, viewers, ip, template } = item
+    const { description, icon, id, name, state, type, viewers, ip, template, progress } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -19,7 +19,8 @@ export class DesktopUtils {
       ip,
       viewers: (viewers !== undefined && viewers !== null) ? viewers : [],
       template,
-      buttonIconName: this.buttonIconName(item)
+      buttonIconName: this.buttonIconName(item),
+      progress
     }
   }
 

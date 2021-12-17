@@ -34,6 +34,15 @@
                   <p class='mb-0 text-state font-weight-bold' :class="statusTextCssColor"> {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`)}}</p>
                 </div>
 
+                <div v-if="desktop.progress"  class='ml-4 mr-4 flex-row justify-left'>
+                  <small>{{ desktop.progress.size }} - {{ desktop.progress.throughput_average }}/s - {{ desktop.progress.time_left }}</small>
+                  <b-progress :max="100" height="2rem">
+                    <b-progress-bar variant="secondary" :value="desktop.progress.percentage" show-progress animated>
+                      <strong>{{ desktop.progress.percentage }} %</strong>
+                    </b-progress-bar>
+                  </b-progress>
+                </div>
+
                 <!-- Actions -->
                 <div v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(desktopState)" class='d-flex flex-row justify-content-start ml-3 mb-1'>
                   <!-- Main action button nonpersistent -->
