@@ -111,6 +111,25 @@ fi
 
 git fetch $REMOTE
 
+# Check if there is a BREAKING CHANGES due to change of major version
+CURRENT_MAJOR_VERSION="$(git name-rev --name-only HEAD | sed -n 's|^tags/v\([^\.]\+\)\.[^\.]\+\.[^\^]\+$|\1|p')"
+if [ -z "$CURRENT_MAJOR_VERSION" ]
+then
+	echo "Error: Current major version not detected. Please, checkout a branch with a version tag." >&2
+	exit 1
+fi
+CANDIDATE_MAJOR_VERSION="$(git name-rev --name-only @{u} | sed -n 's|^tags/v\([^\.]\+\)\.[^\.]\+\.[^\^]\+$|\1|p')"
+if [ -z "$CANDIDATE_MAJOR_VERSION" ]
+then
+	echo "Error: Candidate major version not detected. Maybe a version is not released yet. Try again later." >&2
+	exit 1
+fi
+if [ "$CURRENT_MAJOR_VERSION" != "$CANDIDATE_MAJOR_VERSION" ]
+then
+  echo "Error: Current major version is $CURRENT_MAJOR_VERSION and there is the new major version $CANDIDATE_MAJOR_VERSION. Please read BREAKING CHANGES at https://gitlab.com/isard/isardvdi/-/releases" >&2
+	exit 1
+fi
+
 # Check if there are docker images for last commit of remote traked branch
 sha="$(git rev-parse @{u})"
 success_pipelines="$(wget -qO - "$GITLAB_PIPELINES_API?status=success&sha=$sha" | jq 'reduce .[] as $_ (0;.+1)')"
