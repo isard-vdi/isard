@@ -275,6 +275,9 @@
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _"
     },
     "forms": {
+        "registration": {
+            "code": "Codi de registre"
+        },
         "new-desktop": {
             "title": "Crear un nou escriptori:",
             "section-title-template": "Seleccionar una plantilla:",

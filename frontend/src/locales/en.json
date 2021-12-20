@@ -6,6 +6,9 @@
         "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _"
     },
     "forms": {
+        "registration": {
+            "code": "Registration code"
+        },
         "new-desktop": {
             "title": "Create new desktop:",
             "section-title-template": "Select a template:",

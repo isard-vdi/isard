@@ -17,7 +17,7 @@
       <!-- Form -->
       <b-row align-h="center" class="justify-content-center pt-1 pb-1">
         <b-col cols="8" md="6" lg="4" xl="2">
-          <b-form @submit.prevent="register(code)">
+          <b-form @submit.prevent="submitForm">
             <b-row align-h="center" class="justify-content-center">
               <b-alert
                 v-model="showAlert"
@@ -31,9 +31,9 @@
                   type="text"
                   class="py-4 mt-3 mb-3"
                   v-model="code"
-                  required
                   :placeholder="$t('views.register.code')"
               />
+              <div class="isard-form-error" v-if="v$.code.$error">{{ $t(`validations.${v$.code.$errors[0].$validator}`, { property: `${$t("forms.registration.code")}` }) }}</div>
             </b-row>
             <b-row align-h="center" class="justify-content-center mt-2 mb-3">
               <b-button type="submit" class="rounded-pill w-100 btn-green">{{ $t('views.register.register') }}</b-button>
@@ -52,19 +52,42 @@
 </template>
 
 <script>
+import PoweredBy from '@/components/shared/PoweredBy.vue'
 import Logo from '@/components/Logo.vue'
 import { mapActions, mapGetters } from 'vuex'
+import useVuelidate from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
+  setup (props, context) {
+    return {
+      v$: useVuelidate()
+    }
+  },
   name: 'register',
   components: {
-    Logo
+    Logo,
+    PoweredBy
+  },
+  validations () {
+    return {
+      code: {
+        required
+      }
+    }
   },
   methods: {
     ...mapActions([
       'register',
       'deleteSessionAndGoToLogin'
-    ])
+    ]),
+    async submitForm () {
+      const isFormCorrect = await this.v$.$validate()
+
+      if (isFormCorrect) {
+        this.register(this.code)
+      }
+    }
   },
   computed: {
     ...mapGetters([
