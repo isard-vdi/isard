@@ -5,3 +5,8 @@ services:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/stats/Dockerfile
       target: production
+  isard-grafana:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/grafana/Dockerfile
+      target: production
