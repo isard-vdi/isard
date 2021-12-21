@@ -139,7 +139,8 @@
             },
             "errors": {
                 "401": "Incorrect user or password",
-                "500": "Server error"
+                "500": "Server error",
+                "generic": "An error occurred"
             },
             "other-logins": "Or login with",
             "powered-by": "Powered by {isardvdi}",
