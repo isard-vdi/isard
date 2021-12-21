@@ -1,0 +1,13 @@
+[Unit]
+Description=IsardVDI manager service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Restart=always
+WorkingDirectory=/opt/isard/src
+ExecStart=docker-compose up
+ExecStop=docker-compose down
+
+[Install]
+WantedBy=multi-user.target
