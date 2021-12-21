@@ -516,8 +516,8 @@ def api_v3_user_desktop(payload, desktop_id):
 def api_v3_user_vpn(payload, kind, os=False):
     if not os and kind != "config":
         return (
-            json.dumps({"error": "undefined_error", "msg": "UserVpn: no OS supplied"}),
-            401,
+            json.dumps({"error": "bad_request", "msg": "UserVpn: no OS supplied"}),
+            400,
             {"Content-Type": "application/json"},
         )
 
@@ -527,7 +527,7 @@ def api_v3_user_vpn(payload, kind, os=False):
         return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}
     else:
         return (
-            json.dumps({"error": "undefined_error", "msg": "UserVpn no VPN data"}),
-            401,
+            json.dumps({"error": "vpn_not_found", "msg": "UserVpn no VPN data"}),
+            404,
             {"Content-Type": "application/json"},
         )
