@@ -109,6 +109,21 @@
   margin-right: 1rem;
 }
 
+#logo-wrapper {
+  width: 100px;
+  height: 100px;
+  background-color: #918e91;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  margin: auto;
+}
+
+#logo-wrapper img {
+  margin: auto;
+  height:90%;
+}
+
 /* CARD LIST */
 .card-list hr.separator {
   background: #979797;

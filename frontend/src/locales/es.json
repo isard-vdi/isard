@@ -6,6 +6,9 @@
         "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _"
     },
     "forms": {
+        "registration": {
+            "code": "Código de registro"
+        },
         "new-desktop": {
             "title": "Nuevo escritorio:",
             "section-title-template": "Selecciona una plantilla:",

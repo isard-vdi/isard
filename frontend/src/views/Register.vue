@@ -1,46 +1,93 @@
 <template>
-    <b-container fluid>
-        <b-row id="header" align-h="center">
+    <b-container fluid class="justify-content-center pt-lg-5 min-vh-100">
+      <!-- logo -->
+      <b-row class="mt-5">
+        <b-col cols="1" lg="4"></b-col>
+        <b-col cols="10" lg="4" class="justify-content-center d-flex right-separator-border rounded-top-30" style="height: 8rem;">
+          <div id="logo-wrapper">
             <Logo/>
-        </b-row>
-        <b-row id="register" align-h="center">
-            <b-col sm="10" md="6" lg="5" xl="4">
-                <h1>{{ $t('views.register.title') }}</h1>
-                <b-form @submit.prevent="register(code)">
-                <b-alert
-                  v-model="showAlert"
-                  variant="danger"
-                >
-                {{ this.getPageErrorMessage }}
-                </b-alert>
-                <b-form-input
-                    type="text"
-                    v-model="code"
-                    required
-                    :placeholder="$t('views.register.code')"
-                />
-                  <b-button type="submit" variant="warning" size="lg">{{ $t('views.register.register') }}</b-button>
-                  <b-button @click="deleteSessionAndGoToLogin()" class="ml-3" variant="primary" size="lg">{{ $t('views.cancel') }}</b-button>
-                </b-form>
-            </b-col>
-        </b-row>
+          </div>
+        </b-col>
+        <b-col cols="1" lg="4"></b-col>
+      </b-row>
+      <!-- Title -->
+      <b-row align-h="center" class="justify-content-center pt-1 pb-1">
+        <h1>{{ $t('views.register.title') }}</h1>
+      </b-row>
+      <!-- Form -->
+      <b-row align-h="center" class="justify-content-center pt-1 pb-1">
+        <b-col cols="8" md="6" lg="4" xl="2">
+          <b-form @submit.prevent="submitForm">
+            <b-row align-h="center" class="justify-content-center">
+              <b-alert
+                v-model="showAlert"
+                variant="danger"
+              >
+              {{ this.getPageErrorMessage }}
+              </b-alert>
+            </b-row>
+            <b-row align-h="center" class="justify-content-center">
+              <b-form-input
+                  type="text"
+                  class="py-4 mt-3 mb-3"
+                  v-model="code"
+                  :placeholder="$t('views.register.code')"
+              />
+              <div class="isard-form-error" v-if="v$.code.$error">{{ $t(`validations.${v$.code.$errors[0].$validator}`, { property: `${$t("forms.registration.code")}` }) }}</div>
+            </b-row>
+            <b-row align-h="center" class="justify-content-center mt-2 mb-3">
+              <b-button type="submit" class="rounded-pill w-100 btn-green">{{ $t('views.register.register') }}</b-button>
+            </b-row>
+            <b-row align-h="center" class="justify-content-center mt-3">
+              <b-button @click="deleteSessionAndGoToLogin()" class="rounded-pill w-100 btn-red">{{ $t('views.cancel') }}</b-button>
+            </b-row>
+          </b-form>
+        </b-col>
+      </b-row>
+      <!-- Footer -->
+      <b-row id="powered-by" align-h="center">
+        <PoweredBy/>
+      </b-row>
     </b-container>
 </template>
 
 <script>
+import PoweredBy from '@/components/shared/PoweredBy.vue'
 import Logo from '@/components/Logo.vue'
 import { mapActions, mapGetters } from 'vuex'
+import useVuelidate from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
+  setup (props, context) {
+    return {
+      v$: useVuelidate()
+    }
+  },
   name: 'register',
   components: {
-    Logo
+    Logo,
+    PoweredBy
+  },
+  validations () {
+    return {
+      code: {
+        required
+      }
+    }
   },
   methods: {
     ...mapActions([
       'register',
       'deleteSessionAndGoToLogin'
-    ])
+    ]),
+    async submitForm () {
+      const isFormCorrect = await this.v$.$validate()
+
+      if (isFormCorrect) {
+        this.register(this.code)
+      }
+    }
   },
   computed: {
     ...mapGetters([
@@ -57,18 +104,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-#header {
-  padding: 25px 25px 0 25px;
-  margin-bottom: 100px;
-}
-
-#register form {
-    margin: 25px;
-}
-
-#register form input {
-    margin-bottom: 18px;
-}
-</style>
