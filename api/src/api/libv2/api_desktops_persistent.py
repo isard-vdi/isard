@@ -470,3 +470,10 @@ class ApiDesktopsPersistent:
             except DesktopActionTimeout:
                 raise DesktopActionTimeout
         return desktop_id
+
+    def Update(self, desktop_id, desktop_data):
+        with app.app_context():
+            return _check(
+                r.table("domains").get(desktop_id).update(desktop_data).run(db.conn),
+                "replaced",
+            )

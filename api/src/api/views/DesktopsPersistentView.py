@@ -12,6 +12,7 @@ import traceback
 from uuid import uuid4
 
 from flask import request
+from schema import And, Optional, Schema, SchemaError, Use
 
 #!flask/bin/python
 # coding=utf-8
@@ -24,8 +25,10 @@ from ..libv2.quotas_exc import *
 quotas = Quotas()
 
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+from ..libv2.api_hypervisors import get_hypervisors
 
 desktops = ApiDesktopsPersistent()
+
 
 from .decorators import (
     allowedTemplateId,
@@ -35,6 +38,40 @@ from .decorators import (
     ownsDomainId,
     ownsUserId,
 )
+
+
+def validate_desktop_schema(desktop_data, validate=True):
+
+    desktop_schema_template = Schema(
+        {
+            Optional("forced_hyp"): And(Use(list)),
+            Optional("options"): {
+                Optional("viewers"): {
+                    Optional("spice"): {
+                        Optional("fullscreen"): And(Use(bool)),
+                    }
+                }
+            },
+            Optional("image"): {
+                "type": And(Use(str), lambda t: t in ["user", "stock"])
+            },  # Needs processing
+        }
+    )
+    if validate:
+        try:
+            desktop_schema_template.validate(desktop_data)
+            ## Note: The lambda schema option didn't work
+            if desktop_data.get("forced_hyp"):
+                hypervisors = get_hypervisors()
+                for forced_hyp in desktop_data["forced_hyp"]:
+                    if forced_hyp in [hyp["id"] for hyp in hypervisors]:
+                        return True
+                return False
+            return True
+        except SchemaError:
+            return False
+    else:
+        return desktop_schema_template.json_schema("https://example.com/my-schema.json")
 
 
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])
@@ -714,6 +751,99 @@ def api_v3_desktop_from_scratch(payload):
                 {
                     "error": "generic_error",
                     "msg": "PersistentDesktopNew general exception: " + error,
+                }
+            ),
+            500,
+            {"Content-Type": "application/json"},
+        )
+
+
+@app.route("/api/v3/desktop/<desktop_id>", methods=["PUT"])
+@has_token
+def api_v3_desktop_edit(payload, desktop_id):
+
+    if not ownsDomainId(payload, desktop_id):
+        return (
+            json.dumps({"error": "forbidden", "msg": "Desktop start forbidden"}),
+            403,
+            {"Content-Type": "application/json"},
+        )
+
+    try:
+        user_id = desktops.UserDesktop(desktop_id)
+    except UserNotFound:
+        log.error("Desktop user not found")
+        return (
+            json.dumps(
+                {
+                    "error": "user_not_found",
+                    "msg": "DesktopStart user not found",
+                }
+            ),
+            404,
+            {"Content-Type": "application/json"},
+        )
+    except Exception as e:
+        error = traceback.format_exc()
+        return (
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopStart exception: " + error,
+                }
+            ),
+            500,
+            {"Content-Type": "application/json"},
+        )
+
+    try:
+        data = request.json
+    except:
+        return (
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access. exception: " + traceback.format_exc(),
+                }
+            ),
+            400,
+            {"Content-Type": "application/json"},
+        )
+
+    if not validate_desktop_schema(data):
+        log.error("Incorrect access parameters. Check your query.")
+        return (
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect parameters starting desktop. Check your query to match parameters: %s"
+                    % (validate_desktop_schema(data, validate=False)),
+                }
+            ),
+            400,
+            {"Content-Type": "application/json"},
+        )
+
+    ## Remove from data the fields that need processing
+
+    if data.get("image"):
+        image_data = data.pop("image")
+        ## Process image (cards) functions
+        ## TODO: When desktop_images MR gets into main
+
+    ## Just update the remaining data dictionary for desktop
+    try:
+        return (
+            json.dumps(desktops.Update(desktop_id, data)),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    except Exception as e:
+        return (
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "DesktopUpdate general exception: " + traceback.format_exc(),
                 }
             ),
             500,
