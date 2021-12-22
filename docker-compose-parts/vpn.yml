@@ -23,7 +23,7 @@ services:
     privileged: true
     volumes:
       - /sys:/sys:rw
-      - ${PATH_VPN_CERTS-/opt/isard-local/wireguard/certs}:/certs
+      - /opt/isard/wireguard/certs:/certs
     env_file:
       - .env  
 
