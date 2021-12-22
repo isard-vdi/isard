@@ -52,7 +52,7 @@
 
       <!-- Filter -->
       <b-row class="mt-2">
-          <b-col cols="2"><label for="desktopNameField">{{ $t('forms.new-desktop.filter') }}</label></b-col>
+          <b-col cols="2"><label for="filter-input">{{ $t('forms.new-desktop.filter') }}</label></b-col>
           <b-col cols="8" md="6" lg="4" xl="4">
             <b-input-group size="sm">
               <b-form-input
@@ -99,7 +99,6 @@
         </b-table>
         </b-col>
       </b-row>
-
       <!-- Pagination -->
       <b-row>
         <b-col>
@@ -148,8 +147,6 @@ export default {
 
     const items = computed(() => $store.getters.getTemplates)
 
-    const totalRows = ref(items.length)
-
     const fields = reactive([
       {
         key: 'selected',
@@ -196,7 +193,6 @@ export default {
     return {
       desktopName,
       description,
-      totalRows,
       items,
       fields,
       perPage,
@@ -218,6 +214,14 @@ export default {
       },
       selectedTemplateId: { required }
     }
+  },
+  data () {
+    return {
+      totalRows: 1
+    }
+  },
+  mounted () {
+    this.totalRows = this.items.length
   },
   methods: {
     ...mapActions([
