@@ -52,7 +52,7 @@
 
       <!-- Filter -->
       <b-row class="mt-2">
-          <b-col cols="2"><label for="desktopNameField">{{ $t('forms.new-desktop.filter') }}</label></b-col>
+          <b-col cols="2"><label for="filter-input">{{ $t('forms.new-desktop.filter') }}</label></b-col>
           <b-col cols="8" md="6" lg="4" xl="4">
             <b-input-group size="sm">
               <b-form-input
