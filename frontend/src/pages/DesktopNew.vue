@@ -151,8 +151,8 @@ export default {
       {
         key: 'selected',
         label: i18n.t('forms.new-desktop.template-table-column-headers.selected'),
-        thClass: 'col-1 d-none d-md-inline-block',
-        tdClass: 'col-1 d-none d-md-inline-block'
+        thClass: 'col-1',
+        tdClass: 'col-1'
       },
       {
         key: 'name',
@@ -164,29 +164,29 @@ export default {
         key: 'description',
         sortable: true,
         label: i18n.t('forms.new-desktop.template-table-column-headers.description'),
-        thClass: 'col-4 d-none d-xl-inline-block',
-        tdClass: 'col-4 d-none d-xl-inline-block'
+        thClass: 'col-3',
+        tdClass: 'col-3'
       },
       {
         key: 'category',
         label: i18n.t('forms.new-desktop.template-table-column-headers.category'),
         sortable: true,
-        thClass: 'col-4 d-none d-md-inline-block',
-        tdClass: 'col-4 d-none d-md-inline-block'
+        thClass: 'col-2',
+        tdClass: 'col-2'
       },
       {
         key: 'group',
         label: i18n.t('forms.new-desktop.template-table-column-headers.group'),
         sortable: false,
-        thClass: 'col-2 d-none d-md-inline-block',
-        tdClass: 'col-2 d-none d-md-inline-block'
+        thClass: 'col-2',
+        tdClass: 'col-2'
       },
       {
         key: 'userName',
         sortable: true,
         label: i18n.t('forms.new-desktop.template-table-column-headers.user'),
-        thClass: 'col-2 d-none d-md-inline-block',
-        tdClass: 'col-2 d-none d-md-inline-block'
+        thClass: 'col-2',
+        tdClass: 'col-2'
       }
     ])
 
