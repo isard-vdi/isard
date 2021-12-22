@@ -100,7 +100,7 @@
                 <!-- Main action button persistent-->
                 <DesktopButton v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )) && ![desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
                     class="table-action-button"
-                    active="true"
+                    :active="true"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
                     :buttColor = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
