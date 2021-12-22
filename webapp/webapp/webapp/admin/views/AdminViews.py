@@ -198,9 +198,6 @@ def admin_config_update():
             dict["auth"]["local"] = (
                 {"active": False} if "local" not in dict["auth"] else {"active": True}
             )
-            dict["auth"]["ldap"]["active"] = (
-                False if "active" not in dict["auth"]["ldap"] else True
-            )
         if "engine" in dict:
             if "grafana" in dict["engine"]:
                 dict["engine"]["grafana"]["active"] = (

@@ -23,7 +23,6 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..auth.authentication import *
 from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
@@ -62,9 +61,6 @@ def check_category_domain(category_id, domain):
 
 
 class ApiUsers:
-    def __init__(self):
-        self.au = auth()
-
     def Jwt(self, user_id):
         # user_id = provider_id+'-'+category_id+'-'+id+'-'+id
         try:
@@ -127,12 +123,6 @@ class ApiUsers:
                 algorithm="HS256",
             )
         raise UserLoginFailed
-
-    def LoginLdap(self, user_id, user_passwd):
-        user = self.au._check(user_id, user_passwd)
-        if user == False:
-            raise UserLoginFailed
-        return user.id
 
     def Exists(self, user_id):
         with app.app_context():

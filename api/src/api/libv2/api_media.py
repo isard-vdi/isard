@@ -27,7 +27,6 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..auth.authentication import *
 from .apiv2_exc import *
 from .ds import DS
 from .helpers import _check, _disk_path, _parse_media_info, _parse_string

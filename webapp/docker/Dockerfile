@@ -4,7 +4,6 @@ MAINTAINER isard <info@isard.com>
 RUN apk add --no-cache \
     yarn \
     py3-openssl \
-    py3-pyldap \
     py3-pip
 
 RUN apk add --no-cache --virtual .build_deps \
