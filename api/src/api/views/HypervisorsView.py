@@ -23,11 +23,11 @@ from ..libv2.quotas_exc import *
 
 quotas = Quotas()
 
-from ..libv2.api_hypervisors import ApiHypervisors
+from ..libv2.api_hypervisors import ApiHypervisors, get_hypervisors
 
 api_hypervisors = ApiHypervisors()
 
-from .decorators import is_hyper
+from .decorators import is_admin, is_hyper
 
 # @app.route('/api/v3/hypervisor/vm/guest_addr', methods=['POST'])
 # @is_hyper
@@ -55,6 +55,28 @@ from .decorators import is_hyper
 #         error = traceback.format_exc()
 #         log.error("Update guest addr general exception" + error)
 #         return json.dumps({"error": "undefined_error","msg":"Update guest addr general exception: " + error }), 500, {'Content-Type': 'application/json'}
+
+
+@app.route("/api/v3/hypervisors", methods=["GET"])
+@app.route("/api/v3/hypervisors/<status>", methods=["GET"])
+@is_admin
+def api_v3_hypervisors(payload, status=None):
+    if status and status not in ["Online", "Offline", "Error"]:
+        return (
+            json.dumps(
+                {
+                    "error": "bad_request",
+                    "msg": "Incorrect access parameters. Check your query.",
+                }
+            ),
+            400,
+            {"Content-Type": "application/json"},
+        )
+    return (
+        json.dumps(get_hypervisors(status)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/hypervisor/vm/wg_addr", methods=["POST"])

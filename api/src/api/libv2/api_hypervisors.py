@@ -52,6 +52,14 @@ from subprocess import check_call, check_output
 from .helpers import _check, _random_password
 
 
+def get_hypervisors(status=None):
+    with app.app_context():
+        if not status:
+            return list(r.table("hypervisors").run(db.conn))
+        else:
+            return list(r.table("hypervisors").filter({"status": status}).run(db.conn))
+
+
 # os.environ['WG_HYPERS_NET']
 # maximum_hypers=os.environ['WG_HYPERS_NET']
 class ApiHypervisors:
