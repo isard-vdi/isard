@@ -133,3 +133,12 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .nav_menu {
   background: white;
 }
+
+.nav-sm ul.nav.child_menu {
+  background: #3b3e47;
+}
+
+.nav.side-menu li:not(.active):hover,
+.nav.child_menu li:hover {
+  background: rgba(255, 255, 255, 0.05)
+}
