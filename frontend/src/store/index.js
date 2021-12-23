@@ -100,7 +100,7 @@ export default new Vuex.Store({
         })
       })
     },
-    login (context, data) {
+    login ({ commit }, data) {
       return new Promise((resolve, reject) => {
         axios.post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
           const token = response.data
@@ -111,17 +111,18 @@ export default new Vuex.Store({
           } else {
             store.dispatch('loginSuccess', token)
           }
-
           resolve()
         }).catch(e => {
-          console.log(e)
           if (e.response.status === 503) {
-            reject(e)
             router.push({ name: 'Maintenance' })
+          } else if (e.response.status === 401) {
+            commit('setPageErrorMessage', i18n.t('views.login.errors.401'))
+          } else if (e.response.status === 500) {
+            commit('setPageErrorMessage', i18n.t('views.login.errors.500'))
           } else {
-            console.log(e)
-            reject(e)
+            commit('setPageErrorMessage', i18n.t('views.login.errors.generic'))
           }
+          reject(e)
         })
       })
     },

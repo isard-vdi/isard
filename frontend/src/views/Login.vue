@@ -37,7 +37,7 @@
                 dismissible
                 variant="danger"
               >
-                {{ this.error }}
+                {{ getPageErrorMessage }}
               </b-alert>
               <!-- Category selection -->
               <b-form-select
@@ -122,7 +122,8 @@ export default {
   computed: {
     ...mapGetters([
       'getCategories',
-      'getConfig'
+      'getConfig',
+      'getPageErrorMessage'
     ]),
     categories_select () {
       return this.getCategories.map(category =>
@@ -170,7 +171,7 @@ export default {
           .dispatch('login', data)
           .then(() => {})
           .catch(err => {
-            this.error = this.$t('views.login.errors')[err.response && err.response.status.toString()]
+            console.log(err)
             this.showDismissibleAlert = true
             this.loading = false
           })

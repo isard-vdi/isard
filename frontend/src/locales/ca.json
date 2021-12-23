@@ -113,7 +113,8 @@
             "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard.",
             "errors": {
                 "500": "Error del servidor",
-                "401": "Usuari o contrasenya incorrecta"
+                "401": "Usuari o contrasenya incorrecta",
+                "generic": "S'ha produït un error"
             }
         },
         "maintenance": {
