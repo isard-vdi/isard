@@ -58,7 +58,7 @@
                   <!-- Main action button persistent-->
                   <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
                       class="card-button"
-                      active="true"
+                      :active="true"
                       @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
                       :buttColor = "buttCssColor"
                       :spinnerActive ="false"
