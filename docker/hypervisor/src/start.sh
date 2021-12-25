@@ -73,8 +73,14 @@ else
 fi
 
 echo "---> HYPERVISOR READY <---"
+
 while true
 do
-    sleep 5
+    ping -c 1 10.1.0.1 >/dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        wg-quick down wg0  >/dev/null 2>&1
+        wg-quick up wg0  >/dev/null 2>&1
+    fi
+    sleep 30
 done
 
