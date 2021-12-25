@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from time import sleep
 
 from engine.models.engine import Engine
@@ -128,7 +129,8 @@ def stop_thread_event():
 
 @api.route("/engine_restart", methods=["GET"])
 def engine_restart():
-    os.system("supervisorctl -c /etc/supervisord.conf restart engine")
+    os.system("python3 -u start.py")
+    exit()
 
 
 @api.route("/engine_info", methods=["GET"])
