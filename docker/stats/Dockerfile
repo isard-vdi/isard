@@ -1,4 +1,4 @@
-FROM alpine:latest as production
+FROM alpine:3.15 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache --virtual .build_deps \
@@ -16,7 +16,7 @@ RUN apk add --no-cache --virtual .build_deps \
 RUN apk add --no-cache python3 docker py3-libvirt
 RUN apk add --no-cache py3-pip
 RUN pip3 install --upgrade pip
-RUN pip3 install --no-cache-dir setuptools_rust psutil requests docker xmltodict ipython flatten_dict redis rethinkdb==2.3.0.post6
+RUN pip3 install --no-cache-dir setuptools_rust psutil requests docker xmltodict ipython flatten_dict rethinkdb==2.3.0.post6
 RUN pip3 install --no-cache-dir influxdb-client
 RUN pip3 install --no-cache-dir pyyaml
 RUN pip3 install --no-cache-dir tabulate pid
