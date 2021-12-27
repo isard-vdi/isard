@@ -930,7 +930,7 @@ def socketio_hyper_delete(data):
                     "result": True,
                     "title": "Hypervisor deletiing",
                     "text": "Hypervisor "
-                    + data["name"]
+                    + data["pk"]
                     + " deletion on progress. Engine will delete it when no operations pending.",
                     "icon": "success",
                     "type": "success",
@@ -942,7 +942,7 @@ def socketio_hyper_delete(data):
                     "result": False,
                     "title": "Hypervisor deleting",
                     "text": "Hypervisor "
-                    + data["name"]
+                    + data["pk"]
                     + " could not set it to start deleting process.",
                     "icon": "warning",
                     "type": "error",
@@ -961,7 +961,7 @@ def socketio_hyper_toggle(data):
                 {
                     "result": True,
                     "title": "Hypervisor enable/disable",
-                    "text": "Hypervisor " + data["name"] + " enable/disable success.",
+                    "text": "Hypervisor " + data["pk"] + " enable/disable success.",
                     "icon": "success",
                     "type": "success",
                 }
@@ -972,7 +972,7 @@ def socketio_hyper_toggle(data):
                     "result": False,
                     "title": "Hypervisor enable/disable",
                     "text": "Hypervisor "
-                    + data["name"]
+                    + data["pk"]
                     + " could not toggle enable status!",
                     "icon": "warning",
                     "type": "error",
@@ -994,7 +994,7 @@ def socketio_hyper_domains_stop(data):
                     "result": False,
                     "title": "Hypervisor domains stoping",
                     "text": "Domains in "
-                    + data["name"]
+                    + data["pk"]
                     + " hypervisor could not be stopped now.!",
                     "icon": "warning",
                     "type": "error",
@@ -1008,7 +1008,7 @@ def socketio_hyper_domains_stop(data):
                     "title": "Hypervisor domains stopping",
                     "text": str(res)
                     + " domains in hypervisor "
-                    + data["name"]
+                    + data["pk"]
                     + " have been stopped.",
                     "icon": "success",
                     "type": "success",
