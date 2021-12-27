@@ -1,4 +1,4 @@
-FROM alpine:3.14.0 as build
+FROM alpine:3.15.0 as build
 MAINTAINER isard <info@isard.com>
 RUN apk add --no-cache \
     automake \
