@@ -11,7 +11,8 @@ export default {
       desktops: []
     },
     deployment_loaded: false,
-    selectedDesktop: {}
+    selectedDesktop: {},
+    deploymentsShowStarted: false
   },
   getters: {
     getDeployments: state => {
@@ -28,6 +29,9 @@ export default {
     },
     getSelectedDesktop: state => {
       return state.selectedDesktop
+    },
+    getDeploymentsShowStarted: state => {
+      return state.deploymentsShowStarted
     }
   },
   mutations: {
@@ -67,6 +71,9 @@ export default {
       if (deploymentIndex !== -1) {
         state.deployment.desktops.splice(deploymentIndex, 1)
       }
+    },
+    toggleDeploymentsShowStarted: (state, type) => {
+      state.deploymentsShowStarted = !state.deploymentsShowStarted
     }
   },
   actions: {
@@ -118,6 +125,9 @@ export default {
     },
     setSelectedDesktop (context, selectedDesktop) {
       context.commit('setSelectedDesktop', selectedDesktop)
+    },
+    toggleDeploymentsShowStarted (context) {
+      context.commit('toggleDeploymentsShowStarted')
     }
   }
 }

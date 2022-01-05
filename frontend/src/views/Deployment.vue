@@ -8,7 +8,7 @@
       <template v-if="getViewType === 'grid'">
         <h5 class='font-weight-bold'>{{ getDeployment.name }}</h5>
         <b-row class='pb-3 pt-2'>
-          <DeploymentCard :key='desktop.id' v-for='desktop in sortedDesktops' :desktop="desktop" />
+          <DeploymentCard :key='desktop.id' v-for='desktop in visibleDesktops' :desktop="desktop" />
         </b-row>
       </template>
       <template v-else>
@@ -53,12 +53,15 @@ export default {
     this.$store.dispatch('setSelectedDesktop', this.getDeployment.desktops[0])
   },
   computed: {
-    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewType', 'getSelectedDesktop']),
+    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewType', 'getSelectedDesktop', 'getDeploymentsShowStarted']),
     sortedDesktops () {
       return this.getDeployment.desktops.slice().sort(d => {
         // return started desktops first
         return d.viewer ? -1 : 1
       })
+    },
+    visibleDesktops () {
+      return this.sortedDesktops.filter(desktop => this.getDeploymentsShowStarted === true ? desktop.state.toLowerCase() === 'started' : true)
     }
   },
   mounted () {
