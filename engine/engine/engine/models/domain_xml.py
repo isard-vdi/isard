@@ -498,7 +498,10 @@ class DomainXML(object):
                     f"<topology sockets='1' dies='1' cores='{vcpus}' threads='1'/>"
                 )
             ).getroot()
-            self.tree.xpath("/domain/cpu")[0].append(element)
+            cpu_xpath = self.tree.xpath("/domain/cpu")[0]
+            for tag_topology in cpu_xpath.xpath("topology"):
+                cpu_xpath.remove(tag_topology)
+            cpu_xpath.append(element)
 
     def add_to_domain(
         self,
