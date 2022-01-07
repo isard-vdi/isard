@@ -170,7 +170,7 @@ DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 DOCKER_IMAGE_TAG=main
 
 # ------ Logs ----------------------------------------------------------------
-LOG_LEVEL=INFO
+LOG_LEVEL=WARNING
 
 # ------ alerts --------------------------------------------------------------
 ## Telegram

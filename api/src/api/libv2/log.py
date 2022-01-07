@@ -1,28 +1,60 @@
+#!/usr/bin/env python
+# coding=utf-8
 # Copyright 2017 the Isard-vdi project authors:
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-#!/usr/bin/env python
-# coding=utf-8
-
 import configparser
+import json
 import logging as log
 import os
 
 from api import app
 
-try:
-    LOG_LEVEL = app.config["LOG_LEVEL"]
-except Exception as e:
-    LOG_LEVEL = "INFO"
 
-# LOG FORMATS
-LOG_FORMAT = "%(asctime)s %(msecs)d - %(levelname)s - %(threadName)s: %(message)s"
-LOG_DATE_FORMAT = "%Y/%m/%d %H:%M:%S"
+class StructuredMessage(object):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        if isinstance(self.message, str):
+            return "%s" % (self.message)
+
+        if LOG_LEVEL == "ERROR":
+            return "%-10s - %s - %s - %s" % (
+                self.message["type"],
+                self.message["msg"],
+                self.message["description"],
+                self.message["function"],
+            )
+        if LOG_LEVEL == "DEBUG":
+            return "%-10s - %s - %s - %s\r\n%s\r\n%s" % (
+                self.message["type"],
+                self.message["msg"],
+                self.message["description"],
+                self.message["function"],
+                self.message["debug"],
+                self.message["request"],
+            )
+        if LOG_LEVEL == "WARNING":
+            return "%-10s - %s - %s" % (
+                self.message["type"],
+                self.message["msg"],
+                self.message["description"],
+            )
+        if LOG_LEVEL == "INFO":
+            return "%-10s - %s - %s" % (
+                self.message["type"],
+                self.message["msg"],
+                self.message["description"],
+            )
+
+
+app.sm = StructuredMessage
+
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
-# ~ log.basicConfig(format=LOG_FORMAT,datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
-
-# ~ log.basicConfig(filename='logs/webapp.log',
-# ~ filemode='a',
-# ~ format=LOG_FORMAT,datefmt=LOG_DATE_FORMAT,level=LOG_LEVEL_NUM)
+log.basicConfig(
+    level=LOG_LEVEL_NUM, format="%(asctime)s - %(levelname)-8s - %(message)s"
+)
