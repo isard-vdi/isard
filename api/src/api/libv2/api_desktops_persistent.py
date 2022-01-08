@@ -73,6 +73,9 @@ class ApiDesktopsPersistent:
         ]
         create_dict = _parse_media_info(create_dict)
 
+        if "interfaces_mac" in create_dict["hardware"].keys():
+            create_dict["hardware"].pop("interfaces_mac")
+
         new_desktop = {
             "id": "_" + payload["user_id"] + "-" + parsed_name,
             "name": desktop_name,
