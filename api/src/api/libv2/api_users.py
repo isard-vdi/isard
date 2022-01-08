@@ -287,6 +287,7 @@ class ApiUsers:
                 data2 = (
                     r.table("domains")
                     .filter(r.row["kind"].match("template"))
+                    .filter({"enabled": True})
                     .order_by("name")
                     .pluck(
                         {

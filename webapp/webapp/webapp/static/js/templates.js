@@ -31,7 +31,13 @@ $(document).ready(function() {
                 { "data": "icon", "width": "10px" },
                 { "data": "name"},
                 { "data": "status"},
-                //~ { "data": "pending"},
+                {
+                    "data": 'enabled',
+                    "className": 'text-center',
+                    "data": null,
+                    "orderable": false,
+                    "defaultContent": '<input type="checkbox" class="form-check-input" checked></input>'
+                },
                 { "data": null, 'defaultContent': ''},
                 { "data": "description", "visible": false},
                 
@@ -53,19 +59,23 @@ $(document).ready(function() {
                             "render": function ( data, type, full, meta ) {
                               return renderStatus(full);
                             }},
-                            //~ {
-                            //~ "targets": 6,
-                            //~ "render": function ( data, type, full, meta ) {
-                              //~ return renderPending(full);
-                            //~ }},
                             {
                             "targets": 4,
                             "render": function ( data, type, full, meta ) {
-                                if(full.status == 'Stopped' || full.status == 'Stopped'){
-                                    return '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'
-                                } 
-                                return full.status; 
-                            }}
+                                if( full.enabled ){
+                                    return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input>'
+                                }else{
+                                    return '<input id="chk-enabled" type="checkbox" class="form-check-input"></input>'
+                                }
+                            }},
+                            {
+                                "targets": 5,
+                                "render": function ( data, type, full, meta ) {
+                                    if(full.status == 'Stopped' || full.status == 'Stopped'){
+                                        return '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'
+                                    } 
+                                    return full.status; 
+                                }},
                             ]
         } );
     
@@ -94,7 +104,34 @@ $(document).ready(function() {
         }
     });
 
-
+    $('#templates').find(' tbody').on( 'click', 'input', function () {
+        var pk=table.row( $(this).parents('tr') ).id();
+        switch($(this).attr('id')){
+            case 'chk-enabled':
+                if ($(this).is(":checked")){
+                    enabled=true
+                }else{
+                    enabled=false
+                }
+                api.ajax('/isard-admin/template',
+                        'PUT',
+                        {'id':pk,
+                        'enabled':enabled})
+                .fail(function(jqXHR) {
+                    new PNotify({
+                        title: "Template enable/disable",
+                            text: "Could not update!",
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                        table.ajax.reload()
+                }); 
+            break;
+        }
+    })
 
     $('#templates').find(' tbody').on( 'click', 'button', function () {
         var data = table.row( $(this).parents('tr') ).data();

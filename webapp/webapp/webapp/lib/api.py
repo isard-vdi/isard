@@ -858,6 +858,15 @@ class isard:
             )
             return dom  # self.f.table_values_bstrap(dom)
 
+    def template_update(self, template_id, data):
+        with app.app_context():
+            template = r.table("domains").get(template_id).run(db.conn)
+        if template and template["kind"].endswith("template"):
+            with app.app_context():
+                r.table("domains").get(template_id).update(data).run(db.conn)
+            return True
+        return False
+
     def get_alloweds(self, user, table, pluck=[], order=False):
         with app.app_context():
             ud = r.table("users").get(user).run(db.conn)
@@ -1137,6 +1146,7 @@ class isard:
                 r.db("isard")
                 .table("domains")
                 .filter(r.row["kind"].match("template"))
+                .filter({"enabled": True})
                 .eq_join("user", r.db("isard").table("users"))
                 .without({"right": {"id": True}})
                 .pluck({"right": "role"}, "left")

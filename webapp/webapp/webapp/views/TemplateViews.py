@@ -46,3 +46,16 @@ def templates_get():
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/isard-admin/template", methods=["PUT"])
+@login_required
+@ownsid
+def templates_update():
+    data = request.get_json(force=True)
+    template_id = data.pop("id")
+    return (
+        json.dumps(app.isardapi.template_update(template_id, data)),
+        200,
+        {"Content-Type": "application/json"},
+    )

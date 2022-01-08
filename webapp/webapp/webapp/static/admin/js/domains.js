@@ -84,11 +84,29 @@ if(url!="Desktops"){
     columns.splice(
         11,
         0,
+        {
+            "data": 'enabled',
+            "className": 'text-center',
+            "data": null,
+            "orderable": false,
+            "defaultContent": '<input type="checkbox" class="form-check-input" checked></input>'
+        },
         {"data": "derivates"},
         {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
     );
     columns.splice(6, 2)
     columnDefs.splice(3, 2)
+    columnDefs[3]["targets"]=12
+    columnDefs[4]={
+        "targets": 9,
+        "render": function ( data, type, full, meta ) {
+            if( full.enabled ){
+                return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input>'
+            }else{
+                return '<input id="chk-enabled" type="checkbox" class="form-check-input"></input>'
+            }
+        }
+    }
 }
 
 $(document).ready(function() {
@@ -357,6 +375,34 @@ $(document).ready(function() {
         }
     } );
 
+    $('#domains').find(' tbody').on( 'click', 'input', function () {
+        var pk=domains_table.row( $(this).parents('tr') ).id();
+        switch($(this).attr('id')){
+            case 'chk-enabled':
+                if ($(this).is(":checked")){
+                    enabled=true
+                }else{
+                    enabled=false
+                }
+                api.ajax('/isard-admin/template',
+                        'PUT',
+                        {'id':pk,
+                        'enabled':enabled})
+                .fail(function(jqXHR) {
+                    new PNotify({
+                        title: "Template enable/disable",
+                            text: "Could not update!",
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                        domains_table.ajax.reload()
+                }); 
+            break;
+        }
+    })
 
 	// DataTable buttons
     $('#domains tbody').on( 'click', 'button', function () {
