@@ -2,7 +2,6 @@ from engine.services.lib.debug import check_if_debugging
 
 check_if_debugging()
 
-# from gevent.pywsgi import WSGIServer
 import inspect
 import logging
 import os
