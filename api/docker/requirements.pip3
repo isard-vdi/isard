@@ -1,9 +1,7 @@
 Flask==2.0.1
 Flask-Login==0.5.0
 Flask-Cors==3.0.10
-gevent==1.4.0
 gevent-websocket==0.10.1
-greenlet==0.4.15
 Flask-SocketIO==5.1.0
 python-jose==3.3.0
 rethinkdb==2.4.7
