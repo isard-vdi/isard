@@ -1,4 +1,4 @@
-FROM alpine:3.12.0 as production
+FROM alpine:3.15.0 as production
 MAINTAINER isard <info@isard.com>
 WORKDIR /isard
 
