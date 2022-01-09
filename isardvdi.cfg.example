@@ -151,6 +151,14 @@ LOG_LEVEL=INFO
 ### https://api.telegram.org/bot<YourBOTToken>/getUpdates response
 #TELEGRAM_BOT_CHAT_ID=
 
+# ------ QCOW2 images --------------------------------------------------------
+## Cluster size used when creating qcow2 disk images
+#QCOW2_CLUSTER_SIZE=4k
+## Enable use of extended l2 entries when creating qcow2 disk images
+## Options: on / off
+#QCOW2_EXTENDED_L2=off
+
+
 ##################################################################
 ## INFRASTRUCTURE PARAMETERS. Used on remote hypervisors        ##
 ##################################################################
