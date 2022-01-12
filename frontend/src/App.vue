@@ -24,6 +24,7 @@ export default {
     -moz-osx-font-smoothing: grayscale;
     color: #2c3e50;
     height: 100%;
+    overflow-y: hidden;
 }
 
 .guacamole {

@@ -1,6 +1,6 @@
 <template>
-  <b-container fluid class="desktop-container pl-3 pr-3 pl-xl-5 pr-xl-5">
-    <b-form @submit.prevent="submitForm" class="m-0">
+  <b-container fluid class="desktop-container pl-3 pr-3 pl-xl-5 pr-xl-5 pb-5 new-desktop-templates-list">
+    <b-form @submit.prevent="submitForm">
       <!-- Title -->
       <b-row clas="mt-2">
         <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.new-desktop.title') }}</strong></h4>
@@ -81,6 +81,7 @@
           :filter="filter"
           :filter-included-fields="filterOn"
           :fields="fields"
+          :responsive="true"
           small
           @filtered="onFiltered"
           select-mode="single"
