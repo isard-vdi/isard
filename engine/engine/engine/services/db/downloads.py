@@ -44,17 +44,10 @@ def update_status_table(table, status, id_table, detail=""):
 
 def update_status_media_from_path(path, status, detail=""):
     r_conn = new_rethink_connection()
-    table = "media"
-    d_status = {"status": status, "detail": detail}
-    result = []
-    l = list(r.table(table).filter({"path_downloaded": path}).run(r_conn))
-    if len(l) > 0:
-        for d in l:
-            result.append(r.table(table).get(d["id"]).update(d_status).run(r_conn))
-    else:
-        result = False
+    r.table("media").filter({"path_downloaded": path}).update(
+        {"status": status, "detail": detail}
+    ).run(r_conn)
     close_rethink_connection(r_conn)
-    return result
 
 
 def update_download_percent(done, table, id):
