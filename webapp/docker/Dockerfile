@@ -23,9 +23,6 @@ COPY webapp/docker/requirements.pip3 /requirements.pip3
 RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN apk del .build_deps
 
-# Create the required directories
-RUN mkdir -p /var/log/supervisor /isard /root/.ssh
-
 # Copy the isard source
 COPY webapp/webapp /isard
 
