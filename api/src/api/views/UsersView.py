@@ -91,6 +91,24 @@ def api_v3_user_register(payload):
 
     try:
         data = users.CodeSearch(code)
+        if payload["category_id"] != data["category"]:
+            log.error(
+                "Code "
+                + code
+                + " it's in a category not requested by user register form."
+            )
+            return (
+                json.dumps(
+                    {
+                        "error": "undefined_error",
+                        "msg": "Code "
+                        + code
+                        + " it's in a category not requested by user register form.",
+                    }
+                ),
+                404,
+                {"Content-Type": "application/json"},
+            )
         check_category_domain(data.get("category"), payload["category_id"])
     except CodeNotFound:
         log.error("Code not in database.")
