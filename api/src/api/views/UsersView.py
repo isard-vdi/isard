@@ -31,7 +31,14 @@ from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
 
-from .decorators import has_token, is_admin, is_register, ownsCategoryId, ownsUserId
+from .decorators import (
+    has_token,
+    is_admin,
+    is_auto_register,
+    is_register,
+    ownsCategoryId,
+    ownsUserId,
+)
 
 """
 Users jwt endpoints
@@ -67,6 +74,73 @@ def api_v3_user_exists(payload):
                 {
                     "error": "generic_error",
                     "msg": "UserExists general exception: " + error,
+                }
+            ),
+            500,
+            {"Content-Type": "application/json"},
+        )
+
+
+@app.route("/api/v3/user/auto-register", methods=["POST"])
+@is_auto_register
+def api_v3_user_auto_register(payload):
+    try:
+        user_id = users.Create(
+            payload["provider"],
+            payload["category_id"],
+            payload["user_id"],
+            payload["username"],
+            payload["name"],
+            payload["role"],
+            payload["group"],
+            photo=payload["photo"],
+            email=payload["email"],
+        )
+        return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
+    except UserExists:
+        return json.dumps(payload), 200, {"Content-Type": "application/json"}
+    except RoleNotFound:
+        log.error("Role " + payload["role"] + " not found.")
+        return (
+            json.dumps({"error": "undefined_error", "msg": "Role not found"}),
+            404,
+            {"Content-Type": "application/json"},
+        )
+    except CategoryNotFound:
+        log.error("Category " + payload["category_id"] + " not found.")
+        return (
+            json.dumps({"error": "undefined_error", "msg": "Category not found"}),
+            404,
+            {"Content-Type": "application/json"},
+        )
+    except GroupNotFound:
+        log.error("Group " + payload["group"] + " not found.")
+        return (
+            json.dumps({"error": "undefined_error", "msg": "Group not found"}),
+            404,
+            {"Content-Type": "application/json"},
+        )
+    except NewUserNotInserted:
+        log.error(
+            "User " + payload["username"] + " could not be inserted into database."
+        )
+        return (
+            json.dumps(
+                {
+                    "error": "undefined_error",
+                    "msg": "User could not be inserted into database. Already exists!",
+                }
+            ),
+            404,
+            {"Content-Type": "application/json"},
+        )
+    except Exception as e:
+        error = traceback.format_exc()
+        return (
+            json.dumps(
+                {
+                    "error": "generic_error",
+                    "msg": "UserUpdate general exception: " + error,
                 }
             ),
             500,

@@ -88,6 +88,10 @@ func (l *Local) Callback(context.Context, *CallbackClaims, map[string]string) (*
 	return nil, "", errInvalidIDP
 }
 
+func (Local) AutoRegister() bool {
+	return false
+}
+
 func (l *Local) String() string {
 	return LocalString
 }

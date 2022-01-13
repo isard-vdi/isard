@@ -27,7 +27,11 @@ from ..libv2.flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..auth.tokens import AuthError, get_header_jwt_payload
+from ..auth.tokens import (
+    AuthError,
+    get_auto_register_jwt_payload,
+    get_header_jwt_payload,
+)
 from ..libv2.apiv2_exc import DesktopNotFound, TemplateNotFound
 
 # from ..libv3.api_users import filter_user_templates
@@ -50,6 +54,20 @@ def is_register(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
+        if payload.get("type", "") == "register":
+            kwargs["payload"] = payload
+            return f(*args, **kwargs)
+        raise AuthError(
+            {"error": "not_allowed", "description": "Not register" " token."}, 401
+        )
+
+    return decorated
+
+
+def is_auto_register(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_auto_register_jwt_payload()
         if payload.get("type", "") == "register":
             kwargs["payload"] = payload
             return f(*args, **kwargs)

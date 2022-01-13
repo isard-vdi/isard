@@ -28,6 +28,7 @@ type CallbackClaims struct {
 type Provider interface {
 	Login(ctx context.Context, categoryID string, args map[string]string) (u *model.User, redirect string, err error)
 	Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (u *model.User, redirect string, err error)
+	AutoRegister() bool
 	String() string
 }
 
@@ -48,4 +49,8 @@ func (Unknown) Login(context.Context, string, map[string]string) (*model.User, s
 
 func (Unknown) Callback(context.Context, *CallbackClaims, map[string]string) (*model.User, string, error) {
 	return nil, "", ErrUnknownIDP
+}
+
+func (Unknown) AutoRegister() bool {
+	return false
 }

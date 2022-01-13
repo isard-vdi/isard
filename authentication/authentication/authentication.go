@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
@@ -11,6 +12,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -26,13 +28,14 @@ type Interface interface {
 }
 
 type Authentication struct {
+	Log             *zerolog.Logger
 	Secret          string
 	DB              r.QueryExecutor
 	providers       map[string]provider.Provider
 	showAdminButton bool
 }
 
-func Init(cfg cfg.Cfg, db r.QueryExecutor) *Authentication {
+func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication {
 	providers := map[string]provider.Provider{
 		provider.UnknownString: &provider.Unknown{},
 		provider.FormString:    provider.InitForm(cfg.Authentication, db),
@@ -44,6 +47,7 @@ func Init(cfg cfg.Cfg, db r.QueryExecutor) *Authentication {
 	}
 
 	return &Authentication{
+		Log:             log,
 		Secret:          cfg.Authentication.Secret,
 		DB:              db,
 		providers:       providers,
@@ -124,7 +128,7 @@ func (a *Authentication) signToken(u *model.User) (string, error) {
 		LoginClaimsData{
 			u.Provider,
 			u.ID(),
-			u.Role,
+			string(u.Role),
 			u.Category,
 			u.Group,
 			u.Name,
@@ -214,6 +218,37 @@ func (a *Authentication) signRegister(u *model.User) (string, error) {
 	return ss, nil
 }
 
+func (a *Authentication) registerUser(u *model.User) error {
+	tkn, err := a.signRegister(u)
+	if err != nil {
+		return err
+	}
+
+	login, err := a.signToken(u)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "http://isard-api:5000/api/v3/user/auto-register", nil)
+	if err != nil {
+		return fmt.Errorf("create http request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tkn))
+	req.Header.Set("Login-Claims", fmt.Sprintf("Bearer %s", login))
+
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("do http request: %w", err)
+	}
+
+	if rsp.StatusCode != 200 {
+		return fmt.Errorf("http code not 200: %d", rsp.StatusCode)
+	}
+
+	return nil
+}
+
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
 	var u *model.User
 	var redirect string
@@ -249,6 +284,8 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 					return "", "", err
 				}
 
+				a.Log.Info().Str("usr", u.ID()).Str("tkn", ss).Msg("register succeeded")
+
 				return ss, redirect, nil
 			}
 		}
@@ -257,6 +294,8 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	p := a.Provider(prv)
 	u, redirect, err = p.Login(ctx, categoryID, args)
 	if err != nil {
+		a.Log.Info().Str("prv", p.String()).Err(err).Msg("login failed")
+
 		return "", "", fmt.Errorf("login: %w", err)
 	}
 
@@ -270,19 +309,40 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	}
 
 	if !exists {
-		// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
-		ss, err := a.signRegister(u)
-		return ss, "", err
+		// Manual registration
+		if !p.AutoRegister() {
+			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
+			ss, err := a.signRegister(u)
+
+			a.Log.Info().Err(err).Str("usr", u.ID()).Str("tkn", ss).Msg("register token signed")
+
+			return ss, "", err
+		}
+
+		// Automatic registration!
+		if err := a.registerUser(u); err != nil {
+			return "", "", fmt.Errorf("auto register user: %w", err)
+		}
 	}
 
-	if err := u.Load(ctx, a.DB); err != nil {
+	u.Accessed = float64(time.Now().Unix())
+
+	u2 := model.UserFromID(u.ID())
+	if err := u2.Load(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("load user from DB: %w", err)
+	}
+
+	u.LoadWithoutOverride(u2)
+	if err := u.Update(ctx, a.DB); err != nil {
+		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
 
 	ss, err := a.signToken(u)
 	if err != nil {
 		return "", "", err
 	}
+
+	a.Log.Info().Str("usr", u.ID()).Str("tkn", ss).Msg("login succeeded")
 
 	return ss, redirect, nil
 }

@@ -72,6 +72,16 @@ func (f *Form) Callback(context.Context, *CallbackClaims, map[string]string) (*m
 	return nil, "", errInvalidIDP
 }
 
+func (f *Form) AutoRegister() bool {
+	for _, p := range f.providers {
+		if p.AutoRegister() {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (f *Form) String() string {
 	return FormString
 }

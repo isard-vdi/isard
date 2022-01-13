@@ -27,7 +27,7 @@ func main() {
 		log.Fatal().Err(err).Msg("connect to the database")
 	}
 
-	authentication := authentication.Init(cfg, db)
+	authentication := authentication.Init(cfg, log, db)
 
 	http := &http.AuthenticationServer{
 		Addr:           cfg.HTTP.Addr(),
