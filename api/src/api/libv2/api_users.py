@@ -12,6 +12,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_exceptions import UserError
+
 r = RethinkDB()
 import logging
 import traceback
@@ -83,7 +85,9 @@ class ApiUsers:
                     "photo": user["photo"],
                 }
         except:
-            raise UserNotFound
+            raise UserError(
+                "not_found", "Not found user_id " + user_id, traceback.format_exc()
+            )
         return {
             "jwt": jwt.encode(
                 {
@@ -99,8 +103,14 @@ class ApiUsers:
     def Login(self, user_id, user_passwd, provider="local", category_id="default"):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
-        if user is None or not user.get("active", False):
-            raise UserLoginFailed
+        if user is None:
+            raise UserError("unauthorized", "", traceback.format_stack())
+        if not user.get("active", False):
+            raise UserError(
+                "unauthorized",
+                "User " + user_id + " is disabled",
+                traceback.format_stack(),
+            )
 
         pw = Password()
         if pw.valid(user_passwd, user["password"]):
@@ -122,13 +132,19 @@ class ApiUsers:
                 app.ram["secrets"]["isardvdi"]["secret"],
                 algorithm="HS256",
             )
-        raise UserLoginFailed
+        raise UserError(
+            "unauthorized",
+            "Invalid login credentials for user_id " + user_id,
+            traceback.format_stack(),
+        )
 
     def Exists(self, user_id):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user is None:
-            raise UserNotFound
+            raise UserError(
+                "not_found", "Not found user_id " + user_id, traceback.format_stack()
+            )
         return user
 
     def List(self):
@@ -151,17 +167,37 @@ class ApiUsers:
     ):
         # password=False generates a random password
         with app.app_context():
-            id = provider + "-" + category_id + "-" + user_uid + "-" + user_username
-            if r.table("users").get(id).run(db.conn) != None:
-                raise UserExists
+            user_id = (
+                provider + "-" + category_id + "-" + user_uid + "-" + user_username
+            )
+            if r.table("users").get(user_id).run(db.conn) != None:
+                raise UserError(
+                    "conflict",
+                    "Already exists user_id " + user_id,
+                    traceback.format_stack(),
+                )
 
             if r.table("roles").get(role_id).run(db.conn) is None:
-                raise RoleNotFound
+                raise UserError(
+                    "not_found",
+                    "Not found role_id " + role_id + " for user_id " + user_id,
+                    traceback.format_stack(),
+                )
+
             if r.table("categories").get(category_id).run(db.conn) is None:
-                raise CategoryNotFound
+                raise UserError(
+                    "not_found",
+                    "Not found category_id " + category_id + " for user_id " + user_id,
+                    traceback.format_stack(),
+                )
+
             group = r.table("groups").get(group_id).run(db.conn)
             if group is None:
-                raise GroupNotFound
+                raise UserError(
+                    "not_found",
+                    "Not found group_id " + group_id + " for user_id " + user_id,
+                    traceback.format_stack(),
+                )
 
             if password == False:
                 password = _random_password()
@@ -173,7 +209,7 @@ class ApiUsers:
                 password = encrypted_password
 
             user = {
-                "id": id,
+                "id": user_id,
                 "name": name,
                 "uid": user_uid,
                 "provider": provider,
@@ -190,15 +226,23 @@ class ApiUsers:
                 "quota": group["quota"],  # 10GB
             }
             if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
-                raise NewUserNotInserted  # , conflict='update').run(db.conn)
-        return user["id"]
+                raise UserError(
+                    "internal_server",
+                    "Unable to insert in database user_id " + user_id,
+                    traceback.format_stack(),
+                )
+        return user["user_id"]
 
     def Update(self, user_id, user_name=False, user_email=False, user_photo=False):
         self.Exists(user_id)
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
             if user is None:
-                raise UserNotFound
+                raise UserError(
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_stack(),
+                )
             update_values = {}
             if user_name:
                 update_values["name"] = user_name
@@ -211,7 +255,11 @@ class ApiUsers:
                     r.table("users").get(user_id).update(update_values).run(db.conn),
                     "replaced",
                 ):
-                    raise UpdateFailed
+                    raise UserError(
+                        "internal_server",
+                        "Unable to update in database user_id " + user_id,
+                        traceback.format_stack(),
+                    )
 
     def Templates(self, payload):
         try:
@@ -322,13 +370,19 @@ class ApiUsers:
                             alloweds.append(desktop)
                             continue
             return alloweds
-        except Exception as e:
-            raise UserTemplatesError
+        except Exception:
+            raise UserError(
+                "internal_server", "Internal server error", traceback.format_exc()
+            )
 
     def Desktops(self, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) == None:
-                raise UserNotFound
+                raise UserError(
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_stack(),
+                )
         try:
             with app.app_context():
                 desktops = list(
@@ -361,15 +415,19 @@ class ApiUsers:
                 for desktop in desktops
                 if desktop.get("tag_visible", True)
             ]
-        except Exception as e:
-            error = traceback.format_exc()
-            logging.error(error)
-            raise UserDesktopsError
+        except Exception:
+            raise UserError(
+                "internal_server", "Internal server error", traceback.format_exc()
+            )
 
     def Desktop(self, desktop_id, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) == None:
-                raise UserNotFound
+                raise UserError(
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_stack(),
+                )
         try:
             with app.app_context():
                 desktop = (
@@ -418,28 +476,40 @@ class ApiUsers:
             else:
                 return None
         except ReqlNonExistenceError:
-            raise DesktopNotFound
-        except Exception as e:
-            error = traceback.format_exc()
-            logging.error(error)
-            raise UserDesktopsError
+            raise UserError(
+                "not_found",
+                "Not found desktop_id " + desktop_id + " for user_id " + user_id,
+                traceback.format_exc(),
+            )
+        except Exception:
+            raise UserError(
+                "internal_server",
+                "Get desktop failed for user_id " + user_id,
+                traceback.format_exc(),
+            )
 
     def Delete(self, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) is None:
-                raise UserNotFound
+                raise UserError(
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_stack(),
+                )
         todelete = self._user_delete_checks(user_id)
         for desktop in todelete:
-            try:
-                ds.delete_desktop(desktop["id"], desktop["status"])
-            except:
-                raise
+            ds.delete_desktop(desktop["id"], desktop["status"])
+
         # self._delete_non_persistent(user_id)
         with app.app_context():
             if not _check(
                 r.table("users").get(user_id).delete().run(db.conn), "deleted"
             ):
-                raise UserDeleteFailed
+                raise UserError(
+                    "internal_server",
+                    "Unable to delete user_id " + user_id,
+                    traceback.format_stack(),
+                )
 
     def _user_delete_checks(self, user_id):
         with app.app_context():
@@ -490,7 +560,7 @@ class ApiUsers:
             ]
         ):
             return True
-        raise DesktopNotFound
+        raise UserError("forbidden", "Internal server error", traceback.format_stack())
 
     def CodeSearch(self, code):
         with app.app_context():
@@ -522,13 +592,19 @@ class ApiUsers:
             if len(found) > 0:
                 category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
                 return {"role": "user", "category": category, "group": found[0]["id"]}
-        raise CodeNotFound
+        raise UserError(
+            "not_found", "Code not found code:" + code, traceback.format_stack()
+        )
 
     def CategoryGet(self, category_id):
         with app.app_context():
             category = r.table("categories").get(category_id).run(db.conn)
         if category is None:
-            raise CategoryNotFound
+            raise UserError(
+                "not_found",
+                "Category not found category_id:" + category_id,
+                traceback.format_stack(),
+            )
         return {"name": category["name"]}
 
     ### USER Schema

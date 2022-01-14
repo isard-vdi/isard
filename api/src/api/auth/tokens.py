@@ -12,12 +12,12 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.api_exceptions import AuthError
+
 r = RethinkDB()
 import traceback
 
 from flask import Flask, _request_ctx_stack, jsonify, request
-
-# from flask_cors import cross_origin
 from jose import jwt
 from rethinkdb.errors import ReqlTimeoutError
 
@@ -26,8 +26,6 @@ from ..libv2.log import log
 
 db = RDB(app)
 db.init_app(app)
-
-# secret=os.environ['API_ISARDVDI_SECRET']
 
 
 def get_header_jwt_payload():
@@ -49,36 +47,31 @@ def get_token_header(header):
     auth = request.headers.get(header, None)
     if not auth:
         raise AuthError(
-            {
-                "error": "authorization_header_missing",
-                "msg": "Authorization header is expected",
-            },
-            401,
+            "bad_request",
+            "Authorization header is expected",
+            traceback.format_stack(),
+            request,
         )
 
     parts = auth.split()
-
     if parts[0].lower() != "bearer":
         raise AuthError(
-            {
-                "error": "invalid_header",
-                "msg": "Authorization header must start with Bearer",
-            },
-            401,
+            "bad_request",
+            "Authorization header must start with Bearer",
+            traceback.format_stack(),
+            request,
         )
     elif len(parts) == 1:
-        raise AuthError({"error": "invalid_header", "msg": "Token not found"}, 401)
+        raise AuthError("bad_request", "Token not found")
     elif len(parts) > 2:
         raise AuthError(
-            {
-                "error": "invalid_header",
-                "msg": "Authorization header must be Bearer token",
-            },
-            401,
+            "invalid_header",
+            "Authorization header must be Bearer token",
+            traceback.format_stack(),
+            request,
         )
 
-    token = parts[1]
-    return token
+    return parts[1]  # Token
 
 
 def get_token_auth_header():
@@ -95,12 +88,12 @@ def get_token_payload(token):
             and secret_data["category_id"] != claims["data"]["category_id"]
         ):
             raise AuthError(
-                {
-                    "error": "unauthorized",
-                    "msg": "Not authorized category token.",
-                },
-                500,
+                "unauthorized",
+                "Not authorized category token.",
+                traceback.format_stack(),
+                request,
             )
+
     except KeyError:
         log.warning(
             "Claim kid "
@@ -110,12 +103,12 @@ def get_token_payload(token):
     except:
         log.warning("JWT token with invalid parameters. Can not parse it.")
         raise AuthError(
-            {
-                "error": "invalid_parameters",
-                "msg": "Unable to parse authentication parameters token.",
-            },
-            401,
+            "bad_request",
+            "Unable to parse authentication parameters token.",
+            traceback.format_stack(),
+            request,
         )
+
     try:
         payload = jwt.decode(
             token,
@@ -125,35 +118,23 @@ def get_token_payload(token):
         )
     except jwt.ExpiredSignatureError:
         log.info("Token expired")
-        raise AuthError({"error": "token_expired", "msg": "token is expired"}, 401)
+        raise AuthError(
+            "bad_request", "Token is expired", traceback.format_stack(), request
+        )
     except jwt.JWTClaimsError:
         raise AuthError(
-            {
-                "error": "invalid_claims",
-                "msg": "incorrect claims, please check the audience and issuer",
-            },
-            401,
+            "bad_request",
+            "Incorrect claims, please check the audience and issuer",
+            traceback.format_stack(),
+            request,
         )
     except Exception:
-        log.debug(traceback.format_exc())
         raise AuthError(
-            {"error": "invalid_header", "msg": "Unable to parse authentication token."},
-            401,
+            "bad_request",
+            "Unable to parse authentication token.",
+            traceback.format_stack(),
+            request,
         )
     if payload.get("data", False):
         return payload["data"]
     return payload
-
-
-# Error handler
-class AuthError(Exception):
-    def __init__(self, error, status_code):
-        self.error = error
-        self.status_code = status_code
-
-
-@app.errorhandler(AuthError)
-def handle_auth_error(ex):
-    response = jsonify(ex.error)
-    response.status_code = ex.status_code
-    return response

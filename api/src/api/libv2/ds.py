@@ -7,6 +7,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_exceptions import DesktopError, HypervisorError
+
 # import pem
 # from OpenSSL import crypto
 
@@ -126,9 +128,33 @@ class DS:
         try:
             result = future.result()
         except ReqlTimeoutError:
-            raise DesktopActionTimeout
+            raise DesktopError(
+                "gateway_timeout",
+                "Transition "
+                + original_status
+                + "->"
+                + transition_status
+                + "->"
+                + final_status
+                + " timed out ("
+                + str(wait_seconds)
+                + "s) for desktop_id "
+                + desktop_id,
+                traceback.format_stack(),
+            )
         except DesktopWaitFailed:
-            raise DesktopActionFailed
+            raise DesktopError(
+                "internal_server",
+                "Transition "
+                + original_status
+                + "->"
+                + transition_status
+                + "->"
+                + final_status
+                + " failed for desktop_id "
+                + desktop_id,
+                traceback.format_stack(),
+            )
         return True
 
     def _wait_for_domain_status(
@@ -196,9 +222,33 @@ class DS:
         try:
             result = future.result()
         except ReqlTimeoutError:
-            raise DesktopActionTimeout
+            raise HypervisorError(
+                "gateway_timeout",
+                "Transition "
+                + original_status
+                + "->"
+                + transition_status
+                + "->"
+                + final_status
+                + " timed out ("
+                + str(wait_seconds)
+                + "s) for hyper_id "
+                + hyper_id,
+                traceback.format_stack(),
+            )
         except DesktopWaitFailed:
-            raise DesktopActionFailed
+            raise HypervisorError(
+                "internal_server",
+                "Transition "
+                + original_status
+                + "->"
+                + transition_status
+                + "->"
+                + final_status
+                + " failed for hyper_id "
+                + hyper_id,
+                traceback.format_stack(),
+            )
         return True
 
     def _wait_for_hyper_status(

@@ -4,21 +4,14 @@
 # License: AGPLv3
 
 import json
-import logging as log
-import os
-import sys
-import time
-import traceback
-from uuid import uuid4
 
-from flask import abort, jsonify, request
+from flask import request
 
 #!flask/bin/python
 # coding=utf-8
 from api import app
 
 from ..libv2.api_admin import admin_table_list
-from ..libv2.api_exceptions import AdminError
 from .decorators import is_admin
 
 

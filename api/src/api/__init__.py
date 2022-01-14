@@ -94,7 +94,7 @@ Import all views
 """
 # from .views import XmlView
 from .views import (
-    AdminResourcesView,
+    AdminTablesView,
     AdminUsersView,
     CardsView,
     CommonView,

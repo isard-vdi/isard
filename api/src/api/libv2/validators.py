@@ -4,29 +4,19 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
-import time
-from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
 from api import app
 
 r = RethinkDB()
-import logging
 import traceback
-
-from rethinkdb.errors import ReqlNonExistenceError, ReqlTimeoutError
 
 from .api_exceptions import ValidateError
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
-
-from .helpers import (  # _disk_path,; _parse_desktop,; _parse_media_info,; _parse_string,; _random_password,
-    _check,
-)
 
 
 def _sys_tables():

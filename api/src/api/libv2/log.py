@@ -1,12 +1,9 @@
-#!/usr/bin/env python
 # coding=utf-8
 # Copyright 2017 the Isard-vdi project authors:
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import configparser
-import json
 import logging as log
 import os
 
@@ -21,33 +18,21 @@ class StructuredMessage(object):
         if isinstance(self.message, str):
             return "%s" % (self.message)
 
+        message = "%-10s - %s - %s" % (
+            self.message["type"],
+            self.message["msg"],
+            self.message["description"],
+        )
+        if LOG_LEVEL in ["INFO", "WARNING"]:
+            return message
         if LOG_LEVEL == "ERROR":
-            return "%-10s - %s - %s - %s" % (
-                self.message["type"],
-                self.message["msg"],
-                self.message["description"],
-                self.message["function"],
-            )
+            return "%s - %s" % (message, self.message["function"])
         if LOG_LEVEL == "DEBUG":
-            return "%-10s - %s - %s - %s\r\n%s\r\n%s" % (
-                self.message["type"],
-                self.message["msg"],
-                self.message["description"],
+            return "%s - %s\r\n%s\r\n%s" % (
+                message,
                 self.message["function"],
                 self.message["debug"],
                 self.message["request"],
-            )
-        if LOG_LEVEL == "WARNING":
-            return "%-10s - %s - %s" % (
-                self.message["type"],
-                self.message["msg"],
-                self.message["description"],
-            )
-        if LOG_LEVEL == "INFO":
-            return "%-10s - %s - %s" % (
-                self.message["type"],
-                self.message["msg"],
-                self.message["description"],
             )
 
 
