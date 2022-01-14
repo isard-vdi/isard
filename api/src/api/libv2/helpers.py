@@ -129,7 +129,7 @@ def _check(dict, action):
     These are the actions:
     {u'skipped': 0, u'deleted': 1, u'unchanged': 0, u'errors': 0, u'replaced': 0, u'inserted': 0}
     """
-    if dict[action]:
+    if dict[action] or dict["unchanged"]:
         return True
     if not dict["errors"]:
         return True

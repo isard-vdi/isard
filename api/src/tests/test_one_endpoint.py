@@ -44,9 +44,11 @@ pprint(raw_jwt_data)
 data = {"name": "My new desktop", "disk_user": True, "virt_install_id": "win10Virtio"}
 ## Warning, second time will throw DesktopExists exception as the name has been used already
 
-response = requests.post(
-    base + "/desktop/from/scratch",
-    data=data,
+data = {"forced_hyp": ["isard-hypervisor"], "pepito": 1}
+print(data)
+response = requests.put(
+    base + "/desktop/_local-default-admin-admin_downloaded_slax93",
+    json=data,
     headers=auths["isardvdi"]["header"],
     verify=False,
 )
@@ -55,4 +57,4 @@ pprint(response.status_code)
 pprint(response.text)
 
 ## virt_installs ids
-print([vi["id"] for vi in list(r.db("isard").table("virt_install").run())])
+# print([vi["id"] for vi in list(r.db("isard").table("virt_install").run())])
