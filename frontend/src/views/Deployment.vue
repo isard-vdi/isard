@@ -7,7 +7,8 @@
     <b-container fluid id='content'>
       <template v-if="getViewType === 'grid'">
         <h5 class='font-weight-bold'>{{ getDeployment.name }}</h5>
-        <b-row class='pb-3 pt-2'>
+        <hr class="mb-0"/>
+        <b-row class='pb-3 pt-2 deployments-viewers-grid'>
           <DeploymentCard :key='desktop.id' v-for='desktop in visibleDesktops' :desktop="desktop" />
         </b-row>
       </template>

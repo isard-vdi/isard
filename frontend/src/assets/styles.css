@@ -461,3 +461,20 @@
   color: red;
   margin-top: 0.5rem;
 }
+
+.tab-content {
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.deployments-viewers-grid {
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.new-desktop-templates-list {
+  height: calc(100vh - 120px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}

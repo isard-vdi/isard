@@ -9,10 +9,10 @@
                   <list-item-skeleton class="mb-2"></list-item-skeleton>
                 </b-col>
               </template>
-      <b-row>
+      <b-row class="deployments-viewers-grid">
         <b-col
           cols='12'
-          class='py-3 p-5 pt-4 d-flex flex-row flex-wrap justify-content-start'
+          class='d-flex flex-row flex-wrap justify-content-start'
         >
           <b-table :items='deployments' :fields='fields' @row-clicked="redirectDeployment" tbody-tr-class="cursor-pointer">
             <template #cell(name)='data'>
