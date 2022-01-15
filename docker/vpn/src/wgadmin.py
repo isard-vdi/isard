@@ -9,8 +9,10 @@ r = RethinkDB()
 import logging as log
 
 from rethinkdb.errors import ReqlDriverError, ReqlOpFailedError, ReqlTimeoutError
-from update_vpn_status import start_monitoring_vpn_status
+from wg_monitor import start_monitoring_vpn_status
 from wgtools import Wg
+
+start_monitoring_vpn_status()
 
 
 def dbConnect():
@@ -44,24 +46,26 @@ while True:
             reset_client_certs=False,
         )
 
-        start_monitoring_vpn_status()
         print(
             "Config regenerated from database...\nStarting to monitor users changes..."
         )
         # for user in r.table('users').pluck('id','vpn').changes(include_initial=False).run():
         for data in (
             r.table("users")
+            .without("password", {"vpn": {"wireguard": "connected"}})
             .pluck("id", "vpn")
             .merge({"table": "users"})
             .changes(include_initial=False)
             .union(
                 r.table("hypervisors")
+                .without({"vpn": {"wireguard": "connected"}})
                 .pluck("id", "vpn", "hypervisor_number")
                 .merge({"table": "hypers"})
                 .changes(include_initial=False)
             )
             .union(
                 r.table("remotevpn")
+                .without({"vpn": {"wireguard": "connected"}})
                 .pluck("id", "vpn", "nets")
                 .merge({"table": "remotevpn"})
                 .changes(include_initial=False)

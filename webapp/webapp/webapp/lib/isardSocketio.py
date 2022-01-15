@@ -452,6 +452,7 @@ class UsersThread(threading.Thread):
                     for c in (
                         r.table("users")
                         .merge({"table": "users"})
+                        .without("password", {"vpn": {"wireguard": "keys"}})
                         .changes(include_initial=False)
                         .union(
                             r.table("categories")

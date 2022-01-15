@@ -1,11 +1,15 @@
-ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid --remote=ptcp:6640
-ovs-vswitchd --detach --verbose --pidfile
-ovs-vsctl add-br ovsbr0
-ip link set ovsbr0 up
+echo "$(date): INFO: Starting OpenVSWitch server"
+ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid --remote=ptcp:6640  > /var/log/ovs 2>&1
+ovs-vswitchd --detach --verbose --pidfile  >> /var/log/ovs 2>&1
 
-ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal
-ip a a 10.2.0.1/16 dev vlan-wg
-ip link set vlan-wg up
+echo "$(date): INFO: Adding OVS default bridge"
+ovs-vsctl add-br ovsbr0 >> /var/log/ovs 2>&1
+ip link set ovsbr0 up >> /var/log/ovs 2>&1
+
+echo "$(date): INFO: Adding OVS vlan-wg port to default bridge with tag 4095"
+ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
+ip a a 10.2.0.1/16 dev vlan-wg >> /var/log/ovs 2>&1
+ip link set vlan-wg up >> /var/log/ovs 2>&1
 
 mkdir -p /var/run/dnsmasq
 mkdir -p /var/lib/dnsmasq
@@ -34,9 +38,8 @@ EOT
 
 # echo "dhcp-range=192.168.55.50,192.168.55.150,12h" > /etc/dnsmasq.d/vlan-wg.conf
 # echo "dhcp-script=/update-client-ips.sh"
-/usr/sbin/dnsmasq --conf-file=/etc/dnsmasq.d/vlan-wg.conf --leasefile-ro --dhcp-script=/dnsmasq-hook/update-client-ips.sh &
-
-ovs-vsctl show
+echo "$(date): INFO: Starting dnsmasq wireguard server"
+/usr/sbin/dnsmasq --conf-file=/etc/dnsmasq.d/vlan-wg.conf --leasefile-ro --dhcp-script=/dnsmasq-hook/update-client-ips.sh >> /var/log/dnsmasq 2>&1 &
 
 # ip a f eth0
 # #ovs-vsctl add-port ovsbr0 eth0

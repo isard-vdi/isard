@@ -634,6 +634,7 @@ class isardAdmin:
         with app.app_context():
             return self.f.table_values_bstrap(
                 r.table("users")
+                .without("password", {"vpn": {"wireguard": "keys"}})
                 .merge(
                     lambda user: {
                         "desktops": r.table("domains")

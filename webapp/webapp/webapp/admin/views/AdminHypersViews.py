@@ -49,8 +49,8 @@ def admin_hypervisors():
 @login_required
 @isAdmin
 def admin_hypervisors_json(id=None):
-    domain = app.adminapi.hypervisors_get(id)
-    return json.dumps(domain), 200, {"Content-Type": "application/json"}
+    hypervisors = app.adminapi.hypervisors_get(id)
+    return json.dumps(hypervisors), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/isard-admin/admin/hypervisors_pools", methods=["GET", "POST"])
@@ -80,7 +80,7 @@ def hypervisors_pools_get():
             )
         else:
             flash(
-                "Could not create hypervisor pool. Maybe you have one with the same name?",
+                "Could not create hypervisor pool. Maybe you have one with the same hyer id?",
                 "danger",
             )
             return render_template("pages/hypervisors.html", nav="Hypervisors")
