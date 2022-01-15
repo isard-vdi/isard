@@ -40,7 +40,8 @@ columnDefs = [
     {
         "targets": 1,
         "render": function ( data, type, full, meta ) {
-            return renderIcon(full)
+            url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
+            return "<img src='"+url+"' width='50px'>"
         }
     },{
         "targets": 2,
@@ -892,19 +893,6 @@ function renderDisplay(data){
 					<i class="fa fa-desktop"></i> Show</button>';
         }
         return ''
-}
-
-//~ function renderName(data){
-		//~ return '<div class="block_content" > \
-      			//~ <h2 class="title" style="height: 4px; margin-top: 0px;"> \
-                //~ <a>'+data.name+'</a> \
-                //~ </h2> \
-      			//~ <p class="excerpt" >'+data.description+'</p> \
-           		//~ </div>'
-//~ }
-
-function renderIcon(data){
-		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data)+'</span>'
 }
 
 function renderStatus(data){

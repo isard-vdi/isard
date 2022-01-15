@@ -13,5 +13,6 @@ services:
     volumes:
       - /opt/isard/sshkeys/:/sshkeys:rw
       - /opt/isard/certs/viewers:/viewers:ro
+      - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
     env_file:
       - .env

@@ -40,7 +40,8 @@ $(document).ready(function() {
              "columnDefs": [ {
                             "targets": 1,
                             "render": function ( data, type, full, meta ) {
-                              return renderIcon(full);
+                                url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
+                                return "<img src='"+url+"' width='50px'>"
                             }},
                             {
                             "targets": 2,
@@ -315,10 +316,6 @@ function actionsTmplDetail(){
         }else{
             return "<span class='fl-"+name+" fa-2x'></span>";
         }       
-    }
-
-    function renderIcon(data){
-        return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
     }
 
     function renderName(data){

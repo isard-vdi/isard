@@ -18,6 +18,22 @@ from .load_config import load_config
 cfg = load_config()
 
 
+def get_domain_stock_card(domain_id):
+    total = 0
+    for i in range(0, len(domain_id)):
+        total += total + ord(domain_id[i])
+    total = total % 48 + 1
+    return get_card(str(total) + ".jpg", "stock")
+
+
+def get_card(card_id, type):
+    return {
+        "id": card_id,
+        "url": "/assets/img/desktops/" + type + "/" + card_id,
+        "type": type,
+    }
+
+
 class Updates(object):
     def __init__(self):
         # ~ self.working=True
@@ -260,6 +276,7 @@ class Updates(object):
             d["progress"] = {}
             d["status"] = "DownloadStarting"
             d["detail"] = ""
+            d["image"] = get_domain_stock_card(d["id"])
             d["accessed"] = time.time()
             d["hypervisors_pools"] = d["create_dict"]["hypervisors_pools"]
             d.update(self.get_user_data(current_user))

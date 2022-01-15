@@ -1615,6 +1615,7 @@ class isard:
             "group": user["group"],
             "xml": desktop["xml"],  #### In desktop creation is
             "icon": desktop["icon"],
+            "image": desktop["image"],
             "server": desktop["server"],
             "os": desktop["os"],
             "options": desktop["options"],
@@ -1841,6 +1842,7 @@ class isard:
             "group": userObj["group"],
             "xml": None,
             "icon": dom["icon"],
+            "image": dom["image"],
             "server": dom["server"],
             "os": dom["os"],
             "options": {"viewers": {"spice": {"fullscreen": True}}},

@@ -25,7 +25,9 @@
             "desktops-started": "Desktops arrencats",
             "checkbox-text": "Només arrencats",
             "checkbox-text-short": "Arrencats",
-            "new-desktop": "Escriptori nou"
+            "new-desktop": "Escriptori nou",
+            "upload-file": "Pujar Fitxer",
+            "cancel": "Cancel·lar"
         },
         "desktop-cards": {
             "table-header": {
@@ -289,6 +291,7 @@
             "filter-placeholder": "Escriu per cercar",
             "template-table-column-headers": {
                 "selected": "Seleccionat",
+                "image": "Imatge",
                 "name": "Nom",
                 "description": "Descripció",
                 "category": "Categoria",
@@ -360,7 +363,8 @@
             "delete": "Esborrar"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' s'esborrarà, continuar?"
+            "delete-desktop": "'{name}' s'esborrarà, continuar?",
+            "change-image": "Seleccionar la nova imatge per a l'escriptori?"
         },
         "yes": "Si",
         "no": "No",

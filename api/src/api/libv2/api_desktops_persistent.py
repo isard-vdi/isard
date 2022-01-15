@@ -27,6 +27,10 @@ from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
 
+from ..libv2.api_cards import ApiCards
+
+api_cards = ApiCards()
+
 from .apiv2_exc import *
 from .ds import DS
 
@@ -89,6 +93,7 @@ class ApiDesktopsPersistent:
             "group": payload["group_id"],
             "xml": None,
             "icon": template["icon"],
+            "image": template["image"],
             "server": template["server"],
             "os": template["os"],
             "options": {"viewers": {"spice": {"fullscreen": True}}},

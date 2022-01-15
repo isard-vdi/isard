@@ -2,6 +2,7 @@ import axios from 'axios'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import { apiV3Segment } from '../../shared/constants'
 import { ErrorUtils } from '../../utils/errorUtils'
+import { orderBy } from 'lodash'
 
 export default {
   state: {
@@ -25,7 +26,7 @@ export default {
   actions: {
     fetchTemplates ({ commit }) {
       axios.get(`${apiV3Segment}/user/templates`).then(response => {
-        commit('setTemplates', DesktopUtils.parseTemplates(response.data))
+        commit('setTemplates', DesktopUtils.parseTemplates(orderBy(response.data, ['editable'], ['desc'])))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

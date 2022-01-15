@@ -161,6 +161,7 @@ class ApiDesktopsNonPersistent:
             "group": group,
             "xml": None,
             "icon": template["icon"],
+            "image": template["image"],
             "server": template["server"],
             "os": template["os"],
             "options": {"viewers": {"spice": {"fullscreen": True}}},

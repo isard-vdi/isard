@@ -40,6 +40,9 @@ from flask_socketio import (
 )
 
 from .. import socketio
+from .api_cards import ApiCards
+
+api_cards = ApiCards()
 
 threads = {}
 
@@ -96,6 +99,13 @@ class DomainsThread(threading.Thread):
                             if not c["old_val"]["id"].startswith("_"):
                                 continue
                             event = "delete"
+                            try:
+                                api_cards.delete_card(c["old_val"]["image"]["id"])
+                            except:
+                                log.warning(
+                                    "Unable to delete card "
+                                    + c["old_val"]["image"]["id"]
+                                )
                             if c["old_val"]["kind"] != "desktop":
                                 item = "template"
                             else:
