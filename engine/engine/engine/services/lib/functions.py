@@ -1196,7 +1196,7 @@ def analize_backing_chains_outputs(
 
 
 def engine_restart():
-    exit()
+    os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
 
 
 def domain_status_from_started_to_unknown():
