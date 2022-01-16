@@ -21,7 +21,7 @@
                               <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Name <span class="required">*</span>
                               </label>
                               <div class="col-md-6 col-sm-6 col-xs-12">
-                                 <input id="id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="id" placeholder="Identification name" required="required" type="text">
+                                 <input id="id" class="form-control col-md-7 col-xs-12" maxlength="127" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[2, 127]" name="id" placeholder="Identification name" required="required" type="text">
                               </div>
                            </div>
                            <div class="item form-group">
@@ -56,7 +56,7 @@
                               <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hostname">Hostname <span class="required">*</span>
                               </label>
                               <div class="col-md-6 col-sm-6 col-xs-12">
-                                 <input id="hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
+                                 <input id="hostname" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
                               </div>
                            </div>
 
@@ -64,7 +64,7 @@
                               <label class="control-label col-md-3 col-sm-3 col-xs-12" for="user">User <span class="required">*</span>
                               </label>
                               <div class="col-md-6 col-sm-6 col-xs-12">
-                                 <input id="user" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="user" placeholder="User used to connect" required="required" type="text">
+                                 <input id="user" class="form-control col-md-7 col-xs-12" maxlength="80" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 80]" name="user" placeholder="User used to connect" required="required" type="text">
                               </div>
                            </div>
                            
@@ -126,14 +126,14 @@
                                  <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-static">Web host
                                  </label>
                                  <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input  id="viewer-static" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-static" placeholder="IP/DNS for isard (static) host" type="text">
+                                    <input  id="viewer-static" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-static" placeholder="IP/DNS for isard (static) host" type="text">
                                  </div>
                               </div> 
                               <div class="item form-group" id="viewer_">
                                  <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_video">Video proxy host (squid/websockify)
                                  </label>
                                  <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
+                                    <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
                                  </div>
                               </div>  
 
@@ -157,7 +157,7 @@
                                  <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_hyper_host">Hypervisor hostname from video proxy
                                  </label>
                                  <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="viewer-proxy_hyper_host" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-proxy_hyper_host" placeholder="IP/DNS from video proxy" type="text">
+                                    <input id="viewer-proxy_hyper_host" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_hyper_host" placeholder="IP/DNS from video proxy" type="text">
                                  </div>
                               </div>
                            </div>
@@ -213,7 +213,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Name <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="fake_id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="fake_id" placeholder="Identification name" required="required" type="text" disabled>
+                           <input id="fake_id" class="form-control col-md-7 col-xs-12" maxlength="127" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 127]" name="fake_id" placeholder="Identification name" required="required" type="text" disabled>
                         </div>
                      </div>
                      <div class="item form-group">
@@ -248,7 +248,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="hostname">Hostname <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="hostname" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
+                           <input id="hostname" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="hostname" placeholder="Network ip/dns name" required="required" type="text">
                         </div>
                      </div>
 
@@ -256,7 +256,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="user">User <span class="required">*</span>
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="user" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="user" placeholder="User used to connect" required="required" type="text">
+                           <input id="user" class="form-control col-md-7 col-xs-12" maxlength="80" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 80]" name="user" placeholder="User used to connect" required="required" type="text">
                         </div>
                      </div>
                      
@@ -317,14 +317,14 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-static">Web host
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input  id="viewer-static" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-static" placeholder="IP/DNS for isard (static) host" type="text">
+                           <input  id="viewer-static" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-static" placeholder="IP/DNS for isard (static) host" type="text">
                         </div>
                      </div> 
                      <div class="item form-group" id="viewer_">
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_video">Video proxy host (squid/websockify)
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
+                           <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
                         </div>
                      </div>  
 
@@ -348,7 +348,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_hyper_host">Hypervisor hostname from video proxy
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-proxy_hyper_host" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="viewer-proxy_hyper_host" placeholder="IP/DNS from video proxy" type="text">
+                           <input id="viewer-proxy_hyper_host" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_hyper_host" placeholder="IP/DNS from video proxy" type="text">
                         </div>
                      </div>
                   </div>
@@ -612,7 +612,7 @@
                         <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-domain">Domain
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="viewer-domain" placeholder="domain.com" type="text">
+                           <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="2,255" name="viewer-domain" placeholder="domain.com" type="text">
                         </div>
                      </div>
                      <div class="item form-group">
@@ -683,7 +683,7 @@
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-domain">Domain
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                   <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="viewer-domain" placeholder="domain.com" type="text">
+                                   <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="2,255" name="viewer-domain" placeholder="domain.com" type="text">
                                 </div>
                              </div>
 <!--
