@@ -14,5 +14,3 @@ services:
       context: ${BUILD_ROOT_PATH}
       dockerfile: api/docker/Dockerfile
       target: production
-    env_file:
-      - .env

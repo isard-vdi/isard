@@ -14,5 +14,15 @@ services:
       - /opt/isard/sshkeys/:/sshkeys:rw
       - /opt/isard/certs/viewers:/viewers:ro
       - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
-    env_file:
-      - .env
+    environment:
+      DOMAIN:
+      LOG_LEVEL:
+      RETHINKDB_HOST:
+      RETHINKDB_PORT:
+      RETHINKDB_DB:
+      API_ISARDVDI_SECRET:
+      API_HYPERVISORS_SECRET:
+      WG_HYPERS_NET:
+      WG_GUESTS_NETS:
+      WG_GUESTS_DHCP_MASK:
+      VPN_MTU:
