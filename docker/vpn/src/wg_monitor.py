@@ -114,7 +114,6 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
             except:
                 remote_data = ["", -1]
 
-            log.error(payload)
             if peer.public_key not in peer_state:
                 if not peer.latest_handshake:
                     log.debug("DELETE: 1, LOST HANDSHAKE")
