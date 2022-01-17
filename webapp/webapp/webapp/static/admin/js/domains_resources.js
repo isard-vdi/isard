@@ -5,16 +5,21 @@
 * License: AGPLv3
 */
 
- 
+user_token = localStorage.getItem("token")
+api_url = location.protocol+'//' + document.domain + ':' + location.port+'/api/v3'
+
 $(document).ready(function() {
     $('.admin-status').show()
 
     remotevpn_table=$('#table-remotevpn').DataTable({
         "ajax": {
-            "url": "/isard-admin/admin/load/remotevpn/post",
+            "url": "/api/v3/admin/table/remotevpn",
+            "headers": {
+                "Authorization": "Bearer "+user_token
+            },
             "contentType": "application/json",
             "type": 'POST',
-            "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+            "data": function(d){return JSON.stringify({'order_by':'name'})}
         },
         "sAjaxDataProp": "",
         "language": {
@@ -158,10 +163,13 @@ $(document).ready(function() {
         // QOS NET
         qosnet_table=$('#table-qos-net').DataTable({
             "ajax": {
-                "url": "/isard-admin/admin/load/qos_net/post",
+				"url": "/api/v3/admin/table/qos_net",
+                "headers": {
+                    "Authorization": "Bearer "+user_token
+                },
                 "contentType": "application/json",
                 "type": 'POST',
-                "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+                "data": function(d){return JSON.stringify({'order_by':'name'})}
             },
             "sAjaxDataProp": "",
             "language": {
@@ -277,10 +285,13 @@ $(document).ready(function() {
     // QOS DISK
         qosdisk_table=$('#table-qos-disk').DataTable({
             "ajax": {
-                "url": "/isard-admin/admin/load/qos_disk/post",
+				"url": "/api/v3/admin/table/qos_disk",
+                "headers": {
+                    "Authorization": "Bearer "+user_token
+                },
                 "contentType": "application/json",
                 "type": 'POST',
-                "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+                "data": function(d){return JSON.stringify({'order_by':'name'})}
             },
             "sAjaxDataProp": "",
             "language": {
@@ -388,10 +399,13 @@ $(document).ready(function() {
     });
     int_table=$('#table-interfaces').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/load/interfaces/post",
+				"url": "/api/v3/admin/table/interfaces",
+                "headers": {
+                    "Authorization": "Bearer "+user_token
+                },
                 "contentType": "application/json",
                 "type": 'POST',
-                "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+                "data": function(d){return JSON.stringify({'order_by':'name'})}
 			},
             "sAjaxDataProp": "",
 			"language": {
@@ -530,10 +544,13 @@ $(document).ready(function() {
     // GRAPHICS
     graphics_table=$('#graphics').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/load/graphics/post",
+				"url": "/api/v3/admin/table/graphics",
+                "headers": {
+                    "Authorization": "Bearer "+user_token
+                },
                 "contentType": "application/json",
                 "type": 'POST',
-                "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+                "data": function(d){return JSON.stringify({'order_by':'name'})}
 			},
             "sAjaxDataProp": "",
 			"language": {
@@ -592,10 +609,13 @@ $(document).ready(function() {
     // VIDEOS
     videos_table=$('#videos').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/load/videos/post",
+				"url": "/api/v3/admin/table/videos",
+                "headers": {
+                    "Authorization": "Bearer "+user_token
+                },
                 "contentType": "application/json",
                 "type": 'POST',
-                "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+                "data": function(d){return JSON.stringify({'order_by':'name'})}
 			},
             "sAjaxDataProp": "",
 			"language": {
@@ -630,7 +650,53 @@ $(document).ready(function() {
             case 'btn-alloweds':        
                 modalAllowedsFormShow('videos',data)
             break;
-                
+            case 'btn-bookable': 
+                if( data['bookable'] ){    
+                    new PNotify({
+                        title: 'Confirmation Needed',
+                            text: "Are you sure you want to remove "+data['name']+" as a bookable resource? All bookings done will be removed!",
+                            hide: false,
+                            opacity: 0.9,
+                            confirm: {
+                                confirm: true
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            },
+                            addclass: 'pnotify-center'
+                        }).get().on('pnotify.confirm', function() {
+                            data['table']='videos'
+                            socket.emit('bookable_add',data)
+                        }).on('pnotify.cancel', function() {
+                    });
+                }else{
+                    new PNotify({
+                        title: 'Confirmation Needed',
+                            text: "Are you sure you want to add "+data['name']+" as a bookable resource?",
+                            hide: false,
+                            opacity: 0.9,
+                            confirm: {
+                                confirm: true
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            },
+                            addclass: 'pnotify-center'
+                        }).get().on('pnotify.confirm', function() {
+                            data['table']='videos'
+                            socket.emit('bookable_delete',data)
+                        }).on('pnotify.cancel', function() {
+                    });
+                }
+            break;
         }
     });
     
@@ -684,10 +750,13 @@ $(document).ready(function() {
     // BOOTS
     boots_table=$('#boots').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/load/boots/post",
+				"url": "/api/v3/admin/table/boots",
+                "headers": {
+                    "Authorization": "Bearer "+user_token
+                },
                 "contentType": "application/json",
                 "type": 'POST',
-                "data": function(d){return JSON.stringify({'order':'name','flatten':false})}
+                "data": function(d){return JSON.stringify({'order_by':'name'})}
 			},
             "sAjaxDataProp": "",
 			"language": {

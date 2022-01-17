@@ -602,7 +602,7 @@ class HypervisorsThread(threading.Thread):
                         else:
                             socketio.emit(
                                 "hyper_data",
-                                json.dumps(app.isardapi.f.flatten_dict(c["new_val"])),
+                                json.dumps(c["new_val"]),
                                 namespace="/isard-admin/sio_admins",
                                 room="hyper",
                             )

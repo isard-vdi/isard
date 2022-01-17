@@ -5,10 +5,11 @@
 * License: AGPLv3
 */
 
+user_token = localStorage.getItem("token")
+api_url = location.protocol+'//' + document.domain + ':' + location.port+'/api/v3'
+
 $hypervisor_template = $(".hyper-detail");
 
-//~ var table =''
-//~ tablepools=''
 $(document).ready(function() {
     $('.admin-status').show()
     
@@ -36,16 +37,13 @@ $(document).ready(function() {
 
             });
 
-
             $('#modalAddHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
                 $('#modalAddHyper #viewer_fields').hide()
                     $('#modalAddHyper #modalAddHyper #viewer-static').val('');
                     $('#modalAddHyper #modalAddHyper #viewer-proxy_video').val('');
                     $('#modalAddHyper #modalAddHyper #viewer-proxy_hyper_host').val(0);                   
             });
-                        
 
-            
     });
 
     $("#modalAddHyper #send").on('click', function(e){
@@ -57,23 +55,20 @@ $(document).ready(function() {
             }
         });
 
-
-
-
-
-
-
-
-
-
-      function timestamp() { return (new Date).getTime() / 1000; }
-      chart={}
+    //   function timestamp() { return (new Date).getTime() / 1000; }
+    //   chart={}
 
     table = $('#hypervisors').DataTable( {
         "ajax": {
-            "url": "/isard-admin/admin/hypervisors/json/",
-            "dataSrc": ""
+            "url": "/api/v3/admin/table/hypervisors",
+            "data": function(d){return JSON.stringify({'order_by':'id'})},
+            "headers": {
+                "Authorization": "Bearer " + user_token
+            },
+            "contentType": "application/json",
+            "type": 'POST'
         },
+        "sAjaxDataProp": "",
             "language": {
                 "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
             },
@@ -92,17 +87,17 @@ $(document).ready(function() {
             { "data": "hypervisor_number" , "width": "5px" },
             { "data": "id" , "width": "10px" },
             { "data": "hostname" , "width": "100px" },
-            { "data": "vpn-wireguard-connected" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "viewer-static" , "width": "10px" },
-            { "data": "viewer-proxy_video" , "width": "10px" },
-            { "data": "viewer-proxy_hyper_host" , "width": "10px" },
-            { "data": "info-qemu_version" , "width": "10px", "defaultContent": 'NaN'},
-            { "data": "info-libvirt_version" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "info-virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "info-memory_in_MB" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "info-virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },            
-            { "data": "capabilities-disk_operations" , "width": "10px" },
-            { "data": "capabilities-hypervisor" , "width": "10px" },
+            { "data": "vpn.wireguard-connected" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "viewer.static" , "width": "10px" },
+            { "data": "viewer.proxy_video" , "width": "10px" },
+            { "data": "viewer.proxy_hyper_host" , "width": "10px" },
+            { "data": "info.qemu_version" , "width": "10px", "defaultContent": 'NaN'},
+            { "data": "info.libvirt_version" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.memory_in_MB" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },            
+            { "data": "capabilities.disk_operations" , "width": "10px" },
+            { "data": "capabilities.hypervisor" , "width": "10px" },
             { "data": "status_time" , "width": "10px" }],
             
           /*   { "data": "started_domains", "width": "10px", "defaultContent": 0}, */
@@ -122,43 +117,43 @@ $(document).ready(function() {
                             {
                             "targets": 6,
                             "render": function ( data, type, full, meta ) {
-                                if(full['vpn-wireguard-connected']){
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
-                                }else{
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                                if (full['vpn.wireguard-connected']) {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
+                                } else {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
                                 }
                             }},
                             {
                             "targets": 8,
                             "render": function ( data, type, full, meta ) {
-                                return full['viewer-proxy_video']+' ('+full['viewer-spice_ext_port']+','+full['viewer-html5_ext_port']+')';
+                                return full.viewer.proxy_video + ' ('+full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')';
                             }},
                             {
                             "targets": 13,
                             "render": function ( data, type, full, meta ) {
-                                return Math.round(data/1024 * 10) / 10 +'GB';
+                                return Math.round(data / 1024 * 10) / 10 + 'GB';
                             }},
                             {
                             "targets": 14,
                             "render": function ( data, type, full, meta ) {
-                                return full['info-cpu_cores']*full['info-threads_x_core'];
+                                return full.info.cpu_cores*full.info.threads_x_core;
                             }},
                             {
                             "targets": 15,
                             "render": function ( data, type, full, meta ) {
-                                if(full['capabilities-disk_operations']){
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
-                                }else{
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                                if (full['capabilities.disk_operations']) {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
+                                } else {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
                                 }
                             }},
                             {
                             "targets": 16,
                             "render": function ( data, type, full, meta ) {
-                                if(full['capabilities-hypervisor']){
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
-                                }else{
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                                if (full['capabilities.hypervisor']) {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
+                                } else {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
                                 }
                             }},
                             {
@@ -167,25 +162,6 @@ $(document).ready(function() {
                               return moment.unix(full.status_time).fromNow();
                             }}
              ],
-             //~ "initComplete": function(settings, json) {
-                        //~ this.api().rows().data().each(function(r){
-                            //~ chart[r.id]=$("#chart-"+r.id).epoch({
-                                            //~ type: "time.line",
-                                            //~ axes: ["right"],
-                                            //~ ticks: {right:1},
-                                            //~ pixelRatio: 10,
-                                            //~ fps: 60,
-                                            //~ windowsSize: 60,
-                                            //~ queueSize:120,
-                                            //~ data: [
-                                              //~ {label: "Load", values: [{x:0, y: 100}]},
-                                              //~ {label: "Mem", values: [{x:0, y: 100}]}
-                                             // {label: "Load", values: [{time: timestamp(), y: 100}]},
-                                             // {label: "Mem", values: [{time: timestamp(), y: 100}]}
-                                            //~ ]
-                                          //~ });
-                        //~ })
-              //~ }
     } );
 
     $('#hypervisors').find('tbody').on('click', 'td.details-control', function () {
@@ -262,11 +238,11 @@ $(document).ready(function() {
         var data = JSON.parse(data);
         table.row('#'+data.hyp_id).data().started_domains=data.domains
         table.row('#'+data.hyp_id).invalidate().draw();
-        chart[data.hyp_id].push([
-        //~ chart.push([
-          { time: timestamp(), y: data['cpu_percent-used']},
-          { time: timestamp(), y: data['load-percent_free']}
-        ]);
+        // chart[data.hyp_id].push([
+        // //~ chart.push([
+        //   { time: timestamp(), y: data['cpu_percent-used']},
+        //   { time: timestamp(), y: data['load-percent_free']}
+        // ]);
     });
         
     socket.on('hyper_deleted', function(data){
@@ -493,7 +469,7 @@ function actionsHyperDetail(){
     $('.btn-webstorage').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         var data = table.row("#"+pk ).data();
-        storage_url='https://'+data['viewer-proxy_video']+':'+data['viewer-html5_ext_port']+'/storage'
+        storage_url='https://'+data.viewer.proxy_video+':'+data.viewer.html5_ext_port+'/storage'
         window.open(storage_url, '_blank');
     });
 
