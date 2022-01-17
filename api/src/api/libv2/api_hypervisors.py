@@ -25,31 +25,22 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..auth.authentication import *
-from ..libv2.isardViewer import isardViewer
-
-isardviewer = isardViewer()
-
 from ..libv2.isardVpn import isardVpn
 from .apiv2_exc import *
 
 isardVpn = isardVpn()
 
-from .ds import DS
+import socket
+from subprocess import check_call, check_output
+
 from .helpers import (
     _check,
     _disk_path,
     _parse_media_info,
     _parse_string,
+    _random_password,
     generate_db_media,
 )
-
-ds = DS()
-
-import socket
-from subprocess import check_call, check_output
-
-from .helpers import _check, _random_password
 
 
 def get_hypervisors(status=None):

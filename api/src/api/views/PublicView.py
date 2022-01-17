@@ -35,61 +35,6 @@ def api_v3_test():
     )
 
 
-@app.route("/api/v3/login_ldap", methods=["POST"])
-def api_v3_login_ldap():
-    try:
-        id = request.form.get("id", type=str)
-        passwd = request.form.get("passwd", type=str)
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-    if id == None or passwd == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
-
-    try:
-        id_ = users.LoginLdap(id, passwd)
-        return json.dumps({"id": id_}), 200, {"Content-Type": "application/json"}
-    except UserLoginFailed:
-        log.error("User " + id + " login failed.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "User login failed"}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserExists general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-
-
-# Used by frontend to get categories dropdown values
 @app.route("/api/v3/categories", methods=["GET"])
 def api_v3_categories():
     try:

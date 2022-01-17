@@ -138,12 +138,6 @@ def user_reloader(username):
 """
 LOCAL AUTHENTICATION AGAINS RETHINKDB USERS TABLE
 """
-try:
-    import ldap
-except Exception as e:
-    log.warning("No ldap module found, disabling ldap authentication")
-
-from ..config.ldapauth import myLdapAuth
 
 
 class auth(object):
@@ -160,7 +154,6 @@ class auth(object):
             cfg = r.table("config").get(1).run(db.conn)
         if cfg is None:
             return False
-        ldap_auth = cfg["auth"]["ldap"]
         local_auth = cfg["auth"]["local"]
         with app.app_context():
             local_user = r.table("users").get(username).run(db.conn)
@@ -170,48 +163,6 @@ class auth(object):
                 if user_validated:
                     self.update_access(username)
                     return user_validated
-            if local_user["provider"] == "ldap" and ldap_auth["active"]:
-                user_validated = self.authentication_ldap(username, password)
-                if user_validated:
-                    self.update_access(username)
-                    return user_validated
-            # ~ if local_user['provider']=='google_oauth2':
-            # ~ return self.authentication_googleOauth2(username,password)
-        else:
-            if ldap_auth["active"]:
-                user_validated = self.authentication_ldap(username, password)
-                if user_validated:
-                    user = self.authentication_ldap(
-                        username, password, returnObject=False
-                    )
-                    with app.app_context():
-                        if not r.table("categories").get(user["category"]).run(db.conn):
-                            r.table("categories").insert(
-                                {
-                                    "id": user["category"],
-                                    "name": user["category"],
-                                    "description": "",
-                                    "quota": r.table("roles")
-                                    .get(user["role"])
-                                    .run(db.conn)["quota"],
-                                }
-                            ).run(db.conn)
-                        if not r.table("groups").get(user["group"]).run(db.conn):
-                            r.table("groups").insert(
-                                {
-                                    "id": user["group"],
-                                    "name": user["group"],
-                                    "description": "",
-                                    "quota": r.table("categories")
-                                    .get(user["category"])
-                                    .run(db.conn)["quota"],
-                                }
-                            ).run(db.conn)
-                        r.table("users").insert(user).run(db.conn)
-                    self.update_access(username)
-                    return User(user)
-                else:
-                    return False
         return False
 
     def authentication_local(self, username, password):
@@ -230,70 +181,11 @@ class auth(object):
         else:
             return False
 
-    def authentication_ldap(self, username, password, returnObject=True):
-        with app.app_context():
-            cfg = r.table("config").get(1).run(db.conn)["auth"]
-        try:
-            conn = ldap.initialize(cfg["ldap"]["ldap_server"])
-            id_conn = conn.search(
-                cfg["ldap"]["bind_dn"],
-                ldap.SCOPE_SUBTREE,
-                "uid=%s" % username.split("-")[-1],
-            )
-            tmp, info = conn.result(id_conn, 0)
-            user_dn = info[0][0]
-            if conn.simple_bind_s(who=user_dn, cred=password):
-                """
-                config/ldapauth.py has the function you can change to adapt to your ldap
-                """
-                au = myLdapAuth()
-                newUser = au.newUser(username, info[0])
-                return User(newUser) if returnObject else newUser
-            else:
-                return False
-        except Exception as e:
-            # print(traceback.format_exc())
-            log.error("LDAP ERROR: " + str(e))
-            return False
-
     def update_access(self, username):
         with app.app_context():
             r.table("users").get(username).update({"accessed": time.time()}).run(
                 db.conn
             )
-
-    def ldap_users_exists(self, commit=False):
-        with app.app_context():
-            cfg = r.table("config").get(1).run(db.conn)["auth"]
-            users = list(
-                r.table("users")
-                .filter({"active": True, "provider": "ldap"})
-                .pluck("id", "name", "accessed")
-                .run(db.conn)
-            )
-        nonvalid = []
-        valid = []
-        for u in users:
-            conn = ldap.initialize(cfg["ldap"]["ldap_server"])
-            id_conn = conn.search(
-                cfg["ldap"]["bind_dn"], ldap.SCOPE_SUBTREE, "uid=%s" % u["id"]
-            )
-            tmp, info = conn.result(id_conn, 0)
-            if len(info):
-                valid.append(u)
-            else:
-                nonvalid.append(u)
-        if commit:
-            nonvalid_list = [u["id"] for u in nonvalid]
-            with app.app_context():
-                return (
-                    r.table("users")
-                    .get_all(r.args(nonvalid_list))
-                    .update({"active": False})
-                    .run(db.conn)
-                )
-        else:
-            return {"nonvalid": nonvalid, "valid": valid}
 
 
 """

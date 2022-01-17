@@ -29,33 +29,6 @@ api_hypervisors = ApiHypervisors()
 
 from .decorators import is_admin, is_hyper
 
-# @app.route('/api/v3/hypervisor/vm/guest_addr', methods=['POST'])
-# @is_hyper
-# def api_v3_guest_addr():
-#     try:
-#         domain_id = request.form.get('id', type = str)
-#         ip = request.form.get('ip', type = str)
-#         mac = request.form.get('mac', type = str)
-#     except:
-#         error = traceback.format_exc()
-#         log.error("Guest addr incorrect access" + error)
-#         return json.dumps({"error": "undefined_error","msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
-
-#     if domain_id == None or ip == None:
-#         log.warning("Incorrect access parameters. Check your query.")
-#         return json.dumps({"error": "undefined_error","msg":"Incorrect access parameters. Check your query." }), 500, {'Content-Type': 'application/json'}
-
-#     try:
-#         api_hypervisors.update_guest_addr(domain_id,{'viewer':{'guest_ip':ip}})
-#         return json.dumps({"domain":domain_id,"guest_ip":ip,"action":"updated"}), 200, {'Content-Type': 'application/json'}
-#     except UpdateFailed:
-#         log.error("Update guest addr for domain "+domain_id+" with IP "+ip+", failed!")
-#         return json.dumps({"error": "undefined_error","msg":"UpdateGuestAddr update failed"}), 301, {'Content-Type': 'application/json'}
-#     except Exception as e:
-#         error = traceback.format_exc()
-#         log.error("Update guest addr general exception" + error)
-#         return json.dumps({"error": "undefined_error","msg":"Update guest addr general exception: " + error }), 500, {'Content-Type': 'application/json'}
-
 
 @app.route("/api/v3/hypervisors", methods=["GET"])
 @app.route("/api/v3/hypervisors/<status>", methods=["GET"])
