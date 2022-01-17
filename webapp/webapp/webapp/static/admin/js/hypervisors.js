@@ -87,7 +87,7 @@ $(document).ready(function() {
             { "data": "hypervisor_number" , "width": "5px" },
             { "data": "id" , "width": "10px" },
             { "data": "hostname" , "width": "100px" },
-            { "data": "vpn.wireguard-connected" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "vpn.wireguard.connected" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "viewer.static" , "width": "10px" },
             { "data": "viewer.proxy_video" , "width": "10px" },
             { "data": "viewer.proxy_hyper_host" , "width": "10px" },
@@ -117,7 +117,7 @@ $(document).ready(function() {
                             {
                             "targets": 6,
                             "render": function ( data, type, full, meta ) {
-                                if (full['vpn.wireguard-connected']) {
+                                if (data) {
                                     return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
                                 } else {
                                     return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
@@ -141,7 +141,7 @@ $(document).ready(function() {
                             {
                             "targets": 15,
                             "render": function ( data, type, full, meta ) {
-                                if (full['capabilities.disk_operations']) {
+                                if (data) {
                                     return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
                                 } else {
                                     return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
@@ -150,7 +150,7 @@ $(document).ready(function() {
                             {
                             "targets": 16,
                             "render": function ( data, type, full, meta ) {
-                                if (full['capabilities.hypervisor']) {
+                                if (data) {
                                     return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
                                 } else {
                                     return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
