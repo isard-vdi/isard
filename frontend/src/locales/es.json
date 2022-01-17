@@ -360,6 +360,7 @@
         "role_not_found": "Rol no encontrado",
         "registration_code_not_found": "Código de registro no encontrado",
         "user_not_found": "Error recuperando el usuario",
+        "user_disabled": "El usuario está deshabilitado",
         "template_not_found": "Error recuperando la plantilla",
         "desktop_not_found": "Desktop no encontrado",
         "viewer_not_found": "No se ha encontrado el visor",

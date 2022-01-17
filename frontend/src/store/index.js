@@ -172,6 +172,14 @@ export default new Vuex.Store({
         }
       }
       commit('setPageErrorMessage', i18n.t('views.error.codes.500'))
+    },
+    parseErrorFromQuery ({ commit }, error) {
+      const errID = 'errors.' + error
+      if (i18n.t(errID) !== errID) {
+        commit('setPageErrorMessage', i18n.t(errID))
+      } else {
+        commit('setPageErrorMessage', i18n.t('views.error.codes.500'))
+      }
     }
   },
   modules: {

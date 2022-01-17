@@ -205,6 +205,11 @@ export default {
         }
       }
     })
+
+    if (this.$route.query.error) {
+      this.$store.dispatch('parseErrorFromQuery', this.$route.query.error)
+      this.showDismissibleAlert = true
+    }
   },
   watch: {
     category: function () {

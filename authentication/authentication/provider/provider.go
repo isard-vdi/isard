@@ -17,6 +17,7 @@ const (
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
+var ErrUserDisabled = errors.New("disabled user")
 
 type CallbackClaims struct {
 	*jwt.StandardClaims

@@ -80,6 +80,12 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if errors.Is(err, provider.ErrUserDisabled) {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
 		// TODO: Better error handling!
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -106,6 +112,11 @@ func (a *AuthenticationServer) callback(w http.ResponseWriter, r *http.Request) 
 
 	tkn, redirect, err := a.Authentication.Callback(r.Context(), args)
 	if err != nil {
+		if errors.Is(err, provider.ErrUserDisabled) {
+			http.Redirect(w, r, "/login?error=user_disabled", http.StatusFound)
+			return
+		}
+
 		// TODO: Better error handling!
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
