@@ -5,18 +5,13 @@
 * License: AGPLv3
 */
 
-user_token = localStorage.getItem("token")
-api_url = location.protocol+'//' + document.domain + ':' + location.port+'/api/v3'
 
 $(document).ready(function() {
     $('.admin-status').show()
 
     remotevpn_table=$('#table-remotevpn').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/table/remotevpn",
-            "headers": {
-                "Authorization": "Bearer "+user_token
-            },
+            "url": "/admin/table/remotevpn",
             "contentType": "application/json",
             "type": 'POST',
             "data": function(d){return JSON.stringify({'order_by':'name'})}
@@ -163,10 +158,7 @@ $(document).ready(function() {
         // QOS NET
         qosnet_table=$('#table-qos-net').DataTable({
             "ajax": {
-				"url": "/api/v3/admin/table/qos_net",
-                "headers": {
-                    "Authorization": "Bearer "+user_token
-                },
+				"url": "/admin/table/qos_net",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'order_by':'name'})}
@@ -285,10 +277,7 @@ $(document).ready(function() {
     // QOS DISK
         qosdisk_table=$('#table-qos-disk').DataTable({
             "ajax": {
-				"url": "/api/v3/admin/table/qos_disk",
-                "headers": {
-                    "Authorization": "Bearer "+user_token
-                },
+				"url": "/admin/table/qos_disk",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'order_by':'name'})}
@@ -399,10 +388,7 @@ $(document).ready(function() {
     });
     int_table=$('#table-interfaces').DataTable({
 			"ajax": {
-				"url": "/api/v3/admin/table/interfaces",
-                "headers": {
-                    "Authorization": "Bearer "+user_token
-                },
+				"url": "/admin/table/interfaces",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'order_by':'name'})}
@@ -544,10 +530,7 @@ $(document).ready(function() {
     // GRAPHICS
     graphics_table=$('#graphics').DataTable({
 			"ajax": {
-				"url": "/api/v3/admin/table/graphics",
-                "headers": {
-                    "Authorization": "Bearer "+user_token
-                },
+				"url": "/admin/table/graphics",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'order_by':'name'})}
@@ -609,10 +592,7 @@ $(document).ready(function() {
     // VIDEOS
     videos_table=$('#videos').DataTable({
 			"ajax": {
-				"url": "/api/v3/admin/table/videos",
-                "headers": {
-                    "Authorization": "Bearer "+user_token
-                },
+				"url": "/admin/table/videos",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'order_by':'name'})}
@@ -750,10 +730,7 @@ $(document).ready(function() {
     // BOOTS
     boots_table=$('#boots').DataTable({
 			"ajax": {
-				"url": "/api/v3/admin/table/boots",
-                "headers": {
-                    "Authorization": "Bearer "+user_token
-                },
+				"url": "/admin/table/boots",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'order_by':'name'})}

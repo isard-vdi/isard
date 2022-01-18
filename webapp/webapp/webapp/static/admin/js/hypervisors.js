@@ -5,8 +5,6 @@
 * License: AGPLv3
 */
 
-user_token = localStorage.getItem("token")
-api_url = location.protocol+'//' + document.domain + ':' + location.port+'/api/v3'
 
 $hypervisor_template = $(".hyper-detail");
 
@@ -60,11 +58,8 @@ $(document).ready(function() {
 
     table = $('#hypervisors').DataTable( {
         "ajax": {
-            "url": "/api/v3/admin/table/hypervisors",
+            "url": "/admin/table/hypervisors",
             "data": function(d){return JSON.stringify({'order_by':'id'})},
-            "headers": {
-                "Authorization": "Bearer " + user_token
-            },
             "contentType": "application/json",
             "type": 'POST'
         },
