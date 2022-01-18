@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 22
+release_version = 23
+# release 23: Added enabled to templates
 # release 22: Upgrade domains image field
 # release 21: Added secondary wg_client_ip index to users.
 #             Added secondary wg_client_ip index to remotevpn
@@ -795,6 +796,11 @@ class Upgrade(object):
                     ).run(self.conn)
             except:
                 None
+
+        if version == 23:
+            r.table(table).filter(r.row["kind"].match("template")).update(
+                {"enabled": True}
+            ).run(self.conn)
 
         return True
 
