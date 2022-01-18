@@ -7,6 +7,7 @@ paramiko==2.7.2
 pyOpenSSL==19.1.0
 schema==0.7.4
 xmltodict==0.12.0
+supervisor==4.2.2
 libpci==0.2
 pem==21.2.0
 flatten-dict==0.4.2
