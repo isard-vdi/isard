@@ -112,8 +112,8 @@
     <script src="/isard-admin/vendors/select2/dist/js/select2.full.min.js"></script>
     <!-- SocketIO -->
     <script src="/isard-admin/socketio/socket.io.min.js"></script>
-    
-
+    <!-- SerializeJSON -->
+    <script src="/isard-admin/static/vendor/jquery.serializejson.js"></script>
     <!-- isard initializers -->
     <script src="/isard-admin/static/isard.js"></script>
     <!-- isard quota sse -->
@@ -122,6 +122,22 @@
     <script src="/isard-admin/static/vendor/fancytree/src/jquery-ui-dependencies/jquery-ui.min.js"></script>
     <script src="/isard-admin/static/vendor/fancytree/dist/jquery.fancytree.min.js"></script>
     <script src="/isard-admin/static/vendor/fancytree/src/jquery.fancytree.table.js"></script>
+    <!-- Set user jwt header in ajax requests -->
+    <script type="text/javascript">
+      user_token = localStorage.getItem("token")
+      $.ajaxSetup({
+        headers: {
+          "Authorization": "Bearer " + user_token
+        },
+        url: "/api/v3",
+        beforeSend: function (jqXHR, settings) {
+          // TODO: remove url check
+          if (settings.url.split("/")[1] != 'isard-admin') {
+            settings.url = "/api/v3" + settings.url
+          }
+        }
+      });
+    </script>
     <!-- flashed messages with pnotify -->
     {% with messages = get_flashed_messages(with_categories=true) %}
 	  {% if messages %}
