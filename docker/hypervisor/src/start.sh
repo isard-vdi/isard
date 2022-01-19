@@ -81,6 +81,7 @@ do
         wg-quick down wg0  >/dev/null 2>&1
         wg-quick up wg0  >/dev/null 2>&1
     fi
-    sleep 30
+    sleep 30 &
+    wait $!
 done
 
