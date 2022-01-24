@@ -3,23 +3,23 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import json
 import queue
 import random
 import time
-
-#!/usr/bin/env python
-# coding=utf-8
 from decimal import Decimal
 from threading import Thread
 
 import pytz
+import requests
 from flask import current_app
 from rethinkdb import RethinkDB
 
 from scheduler import app
 
+from .exceptions import Error
+
 r = RethinkDB()
-import logging
 import os
 import pickle
 import tarfile
@@ -28,11 +28,42 @@ import traceback
 from rethinkdb.errors import ReqlTimeoutError
 
 from .flask_rethink import RDB
+from .log import log
 
 db = RDB(app)
 db.init_app(app)
 
 from datetime import datetime, timedelta
+
+
+def _put(url, data):
+
+    try:
+        resp = requests.put(url, json=data)
+        if resp.status_code == 200:
+            return json.loads(resp.text)
+        raise Error("bad_request", "Bad request while contacting scheduler service")
+    except:
+        raise Error(
+            "internal_server",
+            "Could not contact scheduler service",
+            traceback.format_exc(),
+        )
+
+
+def _get(url):
+
+    try:
+        resp = requests.get(url)
+        if resp.status_code == 200:
+            return json.loads(resp.text)
+        raise Error("bad_request", "Bad request while contacting scheduler service")
+    except:
+        raise Error(
+            "internal_server",
+            "Could not contact scheduler service",
+            traceback.format_exc(),
+        )
 
 
 class Actions:
@@ -142,6 +173,188 @@ class Actions:
             r.table("backups").get(id).update({"status": "Finished creating"}).run(
                 db.conn
             )
+
+    def domain_qmp_notification(**kwargs):
+        # "kwargs": {
+        #     "domain_id": "_local_default_..." ,
+        #     "message": "Test"
+
+        # } ,
+        base_url = "http://isard-engine:5000"
+        try:
+            _put(
+                base_url + "/qmp/" + kwargs["domain_id"],
+                {"action": "message", "kwargs": {"message": kwargs["message"]}},
+            )
+        except:
+            log.error("Exception when sending qmp message: " + traceback.format_exc())
+            raise Error("internal_server", "Error when sending qmp message")
+
+    def deployment_qmp_notification(**kwargs):
+        # "kwargs": {
+        #     "deployment_id": "_local_default_..." ,
+        #     "message": "Test"
+        # } ,
+        base_url = "http://isard-engine:5000"
+        deployment = r.table("deployments").get(item_id).run(db.conn)
+        if not deployment:
+            log.error("Deployment id " + kwargs["deployment_id"] + " not found")
+            raise Error(
+                "not_found", "Deployment id " + kwargs["deployment_id"] + " not found"
+            )
+        domains_ids = (
+            r.table("domains")
+            .get_all(kwargs["deployment_id"], index="tag")["id"]
+            .coerce_to("array")
+            .run(db.conn)
+        )
+        for domain_id in domains_ids:
+            try:
+                _put(
+                    base_url + "/qmp/" + domain_id,
+                    {"action": "message", "kwargs": {"message": kwargs["message"]}},
+                )
+            except:
+                log.error(
+                    "Exception when sending qmp message: " + traceback.format_exc()
+                )
+                raise Error("internal_server", "Error when sending qmp message")
+
+    ### GPUS SPECIFICS
+    def gpu_desktops_notify(**kwargs):
+        base_url = "http://isard-engine:5000"
+        with app.app_context():
+            gpu_device = (
+                r.table("gpus")
+                .get(kwargs["item_id"])
+                .pluck("physical_device")
+                .run(db.conn)["physical_device"]
+            )
+        if not gpu_device:
+            log.error(
+                "The gpu "
+                + kwargs["item_id"]
+                + " has no associated physical_device right now!"
+            )
+            return
+        try:
+            domains_ids = _get(base_url + "/profile/gpu/started_domains/" + gpu_device)
+        except:
+            log.error(
+                "Could not contact engine api to get desktops to notify! "
+                + traceback.format_exc()
+            )
+            raise Error(
+                "internal_server", "Could not contact engine to get desktops to destroy"
+            )
+        log.debug("-> We got " + str(domains_ids) + " domains id to be notified")
+        for domain_id in domains_ids:
+            data = {"domain_id": domain_id, "message": kwargs["message"]}
+            try:
+                _put(
+                    base_url + "/qmp/" + domain_id,
+                    {"action": "message", "message": kwargs["message"]},
+                )
+            except:
+                log.error(
+                    "Exception when sending qmp message: " + traceback.format_exc()
+                )
+                raise Error("internal_server", "Error when sending qmp message")
+
+    def gpu_desktops_destroy(**kwargs):
+        base_url = "http://isard-engine:5000"
+        with app.app_context():
+            gpu_device = (
+                r.table("gpus")
+                .get(kwargs["item_id"])
+                .pluck("physical_device")
+                .run(db.conn)["physical_device"]
+            )
+        if not gpu_device:
+            log.error(
+                "The gpu "
+                + kwargs["item_id"]
+                + " has no associated physical_device right now!"
+            )
+            return
+        try:
+            domains_ids = _get(base_url + "/profile/gpu/started_domains/" + gpu_device)
+        except:
+            log.error(
+                "Could not contact engine api to get desktops to destroy! "
+                + traceback.format_exc()
+            )
+            raise Error(
+                "internal_server", "Could not contact engine to get desktops to destroy"
+            )
+
+        log.debug("-> We got " + str(domains_ids) + " domains id to be destroyed")
+        for domain_id in domains_ids:
+            self.apic.put("/desktop/stop/" + domain_id)
+
+    def gpu_profile_set(**kwargs):
+        # Will set profile_id on selected card.
+        base_url = "http://isard-engine:5000"
+        with app.app_context():
+            gpu_device = (
+                r.table("gpus")
+                .get(kwargs["item_id"])
+                .pluck("physical_device")
+                .run(db.conn)["physical_device"]
+            )
+        if not gpu_device:
+            log.error(
+                "The gpu "
+                + kwargs["item_id"]
+                + " has no associated physical_device right now!"
+            )
+            return
+        try:
+            answer = _get(base_url + "/profile/gpu/" + gpu_device)
+            if (
+                answer.get("vgpu_profile")
+                and answer["vgpu_profile"] == kwargs["subitem_id"].split("-")[-1]
+            ):
+                log.debug(
+                    "-> The actual profile at vgpu is the same we want to put: "
+                    + str(kwargs["subitem_id"])
+                    + ", so doing nothing."
+                )
+                return
+        except:
+            log.error("Exception when getting gpu profile: " + traceback.format_exc())
+        try:
+            answer = _put(
+                base_url + "/profile/gpu/" + gpu_device,
+                {"profile_id": kwargs["subitem_id"]},
+            )
+            log.debug("-> Setting profile answer: " + str(answer))
+        except:
+            log.error("Exception when setting gpu profile: " + traceback.format_exc())
+
+    def domain_reservable_set(**kwargs):
+        base_url = "http://isard-engine:5000"
+        with app.app_context():
+            if kwargs["item_type"] == "deployment":
+                domains = (
+                    r.table("domains")
+                    .get_all(kwargs["item_id"], index="tag")
+                    .run(db.conn)
+                )
+                domains_ids = [d["id"] for d in domains]
+            if kwargs["item_type"] == "desktop":
+                domains_ids = [
+                    r.table("domains")
+                    .get(kwargs["item_id"])
+                    .pluck("id")
+                    .run(db.conn)["id"]
+                ]
+        log.debug("-> We got " + str(domains_ids) + " domains id to update booking_id")
+        if len(domains_ids):
+            with app.app_context():
+                r.table("domains").get_all(r.args(domains_ids), index="id").update(
+                    {"booking_id": kwargs["booking_id"]}
+                ).run(db.conn)
 
     """
     BULK ACTIONS

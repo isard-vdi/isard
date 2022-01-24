@@ -11,9 +11,13 @@ import sockets from './modules/sockets'
 import deployments from './modules/deployments'
 import vpn from './modules/vpn'
 import allowed from './modules/allowed'
+import booking from './modules/booking'
+import snotify from './modules/snotify'
+import planning from './modules/planning'
 import store from '@/store/index.js'
 import { authenticationSegment, apiV3Segment, apiAdminSegment } from '@/shared/constants'
 import { getCookie } from 'tiny-cookie'
+import { ErrorUtils } from '../utils/errorUtils'
 
 Vue.use(Vuex)
 
@@ -33,7 +37,8 @@ export function toast (titol, missatge) {
 export default new Vuex.Store({
   state: {
     categories: [],
-    pageErrorMessage: ''
+    pageErrorMessage: '',
+    currentInternalTime: ''
   },
   getters: {
     getCategories: state => {
@@ -183,6 +188,12 @@ export default new Vuex.Store({
       } else {
         commit('setPageErrorMessage', i18n.t('views.error.codes.500'))
       }
+    },
+    showErrorPopUp (context, errorMessageCode) {
+      console.log(errorMessageCode)
+      const errorMessageText = ErrorUtils.getErrorMessageText(errorMessageCode)
+      console.log(errorMessageText)
+      ErrorUtils.showErrorNotification(this._vm.$snotify, errorMessageText)
     }
   },
   modules: {
@@ -193,6 +204,9 @@ export default new Vuex.Store({
     config,
     vpn,
     sockets,
-    allowed
+    allowed,
+    booking,
+    snotify,
+    planning
   }
 })

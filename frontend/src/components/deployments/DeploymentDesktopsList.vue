@@ -64,7 +64,7 @@
                 <DesktopButton
                     v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1"
                     :active="getItemState(data.item) === desktopStates.started"
-                    :buttColor = "buttViewerCssColor"
+                    :buttonClass = "buttViewerCssColor"
                     :buttText="data.item.viewers[0]"
                     variant="primary"
                     :spinnerActive="waitingIp"
@@ -92,7 +92,7 @@
                     class="table-action-button"
                     :active="true"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
-                    :buttColor = "buttCssColor(getItemState(data.item))"
+                    :buttonClass = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
                     :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                     :iconName = "data.item.buttonIconName">

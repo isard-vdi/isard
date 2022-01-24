@@ -47,6 +47,16 @@ def admin_domains(nav="Domains"):
         return render_template(
             "admin/pages/domains_resources.html", title=nav, nav=nav, icon=icon
         )
+    if nav == "Bookables":
+        icon = "briefcase"
+        return render_template(
+            "admin/pages/bookables.html", title=nav, nav=nav, icon=icon
+        )
+    if nav == "Priority":
+        icon = "briefcase"
+        return render_template(
+            "admin/pages/bookables_priority.html", title=nav, nav=nav, icon=icon
+        )
     else:
         return render_template(
             "admin/pages/domains.html", title=nav, nav=nav, icon=icon

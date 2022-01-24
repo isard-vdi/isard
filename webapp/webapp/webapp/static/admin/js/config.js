@@ -328,7 +328,7 @@ $(document).ready(function() {
     
     scheduler_table=$('#table-scheduler').DataTable({
 			"ajax": {
-				"url": "/scheduler",
+				"url": "/scheduler/not_date",
                 "contentType": "application/json",
                 "type": 'GET',
 			},
@@ -381,6 +381,46 @@ $(document).ready(function() {
 				});	  
         }
     }); 
+
+    booking_scheduler_table=$('#table-booking-scheduler').DataTable({
+        "ajax": {
+            "url": "/scheduler/kind/date",
+            "contentType": "application/json",
+            "type": 'GET',
+        },
+        "sAjaxDataProp": "",
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "bLengthChange": false,
+        "bFilter": false,
+        "rowId": "id",
+        "deferRender": true,
+        "columns": [
+            { "data": "name"},
+            { "data": "kind"},
+            { "data": "next_run_time"},
+            { "data": "kwargs"},
+            {
+            "className":      'actions-control',
+            "orderable":      false,
+            "data":           null,
+            "width": "58px",
+            "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
+            },
+            ],
+         "order": [[1, 'asc']],
+         "columnDefs": [ {
+                        "targets": 2,
+                        "render": function ( data, type, full, meta ) {
+                          return moment.unix(full.next_run_time);
+                        }},
+                        {
+                        "targets": 3,
+                        "render": function ( data, type, full, meta ) {
+                            return JSON.stringify(full.kwargs);
+                        }}]
+        } ); 
 
     maintenance_update_checkbox = (enabled) => {
         let status

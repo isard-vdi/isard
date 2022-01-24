@@ -5,7 +5,7 @@
       @click="active && $emit('buttonClicked')"
       size='md'
       class='rounded-pill pt-2'
-      :class="[buttColor]">
+      :class="[buttonClass]">
       <b-icon class="mb-0" v-if="iconName !== '' && iconName !== undefined" :icon="iconName"></b-icon><span class="ml-1">{{ buttText }}</span>
   </b-button>
 </template>
@@ -14,7 +14,7 @@
 export default {
   props: {
     spinnerActive: Boolean,
-    buttColor: String,
+    buttonClass: String,
     buttText: String,
     active: Boolean,
     iconName: String

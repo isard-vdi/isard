@@ -77,6 +77,12 @@ class ApiTemplates:
         create_dict = _parse_media_info({"hardware": hardware})
         create_dict["origin"] = desktop_id
 
+        if desktop["create_dict"].get("reservables"):
+            create_dict = {
+                **create_dict,
+                **{"reservables": desktop["create_dict"]["reservables"]},
+            }
+
         template_dict = {
             "id": template_id,
             "name": name,

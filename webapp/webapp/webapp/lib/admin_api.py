@@ -402,6 +402,11 @@ class isardAdmin:
             # res=r.table(table).get_all(r.args(ids)).update({'status':'Deleting'}).run(db.conn)
             for desktop in deployment_domains:
                 ds.delete_desktop(desktop["id"], desktop["status"])
+
+            r.table("bookings").get_all(
+                ["deployment", deploymentid], index="item_type-id"
+            ).delete().run(db.conn)
+
             r.table("deployments").get(deploymentid).delete().run(db.conn)
         return True
 

@@ -70,7 +70,7 @@
   margin-left: 100px;
 }
 
-#navbar #left-side li {
+#navbar #left-side li.nav-item {
   margin-right: 30px;
 }
 
@@ -244,7 +244,7 @@
   }
 }
 
-.machine-state {
+.machine-notification-bar {
   padding: 1px 0;
 }
 
@@ -259,6 +259,10 @@
   margin-bottom: 1.5rem !important;
   line-height: 1;
   }
+
+.card-list .card .booking-notification {
+  background-color: #eead47 !important;
+}
 
 .card-list .card .state-on {
   background-color: #97c277;
@@ -283,6 +287,13 @@
 .card-list .card .info-icon {
   top: 20px;
   right: 50px;
+  fill: white;
+  z-index: 100 !important;
+}
+
+.card-list .card .info-icon-left {
+  top: 20px;
+  left: 25px;
   fill: white;
   z-index: 100 !important;
 }

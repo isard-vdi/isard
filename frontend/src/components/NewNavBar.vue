@@ -14,6 +14,10 @@
             <b-nav-item v-if="getUser.role_id === 'advanced'" :to="{ name: 'deployments' }">{{ $t("components.navbar.deployments") }}</b-nav-item>
             <b-nav-item href="#" v-b-modal.help_modal>{{ $t("components.navbar.help") }}</b-nav-item>
             <b-nav-item href="#" @click="fetchVpn()">{{ $t("components.navbar.vpn.download") }}</b-nav-item>
+            <b-nav-item-dropdown v-if="getConfig['show_bookings_button']" :text="$t('components.navbar.bookings.text')">
+              <b-dropdown-item @click="menuGoToBookingSummary()">{{ $t("components.navbar.bookings.summary") }}</b-dropdown-item>
+              <b-dropdown-item v-if="getUser.role_id === 'admin'" @click="menuGoToPlanning()">{{ $t("components.navbar.bookings.planning") }}</b-dropdown-item>
+            </b-nav-item-dropdown>
             <b-nav-item
               v-if="getConfig['show_admin_button']"
               @click="loginAdmin()"
@@ -65,8 +69,15 @@ export default {
       'logout',
       'fetchVpn',
       'fetchConfig',
-      'loginAdmin'
-    ])
+      'loginAdmin',
+      'goToBookingSummary'
+    ]),
+    menuGoToBookingSummary () {
+      this.goToBookingSummary()
+    },
+    menuGoToPlanning () {
+      this.$store.dispatch('navigate', 'Planning')
+    }
   }
 }
 </script>

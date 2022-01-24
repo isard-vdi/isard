@@ -20,7 +20,7 @@ import responses
 
 auths = {}
 dbconn = None
-base = "http://localhost:5000/api/v3"
+base = "http://isard-scheduler:5000"
 dbconn = r.connect("isard-db", 28015).repl()
 
 admin_secret_data = r.db("isard").table("secrets").get("isardvdi").run()
@@ -44,10 +44,18 @@ pprint(raw_jwt_data)
 data = {"name": "My new desktop", "disk_user": True, "virt_install_id": "win10Virtio"}
 ## Warning, second time will throw DesktopExists exception as the name has been used already
 
-data = {"forced_hyp": ["isard-hypervisor"], "pepito": 1}
+data = {"forced_hyp": "fhy", "sample_data": 1}
 print(data)
-response = requests.put(
-    base + "/desktop/_local-default-admin-admin_downloaded_slax93",
+response = requests.get(
+    base + "/scheduler/actions",
+    json=data,
+    headers=auths["isardvdi"]["header"],
+    verify=False,
+)
+pprint(response.status_code)
+pprint(response.text)
+response = requests.post(
+    base + "/scheduler/interval/resource_planner/0/1",
     json=data,
     headers=auths["isardvdi"]["header"],
     verify=False,

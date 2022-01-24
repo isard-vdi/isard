@@ -114,4 +114,5 @@ from .views import (
     VpnViews,
     maintenance,
 )
+from .views.bookings import BookingView, ReservablesView
 from .views.deployments import DeploymentsView

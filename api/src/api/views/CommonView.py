@@ -34,6 +34,10 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 
 common = ApiDesktopsCommon()
 
+from ..libv2.api_alloweds import ApiAlloweds
+
+allowed = ApiAlloweds()
+
 from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
 
 
@@ -64,3 +68,29 @@ def api_v2_desktop_viewers(payload, desktop_id=False, protocol=False):
         viewer = common.DesktopViewer(desktop_id, protocol, get_cookie=True)
         viewers.append(viewer)
     return json.dumps(viewers), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/domains/allowed/<kind>", methods=["GET"])
+@has_token
+def api_v3_domains_allowed_hardware_reservables(payload, kind):
+    if kind == "reservables":
+        reservables = {}
+        reservables["vgpus"] = allowed.get_items_allowed(
+            payload,
+            "reservables_vgpus",
+            pluck=["id", "name", "description"],
+            order="name",
+        )
+        return json.dumps(reservables)
+    if kind == "hardware":
+        return Error("bad_request", "Not implemented")
+
+
+@app.route("/api/v3/domains/allowed/<kind>/defaults/<domain_id>", methods=["GET"])
+@has_token
+def api_v3_domains_default_hardware_reservables(payload, kind, domain_id):
+    ownsDomainId(payload, domain_id)
+    if kind == "reservables":
+        return json.dumps(allowed.get_domain_reservables(domain_id))
+    if kind == "hardware":
+        return Error("bad_request", "Not implemented")

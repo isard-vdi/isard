@@ -1,0 +1,31 @@
+id:
+  type: string
+weeks:
+  type: integer
+  default: 0
+days:
+  type: interger
+  default: 0
+hours:
+  type: integer
+  default: 0
+minutes:
+  type: integer
+  default: 0
+seconds:
+  type: integer
+  default: 0
+start_date:
+  type: string
+  default:
+end_date:
+  type: string
+  default:
+timezone:
+  type: string
+  default:
+jitter:
+  type: string
+  default:
+data:
+  type: dict

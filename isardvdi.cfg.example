@@ -1,4 +1,4 @@
-# Isard main config v2.1.0
+# Isard main config v2.2.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -47,6 +47,10 @@ WEBAPP_ADMIN_PWD=IsardVDI
 # ------ Frontend Administration Button --------------------------------------
 ## Will show/hide Administration menu button for users of role User.
 #FRONTEND_SHOW_ADMIN_BTN=True
+
+# ------ Frontend Bookings ---------------------------------------------------
+## Will show/hide Resource bookings menu.
+#FRONTEND_SHOW_BOOKINGS=False
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
@@ -209,6 +213,15 @@ LOG_LEVEL=INFO
 ## Options: on / off
 #QCOW2_EXTENDED_L2=off
 
+# ------ GPUS --------------------------------------------------------------
+## ----- NVIDIA
+## New hypervisor: Engine will try to scan new hyper for NVIDIA GPUs and
+##                 will also setup them.
+#GPU_NVIDIA_SCAN=false
+
+## Enabled existing hyper: Existing hyper will be scanned for NVIDIA GPUs
+##                         when enabled (from disabled) at web interface.
+#GPU_NVIDIA_RESCAN=false
 
 ##################################################################
 ## INFRASTRUCTURE PARAMETERS. Used on remote hypervisors        ##

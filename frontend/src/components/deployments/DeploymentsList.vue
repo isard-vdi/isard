@@ -38,6 +38,9 @@
             </template>
             <template #cell(actions)='data'>
               <div class='d-flex justify-content-center align-items-center'>
+                <b-button v-if="data.item.needsBooking" class="rounded-circle btn-orange px-2 mr-2" @click="onClickBookingDesktop(data.item)">
+                  <b-icon icon="calendar" scale="0.75"></b-icon>
+                </b-button>
                 <b-button class="rounded-circle btn btn-red px-2 mr-2" @click="deleteDeployment(data.item)" :title="$t('components.statusbar.deployment.buttons.delete.title')">
                   <b-icon icon="trash-fill" scale="0.75"></b-icon>
                 </b-button>
@@ -100,11 +103,17 @@ export default {
       })
     }
 
+    const onClickBookingDesktop = (deployment) => {
+      const data = { id: deployment.id, type: 'deployment', name: deployment.name }
+      $store.dispatch('goToItemBooking', data)
+    }
+
     return {
       rowClass,
       visibleIcon,
       redirectDeployment,
-      deleteDeployment
+      deleteDeployment,
+      onClickBookingDesktop
     }
   },
   components: { ListItemSkeleton },

@@ -784,8 +784,7 @@ class DomainXML(object):
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
     def set_video_type(self, type_video):
-        if type_video.find("nvidia") == 0:
-            type_video = "none"
+        if type_video == "none":
             # remove all attributes like vram that have no sense if type_video is none
             # libvirt xml parser launch an exception if these keys exists
             for key in self.tree.xpath("/domain/devices/video/model")[0].keys():
@@ -799,9 +798,12 @@ class DomainXML(object):
                         print(
                             f"Exception when remove attribute from video model none in xml: {e}"
                         )
+            # remove alivas
+            if self.tree.xpath("/domain/devices/video/alias"):
+                self.tree.xpath("/domain/devices/video/alias")[-1].getparent().remove(
+                    self.tree.xpath("//domain/devices/video/alias")[-1]
+                )
 
-        if type_video.find("nvidia-with-qxl") == 0:
-            type_video = "qxl"
         self.tree.xpath("/domain/devices/video/model")[0].set("type", type_video)
 
     def add_metadata_isard(self, user_id, group_id, category_id, parent_id):
@@ -1385,8 +1387,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     xml_raw = v.return_xml()
     # VERIFING HARDWARE FROM XML
     hw_updated = v.dict_from_xml()
-    if hw["video"]["type"].find("nvidia") == 0:
-        hw_updated["video"] = hw["video"].copy()
+
     # pprint diffs between hardware and hardware from xml
     try:
         flatten_hw = flatten(hw, enumerate_types=(list,))
@@ -1505,6 +1506,7 @@ def create_dict_video_from_id(id_video):
         "type": dict_video["model"],
         "vram": dict_video["vram"],
     }
+
     return d
 
 
@@ -1626,8 +1628,7 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     x.remove_boot_order_and_danger_options_from_disks()
 
     x.dict_from_xml()
-    if dict_domain["hardware"]["video"]["type"].find("nvidia") == 0:
-        x.vm_dict["video"] = dict_domain["hardware"]["video"].copy()
+
     # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
     update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
     if "viewer_passwd" in x.__dict__.keys():
@@ -1706,7 +1707,7 @@ def recreate_xml_interfaces(dict_domain, x):
         interface_index += 1
 
 
-def recreate_xml_if_gpu(id_domain, xml, next_hyp, extras, remove_graphics=False):
+def recreate_xml_if_gpu(xml, mdev_uid):
     xml = xml
 
     parser = etree.XMLParser(remove_blank_text=True)
@@ -1719,13 +1720,20 @@ def recreate_xml_if_gpu(id_domain, xml, next_hyp, extras, remove_graphics=False)
         log.error("Traceback: {}".format(traceback.format_exc()))
         # return False
 
-    uid = extras["uid"]
-    xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
-    <source>
-      <address uuid='{uid}'/>
-    </source>
-  </hostdev>"""
-    xpath_parent = "/domain/devices"
+    uid = mdev_uid
+
+    if os.environ.get("GPU_FAKE") == "true":
+        xml_hostdev = f"""    <gpufake:gpufake xmlns:gpufake="http://gpufake.com">
+          <gpufake:mdev uuid="{uid}"/>
+        </gpufake:gpufake>"""
+        xpath_parent = "/domain/metadata"
+    else:
+        xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
+        <source>
+          <address uuid='{uid}'/>
+        </source>
+      </hostdev>"""
+        xpath_parent = "/domain/devices"
 
     element_tree = etree.parse(StringIO(xml_hostdev)).getroot()
     tree.xpath(xpath_parent)[0].insert(-1, element_tree)

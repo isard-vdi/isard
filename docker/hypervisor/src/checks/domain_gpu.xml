@@ -1,0 +1,73 @@
+<domain type="kvm">
+  <name>test_gpu</name>
+  <memory unit="KiB">6291456</memory>
+  <currentMemory unit="KiB">6291456</currentMemory>
+  <vcpu placement="static">4</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="network"/>
+    <loader readonly="yes" type="pflash">/usr/share/OVMF/OVMF_CODE.fd</loader>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <hyperv>
+      <relaxed state="on"/>
+      <vapic state="on"/>
+      <spinlocks state="on" retries="8191"/>
+    </hyperv>
+    <vmport state="off"/>
+  </features>
+  <cpu mode='host-passthrough' check='none' migratable='on'>
+    <topology sockets='1' dies='1' cores='4' threads='1'/>
+  </cpu>
+  <clock offset="localtime">
+    <timer name="rtc" tickpolicy="catchup"/>
+    <timer name="pit" tickpolicy="delay"/>
+    <timer name="hpet" present="no"/>
+    <timer name="hypervclock" present="yes"/>
+  </clock>
+  <pm>
+    <suspend-to-mem enabled="no"/>
+    <suspend-to-disk enabled="no"/>
+  </pm>
+  <devices>
+    <emulator>/usr/bin/qemu-kvm</emulator>
+    <controller type="usb" index="0" model="qemu-xhci" ports="15"/>
+    <console type="pty">
+      <target type="serial"/>
+    </console>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0"/>
+    </channel>
+    <input type="tablet" bus="usb"/>
+    <graphics type="spice" port="-1" tlsPort="-1" autoport="yes">
+      <listen type="address" address="0.0.0.0"/>
+      <image compression="auto_glz"/>
+      <jpeg compression="always"/>
+      <zlib compression="always"/>
+      <playback compression="off"/>
+      <streaming mode="all"/>
+    </graphics>
+    <sound model="ich9"/>
+    <video>
+      <model type="none" />
+    </video>
+    <redirdev bus="usb" type="spicevmc"/>
+    <redirdev bus="usb" type="spicevmc"/>
+    <redirdev bus="usb" type="spicevmc"/>
+    <channel type="spiceport">
+      <source channel="org.spice-space.webdav.0"/>
+      <target type="virtio" name="org.spice-space.webdav.0"/>
+    </channel>
+    <interface type="network">
+      <source network="default"/>
+      <model type="virtio"/>
+    </interface>
+    <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
+      <source>
+        <address uuid='967803ed-0033-4e81-873f-ac3028aa7b2e'/>
+      </source>
+    </hostdev>
+  </devices>
+</domain>

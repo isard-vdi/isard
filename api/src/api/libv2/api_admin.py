@@ -175,6 +175,7 @@ class ApiAdmin:
                                     "boot_order": True,
                                 },
                                 "origin": True,
+                                "reservables": True,
                             }
                         },
                         "forced_hyp",
@@ -233,6 +234,7 @@ class ApiAdmin:
                                     "forced_hyp": True,
                                 },
                                 "origin": True,
+                                "reservables": True,
                             }
                         },
                     )
@@ -641,3 +643,13 @@ class ApiAdmin:
                     .run(db.conn)
                 )
             ]
+
+
+def admin_table_update_book(table, id, data):
+    _validate_table(table)
+
+    if not _check(
+        r.table(table).get(id).update(data).run(db.conn),
+        "replaced",
+    ):
+        raise UpdateFailed

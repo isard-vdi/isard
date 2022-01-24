@@ -19,7 +19,12 @@
             },
             "admin": "Administració",
             "deployments": "Desplegaments",
-            "templates": "Plantilles"
+            "templates": "Plantilles",
+            "bookings": {
+                "text": "Reserves",
+                "summary": "Resum",
+                "planning": "Planificació"
+            }
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
@@ -68,11 +73,16 @@
                 "action": "Acció",
                 "viewers": "Visors"
             },
+            "notification-bar": {
+                "next-booking": "Propera reserva",
+                "no-next-booking": "L'escriptori no està reservat!"
+            },
             "no-info-default": "No hi ha cap descripció disponible",
             "open-with": "Accedeix amb",
             "actions": {
                 "delete": "Esborrar",
-                "template": "Convertir en plantilla"
+                "template": "Convertir en plantilla",
+                "booking": "Reservar"
             },
             "filter-label": "Filtre"
         },
@@ -130,6 +140,51 @@
                 "error": "Error"
             },
             "button-refresh": "Recarregar"
+        },
+        "bookings": {
+            "item": {
+                "event-titles": {
+                    "available": "Disponible",
+                    "unavailable": "No disponible",
+                    "overridable": "Sobreescribible"
+                },
+                "units": "unitats",
+                "split-labels": {
+                    "availability": "Disponibilitat",
+                    "bookings": "Reserves"
+                },
+                "status-bar": {
+                    "buttons": {
+                        "add-booking": "Afegir reserva"
+                    },
+                    "forbid-time": "Antel·lació requerida",
+                    "max-time": "Temps màxim de reserva",
+                    "max-items": "Màxim de reserves"
+                },
+                "modal": {
+                    "title": "Títol",
+                    "start-date": "Data d'inici",
+                    "start-time": "Hora d'inici",
+                    "end-date": "Data de finalització",
+                    "end-time": "Hora de finalització",
+                    "profile": "Perfil",
+                    "select-profile": "Si us plau seleccioni un perfil",
+                    "create": {
+                        "modal-title": "Afegir reserva",
+                        "button": "Afegir reserva"
+                    },
+                    "edit": {
+                        "modal-title": "Editar reserva",
+                        "button": "Desar canvis"
+                    },
+                    "view": {
+                        "modal-title": "Veure reserva"
+                    },
+                    "delete": {
+                        "button": "Eliminar"
+                    }
+                }
+            }
         }
     },
     "views": {
@@ -534,7 +589,9 @@
         "desktop_stop_timeout": "Temps exhaurit durant l'aturada de l'escriptori",
         "bad_request": "Els paràmetres de la petició són incorrectes",
         "bad_request_title": "Error de petició",
-        "undefined_error": "S'ha produït un error"
+        "undefined_error": "S'ha produït un error",
+        "conflict": "Conflicte",
+        "conflict_title": "Conflicte"
     },
     "messages": {
         "title": {
@@ -550,7 +607,8 @@
             "delete-deployment": "'{name}' s'esborrarà, continuar?",
             "delete-deployment-desktop": "L'escriptori de '{name}' se borrará, continuar?",
             "start-deployment-desktops": "Els escriptoris de '{name}' s'iniciaran, continuar?",
-            "stop-deployment-desktops": "Els escriptoris de '{name}' es pararan, continuar?"
+            "stop-deployment-desktops": "Els escriptoris de '{name}' es pararan, continuar?",
+            "delete-event": "La reserva '{name}' s'esborrarà, continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -567,7 +625,10 @@
             "starting-desktops": "Iniciant els escriptoris del desplegament",
             "stopping-desktops": "Parant els escriptoris del desplegament",
             "creating-template": "Creant plantilla",
-            "new-template-stop": "Per crear una template és necessari que el escriptori estigui parat"
+            "new-template-stop": "Per crear una template és necessari que el escriptori estigui parat",
+            "no-availability-event": "No hi ha disponibilitat al rang seleccionat",
+            "not-created-event": "No s'ha pogut crear l'event",
+            "missing-data": "Falten dades"
         },
         "loading": "Carregant"
     }

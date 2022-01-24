@@ -14,9 +14,7 @@ export class ErrorUtils {
     return errorMessage
   }
 
-  static showErrorMessage (snotify, error, message = '', title = '', position = 'centerTop') {
-    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.error'))
-
+  static showErrorNotification (snotify, errorMessage, position = 'centerTop') {
     snotify.error(errorMessage, {
       timeout: 2000,
       showProgressBar: false,
@@ -24,6 +22,12 @@ export class ErrorUtils {
       pauseOnHover: true,
       position: position
     })
+  }
+
+  static showErrorMessage (snotify, error, message = '', title = '', position = 'centerTop') {
+    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.error'))
+
+    this.showErrorNotification(snotify, errorMessage, position)
   }
 
   static showInfoMessage (snotify, message, title = '', showProgressBar = true, timeout = 2000, position = 'centerTop') {
@@ -49,6 +53,10 @@ export class ErrorUtils {
       ErrorUtils.showErrorMessage(snotify, error,
         i18n.t('errors.bad_request'),
         i18n.t('errors.bad_request_title'))
+    } else if (error.response.status === 409) {
+      ErrorUtils.showErrorMessage(snotify, error,
+        i18n.t('errors.conflict'),
+        i18n.t('errors.conflict_title'))
     } else {
       ErrorUtils.showErrorMessage(snotify, error)
     }

@@ -120,6 +120,12 @@ def api_v3_hypervisor(hyper_id=False):
             only_forced = json.loads(
                 request.form.get("only_forced", default="false", type=str).lower()
             )
+            nvidia_enabled = (
+                True if request.form.get("nvidia_enabled") == "True" else False
+            )
+            force_get_hyp_info = (
+                True if request.form.get("force_get_hyp_info") == "True" else False
+            )
 
         except:
             raise Error(
@@ -141,6 +147,8 @@ def api_v3_hypervisor(hyper_id=False):
             isard_video_url=isard_video_url,
             isard_proxy_hyper_url=isard_proxy_hyper_url,
             isard_hyper_vpn_host=isard_hyper_vpn_host,
+            nvidia_enabled=nvidia_enabled,
+            force_get_hyp_info=force_get_hyp_info,
             description=description,
             user=user,
             only_forced=only_forced,
@@ -203,6 +211,13 @@ def api_v3_hypervisor_disks_found():
 @is_hyper
 def api_v3_hypervisor_media_delete():
     api_hypervisors.delete_media(request.get_json(force=True))
+    return json.dumps(True), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/hypervisors/gpus", methods=["PUT"])
+@is_admin
+def api_v3_hypervisors_gpus(payload):
+    api_hypervisors.assign_gpus()
     return json.dumps(True), 200, {"Content-Type": "application/json"}
 
 

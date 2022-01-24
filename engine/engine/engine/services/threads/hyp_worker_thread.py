@@ -4,6 +4,7 @@
 # License: AGPLv3
 # coding=utf-8
 
+import os
 import queue
 import threading
 import time
@@ -18,7 +19,6 @@ from engine.models.domain_xml import (
 )
 from engine.models.hyp import hyp
 from engine.services.db import (
-    domain_stopped_update_nvidia_uids_status,
     get_all_domains_with_id_status_hyp_started,
     get_domain_hardware_dict,
     get_domains_started_in_hyp,
@@ -31,10 +31,17 @@ from engine.services.db import (
     update_domain_viewer_started_values,
     update_domains_started_in_hyp_to_unknown,
     update_hyp_status,
-    update_info_nvidia_hyp_domain,
     update_table_field,
+    update_vgpu_uuid_domain_action,
 )
-from engine.services.db.hypervisors import update_hyp_thread_status
+from engine.services.db.hypervisors import (
+    get_hyp_info,
+    get_vgpu,
+    update_db_hyp_nvidia_info,
+    update_hyp_thread_status,
+    update_vgpu_profile,
+    update_vgpu_uuids,
+)
 from engine.services.lib.functions import (
     engine_restart,
     exec_remote_list_of_cmds_dict,
@@ -72,7 +79,14 @@ class HypWorkerThread(threading.Thread):
     def run(self):
         self.tid = get_tid()
         logs.workers.info("starting thread: {} (TID {})".format(self.name, self.tid))
-        host, port, user = get_hyp_hostname_from_id(self.hyp_id)
+        (
+            host,
+            port,
+            user,
+            nvidia_enabled,
+            force_get_hyp_info,
+            init_vgpu_profiles,
+        ) = get_hyp_hostname_from_id(self.hyp_id)
         if host is False:
             self.stop = True
             self.error = "hostname not in database"
@@ -80,7 +94,14 @@ class HypWorkerThread(threading.Thread):
             port = int(port)
             self.hostname = host
             try:
-                self.h = hyp(self.hostname, user=user, port=port, hyp_id=self.hyp_id)
+
+                self.h = hyp(
+                    self.hostname,
+                    user=user,
+                    port=port,
+                    hyp_id=self.hyp_id,
+                    nvidia_enabled=nvidia_enabled,
+                )
                 if not self.h.conn:
                     self.error = "cannot connect to libvirt"
                     update_hyp_status(self.hyp_id, "Error", detail=self.error)
@@ -129,17 +150,24 @@ class HypWorkerThread(threading.Thread):
 
             hyp_id = self.hyp_id
             if self.stop is not True:
-                self.h.id_hyp_rethink = hyp_id
-                self.h.get_kvm_mod()
-                self.h.get_hyp_info()
-                logs.workers.debug(
-                    "hypervisor motherboard: {}".format(
-                        self.h.info["motherboard_manufacturer"]
-                    )
+                # get info from hypervisor
+                self.h.get_info_from_hypervisor(
+                    nvidia_enabled=nvidia_enabled,
+                    force_get_hyp_info=force_get_hyp_info,
+                    # force_get_hyp_info=True,
+                    init_vgpu_profiles=init_vgpu_profiles,
                 )
-                update_db_hyp_info(self.hyp_id, self.h.info)
-                self.h.init_nvidia()
-                logs.workers.debug(f"nvidia info updated in hypervisor {self.hyp_id}")
+
+                # load info and nvidia info from db
+                self.h.load_info_from_db()
+
+                # INIT
+
+                if nvidia_enabled:
+                    self.h.init_nvidia()
+                    logs.workers.debug(
+                        f"nvidia info updated in hypervisor {self.hyp_id}"
+                    )
 
                 if (
                     self.h.info["kvm_module"] == "intel"
@@ -161,6 +189,8 @@ class HypWorkerThread(threading.Thread):
                     )
                     self.stop = True
 
+        if self.stop is not True:
+            update_hyp_status(self.hyp_id, "Online")
         while self.stop is not True:
             try:
                 # do={type:'start_domain','xml':'xml','id_domain'='prova'}
@@ -180,11 +210,11 @@ class HypWorkerThread(threading.Thread):
                         self.h.conn.createXML(
                             action["xml"], flags=VIR_DOMAIN_START_PAUSED
                         )
-                        nvidia_uid = action.get("nvidia_uid", False)
-                        if nvidia_uid is not False:
-                            ok = update_info_nvidia_hyp_domain(
-                                "started", nvidia_uid, hyp_id, action["id_domain"]
-                            )
+                        # nvidia_uid = action.get("nvidia_uid", False)
+                        # if nvidia_uid is not False:
+                        #     ok = update_info_nvidia_hyp_domain(
+                        #         "started", nvidia_uid, hyp_id, action["id_domain"]
+                        #     )
                         # 32 is the constant for domains paused
                         # reference: https://libvirt.org/html/libvirt-libvirt-domain.html#VIR_CONNECT_LIST_DOMAINS_PAUSED
 
@@ -210,13 +240,7 @@ class HypWorkerThread(threading.Thread):
                                             action["id_domain"]
                                         )
                                     )
-                                    if nvidia_uid is not False:
-                                        ok = update_info_nvidia_hyp_domain(
-                                            "started",
-                                            nvidia_uid,
-                                            hyp_id,
-                                            action["id_domain"],
-                                        )
+
                                 domain_active = False
 
                             except libvirtError as e:
@@ -384,13 +408,16 @@ class HypWorkerThread(threading.Thread):
                                     vnc=vnc,
                                     vnc_websocket=vnc_websocket,
                                 )
-                                nvidia_uid = action.get("nvidia_uid", False)
-                                if nvidia_uid is not False:
-                                    ok = update_info_nvidia_hyp_domain(
-                                        "started", nvidia_uid, hyp_id, dom_id
+
+                                if action.get("nvidia_uid", False) is not False:
+                                    update_vgpu_uuid_domain_action(
+                                        action["vgpu_id"],
+                                        action["nvidia_uid"],
+                                        "domain_started",
+                                        domain_id=action["id_domain"],
+                                        profile=action["profile"],
                                     )
-                                # logs.status.info(
-                                print(
+                                logs.status.info(
                                     f"DOMAIN STARTED INFO WORKER - {dom_id} in {self.hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})"
                                 )
                                 # wait to event started to save state in database
@@ -414,6 +441,15 @@ class HypWorkerThread(threading.Thread):
                                 logs.workers.debug(
                                     "exception in starting domain {}: ".format(e)
                                 )
+
+                                if action.get("nvidia_uid", False) is not False:
+                                    update_vgpu_uuid_domain_action(
+                                        action["vgpu_id"],
+                                        action["nvidia_uid"],
+                                        "domain_stopped",
+                                        domain_id=action["id_domain"],
+                                        profile=action["profile"],
+                                    )
 
                 ## STOP DOMAIN
                 elif action["type"] == "shutdown_domain":
@@ -453,10 +489,7 @@ class HypWorkerThread(threading.Thread):
                     try:
                         domain_handler = self.h.conn.lookupByName(action["id_domain"])
                         domain_handler.destroy()
-                        # updated in events_recolector
-                        domain_stopped_update_nvidia_uids_status(
-                            action["id_domain"], self.hyp_id
-                        )
+                        # nvidia info updated in events_recolector
 
                         logs.workers.debug(
                             "STOPPED domain {}".format(action["id_domain"])

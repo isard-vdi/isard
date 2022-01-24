@@ -257,7 +257,18 @@
                         {% include '/snippets/domain_hardware_edit.html' %}
                     </div>
                 </div>
-  
+
+                <div class="x_panel" id="reservables-block">
+                    <div class="x_content">
+                        <div class="x_title">
+                            <h4><i class="fa fa-case" aria-hidden="true"></i> Reservable resources</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <p>WARNING: Selecting any of this resources implies desktop reservation. Modifying reservable resources removes desktops existing bookings</p>
+                        {% include '/snippets/domain_reservables_edit.html' %}
+                    </div>
+                </div>
+
                 <div id="media-block">
                       {% include '/snippets/media.html' %}
                 </div>

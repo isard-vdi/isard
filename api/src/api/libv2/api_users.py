@@ -153,8 +153,15 @@ class ApiUsers:
         show_admin_button = (
             True if payload["role_id"] != "user" else frontend_show_admin_btn
         )
+        show_bookings_button = (
+            True
+            if payload["role_id"] == "admin"
+            or os.environ.get("FRONTEND_SHOW_BOOKINGS") == "True"
+            else False
+        )
         return {
             "show_admin_button": show_admin_button,
+            "show_bookings_button": show_bookings_button,
             "documentation_url": "https://isard.gitlab.io/isardvdi-docs/",
         }
 
@@ -469,10 +476,17 @@ class ApiUsers:
                             "persistent",
                             "os",
                             "guest_properties",
+                            "tag",
                             "tag_visible",
                             {"viewer": "guest_ip"},
-                            {"create_dict": {"hardware": ["interfaces", "videos"]}},
+                            {
+                                "create_dict": {
+                                    "hardware": ["interfaces", "videos"],
+                                    "reservables": True,
+                                }
+                            },
                             "progress",
+                            "booking_id",
                         ]
                     )
                     .run(db.conn)

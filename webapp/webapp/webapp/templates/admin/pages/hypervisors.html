@@ -49,6 +49,8 @@
     </div>
   </div>
 </div>
+
+<div class="clearfix"></div>
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
@@ -79,6 +81,40 @@
   {% include '/admin/pages/hypervisors_detail.html' %}
   {% include '/admin/pages/hypervisor_pool_detail.html' %}
 </div>
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+          <div class="x_title">
+              <h3><i class="fa fa-briefcase"></i> GPUS <small></small></h3>
+              <ul class="nav navbar-right panel_toolbox">
+                  <li><a class="btn-new-gpu" data-panel="gpus"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+                  <li><a class="btn-assing-vgpus" data-panel="gpus"><span style="color: #5499c7; "><i class="fa fa-spinner"></i> Reassign physical devices</span></a>
+              </ul>
+              <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+              <table id="table-gpus" class="table">
+                  <thead>
+                      <tr>
+                          <th></th>
+                          <th>Name</th>
+                          <th>Description</th>
+                          <th>Physical Dev</th>
+                          <th>Active Profile</th>
+                          <th>Brand</th>
+                          <th>Model</th>
+                          <th>Architecture</th>
+                          <th>Memory</th>
+                          <th></th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+              </table>
+          </div>
+      </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block pagescript %}
@@ -93,5 +129,6 @@
     <script src="/isard-admin/static/js/restful.js"></script>
     <script src="/isard-admin/static/admin/js/hypervisors.js"></script>  
     <script src="/isard-admin/static/admin/js/hypervisors_detail.js"></script> 
+    <script src="/isard-admin/static/admin/js/hypervisors_gpus.js"></script>       
     <script src="/isard-admin/static/admin/js/hypervisors_pools.js"></script>           
 {% endblock %}

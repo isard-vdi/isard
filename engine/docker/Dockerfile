@@ -60,7 +60,7 @@ COPY engine/docker/supervisord.conf /etc/supervisord.conf
 
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-HEALTHCHECK CMD curl -f http://localhost:5000/engine_info
+HEALTHCHECK CMD curl -f http://localhost:5000/info
 
 FROM production as development
 RUN pip3 install --no-cache-dir ipython==7.26.0 ipython-genutils==0.2.0 pytest==6.2.4

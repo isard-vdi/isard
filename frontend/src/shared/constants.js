@@ -1,3 +1,5 @@
+import i18n from '@/i18n'
+
 export const apiV3Segment = '/api/v3'
 export const apiWebSockets = '/api/v3/socket.io'
 export const apiAdminSegment = '/isard-admin'
@@ -60,4 +62,10 @@ export const status = {
     action: '',
     icon: ''
   }
+}
+
+export const eventsTitles = {
+  available: i18n.t('components.bookings.item.event-titles.available'),
+  unavailable: i18n.t('components.bookings.item.event-titles.unavailable'),
+  overridable: i18n.t('components.bookings.item.event-titles.overridable')
 }

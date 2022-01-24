@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 30
+release_version = 31
+# release 31: Removed all nvidia video types and added none type
 # release 30: Moved domain options to guest_properties
 # release 29: Add volatile path to hypervisors_pools
 # release 28: Added jumperurl token index in domains table
@@ -103,6 +104,7 @@ class Upgrade(object):
         None
 
     def upgrade_if_needed(self):
+
         print(release_version)
         print(self.cfg["version"])
         if not release_version > self.cfg["version"]:
@@ -1090,6 +1092,33 @@ class Upgrade(object):
                         "vram": 1048576,
                     },
                 ]
+            ).run(self.conn)
+
+        if version == 31:
+            try:
+                r.table("videos").get("nvidia-with-qxl").delete().run(self.conn)
+            except:
+                None
+            try:
+                r.table("videos").get("gpu-default").delete().run(self.conn)
+            except:
+                None
+            r.table("videos").insert(
+                {
+                    "allowed": {
+                        "categories": False,
+                        "groups": False,
+                        "roles": False,
+                        "users": False,
+                    },
+                    "description": "Will only use de GPU graphics",
+                    "heads": 1,
+                    "id": "none",
+                    "model": "nvidia",
+                    "name": "Only GPU",
+                    "ram": 0,
+                    "vram": 0,
+                },
             ).run(self.conn)
 
         return True

@@ -8,6 +8,10 @@ services:
 #      RTUN_FORWARD: "443/tcp:isard-portal:443"
   isard-engine:
     container_name: isard-engine
+    depends_on:
+      isard-db:
+        condition: service_started
+
     environment:
       LOG_LEVEL: DEBUG
       LOG_EXCEPT_ID_LEVEL: DEBUG
@@ -19,6 +23,10 @@ services:
 
   isard-api:
     container_name: isard-api
+    depends_on:
+      isard-engine:
+        condition: service_started
+
     environment:
       LOG_LEVEL: DEBUG
       PYTHONUNBUFFERED: 1

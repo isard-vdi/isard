@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+
+ <div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+       <div class="x_panel">
+          <div class="x_title">
+             <h3><i class="fa fa-star"></i> Priority definitions<small> Users priority templates for accessing resources</small></h3> 
+             <ul class="nav navbar-right panel_toolbox">
+                <li><a class="add-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a></li>
+                <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+                <li><a class="close-link"><i class="fa fa-close"></i></a></li>
+             </ul>
+             <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+             <p class="text-muted font-13 m-b-30"></p>
+             <div id="tableDiv"></div>
+             <table id="bookings_priority" class="table">
+                <thead>
+                   <tr>
+                      <th></th>
+                      <th>Rule</th>
+                      <th>Name</th>
+                      <th>Description</th>
+                      <th>Roles</th>
+                      <th>Category</th>
+                      <th>Group</th>
+                      <th>User</th>
+                      <th>Priority</th>
+                      <th>Forbid time</th>
+                      <th>Max time</th>
+                      <th>Max items</th>
+                      <th></th>
+                   </tr>
+                </thead>
+                <tbody>
+                </tbody>
+             </table>
+          </div>
+       </div>
+    </div>
+ 
+ </div>
+
+ {% include '/snippets/alloweds_form.html' %}
+{% include '/admin/pages/bookables_priority_modals.html' %}
+{% include '/admin/pages/bookables_priority_detail.html' %}
+
+{% endblock %}
+{% block pagescript %}
+   <script src="/isard-admin/static/js/restful.js"></script>
+   <script src="/isard-admin/static/admin/js/bookables_priority.js"></script>
+   <script src="/isard-admin/static/js/quota_socket.js"></script>   
+{% endblock %}

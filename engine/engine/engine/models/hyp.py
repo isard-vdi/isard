@@ -15,6 +15,7 @@ import time
 import traceback
 import uuid
 from collections import deque
+from copy import deepcopy
 from datetime import datetime
 from io import StringIO
 from statistics import mean
@@ -26,14 +27,25 @@ from engine.config import *
 from engine.models.nvidia_models import NVIDIA_MODELS
 from engine.services.db import (
     get_hyp,
+    get_hyp_default_gpu_models,
+    get_hyp_info,
     get_id_hyp_from_uri,
+    get_vgpu,
+    insert_table_dict,
+    reset_vgpu_created_started,
     update_actual_stats_domain,
     update_actual_stats_hyp,
-    update_db_default_gpu_models,
-    update_info_nvidia_hyp_domain,
-    update_uids_for_nvidia_id,
+    update_db_hyp_info,
+    update_db_hyp_nvidia_info,
+    update_table_field,
+    update_vgpu_created,
+    update_vgpu_profile,
+    update_vgpu_uuid_started_in_domain,
+    update_vgpu_uuids,
 )
 from engine.services.db.domains import (
+    get_all_mdev_uuids_from_profile,
+    get_domain_status,
     get_domains_started_in_hyp,
     get_domains_with_status_in_list,
     update_domain_status,
@@ -91,6 +103,7 @@ class hyp(object):
         address,
         user="root",
         port=22,
+        nvidia_enabled=False,
         capture_events=False,
         try_ssh_autologin=False,
         hyp_id=None,
@@ -114,10 +127,13 @@ class hyp(object):
         self.fail_connected_reason = ""
         self.eventLoopThread = None
         self.info = {}
+        self.nvidia_enabled = nvidia_enabled
+        self.info_nvidia = {}
+        self.mdevs = {}
         self.info_stats = {}
         self.capture_events = capture_events
         self.id_hyp_rethink = hyp_id
-        self.hyp_id = hyp_id
+        self.id_hyp_rethink = hyp_id
         self.has_nvidia = False
         self.gpus = {}
 
@@ -315,33 +331,212 @@ class hyp(object):
 
             # set_hyp_status(self.hostname,status_code)
 
-    def init_nvidia(self):
-        d_hyp = get_hyp(self.id_hyp_rethink)
-        default_gpu_models = d_hyp.get("default_gpu_models", {})
-        uuids_gpu = d_hyp.get("nvidia_uids", {})
-
-        if len(self.info["nvidia"]) > 0:
-            if len(default_gpu_models) < len(self.info["nvidia"]):
-
-                default_gpu_models = {
-                    k: a["type_max_gpus"] for k, a in self.info["nvidia"].items()
-                }
-                update_db_default_gpu_models(self.id_hyp_rethink, default_gpu_models)
-
-            for gpu_id, d_info_gpu in self.info["nvidia"].items():
-                if gpu_id not in uuids_gpu.keys():
-                    d_uids = self.create_uuids(d_info_gpu)
-                    update_uids_for_nvidia_id(self.id_hyp_rethink, gpu_id, d_uids)
-
-            d_hyp = get_hyp(self.id_hyp_rethink)
-            for gpu_id, d_uids in d_hyp["nvidia_uids"].items():
-                selected_gpu_type = default_gpu_models[gpu_id]
-                info_nvidia = d_hyp["info"]["nvidia"][gpu_id]
-                self.delete_and_create_devices_if_not_exist(
-                    gpu_id, d_uids, info_nvidia, selected_gpu_type, self.id_hyp_rethink
+    def get_info_from_hypervisor(
+        self, nvidia_enabled=False, force_get_hyp_info=False, init_vgpu_profiles=False
+    ):
+        info = self.info = get_hyp_info(self.id_hyp_rethink)
+        if (
+            info is False
+            or (type(info) == dict and len(info) < 1)
+            or force_get_hyp_info is True
+        ):
+            self.info = {}
+            self.get_kvm_mod()
+            self.get_hyp_info(nvidia_enabled)
+            logs.workers.debug(
+                "hypervisor motherboard: {}".format(
+                    self.info["motherboard_manufacturer"]
                 )
-            if len(d_hyp["nvidia_uids"]) > 0:
-                self.update_started_uids()
+            )
+            update_db_hyp_info(self.id_hyp_rethink, self.info)
+            if len(self.info_nvidia) > 0:
+                d = update_db_hyp_nvidia_info(self.id_hyp_rethink, self.info_nvidia)
+                # CREATE UUIDS and SELECT vgpu_profile
+                index_vgpu_profile = {}
+                for pci_bus, d_vgpu in self.info_nvidia.items():
+                    vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
+                    d_uuids = self.create_uuids(d_vgpu)
+                    update_vgpu_uuids(vgpu_id, d_uuids)
+                    # self.mdevs[pci_bus] = d_uuids
+
+                    # init vgpu_profile to max gpu profile
+                    vgpu_profile = self.info_nvidia[pci_bus]["type_max_gpus"]
+                    # if init_vgpu_profiles in hypervisor is defined can change vgpu_profile
+                    if type(init_vgpu_profiles) is list:
+                        all_profiles = list(self.info_nvidia[pci_bus]["types"])
+                        list_profiles_selected = [
+                            a for a in init_vgpu_profiles if a in all_profiles
+                        ]
+                        if len(list_profiles_selected) > 0:
+                            model = self.info_nvidia[pci_bus]["model"]
+                            if model not in index_vgpu_profile.keys():
+                                index_vgpu_profile[model] = 0
+                            else:
+                                index_vgpu_profile[model] += 1
+                            i = index_vgpu_profile[model] % len(list_profiles_selected)
+                            vgpu_profile = list_profiles_selected[i]
+
+                    # self.info_nvidia[pci_bus]["vgpu_profile"] = vgpu_profile
+                    update_vgpu_profile(vgpu_id, vgpu_profile)
+
+    def load_info_from_db(self):
+        self.info = get_hyp_info(self.id_hyp_rethink)
+
+        if self.info is False:
+            return False
+
+        if len(self.info.get("nvidia", {})) > 0:
+            for pci_bus in self.info["nvidia"].keys():
+                vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
+                d_vgpu = get_vgpu(vgpu_id)
+                if d_vgpu:
+                    self.info_nvidia[pci_bus] = d_vgpu["info"]
+                    self.mdevs[pci_bus] = d_vgpu["mdevs"]
+                    self.info_nvidia[pci_bus]["vgpu_profile"] = d_vgpu["vgpu_profile"]
+
+        return True
+
+    def change_vgpu_profile(self, gpu_id, new_profile):
+        update_table_field("vgpus", gpu_id, "changing_to_profile", new_profile)
+        pci_id = gpu_id.split("-")[-1]
+        old_profile = self.info_nvidia.get(pci_id, {}).get("vgpu_profile", None)
+        if old_profile != new_profile:
+            remove_uuids = get_all_mdev_uuids_from_profile(gpu_id, old_profile)
+            # GET RUNNING MDEVS AND DOMAINS FROM HYPERVISOR
+            d_mdevs_running = self.get_mdevs_with_domains()
+            for mdev_uuid in remove_uuids:
+                if mdev_uuid in d_mdevs_running.keys():
+                    if type(d_mdevs_running[mdev_uuid].get("vm_name", False)) is str:
+                        domain_id = d_mdevs_running[mdev_uuid].get("vm_name")
+                        if len(domain_id) > 0:
+                            try:
+                                domain_handler = self.conn.lookupByName(domain_id)
+                                domain_handler.destroy()
+                            except Exception as e:
+                                logs.main.error(
+                                    f"domain {domain_id} running can not be destroyed with exception: {e}"
+                                )
+                                return False
+
+            # REMOVE OLD UUIDS
+            cmds_remove_uuids = [
+                f"echo 1 > /sys/bus/mdev/devices/{uuid_remove}/remove"
+                for uuid_remove in remove_uuids
+                if uuid_remove in d_mdevs_running.keys()
+            ]
+            uuids_that_not_are_running = [
+                uuid_remove
+                for uuid_remove in remove_uuids
+                if uuid_remove not in d_mdevs_running.keys()
+            ]
+
+            if len(cmds_remove_uuids) > 0:
+                array_out_err = execute_commands(
+                    self.hostname, cmds_remove_uuids, port=self.port
+                )
+                for i, uuid_remove in enumerate(remove_uuids):
+                    if len(array_out_err[i]["err"]) == 0:
+                        logs.main.info(
+                            f"removed uid {uuid_remove} for gpu_id: {gpu_id} ok"
+                        )
+                        update_vgpu_created(
+                            gpu_id, old_profile, uuid_remove, created=False
+                        )
+                        self.mdevs[pci_id][old_profile][uuid_remove]["created"] = False
+
+            for uuid_not_running in uuids_that_not_are_running:
+                logs.main.info(
+                    f"removed uid {uuid_not_running} for gpu_id: {gpu_id} ok"
+                )
+                update_vgpu_created(
+                    gpu_id, old_profile, uuid_not_running, created=False
+                )
+                self.mdevs[pci_id][old_profile][uuid_not_running]["created"] = False
+
+            # CREATE NEW UUIDS
+            create_uuids = get_all_mdev_uuids_from_profile(gpu_id, new_profile)
+
+            base_path = self.info_nvidia[pci_id]["path"]
+            sub_paths = self.info_nvidia[pci_id].get("sub_paths", False)
+            cmds = []
+            uuids_create = []
+            for uuid_create, d_uuid in self.mdevs[pci_id][new_profile].items():
+                type_id = d_uuid["type_id"]
+                if uuid_create not in d_mdevs_running.keys():
+                    uuids_create.append(uuid_create)
+                    if sub_paths is False:
+                        path = base_path
+                    else:
+                        path = [
+                            i for i in sub_paths if i.find(d_uuid["pci_mdev_id"]) > 0
+                        ][0]
+                    cmds.append(
+                        f"echo {uuid_create} > '{path}/mdev_supported_types/{type_id}/create'"
+                    )
+                else:
+                    update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
+                    self.mdevs[pci_id][new_profile][uuid_create]["created"] = True
+
+            if len(cmds) > 0:
+                array_out_err = execute_commands(self.hostname, cmds, port=self.port)
+                for i, uuid_create in enumerate(uuids_create):
+                    if len(array_out_err[i]["err"]) == 0:
+                        logs.main.info(
+                            f"added uid {uuid_create} for gpu_id {gpu_id} with profile {new_profile}"
+                        )
+                        update_vgpu_created(
+                            gpu_id, new_profile, uuid_create, created=True
+                        )
+                        self.mdevs[pci_id][new_profile][uuid_create]["created"] = True
+
+            self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
+            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+            update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
+
+    def create_mdevs_from_uuids(self):
+        d_mdevs_running = self.get_mdevs_with_domains()
+        for pci_id, d_nvidia in self.info_nvidia.items():
+            cmds = []
+            vgpu_profile = d_nvidia["vgpu_profile"]
+            base_path = d_nvidia["path"]
+            sub_paths = d_nvidia.get("sub_paths", False)
+            for uuid_create, d_uuid in self.mdevs[pci_id][vgpu_profile].items():
+                type_id = d_uuid["type_id"]
+                if uuid_create not in d_mdevs_running.keys():
+                    if sub_paths is False:
+                        path = base_path
+                    else:
+                        path = [
+                            i for i in sub_paths if i.find(d_uuid["pci_mdev_id"]) > 0
+                        ][0]
+                    cmds.append(
+                        f"echo {uuid_create} > '{path}/mdev_supported_types/{type_id}/create'"
+                    )
+            if len(cmds) > 0:
+                array_out_err = execute_commands(self.hostname, cmds, port=self.port)
+                if len([out for out in array_out_err if len(out["err"]) > 0]) == 0:
+                    logs.workers.info(
+                        f"uuids created for pci_id {pci_id} in hypervisor {self.id_hyp_rethink} with profile {vgpu_profile} with type_id {type_id}"
+                    )
+                    for uuid_create in self.mdevs[pci_id][vgpu_profile].keys():
+                        vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
+                        results = update_vgpu_created(
+                            vgpu_id, vgpu_profile, uuid_create
+                        )
+                        self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
+
+                else:
+                    logs.workers.error(
+                        f"uuids NOT created for pci_id {pci_id} in hypervisor {self.id_hyp_rethink} with profile {vgpu_profile} with type_id {type_id}"
+                    )
+                    for i, d in enumerate(array_out_err):
+                        logs.workers.error(
+                            f"CMD: {cmds[i]} / OUT: {d['out']} / ERROR: {d['err']}"
+                        )
+
+    def init_nvidia(self):
+        self.remove_domains_and_gpus_with_invalids_uuids()
+        self.create_mdevs_from_uuids()
 
     def get_kvm_mod(self):
         for i in range(MAX_GET_KVM_RETRIES):
@@ -394,7 +589,7 @@ class hyp(object):
         )
         return False
 
-    def get_hyp_info(self):
+    def get_hyp_info(self, nvidia_enabled=False):
 
         libvirt_version = str(self.conn.getLibVersion())
         self.info["libvirt_version"] = "{}.{}.{}".format(
@@ -491,7 +686,8 @@ class hyp(object):
             self.info["virtualization_capabilities"] = False
 
         # read_gpu
-        self.get_nvidia_capabilities()
+        if nvidia_enabled:
+            self.get_nvidia_capabilities()
 
     def get_nvidia_available_instances_of_type(self, vgpu_id):
         self.get_nvidia_capabilities(only_get_availables=True)
@@ -502,12 +698,18 @@ class hyp(object):
 
     def get_nvidia_capabilities(self, only_get_availables=False):
         d_info_nvidia = {}
-        mdev_names = self.conn.listDevices("mdev_types")
-        mdev_devices = [a for a in self.conn.listAllDevices() if a.name() in mdev_names]
-        if len(mdev_devices) > 0:
-            l_dict_mdev = [xmltodict.parse(a.XMLDesc()) for a in mdev_devices]
+        libvirt_mdev_names = self.conn.listDevices("mdev_types")
+        # libvirt_mdev_names = self.conn.listDevices("pci")
+        # libvirt_mdev_names = ['pci_0000_41_00_0','pci_0000_61_00_0']
+        # with A40 libvirt detect only subdevices, but not primary device that end with 0
+        pci_names = list(set([a[:-3] + "0_0" for a in libvirt_mdev_names]))
+        pci_devices = [a for a in self.conn.listAllDevices() if a.name() in pci_names]
+        if len(pci_devices) > 0:
+            l_dict_mdev = [xmltodict.parse(a.XMLDesc()) for a in pci_devices]
             l_nvidia_devices = [
-                a for a in l_dict_mdev if a["device"]["driver"]["name"] == "nvidia"
+                a
+                for a in l_dict_mdev
+                if a["device"].get("driver", {}).get("name", {}) == "nvidia"
             ]
             if len(l_nvidia_devices) > 0:
                 self.has_nvidia = True
@@ -515,9 +717,13 @@ class hyp(object):
                     info_nvidia = {}
                     try:
                         try:
-                            max_count = d["device"]["capability"]["capability"][0][
-                                "@maxCount"
-                            ]
+                            capability = d["device"]["capability"]["capability"]
+                            if type(capability) is list:
+                                # T4 and others
+                                max_count = capability[0]["@maxCount"]
+                            else:
+                                # A40 ant others
+                                max_count = capability["@maxCount"]
                         except:
                             max_count = 0
                         name = d["device"]["name"]
@@ -535,129 +741,321 @@ class hyp(object):
                                 vendor_pci_id, device_pci_id
                             )
                         else:
-                            device_name = self.info["nvidia"].get(name, "")
+                            device_name = "UNKNOWN NVIDIA"
                     except:
                         max_count = 0
+                        device_name = "NO DEV NVIDIA"
+                        continue
+
                     try:
-                        # only Q-Series Virtual GPU Types (Required license edition: vWS)
-                        if type(d["device"]["capability"]["capability"]) is list:  ## T4
-                            types = d["device"]["capability"]["capability"][1]["type"]
+                        sub_paths = False
+                        path_parent = False
+                        if device_name.find("A40") >= 0:
+                            l_types, sub_paths, path_parent = self.get_types_from_a40(d)
                         else:
-                            types = d["device"]["capability"]["capability"]["type"]
-                        l_types = [dict(a) for a in types if a["name"][-1] == "Q"]
-                        for a in l_types:
-                            a["name"] = a["name"].replace("GRID ", "")
+                            # only Q-Series Virtual GPU Types (Required license edition: vWS)
+                            if (
+                                type(d["device"]["capability"]["capability"]) is list
+                            ):  ## T4
+                                types = d["device"]["capability"]["capability"][1][
+                                    "type"
+                                ]
+                            else:
+                                types = d["device"]["capability"]["capability"]["type"]
+                            l_types = [dict(a) for a in types if a["name"][-1] == "Q"]
+                            for a in l_types:
+                                a["name"] = a["name"].replace("GRID ", "")
                         l_types.sort(
                             key=lambda r: int(r["name"].split("Q")[0].split("-")[-1])
                         )
-                        type_max_gpus = l_types[0]["name"]
+                        type_max_gpus = l_types[0]["name"].split("-")[-1]
+                        model_gpu = l_types[0]["name"].split("-")[-2]
+
                         d_types = {
-                            a["name"]: {
+                            a["name"].split("-")[-1]: {
                                 "id": a["@id"],
-                                "available": int(a["availableInstances"]),
-                                "memory": NVIDIA_MODELS.get(a["name"], {}).get("mb"),
-                                "max": NVIDIA_MODELS.get(a["name"], {}).get("max"),
+                                "available": min(
+                                    int(a.get("availableInstances", 0)),
+                                    NVIDIA_MODELS.get(a["name"], {}).get("max", 0),
+                                ),
+                                "memory": NVIDIA_MODELS.get(a["name"], {}).get("mb", 0),
+                                "max": NVIDIA_MODELS.get(a["name"], {}).get("max", 0),
                             }
                             for a in l_types
                         }
-                    except:
+                        info_nvidia["types"] = d_types
+                        info_nvidia["type_max_gpus"] = type_max_gpus
+                        info_nvidia["device_name"] = device_name
+                        info_nvidia["pci_id"] = name
+                        info_nvidia["path"] = path
+                        info_nvidia["parent"] = parent
+                        info_nvidia["max_count"] = max_count
+                        info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
+                        info_nvidia["model"] = model_gpu
+                        if sub_paths is not False:
+                            info_nvidia["sub_paths"] = sub_paths
+                        if path_parent is not False:
+                            info_nvidia["path_parent"] = path_parent
+                        d_info_nvidia[name] = info_nvidia
+                    except Exception as e:
+                        logs.exception_id.debug("0074")
+                        log.error(f"error extracting info from nvidia: {e}")
                         d_types = {}
-                    info_nvidia["types"] = d_types
-                    info_nvidia["type_max_gpus"] = type_max_gpus
-                    info_nvidia["device_name"] = device_name
-                    info_nvidia["pci_id"] = name
-                    info_nvidia["path"] = path
-                    info_nvidia["parent"] = parent
-                    info_nvidia["max_count"] = max_count
-                    info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
-                    info_nvidia["model"] = type_max_gpus.split("-")[0]
-                    d_info_nvidia[name] = info_nvidia
-        self.info["nvidia"] = d_info_nvidia
+
+        self.info["nvidia"] = {k: v["model"] for k, v in d_info_nvidia.items()}
+        self.info_nvidia = d_info_nvidia
+
+        video_dict = {
+            "allowed": {
+                "categories": False,
+                "groups": False,
+                "roles": False,
+                "users": False,
+            },
+            "description": "{description}",
+            "heads": 1,
+            "id": "{video_id}",
+            "nvidia": True,
+            "model": "{model}",
+            "profile": "{profile}",
+            "name": "{name}",
+            "ram": 1024,
+            "vram": 1024,
+        }
+
+        for d in d_info_nvidia.values():
+            model = d["model"]
+            for profile, d_info_model in d["types"].items():
+                new_video_dict = deepcopy(video_dict)
+                video_id = f"nvidia-{model}-{profile}"
+                ram = d_info_model["memory"]
+                max = d_info_model["max"]
+                ram_gb = int(ram / 1024)
+                new_video_dict["id"] = video_id
+                new_video_dict["name"] = f"Nvidia vGPU {model} {ram_gb}GB"
+                new_video_dict[
+                    "description"
+                ] = f"Nvidia vGPU {model} with profile {profile} with {ram_gb}GB vRAM with maximum {max} vGPUs per device"
+                new_video_dict["model"] = model
+                new_video_dict["profile"] = profile
+                new_video_dict["ram"] = ram
+                new_video_dict["vram"] = ram
+                insert_table_dict("videos", new_video_dict, ignore_if_exists=True)
+
+    def get_types_from_a40(self, d):
+
+        parent = d["device"]["parent"]
+        dev_parent = self.conn.nodeDeviceLookupByName(parent)
+        d_dev_parent = xmltodict.parse(dev_parent.XMLDesc())
+        path_parent = d_dev_parent["device"]["path"]
+        cmd = f"find \"{path_parent}\" -name nvidia-* | grep mdev_supported_types | xargs -I % sh -c 'echo %; cat %/available_instances; cat %/name;'"
+        cmds1 = [{"title": f"extract mdev supported types", "cmd": cmd}]
+        array_out_err = execute_commands(
+            self.hostname, cmds1, port=self.port, dict_mode=True
+        )
+        if len(array_out_err[0]["err"]) == 0:
+            l_types = []
+            d_available_instances = {}
+            out = array_out_err[0]["out"]
+            paths = set()
+            types = {}
+            for i, line in enumerate(out.splitlines()):
+                if i % 3 == 0:
+                    path = line
+                elif i % 3 == 1:
+                    available_instances = int(line)
+                else:
+                    name = line.replace("NVIDIA ", "")
+                    if name[-1] == "Q":
+                        paths.add(path.split("/mdev_supported_types/")[0])
+                        id_mdev = path.split("/mdev_supported_types/")[1].split("/")[0]
+                        types[name] = id_mdev
+                        if name not in d_available_instances.keys():
+                            d_available_instances[name] = 0
+                        d_available_instances[name] += available_instances
+                        # print(f"path: {path} -- {line}")
+            for name, id_mdev in types.items():
+                l_types.append(
+                    {
+                        "@id": id_mdev,
+                        "name": name,
+                        "availableInstances": d_available_instances[name],
+                    }
+                )
+            return l_types, paths, path_parent
+        else:
+
+            return False, False, False
+
+    def get_mdevs_with_domains(self):
+        cmd = """ls /sys/bus/mdev/devices/ |  xargs -I % bash -c 'echo -n "% / "; cat /sys/bus/mdev/devices/%/nvidia/vm_name' """
+        cmd_mdevctl = "mdevctl list"
+        array_out_err = execute_commands(
+            self.hostname, [cmd, cmd_mdevctl], port=self.port
+        )
+        uuids_and_vms = array_out_err[0]["out"].splitlines()
+        mdev_ctl_list = [
+            a for a in array_out_err[1]["out"].splitlines() if len(a.strip()) > 0
+        ]
+        if len(uuids_and_vms) > 0:
+            d_mdevs_domains = {
+                b[0].strip(): {"vm_name": b[1].strip()}
+                for b in [a.split("/") for a in uuids_and_vms]
+            }
+            d_mdevs = {
+                b[0].strip(): {"type_id": b[2], "pci_id": b[1]}
+                for b in [a.split() for a in mdev_ctl_list]
+            }
+            [d.update(d_mdevs_domains[k]) for k, d in d_mdevs.items()]
+            return d_mdevs
+        else:
+            return {}
+
+    def remove_domains_and_gpus_with_invalids_uuids(self):
+        # get running mdevs
+        d_mdevs_running = self.get_mdevs_with_domains()
+
+        # get all uuids
+        all_uuids = {}
+        for pci_id, d_pci in self.mdevs.items():
+            reset_vgpu_created_started(self.id_hyp_rethink, pci_id, d_mdevs_running)
+            for profile, d in d_pci.items():
+                for uuid64, i in d.items():
+                    if "type_id" not in i.keys():
+                        logs.main.error(f"uuid without type_id: {uuid64}")
+                    all_uuids[uuid64] = {
+                        "profile": profile,
+                        "pci_id": pci_id,
+                        "type_id": i["type_id"],
+                        "pci_mdev_id": i["pci_mdev_id"],
+                    }
+
+        destroy_domains = []
+        remove_uuids = []
+
+        for uuid_running, d in d_mdevs_running.items():
+            # if uuids not exists in database
+            if uuid_running not in all_uuids.keys():
+                remove_uuids.append(uuid_running)
+                if len(d["vm_name"]) > 0:
+                    destroy_domains.append(d["vm_name"])
+            else:
+                pci_mdev_id_running = d["pci_id"]
+                type_id_running = d["type_id"]
+                if (
+                    type_id_running == all_uuids[uuid_running]["type_id"]
+                    and pci_mdev_id_running == all_uuids[uuid_running]["pci_mdev_id"]
+                ):
+                    if len(d["vm_name"]) > 0:
+                        if get_domain_status(d["vm_name"]) is None:
+                            destroy_domains.append(d["vm_name"])
+                        else:
+                            domains = self.get_domains()
+                            if d["vm_name"] in domains.keys():
+                                update_domain_status(
+                                    domains[d["vm_name"]]["status"],
+                                    d["vm_name"],
+                                    hyp_id=self.id_hyp_rethink,
+                                )
+                                update_vgpu_uuid_started_in_domain(
+                                    hyp_id=self.id_hyp_rethink,
+                                    pci_id=all_uuids[uuid_running]["pci_id"],
+                                    profile=all_uuids[uuid_running]["profile"],
+                                    mdev_uuid=uuid_running,
+                                    domain_id=d["vm_name"],
+                                )
+                else:
+                    remove_uuids.append(uuid_running)
+                    destroy_domains.append(d["vm_name"])
+
+        for domain_id in destroy_domains:
+            domains_to_destroy = {d.name(): d for d in self.conn.listAllDomains()}
+            if domain_id in domains_to_destroy.keys():
+                try:
+                    domains_to_destroy[domain_id].destroy()
+                except Exception as e:
+                    logs.main.error(
+                        f"domain {domain_id} with invalid gpu detected is destroyed "
+                    )
+
+        # cmds_remove_uuids = [f"echo 1 > /sys/bus/mdev/devices/{uuid_remove}/remove" for uuid_remove in remove_uuids]
+        cmds_remove_uuids = [
+            f"echo 1 > /sys/bus/mdev/devices/{uuid_remove}/remove"
+            for uuid_remove in remove_uuids
+        ]
+        if len(cmds_remove_uuids) > 0:
+            array_out_err = execute_commands(
+                self.hostname, cmds_remove_uuids, port=self.port
+            )
 
     def create_uuids(self, d_info_gpu):
-        d_uids = {}
+        d_uuids = {}
+        sub_paths = d_info_gpu.get("sub_paths", False)
         for name, d_type in d_info_gpu["types"].items():
             d = {}
             # in some nvidia cards as A40 d['max'] is None
             if d_type.get("max") is None:
                 d_type["max"] = d_type.get("available", 1)
             total_available = max(d_type.get("max", 1), d_type.get("available", 1))
+            l_pci_mdev_id = []
+            d = {}
             for i in range(total_available):
-                uid = str(uuid.uuid4())
-                d[uid] = {"created": False, "reserved": False, "started": False}
-            d_uids[name] = d
-        return d_uids
+                if sub_paths is False:
+                    path = d_info_gpu["path"]
+                else:
+                    path = sorted(sub_paths)[i]
+                uuid64 = str(uuid.uuid4())
+                d[uuid64] = {
+                    "pci_mdev_id": l_pci_mdev_id[i]
+                    if len(l_pci_mdev_id) > 0
+                    else path.split("/")[-1],
+                    "type_id": d_type["id"],
+                    "created": False,
+                    "domain_started": False,
+                    "domain_reserved": False,
+                }
+            d_uuids[name.split("-")[-1]] = d
+        return d_uuids
 
-    def delete_and_create_devices_if_not_exist(
+    def delete_vgpus_devices(
         self, gpu_id, d_uids, info_nvidia, selected_gpu_type, hyp_id
     ):
-        cmds1 = list()
-        path = info_nvidia["path"]
-        for type in d_uids.keys():
-            id_type = info_nvidia["types"][type]["id"]
-            dir = f"{path}/mdev_supported_types/{id_type}"
-            cmds1.append({"title": f"{type}", "cmd": f'ls "{dir}/devices"'})
+        cmds_create_delete = []
+        d_id_mdev_type = {v["id"]: k for k, v in info_nvidia["types"].items()}
 
-        array_out_err = execute_commands(
-            self.hostname, cmds1, port=self.port, dict_mode=True
-        )
-        uids_in_hyp_now = {d["title"]: d["out"].splitlines() for d in array_out_err}
+        if info_nvidia["model"] == "A40":
+            path_parent = info_nvidia["path_parent"]
+            uids_in_hyp_now = {}
+            id_mdev_selected = info_nvidia["types"][selected_gpu_type]["id"]
+            uids_in_hyp_now[id_mdev_selected] = {}
 
-        # DELETE  UUIDS
-        cmds1 = list()
-        for type, l_uids_now in uids_in_hyp_now.items():
-            id_type = info_nvidia["types"][type]["id"]
-            dir = f"{path}/mdev_supported_types/{id_type}"
-
-            for uid_now in l_uids_now:
-                if (type != selected_gpu_type) or (
-                    (type == selected_gpu_type) and (uid_now not in d_uids[type])
-                ):
-                    cmds1.append(
-                        {
-                            "title": f"remove uuid to {type}: {uid_now}",
-                            "cmd": f'echo "1" > "{dir}/devices/{uid_now}/remove"',
-                        }
-                    )
-        # CREATE  UUIDS
-        created = []
-        for type, l_uids_now in uids_in_hyp_now.items():
-            id_type = info_nvidia["types"][type]["id"]
-            dir = f"{path}/mdev_supported_types/{id_type}"
-            if type == selected_gpu_type:
-                for uid in d_uids[type]:
-                    if uid not in l_uids_now:
-                        cmds1.append(
-                            {
-                                "title": f"create uuid to {type}: {uid}",
-                                "cmd": f'echo "{uid}" > "{dir}/create"',
-                            }
-                        )
-                    else:
-                        created.append(uid)
-
-        if len(cmds1) > 0:
+            cmd = (
+                f'find "{path_parent}" -name nvidia-* | grep mdev_supported_types | '
+                + f"xargs -I % sh -c 'echo %; ls %/devices;'"
+            )
+            cmds1 = [{"title": f"find mdev devices", "cmd": cmd}]
             array_out_err = execute_commands(
                 self.hostname, cmds1, port=self.port, dict_mode=True
             )
-            output_ok = [d["title"] for d in array_out_err if len(d["err"]) == 0]
-            append_uids = [
-                a.split(":")[1].strip() for a in output_ok if a.find("create uuid") == 0
-            ]
-            remove_uids = [
-                a.split(":")[1].strip() for a in output_ok if a.find("remove uuid") == 0
-            ]
-            if len(remove_uids) > 0:
-                ok = update_info_nvidia_hyp_domain("removed", remove_uids, hyp_id)
-            created += append_uids
-            if len(created) > 0:
-                ok = update_info_nvidia_hyp_domain("created", created, hyp_id)
-            if len([d["err"] for d in array_out_err if len(d["err"]) > 0]) > 0:
-                print("errors creating uids")
-                return False
-            return True
-        else:
-            return True
+            out = array_out_err[0]["out"]
+            lines_out = out.splitlines()
+            for i in range(len(lines_out)):
+                if lines_out[i].find(path_parent) < 0:
+                    path = lines_out[i - 1]
+                    uid = lines_out[i]
+                    sub_path_dev = path.split("/mdev_supported_types/")[0]
+                    id_mdev = path.split("/mdev_supported_types/")[1].split("/")[0]
+                    if id_mdev == id_mdev_selected:
+                        uids_in_hyp_now[id_mdev_selected][sub_path_dev] = uid
+                    else:
+                        name = d_id_mdev_type[id_mdev]
+                        cmd = f'echo 1 > "{sub_path_dev}/{uid}/remove"'
+                        cmds_create_delete.append(
+                            {
+                                "title": f"remove uuid to {name}: {uid}",
+                                "cmd": cmd,
+                            }
+                        )
 
     def update_started_uids(self):
         pass
