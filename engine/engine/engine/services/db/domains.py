@@ -885,6 +885,7 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
         detail=new_detail,
         hyp_id=hyp_started,
     )
+    return True
 
 
 def update_domain_history_status(
