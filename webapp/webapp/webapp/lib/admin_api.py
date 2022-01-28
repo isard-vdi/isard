@@ -2171,7 +2171,10 @@ class isardAdmin:
         create_dict["hardware"]["disks"] = [
             {"file": media["path"], "size": media["progress"]["total"]}
         ]  # 15G as a format
-
+        image = apic.post(
+            "/images/desktops/generate",
+            {"desktop_id": "_" + user + "-" + parsed_name, "desktop_name": name},
+        )
         new_domain = {
             "id": "_" + user + "-" + parsed_name,
             "name": name,
@@ -2185,6 +2188,13 @@ class isardAdmin:
             "group": userObj["group"],
             "xml": None,
             "icon": icon,
+            "image": image
+            if image
+            else {
+                "id": "_" + user + "-" + parsed_name,
+                "url": "/assets/img/desktops/stock/1.jpg",
+                "type": "stock",
+            },
             "server": False,
             "os": create_dict["create_from_virt_install_xml"],  #### Or name
             "options": {"viewers": {"spice": {"fullscreen": False}}},
