@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 23
+release_version = 24
+# release 24: Add missing domains created from qcow2 media disk image field
 # release 23: Added enabled to templates
 # release 22: Upgrade domains image field
 # release 21: Added secondary wg_client_ip index to users.
@@ -801,6 +802,21 @@ class Upgrade(object):
             r.table(table).filter(r.row["kind"].match("template")).update(
                 {"enabled": True}
             ).run(self.conn)
+
+        if version == 24:
+            try:
+                ids = [
+                    d["id"]
+                    for d in r.table(table)
+                    .filter(~r.row.has_fields("image"))
+                    .run(self.conn)
+                ]
+                for domain_id in ids:
+                    r.table("domains").get(domain_id).update(
+                        {"image": self.get_domain_stock_card(domain_id)}
+                    ).run(self.conn)
+            except Exception as e:
+                None
 
         return True
 
