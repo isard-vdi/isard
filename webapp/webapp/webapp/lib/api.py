@@ -1619,6 +1619,7 @@ class isard:
             "kind": form_data["kind"],
             "user": user["id"],
             "username": user["username"],
+            "enabled": form_data["enabled"],
             "status": "CreatingTemplate",
             "detail": None,
             "category": user["category"],
