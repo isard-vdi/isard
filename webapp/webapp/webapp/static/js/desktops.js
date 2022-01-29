@@ -653,6 +653,7 @@ function setDefaultsTemplate(id) {
             $('.template-id').attr('data-pk', id);
             $('.template-name').val('Template '+data.name);
             $('.template-description').val(data.description);
+            $('#modalTemplateDesktop #enabled').iCheck('check')
         }               
     });
 }
@@ -756,6 +757,7 @@ function initalize_modal_all_desktops_events(){
                     data=$('#modalTemplateDesktopForm').serializeObject();
                     data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
                     data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
+                    data['enabled']=$('#modalTemplateDesktop #enabled').prop('checked');
                     socket.emit('domain_template_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
