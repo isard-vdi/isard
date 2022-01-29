@@ -132,7 +132,7 @@
         url: "/api/v3",
         beforeSend: function (jqXHR, settings) {
           // TODO: remove url check
-          if (settings.url.split("/")[1] != 'isard-admin') {
+          if (settings.url.split("/")[1] == 'admin') {
             settings.url = "/api/v3" + settings.url
           }
         }
