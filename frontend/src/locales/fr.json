@@ -197,7 +197,8 @@
             "title": "Se connecter",
             "errors": {
                 "500": "Erreur du serveur",
-                "401": "Nom d’utilisateur ou mot de passe incorrect"
+                "401": "Nom d’utilisateur ou mot de passe incorrect",
+                "generic": "Une erreur est survenue"
             }
         },
         "deployment": {
@@ -214,7 +215,12 @@
                 "subtitle": "Si vous pensez que ceci est une erreur, veuillez contacter l’administrateur"
             }
         },
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "direct-viewer": {
+            "button": {
+                "browser": "Navigateur"
+            }
+        }
     },
     "components": {
         "navbar": {
@@ -299,7 +305,10 @@
             "checkbox-text": "Seulement les démarrés",
             "desktops-started": "Bureaux démarrés",
             "new-desktop": "Nouveau bureau",
-            "checkbox-text-short": "Démarrés"
+            "checkbox-text-short": "Démarrés",
+            "select": "Sélectionner",
+            "cancel": "Annuler",
+            "upload-file": "Envoyer un fichier"
         }
     },
     "errors": {
@@ -314,7 +323,12 @@
         "desktop_start_group_quota_exceeded": "La limite de postes de travail démarrés pour le groupe est dépassée",
         "desktop_start_category_quota_exceeded": "La limite de postes de travail démarrés pour la catégorie est dépassée",
         "desktop_start_vcpu_quota_exceeded": "le quota de vCPU pour cet utilisateur  est épuisé",
-        "desktop_start_group_vcpu_quota_exceeded": "limite de vCPU pour le groupe dépassée"
+        "desktop_start_group_vcpu_quota_exceeded": "limite de vCPU pour le groupe dépassée",
+        "desktop_start_group_memory_quota_exceeded": "La limite de mémoire pour ce groupe a été dépassée",
+        "desktop_start_category_memory_quota_exceeded": "La limite de mémoire pour cette catégorie a été dépassée.",
+        "category_generic_exception": "Échec lors de la récupération de la catégorie",
+        "desktop_start_category_vcpu_quota_exceeded": "La limite de vCPU pour cette catégorie a été dépassée.",
+        "desktop_start_memory_quota_exceeded": "Le quota de mémoire pour cet utilisateur a été dépassé"
     },
     "validations": {
         "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
@@ -332,7 +346,8 @@
                 "selected": "Sélectionné",
                 "description": "Description",
                 "category": "Catégorie",
-                "group": "Groupe"
+                "group": "Groupe",
+                "image": "Image"
             },
             "desktop-template": "Modèle",
             "section-title-template": "Sélectionnez un modèle :",
@@ -343,7 +358,10 @@
         "clear": "Effacer",
         "cancel": "Annuler",
         "submit": "Soumettre",
-        "create": "Créer"
+        "create": "Créer",
+        "registration": {
+            "code": "Code d'enregistrement"
+        }
     },
     "messages": {
         "yes": "Oui",
@@ -352,13 +370,15 @@
             "delete": "Supprimer"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' sera supprimé, continuer ?"
+            "delete-desktop": "'{name}' sera supprimé, continuer ?",
+            "change-image": "Sélectionner une nouvelle image pour le bureau ?"
         },
         "info": {
             "deleting-desktop": "Suppression du bureau",
             "opening-desktop": "Ouverture du bureau",
             "creating-desktop": "Création du bureau",
             "file-downloaded": "Fichier téléchargé"
-        }
+        },
+        "loading": "Chargement"
     }
 }
