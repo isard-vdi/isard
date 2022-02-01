@@ -304,16 +304,20 @@ class isardViewer:
             c,
         )
 
-        consola = consola + """%shost-subject=%s
+        consola = (
+            consola
+            + """%shost-subject=%s
         %sca=%r
         toggle-fullscreen=shift+f11
         release-cursor=shift+f12
         secure-attention=ctrl+alt+end
-        secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard""" % (
-            "" if domain["viewer"]["tls"]["host-subject"] != False else ";",
-            domain["viewer"]["tls"]["host-subject"],
-            "" if domain["viewer"]["tls"]["certificate"] != False else ";",
-            domain["viewer"]["tls"]["certificate"],
+        secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
+            % (
+                "" if domain["viewer"]["tls"]["host-subject"] != False else ";",
+                domain["viewer"]["tls"]["host-subject"],
+                "" if domain["viewer"]["tls"]["certificate"] != False else ";",
+                domain["viewer"]["tls"]["certificate"],
+            )
         )
 
         consola = consola.replace("'", "")

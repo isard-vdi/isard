@@ -46,7 +46,7 @@ def draw_multiple_line_text(image, text, font, text_color):
     lines = textwrap.wrap(text, width=12)
     lw, lh = font.getsize(lines[0])
     nlines = len(lines) if len(lines) <= 4 else 4
-    y_text = int(image_height / (2 ** nlines)) if nlines < 4 else 0
+    y_text = int(image_height / (2**nlines)) if nlines < 4 else 0
     for line in lines:
         line_width, line_height = font.getsize(line)
         draw.text(
