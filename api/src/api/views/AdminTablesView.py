@@ -26,6 +26,12 @@ def api_v3_admin_table(payload, table):
         options.get("without"),
     )
     if payload["role_id"] == "manager":
+        if table == "categories":
+            result = [
+                {**r, **{"editable": False}}
+                for r in result
+                if r["id"] == payload["category_id"]
+            ]
         if table == "groups":
             result = [
                 r
