@@ -12,6 +12,7 @@ export default {
     if (localStorage.token) {
       this.$store.dispatch('setSession', localStorage.token)
     }
+    this.$store.dispatch('watchToken')
   }
 }
 

@@ -1,3 +1,4 @@
+import store from '@/store/index.js'
 import ErrorPage from '@/views/ErrorPage.vue'
 import ExpiredSession from '@/views/ExpiredSession.vue'
 import Login from '@/views/Login.vue'
@@ -125,6 +126,7 @@ router.beforeEach((to, from, next) => {
   if (to.matched.some(record => record.meta.requiresAuth)) {
     auth(to, from, next)
   } else {
+    store.dispatch('saveNavigation', { url: to })
     next()
   }
 })

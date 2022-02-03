@@ -145,12 +145,16 @@ export default new Vuex.Store({
       }).then(() => {
         localStorage.token = ''
         context.commit('resetStore')
-        router.push({ name: 'Login' })
+        if (!store.getters.getUrlTokens.includes('login')) {
+          router.push({ name: 'Login' })
+        }
       })
     },
     watchToken (context) {
       window.addEventListener('storage', (e) => {
-        if (e.key === 'token' && e.newValue === null) {
+        if (localStorage.token === undefined) {
+          store.dispatch('logout')
+        } else if (e.key === 'token' && e.newValue === null) {
           store.dispatch('logout')
         }
       })

@@ -7,14 +7,17 @@ export function auth (to, from, next) {
     if (cookies.getCookie('authorization')) {
       const jwt = JSON.parse(atob(cookies.getCookie('authorization').split('.')[1]))
       if (jwt.type === 'register') {
+        store.dispatch('saveNavigation', { url: to })
         next({ name: 'Register' })
       } else {
         localStorage.token = cookies.getCookie('authorization')
         store.dispatch('loginSuccess', localStorage.token)
+
+        store.dispatch('saveNavigation', { url: to })
         next({ name: 'desktops' })
       }
     } else {
-      next({ name: 'Login' })
+      store.dispatch('logout')
     }
   } else {
     if (new Date() > new Date(JSON.parse(atob(localStorage.token.split('.')[1])).exp * 1000)) {
