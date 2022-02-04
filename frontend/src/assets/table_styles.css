@@ -19,6 +19,7 @@
 .table-list table {
   border-collapse: separate;
   border-spacing: 0 1em;
+  height: fit-content;
 }
 
 .table-list thead tr {
@@ -35,10 +36,11 @@
   border-right: 0;
 }
 
-.table-list tr {
+.table-list tbody tr {
   box-shadow: 0 2px 4px 0 #b2bec3;
   margin-bottom: 20px;
   border-radius: 11px;
+  height: 3rem;
 }
 
 .table-list tr td {
