@@ -31,7 +31,13 @@ from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
 
-from .decorators import has_token, is_admin, ownsCategoryId, ownsUserId
+from .decorators import (
+    has_token,
+    is_admin,
+    is_admin_or_manager,
+    ownsCategoryId,
+    ownsUserId,
+)
 
 
 @app.route("/api/v3/admin/jwt/<user_id>", methods=["GET"])
@@ -95,7 +101,7 @@ def api_v3_admin_user_exists(payload, id=False):
 
 
 @app.route("/api/v3/admin/users", methods=["GET"])
-@has_token
+@is_admin_or_manager
 def api_v3_admin_users(payload):
     try:
         userslist = users.List()
@@ -116,7 +122,7 @@ def api_v3_admin_users(payload):
         return json.dumps(userslist), 200, {"Content-Type": "application/json"}
     if payload["role_id"] == "manager":
         filtered_users = [
-            u for u in userslit if u["category"] == payload["category_id"]
+            u for u in userslist if u["category"] == payload["category_id"]
         ]
         return json.dumps(filtered_users), 200, {"Content-Type": "application/json"}
     return (
