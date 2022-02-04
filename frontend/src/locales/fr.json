@@ -219,7 +219,9 @@
         "direct-viewer": {
             "button": {
                 "browser": "Navigateur"
-            }
+            },
+            "local-client-help": "Instructions d'installation du client local",
+            "title": "Visionneur direct"
         }
     },
     "components": {
