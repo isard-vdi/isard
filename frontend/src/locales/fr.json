@@ -358,7 +358,8 @@
         "bad_request_title": "Erreur de la requête",
         "desktop_new_template_forbidden": "Erreur de permission durant la création du bureau",
         "quota_general_exception": "Une erreur concernant le quota des utilisateurs est survenue",
-        "desktops_get_error": "Échec lors de la récupération des bureaux"
+        "desktops_get_error": "Échec lors de la récupération des bureaux",
+        "user_disabled": "L'utilisateur est désactivé"
     },
     "validations": {
         "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
