@@ -299,7 +299,10 @@
         "create": "Создать",
         "clear": "Очистить",
         "cancel": "Отмена",
-        "submit": "Отправить"
+        "submit": "Отправить",
+        "registration": {
+            "code": "Код регистрации"
+        }
     },
     "messages": {
         "title": {
