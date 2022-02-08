@@ -9,26 +9,28 @@
 $(document).ready(function() {
     var table=$('#externalapps').DataTable( {
         "ajax": {
-            "url": "/isard-admin/admin/table/secrets/get",
-            "dataSrc": ""
+            "url": "/admin/table/secrets",
+            "dataSrc": "",
+            "type" : "POST",
+            "data": function(d){return JSON.stringify({})}
         },
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
         "columns": [
-				{
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
+            {
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-                },
-                { "data": "id"},
-                { "data": "secret"},
-                { "data": "description"},
-                { "data": "role_id"},
-                { "data": "category_id"},
-                { "data": "domain"},
+            },
+            { "data": "id"},
+            { "data": "secret"},
+            { "data": "description"},
+            { "data": "role_id"},
+            { "data": "category_id"},
+            { "data": "domain"},
         ]
     } );
 
