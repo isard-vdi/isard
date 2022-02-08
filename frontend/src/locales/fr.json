@@ -197,7 +197,8 @@
             "title": "Se connecter",
             "errors": {
                 "500": "Erreur du serveur",
-                "401": "Nom d’utilisateur ou mot de passe incorrect"
+                "401": "Nom d’utilisateur ou mot de passe incorrect",
+                "generic": "Une erreur est survenue"
             }
         },
         "deployment": {
@@ -214,7 +215,14 @@
                 "subtitle": "Si vous pensez que ceci est une erreur, veuillez contacter l’administrateur"
             }
         },
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "direct-viewer": {
+            "button": {
+                "browser": "Navigateur"
+            },
+            "local-client-help": "Instructions d'installation du client local",
+            "title": "Visionneur direct"
+        }
     },
     "components": {
         "navbar": {
@@ -299,7 +307,10 @@
             "checkbox-text": "Seulement les démarrés",
             "desktops-started": "Bureaux démarrés",
             "new-desktop": "Nouveau bureau",
-            "checkbox-text-short": "Démarrés"
+            "checkbox-text-short": "Démarrés",
+            "select": "Sélectionner",
+            "cancel": "Annuler",
+            "upload-file": "Envoyer un fichier"
         }
     },
     "errors": {
@@ -312,7 +323,43 @@
         "desktop_new_category_quota_exceeded": "La limite de catégorie de création de bureau est dépassée",
         "desktop_start_user_quota_exceeded": "Le quota de bureaux démarrés pour cet utilisateur est dépassé",
         "desktop_start_group_quota_exceeded": "La limite de postes de travail démarrés pour le groupe est dépassée",
-        "desktop_start_category_quota_exceeded": "La limite de postes de travail démarrés pour la catégorie est dépassée"
+        "desktop_start_category_quota_exceeded": "La limite de postes de travail démarrés pour la catégorie est dépassée",
+        "desktop_start_vcpu_quota_exceeded": "le quota de vCPU pour cet utilisateur  est épuisé",
+        "desktop_start_group_vcpu_quota_exceeded": "limite de vCPU pour le groupe dépassée",
+        "desktop_start_group_memory_quota_exceeded": "La limite de mémoire pour ce groupe a été dépassée",
+        "desktop_start_category_memory_quota_exceeded": "La limite de mémoire pour cette catégorie a été dépassée.",
+        "category_generic_exception": "Échec lors de la récupération de la catégorie",
+        "desktop_start_category_vcpu_quota_exceeded": "La limite de vCPU pour cette catégorie a été dépassée.",
+        "desktop_start_memory_quota_exceeded": "Le quota de mémoire pour cet utilisateur a été dépassé",
+        "desktop_new_desktop_name_exists_foruser": "Un bureau existe déjà avec le même nom pour cet utilisateur",
+        "registration_code_not_found": "Code d'enregistrement inconnu",
+        "group_not_found": "Groupe inconnu",
+        "template_not_found": "Échec lors de la récupération du modèle",
+        "category_not_found": "Catégorie inconnue",
+        "role_not_found": "Rôle inconnu",
+        "user_not_found": "Utilisateur inconnu",
+        "user_new_category_cuota_exceeded": "La limite de création d'utilisateurs pour cette catégorie a été dépassée",
+        "template_new_not_created": "Échec lors de la création du modèle",
+        "get_generic_exception": "Échec lors de la récupération des données",
+        "templates_get_error": "Échec lors de la récupération des modèles",
+        "viewer_not_started": "Le visualiseur n'a pas été lancé",
+        "login_failed": "Échec de connexion",
+        "user_new_generic_exception": "Échec lors de la création de l'utilisateur",
+        "user_delete_generic_exception": "Échec lors de la suppression de l'utilisateur",
+        "user_new_group_cuota_exceeded": "La limite de création d'utilisateurs pour cette groupe a été dépassée",
+        "username_exists": "Un utilisateur existe déjà pour ce même nom d'utilisateur",
+        "viewer_not_found": "Visualiseur inconnu",
+        "desktop_not_found": "Bureau inconnu",
+        "update_generic_exception": "Échec lors de la mise à jour",
+        "viewer_protocol_not_found": "Protocole de visualiseur inconnu",
+        "register_generic_exception": "Échec lors du processus d'enregistrement",
+        "undefined_error": "Une erreur est survenue",
+        "bad_request": "Les paramètres de la requête sont invalides",
+        "bad_request_title": "Erreur de la requête",
+        "desktop_new_template_forbidden": "Erreur de permission durant la création du bureau",
+        "quota_general_exception": "Une erreur concernant le quota des utilisateurs est survenue",
+        "desktops_get_error": "Échec lors de la récupération des bureaux",
+        "user_disabled": "L'utilisateur est désactivé"
     },
     "validations": {
         "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
@@ -330,7 +377,8 @@
                 "selected": "Sélectionné",
                 "description": "Description",
                 "category": "Catégorie",
-                "group": "Groupe"
+                "group": "Groupe",
+                "image": "Image"
             },
             "desktop-template": "Modèle",
             "section-title-template": "Sélectionnez un modèle :",
@@ -341,7 +389,10 @@
         "clear": "Effacer",
         "cancel": "Annuler",
         "submit": "Soumettre",
-        "create": "Créer"
+        "create": "Créer",
+        "registration": {
+            "code": "Code d'enregistrement"
+        }
     },
     "messages": {
         "yes": "Oui",
@@ -350,13 +401,15 @@
             "delete": "Supprimer"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' sera supprimé, continuer ?"
+            "delete-desktop": "'{name}' sera supprimé, continuer ?",
+            "change-image": "Sélectionner une nouvelle image pour le bureau ?"
         },
         "info": {
             "deleting-desktop": "Suppression du bureau",
             "opening-desktop": "Ouverture du bureau",
             "creating-desktop": "Création du bureau",
             "file-downloaded": "Fichier téléchargé"
-        }
+        },
+        "loading": "Chargement"
     }
 }

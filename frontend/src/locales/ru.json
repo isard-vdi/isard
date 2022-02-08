@@ -96,13 +96,20 @@
                 "failed": {
                     "action": "Не удалось",
                     "text": "Не удалось"
+                },
+                "downloading": {
+                    "text": "Загрузка"
                 }
             },
             "remove": "Удалить",
             "viewer": "Зритель {name}",
             "viewers": "Зрители",
             "volatile-compact": "Временный",
-            "persistent-compact": "Постоянный"
+            "persistent-compact": "Постоянный",
+            "no-desktops": {
+                "title": "Нет рабочих столов для отображения с текущими фильтрами",
+                "subtitle": "Вы можете создать новый рабочий стол с помощью правой верхней кнопки"
+            }
         },
         "register": {
             "code": "Код регистрации",
@@ -137,7 +144,8 @@
             "powered-by": "Питается от {isardvdi}",
             "errors": {
                 "500": "Ошибка сервера",
-                "401": "Неверное имя пользователя или пароль"
+                "401": "Неверное имя пользователя или пароль",
+                "generic": "Произошла ошибка"
             }
         },
         "expired-session": {
@@ -157,7 +165,28 @@
         "welcome": {
             "title": "Добро пожаловать в IsardVDI - Virtual Desktops Service",
             "button": "Войти"
-        }
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "От этого пользователя нет развертываний",
+                "subtitle": "Если вы считаете, что это ошибка, пожалуйста, свяжитесь с администратором"
+            }
+        },
+        "deployment": {
+            "desktop": {
+                "not-available": "Рабочий стол недоступен"
+            },
+            "no-started-desktops": {
+                "title": "В этом развертывании нет запущенных рабочих столов"
+            }
+        },
+        "direct-viewer": {
+            "button": {
+                "browser": "Браузер"
+            },
+            "local-client-help": "Инструкции по установке локального клиента"
+        },
+        "cancel": "Отмена"
     },
     "components": {
         "navbar": {
@@ -173,7 +202,13 @@
                 },
                 "download": "VPN"
             },
-            "help": "Помощь"
+            "help": "Помощь",
+            "home": "Главная",
+            "deployments": {
+                "view": "Показать",
+                "text": "Развертывания",
+                "manage": "Управление"
+            }
         },
         "not-found": {
             "title": "Запрошенный адрес не был найден",
@@ -210,7 +245,11 @@
                 "name": "Название"
             },
             "open-with": "Открыть с помощью",
-            "no-info-default": "Описание не доступно"
+            "no-info-default": "Описание не доступно",
+            "actions": {
+                "delete": "Удалить"
+            },
+            "filter-label": "Фильтр"
         },
         "rdp-modal": {
             "button-refresh": "Обновить",
@@ -229,7 +268,72 @@
         },
         "statusbar": {
             "checkbox-text": "Только запущен",
-            "desktops-started": "Запущены рабочие столы"
+            "desktops-started": "Запущены рабочие столы",
+            "new-desktop": "Новый рабочий стол",
+            "checkbox-text-short": "Запущено"
         }
+    },
+    "validations": {
+        "required": "{property} обязателен.",
+        "inputFormat": "Допустимыми символами являются буквы, цифры, запятая, точка, -, _",
+        "maxLengthValue": "Поле {property} содержит символы {model}, но оно должно иметь максимальную длину {max}.",
+        "minLengthValue": "Поле {property} содержит символы {model}, но оно должно иметь минимальную длину {min}."
+    },
+    "forms": {
+        "new-desktop": {
+            "title": "Создать новый рабочий стол:",
+            "section-title-template": "Выберите шаблон:",
+            "template-table-column-headers": {
+                "category": "Категория",
+                "group": "Группа",
+                "user": "Пользователь",
+                "selected": "Выбрано",
+                "name": "Имя",
+                "description": "Описание"
+            },
+            "name": "Имя",
+            "description": "Описание",
+            "desktop-template": "Шаблон",
+            "filter": "Фильтр",
+            "filter-placeholder": "Введите для поиска"
+        },
+        "create": "Создать",
+        "clear": "Очистить",
+        "cancel": "Отмена",
+        "submit": "Отправить",
+        "registration": {
+            "code": "Код регистрации"
+        }
+    },
+    "messages": {
+        "title": {
+            "delete": "Удалить"
+        },
+        "yes": "Да",
+        "no": "Нет",
+        "info": {
+            "creating-desktop": "Создание рабочего стола",
+            "opening-desktop": "Открытие рабочего стола",
+            "file-downloaded": "Файл загружен",
+            "deleting-desktop": "Удаление рабочего стола"
+        },
+        "confirmation": {
+            "delete-desktop": "'{name}' будет удален, продолжить?"
+        },
+        "loading": "Загрузка"
+    },
+    "errors": {
+        "desktop_start_user_quota_exceeded": "Превышена квота запущенных компьютеров для этого пользователя",
+        "desktop_start_vcpu_quota_exceeded": "Превышена квота vCPU для этого пользователя",
+        "desktop_new_group_quota_exceeded": "Превышен лимит группы по созданию рабочего стола",
+        "desktop_new_category_quota_exceeded": "Превышен лимит категории по созданию рабочего стола",
+        "desktop_new_user_quota_exceeded": "Превышена квота пользователя для создания рабочего стола",
+        "desktop_start_group_quota_exceeded": "Превышен лимит запущенных рабочих столов для группы",
+        "desktop_start_category_quota_exceeded": "Превышен лимит запущенных рабочих столов для данной категории",
+        "desktop_start_group_memory_quota_exceeded": "Превышен лимит памяти для группы",
+        "desktop_start_category_memory_quota_exceeded": "Превышен лимит памяти для данной категории",
+        "desktop_start_group_vcpu_quota_exceeded": "Превышен лимит vCPU для группы",
+        "desktop_start_memory_quota_exceeded": "Квота памяти для этого пользователя превышена",
+        "desktop_start_category_vcpu_quota_exceeded": "Превышен лимит vCPU для данной категории"
     }
 }
