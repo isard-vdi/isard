@@ -96,13 +96,20 @@
                 "failed": {
                     "action": "Не удалось",
                     "text": "Не удалось"
+                },
+                "downloading": {
+                    "text": "Загрузка"
                 }
             },
             "remove": "Удалить",
             "viewer": "Зритель {name}",
             "viewers": "Зрители",
             "volatile-compact": "Временный",
-            "persistent-compact": "Постоянный"
+            "persistent-compact": "Постоянный",
+            "no-desktops": {
+                "title": "Нет рабочих столов для отображения с текущими фильтрами",
+                "subtitle": "Вы можете создать новый рабочий стол с помощью правой верхней кнопки"
+            }
         },
         "register": {
             "code": "Код регистрации",
@@ -157,7 +164,28 @@
         "welcome": {
             "title": "Добро пожаловать в IsardVDI - Virtual Desktops Service",
             "button": "Войти"
-        }
+        },
+        "deployments": {
+            "no-deployments": {
+                "title": "От этого пользователя нет развертываний",
+                "subtitle": "Если вы считаете, что это ошибка, пожалуйста, свяжитесь с администратором"
+            }
+        },
+        "deployment": {
+            "desktop": {
+                "not-available": "Рабочий стол недоступен"
+            },
+            "no-started-desktops": {
+                "title": "В этом развертывании нет запущенных рабочих столов"
+            }
+        },
+        "direct-viewer": {
+            "button": {
+                "browser": "Браузер"
+            },
+            "local-client-help": "Инструкции по установке локального клиента"
+        },
+        "cancel": "Отмена"
     },
     "components": {
         "navbar": {
@@ -174,7 +202,12 @@
                 "download": "VPN"
             },
             "help": "Помощь",
-            "home": "Главная"
+            "home": "Главная",
+            "deployments": {
+                "view": "Показать",
+                "text": "Развертывания",
+                "manage": "Управление"
+            }
         },
         "not-found": {
             "title": "Запрошенный адрес не был найден",
@@ -214,7 +247,8 @@
             "no-info-default": "Описание не доступно",
             "actions": {
                 "delete": "Удалить"
-            }
+            },
+            "filter-label": "Фильтр"
         },
         "rdp-modal": {
             "button-refresh": "Обновить",
@@ -233,12 +267,16 @@
         },
         "statusbar": {
             "checkbox-text": "Только запущен",
-            "desktops-started": "Запущены рабочие столы"
+            "desktops-started": "Запущены рабочие столы",
+            "new-desktop": "Новый рабочий стол",
+            "checkbox-text-short": "Запущено"
         }
     },
     "validations": {
         "required": "{property} обязателен.",
-        "inputFormat": "Допустимыми символами являются буквы, цифры, запятая, точка, -, _"
+        "inputFormat": "Допустимыми символами являются буквы, цифры, запятая, точка, -, _",
+        "maxLengthValue": "Поле {property} содержит символы {model}, но оно должно иметь максимальную длину {max}.",
+        "minLengthValue": "Поле {property} содержит символы {model}, но оно должно иметь минимальную длину {min}."
     },
     "forms": {
         "new-desktop": {
@@ -262,5 +300,36 @@
         "clear": "Очистить",
         "cancel": "Отмена",
         "submit": "Отправить"
+    },
+    "messages": {
+        "title": {
+            "delete": "Удалить"
+        },
+        "yes": "Да",
+        "no": "Нет",
+        "info": {
+            "creating-desktop": "Создание рабочего стола",
+            "opening-desktop": "Открытие рабочего стола",
+            "file-downloaded": "Файл загружен",
+            "deleting-desktop": "Удаление рабочего стола"
+        },
+        "confirmation": {
+            "delete-desktop": "'{name}' будет удален, продолжить?"
+        },
+        "loading": "Загрузка"
+    },
+    "errors": {
+        "desktop_start_user_quota_exceeded": "Превышена квота запущенных компьютеров для этого пользователя",
+        "desktop_start_vcpu_quota_exceeded": "Превышена квота vCPU для этого пользователя",
+        "desktop_new_group_quota_exceeded": "Превышен лимит группы по созданию рабочего стола",
+        "desktop_new_category_quota_exceeded": "Превышен лимит категории по созданию рабочего стола",
+        "desktop_new_user_quota_exceeded": "Превышена квота пользователя для создания рабочего стола",
+        "desktop_start_group_quota_exceeded": "Превышен лимит запущенных рабочих столов для группы",
+        "desktop_start_category_quota_exceeded": "Превышен лимит запущенных рабочих столов для данной категории",
+        "desktop_start_group_memory_quota_exceeded": "Превышен лимит памяти для группы",
+        "desktop_start_category_memory_quota_exceeded": "Превышен лимит памяти для данной категории",
+        "desktop_start_group_vcpu_quota_exceeded": "Превышен лимит vCPU для группы",
+        "desktop_start_memory_quota_exceeded": "Квота памяти для этого пользователя превышена",
+        "desktop_start_category_vcpu_quota_exceeded": "Превышен лимит vCPU для данной категории"
     }
 }
