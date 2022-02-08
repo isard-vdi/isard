@@ -308,8 +308,7 @@
             "local-client-help": "Instrucciones de instalación del cliente local",
             "title": "Visor Directo",
             "button": {
-                "browser": "Navegador",
-                "spice": "Spice"
+                "browser": "Navegador"
             }
         }
     },

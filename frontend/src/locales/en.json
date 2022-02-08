@@ -308,8 +308,7 @@
             "local-client-help": "Local client installation instructions",
             "title": "Direct Viewer",
             "button": {
-                "browser": "Browser",
-                "spice": "Spice"
+                "browser": "Browser"
             }
         }
     },
