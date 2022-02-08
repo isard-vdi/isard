@@ -266,6 +266,13 @@
                 "subtitle": "Akats bat dela uste baduzu, jar zaitez administratzailearekin harremanetan",
                 "title": "Erabiltzaile honentzat ez dago hedapenik"
             }
+        },
+        "direct-viewer": {
+            "local-client-help": "Bezero lokala insatalatzeko argibideak",
+            "title": "Ikuskatzaile Zuzena",
+            "button": {
+                "browser": "Nabigatzailea"
+            }
         }
     },
     "forms": {
@@ -313,12 +320,26 @@
             "file-downloaded": "Fitxategia deskargatzen",
             "deleting-desktop": "Mahaigaina ezabatzen",
             "opening-desktop": "Mahaigaina zabaltzen"
-        }
+        },
+        "loading": "Kargatzen"
     },
     "errors": {
         "generic_error": "Errorea gertatu da",
         "create_desktop_user_quota": "Mahaigaina sortzeko erabiltzaileen kuota gainditu da",
         "create_desktop_group_quota": "Mahaigainak sortzeko taldearen kuota gainditu da",
-        "create_desktop_category_quota": "Mahaigaina sortzeko kategoriako kuota gainditu da"
+        "create_desktop_category_quota": "Mahaigaina sortzeko kategoriako kuota gainditu da",
+        "desktop_start_category_vcpu_quota_exceeded": "Kategoria honentzako vCPU muga gainditua",
+        "desktop_start_category_memory_quota_exceeded": "Kategoria honentzako memoria muga gainditua",
+        "user_new_group_cuota_exceeded": "Talde honentzako erabiltzaile sorrera muga gainditua",
+        "template_new_group_quota_exceeded": "Taldearen txantilioi sorrera muga gainditua",
+        "template_new_user_quota_exceeded": "Erabiltzailearen txantilioi sorrera muga gainditua",
+        "desktop_start_memory_quota_exceeded": "Erabiltzaile honentzako memoria muga gainditua",
+        "desktop_start_group_vcpu_quota_exceeded": "Talde honentzako vCPU muga gainditua",
+        "desktop_start_vcpu_quota_exceeded": "Erabiltzaile honentzako vCPU muga gainditua",
+        "desktop_start_group_memory_quota_exceeded": "Talde honentzako memoria muga gainditua",
+        "desktop_start_group_quota_exceeded": "Taldearentzako hasieratutako mahaigain muga gainditua",
+        "desktop_start_category_quota_exceeded": "Kategoria honentzako hasieratutako mahaigain kopurua gainditua",
+        "user_new_category_cuota_exceeded": "Kategoria honentzako erabiltzaile sorrera muga gainditua",
+        "desktop_start_user_quota_exceeded": "Erabiltzaile honentzako hasieratutako mahaigain muga gainditua"
     }
 }
