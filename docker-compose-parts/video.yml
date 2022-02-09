@@ -20,5 +20,8 @@ services:
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
       - /opt/isard/certs/default:/certs:rw
+      - /opt/isard-local/environment:/usr/local/etc/environment
+    environment:
+      ENV: /usr/local/etc/environment
     env_file:
       - .env
