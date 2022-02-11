@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -i
 
 # Will remove hyper on docker shutdown
 remove_hyper()

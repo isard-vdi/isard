@@ -14,11 +14,13 @@ services:
     volumes:
       - /opt/isard:/isard:rw
       - /opt/isard-local/sockets/:/var/run/libvirt/
+      - /opt/isard-local/environment:/usr/local/etc/environment
       - /dev/vfio:/dev/vfio
       - ${BUILD_ROOT_PATH}/docker/hypervisor/src/ovs:/src/ovs
     env_file:
       - .env
     environment:
+      ENV: /usr/local/etc/environment
       HYPER_ID:
       HYPER_ENABLED:
       DOMAIN:
