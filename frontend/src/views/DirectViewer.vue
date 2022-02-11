@@ -117,7 +117,7 @@ export default {
         file: {
           spice: {
             icon: 'spice',
-            buttonText: i18n.t('views.direct-viewer.button.spice')
+            buttonText: 'SPICE'
           }
         }
       }
