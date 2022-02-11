@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -i
 set -e
 
 prepare.sh
