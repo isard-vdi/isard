@@ -7,7 +7,12 @@
 
 var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
-if(url!="Desktops"){kind='template';}else{$('#global_actions').css('display','block');kind='desktop';}
+if (url!="Desktops") {
+    kind='template'
+} else {
+    $('#global_actions').css('display','block');
+    kind='desktop'
+}
 
 columns= [
 				{
@@ -235,8 +240,10 @@ $(document).ready(function() {
             
 		domains_table= $('#domains').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/domains/get/"+url,
-				"dataSrc": ""
+				"url": "/admin/domains",
+                "type": "GET",
+                "dataSrc":'',
+                "data": { 'kind': kind }
 			},
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
