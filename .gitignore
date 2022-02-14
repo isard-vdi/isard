@@ -74,3 +74,8 @@ tetris/.env
 #debug
 /debug.yml
 /engine/engine/debug.py
+
+#development
+engine/engine/supervisord.pid
+docker/hypervisor/src/vlans/api_client.py
+frontend/yarn.lock
