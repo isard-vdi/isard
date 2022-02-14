@@ -26,3 +26,4 @@ services:
       WG_GUESTS_NETS:
       WG_GUESTS_DHCP_MASK:
       VPN_MTU:
+      USAGE:
