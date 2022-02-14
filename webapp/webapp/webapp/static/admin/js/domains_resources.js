@@ -586,7 +586,10 @@ $(document).ready(function() {
             var form = $('#modalAddGraphics');
             form.parsley().validate();
             data=$('#modalAddGraphics').serializeObject();
-            data=replaceAlloweds_arrays(data)
+            data=replaceAlloweds_arrays('#modalAddGraphics #alloweds-graphics-add', data)
+            data['id']=false
+            data['table']='graphics'
+            socket.emit('resources_insert_update', data)
         });
 
     // VIDEOS
@@ -695,7 +698,10 @@ $(document).ready(function() {
             var form = $('#modalAddVideos');
             form.parsley().validate();
             data=$('#modalAddVideos').serializeObject();
-            data=replaceAlloweds_arrays(data)
+            data=replaceAlloweds_arrays('#modalAddVideos #alloweds-videos-add', data)
+            data['id']=false
+            data['table']='videos'
+            socket.emit('resources_insert_update', data)
         }); 
 
     function setRangeSliders(id){
