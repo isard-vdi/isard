@@ -1,3 +1,5 @@
+import os
+
 from eventlet import monkey_patch
 
 monkey_patch()
@@ -35,6 +37,8 @@ if __name__ == "__main__":
     engineio_logger = logging.getLogger("engineio")
     engineio_logger.setLevel("ERROR")
 
+    debug = os.environ.get("USAGE", "production") == "devel"
+
     socketio.run(
-        app, host="0.0.0.0", port=5000, debug=False
+        app, host="0.0.0.0", port=5000, debug=debug
     )  # , logger=logger, engineio_logger=engineio_logger)

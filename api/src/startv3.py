@@ -12,7 +12,7 @@ from api.libv2 import (
 
 from api import app, socketio
 
-debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+debug = os.environ.get("USAGE", "production") == "devel"
 
 if __name__ == "__main__":
     api_socketio_domains.start_domains_thread()
