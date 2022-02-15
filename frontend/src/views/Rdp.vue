@@ -333,7 +333,6 @@ export default {
     }
   },
   mounted () {
-    this.$store.dispatch('watchToken')
     this.$refs.connectionbutton.click()
   }
 }
