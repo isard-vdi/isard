@@ -231,7 +231,7 @@ class ApiUsers:
                     "Unable to insert in database user_id " + user_id,
                     traceback.format_stack(),
                 )
-        return user["user_id"]
+        return user_id
 
     def Update(self, user_id, user_name=False, user_email=False, user_photo=False):
         self.Exists(user_id)
