@@ -100,7 +100,8 @@ class DomainsThread(threading.Thread):
                                 continue
                             event = "delete"
                             try:
-                                api_cards.delete_card(c["old_val"]["image"]["id"])
+                                if c["old_val"]["image"]["type"] == "user":
+                                    api_cards.delete_card(c["old_val"]["image"]["id"])
                             except:
                                 log.warning(
                                     "Unable to delete card "
