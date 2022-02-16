@@ -19,8 +19,6 @@ from api import app
 r = RethinkDB()
 import logging as log
 
-from rethinkdb.errors import ReqlNonExistenceError, ReqlTimeoutError
-
 from .apiv2_exc import *
 from .flask_rethink import RDB
 
