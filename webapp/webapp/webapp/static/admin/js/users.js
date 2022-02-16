@@ -197,8 +197,10 @@ $(document).ready(function() {
             
     users_table=$('#users').DataTable( {
         "ajax": {
-            "url": "/isard-admin/admin/users/get/",
-            "dataSrc": ""
+            "url": "/admin/users",
+            "dataSrc": "",
+            "type" : "GET",
+            "data": function(d){return JSON.stringify({})}
         },
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
@@ -219,7 +221,7 @@ $(document).ready(function() {
             { "data": "username"},
             { "data": "role", "width": "10px"},
             { "data": "group", "width": "10px"},
-            { "data": "vpn-wireguard-connected", "width": "10px", "defaultContent": 'NaN'},
+            { "data": "vpn.wireguard.connected", "width": "10px", "defaultContent": 'NaN'},
             //~ {
                 //~ "data": null,
                 //~ className: "center xe-password",
@@ -248,7 +250,7 @@ $(document).ready(function() {
                             {
                             "targets": 9,
                             "render": function ( data, type, full, meta ) {
-                                if(full['vpn-wireguard-connected']){
+                                if(full['vpn.wireguard.connected']){
                                     return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn-wireguard-remote_ip"]+':'+full["vpn-wireguard-remote_port"]+'"></i>'
                                 }else{
                                     return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
@@ -295,7 +297,7 @@ $(document).ready(function() {
 
 
 
-        socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_admins', {
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_admins', {
         'path': '/isard-admin/socket.io/',
         'transports': ['websocket']
     });

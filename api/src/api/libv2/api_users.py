@@ -149,7 +149,31 @@ class ApiUsers:
 
     def List(self):
         with app.app_context():
-            return list(r.table("users").without("password", "vpn").run(db.conn))
+            return list(
+                r.table("users")
+                .without("password", {"vpn": {"wireguard": "keys"}})
+                .merge(
+                    lambda user: {
+                        "desktops": r.table("domains")
+                        .get_all(user["id"], index="user")
+                        .filter({"kind": "desktop"})
+                        .count(),
+                        "public_template": r.table("domains")
+                        .get_all(user["id"], index="user")
+                        .filter({"kind": "public_template"})
+                        .count(),
+                        "user_template": r.table("domains")
+                        .get_all(user["id"], index="user")
+                        .filter({"kind": "user_template"})
+                        .count(),
+                        "base": r.table("domains")
+                        .get_all(user["id"], index="user")
+                        .filter({"kind": "base"})
+                        .count(),
+                    }
+                )
+                .run(db.conn)
+            )
 
     def Create(
         self,
@@ -712,8 +736,10 @@ class ApiUsers:
             ).delete().run(db.conn)
             return r.table("categories").get(category_id).delete().run(db.conn)
 
-    def GroupsGet(self):
+    def GroupsGet(self, group_id=None):
         with app.app_context():
+            if group_id:
+                return r.table("groups").get(group_id).run(db.conn)
             return list(r.table("groups").order_by("name").run(db.conn))
 
     def GroupDelete(self, group_id):

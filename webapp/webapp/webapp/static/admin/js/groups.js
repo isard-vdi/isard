@@ -10,8 +10,10 @@ $(document).ready(function() {
     $template_group = $(".template-detail-groups");
     var groups_table=$('#groups').DataTable( {
         "ajax": {
-            "url": "/isard-admin/admin/table/groups/get",
-            "dataSrc": ""
+            "url": "/admin/table/groups",
+            "dataSrc": "",
+            "type" : "POST",
+            "data": function(d){return JSON.stringify({})}
         },
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
@@ -26,20 +28,20 @@ $(document).ready(function() {
 				},
                 { "data": "name", className: "xe-name" },
                 { "data": "description", className: "xe-description" },
-                { "data": "limits-users", className: "xe-description", defaultContent: "-" },
+                { "data": "limits.users", className: "xe-description", defaultContent: "-" },
     
-                { "data": "quota-desktops", className: "xe-desktops", defaultContent: "-"},
-                { "data": "limits-desktops", className: "xe-desktops", defaultContent: "-"},
-                { "data": "quota-running", className: "xe-running", defaultContent: "-"},
-                { "data": "limits-running", className: "xe-running", defaultContent: "-"},
-                { "data": "quota-vcpus", className: "xe-vcpu", defaultContent: "-"},
-                { "data": "limits-vcpus", className: "xe-vcpu", defaultContent: "-"},
-                { "data": "quota-memory", className: "xe-memory", defaultContent: "-"},
-                { "data": "limits-memory", className: "xe-memory", defaultContent: "-"},
-                { "data": "quota-templates", className: "xe-templates", defaultContent: "-"},
-                { "data": "limits-templates", className: "xe-templates", defaultContent: "-"},
-                { "data": "quota-isos", className: "xe-isos", defaultContent: "-"},
-                { "data": "limits-isos", className: "xe-isos", defaultContent: "-"},             ]          
+                { "data": "quota.desktops", className: "xe-desktops", defaultContent: "-"},
+                { "data": "limits.desktops", className: "xe-desktops", defaultContent: "-"},
+                { "data": "quota.running", className: "xe-running", defaultContent: "-"},
+                { "data": "limits.running", className: "xe-running", defaultContent: "-"},
+                { "data": "quota.vcpus", className: "xe-vcpu", defaultContent: "-"},
+                { "data": "limits.vcpus", className: "xe-vcpu", defaultContent: "-"},
+                { "data": "quota.memory", className: "xe-memory", defaultContent: "-"},
+                { "data": "limits.memory", className: "xe-memory", defaultContent: "-"},
+                { "data": "quota.templates", className: "xe-templates", defaultContent: "-"},
+                { "data": "limits.templates", className: "xe-templates", defaultContent: "-"},
+                { "data": "quota.isos", className: "xe-isos", defaultContent: "-"},
+                { "data": "limits.isos", className: "xe-isos", defaultContent: "-"},             ]          
     } );
 
     $('#groups').find('tbody').on('click', 'td.details-show', function () {

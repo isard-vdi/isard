@@ -9,17 +9,19 @@
 $(document).ready(function() {
     var table=$('#roles').DataTable( {
         "ajax": {
-            "url": "/isard-admin/admin/table/roles/get",
-            "dataSrc": ""
+            "url": "/admin/table/roles",
+            "dataSrc": "",
+            "type" : "POST",
+            "data": function(d){return JSON.stringify({})}
         },
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
 			},
         "columns": [
 				{
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
