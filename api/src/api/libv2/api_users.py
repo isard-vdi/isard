@@ -736,8 +736,10 @@ class ApiUsers:
             ).delete().run(db.conn)
             return r.table("categories").get(category_id).delete().run(db.conn)
 
-    def GroupsGet(self):
+    def GroupsGet(self, group_id=None):
         with app.app_context():
+            if group_id:
+                return r.table("groups").get(group_id).run(db.conn)
             return list(r.table("groups").order_by("name").run(db.conn))
 
     def GroupDelete(self, group_id):

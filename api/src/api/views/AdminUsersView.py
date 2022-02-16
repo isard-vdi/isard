@@ -430,34 +430,14 @@ def api_v3_admin_user_delete(payload, user_id):
 
 
 @app.route("/api/v3/admin/templates", methods=["GET"])
-@has_token
+@is_admin_or_manager
 def api_v3_admin_templates(payload):
-    if id == False:
-        log.error("Incorrect access parameters. Check your query.")
+    try:
         return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            401,
+            json.dumps(users.Templates(payload)),
+            200,
             {"Content-Type": "application/json"},
         )
-
-    try:
-        templates = users.Templates(payload)
-        dropdown_templates = [
-            {
-                "id": t["id"],
-                "name": t["name"],
-                "icon": t["icon"],
-                "image": "",
-                "description": t["description"],
-            }
-            for t in templates
-        ]
-        return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
     except UserNotFound:
         log.error("User " + payload["user_id"] + " not in database.")
         return (
@@ -494,7 +474,7 @@ def api_v3_admin_templates(payload):
 
 
 @app.route("/api/v3/admin/user/<id>/templates", methods=["GET"])
-@has_token
+@is_admin_or_manager
 def api_v3_admin_user_templates(payload, id=False):
     if id == False:
         log.error("Incorrect access parameters. Check your query.")
@@ -564,10 +544,10 @@ def api_v3_admin_user_templates(payload, id=False):
         )
 
 
-@app.route("/api/v3/admin/user/<id>/desktops", methods=["GET"])
-@has_token
-def api_v3_admin_user_desktops(payload, id=False):
-    if id == False:
+@app.route("/api/v3/admin/user/<user_id>/desktops", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_user_desktops(payload, user_id=None):
+    if not user_id:
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
@@ -580,32 +560,21 @@ def api_v3_admin_user_desktops(payload, id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsUserId(payload, id):
+    if not ownsUserId(payload, user_id):
         return (
             json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
             {"Content-Type": "application/json"},
         )
     try:
-        desktops = users.Desktops(id)
-        dropdown_desktops = [
-            {
-                "id": d["id"],
-                "name": d["name"],
-                "state": d["status"],
-                "type": d["type"],
-                "template": d["from_template"],
-                "viewers": d["viewers"],
-                "icon": d["icon"],
-                "image": d["image"],
-                "description": d["description"],
-                "ip": d.get("ip"),
-            }
-            for d in desktops
-        ]
-        return json.dumps(dropdown_desktops), 200, {"Content-Type": "application/json"}
+        desktops = users.Desktops(user_id)
+        return (
+            json.dumps(users.Desktops(user_id)),
+            200,
+            {"Content-Type": "application/json"},
+        )
     except UserNotFound:
-        log.error("User " + id + " not in database.")
+        log.error("User " + user_id + " not in database.")
         return (
             json.dumps(
                 {
@@ -617,7 +586,7 @@ def api_v3_admin_user_desktops(payload, id=False):
             {"Content-Type": "application/json"},
         )
     except UserDesktopsError:
-        log.error("Desktops list for user " + id + " failed.")
+        log.error("Desktops list for user " + user_id + " failed.")
         return (
             json.dumps({"error": "undefined_error", "msg": "UserDesktops: list error"}),
             404,
@@ -637,18 +606,24 @@ def api_v3_admin_user_desktops(payload, id=False):
         )
 
 
-@app.route("/api/v3/admin/category/<id>", methods=["GET"])
+@app.route("/api/v3/admin/category/<category_id>", methods=["GET"])
 @is_admin
-def api_v3_admin_category(id, payload):
+def api_v3_admin_category(payload, category_id):
+    if not ownsCategoryId(payload, category_id):
+        return (
+            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
+            403,
+            {"Content-Type": "application/json"},
+        )
     try:
-        data = users.CategoryGet(id)
+        data = users.CategoryGet(category_id)
         return json.dumps(data), 200, {"Content-Type": "application/json"}
     except CategoryNotFound:
         return (
             json.dumps(
                 {
                     "error": "undefined_error",
-                    "msg": "Category " + id + " not exists in database",
+                    "msg": "Category " + str(category_id) + " not exists in database",
                 }
             ),
             404,
@@ -758,7 +733,7 @@ def api_v3_admin_category_insert(payload):
 
 # Add group
 @app.route("/api/v3/admin/group", methods=["POST"])
-@has_token
+@is_admin_or_manager
 def api_v3_admin_group_insert(payload):
     try:
         # Required
@@ -897,22 +872,15 @@ def api_v3_admin_category_delete(category_id, payload):
 
 
 @app.route("/api/v3/admin/groups", methods=["GET"])
-@has_token
+@is_admin_or_manager
 def api_v3_admin_groups(payload):
-    if payload["role_id"] not in ["admin", "manager"]:
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-    groups = users.GroupsGet()
-    if payload["role_id"] == "admin":
-        return json.dumps(groups), 200, {"Content-Type": "application/json"}
     try:
-        filtered_groups = [
-            g for g in groups if g["parent_category"] == payload["category_id"]
-        ]
-        return json.dumps(filtered_groups), 200, {"Content-Type": "application/json"}
+        groups = users.GroupsGet()
+        if payload["role_id"] == "manager":
+            groups = [
+                g for g in groups if g["parent_category"] == payload["category_id"]
+            ]
+        return json.dumps(groups), 200, {"Content-Type": "application/json"}
     except:
         log.error(traceback.format_exc())
         return (
@@ -928,8 +896,24 @@ def api_v3_admin_groups(payload):
 
 
 @app.route("/api/v3/admin/group/<group_id>", methods=["DELETE"])
-@is_admin
+@is_admin_or_manager
 def api_v3_admin_group_delete(group_id, payload):
+    group = users.GroupsGet(group_id)
+    if not group:
+        return (
+            json.dumps(
+                {"error": "group_not_found", "msg": "Group not exists in database"}
+            ),
+            404,
+            {"Content-Type": "application/json"},
+        )
+    if payload["role_id"] == "manager" and not ownsCategoryId(g["parent_category"]):
+        return (
+            json.dumps({"error": "forbidden", "msg": "Forbidden"}),
+            403,
+            {"Content-Type": "application/json"},
+        )
+
     try:
         return (
             json.dumps(users.GroupDelete(group_id)),
@@ -950,13 +934,11 @@ def api_v3_admin_group_delete(group_id, payload):
         )
 
 
-@app.route("/api/v3/admin/user/<id>/vpn/<kind>/<os>", methods=["GET"])
-@app.route("/api/v3/admin/user/<id>/vpn/<kind>", methods=["GET"])
-# kind = config,install
-# os =
-@has_token
-def api_v3_admin_user_vpn(payload, id, kind, os=False):
-    if not ownsUserId(payload, id):
+@app.route("/api/v3/admin/user/<user_id>/vpn/<kind>/<os>", methods=["GET"])
+@app.route("/api/v3/admin/user/<user_id>/vpn/<kind>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_user_vpn(payload, user_id, kind, os=False):
+    if not ownsUserId(payload, user_id):
         return (
             json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
             403,
@@ -969,7 +951,7 @@ def api_v3_admin_user_vpn(payload, id, kind, os=False):
             {"Content-Type": "application/json"},
         )
 
-    vpn_data = vpn.vpn_data("users", kind, os, id)
+    vpn_data = vpn.vpn_data("users", kind, os, user_id)
 
     if vpn_data:
         return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}
