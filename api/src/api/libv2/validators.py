@@ -12,7 +12,7 @@ from api import app
 r = RethinkDB()
 import traceback
 
-from .api_exceptions import ValidateError
+from .api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -29,7 +29,7 @@ system_tables = _sys_tables()
 
 def _validate_table(table):
     if table not in system_tables:
-        raise ValidateError(
+        raise Error(
             "not_found",
             "Table " + table + " does not exist.",
             traceback.format_stack(),

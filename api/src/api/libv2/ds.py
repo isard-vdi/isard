@@ -7,7 +7,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from .api_exceptions import DesktopError, HypervisorError
+from .api_exceptions import Error
 
 # import pem
 # from OpenSSL import crypto
@@ -128,7 +128,7 @@ class DS:
         try:
             result = future.result()
         except ReqlTimeoutError:
-            raise DesktopError(
+            raise Error(
                 "gateway_timeout",
                 "Transition "
                 + original_status
@@ -143,7 +143,7 @@ class DS:
                 traceback.format_stack(),
             )
         except DesktopWaitFailed:
-            raise DesktopError(
+            raise Error(
                 "internal_server",
                 "Transition "
                 + original_status
@@ -222,7 +222,7 @@ class DS:
         try:
             result = future.result()
         except ReqlTimeoutError:
-            raise HypervisorError(
+            raise Error(
                 "gateway_timeout",
                 "Transition "
                 + original_status
@@ -237,7 +237,7 @@ class DS:
                 traceback.format_stack(),
             )
         except DesktopWaitFailed:
-            raise HypervisorError(
+            raise Error(
                 "internal_server",
                 "Transition "
                 + original_status
