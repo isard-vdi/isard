@@ -141,7 +141,7 @@ class ApiUsers:
     def Exists(self, user_id):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
-        if user is None:
+        if not user:
             raise Error(
                 "not_found", "Not found user_id " + user_id, traceback.format_stack()
             )
@@ -453,31 +453,38 @@ class ApiUsers:
                     "Not found user_id " + user_id,
                     traceback.format_stack(),
                 )
-        try:
-            with app.app_context():
-                desktop = (
-                    r.table("domains")
-                    .get(desktop_id)
-                    .pluck(
-                        [
-                            "id",
-                            "name",
-                            "icon",
-                            "image",
-                            "user",
-                            "status",
-                            "description",
-                            "parents",
-                            "persistent",
-                            "os",
-                            "tag_visible",
-                            {"viewer": "guest_ip"},
-                            {"create_dict": {"hardware": ["interfaces", "videos"]}},
-                        ]
-                    )
-                    .run(db.conn)
-                )
 
+            desktop = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck(
+                    [
+                        "id",
+                        "name",
+                        "icon",
+                        "image",
+                        "user",
+                        "status",
+                        "description",
+                        "parents",
+                        "persistent",
+                        "os",
+                        "tag_visible",
+                        {"viewer": "guest_ip"},
+                        {"create_dict": {"hardware": ["interfaces", "videos"]}},
+                    ]
+                )
+                .default(False)
+                .run(db.conn)
+            )
+        if not desktop:
+            raise Error(
+                "not_found",
+                "Not found desktop_id " + desktop_id + " for user_id " + user_id,
+                traceback.format_exc(),
+            )
+
+        try:
             # Modify desktop data to be returned
             if desktop.get("tag_visible", True):
 
@@ -500,12 +507,6 @@ class ApiUsers:
                 return desktop
             else:
                 return None
-        except ReqlNonExistenceError:
-            raise Error(
-                "not_found",
-                "Not found desktop_id " + desktop_id + " for user_id " + user_id,
-                traceback.format_exc(),
-            )
         except Exception:
             raise Error(
                 "internal_server",
@@ -624,7 +625,7 @@ class ApiUsers:
     def CategoryGet(self, category_id):
         with app.app_context():
             category = r.table("categories").get(category_id).run(db.conn)
-        if category is None:
+        if not category:
             raise Error(
                 "not_found",
                 "Category not found category_id:" + category_id,
@@ -688,11 +689,15 @@ class ApiUsers:
         group_id = _parse_string(group_name)
         with app.app_context():
             category = r.table("categories").get(category_id).run(db.conn)
-            if category == None:
-                return False
+            if not category:
+                raise Error(
+                    "not_found",
+                    "Category not found category_id:" + category_id,
+                    traceback.format_stack(),
+                )
 
             group = r.table("groups").get(category_id + "-" + group_id).run(db.conn)
-            if group == None:
+            if not group:
                 group = {
                     "description": "[" + category["name"] + "]",
                     "id": category_id + "-" + group_id,
@@ -704,6 +709,20 @@ class ApiUsers:
                     "quota": group_quota,
                 }
                 r.table("groups").insert(group, conflict="update").run(db.conn)
+            else:
+                raise Error(
+                    "conflict",
+                    "Already exists user_id " + user_id,
+                    traceback.format_stack(),
+                )
+                raise Error(
+                    "conflict",
+                    "Group "
+                    + group_name
+                    + " already exists in category "
+                    + category["name"],
+                    traceback.format_stack(),
+                )
         return category_id + "-" + group_id
 
     def CategoriesGet(self):
@@ -736,14 +755,22 @@ class ApiUsers:
             ).delete().run(db.conn)
             return r.table("categories").get(category_id).delete().run(db.conn)
 
-    def GroupsGet(self, group_id=None):
+    def GroupGet(self, group_id):
         with app.app_context():
-            if group_id:
-                return r.table("groups").get(group_id).run(db.conn)
-            return list(r.table("groups").order_by("name").run(db.conn))
+            group = r.table("groups").get(group_id).run(db.conn)
+        if not group:
+            raise Error(
+                "not_found", "Not found group_id " + group_id, traceback.format_exc()
+            )
+        return group
+
+    def GroupsGet(self):
+        return list(r.table("groups").order_by("name").run(db.conn))
 
     def GroupDelete(self, group_id):
         #### TODO: Delete all desktops, templates and users in category
+        self.GroupGet(group_id)
+
         with app.app_context():
             r.table("users").get_all(group_id, index="group").delete().run(db.conn)
             return r.table("groups").get(group_id).delete().run(db.conn)
