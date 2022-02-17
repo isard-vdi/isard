@@ -12,7 +12,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from ..libv2.api_exceptions import AuthError
+from ..libv2.api_exceptions import Error
 
 r = RethinkDB()
 import traceback
@@ -46,7 +46,7 @@ def get_token_header(header):
     """Obtains the Access Token from the a Header"""
     auth = request.headers.get(header, None)
     if not auth:
-        raise AuthError(
+        raise Error(
             "bad_request",
             "Authorization header is expected",
             traceback.format_stack(),
@@ -55,16 +55,16 @@ def get_token_header(header):
 
     parts = auth.split()
     if parts[0].lower() != "bearer":
-        raise AuthError(
+        raise Error(
             "bad_request",
             "Authorization header must start with Bearer",
             traceback.format_stack(),
             request,
         )
     elif len(parts) == 1:
-        raise AuthError("bad_request", "Token not found")
+        raise Error("bad_request", "Token not found")
     elif len(parts) > 2:
-        raise AuthError(
+        raise Error(
             "invalid_header",
             "Authorization header must be Bearer token",
             traceback.format_stack(),
@@ -87,7 +87,7 @@ def get_token_payload(token):
             secret_data["role_id"] == "manager"
             and secret_data["category_id"] != claims["data"]["category_id"]
         ):
-            raise AuthError(
+            raise Error(
                 "unauthorized",
                 "Not authorized category token.",
                 traceback.format_stack(),
@@ -102,7 +102,7 @@ def get_token_payload(token):
         )
     except:
         log.warning("JWT token with invalid parameters. Can not parse it.")
-        raise AuthError(
+        raise Error(
             "bad_request",
             "Unable to parse authentication parameters token.",
             traceback.format_stack(),
@@ -118,18 +118,18 @@ def get_token_payload(token):
         )
     except jwt.ExpiredSignatureError:
         log.info("Token expired")
-        raise AuthError(
+        raise Error(
             "bad_request", "Token is expired", traceback.format_stack(), request
         )
     except jwt.JWTClaimsError:
-        raise AuthError(
+        raise Error(
             "bad_request",
             "Incorrect claims, please check the audience and issuer",
             traceback.format_stack(),
             request,
         )
     except Exception:
-        raise AuthError(
+        raise Error(
             "bad_request",
             "Unable to parse authentication token.",
             traceback.format_stack(),

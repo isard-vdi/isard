@@ -45,7 +45,7 @@ threads = {}
 
 from flask import Flask, _request_ctx_stack, jsonify, request
 
-from ..auth.tokens import AuthError, get_token_payload
+from ..auth.tokens import Error, get_token_payload
 from .helpers import _parse_desktop
 
 # from flask_cors import cross_origin

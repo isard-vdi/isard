@@ -27,11 +27,7 @@ from ..libv2.flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..auth.tokens import (
-    AuthError,
-    get_auto_register_jwt_payload,
-    get_header_jwt_payload,
-)
+from ..auth.tokens import Error, get_auto_register_jwt_payload, get_header_jwt_payload
 from ..libv2.apiv2_exc import DesktopNotFound, TemplateNotFound
 
 # from ..libv3.api_users import filter_user_templates
@@ -43,7 +39,7 @@ def has_token(f):
         payload = get_header_jwt_payload()
         kwargs["payload"] = payload
         return f(*args, **kwargs)
-        raise AuthError(
+        raise Error(
             {"error": "not_allowed", "description": "Not enough rights" " token."}, 401
         )
 
@@ -57,7 +53,7 @@ def is_register(f):
         if payload.get("type", "") == "register":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
-        raise AuthError(
+        raise Error(
             {"error": "not_allowed", "description": "Not register" " token."}, 401
         )
 
@@ -71,7 +67,7 @@ def is_auto_register(f):
         if payload.get("type", "") == "register":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
-        raise AuthError(
+        raise Error(
             {"error": "not_allowed", "description": "Not register" " token."}, 401
         )
 
@@ -85,7 +81,7 @@ def is_admin(f):
         if payload["role_id"] == "admin":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
-        raise AuthError(
+        raise Error(
             {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
         )
 
@@ -99,7 +95,7 @@ def is_admin_or_manager(f):
         if payload["role_id"] == "admin" or payload["role_id"] == "manager":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
-        raise AuthError(
+        raise Error(
             {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
         )
 
@@ -113,7 +109,7 @@ def is_admin_user(f):
         if payload["role_id"] == "admin":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
-        raise AuthError(
+        raise Error(
             {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
         )
 
@@ -197,7 +193,7 @@ def allowedTemplateId(payload, template_id):
                 .run(db.conn)
             )
     except:
-        raise AuthError(
+        raise Error(
             {
                 "error": "template_not_found",
                 "msg": "Not found template " + template_id,

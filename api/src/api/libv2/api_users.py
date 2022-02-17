@@ -12,7 +12,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from .api_exceptions import UserError
+from .api_exceptions import Error
 
 r = RethinkDB()
 import logging
@@ -85,7 +85,7 @@ class ApiUsers:
                     "photo": user["photo"],
                 }
         except:
-            raise UserError(
+            raise Error(
                 "not_found", "Not found user_id " + user_id, traceback.format_exc()
             )
         return {
@@ -104,9 +104,9 @@ class ApiUsers:
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user is None:
-            raise UserError("unauthorized", "", traceback.format_stack())
+            raise Error("unauthorized", "", traceback.format_stack())
         if not user.get("active", False):
-            raise UserError(
+            raise Error(
                 "unauthorized",
                 "User " + user_id + " is disabled",
                 traceback.format_stack(),
@@ -132,7 +132,7 @@ class ApiUsers:
                 app.ram["secrets"]["isardvdi"]["secret"],
                 algorithm="HS256",
             )
-        raise UserError(
+        raise Error(
             "unauthorized",
             "Invalid login credentials for user_id " + user_id,
             traceback.format_stack(),
@@ -142,7 +142,7 @@ class ApiUsers:
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user is None:
-            raise UserError(
+            raise Error(
                 "not_found", "Not found user_id " + user_id, traceback.format_stack()
             )
         return user
@@ -195,21 +195,21 @@ class ApiUsers:
                 provider + "-" + category_id + "-" + user_uid + "-" + user_username
             )
             if r.table("users").get(user_id).run(db.conn) != None:
-                raise UserError(
+                raise Error(
                     "conflict",
                     "Already exists user_id " + user_id,
                     traceback.format_stack(),
                 )
 
             if r.table("roles").get(role_id).run(db.conn) is None:
-                raise UserError(
+                raise Error(
                     "not_found",
                     "Not found role_id " + role_id + " for user_id " + user_id,
                     traceback.format_stack(),
                 )
 
             if r.table("categories").get(category_id).run(db.conn) is None:
-                raise UserError(
+                raise Error(
                     "not_found",
                     "Not found category_id " + category_id + " for user_id " + user_id,
                     traceback.format_stack(),
@@ -217,7 +217,7 @@ class ApiUsers:
 
             group = r.table("groups").get(group_id).run(db.conn)
             if group is None:
-                raise UserError(
+                raise Error(
                     "not_found",
                     "Not found group_id " + group_id + " for user_id " + user_id,
                     traceback.format_stack(),
@@ -250,7 +250,7 @@ class ApiUsers:
                 "quota": group["quota"],  # 10GB
             }
             if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
-                raise UserError(
+                raise Error(
                     "internal_server",
                     "Unable to insert in database user_id " + user_id,
                     traceback.format_stack(),
@@ -262,7 +262,7 @@ class ApiUsers:
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
             if user is None:
-                raise UserError(
+                raise Error(
                     "not_found",
                     "Not found user_id " + user_id,
                     traceback.format_stack(),
@@ -279,7 +279,7 @@ class ApiUsers:
                     r.table("users").get(user_id).update(update_values).run(db.conn),
                     "replaced",
                 ):
-                    raise UserError(
+                    raise Error(
                         "internal_server",
                         "Unable to update in database user_id " + user_id,
                         traceback.format_stack(),
@@ -396,14 +396,14 @@ class ApiUsers:
                             continue
             return alloweds
         except Exception:
-            raise UserError(
+            raise Error(
                 "internal_server", "Internal server error", traceback.format_exc()
             )
 
     def Desktops(self, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) == None:
-                raise UserError(
+                raise Error(
                     "not_found",
                     "Not found user_id " + user_id,
                     traceback.format_stack(),
@@ -441,14 +441,14 @@ class ApiUsers:
                 if desktop.get("tag_visible", True)
             ]
         except Exception:
-            raise UserError(
+            raise Error(
                 "internal_server", "Internal server error", traceback.format_exc()
             )
 
     def Desktop(self, desktop_id, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) == None:
-                raise UserError(
+                raise Error(
                     "not_found",
                     "Not found user_id " + user_id,
                     traceback.format_stack(),
@@ -501,13 +501,13 @@ class ApiUsers:
             else:
                 return None
         except ReqlNonExistenceError:
-            raise UserError(
+            raise Error(
                 "not_found",
                 "Not found desktop_id " + desktop_id + " for user_id " + user_id,
                 traceback.format_exc(),
             )
         except Exception:
-            raise UserError(
+            raise Error(
                 "internal_server",
                 "Get desktop failed for user_id " + user_id,
                 traceback.format_exc(),
@@ -516,7 +516,7 @@ class ApiUsers:
     def Delete(self, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) is None:
-                raise UserError(
+                raise Error(
                     "not_found",
                     "Not found user_id " + user_id,
                     traceback.format_stack(),
@@ -530,7 +530,7 @@ class ApiUsers:
             if not _check(
                 r.table("users").get(user_id).delete().run(db.conn), "deleted"
             ):
-                raise UserError(
+                raise Error(
                     "internal_server",
                     "Unable to delete user_id " + user_id,
                     traceback.format_stack(),
@@ -585,7 +585,7 @@ class ApiUsers:
             ]
         ):
             return True
-        raise UserError("forbidden", "Internal server error", traceback.format_stack())
+        raise Error("forbidden", "Internal server error", traceback.format_stack())
 
     def CodeSearch(self, code):
         with app.app_context():
@@ -617,7 +617,7 @@ class ApiUsers:
             if len(found) > 0:
                 category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
                 return {"role": "user", "category": category, "group": found[0]["id"]}
-        raise UserError(
+        raise Error(
             "not_found", "Code not found code:" + code, traceback.format_stack()
         )
 
@@ -625,7 +625,7 @@ class ApiUsers:
         with app.app_context():
             category = r.table("categories").get(category_id).run(db.conn)
         if category is None:
-            raise UserError(
+            raise Error(
                 "not_found",
                 "Category not found category_id:" + category_id,
                 traceback.format_stack(),
