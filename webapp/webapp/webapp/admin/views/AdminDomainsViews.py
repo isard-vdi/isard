@@ -119,13 +119,8 @@ def admin_domains_get(kind=False):
     if kind:
         if kind == "Desktops":
             kind = "desktop"
-        if kind == "Templates":
+        else:
             data = app.adminapi.get_admin_domains_with_derivates(kind="template")
-            if current_user.role == "manager":
-                data = [d for d in data if d["category"] == current_user.category]
-            return json.dumps(data), 200, {"Content-Type": "application/json"}
-        if kind == "Bases":
-            data = app.adminapi.get_admin_domains_with_derivates(kind="base")
             if current_user.role == "manager":
                 data = [d for d in data if d["category"] == current_user.category]
             return json.dumps(data), 200, {"Content-Type": "application/json"}

@@ -645,17 +645,9 @@ class isardAdmin:
                         .get_all(user["id"], index="user")
                         .filter({"kind": "desktop"})
                         .count(),
-                        "public_template": r.table("domains")
+                        "template": r.table("domains")
                         .get_all(user["id"], index="user")
-                        .filter({"kind": "public_template"})
-                        .count(),
-                        "user_template": r.table("domains")
-                        .get_all(user["id"], index="user")
-                        .filter({"kind": "user_template"})
-                        .count(),
-                        "base": r.table("domains")
-                        .get_all(user["id"], index="user")
-                        .filter({"kind": "base"})
+                        .filter({"kind": "template"})
                         .count(),
                     }
                 )
@@ -708,9 +700,7 @@ class isardAdmin:
             )
             user_templates = list(
                 r.table("domains")
-                .get_all(
-                    r.args(["base", "public_template", "user_template"]), index="kind"
-                )
+                .get_all("template", index="kind")
                 .filter({"user": user_id})
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
@@ -778,9 +768,7 @@ class isardAdmin:
             )
             category_templates = list(
                 r.table("domains")
-                .get_all(
-                    r.args(["base", "public_template", "user_template"]), index="kind"
-                )
+                .get_all("template", index="kind")
                 .filter({"category": category_id})
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
@@ -856,9 +844,7 @@ class isardAdmin:
             )
             group_templates = list(
                 r.table("domains")
-                .get_all(
-                    r.args(["base", "public_template", "user_template"]), index="kind"
-                )
+                .get_all("template", index="kind")
                 .filter({"group": group_id})
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
@@ -908,9 +894,7 @@ class isardAdmin:
             # User templates... depending. Are they owned by himself only? Or they have other user derivates??
             user_templates = list(
                 r.table("domains")
-                .get_all(
-                    r.args(["base", "public_template", "user_template"]), index="kind"
-                )
+                .get_all("template", index="kind")
                 .filter({"user": user_id})
                 .pluck("id", "name", "user", {"create_dict": {"origin"}})
                 .run(db.conn)
@@ -1071,13 +1055,11 @@ class isardAdmin:
 
     def get_admin_domains_with_derivates(self, id=False, kind=False):
         with app.app_context():
-            if "template" in kind:
+            if kind == "template":
                 if not id:
                     return list(
                         r.table("domains")
-                        .get_all(
-                            r.args(["public_template", "user_template"]), index="kind"
-                        )
+                        .get_all("template", index="kind")
                         .without("xml", "history_domain")
                         .merge(
                             lambda domain: {
@@ -1108,44 +1090,6 @@ class isardAdmin:
                                 )
                                 .count()
                                 # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
-                            }
-                        )
-                        .run(db.conn)
-                    )
-            elif kind == "base":
-                if not id:
-                    return list(
-                        r.table("domains")
-                        .get_all(kind, index="kind")
-                        .without("xml", "history_domain")
-                        .merge(
-                            lambda domain: {
-                                "derivates": r.table("domains")
-                                .filter(
-                                    lambda derivates: derivates["parents"].contains(
-                                        domain["id"]
-                                    )
-                                )
-                                .count()
-                                # ~ "derivates": r.table('domains').filter({'create_dict':{'origin':domain['id']}}).count()
-                            }
-                        )
-                        .run(db.conn)
-                    )
-                if id:
-                    return list(
-                        r.table("domains")
-                        .get(id)
-                        .without("xml", "history_domain")
-                        .merge(
-                            lambda domain: {
-                                "derivates": r.table("domains")
-                                .filter(
-                                    lambda derivates: derivates["parents"].contains(
-                                        domain["id"]
-                                    )
-                                )
-                                .count()
                             }
                         )
                         .run(db.conn)
@@ -1339,23 +1283,15 @@ class isardAdmin:
 
     def get_admin_templates(self, term):
         with app.app_context():
-            data1 = (
+            data = (
                 r.table("domains")
-                .get_all("base", index="kind")
+                .get_all("template", index="kind")
                 .filter(r.row["name"].match(term))
                 .order_by("name")
                 .pluck({"id", "name", "kind", "group", "icon", "user", "description"})
                 .run(db.conn)
             )
-            data2 = (
-                r.table("domains")
-                .filter(r.row["kind"].match("template"))
-                .filter(r.row["name"].match(term))
-                .order_by("name")
-                .pluck({"id", "name", "kind", "group", "icon", "user", "description"})
-                .run(db.conn)
-            )
-        return data1 + data2
+        return data
 
     def update_forcedhyp(self, dom_id, forced_hyp):
         try:

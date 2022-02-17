@@ -81,7 +81,7 @@ class WebappQuotas:
             templates = (
                 r.table("domains")
                 .get_all(user_id, index="user")
-                .filter({"kind": "user_template"})
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -206,7 +206,7 @@ class WebappQuotas:
             templates = (
                 r.table("domains")
                 .get_all(category["id"], index="category")
-                .filter(r.row["kind"].match("template"))
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -347,7 +347,7 @@ class WebappQuotas:
             templates = (
                 r.table("domains")
                 .get_all(group["id"], index="group")
-                .filter(r.row["kind"].match("template"))
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -465,10 +465,7 @@ class WebappQuotas:
                 .run(db.conn)
             )
             templates = (
-                r.table("domains")
-                .filter(r.row["kind"].match("template"))
-                .count()
-                .run(db.conn)
+                r.table("domains").filter({"kind": "template"}).count().run(db.conn)
             )
             isos = r.table("media").count().run(db.conn)
             starteds = (

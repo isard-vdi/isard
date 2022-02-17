@@ -527,10 +527,7 @@ class UiActions(object):
                     )
                     return False
 
-                if dict_new_template["kind"] == "base":
-                    type_path_selected = "bases"
-                else:
-                    type_path_selected = "templates"
+                type_path_selected = "templates"
 
                 new_file, path_selected = get_path_to_disk(
                     path_template_disk_relative,

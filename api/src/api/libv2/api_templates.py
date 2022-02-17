@@ -85,7 +85,7 @@ class ApiTemplates:
             "id": template_id,
             "name": template_name,
             "description": "Api created",
-            "kind": "user_template",
+            "kind": "template",
             "user": user["id"],
             "username": user["username"],
             "status": "CreatingTemplate",
