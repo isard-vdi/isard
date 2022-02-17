@@ -19,7 +19,7 @@ from ..libv2.log import *
 r = RethinkDB()
 import urllib
 
-from rethinkdb.errors import ReqlNonExistenceError, ReqlTimeoutError
+from rethinkdb.errors import ReqlNonExistenceError
 
 from ..libv2.flask_rethink import RDB
 

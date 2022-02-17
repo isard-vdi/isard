@@ -18,7 +18,7 @@ r = RethinkDB()
 import logging
 import traceback
 
-from rethinkdb.errors import ReqlNonExistenceError, ReqlTimeoutError
+from rethinkdb.errors import ReqlNonExistenceError
 
 from .flask_rethink import RDB
 
