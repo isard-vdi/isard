@@ -47,7 +47,7 @@ def get_token_header(header):
     auth = request.headers.get(header, None)
     if not auth:
         raise Error(
-            "bad_request",
+            "unauthorized",
             "Authorization header is expected",
             traceback.format_stack(),
             request,
@@ -56,7 +56,7 @@ def get_token_header(header):
     parts = auth.split()
     if parts[0].lower() != "bearer":
         raise Error(
-            "bad_request",
+            "unauthorized",
             "Authorization header must start with Bearer",
             traceback.format_stack(),
             request,
@@ -65,7 +65,7 @@ def get_token_header(header):
         raise Error("bad_request", "Token not found")
     elif len(parts) > 2:
         raise Error(
-            "invalid_header",
+            "unauthorized",
             "Authorization header must be Bearer token",
             traceback.format_stack(),
             request,
@@ -103,7 +103,7 @@ def get_token_payload(token):
     except:
         log.warning("JWT token with invalid parameters. Can not parse it.")
         raise Error(
-            "bad_request",
+            "unauthorized",
             "Unable to parse authentication parameters token.",
             traceback.format_stack(),
             request,
@@ -119,18 +119,18 @@ def get_token_payload(token):
     except jwt.ExpiredSignatureError:
         log.info("Token expired")
         raise Error(
-            "bad_request", "Token is expired", traceback.format_stack(), request
+            "unauthorized", "Token is expired", traceback.format_stack(), request
         )
     except jwt.JWTClaimsError:
         raise Error(
-            "bad_request",
+            "unauthorized",
             "Incorrect claims, please check the audience and issuer",
             traceback.format_stack(),
             request,
         )
     except Exception:
         raise Error(
-            "bad_request",
+            "unauthorized",
             "Unable to parse authentication token.",
             traceback.format_stack(),
             request,
