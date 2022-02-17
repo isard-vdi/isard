@@ -362,101 +362,116 @@ class UiActions(object):
 
     def deleting_disks_from_domain(self, id_domain, force=False):
 
-        dict_domain = get_domain(id_domain)
+        try:
+            dict_domain = get_domain(id_domain)
+            if dict_domain is None:
+                log.eror(
+                    f"The domain {id_domain} is deleted from the database and deleting_disk function is called."
+                )
+                return False
 
-        if dict_domain["kind"] != "desktop" and force is False:
-            log.info("{} is a template, disks will be deleted")
-        if "hardware" in dict_domain.keys():
-            if len(dict_domain["hardware"]["disks"]) > 0:
-                index_disk = 0
-                for d in dict_domain["hardware"]["disks"]:
+            if dict_domain["kind"] != "desktop" and force is False:
+                log.info(f"{id_domain} is a template, disks will be deleted")
 
-                    disk_path = d["file"]
-                    pool_id = dict_domain["hypervisors_pools"][0]
-                    if pool_id not in self.manager.pools.keys():
-                        log.error(
-                            "hypervisor pool {} nor running in manager, can't delete disks in domain {}".format(
-                                pool_id, id_domain
-                            )
-                        )
-                        return False
+            if "hardware" in dict_domain.keys():
+                if len(dict_domain["hardware"]["disks"]) > 0:
+                    index_disk = 0
+                    for d in dict_domain["hardware"]["disks"]:
 
-                    forced_hyp, preferred_hyp = get_domain_forced_hyp(id_domain)
-                    if forced_hyp is not False:
-                        hyps_in_pool = get_hypers_in_pool(pool_id, only_online=False)
-                        if forced_hyp in hyps_in_pool:
-                            next_hyp = forced_hyp
-                        else:
+                        disk_path = d["file"]
+                        pool_id = dict_domain["hypervisors_pools"][0]
+                        if pool_id not in self.manager.pools.keys():
                             log.error(
-                                "force hypervisor failed for doomain {}: {}  not in hypervisors pool {}".format(
-                                    id_domain, forced_hyp, pool_id
+                                "hypervisor pool {} nor running in manager, can't delete disks in domain {}".format(
+                                    pool_id, id_domain
                                 )
                             )
+                            return False
+
+                        forced_hyp, preferred_hyp = get_domain_forced_hyp(id_domain)
+                        if forced_hyp is not False:
+                            hyps_in_pool = get_hypers_in_pool(
+                                pool_id, only_online=False
+                            )
+                            if forced_hyp in hyps_in_pool:
+                                next_hyp = forced_hyp
+                            else:
+                                log.error(
+                                    "force hypervisor failed for doomain {}: {}  not in hypervisors pool {}".format(
+                                        id_domain, forced_hyp, pool_id
+                                    )
+                                )
+                                next_hyp, extra_info = self.manager.pools[
+                                    pool_id
+                                ].get_next(domain_id=id_domain)
+                        else:
                             next_hyp, extra_info = self.manager.pools[pool_id].get_next(
                                 domain_id=id_domain
                             )
-                    else:
-                        next_hyp, extra_info = self.manager.pools[pool_id].get_next(
-                            domain_id=id_domain
-                        )
 
-                    if type(next_hyp) is tuple:
-                        h = next_hyp[0]
-                        next_hyp = h
-                    log.debug(
-                        "hypervisor where delete disk {}: {}".format(
-                            disk_path, next_hyp
-                        )
-                    )
-                    cmds = create_cmds_delete_disk(disk_path)
-
-                    action = dict()
-                    action["id_domain"] = id_domain
-                    action["type"] = "delete_disk"
-                    action["disk_path"] = disk_path
-                    action["domain"] = id_domain
-                    action["ssh_commands"] = cmds
-                    action["index_disk"] = index_disk
-
-                    try:
-
-                        update_domain_status(
-                            status="DeletingDomainDisk",
-                            id_domain=id_domain,
-                            hyp_id=False,
-                            detail="Deleting disk {} in domain {}, queued in hypervisor thread {}".format(
-                                disk_path, id_domain, next_hyp
-                            ),
-                        )
-
-                        self.manager.q.workers[next_hyp].put(action)
-                    except Exception as e:
-                        logs.exception_id.debug("0011")
-                        update_domain_status(
-                            status="Stopped",
-                            id_domain=id_domain,
-                            hyp_id=False,
-                            detail="Creating template operation failed when insert action in queue for disk operations",
-                        )
-                        log.error(
-                            "Creating disk operation failed when insert action in queue for disk operations in host {}. Exception: {}".format(
-                                next_hyp, e
+                        if type(next_hyp) is tuple:
+                            h = next_hyp[0]
+                            next_hyp = h
+                        log.debug(
+                            "hypervisor where delete disk {}: {}".format(
+                                disk_path, next_hyp
                             )
                         )
-                        return False
+                        cmds = create_cmds_delete_disk(disk_path)
 
-                    index_disk += 1
+                        action = dict()
+                        action["id_domain"] = id_domain
+                        action["type"] = "delete_disk"
+                        action["disk_path"] = disk_path
+                        action["domain"] = id_domain
+                        action["ssh_commands"] = cmds
+                        action["index_disk"] = index_disk
+
+                        try:
+
+                            update_domain_status(
+                                status="DeletingDomainDisk",
+                                id_domain=id_domain,
+                                hyp_id=False,
+                                detail="Deleting disk {} in domain {}, queued in hypervisor thread {}".format(
+                                    disk_path, id_domain, next_hyp
+                                ),
+                            )
+
+                            self.manager.q.workers[next_hyp].put(action)
+                        except Exception as e:
+                            logs.exception_id.debug("0011")
+                            update_domain_status(
+                                status="Stopped",
+                                id_domain=id_domain,
+                                hyp_id=False,
+                                detail="Creating template operation failed when insert action in queue for disk operations",
+                            )
+                            log.error(
+                                "Creating disk operation failed when insert action in queue for disk operations in host {}. Exception: {}".format(
+                                    next_hyp, e
+                                )
+                            )
+                            return False
+
+                        index_disk += 1
+                else:
+                    log.debug("no disk to delete in domain {}".format(id_domain))
             else:
-                log.debug("no disk to delete in domain {}".format(id_domain))
-        else:
-            log.error(
-                "no hardware dict in domain to delete {}, deleting domain but not deleted disks".format(
-                    id_domain
+                log.error(
+                    "no hardware dict in domain to delete {}, deleting domain but not deleted disks".format(
+                        id_domain
+                    )
                 )
-            )
-            delete_domain(id_domain)
+                delete_domain(id_domain)
 
-        return True
+            return True
+        except Exception as e:
+            logs.exception_id.debug("0071")
+            log.error("deleting_disks_from_domain with domain {}".format(id_domain))
+            log.error("Traceback: \n .{}".format(traceback.format_exc()))
+            log.error("Exception message: {}".format(e))
+            return False
 
     def create_template_disks_from_domain(self, id_domain):
         dict_domain = get_domain(id_domain)
