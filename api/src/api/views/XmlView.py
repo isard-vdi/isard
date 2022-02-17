@@ -16,7 +16,6 @@ from api import app
 
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
-from ..libv2.quotas_exc import *
 
 quotas = Quotas()
 

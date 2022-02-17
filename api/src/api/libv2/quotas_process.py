@@ -4,13 +4,16 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
+
 import time
+import traceback
 from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
 from api import app
+
+from .api_exceptions import Error
 
 r = RethinkDB()
 # ~ from ..libv1.log import *
@@ -24,14 +27,9 @@ db = RDB(app)
 db.init_app(app)
 
 
-from .quotas_exc import *
-
-
-class WebappQuotas:
+class QuotasProcess:
     def __init__(self):
         None
-
-    """ Copy from webapp quotas.py """
 
     def get(self, user_id, category_id=False, admin=False):
         """Used by socketio to inform of user quotas"""
@@ -56,12 +54,8 @@ class WebappQuotas:
         return userquotas
 
     def process_user_quota(self, user_id):
-        if isinstance(user_id, dict):
-            user = user_id
-            user_id = user["id"]
-        else:
-            with app.app_context():
-                user = r.table("users").get(user_id).pluck("quota").run(db.conn)
+        with app.app_context():
+            user = r.table("users").get(user_id).without("password", "vpn").run(db.conn)
 
         with app.app_context():
             desktops = (
@@ -81,7 +75,7 @@ class WebappQuotas:
             templates = (
                 r.table("domains")
                 .get_all(user_id, index="user")
-                .filter({"kind": "user_template"})
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -145,6 +139,7 @@ class WebappQuotas:
             mq = user["quota"]["memory"]
 
         return {
+            "user": user,
             "d": desktops,
             "dq": dq,
             "dqp": int(round(qpdesktops, 0)),
@@ -165,12 +160,12 @@ class WebappQuotas:
             "mqp": int(round(qpmemory, 0)),
         }
 
-    def process_category_limits(self, id, from_user_id=False, from_group_id=False):
-        if from_user_id != False:
+    def process_category_limits(self, id, from_user_id=None, from_group_id=None):
+        if from_user_id:
             with app.app_context():
                 user = r.table("users").get(id).pluck("category", "role").run(db.conn)
             id = user["category"]
-        if from_group_id != False:
+        if from_group_id:
             with app.app_context():
                 id = (
                     r.table("groups")
@@ -206,7 +201,7 @@ class WebappQuotas:
             templates = (
                 r.table("domains")
                 .get_all(category["id"], index="category")
-                .filter(r.row["kind"].match("template"))
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -293,6 +288,7 @@ class WebappQuotas:
             uq = category["limits"]["users"]
 
         return {
+            "category": category,
             "d": desktops,
             "dq": dq,
             "dqp": int(round(qpdesktops, 0)),
@@ -316,8 +312,8 @@ class WebappQuotas:
             "uqp": int(round(qpusers, 0)),
         }
 
-    def process_group_limits(self, id, from_user_id=False):
-        if from_user_id != False:
+    def process_group_limits(self, id, from_user_id=None):
+        if from_user_id:
             with app.app_context():
                 user = r.table("users").get(id).pluck("group", "role").run(db.conn)
                 group_id = user["group"]
@@ -347,7 +343,7 @@ class WebappQuotas:
             templates = (
                 r.table("domains")
                 .get_all(group["id"], index="group")
-                .filter(r.row["kind"].match("template"))
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -430,6 +426,7 @@ class WebappQuotas:
             uq = group["limits"]["users"]
 
         return {
+            "group": group,
             "d": desktops,
             "dq": dq,
             "dqp": int(round(qpdesktops, 0)),
@@ -465,10 +462,7 @@ class WebappQuotas:
                 .run(db.conn)
             )
             templates = (
-                r.table("domains")
-                .filter(r.row["kind"].match("template"))
-                .count()
-                .run(db.conn)
+                r.table("domains").filter({"kind": "template"}).count().run(db.conn)
             )
             isos = r.table("media").count().run(db.conn)
             starteds = (
@@ -501,80 +495,259 @@ class WebappQuotas:
         user = self.process_user_quota(user_id)
         group = self.process_group_limits(user_id, from_user_id=True)
         category = self.process_category_limits(user_id, from_user_id=True)
-
         if item == "NewDesktop":
             if user != False and float(user["dqp"]) >= 100:
-                return "New user desktop quota exceeded."
+                # return "New user desktop quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "User "
+                    + user["user"]["name"]
+                    + " quota exceeded for creating new desktop.",
+                    traceback.format_exc(),
+                    user,
+                )
             if group != False and float(group["dqp"]) >= 100:
-                return "New group desktop quota exceeded."
+                # return "New group desktop quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Group "
+                    + group["group"]["name"]
+                    + " quota exceeded for creating new desktop.",
+                    traceback.format_exc(),
+                    group,
+                )
             if category != False and float(category["dqp"]) >= 100:
-                return "New category desktop quota exceeded."
+                # return "New category desktop quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Category "
+                    + category["category"]["name"]
+                    + " quota exceeded for creating new desktop.",
+                    traceback.format_exc(),
+                    category,
+                )
 
         if item == "NewConcurrent":
             if user != False:
                 if float(user["rqp"]) >= 100:
-                    return "New user concurrent desktop quota exceeded."
+                    # return "New user concurrent desktop quota exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "User "
+                        + user["user"]["name"]
+                        + " quota exceeded for starting new desktop.",
+                        traceback.format_exc(),
+                        user,
+                    )
                 if float(user["vqp"]) >= 100:
-                    return "New user concurrent desktop quota for vCPU exceeded."
+                    # return "New user concurrent desktop quota for vCPU exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "User "
+                        + user["user"]["name"]
+                        + " quota exceeded for vCPU at starting a new desktop.",
+                        traceback.format_exc(),
+                        user,
+                    )
                 if float(user["mqp"]) >= 100:
-                    return "New user concurrent desktop quota for MEMORY exceeded."
+                    # return "New user concurrent desktop quota for MEMORY exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "User "
+                        + user["user"]["name"]
+                        + " quota exceeded for RAM at starting a new desktop.",
+                        traceback.format_exc(),
+                        user,
+                    )
             if group != False:
                 if float(group["rqp"]) >= 100:
-                    return "New group concurrent desktop quota exceeded."
+                    # return "New group concurrent desktop quota exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "Group "
+                        + group["group"]["name"]
+                        + " quota exceeded for starting new desktop.",
+                        traceback.format_exc(),
+                        group,
+                    )
                 if float(group["vqp"]) >= 100:
-                    return "New group concurrent desktop quota for vCPU exceeded."
+                    # return "New group concurrent desktop quota for vCPU exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "Group "
+                        + group["group"]["name"]
+                        + " quota exceeded for vCPU at starting new desktop.",
+                        traceback.format_exc(),
+                        group,
+                    )
                 if float(group["mqp"]) >= 100:
-                    return "New group concurrent desktop quota for MEMORY exceeded."
+                    # return "New group concurrent desktop quota for MEMORY exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "Group "
+                        + group["group"]["name"]
+                        + " quota exceeded for RAM at starting new desktop.",
+                        traceback.format_exc(),
+                        group,
+                    )
             if category != False:
                 if float(category["rqp"]) >= 100:
-                    return "New category concurrent desktop quota exceeded."
+                    # return "New category concurrent desktop quota exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "Category"
+                        + category["category"]["name"]
+                        + " quota exceeded for starting new desktop.",
+                        traceback.format_exc(),
+                        category,
+                    )
                 if float(category["vqp"]) >= 100:
-                    return "New category concurrent desktop quota for vCPU exceeded."
+                    # return "New category concurrent desktop quota for vCPU exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "Category"
+                        + category["category"]["name"]
+                        + " quota exceeded for vCPU at starting new desktop.",
+                        traceback.format_exc(),
+                        category,
+                    )
                 if float(category["mqp"]) >= 100:
-                    return "New category concurrent desktop quota for MEMORY exceeded."
+                    # return "New category concurrent desktop quota for MEMORY exceeded."
+                    raise Error(
+                        "precondition_required",
+                        "Category"
+                        + category["category"]["name"]
+                        + " quota exceeded for RAM at starting new desktop.",
+                        traceback.format_exc(),
+                        category,
+                    )
 
         if item == "NewTemplate":
             if user != False and float(user["tqp"]) >= 100:
-                return "New user template quota exceeded."
+                # return "New user template quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "User "
+                    + user["user"]["name"]
+                    + " quota exceeded for creating new template.",
+                    traceback.format_exc(),
+                    user,
+                )
             if group != False and float(group["tqp"]) >= 100:
-                return "New group template quota exceeded."
+                # return "New group template quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Group "
+                    + group["group"]["name"]
+                    + " quota exceeded for creating new template.",
+                    traceback.format_exc(),
+                    group,
+                )
             if category != False and float(category["tqp"]) >= 100:
-                return "New category template quota exceeded."
+                # return "New category template quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Category "
+                    + category["category"]["name"]
+                    + " quota exceeded for creating new desktop.",
+                    traceback.format_exc(),
+                    category,
+                )
 
         if item == "NewIso":
             if user != False and float(user["iqp"]) >= 100:
-                return "New user iso upload quota exceeded."
+                # return "New user iso upload quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "User "
+                    + user["user"]["name"]
+                    + " quota exceeded for uploading new iso",
+                    traceback.format_exc(),
+                    user,
+                )
             if group != False and float(group["iqp"]) >= 100:
-                return "New group iso upload quota exceeded."
+                # return "New group iso upload quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Group "
+                    + group["group"]["name"]
+                    + " quota exceeded for uploading new iso",
+                    traceback.format_exc(),
+                    group,
+                )
             if category != False and float(category["iqp"]) >= 100:
-                return "New category iso upload quota exceeded."
+                # return "New category iso upload quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Category "
+                    + category["category"]["name"]
+                    + " quota exceeded for uploading new iso",
+                    traceback.format_exc(),
+                    category,
+                )
 
         if item == "NewUser":
             if group != False and float(group["uqp"]) >= 100:
-                return "New group add user quota exceeded."
+                # return "New group add user quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Group "
+                    + group["group"]["name"]
+                    + " quota exceeded for creating user",
+                    traceback.format_exc(),
+                    group,
+                )
             if category != False and float(category["uqp"]) >= 100:
-                return "New category add user quota exceeded."
+                # return "New category add user quota exceeded."
+                raise Error(
+                    "precondition_required",
+                    "Category "
+                    + category["category"]["name"]
+                    + " quota exceeded for creating user",
+                    traceback.format_exc(),
+                    category,
+                )
 
         if item == "NewUsers":
             if group != False and group["u"] + amount > group["uq"]:
-                return (
-                    "New group add user quota exceeded. You want to insert "
+                # return (
+                #     "New group add user quota exceeded. You want to insert "
+                #     + str(amount)
+                #     + " users and your group already has "
+                #     + str(group["u"])
+                #     + "/"
+                #     + str(group["uq"])
+                #     + " users."
+                # )
+                raise Error(
+                    "precondition_required",
+                    "Group "
+                    + group["group"]["name"]
+                    + " quota exceeded for creating "
                     + str(amount)
-                    + " users and your group already has "
-                    + str(group["u"])
-                    + "/"
-                    + str(group["uq"])
-                    + " users."
+                    + " users",
+                    traceback.format_exc(),
+                    group,
                 )
             if category != False and category["u"] + amount > category["uq"]:
-                return (
-                    "New category add user quota exceeded. You want to insert "
+                # return (
+                #     "New category add user quota exceeded. You want to insert "
+                #     + str(amount)
+                #     + " users and your category already has "
+                #     + str(category["u"])
+                #     + "/"
+                #     + str(category["uq"])
+                #     + " users."
+                # )
+                raise Error(
+                    "precondition_required",
+                    "Category "
+                    + category["category"]["name"]
+                    + " quota exceeded for creating "
                     + str(amount)
-                    + " users and your category already has "
-                    + str(category["u"])
-                    + "/"
-                    + str(category["uq"])
-                    + " users."
+                    + " users",
+                    traceback.format_exc(),
+                    category,
                 )
 
         return False
@@ -585,9 +758,23 @@ class WebappQuotas:
         category = self.process_category_limits(category_id, from_user_id=False)
 
         if group != False and float(group["uqp"]) >= 100:
-            return "New group add user quota exceeded."
+            # return "New group add user quota exceeded."
+            raise Error(
+                "precondition_required",
+                "Group " + group["group"]["name"] + " quota exceeded for creating user",
+                traceback.format_exc(),
+                group,
+            )
         if category != False and float(category["uqp"]) >= 100:
-            return "New category add user quota exceeded."
+            # return "New category add user quota exceeded."
+            raise Error(
+                "precondition_required",
+                "Category "
+                + category["category"]["name"]
+                + " quota exceeded for creating user",
+                traceback.format_exc(),
+                category,
+            )
 
         return False
 

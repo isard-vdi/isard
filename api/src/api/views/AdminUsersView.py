@@ -19,7 +19,6 @@ from api import app
 
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
-from ..libv2.quotas_exc import *
 
 quotas = Quotas()
 
@@ -266,50 +265,8 @@ def api_v3_admin_user_insert(payload):
             403,
             {"Content-Type": "application/json"},
         )
-    try:
-        quotas.UserCreate(category_id, group_id)
-    except QuotaCategoryNewUserExceeded:
-        log.error(
-            "Quota for creating another user in category "
-            + category_id
-            + " is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "UserNew category quota for adding user exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaGroupNewUserExceeded:
-        log.error(
-            "Quota for creating another user in group " + group_id + " is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "UserNew group quota for adding user exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserNew quota check general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+
+    quotas.UserCreate(category_id, group_id)
 
     try:
         user_id = users.Create(

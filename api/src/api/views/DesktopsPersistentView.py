@@ -21,7 +21,6 @@ from api import app
 
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
-from ..libv2.quotas_exc import *
 
 quotas = Quotas()
 
@@ -132,150 +131,7 @@ def api_v3_desktop_start(payload, desktop_id=False):
             {"Content-Type": "application/json"},
         )
 
-    try:
-        quotas.DesktopStart(user_id)
-    except QuotaUserConcurrentExceeded:
-        log.error("Quota for user " + user_id + " to start a desktop is exceeded")
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_user_quota_exceeded",
-                    "msg": "DesktopStart user quota CONCURRENT exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaGroupConcurrentExceeded:
-        log.error(
-            "Quota for user " + user_id + " to start a desktop in his group is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_group_quota_exceeded",
-                    "msg": "DesktopStart user group limits CONCURRENT exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaCategoryConcurrentExceeded:
-        log.error(
-            "Quota for user " + user_id + " to start a desktop is his category exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_category_quota_exceeded",
-                    "msg": "DesktopStart user category limits CONCURRENT exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-
-    except QuotaUserVcpuExceeded:
-        log.error("Quota for user " + user_id + " to allocate vCPU is exceeded")
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_vcpu_quota_exceeded",
-                    "msg": "DesktopStart user quota vCPU allocation exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaGroupVcpuExceeded:
-        log.error(
-            "Quota for user " + user_id + " to allocate vCPU in his group is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_group_vcpu_quota_exceeded",
-                    "msg": "DesktopStart user group limits vCPU allocation exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaCategoryVcpuExceeded:
-        log.error(
-            "Quota for user "
-            + user_id
-            + " to allocate vCPU in his category is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_category_vcpu_quota_exceeded",
-                    "msg": "DesktopStart user category limits vCPU allocation exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-
-    except QuotaUserMemoryExceeded:
-        log.error("Quota for user " + user_id + " to allocate MEMORY is exceeded")
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_memory_quota_exceeded",
-                    "msg": "DesktopStart user quota MEMORY allocation exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaGroupMemoryExceeded:
-        log.error(
-            "Quota for user "
-            + user_id
-            + " to allocate memmory in his group is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_group_memory_quota_exceeded",
-                    "msg": "DesktopStart user group limits MEMORY allocation exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaCategoryMemoryExceeded:
-        log.error(
-            "Quota for user "
-            + user_id
-            + " category for desktop MEMORY allocation is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_start_category_memory_quota_exceeded",
-                    "msg": "DesktopStart user category limits MEMORY allocation exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStart quota check general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-
+    quotas.DesktopStart(user_id)
     # So now we have checked if desktop exists and if we can create and/or start it
 
     try:
@@ -449,67 +305,8 @@ def api_v3_persistent_desktop_new(payload):
             403,
             {"Content-Type": "application/json"},
         )
-    try:
-        quotas.DesktopCreate(user_id)
-    except QuotaUserNewDesktopExceeded:
-        log.error(
-            "Quota for user " + user_id + " for creating another desktop is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_new_user_quota_exceeded",
-                    "msg": "PersistentDesktopNew user quota CREATE exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaGroupNewDesktopExceeded:
-        log.error(
-            "Quota for user "
-            + user_id
-            + " group for creating another desktop is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_new_group_quota_exceeded",
-                    "msg": "PersistentDesktopNew user group quota CREATE exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except QuotaCategoryNewDesktopExceeded:
-        log.error(
-            "Quota for user "
-            + user_id
-            + " category for creating another desktop is exceeded"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_new_category_quota_exceeded",
-                    "msg": "PersistentDesktopNew user category quota CREATE exceeded",
-                }
-            ),
-            507,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_new_quota_generic_exception",
-                    "msg": "PersistentDesktopNew quota check general exception: "
-                    + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+
+    quotas.DesktopCreate(user_id)
 
     try:
         now = time.time()
