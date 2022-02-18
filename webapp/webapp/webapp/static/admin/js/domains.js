@@ -278,11 +278,13 @@ $(document).ready(function() {
     } );
 
     domains_table.on( 'click', 'tr', function () {
-        $(this).toggleClass('active');
-        if ($(this).hasClass('active')) {
-            $(this).find('input').prop('checked', true);
-        } else {
-            $(this).find('input').prop('checked', false);
+        if (kind =='desktop') {
+            $(this).toggleClass('active');
+            if ($(this).hasClass('active')) {
+                $(this).find('input').prop('checked', true);
+            } else {
+                $(this).find('input').prop('checked', false);
+            }
         }
     } );
 
