@@ -17,10 +17,10 @@ app.url_map.strict_slashes = False
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 app.STOCK_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/stock")
 if not os.path.exists(app.STOCK_CARDS):
-    os.mkdir(app.STOCK_CARDS)
+    os.makedirs(app.STOCK_CARDS, exist_ok=True)
 app.USERS_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/user")
 if not os.path.exists(app.USERS_CARDS):
-    os.mkdir(app.USERS_CARDS)
+    os.makedirs(app.USERS_CARDS, exist_ok=True)
 
 # Copy only new stock images
 stock_folder = os.path.join(APP_ROOT, "static/stock_assets")
