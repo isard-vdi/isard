@@ -18,19 +18,23 @@ class StructuredMessage(object):
         if isinstance(self.message, str):
             return "%s" % (self.message)
 
-        message = "%-10s - %s - %s" % (
-            self.message["type"],
+        message = "%s - %s" % (
             self.message["msg"],
             self.message["description"],
         )
         if LOG_LEVEL in ["INFO", "WARNING"]:
             return message
         if LOG_LEVEL == "ERROR":
-            return "%s - %s" % (message, self.message["function"])
+            return "%s - %s - %s" % (
+                message,
+                self.message["function_call"],
+                self.message["function"],
+            )
         if LOG_LEVEL == "DEBUG":
-            return "%s - %s\r\n%s\r\n%s" % (
+            return "%s - %s - %s\r\n%s\r\n%s" % (
                 message,
                 self.message["function"],
+                self.message["function_call"],
                 self.message["debug"],
                 self.message["request"],
             )
