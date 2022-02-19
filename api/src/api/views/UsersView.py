@@ -510,37 +510,8 @@ def api_v3_user_desktops(payload):
     try:
         desktops = users.Desktops(payload["user_id"])
         return json.dumps(desktops), 200, {"Content-Type": "application/json"}
-    except UserNotFound:
-        log.error("User " + payload["user_id"] + " not in database.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "UserDesktops: User not exists in database",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except UserDesktopsError:
-        log.error("Desktops list for user " + payload["user_id"] + " failed.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "UserDesktops: list error"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserDesktops general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    except:
+        raise
 
 
 @app.route("/api/v3/user/desktop/<desktop_id>", methods=["GET"])
@@ -561,44 +532,8 @@ def api_v3_user_desktop(payload, desktop_id):
             "ip": desktop.get("ip"),
         }
         return json.dumps(desktop_dict), 200, {"Content-Type": "application/json"}
-    except UserNotFound:
-        log.error("User " + payload["user_id"] + " not in database.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "UserDesktops: User not exists in database",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except UserDesktopsError:
-        log.error("Desktops get for user " + payload["user_id"] + " failed.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "UserDesktops: list error"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except DesktopNotFound:
-        log.error("Desktops get for user " + payload["user_id"] + " not found.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "UserDesktops: not found"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserDesktops general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    except:
+        raise
 
 
 @app.route("/api/v3/user/vpn/<kind>/<os>", methods=["GET"])

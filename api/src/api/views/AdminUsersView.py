@@ -74,49 +74,15 @@ def api_v3_admin_user_exists(payload, id=False):
             403,
             {"Content-Type": "application/json"},
         )
-    try:
-        user = users.Exists(id)
-        return json.dumps(user), 200, {"Content-Type": "application/json"}
-    except UserNotFound:
-        log.error("User " + id + " not in database.")
-        return (
-            json.dumps(
-                {"error": "user_not_found", "msg": "User not exists in database"}
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserExists general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+
+    user = users.Exists(id)
+    return json.dumps(user), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/users", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_users(payload):
-    try:
-        userslist = users.List()
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Users list general exception: " + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    userslist = users.List()
 
     if payload["role_id"] == "admin":
         return json.dumps(userslist), 200, {"Content-Type": "application/json"}
@@ -184,28 +150,9 @@ def api_v3_admin_user_update(payload, id=False):
             400,
             {"Content-Type": "application/json"},
         )
-    try:
-        users.Update(id, user_name=name, user_email=email, user_photo=photo)
-        return json.dumps({}), 200, {"Content-Type": "application/json"}
-    except UpdateFailed:
-        log.error("User " + id + " update failed.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "User update failed"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserUpdate general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+
+    users.Update(id, user_name=name, user_email=email, user_photo=photo)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 # Add user
@@ -311,69 +258,20 @@ def api_v3_admin_user_insert(payload):
             {"Content-Type": "application/json"},
         )
 
-    try:
-        user_id = users.Create(
-            provider,
-            category_id,
-            user_uid,
-            user_username,
-            name,
-            role_id,
-            group_id,
-            password,
-            encrypted_password,
-            photo,
-            email,
-        )
-        return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
-    except UserExists:
-        user_id = provider + "-" + category_id + "-" + user_uid + "-" + user_username
-        return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
-    except RoleNotFound:
-        log.error("Role " + role_username + " not found.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Role not found"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except CategoryNotFound:
-        log.error("Category " + category_id + " not found.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Category not found"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except GroupNotFound:
-        log.error("Group " + group_id + " not found.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Group not found"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except NewUserNotInserted:
-        log.error("User " + user_username + " could not be inserted into database.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "User could not be inserted into database. Already exists!",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserUpdate general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    user_id = users.Create(
+        provider,
+        category_id,
+        user_uid,
+        user_username,
+        name,
+        role_id,
+        group_id,
+        password,
+        encrypted_password,
+        photo,
+        email,
+    )
+    return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/user/<user_id>", methods=["DELETE"])
@@ -386,91 +284,19 @@ def api_v3_admin_user_delete(payload, user_id):
             403,
             {"Content-Type": "application/json"},
         )
-    try:
-        users.Delete(user_id)
-        return json.dumps({}), 200, {"Content-Type": "application/json"}
-    except UserNotFound:
-        log.error("User delete " + user_id + ", user not found")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "User delete id not found"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except UserDeleteFailed:
-        log.error("User delete " + user_id + ", user delete failed")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "User delete failed"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except DesktopDeleteFailed:
-        log.error("User delete for user " + user_id + ", desktop delete failed")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "User delete, desktop deleting failed",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserDelete general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+
+    users.Delete(user_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/templates", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_templates(payload):
-    try:
-        return (
-            json.dumps(users.Templates(payload)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except UserNotFound:
-        log.error("User " + payload["user_id"] + " not in database.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "UserTemplates: User not exists in database",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except UserTemplatesError:
-        log.error("Template list for user " + payload["user_id"] + " failed.")
-        return (
-            json.dumps(
-                {"error": "undefined_error", "msg": "UserTemplates: list error"}
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserTemplates general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    return (
+        json.dumps(users.Templates(payload)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/user/<id>/templates", methods=["GET"])
@@ -496,52 +322,18 @@ def api_v3_admin_user_templates(payload, id=False):
             {"Content-Type": "application/json"},
         )
 
-    try:
-        templates = users.Templates(id)
-        dropdown_templates = [
-            {
-                "id": t["id"],
-                "name": t["name"],
-                "icon": t["icon"],
-                "image": "",
-                "description": t["description"],
-            }
-            for t in templates
-        ]
-        return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
-    except UserNotFound:
-        log.error("User " + id + " not in database.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "UserTemplates: User not exists in database",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except UserTemplatesError:
-        log.error("Template list for user " + id + " failed.")
-        return (
-            json.dumps(
-                {"error": "undefined_error", "msg": "UserTemplates: list error"}
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserTemplates general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    templates = users.Templates(id)
+    dropdown_templates = [
+        {
+            "id": t["id"],
+            "name": t["name"],
+            "icon": t["icon"],
+            "image": "",
+            "description": t["description"],
+        }
+        for t in templates
+    ]
+    return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/user/<user_id>/desktops", methods=["GET"])
@@ -566,44 +358,13 @@ def api_v3_admin_user_desktops(payload, user_id=None):
             403,
             {"Content-Type": "application/json"},
         )
-    try:
-        desktops = users.Desktops(user_id)
-        return (
-            json.dumps(users.Desktops(user_id)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except UserNotFound:
-        log.error("User " + user_id + " not in database.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "UserDesktops: User not exists in database",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except UserDesktopsError:
-        log.error("Desktops list for user " + user_id + " failed.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "UserDesktops: list error"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserDesktops general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+
+    desktops = users.Desktops(user_id)
+    return (
+        json.dumps(users.Desktops(user_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/category/<category_id>", methods=["GET"])
@@ -615,33 +376,9 @@ def api_v3_admin_category(payload, category_id):
             403,
             {"Content-Type": "application/json"},
         )
-    try:
-        data = users.CategoryGet(category_id)
-        return json.dumps(data), 200, {"Content-Type": "application/json"}
-    except CategoryNotFound:
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Category " + str(category_id) + " not exists in database",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
 
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Register general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    data = users.CategoryGet(category_id)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/category", methods=["POST"])
@@ -702,33 +439,19 @@ def api_v3_admin_category_insert(payload):
             {"Content-Type": "application/json"},
         )
 
-    try:
-        category_id = users.CategoryCreate(
-            category_name,
-            frontend=frontend,
-            group_name=group_name,
-            category_limits=category_limits,
-            category_quota=category_quota,
-            group_quota=group_quota,
-        )
-        return (
-            json.dumps({"id": category_id}),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        log.error("Category create error.")
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "General exception when creating category pair: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    category_id = users.CategoryCreate(
+        category_name,
+        frontend=frontend,
+        group_name=group_name,
+        category_limits=category_limits,
+        category_quota=category_quota,
+        group_quota=group_quota,
+    )
+    return (
+        json.dumps({"id": category_id}),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 # Add group
@@ -792,57 +515,30 @@ def api_v3_admin_group_insert(payload):
 
     ##
 
-    try:
-        group_id = users.GroupCreate(
-            category_id,
-            group_name,
-            category_limits=category_limits,
-            category_quota=category_quota,
-            group_quota=group_quota,
-        )
-        return json.dumps({"id": group_id}), 200, {"Content-Type": "application/json"}
-    except Exception as e:
-        log.error(" Group create error.")
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "General exception when creating group: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    group_id = users.GroupCreate(
+        category_id,
+        group_name,
+        category_limits=category_limits,
+        category_quota=category_quota,
+        group_quota=group_quota,
+    )
+    return json.dumps({"id": group_id}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/categories", methods=["GET"])
 @app.route("/api/v3/admin/categories/<frontend>", methods=["GET"])
 @is_admin
 def api_v3_admin_categories(payload, frontend=False):
-    try:
-        if not frontend:
-            return (
-                json.dumps(users.CategoriesGet()),
-                200,
-                {"Content-Type": "application/json"},
-            )
-        else:
-            return (
-                json.dumps(users.CategoriesFrontendGet()),
-                200,
-                {"Content-Type": "application/json"},
-            )
-    except Exception as e:
-        error = traceback.format_exc()
+    if not frontend:
         return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "CategoriesGet general exception: " + error,
-                }
-            ),
-            500,
+            json.dumps(users.CategoriesGet()),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    else:
+        return (
+            json.dumps(users.CategoriesFrontendGet()),
+            200,
             {"Content-Type": "application/json"},
         )
 
@@ -850,63 +546,25 @@ def api_v3_admin_categories(payload, frontend=False):
 @app.route("/api/v3/admin/category/<category_id>", methods=["DELETE"])
 @is_admin
 def api_v3_admin_category_delete(category_id, payload):
-    try:
-        return (
-            json.dumps(users.CategoryDelete(category_id)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "CategoryDelete general exception: "
-                    + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    return (
+        json.dumps(users.CategoryDelete(category_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/groups", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_groups(payload):
-    try:
-        groups = users.GroupsGet()
-        if payload["role_id"] == "manager":
-            groups = [
-                g for g in groups if g["parent_category"] == payload["category_id"]
-            ]
-        return json.dumps(groups), 200, {"Content-Type": "application/json"}
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "GroupsGet general exception: " + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    groups = users.GroupsGet()
+    if payload["role_id"] == "manager":
+        groups = [g for g in groups if g["parent_category"] == payload["category_id"]]
+    return json.dumps(groups), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/group/<group_id>", methods=["DELETE"])
 @is_admin_or_manager
 def api_v3_admin_group_delete(group_id, payload):
-    group = users.GroupsGet(group_id)
-    if not group:
-        return (
-            json.dumps(
-                {"error": "group_not_found", "msg": "Group not exists in database"}
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
     if payload["role_id"] == "manager" and not ownsCategoryId(g["parent_category"]):
         return (
             json.dumps({"error": "forbidden", "msg": "Forbidden"}),
@@ -914,24 +572,11 @@ def api_v3_admin_group_delete(group_id, payload):
             {"Content-Type": "application/json"},
         )
 
-    try:
-        return (
-            json.dumps(users.GroupDelete(group_id)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "GroupDelete general exception: " + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    return (
+        json.dumps(users.GroupDelete(group_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/user/<user_id>/vpn/<kind>/<os>", methods=["GET"])
