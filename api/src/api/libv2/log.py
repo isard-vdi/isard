@@ -37,6 +37,7 @@ class StructuredMessage(object):
                 self.message["function_call"],
                 self.message["debug"],
                 self.message["request"],
+                self.message["data"],
             )
 
 
