@@ -58,6 +58,20 @@ ex = {
         },
         "status_code": 504,
     },
+    "precondition_required": {
+        "error": {
+            "error": "precondition_required",
+            "msg": "Precondition required",
+        },
+        "status_code": 428,
+    },
+    "insufficient_storage": {
+        "error": {
+            "error": "insufficient_storage",
+            "msg": "Insufficient storage",
+        },
+        "status_code": 507,
+    },
 }
 
 
