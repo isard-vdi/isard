@@ -376,7 +376,7 @@ def new_domain_from_template(name, description, template_origin, user, group, ca
 
 
 def new_template_from_domain(
-    name, description, original_domain_id, user, group, category, kind="public_template"
+    name, description, original_domain_id, user, group, category
 ):
     id = "_" + user + "_" + name
     dir_disk = category + "/" + group + "/" + name
@@ -394,7 +394,7 @@ def new_template_from_domain(
 
     template_field = {
         "id": id,
-        "kind": kind,
+        "kind": "template",
         "user": user,
         "status": "Creating",
         "detail": None,

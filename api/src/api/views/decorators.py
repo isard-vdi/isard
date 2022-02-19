@@ -17,8 +17,6 @@ import logging
 import traceback
 
 from flask import Flask, _request_ctx_stack, jsonify, request
-
-# from flask_cors import cross_origin
 from jose import jwt
 from rethinkdb.errors import ReqlTimeoutError
 
@@ -29,8 +27,6 @@ db.init_app(app)
 
 from ..auth.tokens import Error, get_auto_register_jwt_payload, get_header_jwt_payload
 from ..libv2.apiv2_exc import DesktopNotFound, TemplateNotFound
-
-# from ..libv3.api_users import filter_user_templates
 
 
 def has_token(f):
@@ -120,7 +116,6 @@ def is_hyper(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        # kwargs['payload']=payload
         return f(*args, **kwargs)
 
     return decorated
@@ -171,18 +166,6 @@ def ownsDomainId(payload, desktop_id):
     return False
 
 
-# def allowedTemplateId(payload,template_id):
-#     if payload['role_id'] == 'admin': return True
-#     allowed=r.table('domains').get(template_id).pluck('allowed').run(db.conn)
-#     if payload['role_id'] == 'manager' and payload['category_id'] == template_id.split('-')[1]: return True
-#     if payload['role_id'] == 'advanced':
-#         with app.app_context():
-#             if str(r.table('domains').get(template_id).pluck('tag').run(db.conn).get('tag',False)).startswith('_'+payload['user_id']):
-#                 return True
-#     if template_id.startswith('_'+payload['user_id']): return True
-#     return False
-
-
 def allowedTemplateId(payload, template_id):
     try:
         with app.app_context():
@@ -231,24 +214,3 @@ def allowedTemplateId(payload, template_id):
         if payload["user_id"] in alloweds["users"]:
             return True
     return False
-
-
-# def allowedId(payload,category_id, alloweds):
-#     if payload['role'] == 'admin': return True
-#     if payload['role'] == 'manager' and payload['category_id'] == category_id: return True
-#     if payload['category_id'] in alloweds['categories']: return True
-#     if payload['group_id'] in alloweds['groups']: return True
-#     if payload['user_id'] in alloweds['users']: return True
-#     return False
-
-# Error handler
-# class PermissionError(Exception):
-#     def __init__(self, error, status_code):
-#         self.error = error
-#         self.status_code = status_code
-
-# @app.errorhandler(PermissionError)
-# def handle_auth_error(ex):
-#     response = jsonify(ex.error)
-#     response.status_code = ex.status_code
-#     return response

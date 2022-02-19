@@ -125,15 +125,6 @@ def getAllTemplates():
     return Response(json.dumps(templates), mimetype="application/json")
 
 
-# Gets users, categories and groups
-@app.route("/isard-admin/desktops/getDistinc/<field>/<kind>", methods=["GET"])
-@login_required
-def getDistinct(field, kind):
-    data = app.isardapi.get_distinc_field(current_user.id, field, kind)
-    return Response(json.dumps(data), mimetype="application/json")
-
-
-# Gets
 @app.route("/isard-admin/desktops/templateUpdate/<id>", methods=["GET"])
 @login_required
 def templateUpdate(id):

@@ -30,7 +30,6 @@ function modal_add_desktop_datatables(){
 			"rowId": "id",
 			"deferRender": true,
 			"columns": [
-                { "data": "kind", "width": "10px", "orderable": false},
 				{ "data": "name"},
                 { "data": "group", "width": "10px"},
                 { "data": "username"}
@@ -38,26 +37,14 @@ function modal_add_desktop_datatables(){
 			 "order": [[0, 'asc']],	
              "pageLength": 5,	 
 		"columnDefs": [     
-                            {
-							"targets": 0,
-							"render": function ( data, type, full, meta ) {
-							  return renderTemplateKind(full);
-							}},
 							{
-							"targets": 1,
+							"targets": 0,
 							"render": function ( data, type, full, meta ) {
 							  return renderIcon1x(full)+" "+full.name;
 							}},
 							]
-
-
-
 	} );  
-    
 
-
-        
-    
     modal_add_desktops.columns().every( function () {
         var that = this;
  
@@ -175,9 +162,4 @@ function icon1x(name){
 
 function renderIcon1x(data){
     return '<span class="xe-icon" data-pk="'+data.id+'">'+icon1x(data.icon)+'</span>'
-}
-
-function renderTemplateKind(data){
-if(data.kind=='base'){return 'base';}
-    return "template"
 }

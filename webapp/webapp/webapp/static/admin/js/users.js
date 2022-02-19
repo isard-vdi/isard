@@ -230,9 +230,7 @@ $(document).ready(function() {
                               //~ </div>'
             //~ },
             { "data": "accessed"},
-            { "data": "base", "width": "10px"},
-            { "data": "user_template", "width": "10px"},
-            { "data": "public_template", "width": "10px"},
+            { "data": "templates", "width": "10px"},
             { "data": "desktops", "width": "10px"}],
 			 "columnDefs": [
 							{

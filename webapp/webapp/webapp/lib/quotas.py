@@ -71,7 +71,7 @@ class QuotaLimits:
             templates = (
                 r.table("domains")
                 .get_all(user_id, index="user")
-                .filter({"kind": "user_template"})
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -196,7 +196,7 @@ class QuotaLimits:
             templates = (
                 r.table("domains")
                 .get_all(category["id"], index="category")
-                .filter(r.row["kind"].match("template"))
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -337,7 +337,7 @@ class QuotaLimits:
             templates = (
                 r.table("domains")
                 .get_all(group["id"], index="group")
-                .filter(r.row["kind"].match("template"))
+                .filter({"kind": "template"})
                 .count()
                 .run(db.conn)
             )
@@ -456,7 +456,7 @@ class QuotaLimits:
             )
             templates = (
                 r.table("domains")
-                .filter(r.row["kind"].match("template"))
+                .get_all("template", index="kind")
                 .count()
                 .run(db.conn)
             )

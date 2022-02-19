@@ -158,17 +158,9 @@ class ApiUsers:
                         .get_all(user["id"], index="user")
                         .filter({"kind": "desktop"})
                         .count(),
-                        "public_template": r.table("domains")
+                        "templates": r.table("domains")
                         .get_all(user["id"], index="user")
-                        .filter({"kind": "public_template"})
-                        .count(),
-                        "user_template": r.table("domains")
-                        .get_all(user["id"], index="user")
-                        .filter({"kind": "user_template"})
-                        .count(),
-                        "base": r.table("domains")
-                        .get_all(user["id"], index="user")
-                        .filter({"kind": "base"})
+                        .filter({"kind": "template"})
                         .count(),
                     }
                 )
@@ -288,29 +280,9 @@ class ApiUsers:
     def Templates(self, payload):
         try:
             with app.app_context():
-                data1 = (
+                templates = (
                     r.table("domains")
-                    .get_all("base", index="kind")
-                    .order_by("name")
-                    .pluck(
-                        {
-                            "id",
-                            "name",
-                            "allowed",
-                            "kind",
-                            "category",
-                            "group",
-                            "icon",
-                            "image",
-                            "user",
-                            "description",
-                        }
-                    )
-                    .run(db.conn)
-                )
-                data2 = (
-                    r.table("domains")
-                    .filter(r.row["kind"].match("template"))
+                    .get_all("template", index="kind")
                     .filter({"enabled": True})
                     .order_by("name")
                     .pluck(
@@ -329,70 +301,69 @@ class ApiUsers:
                     )
                     .run(db.conn)
                 )
-            desktops = data1 + data2
             alloweds = []
-            for desktop in desktops:
+            for template in templates:
                 try:
                     with app.app_context():
-                        desktop["username"] = (
+                        template["username"] = (
                             r.table("users")
-                            .get(desktop["user"])
+                            .get(template["user"])
                             .pluck("name")
                             .run(db.conn)["name"]
                         )
                 except:
-                    desktop["username"] = "X " + desktop["user"]
-                desktop["editable"] = False
+                    template["username"] = "X " + template["user"]
+                template["editable"] = False
                 # with app.app_context():
                 #     desktop['username']=r.table('users').get(desktop['user']).pluck('name').run(db.conn)['name']
                 if payload["role_id"] == "admin":
-                    desktop["editable"] = True
-                    alloweds.append(desktop)
+                    template["editable"] = True
+                    alloweds.append(template)
                     continue
                 if (
                     payload["role_id"] == "manager"
-                    and payload["category_id"] == desktop["category"]
+                    and payload["category_id"] == template["category"]
                 ):
-                    desktop["editable"] = True
-                    alloweds.append(desktop)
+                    template["editable"] = True
+                    alloweds.append(template)
                     continue
                 if not payload.get("user_id", False):
                     continue
-                if desktop["user"] == payload["user_id"]:
-                    desktop["editable"] = True
-                    alloweds.append(desktop)
+                if template["user"] == payload["user_id"]:
+                    template["editable"] = True
+                    alloweds.append(template)
                     continue
-                if desktop["allowed"]["roles"] is not False:
-                    if len(desktop["allowed"]["roles"]) == 0:
-                        alloweds.append(desktop)
+                if template["allowed"]["roles"] is not False:
+                    if len(template["allowed"]["roles"]) == 0:
+                        alloweds.append(template)
                         continue
                     else:
-                        if payload["role_id"] in desktop["allowed"]["roles"]:
-                            alloweds.append(desktop)
+                        if payload["role_id"] in template["allowed"]["roles"]:
+                            alloweds.append(template)
                             continue
-                if desktop["allowed"]["categories"] is not False:
-                    if len(desktop["allowed"]["categories"]) == 0:
-                        alloweds.append(desktop)
+                if template["allowed"]["categories"] is not False:
+                    if len(template["allowed"]["categories"]) == 0:
+                        alloweds.append(template)
                         continue
                     else:
-                        if payload["category_id"] in desktop["allowed"]["categories"]:
-                            alloweds.append(desktop)
+                        if payload["category_id"] in template["allowed"]["categories"]:
+                            alloweds.append(template)
                             continue
-                if desktop["allowed"]["groups"] is not False:
-                    if len(desktop["allowed"]["groups"]) == 0:
-                        alloweds.append(desktop)
+                if template["allowed"]["groups"] is not False:
+                    if len(template["allowed"]["groups"]) == 0:
+                        alloweds.append(template)
                         continue
                     else:
-                        if payload["group_id"] in desktop["allowed"]["groups"]:
-                            alloweds.append(desktop)
+                        if payload["group_id"] in template["allowed"]["groups"]:
+                            alloweds.append(template)
                             continue
-                if desktop["allowed"]["users"] is not False:
-                    if len(desktop["allowed"]["users"]) == 0:
-                        alloweds.append(desktop)
+                if template["allowed"]["users"] is not False:
+                    if len(template["allowed"]["users"]) == 0:
+                        alloweds.append(template)
                         continue
                     else:
-                        if payload["user_id"] in desktop["allowed"]["users"]:
-                            alloweds.append(desktop)
+                        if payload["user_id"] in template["allowed"]["users"]:
+                            alloweds.append(template)
                             continue
             return alloweds
         except Exception:
@@ -547,9 +518,7 @@ class ApiUsers:
             )
             user_templates = list(
                 r.table("domains")
-                .get_all(
-                    r.args(["base", "public_template", "user_template"]), index="kind"
-                )
+                .get_all("template", index="kind")
                 .filter({"user": user_id})
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)

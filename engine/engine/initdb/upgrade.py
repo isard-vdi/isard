@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 24
+release_version = 25
+# release 25: Replaced user_template/public_template/base to template
 # release 24: Add missing domains created from qcow2 media disk image field
 # release 23: Added enabled to templates
 # release 22: Upgrade domains image field
@@ -816,6 +817,21 @@ class Upgrade(object):
                         {"image": self.get_domain_stock_card(domain_id)}
                     ).run(self.conn)
             except Exception as e:
+                None
+
+        if version == 25:
+            try:
+                r.table(table).get_all("base", index="kind").update(
+                    {"kind": "template"}
+                ).run(self.conn)
+                r.table(table).get_all("user_template", index="kind").update(
+                    {"kind": "template"}
+                ).run(self.conn)
+                r.table(table).get_all("public_template", index="kind").update(
+                    {"kind": "template"}
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
                 None
 
         return True
