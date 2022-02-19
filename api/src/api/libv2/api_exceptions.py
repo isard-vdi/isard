@@ -1,9 +1,10 @@
 import inspect
+import json
 import logging as log
 import os
 import traceback
 
-from flask import jsonify
+from flask import jsonify, request
 
 from api import app
 
@@ -76,7 +77,7 @@ ex = {
 
 
 class Error(Exception):
-    def __init__(self, error="bad_request", description="", debug="", request=None):
+    def __init__(self, error="bad_request", description="", debug="", data=None):
         self.error = ex[error]["error"].copy()
         self.error["function"] = (
             inspect.stack()[1][1].split(os.sep)[-1]
@@ -93,22 +94,45 @@ class Error(Exception):
             + inspect.stack()[2][3]
         )
         self.error["description"] = str(description)
-        self.error["debug"] = "{}\n\r{}".format(
-            "----------- DEBUG START -------------", debug
+        self.error["debug"] = "{}\n\r{}{}".format(
+            "----------- DEBUG START -------------",
+            debug,
+            "----------- DEBUG STOP  -------------",
         )
         self.error["request"] = (
-            "{}\n{}\r\n{}\r\n\r\n{}".format(
+            "{}\n{}\r\n{}\r\n\r\n{}{}".format(
                 "----------- REQUEST START -----------",
                 request.method + " " + request.url,
                 "\r\n".join("{}: {}".format(k, v) for k, v in request.headers.items()),
                 request.body if hasattr(request, "body") else "",
+                "----------- REQUEST STOP  -----------",
             )
             if request
             else ""
         )
+        self.error["data"] = (
+            "{}\n{}\n{}".format(
+                "----------- DATA START   -----------",
+                json.dumps(data, indent=2),
+                "----------- DATA STOP    -----------",
+            )
+            if data
+            else ""
+        )
         self.status_code = ex[error]["status_code"]
         self.content_type = content_type
-        log.debug(app.sm(self.error))
+        log.debug(
+            "%s - %s - [%s -> %s]\r\n%s\r\n%s\r\n%s"
+            % (
+                error,
+                str(description),
+                self.error["function_call"],
+                self.error["function"],
+                self.error["debug"],
+                self.error["request"],
+                self.error["data"],
+            )
+        )
 
 
 @app.errorhandler(Error)

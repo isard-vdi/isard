@@ -17,7 +17,6 @@ from ..libv2.api_exceptions import Error
 r = RethinkDB()
 import traceback
 
-from flask import Flask, _request_ctx_stack, jsonify, request
 from jose import jwt
 from rethinkdb.errors import ReqlTimeoutError
 
@@ -50,7 +49,6 @@ def get_token_header(header):
             "unauthorized",
             "Authorization header is expected",
             traceback.format_stack(),
-            request,
         )
 
     parts = auth.split()
@@ -59,7 +57,6 @@ def get_token_header(header):
             "unauthorized",
             "Authorization header must start with Bearer",
             traceback.format_stack(),
-            request,
         )
     elif len(parts) == 1:
         raise Error("bad_request", "Token not found")
@@ -68,7 +65,6 @@ def get_token_header(header):
             "unauthorized",
             "Authorization header must be Bearer token",
             traceback.format_stack(),
-            request,
         )
 
     return parts[1]  # Token
@@ -91,7 +87,6 @@ def get_token_payload(token):
                 "unauthorized",
                 "Not authorized category token.",
                 traceback.format_stack(),
-                request,
             )
 
     except KeyError:
@@ -106,7 +101,6 @@ def get_token_payload(token):
             "unauthorized",
             "Unable to parse authentication parameters token.",
             traceback.format_stack(),
-            request,
         )
 
     try:
@@ -118,22 +112,18 @@ def get_token_payload(token):
         )
     except jwt.ExpiredSignatureError:
         log.info("Token expired")
-        raise Error(
-            "unauthorized", "Token is expired", traceback.format_stack(), request
-        )
+        raise Error("unauthorized", "Token is expired", traceback.format_stack())
     except jwt.JWTClaimsError:
         raise Error(
             "unauthorized",
             "Incorrect claims, please check the audience and issuer",
             traceback.format_stack(),
-            request,
         )
     except Exception:
         raise Error(
             "unauthorized",
             "Unable to parse authentication token.",
             traceback.format_stack(),
-            request,
         )
     if payload.get("data", False):
         return payload["data"]
