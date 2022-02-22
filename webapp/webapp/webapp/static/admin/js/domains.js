@@ -233,7 +233,7 @@ $(document).ready(function() {
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
         var title = $(this).text();
-        if (['','Icon','Hypervisor','Action'].indexOf(title) == -1){
+        if (['','Icon','Hypervisor','Action', 'Enabled'].indexOf(title) == -1){
             $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
         }
     } );
