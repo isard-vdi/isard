@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 25
+release_version = 26
+# release 26: Added a parents index to domains
 # release 25: Replaced user_template/public_template/base to template
 # release 24: Add missing domains created from qcow2 media disk image field
 # release 23: Added enabled to templates
@@ -829,6 +830,19 @@ class Upgrade(object):
                 ).run(self.conn)
                 r.table(table).get_all("public_template", index="kind").update(
                     {"kind": "template"}
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+                None
+
+        if version == 26:
+            try:
+                r.table(table).index_create(
+                    "parents",
+                    lambda dom: dom["parents"].map(
+                        lambda parents: [dom["id"], parents]
+                    ),
+                    multi=True,
                 ).run(self.conn)
             except Exception as e:
                 print(e)

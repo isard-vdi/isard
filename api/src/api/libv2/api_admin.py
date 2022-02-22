@@ -12,6 +12,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_exceptions import Error
+
 r = RethinkDB()
 import logging
 import traceback
@@ -48,4 +50,60 @@ def admin_table_list(table, order_by, pluck, without):
                 .without(without)
                 .order_by(order_by)
                 .run(db.conn)
+            )
+
+
+class ApiAdmin:
+    def ListDesktops(self, user_id):
+        with app.app_context():
+            if r.table("users").get(user_id).run(db.conn) == None:
+                raise Error(
+                    "not_found", "Not found user_id " + user_id, traceback.format_exc()
+                )
+        try:
+            with app.app_context():
+                domains = list(
+                    r.table("domains")
+                    .get_all("desktop", index="kind")
+                    .order_by("name")
+                    .run(db.conn)
+                )
+            return domains
+        except Exception:
+            raise Error(
+                "internal_server",
+                "Internal server error " + user_id,
+                traceback.format_exc(),
+            )
+
+    def ListTemplates(self, user_id):
+        with app.app_context():
+            if r.table("users").get(user_id).run(db.conn) == None:
+                raise Error(
+                    "not_found", "Not found user_id " + user_id, traceback.format_exc()
+                )
+
+        try:
+            with app.app_context():
+                domains = list(
+                    r.table("domains")
+                    .get_all("template", index="kind")
+                    .merge(
+                        lambda domain: {
+                            "derivates": r.db("isard")
+                            .table("domains")
+                            .get_all([1, domain["id"]], index="parents")
+                            .distinct()
+                            .count()
+                        }
+                    )
+                    .order_by("name")
+                    .run(db.conn)
+                )
+            return domains
+        except Exception:
+            raise Error(
+                "internal_server",
+                "Internal server error " + user_id,
+                traceback.format_exc(),
             )

@@ -681,11 +681,6 @@ class ApiUsers:
             else:
                 raise Error(
                     "conflict",
-                    "Already exists user_id " + user_id,
-                    traceback.format_stack(),
-                )
-                raise Error(
-                    "conflict",
                     "Group "
                     + group_name
                     + " already exists in category "
