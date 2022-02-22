@@ -66,7 +66,6 @@ if __name__ == "__main__":
 
     app = Flask(__name__)
 
-    # app.m = ManagerHypervisors()
     app.m = Engine(with_status_threads=False)
     app.db = db
 
