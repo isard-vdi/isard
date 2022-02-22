@@ -3,6 +3,7 @@ services:
   isard-db:
     container_name: isard-db
     image: ${DOCKER_IMAGE_PREFIX}db:${DOCKER_IMAGE_TAG:-latest}
+    entrypoint: ["rethinkdb", "--cores", "64", "--bind", "all"]
     logging:
       driver: "json-file"
       options:
