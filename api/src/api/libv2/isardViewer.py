@@ -256,15 +256,12 @@ class isardViewer:
         )
 
     def get_spice_file(self, domain, port, vmPort):
-        try:
-            op_fscr = (
-                1
-                if domain["options"] is not False and domain["options"]["fullscreen"]
-                else 0
-            )
-        except:
-            op_fscr = 0
-
+        op_fscr = int(
+            domain.get("options", {})
+            .get("viewers", {})
+            .get("spice", {})
+            .get("fullscreen", False)
+        )
         c = "%"
         consola = """[virt-viewer]
         type=%s
