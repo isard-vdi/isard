@@ -165,10 +165,8 @@ class ApiCards:
                 .count()
                 .run(db.conn)
             ):
-                return CardError(
-                    {"error": "exists", "msg": "Card file still used by other domains"},
-                    304,
-                )
+                # Card file still used by other domains. Keep it.
+                return
         try:
             img = Path(app.USERS_CARDS + "/" + card_id)
             img.unlink()
@@ -178,17 +176,16 @@ class ApiCards:
 
     def delete_domain_card(self, domain_id, update_domain=True):
         with app.app_context():
-            card_id = (
-                r.table("domains")
-                .get(domain_id)
-                .pluck({"image": "id"})
-                .run(db.conn)["image"]["id"]
+            card = (
+                r.table("domains").get(domain_id).pluck("image").run(db.conn)["image"]
             )
+        if card["image"]["type"] == "user":
             if update_domain:
-                r.table("domains").get(domain_id).update(
-                    {"image": self.get_domain_stock_card(domain_id)}
-                ).run(db.conn)
-        self.delete_card(card_id)
+                with app.app_context():
+                    r.table("domains").get(domain_id).update(
+                        {"image": self.get_domain_stock_card(domain_id)}
+                    ).run(db.conn)
+            self.delete_card(card["id"])
 
     def set_default_stock_cards(self):
         with app.app_context():
