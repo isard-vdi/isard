@@ -138,7 +138,7 @@ class ApiUsers:
             traceback.format_stack(),
         )
 
-    def Exists(self, user_id):
+    def Get(self, user_id):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if not user:
@@ -249,24 +249,21 @@ class ApiUsers:
                 )
         return user_id
 
-    def Update(self, user_id, user_name=False, user_email=False, user_photo=False):
-        self.Exists(user_id)
-        with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
-            if user is None:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_stack(),
-                )
-            update_values = {}
-            if user_name:
-                update_values["name"] = user_name
-            if user_email:
-                update_values["email"] = user_email
-            if user_photo:
-                update_values["photo"] = user_photo
-            if update_values:
+    def Update(self, user_id, name=None, email=None, photo=None, password=None):
+        self.Get(user_id)
+
+        update_values = {}
+        if name:
+            update_values["name"] = name
+        if email:
+            update_values["email"] = email
+        if photo:
+            update_values["photo"] = photo
+        if password:
+            p = Password()
+            update_values["password"] = p.encrypt(password)
+        if update_values:
+            with app.app_context():
                 if not _check(
                     r.table("users").get(user_id).update(update_values).run(db.conn),
                     "replaced",
@@ -372,13 +369,7 @@ class ApiUsers:
             )
 
     def Desktops(self, user_id):
-        with app.app_context():
-            if r.table("users").get(user_id).run(db.conn) == None:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_stack(),
-                )
+        self.Get(user_id)
         try:
             with app.app_context():
                 desktops = list(
@@ -417,14 +408,8 @@ class ApiUsers:
             )
 
     def Desktop(self, desktop_id, user_id):
+        self.Get(user_id)
         with app.app_context():
-            if r.table("users").get(user_id).run(db.conn) == None:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_stack(),
-                )
-
             desktop = (
                 r.table("domains")
                 .get(desktop_id)
@@ -445,7 +430,7 @@ class ApiUsers:
                         {"create_dict": {"hardware": ["interfaces", "videos"]}},
                     ]
                 )
-                .default(False)
+                .default(None)
                 .run(db.conn)
             )
         if not desktop:
@@ -486,13 +471,7 @@ class ApiUsers:
             )
 
     def Delete(self, user_id):
-        with app.app_context():
-            if r.table("users").get(user_id).run(db.conn) is None:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_stack(),
-                )
+        self.Get(user_id)
         todelete = self._user_delete_checks(user_id)
         for desktop in todelete:
             ds.delete_desktop(desktop["id"], desktop["status"])
