@@ -27,7 +27,8 @@
             "checkbox-text-short": "Arrencats",
             "new-desktop": "Escriptori nou",
             "upload-file": "Pujar Fitxer",
-            "cancel": "Cancel·lar"
+            "cancel": "Cancel·lar",
+            "select": "Seleccionar"
         },
         "desktop-cards": {
             "table-header": {
@@ -268,6 +269,12 @@
             },
             "desktop": {
                 "not-available": "Escriptori no disponible"
+            }
+        },
+        "direct-viewer": {
+            "local-client-help": "Instruccions d'instal·lació del client local",
+            "button": {
+                "browser": "Navegador"
             }
         }
     },
