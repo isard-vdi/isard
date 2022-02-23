@@ -7,6 +7,7 @@ services:
       driver: "json-file"
       options:
         max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     cap_add:
     - NET_ADMIN    
     networks:

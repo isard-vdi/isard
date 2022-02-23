@@ -7,6 +7,7 @@ services:
       driver: "json-file"
       options:
         max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.15
@@ -15,6 +16,7 @@ services:
       - .env
     environment:
       - INFLUXDB_ADDRESS=${INFLUXDB_ADDRESS:-http://isard-influxdb:8086}
+      - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
 
   isard-influxdb:
     image: ${DOCKER_IMAGE_PREFIX}influxdb:${DOCKER_IMAGE_TAG-latest}
@@ -35,3 +37,39 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.12
     restart: unless-stopped
+
+  isard-loki:
+    container_name: isard-loki
+    image: grafana/loki:2.4.1
+    user: root
+    volumes:
+      - /opt/isard/stats/loki:/data
+      - ${BUILD_ROOT_PATH}/docker/loki/config.yaml:/etc/loki/local-config.yaml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.67
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  isard-promtail:
+    container_name: isard-promtail
+    image: grafana/promtail:2.4.1
+    volumes:
+      - ${BUILD_ROOT_PATH}/docker/promtail/config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.69
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    env_file:
+      - .env
+    environment:
+      - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}

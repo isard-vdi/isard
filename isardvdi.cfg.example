@@ -345,3 +345,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 #STATS_DIRECTORY=/opt/isard/stats
 #STATS_GLANCES_REFRESH=2
 #STATS_GLANCES_DATA_RETENTION=2w
+
+# ------ Loki -----------------------------------------------------
+#LOKI_ADDRESS=http://isard-loki:3100

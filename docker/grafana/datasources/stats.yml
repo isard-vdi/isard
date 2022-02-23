@@ -28,3 +28,11 @@ datasources:
       httpHeaderName1: 'Authorization'
     secureJsonData:
       httpHeaderValue1: 'Token ${INFLUXDB_ADMIN_TOKEN_SECRET}'
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: $LOKI_ADDRESS
+    jsonData:
+      maxLines: 1000
+

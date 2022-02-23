@@ -22,6 +22,7 @@ services:
       driver: "json-file"
       options:
         max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     restart: unless-stopped
     networks:
       isard-network: {}
@@ -37,6 +38,7 @@ services:
       driver: "json-file"
       options:
         max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     restart: unless-stopped
     network_mode: host
     privileged: true
