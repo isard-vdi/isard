@@ -17,6 +17,7 @@ from flask import jsonify, request
 # coding=utf-8
 from api import app
 
+from ..libv2.api_exceptions import Error
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
 
@@ -336,59 +337,20 @@ def api_v3_user_owns_desktop(payload):
 @app.route("/api/v3/user", methods=["PUT"])
 @has_token
 def api_v3_user_update(payload):
-    try:
-        name = request.form.get("name", "")
-        email = request.form.get("email", "")
-        photo = request.form.get("photo", "")
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
+    name = request.form.get("name", None)
+    email = request.form.get("email", None)
+    photo = request.form.get("photo", None)
+    password = request.form.get("password", None)
+    if not name and not email and not photo and not password:
+        raise Error(
+            "bad_request",
+            "Incorrect access parameters. Check your query. At least one parameter should be specified.",
         )
 
-    if name == False and email == False and photo == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query. At least one parameter should be specified.",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
-    try:
-        users.Update(
-            payload["user_id"], user_name=name, user_email=email, user_photo=photo
-        )
-        return json.dumps({}), 200, {"Content-Type": "application/json"}
-    except UpdateFailed:
-        log.error("User " + id + " update failed.")
-        return (
-            json.dumps({"error": "undefined_error", "msg": "User update failed"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "UserUpdate general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    users.Update(
+        payload["user_id"], name=name, email=email, photo=photo, password=password
+    )
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/user", methods=["DELETE"])
