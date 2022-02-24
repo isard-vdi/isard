@@ -74,7 +74,7 @@ def api_v3_admin_user_exists(payload, id=False):
             {"Content-Type": "application/json"},
         )
 
-    user = users.Exists(id)
+    user = users.Get(id)
     return json.dumps(user), 200, {"Content-Type": "application/json"}
 
 
