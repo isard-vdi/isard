@@ -122,7 +122,23 @@ $(document).ready(function() {
             });	
             break;
             case 'btn-download':
-                socket.emit('vpn',{'vpn':'remotevpn','kind':'config','id':data['id'],'os':getOS()});
+                $.ajax({
+                    type: "GET",
+                    url:"/api/v3/user/vpn/config/" + getOS(),
+                    success: function (data) {
+                        var el = document.createElement('a')
+                        var content = data.content
+                        el.setAttribute(
+                        'href',
+                        `data:${data.mime};charset=utf-8,${encodeURIComponent(content)}`
+                        )
+                        el.setAttribute('download', `${data.name}.${data.ext}`)
+                        el.style.display = 'none'
+                        document.body.appendChild(el)
+                        el.click()
+                        document.body.removeChild(el)
+                    }
+                })
             break;
         }
     });
