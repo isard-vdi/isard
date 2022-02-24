@@ -137,6 +137,26 @@
           }
         }
       });
+
+      // Ajax calls error handler for expired token error
+      $( document ).ajaxError(function( event, jqxhr, settings, thrownError ) {
+        if (jqxhr.status == 401 && jqxhr.responseJSON.error == 'unauthorized') {
+          window.location = '/isard-admin/logout';
+        }
+      })
+
+      $.fn.dataTable.ext.errMode = function ( settings, helpPage, message ) {
+        console.log(message)
+      };
+
+      // If the user token is deleted from the localStorage perform a logout
+      window.addEventListener('storage', (e) => {
+        if (localStorage.token === undefined) {
+          window.location = '/isard-admin/logout';
+        } else if (e.key === 'token' && (e.newValue === null || e.newValue == ''))  {
+          window.location = '/isard-admin/logout';
+        }
+      })
     </script>
     <!-- flashed messages with pnotify -->
     {% with messages = get_flashed_messages(with_categories=true) %}
