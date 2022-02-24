@@ -56,7 +56,7 @@ def api_v3_jwt(payload):
 @has_token
 def api_v3_user_exists(payload):
     try:
-        user = users.Exists(payload["user_id"])
+        user = users.Get(payload["user_id"])
         return json.dumps(user), 200, {"Content-Type": "application/json"}
     except UserNotFound:
         log.error("User " + id + " not in database.")
