@@ -495,7 +495,6 @@ $(document).ready(function() {
       connection_lost();
     });
 
-    startClientViewerSocket(socket);
     startClientVpnSocket(socket)
     socket.on('user_quota', function(data) {
         console.log('Quota update')

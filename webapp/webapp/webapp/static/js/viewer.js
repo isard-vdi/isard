@@ -61,7 +61,7 @@ function setViewerButtons(data,socket,offer){
     ) {
         offer.push(
             {
-                'type': 'rdp',
+                'type': 'rdpvpn',
                 'client': 'app',
                 'secure': true,
                 'preferred': false
@@ -96,12 +96,12 @@ function setViewerButtons(data,socket,offer){
             if(disp['client']=='app'){
                 type='<i class="fa fa-download"></i>'
                 btntext=disp['type'].toUpperCase()+' Application'
-                client='client'
+                client='file'
             }
             else if(disp['client']=='websocket'){
                 type='<i class="fa fa-html5"></i>'
                 btntext=disp['type'].toUpperCase()+' Browser'
-                client='html5'
+                client='browser'
             }
             html=br+html+prehtml+'<button data-pk="'+data.id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
     })
@@ -110,7 +110,7 @@ function setViewerButtons(data,socket,offer){
     }
     $('#viewer-buttons').html(html);
     loading='<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>'
-    $('#viewer-buttons button[data-type="rdp"]').prop("disabled", true).append(loading);
+    $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", true).append(loading);
     $('#vpn-ip').append(loading);
     $('#viewer-buttons .btn-viewers').on('click', function () {
         if($('#chk-viewers').iCheck('update')[0].checked){
@@ -119,12 +119,28 @@ function setViewerButtons(data,socket,offer){
             preferred=false
         }
         console.log($(this).data('type')+'-'+$(this).data('client'))
-        socket.emit('domain_viewer', {
-            'pk':$(this).data('pk'),
-            'kind':$(this).data('type')+'-'+$(this).data('client'),
-            'os':$(this).data('os'),
-            'preferred':preferred
-        });
+        $.ajax({
+            type: "GET",
+            url:"/api/v3/desktop/" + $(this).data('pk') + "/viewer/" + $(this).data('client') + "-" + $(this).data('type'),
+            success: function (data) {
+                var el = document.createElement('a')
+                if (data.kind === 'file') {
+                    el.setAttribute(
+                        'href',
+                        `data:${data.mime};charset=utf-8,${encodeURIComponent(data.content)}`
+                    )
+                    el.setAttribute('download', `${data.name}.${data.ext}`)
+                } else if (data.kind === 'browser') {
+                    setCookie('browser_viewer', data.cookie)
+                    el.setAttribute('href', data.viewer)
+                    el.setAttribute('target', '_blank')
+                }
+                el.style.display = 'none'
+                document.body.appendChild(el)
+                el.click()
+                document.body.removeChild(el)
+            }
+        })
         $("#modalOpenViewer").modal('hide');        
     });
 }
@@ -132,8 +148,8 @@ function setViewerButtons(data,socket,offer){
 function viewerButtonsIP(ip){
     $('#vpn-ip').html('<i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via vpn): '+ip)
     $('#vpn-ip i.fa-spinner').remove()
-    $('#viewer-buttons button[data-type="rdp"]').prop("disabled", false)
-    $('#viewer-buttons button[data-type="rdp"] i.fa-spinner').remove()
+    $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", false)
+    $('#viewer-buttons button[data-type^="rdp"] i.fa-spinner').remove()
 }
 
 function setCookie(name,value,days) {
@@ -144,26 +160,6 @@ function setCookie(name,value,days) {
         expires = "; expires=" + date.toUTCString();
     }
     document.cookie = name + "=" + (value || "")  + expires + "; path=/";
-}
-
-function startClientViewerSocket(socket){
-    socket.on('domain_viewer', function (data) {
-        var data = JSON.parse(data);
-        if(data['kind']=='url'){
-            setCookie('browser_viewer', data['cookie'], 1)
-            window.open(data['viewer'], '_blank');            
-        }
-        if(data['kind']=='file'){
-            var viewerFile = new Blob([data['content']], {type: data['mime']});
-            var a = document.createElement('a');
-                if(data['ext']=='conf'){name='isard-vpn'}else{name='console'}
-                a.download = name+'.'+data['ext'];
-                a.href = window.URL.createObjectURL(viewerFile);
-            var ev = document.createEvent("MouseEvents");
-                ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-                a.dispatchEvent(ev);              
-        }
-    });
 }
 
 
