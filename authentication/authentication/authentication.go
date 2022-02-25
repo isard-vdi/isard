@@ -381,10 +381,6 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 	}
 
 	if exists {
-		if err := u.Load(ctx, a.DB); err != nil {
-			return "", "", fmt.Errorf("load user from DB: %w", err)
-		}
-
 		// Check if the user is disabled
 		if !u.Active {
 			return "", "", provider.ErrUserDisabled
