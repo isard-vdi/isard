@@ -24,6 +24,8 @@ db = RDB(app)
 db.init_app(app)
 
 from ..auth.authentication import *
+from .api_exceptions import Error
+from .helpers import _check
 from .validators import _validate_table
 
 
@@ -51,6 +53,48 @@ def admin_table_list(table, order_by, pluck, without):
                 .order_by(order_by)
                 .run(db.conn)
             )
+
+
+def admin_table_insert(table, data):
+    _validate_table(table)
+    with app.app_context():
+        if r.table(table).get(data["id"]).run(db.conn) == None:
+            if not _check(r.table(table).insert(data).run(db.conn), "inserted"):
+                raise Error(
+                    "internal_server",
+                    "Internal server error " + user_id,
+                    traceback.format_exc(),
+                )
+
+
+def admin_table_update(table, data):
+    _validate_table(table)
+    with app.app_context():
+        if r.table(table).get(data["id"]).run(db.conn):
+            if not _check(
+                r.table(table).filter({"id": data["id"]}).update(data).run(db.conn),
+                "replaced",
+            ):
+                raise Error(
+                    "internal_server",
+                    "Internal server error",
+                    traceback.format_exc(),
+                )
+
+
+def admin_table_delete(table, data):
+    _validate_table(table)
+    with app.app_context():
+        if r.table(table).get(data["id"]).run(db.conn):
+            if not _check(
+                r.table(table).filter({"id": data["id"]}).delete().run(db.conn),
+                "deleted",
+            ):
+                raise Error(
+                    "internal_server",
+                    "Internal server error",
+                    traceback.format_exc(),
+                )
 
 
 class ApiAdmin:

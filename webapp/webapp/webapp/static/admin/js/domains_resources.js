@@ -5,7 +5,7 @@
 * License: AGPLv3
 */
 
-
+// VPN
 $(document).ready(function() {
     $('.admin-status').show()
 
@@ -117,7 +117,17 @@ $(document).ready(function() {
                         addclass: 'pnotify-center'
                     }).get().on('pnotify.confirm', function() {
                         data['table']='remotevpn'
-                        socket.emit('resources_delete',data)
+                        $.ajax({
+                            type: "DELETE",
+                            url:"/admin/table/delete/remotevpn",
+                            data: JSON.stringify(data),
+                            contentType: "application/json",
+                            success: function(data)
+                            {
+                                $('form').each(function() { this.reset() });
+                                $('.modal').modal('hide');
+                            }
+                        });
                     }).on('pnotify.cancel', function() {
             });	
             break;
@@ -160,14 +170,24 @@ $(document).ready(function() {
         if (form.parsley().isValid()){  
             if(data['id']==""){
                 //Insert
-                data['id']=false;
+                data['id']=data['name'];
                 data['allowed']={'roles':false,'categories':false,'groups':false,'users':false}
             }else{
                 //Update
                     data['name']=$('#modalRemotevpnForm #name').val();
                 }
             data['table']='remotevpn'
-            socket.emit('resources_insert_update',data)
+            $.ajax({
+                type: "POST",
+                url:"/admin/table/add/remotevpn",
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                }
+            });
         }
         });
 
@@ -275,17 +295,39 @@ $(document).ready(function() {
         form.parsley().validate();
         if (form.parsley().isValid()){   
             
+            data['table']='qos_net'  
             data=QosNetParse(data)
             if(data['id']==""){
                 //Insert
-                data['id']=false;
+                data['id']=data['name'];
                 data['allowed']={'roles':false,'categories':false,'groups':false,'users':false}
+                $.ajax({
+                    type: "POST",
+                    url:"/admin/table/add/qos_net",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    }
+                }); 
             }else{
                 //Update
                     data['name']=$('#modalQosNetForm #name').val();
-                }
-            data['table']='qos_net'                   
-            socket.emit('resources_insert_update',data)
+                    $.ajax({
+                        type: "PUT",
+                        url:"/admin/table/update/qos_net",
+                        data: JSON.stringify(data),
+                        contentType: "application/json",
+                        success: function(data)
+                        {
+                            $('form').each(function() { this.reset() });
+                            $('.modal').modal('hide');
+                        }
+                    }); 
+                }                 
+           
         }
     });
     
@@ -371,16 +413,49 @@ $(document).ready(function() {
         if (form.parsley().isValid()){   
             data['allowed']={'roles':false,'categories':false,'groups':false,'users':false}
             data=QosDiskParse(data)
+            data['table']='qos_disk'  
             if(data['id']==""){
                 //Insert
-                data['id']=false;
+                data['id']=data['name'];
                 data['allowed']={'roles':false,'categories':false,'groups':false,'users':false}
+               
+                $.ajax({
+                    type: "POST",
+                    url:"/admin/table/add/qos_disk",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    }
+                });
             }else{
                 //Update
                     data['name']=$('#modalQosDiskForm #name').val();
+                    $.ajax({
+                        type: "PUT",
+                        url:"/admin/table/update/qos_disk",
+                        data: JSON.stringify(data),
+                        contentType: "application/json",
+                        success: function(data)
+                        {
+                            $('form').each(function() { this.reset() });
+                            $('.modal').modal('hide');
+                        }
+                    });
+                }                 
+            $.ajax({
+                type: "POST",
+                url:"/admin/table/add/qos_disk",
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
                 }
-            data['table']='qos_disk'                   
-            socket.emit('resources_insert_update',data)
+            });
         }
             
     });
@@ -486,7 +561,17 @@ $(document).ready(function() {
                         },
                         addclass: 'pnotify-center'
                     }).get().on('pnotify.confirm', function() {
-                        socket.emit('interface_delete',{'pk':data.id,'name':data.name})
+                       $.ajax({
+                            type: "DELETE",
+                            url:"/admin/table/delete/interfaces",
+                            data: JSON.stringify(data),
+                            contentType: "application/json",
+                            success: function(data)
+                            {
+                                $('form').each(function() { this.reset() });
+                                $('.modal').modal('hide');
+                            }
+                        });
                     }).on('pnotify.cancel', function() {
                 });
                 break;
@@ -519,17 +604,40 @@ $(document).ready(function() {
         data = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()){   
+            data['net']=data['ifname']
+            data['table']='interfaces'
             if(data['id']==""){
                 //Insert
-                data['id']=false;
+                data['id']=data['name'];
                 data['allowed']={'roles':false,'categories':false,'groups':false,'users':false}
+                $.ajax({
+                    type: "POST",
+                    url:"/admin/table/add/interfaces",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    }
+                });
             }else{
                 //Update
-                    data['name']=$('#modalInterfacesForm #name').val();
+                data['name']=$('#modalInterfacesForm #name').val();
+                $.ajax({
+                    type: "PUT",
+                    url:"/admin/table/update/interfaces",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    }
+                });
             }
-            data['net']=data['ifname']
-            data['table']='interfaces'             
-            socket.emit('resources_insert_update',data)
+            
+            
         }
             
     });
@@ -603,9 +711,19 @@ $(document).ready(function() {
             form.parsley().validate();
             data=$('#modalAddGraphics').serializeObject();
             data=replaceAlloweds_arrays('#modalAddGraphics #alloweds-graphics-add', data)
-            data['id']=false
+            data['id']=data['name'];
             data['table']='graphics'
-            socket.emit('resources_insert_update', data)
+            $.ajax({
+                type: "POST",
+                url:"/admin/table/add/graphics",
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                }
+            });
         });
 
     // VIDEOS
@@ -715,9 +833,20 @@ $(document).ready(function() {
             form.parsley().validate();
             data=$('#modalAddVideos').serializeObject();
             data=replaceAlloweds_arrays('#modalAddVideos #alloweds-videos-add', data)
-            data['id']=false
+            data['id']=data['name'];
             data['table']='videos'
-            socket.emit('resources_insert_update', data)
+
+            $.ajax({
+                type: "POST",
+                url:"/admin/table/add/videos",
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                }
+            });
         }); 
 
     function setRangeSliders(id){
@@ -858,25 +987,6 @@ $(document).ready(function() {
                 ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
                 a.dispatchEvent(ev);              
         }
-    });
-
-    socket.on('add_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $('form').each(function() { this.reset() });
-            $('.modal').modal('hide');
-            
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-        //users_table.ajax.reload()
     });
 
     socket.on ('result', function (data) {
