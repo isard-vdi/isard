@@ -11,8 +11,13 @@ from flask import request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import admin_table_list
-from .decorators import is_admin_or_manager
+from ..libv2.api_admin import (
+    admin_table_delete,
+    admin_table_insert,
+    admin_table_list,
+    admin_table_update,
+)
+from .decorators import is_admin, is_admin_or_manager
 
 
 @app.route("/api/v3/admin/table/<table>", methods=["POST"])
@@ -46,3 +51,27 @@ def api_v3_admin_table(payload, table):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/table/add/<table>", methods=["POST"])
+@is_admin
+def api_v3_admin_insert_table(payload, table):
+    data = request.get_json()
+    admin_table_insert(table, data)
+    return (json.dumps({}), 200, {"Content-Type": "application/json"})
+
+
+@app.route("/api/v3/admin/table/update/<table>", methods=["PUT"])
+@is_admin
+def api_v3_admin_update_table(payload, table):
+    data = request.get_json()
+    admin_table_update(table, data)
+    return (json.dumps({}), 200, {"Content-Type": "application/json"})
+
+
+@app.route("/api/v3/admin/table/delete/<table>", methods=["DELETE"])
+@is_admin
+def api_v3_admin_delete_table(payload, table):
+    data = request.get_json()
+    admin_table_delete(table, data)
+    return (json.dumps({}), 200, {"Content-Type": "application/json"})
