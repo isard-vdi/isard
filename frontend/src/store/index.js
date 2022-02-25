@@ -117,6 +117,8 @@ export default new Vuex.Store({
             router.push({ name: 'Maintenance' })
           } else if (e.response.status === 401) {
             commit('setPageErrorMessage', i18n.t('views.login.errors.401'))
+          } else if (e.response.status === 403 && e.response.data === 'disabled user') {
+            commit('setPageErrorMessage', i18n.t('errors.user_disabled'))
           } else if (e.response.status === 500) {
             commit('setPageErrorMessage', i18n.t('views.login.errors.500'))
           } else {
