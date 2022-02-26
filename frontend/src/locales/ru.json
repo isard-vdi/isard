@@ -64,7 +64,9 @@
             },
             "viewer-name": {
                 "browser-vnc": "Браузер",
-                "browser-rdp": "RDP браузер"
+                "browser-rdp": "RDP браузер",
+                "file-spice": "SPICE",
+                "file-rdpvpn": "RDP"
             },
             "status": {
                 "waitingip": {
