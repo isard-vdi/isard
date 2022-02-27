@@ -5,8 +5,6 @@ if [ ! -f /root/.ssh/id_rsa ]
 then
     echo "Generating new rsa keys..."
     cat /dev/zero | ssh-keygen -q -N ""
-    #Copy new host key to authorized_keys (so isard-hypervisor can get it also)
-    cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
 
     echo -e "Host isard-hypervisor\n \
         StrictHostKeyChecking no" >/root/.ssh/config
