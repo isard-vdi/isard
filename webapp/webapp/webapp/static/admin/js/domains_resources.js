@@ -134,7 +134,7 @@ $(document).ready(function() {
             case 'btn-download':
                 $.ajax({
                     type: "GET",
-                    url:"/api/v3/user/vpn/config/" + getOS(),
+                    url:"/api/v3/remote_vpn/" + data['id'] + "/config/" + getOS(),
                     success: function (data) {
                         var el = document.createElement('a')
                         var content = data.content
