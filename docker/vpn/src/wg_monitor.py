@@ -167,7 +167,7 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
             elif previously_connected and remote_addr != peer.remote_addr:
                 # Peer roamed
                 log.debug("PUT")
-                apic.put(
+                apic.update(
                     "vpn_connection/"
                     + payload["device"]
                     + "/"
