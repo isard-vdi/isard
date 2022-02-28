@@ -248,8 +248,8 @@ $(document).ready(function() {
                             {
                             "targets": 9,
                             "render": function ( data, type, full, meta ) {
-                                if(full['vpn.wireguard.connected']){
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn-wireguard-remote_ip"]+':'+full["vpn-wireguard-remote_port"]+'"></i>'
+                                if('vpn' in full && full['vpn']['wireguard']['connected']){
+                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn"]["wireguard"]["remote_ip"]+':'+full["vpn"]["wireguard"]["remote_port"]+'"></i>'
                                 }else{
                                     return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
                                 }

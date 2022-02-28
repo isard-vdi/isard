@@ -33,7 +33,7 @@ $(document).ready(function() {
             { "data": "description"},
             { "data": null},
             { "data": null},
-            { "data": "vpn-wireguard-connected" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "vpn.wireguard.connected" , "width": "10px", "defaultContent": 'NaN' },
             {
             "className":      'actions-control',
             "orderable":      false,
@@ -68,7 +68,7 @@ $(document).ready(function() {
                 "targets": 5,
                 "render": function ( data, type, full, meta ) {
                     if('vpn' in full && full['vpn']['wireguard']['connected']){
-                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>'
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn"]["wireguard"]["remote_ip"]+':'+full["vpn"]["wireguard"]["remote_port"]+'"></i>'
                     }else{
                         return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
                     }
