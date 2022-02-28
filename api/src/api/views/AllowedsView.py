@@ -11,6 +11,7 @@ from flask import request
 # coding=utf-8
 from api import app
 
+from ..libv2.api_admin import admin_table_update
 from ..libv2.api_alloweds import ApiAlloweds
 from ..libv2.api_exceptions import Error
 from .decorators import has_token
@@ -23,7 +24,7 @@ alloweds = ApiAlloweds()
 @has_token
 def alloweds_table_term(payload, table):
     if table not in ["roles", "categories", "groups", "users"]:
-        raise Error("not_found", "The given table doesn't exist")
+        raise Error("forbidden", "Table not allowed.")
     data = request.get_json(force=True)
     data["pluck"] = ["id", "name"]
     if payload["role_id"] == "admin":
@@ -62,3 +63,12 @@ def alloweds_table_term(payload, table):
             )
             result = [u for u in result if u["category"] == payload["category_id"]]
     return json.dumps(result), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/alloweds/update/<table>", methods=["POST"])
+@has_token
+def admin_allowed_update(payload, table):
+    if payload["role_id"] == "admin" or payload["role_id"] == "manager":
+        data = request.get_json(force=True)
+        admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
+        return (json.dumps({}), 200, {"Content-Type": "application/json"})
