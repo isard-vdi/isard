@@ -26,7 +26,7 @@ from ..libv2.api_users import ApiUsers, check_category_domain
 users = ApiUsers()
 
 from ..libv2.api_downloads import Downloads
-from .decorators import is_admin_user
+from .decorators import is_admin
 
 """
 ADMIN/MANAGER jwt endpoints
@@ -34,7 +34,7 @@ ADMIN/MANAGER jwt endpoints
 
 
 @app.route("/api/v3/admin/downloads/desktops", methods=["GET"])
-@is_admin_user
+@is_admin
 def api_v3_admin_downloads_desktops(payload):
     downloads = Downloads()
     return (
@@ -45,7 +45,7 @@ def api_v3_admin_downloads_desktops(payload):
 
 
 @app.route("/api/v3/admin/downloads/desktop/<desktop_id>", methods=["POST"])
-@is_admin_user
+@is_admin
 def api_v3_admin_downloads_desktops_download(desktop_id, payload):
     downloads = Downloads()
     res = downloads.download_desktop(desktop_id, payload["user_id"])

@@ -98,20 +98,6 @@ def is_admin_or_manager(f):
     return decorated
 
 
-def is_admin_user(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
-        if payload["role_id"] == "admin":
-            kwargs["payload"] = payload
-            return f(*args, **kwargs)
-        raise Error(
-            {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
-        )
-
-    return decorated
-
-
 def is_hyper(f):
     @wraps(f)
     def decorated(*args, **kwargs):
