@@ -98,6 +98,7 @@ from .views import (
     AdminResourcesView,
     AdminTablesView,
     AdminUsersView,
+    AllowedsView,
     CardsView,
     CommonView,
     DeploymentsView,
