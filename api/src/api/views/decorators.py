@@ -35,9 +35,6 @@ def has_token(f):
         payload = get_header_jwt_payload()
         kwargs["payload"] = payload
         return f(*args, **kwargs)
-        raise Error(
-            {"error": "not_allowed", "description": "Not enough rights" " token."}, 401
-        )
 
     return decorated
 
