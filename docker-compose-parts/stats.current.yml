@@ -1,0 +1,11 @@
+version: '3.5'
+services:
+  isard-stats-glances:
+    depends_on:
+      isard-influxdb:
+        condition: service_healthy
+
+  isard-stats-go:
+    depends_on:
+      isard-influxdb:
+        condition: service_healthy

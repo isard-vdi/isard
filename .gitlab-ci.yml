@@ -118,10 +118,13 @@ docker-image:
           - grafana
           - guac
           - hypervisor
+          - influxdb
           - portal
           - squid
           - static
-          - stats
+          # - stats
+          - stats-glances
+          - stats-go
           - vpn
           - webapp
           - websockify
@@ -189,10 +192,13 @@ docker-tag:
           - grafana
           - guac
           - hypervisor
+          - influxdb
           - portal
           - squid
           - static
-          - stats
+          # - stats
+          - stats-glances
+          - stats-go
           - vpn
           - webapp
           - websockify

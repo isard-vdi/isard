@@ -329,20 +329,19 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # ------ Override hosts in isard-portal haproxy ------------------------------
 #WEBAPP_HOST=isard-webapp
+
+
+##################################################################
+## STATS PARAMETERS                                             ##
+##################################################################
+
+# ------ Grafana ------------------------------------------------------
 #GRAFANA_HOST=isard-grafana
-#INFLUXDB_HOST=isard-influxdb
 
+# ------ InfluxDB -----------------------------------------------------
+#INFLUXDB_ADDRESS=http://isard-influxdb:8086
 
-# ------ Stats ---------------------------------------------------------------
-## If you need to monitor a remote host be sure to add it's ssh keys
-## manually from inside the isard-stats container.
-## doker exec -t isard-stats ssh-keygen USER@HYPERHOST
-#STATS_HYP_HOSTNAME=isard-hypervisor
-#STATS_HYP_USER=root
-#STATS_HYP_PORT=2022
-
-#STATS_SEND_TO_INFLUX=true
-#STATS_INFLUX_PORT=8086
-#STATS_INFLUX_BUCKET=isardvdi
-#STATS_INFLUX_ORG=isardvdi
-#STATS_TYPE_CONN_SS=ssh|docker
+# ------ Stats -----------------------------------------------------
+#STATS_DIRECTORY=/opt/isard/stats
+#STATS_GLANCES_REFRESH=2
+#STATS_GLANCES_DATA_RETENTION=2w

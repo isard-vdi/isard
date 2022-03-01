@@ -1,12 +1,18 @@
 version: "3.5"
 services:
-  isard-stats:
+  # This is kept until isard-stats is fixed, then it will be comented out
+  # isard-stats:
+  #   build:
+  #     context: ${BUILD_ROOT_PATH}
+  #     dockerfile: docker/stats/Dockerfile
+  #     target: production
+
+  isard-stats-go:
     build:
       context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/stats/Dockerfile
-      target: production
-  isard-grafana:
+      dockerfile: stats/build/package/Dockerfile
+
+  isard-stats-glances:
     build:
       context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/grafana/Dockerfile
-      target: production
+      dockerfile: docker/glances/Dockerfile

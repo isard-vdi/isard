@@ -2,6 +2,7 @@ import os
 from time import sleep
 
 from pid import PidFile, PidFileAlreadyLockedError, PidFileAlreadyRunningError
+
 from stats import HypStats
 
 hyp_hostname = os.environ.get("STATS_HYP_HOSTNAME", "isard-hypervisor")
