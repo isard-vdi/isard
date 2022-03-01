@@ -34,14 +34,7 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 
 common = ApiDesktopsCommon()
 
-from .decorators import (
-    allowedTemplateId,
-    has_token,
-    is_admin,
-    ownsCategoryId,
-    ownsDomainId,
-    ownsUserId,
-)
+from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
 
 
 @app.route("/api/v3/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
@@ -60,12 +53,7 @@ def api_v3_desktop_viewer(payload, desktop_id=False, protocol=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsDomainId(payload, desktop_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsDomainId(payload, desktop_id)
     try:
         viewer = common.DesktopViewer(desktop_id, protocol, get_cookie=True)
         return json.dumps(viewer), 200, {"Content-Type": "application/json"}
@@ -176,12 +164,7 @@ def api_v3_desktop_viewer(payload, desktop_id=False, protocol=False):
 @app.route("/api/v3/desktop/<desktop_id>/viewers", methods=["GET"])
 @has_token
 def api_v2_desktop_viewers(payload, desktop_id=False, protocol=False):
-    if not ownsDomainId(payload, desktop_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsDomainId(payload, desktop_id)
     viewers = []
     for protocol in ["browser-vnc", "file-spice"]:
         try:

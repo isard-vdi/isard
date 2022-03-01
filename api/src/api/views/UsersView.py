@@ -31,14 +31,7 @@ from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
 
-from .decorators import (
-    has_token,
-    is_admin,
-    is_auto_register,
-    is_register,
-    ownsCategoryId,
-    ownsUserId,
-)
+from .decorators import has_token, is_admin, is_auto_register, is_register
 
 """
 Users jwt endpoints
@@ -303,34 +296,8 @@ def api_v3_user_owns_desktop(payload):
             401,
             {"Content-Type": "application/json"},
         )
-    try:
-        users.OwnsDesktop(payload["user_id"], ip)
-
-        return json.dumps({}), 200, {"Content-Type": "application/json"}
-    except DesktopNotFound:  # If not owns
-        log.error("User " + payload["username"] + " not owns the desktop ip.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "User " + payload["username"] + " not owns the desktop ip",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
-    except:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "OwnsDesktop general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    users.OwnsDesktop(payload["user_id"], ip)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 # Update user name

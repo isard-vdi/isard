@@ -12,6 +12,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.api_exceptions import Error
+
 r = RethinkDB()
 import logging
 import traceback
@@ -47,7 +49,9 @@ def is_register(f):
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
-            {"error": "not_allowed", "description": "Not register" " token."}, 401
+            "forbidden",
+            "Invalid register type token",
+            traceback.format_stack(),
         )
 
     return decorated
@@ -61,7 +65,9 @@ def is_auto_register(f):
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
-            {"error": "not_allowed", "description": "Not register" " token."}, 401
+            "forbidden",
+            "Invalid auto register type token",
+            traceback.format_stack(),
         )
 
     return decorated
@@ -75,7 +81,9 @@ def is_admin(f):
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
-            {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
+            "forbidden",
+            "Not enough rights.",
+            traceback.format_stack(),
         )
 
     return decorated
@@ -89,7 +97,9 @@ def is_admin_or_manager(f):
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
-            {"error": "not_allowed", "description": "Not enough rights" " token."}, 403
+            "forbidden",
+            "Not enough rights.",
+            traceback.format_stack(),
         )
 
     return decorated
@@ -115,7 +125,11 @@ def ownsUserId(payload, user_id):
         return True
     if payload["user_id"] == user_id:
         return True
-    return False
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this user_id " + str(user_id),
+        traceback.format_stack(),
+    )
 
 
 def ownsCategoryId(payload, category_id):
@@ -123,7 +137,11 @@ def ownsCategoryId(payload, category_id):
         return True
     if payload["role_id"] == "manager" and category_id == payload["category_id"]:
         return True
-    return False
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this category_id " + str(category_id),
+        traceback.format_stack(),
+    )
 
 
 def ownsDomainId(payload, desktop_id):
@@ -146,25 +164,27 @@ def ownsDomainId(payload, desktop_id):
                 return True
     if desktop_id.startswith("_" + payload["user_id"]):
         return True
-    return False
+    raise Error(
+        "forbidden",
+        "Not enough access rights this desktop_id " + str(desktop_id),
+        traceback.format_stack(),
+    )
 
 
 def allowedTemplateId(payload, template_id):
-    try:
-        with app.app_context():
-            template = (
-                r.table("domains")
-                .get(template_id)
-                .pluck("user", "allowed", "category")
-                .run(db.conn)
-            )
-    except:
+    with app.app_context():
+        template = (
+            r.table("domains")
+            .get(template_id)
+            .pluck("user", "allowed", "category")
+            .default(None)
+            .run(db.conn)
+        )
+    if not template:
         raise Error(
-            {
-                "error": "template_not_found",
-                "msg": "Not found template " + template_id,
-            },
-            404,
+            "not_found",
+            "Not found template_id " + str(template_id),
+            traceback.format_stack(),
         )
     if payload["user_id"] == template["user"]:
         return True
@@ -196,4 +216,8 @@ def allowedTemplateId(payload, template_id):
             return True
         if payload["user_id"] in alloweds["users"]:
             return True
-    return False
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this template_id " + str(template_id),
+        traceback.format_stack(),
+    )

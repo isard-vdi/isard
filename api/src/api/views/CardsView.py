@@ -26,7 +26,7 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
-from .decorators import has_token, is_admin, is_register, ownsCategoryId, ownsUserId
+from .decorators import has_token, is_admin, is_register
 
 
 @app.route("/api/v3/images/desktops", methods=["GET"])

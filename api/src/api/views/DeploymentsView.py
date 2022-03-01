@@ -26,14 +26,7 @@ from ..libv2.api_deployments import ApiDeployments
 
 deployments = ApiDeployments()
 
-from .decorators import (
-    allowedTemplateId,
-    has_token,
-    is_admin,
-    ownsCategoryId,
-    ownsDomainId,
-    ownsUserId,
-)
+from .decorators import allowedTemplateId, has_token, is_admin
 
 
 @app.route("/api/v3/deployment/<deployment_id>", methods=["GET"])

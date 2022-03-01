@@ -77,17 +77,7 @@ def api_v3_template_new(payload):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsDomainId(payload, desktop_id):
-        return (
-            json.dumps(
-                {
-                    "error": "forbidden",
-                    "msg": "Domain forbidden",
-                }
-            ),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsDomainId(payload, desktop_id)
     # try:
     #     quotas.DesktopCreate(user_id)
     # except QuotaUserNewDesktopExceeded:
@@ -233,12 +223,7 @@ def api_v3_template_delete(payload, template_id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsDomainId(payload, template_id):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Forbidden domain"}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsDomainId(payload, template_id)
     try:
         templates.Delete(template_id)
         return json.dumps({}), 200, {"Content-Type": "application/json"}
