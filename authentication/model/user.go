@@ -77,7 +77,19 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	}
 	defer res.Close()
 
-	return !res.IsNil(), nil
+	if res.IsNil() {
+		return false, nil
+	}
+
+	if err := res.One(u); err != nil {
+		if errors.Is(err, r.ErrEmptyResult) {
+			return false, ErrNotFound
+		}
+
+		return false, fmt.Errorf("read db response: %w", err)
+	}
+
+	return true, nil
 }
 
 func (u *User) LoadWithoutOverride(u2 *User) {
