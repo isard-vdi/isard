@@ -42,18 +42,13 @@ from .decorators import (
 @app.route("/api/v3/admin/jwt/<user_id>", methods=["GET"])
 @has_token
 def api_v3_admin_jwt(payload, user_id):
-    if ownsUserId(payload, user_id):
-        return users.Jwt(user_id)
-    return (
-        json.dumps({"error": "forbidden", "msg": "Forbidden: "}),
-        403,
-        {"Content-Type": "application/json"},
-    )
+    ownsUserId(payload, user_id)
+    return users.Jwt(user_id)
 
 
-@app.route("/api/v3/admin/user/<id>", methods=["GET"])
+@app.route("/api/v3/admin/user/<user_id>", methods=["GET"])
 @has_token
-def api_v3_admin_user_exists(payload, id=False):
+def api_v3_admin_user_exists(payload, user_id=False):
     if id == False:
         log.error("Incorrect access parameters. Check your query.")
         return (
@@ -67,15 +62,8 @@ def api_v3_admin_user_exists(payload, id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsUserId(payload, id):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
-    user = users.Get(id)
-    return json.dumps(user), 200, {"Content-Type": "application/json"}
+    ownsUserId(payload, user_id)
+    return json.dumps(users.Get(user_idid)), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/users", methods=["GET"])
@@ -114,12 +102,7 @@ def api_v3_admin_user_update(payload, id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsUserId(payload, id):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsUserId(payload, id)
     try:
         name = request.form.get("name", "")
         email = request.form.get("email", "")
@@ -206,13 +189,7 @@ def api_v3_admin_user_insert(payload):
     if password == None:
         password = False
 
-    if not ownsCategoryId(payload, category_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
+    ownsCategoryId(payload, category_id)
     quotas.UserCreate(category_id, group_id)
 
     user_id = users.Create(
@@ -234,14 +211,7 @@ def api_v3_admin_user_insert(payload):
 @app.route("/api/v3/admin/user/<user_id>", methods=["DELETE"])
 @has_token
 def api_v3_admin_user_delete(payload, user_id):
-
-    if not ownsUserId(payload, user_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
+    ownsUserId(payload, user_id)
     users.Delete(user_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -272,13 +242,7 @@ def api_v3_admin_user_templates(payload, id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsUserId(payload, id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
+    ownsUserId(payload, id)
     templates = users.Templates(id)
     dropdown_templates = [
         {
@@ -309,14 +273,7 @@ def api_v3_admin_user_desktops(payload, user_id=None):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsUserId(payload, user_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
-    desktops = users.Desktops(user_id)
+    ownsUserId(payload, user_id)
     return (
         json.dumps(users.Desktops(user_id)),
         200,
@@ -327,15 +284,12 @@ def api_v3_admin_user_desktops(payload, user_id=None):
 @app.route("/api/v3/admin/category/<category_id>", methods=["GET"])
 @is_admin
 def api_v3_admin_category(payload, category_id):
-    if not ownsCategoryId(payload, category_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
-    data = users.CategoryGet(category_id)
-    return json.dumps(data), 200, {"Content-Type": "application/json"}
+    ownsCategoryId(payload, category_id)
+    return (
+        json.dumps(users.CategoryGet(category_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/category", methods=["POST"])
@@ -462,12 +416,7 @@ def api_v3_admin_group_insert(payload):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsCategoryId(payload, category_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsCategoryId(payload, category_id)
     ## We should check here if limits and quotas have a correct dict schema
 
     ##
@@ -522,13 +471,7 @@ def api_v3_admin_groups(payload):
 @app.route("/api/v3/admin/group/<group_id>", methods=["DELETE"])
 @is_admin_or_manager
 def api_v3_admin_group_delete(group_id, payload):
-    if payload["role_id"] == "manager" and not ownsCategoryId(g["parent_category"]):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Forbidden"}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
+    ownsCategoryId(payload, g["parent_category"])
     return (
         json.dumps(users.GroupDelete(group_id)),
         200,
@@ -540,12 +483,7 @@ def api_v3_admin_group_delete(group_id, payload):
 @app.route("/api/v3/admin/user/<user_id>/vpn/<kind>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_user_vpn(payload, user_id, kind, os=False):
-    if not ownsUserId(payload, user_id):
-        return (
-            json.dumps({"error": "undefined_error", "msg": "Forbidden: "}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsUserId(payload, user_id)
     if not os and kind != "config":
         return (
             json.dumps({"error": "undefined_error", "msg": "UserVpn: no OS supplied"}),

@@ -26,14 +26,7 @@ from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
 
 desktops = ApiDesktopsNonPersistent()
 
-from .decorators import (
-    allowedTemplateId,
-    has_token,
-    is_admin,
-    ownsCategoryId,
-    ownsDomainId,
-    ownsUserId,
-)
+from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
 
 
 @app.route("/api/v3/desktop", methods=["POST"])
@@ -217,12 +210,7 @@ def api_v3_desktop_delete(payload, desktop_id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsDomainId(payload, desktop_id):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Forbidden domain"}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsDomainId(payload, desktop_id)
     try:
         desktops.Delete(desktop_id)
         return json.dumps({}), 200, {"Content-Type": "application/json"}

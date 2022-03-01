@@ -33,14 +33,7 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
-from .decorators import (
-    allowedTemplateId,
-    has_token,
-    is_admin,
-    ownsCategoryId,
-    ownsDomainId,
-    ownsUserId,
-)
+from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
 
 
 def validate_desktop_schema(desktop_data, validate=True):
@@ -98,12 +91,7 @@ def api_v3_desktop_start(payload, desktop_id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsDomainId(payload, desktop_id):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Desktop start forbidden"}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsDomainId(payload, desktop_id)
     try:
         user_id = desktops.UserDesktop(desktop_id)
     except UserNotFound:
@@ -189,12 +177,7 @@ def api_v3_desktop_stop(payload, desktop_id=False):
             {"Content-Type": "application/json"},
         )
 
-    if not ownsDomainId(payload, desktop_id):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Desktop stop, forbidden"}),
-            403,
-            {"Content-Type": "application/json"},
-        )
+    ownsDomainId(payload, desktop_id)
     try:
         user_id = desktops.UserDesktop(desktop_id)
     except UserNotFound:
@@ -568,13 +551,7 @@ def api_v3_desktop_from_scratch(payload):
 @has_token
 def api_v3_desktop_edit(payload, desktop_id):
 
-    if not ownsDomainId(payload, desktop_id):
-        return (
-            json.dumps({"error": "forbidden", "msg": "Desktop start forbidden"}),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
+    ownsDomainId(payload, desktop_id)
     try:
         user_id = desktops.UserDesktop(desktop_id)
     except UserNotFound:
