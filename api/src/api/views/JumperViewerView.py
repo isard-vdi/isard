@@ -19,6 +19,7 @@ from api import app
 
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
+from .decorators import maintenance
 
 quotas = Quotas()
 
@@ -29,6 +30,7 @@ common = ApiDesktopsCommon()
 
 @app.route("/api/v3/direct/<token>", methods=["GET"])
 def api_v3_viewer(token):
+    maintenance()
     try:
         viewers = common.DesktopViewerFromToken(token)
         return (

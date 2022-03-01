@@ -18,7 +18,7 @@ r = RethinkDB()
 import logging
 import traceback
 
-from flask import Flask, _request_ctx_stack, jsonify, request
+from flask import Flask, _request_ctx_stack, abort, jsonify, request
 from jose import jwt
 from rethinkdb.errors import ReqlTimeoutError
 
@@ -29,12 +29,20 @@ db.init_app(app)
 
 from ..auth.tokens import Error, get_auto_register_jwt_payload, get_header_jwt_payload
 from ..libv2.apiv2_exc import DesktopNotFound, TemplateNotFound
+from ..libv2.maintenance import Maintenance
+
+
+def maintenance():
+    if Maintenance.enabled:
+        abort(503)
 
 
 def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
+        if payload.get("role_id") != "admin":
+            maintenance()
         kwargs["payload"] = payload
         return f(*args, **kwargs)
 
@@ -46,6 +54,7 @@ def is_register(f):
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
         if payload.get("type", "") == "register":
+            maintenance()
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
@@ -62,6 +71,7 @@ def is_auto_register(f):
     def decorated(*args, **kwargs):
         payload = get_auto_register_jwt_payload()
         if payload.get("type", "") == "register":
+            maintenance()
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
@@ -93,6 +103,8 @@ def is_admin_or_manager(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
+        if payload.get("role_id") != "admin":
+            maintenance()
         if payload["role_id"] == "admin" or payload["role_id"] == "manager":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
