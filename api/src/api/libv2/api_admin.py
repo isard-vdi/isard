@@ -72,7 +72,7 @@ def admin_table_update(table, data):
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn):
             if not _check(
-                r.table(table).filter({"id": data["id"]}).update(data).run(db.conn),
+                r.table(table).get(data["id"]).update(data).run(db.conn),
                 "replaced",
             ):
                 raise Error(
@@ -87,7 +87,7 @@ def admin_table_delete(table, data):
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn):
             if not _check(
-                r.table(table).filter({"id": data["id"]}).delete().run(db.conn),
+                r.table(table).get(data["id"]).delete().run(db.conn),
                 "deleted",
             ):
                 raise Error(
