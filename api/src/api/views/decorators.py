@@ -109,7 +109,7 @@ def is_hyper(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload["role_id"] == "hypervisor":
+        if payload["role_id"] in ["hypervisor", "admin"]:
             return f(*args, **kwargs)
         raise Error(
             {"error": "forbidden", "description": "Not enough rights" " token."}, 403

@@ -82,9 +82,8 @@ class ApiClient:
                 "exp": datetime.utcnow() + timedelta(seconds=20),
                 "kid": "isardvdi-hypervisors",
                 "data": {
-                    "id": "isard-hypervisor"
-                    if os.environ["HOSTNAME"] == "localhost"
-                    else os.environ["HOSTNAME"]
+                    "role_id": "hypervisor",
+                    "category_id": "*",
                 },
             },
             os.environ["API_HYPERVISORS_SECRET"],
