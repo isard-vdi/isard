@@ -378,6 +378,46 @@ $(document).ready(function() {
         }
     }); 
 
+    maintenance_update_checkbox = (enabled) => {
+        let status
+        if (enabled) {
+            status = 'check'
+        } else {
+            status = 'uncheck'
+        }
+        $('#maintenance_checkbox').iCheck(status)
+    }
+    maintenance_bind_checkbox = () => {
+        $('#maintenance_checkbox').on('ifChecked', () => {
+            maintenance_update_status(true)
+        })
+        $('#maintenance_checkbox').on('ifUnchecked', () => {
+            maintenance_update_status(false)
+        })
+    }
+    maintenance_update_status = (enabled) => {
+        $('#maintenance_wrapper').hide()
+        $('#maintenance_spinner').show()
+        $('#maintenance_checkbox').unbind('ifChecked')
+        $('#maintenance_checkbox').unbind('ifUnchecked')
+        api.ajax(
+            '/api/v3/maintenance',
+            'PUT',
+            enabled
+        ).done((data) => {
+            maintenance_update_checkbox(data)
+            maintenance_bind_checkbox()
+            $('#maintenance_spinner').hide()
+            $('#maintenance_wrapper').show()
+        })
+    }
+    api.ajax('/api/v3/maintenance', 'GET').done((data) => {
+        maintenance_update_checkbox(data)
+        maintenance_bind_checkbox()
+        $('#maintenance_spinner').hide()
+        $('#maintenance_wrapper').show()
+    })
+
     // SocketIO
         socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_admins', {
         'path': '/isard-admin/socket.io/',
