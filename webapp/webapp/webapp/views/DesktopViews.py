@@ -14,7 +14,7 @@ from webapp import app
 
 from ..lib.flask_rethink import RethinkDB
 from ..lib.log import *
-from .decorators import isAdvanced, ownsid
+from .decorators import isAdvanced, maintenance, ownsid
 
 db = RethinkDB(app)
 db.init_app(app)
@@ -25,12 +25,14 @@ import time
 
 @app.route("/isard-admin/desktops")
 @login_required
+@maintenance
 def desktops():
     return render_template("pages/desktops.html", title="Desktops", nav="Desktops")
 
 
 @app.route("/isard-admin/desktops/get")
 @login_required
+@maintenance
 def desktops_get():
     return (
         json.dumps(app.isardapi.get_user_domains(current_user.id)),
@@ -41,6 +43,7 @@ def desktops_get():
 
 @app.route("/isard-admin/desktops/download_viewer/<os>/<id>")
 @login_required
+@maintenance
 @ownsid
 def viewer_download(os, id):
     try:
@@ -67,6 +70,7 @@ def viewer_download(os, id):
 # ~ #~ Serves desktops and templates (domains)
 @app.route("/isard-admin/domains/update", methods=["POST"])
 @login_required
+@maintenance
 @ownsid
 def domains_update():
     if request.method == "POST":
@@ -103,6 +107,7 @@ def domains_update():
 # Gets all allowed for a domain
 @app.route("/isard-admin/domain/alloweds/select2", methods=["POST"])
 @login_required
+@maintenance
 def domain_alloweds_select2():
     allowed = request.get_json(force=True)["allowed"]
     return json.dumps(app.isardapi.get_alloweds_select2(allowed))
@@ -111,6 +116,7 @@ def domain_alloweds_select2():
 # Get all templates allowed for current_user
 @app.route("/isard-admin/desktops/getAllTemplates", methods=["GET"])
 @login_required
+@maintenance
 def getAllTemplates():
     templates = app.isardapi.get_all_alloweds_domains(current_user.id)
     templates = [t for t in templates if t["status"] == "Stopped"]
@@ -127,6 +133,7 @@ def getAllTemplates():
 
 @app.route("/isard-admin/desktops/templateUpdate/<id>", methods=["GET"])
 @login_required
+@maintenance
 def templateUpdate(id):
     hardware = app.isardapi.get_domain(id)
     return Response(json.dumps(hardware), mimetype="application/json")
@@ -134,6 +141,7 @@ def templateUpdate(id):
 
 @app.route("/isard-admin/desktops/jumperurl/<id>")
 @login_required
+@maintenance
 @ownsid
 def jumperurl(id):
     data = app.adminapi.get_jumperurl(id)
@@ -142,6 +150,7 @@ def jumperurl(id):
 
 @app.route("/isard-admin/desktops/jumperurl_reset/<id>")
 @login_required
+@maintenance
 @ownsid
 def jumperurl_reset(id):
     data = app.adminapi.jumperurl_reset(id)
@@ -150,6 +159,7 @@ def jumperurl_reset(id):
 
 @app.route("/isard-admin/desktops/jumperurl_disable/<id>")
 @login_required
+@maintenance
 @ownsid
 def jumperurl_disable(id):
     data = app.adminapi.jumperurl_reset(id, disabled=True)
@@ -161,6 +171,7 @@ def jumperurl_disable(id):
 
 @app.route("/isard-admin/desktops/tags")
 @login_required
+@maintenance
 @isAdvanced
 def groupdesktops(nav="Domains"):
     return render_template(
@@ -175,6 +186,7 @@ def groupdesktops(nav="Domains"):
 @app.route("/isard-admin/desktops/tagged", methods=["GET"])
 @app.route("/isard-admin/desktops/tagged/<id>", methods=["GET"])
 @login_required
+@maintenance
 @isAdvanced
 def advanced_tagged_domains(id=False):
     data = app.isardapi.get_user_tagged_domains(current_user, id)
@@ -183,6 +195,7 @@ def advanced_tagged_domains(id=False):
 
 @app.route("/isard-admin/desktops/usertags", methods=["GET"])
 @login_required
+@maintenance
 @isAdvanced
 def advanced_usertags():
     data = app.adminapi.get_user_deployments(current_user.id)

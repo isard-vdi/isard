@@ -28,11 +28,12 @@ from ..lib.log import *
 db = RethinkDB(app)
 db.init_app(app)
 
-from .decorators import checkRole, ownsid
+from .decorators import checkRole, maintenance, ownsid
 
 
 @app.route("/isard-admin/templates")
 @login_required
+@maintenance
 @checkRole
 def templates():
     return render_template("pages/templates.html", nav="Templates")
@@ -40,6 +41,7 @@ def templates():
 
 @app.route("/isard-admin/template/get/")
 @login_required
+@maintenance
 def templates_get():
     return (
         json.dumps(app.isardapi.get_user_templates(current_user.id)),
@@ -50,6 +52,7 @@ def templates_get():
 
 @app.route("/isard-admin/template", methods=["PUT"])
 @login_required
+@maintenance
 @ownsid
 def templates_update():
     data = request.get_json(force=True)
