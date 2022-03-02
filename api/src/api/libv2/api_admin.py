@@ -62,7 +62,7 @@ def admin_table_insert(table, data):
             if not _check(r.table(table).insert(data).run(db.conn), "inserted"):
                 raise Error(
                     "internal_server",
-                    "Internal server error " + user_id,
+                    "Internal server error ",
                     traceback.format_exc(),
                 )
 
