@@ -198,6 +198,16 @@ def ownsDomainId(payload, desktop_id):
     )
 
 
+def itemExists(item_table, item_id):
+    item = r.table(item_table).get(item_id).run(db.conn)
+    if not item:
+        raise Error(
+            "not_found",
+            item_table + " not found id: " + item_id,
+            traceback.format_stack(),
+        )
+
+
 def allowedTemplateId(payload, template_id):
     with app.app_context():
         template = (

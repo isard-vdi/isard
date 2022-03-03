@@ -18,8 +18,9 @@ from api import app
 
 from ..libv2.api_admin import admin_table_insert
 from ..libv2.api_exceptions import Error
-from ..libv2.api_users import ApiUsers, check_category_domain
+from ..libv2.api_users import ApiUsers, Password, check_category_domain
 from ..libv2.apiv2_exc import *
+from ..libv2.helpers import _check
 from ..libv2.quotas import Quotas
 from ..libv2.validators import _validate_item
 
@@ -36,6 +37,7 @@ from .decorators import (
     has_token,
     is_admin,
     is_admin_or_manager,
+    itemExists,
     ownsCategoryId,
     ownsUserId,
 )
@@ -141,73 +143,69 @@ def api_v3_admin_user_update(payload, id=False):
 
 # Add user
 @app.route("/api/v3/admin/user", methods=["POST"])
-@has_token
+@is_admin_or_manager
 def api_v3_admin_user_insert(payload):
     try:
+        # TODO: Check if user can create in quotas
         # Required
-        provider = request.form.get("provider", type=str)
-        user_uid = request.form.get("user_uid", type=str)
-        user_username = request.form.get("user_username", type=str)
-        role_id = request.form.get("role_id", type=str)
-        category_id = request.form.get("category_id", type=str)
-        group_id = request.form.get("group_id", type=str)
 
-        # Optional
-        name = request.form.get("name", user_username, type=str)
-        password = request.form.get("password", False, type=str)
-        encrypted_password = request.form.get("encrypted_password", False, type=str)
-        photo = request.form.get("photo", "", type=str)
-        email = request.form.get("email", "", type=str)
+        data = request.get_json()
     except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-    if (
-        provider == None
-        or user_username == None
-        or role_id == None
-        or category_id == None
-        or group_id == None
-    ):
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
-    if password == None:
-        password = False
 
-    ownsCategoryId(payload, category_id)
-    quotas.UserCreate(category_id, group_id)
+        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
 
-    user_id = users.Create(
-        provider,
-        category_id,
-        user_uid,
-        user_username,
-        name,
-        role_id,
-        group_id,
-        password,
-        encrypted_password,
-        photo,
-        email,
+    p = Password()
+    data["password"] = p.encrypt(data["password"])
+
+    data["accesed"] = time.time()
+
+    data = _validate_item("user", data)
+
+    ownsUserId(payload, data["id"])
+    itemExists("categories", data["category"])
+    itemExists("groups", data["group"])
+    quotas.UserCreate(category_id=data["category"], group_id=data["group"])
+
+    admin_table_insert("users", data)
+
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
     )
-    return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
+    ## - Hacer bien el gen id del uid
+
+    # if (
+    #     provider == None
+    #     or user_username == None
+    #     or role_id == None
+    #     or category_id == None
+    #     or group_id == None
+    # ):
+    #     log.error("Incorrect access parameters. Check your query.")
+
+    #     raise Error("bad_request", "Incorrect access parameters. Check your query.")
+    # if password == None:
+    #     password = False
+
+    # ownsCategoryId(payload, category_id)
+    # quotas.UserCreate(category_id, group_id)
+
+    # user_id = users.Create(
+    #     provider,
+    #     category_id,
+    #     user_uid,
+    #     user_username,
+    #     name,
+    #     role_id,
+    #     group_id,
+    #     password,
+    #     encrypted_password,
+    #     photo,
+    #     email,
+    #     quota,
+    # )
+    # return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/user/<user_id>", methods=["DELETE"])

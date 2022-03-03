@@ -167,87 +167,92 @@ class ApiUsers:
                 .run(db.conn)
             )
 
-    def Create(
-        self,
-        provider,
-        category_id,
-        user_uid,
-        user_username,
-        name,
-        role_id,
-        group_id,
-        password=False,
-        encrypted_password=False,
-        photo="",
-        email="",
-    ):
-        # password=False generates a random password
-        with app.app_context():
-            user_id = (
-                provider + "-" + category_id + "-" + user_uid + "-" + user_username
-            )
-            if r.table("users").get(user_id).run(db.conn) != None:
-                raise Error(
-                    "conflict",
-                    "Already exists user_id " + user_id,
-                    traceback.format_stack(),
-                )
+    # def Create(
+    #     self,
+    #     provider,
+    #     category_id,
+    #     user_uid,
+    #     user_username,
+    #     name,
+    #     role_id,
+    #     group_id,
+    #     password=False,
+    #     encrypted_password=False,
+    #     photo="",
+    #     email="",
+    #     quota=None,
+    # ):
+    #     # password=False generates a random password
+    #     with app.app_context():
+    #         user_id = (
+    #             provider + "-" + category_id + "-" + user_uid + "-" + user_username
+    #         )
+    #         if r.table("users").get(user_id).run(db.conn) != None:
+    #             raise Error(
+    #                 "conflict",
+    #                 "Already exists user_id " + user_id,
+    #                 traceback.format_stack(),
+    #             )
 
-            if r.table("roles").get(role_id).run(db.conn) is None:
-                raise Error(
-                    "not_found",
-                    "Not found role_id " + role_id + " for user_id " + user_id,
-                    traceback.format_stack(),
-                )
+    #         if r.table("roles").get(role_id).run(db.conn) is None:
+    #             raise Error(
+    #                 "not_found",
+    #                 "Not found role_id " + role_id + " for user_id " + user_id,
+    #                 traceback.format_stack(),
+    #             )
 
-            if r.table("categories").get(category_id).run(db.conn) is None:
-                raise Error(
-                    "not_found",
-                    "Not found category_id " + category_id + " for user_id " + user_id,
-                    traceback.format_stack(),
-                )
+    # if r.table("categories").get(category_id).run(db.conn) is None:
+    #     raise Error(
+    #         "not_found",
+    #         "Not found category_id " + category_id + " for user_id " + user_id,
+    #         traceback.format_stack(),
+    #     )
 
-            group = r.table("groups").get(group_id).run(db.conn)
-            if group is None:
-                raise Error(
-                    "not_found",
-                    "Not found group_id " + group_id + " for user_id " + user_id,
-                    traceback.format_stack(),
-                )
+    # group = r.table("groups").get(group_id).run(db.conn)
+    # if group is None:
+    #     raise Error(
+    #         "not_found",
+    #         "Not found group_id " + group_id + " for user_id " + user_id,
+    #         traceback.format_stack(),
+    #     )
 
-            if password == False:
-                password = _random_password()
-            else:
-                bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode(
-                    "utf-8"
-                )
-            if encrypted_password != False:
-                password = encrypted_password
+    # if password == False:
+    #     password = _random_password()
+    # else:
+    #     p = Password()
+    #     password = p.encrypt(password)
 
-            user = {
-                "id": user_id,
-                "name": name,
-                "uid": user_uid,
-                "provider": provider,
-                "active": True,
-                "accessed": time.time(),
-                "username": user_username,
-                "password": password,
-                "role": role_id,
-                "category": category_id,
-                "group": group_id,
-                "email": email,
-                "photo": photo,
-                "default_templates": [],
-                "quota": group["quota"],  # 10GB
-            }
-            if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
-                raise Error(
-                    "internal_server",
-                    "Unable to insert in database user_id " + user_id,
-                    traceback.format_stack(),
-                )
-        return user_id
+    # if encrypted_password != False:
+    #     password = encrypted_password
+
+    #         if not quota:
+    #             quota = group["quota"]  # 10GB
+
+    #         user = {
+    #             "id": user_id,
+    #             "name": name,
+    #             "uid": user_uid,
+    #             "provider": provider,
+    #             "active": True,
+    #             "accessed": time.time(),
+    #             "username": user_username,
+    #             "password": password,
+    #             "role": role_id,
+    #             "category": category_id,
+    #             "group": group_id,
+    #             "email": email,
+    #             "photo": photo,
+    #             "default_templates": [],
+    #             "quota": quota,
+    #         }
+
+    #         if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
+    #             raise Error(
+    #                 "internal_server",
+    #                 "Unable to insert in database user_id " + user_id,
+    #                 traceback.format_stack(),
+    #             )
+    #     return user_id
 
     def Update(self, user_id, name=None, email=None, photo=None, password=None):
         self.Get(user_id)
