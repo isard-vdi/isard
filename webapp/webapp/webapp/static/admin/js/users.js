@@ -108,7 +108,17 @@ $(document).ready(function() {
             
     $("#modalDeleteUser #send").on('click', function(e){
         id=$('#modalDeleteUserForm #id').val();
-        socket.emit('user_delete',id)
+
+        $.ajax({
+            type: "DELETE",
+            url:"/api/v3/admin/user/"+id,
+            contentType: "application/json",
+            success: function(data)
+            {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+            }
+        });
      }); 
 
        document.getElementById('csv').addEventListener('change', readFile, false);
