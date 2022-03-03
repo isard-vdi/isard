@@ -38,8 +38,10 @@ $(document).ready(function() {
 
     table['domains']=$('#domains_tbl').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/updates/domains/",
-				"dataSrc": ""
+				"url": "/admin/downloads/domains",
+				"dataSrc": "",
+                "type" : "GET",
+                "data": function(d){return JSON.stringify({})}
 			},
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
@@ -165,8 +167,10 @@ $(document).ready(function() {
 
     table['media']=$('#media_tbl').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/updates/media/",
-				"dataSrc": ""
+				"url": "/admin/downloads/media",
+				"dataSrc": "",
+                "type" : "GET",
+                "data": function(d){return JSON.stringify({})}
 			},
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
@@ -284,8 +288,10 @@ $(document).ready(function() {
 
     table['virt_install']=$('#virt_install_tbl').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/updates/virt_install/",
-				"dataSrc": ""
+				"url": "/admin/downloads/virt_install",
+				"dataSrc": "",
+                "type" : "GET",
+                "data": function(d){return JSON.stringify({})}
 			},
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
@@ -352,8 +358,10 @@ $(document).ready(function() {
 
     table['videos']=$('#videos_tbl').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/updates/videos/",
-				"dataSrc": ""
+				"url": "/admin/downloads/videos",
+				"dataSrc": "",
+                "type" : "GET",
+                "data": function(d){return JSON.stringify({})}
 			},
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
@@ -441,8 +449,10 @@ $(document).ready(function() {
 
     table['viewers']=$('#viewers_tbl').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/updates/viewers/",
-				"dataSrc": ""
+				"url": "/admin/downloads/viewers",
+				"dataSrc": "",
+                "type" : "GET",
+                "data": function(d){return JSON.stringify({})}
 			},
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
