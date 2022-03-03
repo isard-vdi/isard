@@ -107,6 +107,7 @@ $(document).ready(function() {
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+            removeError($('#modalAddCategory'))
             $('#modalAddCategoryForm')[0].reset();
             $('#modalAddCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
             $('#modalAddCategoryForm #ephimeral-data').hide();
@@ -166,22 +167,35 @@ $(document).ready(function() {
 
     $("#modalAddCategory #send").on('click', function(e){
             var form = $('#modalAddCategoryForm');
-
             form.parsley().validate();
             if (form.parsley().isValid()){
-                data=$('#modalAddCategoryForm').serializeObject();
-                if('frontend' in data){
-                    data['frontend']=true
-                }
+                data=form.serializeObject();
+                if ('frontend' in data) data['frontend']=true;
                 if(!('ephimeral-enabled' in data)){
                     delete data['ephimeral-minutes'];
                     delete data['ephimeral-action'];
+                }else{
+                    delete data['ephimeral-enabled'];
+                    data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
                 if(!('auto-desktops-enabled' in data)){
                     delete data['auto-desktops'];
                 }
-                data['table']='categories';
-                socket.emit('role_category_group_add',data)  
+                data=JSON.unflatten(data);
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/category" ,
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    },
+                    error: function (jqXHR, exception) {
+                        processError(jqXHR,form)
+                    }
+                },);  
             }
         });  
         

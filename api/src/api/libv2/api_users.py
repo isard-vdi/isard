@@ -583,49 +583,6 @@ class ApiUsers:
 
     ### USER Schema
 
-    def CategoryCreate(
-        self,
-        category_name,
-        frontend=False,
-        group_name=False,
-        category_limits=False,
-        category_quota=False,
-        group_quota=False,
-    ):
-        category_id = _parse_string(category_name)
-        if group_name:
-            group_id = _parse_string(group_name)
-        else:
-            group_name = "Main"
-            group_id = "main"
-        with app.app_context():
-            category = r.table("categories").get(category_id).run(db.conn)
-            if category == None:
-                category = {
-                    "description": "",
-                    "id": category_id,
-                    "limits": category_limits,
-                    "name": category_name,
-                    "quota": category_quota,
-                    "frontend": frontend,
-                }
-                r.table("categories").insert(category, conflict="update").run(db.conn)
-
-            group = r.table("groups").get(category_id + "-" + group_id).run(db.conn)
-            if group == None:
-                group = {
-                    "description": "[" + category["name"] + "]",
-                    "id": category_id + "-" + group_id,
-                    "limits": False,
-                    "parent_category": category_id,
-                    "uid": group_id,
-                    "name": group_name,
-                    "enrollment": {"manager": False, "advanced": False, "user": False},
-                    "quota": group_quota,
-                }
-                r.table("groups").insert(group, conflict="update").run(db.conn)
-        return category_id
-
     def GroupCreate(
         self,
         category_id,

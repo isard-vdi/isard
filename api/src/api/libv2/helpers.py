@@ -34,6 +34,8 @@ isardviewer = isardViewer()
 
 import traceback
 
+from ..libv2.api_exceptions import Error
+
 
 class InternalUsers(object):
     def __init__(self):
