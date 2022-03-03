@@ -688,7 +688,6 @@ class ApiUsers:
             )
 
     def CategoryDelete(self, category_id):
-        #### TODO: Delete all desktops, templates and users in category
         with app.app_context():
             r.table("users").get_all(category_id, index="category").delete().run(
                 db.conn
@@ -696,6 +695,17 @@ class ApiUsers:
             r.table("groups").get_all(
                 category_id, index="parent_category"
             ).delete().run(db.conn)
+
+            desktops = (
+                r.table("domains")
+                .filter({"category": category_id})
+                .pluck("id", "status")
+                .run(db.conn)
+            )
+
+            for desktop in desktops:
+                ds.delete_desktop(desktop["id"], desktop["status"])
+
             return r.table("categories").get(category_id).delete().run(db.conn)
 
     def GroupGet(self, group_id):
