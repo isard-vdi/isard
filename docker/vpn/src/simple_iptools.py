@@ -28,7 +28,7 @@ class UserIpTools(object):
             .run()
         )
         for ds in domains_started:
-            if "guest_ip" in ds["viewer"].keys():
+            if ds.get("viewer") and "guest_ip" in ds["viewer"].keys():
                 self.desktop_add(ds["user"], ds["viewer"]["guest_ip"])
 
     def desktop_add(self, user_id, desktop_ip):
