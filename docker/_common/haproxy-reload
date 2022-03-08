@@ -1,0 +1,6 @@
+#!/bin/sh
+# haproxy runs with -W flag that reloads with USR2 signal, see haproxy-docker-entrypoint.sh
+# that is a customization of original ones
+# https://github.com/docker-library/haproxy/blob/master/2.3/docker-entrypoint.sh#L14
+# http://cbonte.github.io/haproxy-dconv/2.3/configuration.html#3.1-master-worker
+kill -SIGUSR2 1

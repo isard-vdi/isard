@@ -20,6 +20,8 @@ if [ ! -f /certs/chain.pem ]; then
         auto-generate-certs.sh
 fi
 
+inotifyd haproxy-reload /certs/chain.pem:c &
+
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then
         set -- haproxy "$@"
