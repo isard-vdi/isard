@@ -77,7 +77,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/isard-admin/alloweds/term/'+id.replace('a-',''),
+                        url: '/admin/alloweds/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -106,7 +106,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/isard-admin/alloweds/term/'+id.replace('a-',''),
+                        url: '/admin/alloweds/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
@@ -135,7 +135,7 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/isard-admin/alloweds/term/'+id.replace('a-',''),
+                        url: '/admin/alloweds/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
