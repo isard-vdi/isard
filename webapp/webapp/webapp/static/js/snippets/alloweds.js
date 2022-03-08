@@ -70,9 +70,13 @@
                   $(parentid+" #"+id).empty().trigger('change')
 			 });
 			 $(parentid+" #"+id).attr('disabled',true);
+            var placeholder = 'Empty applies to all. Type at least 2 letters to search.'
+            if (parentid == '#alloweds-block') {
+                placeholder = 'Type at least 2 letters to search.'
+            }
             if( id.replace('a-','') == 'groups'){
                 $(parentid+" #"+id).select2({
-                    placeholder: "Empty applies to all. Type at least 2 letters to search.",
+                    placeholder,
                     minimumInputLength: 2,
                     multiple: true,
                     ajax: {
@@ -101,7 +105,7 @@
                 });
             } else if (id.replace('a-','') == 'users') {
                 $(parentid+" #"+id).select2({
-                    placeholder: "Empty applies to all. Type at least 2 letters to search.",
+                    placeholder,
                     minimumInputLength: 2,
                     multiple: true,
                     ajax: {
@@ -130,7 +134,7 @@
                 });	
             } else{
                 $(parentid+" #"+id).select2({
-                    placeholder: "Empty applies to all. Type at least 2 letters to search.",
+                    placeholder,
                     minimumInputLength: 2,
                     multiple: true,
                     ajax: {
