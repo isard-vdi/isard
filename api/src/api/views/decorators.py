@@ -149,25 +149,36 @@ def ownsCategoryId(payload, category_id):
 
 
 def ownsDomainId(payload, desktop_id):
-    if payload["role_id"] == "admin":
+
+    # User is owner
+    if desktop_id.startswith("_" + payload["user_id"]):
         return True
-    if (
-        payload["role_id"] == "manager"
-        and payload["category_id"] == desktop_id.split("-")[1]
-    ):
-        return True
+
+    # User is advanced and the desktop is from one of its deployments
     if payload["role_id"] == "advanced":
         with app.app_context():
-            if str(
+            desktop_tag = (
                 r.table("domains")
                 .get(desktop_id)
                 .pluck("tag")
                 .run(db.conn)
                 .get("tag", False)
-            ).startswith("_" + payload["user_id"]):
+            )
+            if str(desktop_tag).startswith("_" + payload["user_id"]) or str(
+                desktop_tag
+            ).startswith(payload["user_id"]):
                 return True
-    if desktop_id.startswith("_" + payload["user_id"]):
+    # User is manager and the desktop is from its categories
+    if (
+        payload["role_id"] == "manager"
+        and payload["category_id"] == desktop_id.split("-")[1]
+    ):
         return True
+
+    # User is admin
+    if payload["role_id"] == "admin":
+        return True
+
     raise Error(
         "forbidden",
         "Not enough access rights this desktop_id " + str(desktop_id),

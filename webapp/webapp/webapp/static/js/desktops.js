@@ -234,7 +234,6 @@ $(document).ready(function() {
       connection_lost();
     });
 
-     startClientViewerSocket(socket);
      startClientVpnSocket(socket);
 
     socket.on('user_quota', function(data) {
@@ -252,17 +251,13 @@ $(document).ready(function() {
          }
         }
 
-        if(data.status =='Started' && table.row('#'+data.id).data().status != 'Started'){
-            if('preferred' in data['options']['viewers'] && data['options']['viewers']['preferred']){
-                socket.emit('domain_viewer',{'pk':data.id,'kind':data['options']['viewers']['preferred'],'os':getOS()});
-            }else{
-                 setViewerButtons(data,socket);
-                    $('#modalOpenViewer').modal({
-                        backdrop: 'static',
-                        keyboard: false
-                    }).modal('show');
-            }
-        }else{
+        if (data.status =='Started' && table.row('#'+data.id).data().status != 'Started') {
+            setViewerButtons(data,socket);
+            $('#modalOpenViewer').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+        } else {
             //~ if('ephimeral' in data && !countdown[data.id]){
                 clearInterval(countdown[data.id])
                 countdown[data.id]=null
