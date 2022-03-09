@@ -23,6 +23,7 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from ..libv2.api_exceptions import Error
 from ..libv2.isardVpn import isardVpn
 from .apiv2_exc import *
 
@@ -70,6 +71,7 @@ class ApiHypervisors:
         isard_video_url=os.environ["DOMAIN"],
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
+        user="root",
     ):
         data = {}
 
@@ -92,19 +94,12 @@ class ApiHypervisors:
                     isard_proxy_hyper_url=isard_proxy_hyper_url,
                     isard_hyper_vpn_host=isard_hyper_vpn_host,
                     description="Added via api",
+                    user=user,
                 ),
                 "inserted",
             ):
 
-                return {
-                    "status": False,
-                    "msg": "Unable to ssh-keyscan "
-                    + hostname
-                    + " port "
-                    + str(port)
-                    + ". Please ensure the port is opened in the hypervisor",
-                    "data": data,
-                }
+                raise Error("not_found", "Unable to ssh-keyscan")
             log.info("Hypervisor " + hyper_id + "added to database")
         else:
             result = self.add_hyper(
@@ -121,18 +116,11 @@ class ApiHypervisors:
                 isard_proxy_hyper_url=isard_proxy_hyper_url,
                 isard_hyper_vpn_host=isard_hyper_vpn_host,
                 description="Added via api",
+                user=user,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
-                return {
-                    "status": False,
-                    "msg": "Unable to ssh-keyscan "
-                    + hostname
-                    + " port "
-                    + str(port)
-                    + ". Please ensure the port is opened in the hypervisor",
-                    "data": data,
-                }
+                raise Error("not_found", "Unable to ssh-keyscan")
             if result["replaced"] and hypervisor["enabled"]:
                 ## We should restart engine
                 self.engine_restart()
@@ -172,6 +160,7 @@ class ApiHypervisors:
         isard_video_url=os.environ["DOMAIN"],
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
+        user="root",
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -190,7 +179,7 @@ class ApiHypervisors:
             "status": "Offline",
             "status_time": False,
             "uri": "",
-            "user": "root",
+            "user": user,
             "viewer": {
                 "static": isard_static_url,  # isard-static nginx
                 "proxy_video": isard_video_url,  # Video Proxy Host
@@ -498,3 +487,30 @@ class ApiHypervisors:
         if not dict["errors"]:
             return True
         return False
+
+    def domains_stop(self, hyp_id=False):
+        with app.app_context():
+            try:
+                if hyp_id == False:
+                    return (
+                        r.table("domains")
+                        .get_all("Started", index="status")
+                        .filter({"viewer": {"client_since": False}})
+                        .update({"status": "Stopping"})
+                        .run(db.conn)["replaced"]
+                    )
+                else:
+                    return (
+                        r.table("domains")
+                        .get_all("Started", index="status")
+                        .filter(
+                            {
+                                "hyp_started": hyp_id,
+                                "viewer": {"client_since": False},
+                            }
+                        )
+                        .update({"status": "Stopping"})
+                        .run(db.conn)["replaced"]
+                    )
+            except:
+                return False

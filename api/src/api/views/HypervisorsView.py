@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import traceback
+from email.policy import default
 from uuid import uuid4
 
 from flask import request
@@ -17,6 +18,8 @@ from flask import request
 # coding=utf-8
 from api import app
 
+from ..libv2 import api_hypervisors
+from ..libv2.api_exceptions import Error
 from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
 
@@ -138,6 +141,7 @@ def api_v3_hypervisor(hyper_id=False):
         try:
             hyper_id = request.form.get("hyper_id", type=str)
             hostname = request.form.get("hostname", type=str)
+            user = request.form.get("user", default="root", type=str)
             port = request.form.get("port", default="2022", type=str)
             cap_hyper = request.form.get("cap_hyper", default=True, type=bool)
             cap_disk = request.form.get("cap_disk", default=True, type=bool)
@@ -173,48 +177,26 @@ def api_v3_hypervisor(hyper_id=False):
                 {"Content-Type": "application/json"},
             )
 
-        try:
-            data = api_hypervisors.hyper(
-                hyper_id,
-                hostname,
-                port=port,
-                cap_disk=cap_disk,
-                cap_hyper=cap_hyper,
-                enabled=enabled,
-                browser_port=browser_port,
-                spice_port=spice_port,
-                isard_static_url=isard_static_url,
-                isard_video_url=isard_video_url,
-                isard_proxy_hyper_url=isard_proxy_hyper_url,
-                isard_hyper_vpn_host=isard_hyper_vpn_host,
-                description=description,
-            )
-            if not data["status"]:
-                log.warning(data)
-                return (
-                    json.dumps(
-                        {
-                            "error": "undefined_error",
-                            "msg": "Failed hypervisor: " + data["msg"],
-                        }
-                    ),
-                    301,
-                    {"Content-Type": "application/json"},
-                )
-            return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
-        except Exception as e:
-            error = traceback.format_exc()
-            log.error("Hypervisor general exception" + error)
-            return (
-                json.dumps(
-                    {
-                        "error": "generic_error",
-                        "msg": "Hypervisor general exception: " + error,
-                    }
-                ),
-                500,
-                {"Content-Type": "application/json"},
-            )
+        data = api_hypervisors.hyper(
+            hyper_id,
+            hostname,
+            port=port,
+            cap_disk=cap_disk,
+            cap_hyper=cap_hyper,
+            enabled=enabled,
+            browser_port=browser_port,
+            spice_port=spice_port,
+            isard_static_url=isard_static_url,
+            isard_video_url=isard_video_url,
+            isard_proxy_hyper_url=isard_proxy_hyper_url,
+            isard_hyper_vpn_host=isard_hyper_vpn_host,
+            description=description,
+            user=user,
+        )
+        if not data["status"]:
+            raise Error("internal_server", "Failed hypervisor: " + data["msg"])
+        return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
+
     if request.method == "DELETE":
         try:
             data = api_hypervisors.remove_hyper(hyper_id)
@@ -274,6 +256,13 @@ def api_v3_hypervisor(hyper_id=False):
                 500,
                 {"Content-Type": "application/json"},
             )
+
+
+@app.route("/api/v3/hypervisor/stop/<hyper_id>", methods=["PUT"])
+@is_hyper
+def api_v3_hypervisor_domains_stop(hyper_id):
+    api_hypervisors.domains_stop(hyper_id)
+    return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
 
 @app.route("/api/v3/hypervisor_vpn/<hyper_id>", methods=["GET"])

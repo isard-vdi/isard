@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 import json
+import logging as log
 
 from flask import request
 
@@ -29,6 +30,7 @@ def api_v3_admin_table(payload, table):
         options.get("order_by"),
         options.get("pluck"),
         options.get("without"),
+        options.get("id"),
     )
     if payload["role_id"] == "manager":
         if table == "categories":
