@@ -69,10 +69,12 @@ class loadConfig:
                 print("Waiting for database to be populated with all tables...")
                 print("   " + str(len(tables)) + " populated")
                 time.sleep(2)
+
+        secret = app.ram["secrets"]["isardvdi"] = os.environ["API_ISARDVDI_SECRET"]
         r.db("isard").table("secrets").insert(
             {
                 "id": "isardvdi",
-                "secret": os.environ["API_ISARDVDI_SECRET"],
+                "secret": secret,
                 "description": "isardvdi",
                 "domain": "localhost",
                 "category_id": "default",
@@ -80,10 +82,13 @@ class loadConfig:
             },
             conflict="replace",
         ).run(conn)
+        secret = app.ram["secrets"]["isardvdi-hypervisors"] = os.environ[
+            "API_HYPERVISORS_SECRET"
+        ]
         r.db("isard").table("secrets").insert(
             {
                 "id": "isardvdi-hypervisors",
-                "secret": os.environ["API_HYPERVISORS_SECRET"],
+                "secret": secret,
                 "description": "isardvdi hypervisors access",
                 "domain": "*",
                 "category_id": "default",
