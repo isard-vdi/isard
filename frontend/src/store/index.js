@@ -78,16 +78,6 @@ export default new Vuex.Store({
     fetchCategories ({ commit }) {
       return axios.get(`${apiV3Segment}/categories`).then(response => {
         commit('setCategories', response.data)
-      }).catch(err => {
-        console.log(err)
-        if (err.response.status === 503) {
-          router.push({ name: 'Maintenance' })
-        } else {
-          router.push({
-            name: 'Error',
-            params: { code: err.response && err.response.status.toString() }
-          })
-        }
       })
     },
     maintenance (context) {
@@ -113,9 +103,7 @@ export default new Vuex.Store({
           }
           resolve()
         }).catch(e => {
-          if (e.response.status === 503) {
-            router.push({ name: 'Maintenance' })
-          } else if (e.response.status === 401) {
+          if (e.response.status === 401) {
             commit('setPageErrorMessage', i18n.t('views.login.errors.401'))
           } else if (e.response.status === 403 && e.response.data === 'disabled user') {
             commit('setPageErrorMessage', i18n.t('errors.user_disabled'))
@@ -138,13 +126,7 @@ export default new Vuex.Store({
       })
     },
     logout (context) {
-      axios.get(`${apiAdminSegment}/logout/remote`).catch(e => {
-        if (e.response.status === 503) {
-          console.log(e)
-        } else {
-          console.log(e)
-        }
-      }).then(() => {
+      axios.get(`${apiAdminSegment}/logout/remote`).then(() => {
         localStorage.token = ''
         context.commit('resetStore')
         if (!store.getters.getUrlTokens.includes('login')) {
@@ -162,10 +144,7 @@ export default new Vuex.Store({
       })
     },
     handleRegisterError ({ commit }, error) {
-      if (error.response.status === 503) {
-        router.push({ name: 'Maintenance' })
-        return
-      } else if (error.response.status === 404) {
+      if (error.response.status === 404) {
         commit('setPageErrorMessage', i18n.t('views.register.errors.404'))
         return
       } else if (error.response.status === 401) {

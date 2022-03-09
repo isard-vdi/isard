@@ -1,5 +1,4 @@
 import axios from 'axios'
-import router from '@/router'
 import { apiV3Segment } from '../../shared/constants'
 import { DeploymentsUtils } from '../../utils/deploymentsUtils'
 
@@ -104,23 +103,11 @@ export default {
     fetchDeployments (context) {
       axios.get(`${apiV3Segment}/deployments`).then(response => {
         context.commit('setDeployments', DeploymentsUtils.parseDeployments(response.data))
-      }).catch(err => {
-        console.log(err)
-        router.push({
-          name: 'Error',
-          params: { code: err.response && err.response.status.toString() }
-        })
       })
     },
     fetchDeployment (context, data) {
       axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {
         context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
-      }).catch(err => {
-        console.log(err)
-        router.push({
-          name: 'Error',
-          params: { code: err.response && err.response.status.toString() }
-        })
       })
     },
     setSelectedDesktop (context, selectedDesktop) {
