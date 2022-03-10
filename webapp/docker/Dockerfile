@@ -32,8 +32,3 @@ WORKDIR /isard
 CMD [ "python3", "-u", "start.py" ]
 HEALTHCHECK --interval=10s CMD wget -qO /dev/null http://localhost:5000/isard-admin/healthcheck
 STOPSIGNAL SIGINT
-
-ARG SRC_VERSION_ID
-ARG SRC_VERSION_LINK
-RUN echo -n "$SRC_VERSION_ID" > /version
-RUN echo -n "$SRC_VERSION_LINK" > /version_link
