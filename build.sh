@@ -36,7 +36,6 @@ ALLINONE_PARTS="
 	websockify
 	squid
 	webapp
-	grafana
 	stats
 	api
 	authentication
@@ -88,7 +87,6 @@ WEB_PARTS="
 	static
 	portal
 	webapp
-	grafana
 	api
 	authentication
 	vpn
