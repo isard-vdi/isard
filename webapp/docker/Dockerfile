@@ -30,7 +30,7 @@ RUN cd /isard/webapp && yarn install
 EXPOSE 5000
 WORKDIR /isard
 CMD [ "python3", "-u", "start.py" ]
-HEALTHCHECK --interval=10s CMD wget -qO /dev/null http://localhost:5000/isard-admin/about
+HEALTHCHECK --interval=10s CMD wget -qO /dev/null http://localhost:5000/isard-admin/healthcheck
 STOPSIGNAL SIGINT
 
 ARG SRC_VERSION_ID

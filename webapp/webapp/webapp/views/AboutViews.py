@@ -25,3 +25,8 @@ def about():
         header="About",
         nav="About",
     )
+
+
+@app.route("/isard-admin/healthcheck", methods=["GET"])
+def healthcheck():
+    return ""
