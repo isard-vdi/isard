@@ -77,7 +77,16 @@ $(document).ready(function() {
 
     $("#modalDeleteGroup #send").on('click', function(e){
         id=$('#modalDeleteGroupForm #id').val();
-        socket.emit('group_delete',id)
+        $.ajax({
+            type: "DELETE",
+            url:"/api/v3/admin/group/"+id ,
+            contentType: "application/json",
+            success: function(data)
+            {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+            }
+        });
         }); 
 
 	$('.btn-new-group').on('click', function () {
