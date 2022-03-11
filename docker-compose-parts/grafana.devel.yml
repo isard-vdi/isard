@@ -1,9 +1,0 @@
-version: "3.5"
-services:
-  isard-grafana:
-    ports:
-      - "3000:3000"
-
-  isard-influxdb:
-    ports:
-      - "8086:8086"
