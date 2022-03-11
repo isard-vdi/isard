@@ -7,6 +7,7 @@ services:
       driver: "json-file"
       options:
         max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.17
