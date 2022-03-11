@@ -189,30 +189,35 @@ parts_variant(){
 	shift || return 0
 	for part in $@
 	do
-		echo -n "$part.$variant "
+		if ! echo $parts | grep -q "\(^\|\s\)$part\(\s\|$\)"
+		then
+			parts="$parts $part "
+		fi
+		parts="$parts $part.$variant "
 	done
+	echo -n $parts
 }
 variants(){
 	local config_name="$1"
 	shift || return 0
 	if check_docker_compose_version
 	then
-		version_parts="$(parts_variant current $@)"
+		local version="current"
 	else
-		version_parts="$(parts_variant legacy $@)"
+		local version="legacy"
 	fi
 	case $USAGE in
 		production)
-			merge "$config_name" $@ $version_parts
+			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@))
 			;;
 		test)
-			merge "$config_name" $@ $(parts_variant test $@) $version_parts
+			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@))
 			;;
 		build)
-			merge "$config_name" $@ $(parts_variant test $@) $(parts_variant build $@) $version_parts
+			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@))
 			;;
 		devel)
-			merge "$config_name" $@ $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@) $version_parts
+			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@))
 			;;
 		*)
 			echo "Error: unknow usage $USAGE"
@@ -225,10 +230,11 @@ flavour(){
 #
 # flavour <config-name> <part-1> <part-2> ...
 # - <config-name> is used for the filename: docker-compose.<config-name>.yml
-# - <part-1> and <part-2> ... shoud be files like docker-compose-parts/<part-1>.yml
-# - variants build and devel sould be like docker-compose-parts/<part-1>.build.yml
-# and docker-compose-parts/<part-1>.devel.yml
-#
+# - <part-1> and <part-2> ... should be files like:
+# docker-compose-parts/<part>[.<current/legacy>].yml
+# docker-compose-parts/<part>.<test/build/devel>[.<current/legacy>].yml
+# docker-compose-parts/<part>.<flavour>[.<current/legacy>].yml
+
 	local config_name="$1"
 	shift || return 0
 	local parts=""
