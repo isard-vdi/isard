@@ -90,7 +90,16 @@ $(document).ready(function() {
 
     $("#modalDeleteCategory #send").on('click', function(e){
         id=$('#modalDeleteCategoryForm #id').val();
-        socket.emit('category_delete',id)
+        $.ajax({
+            type: "DELETE",
+            url:"/api/v3/admin/category/"+id ,
+            contentType: "application/json",
+            success: function(data)
+            {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+            }
+        });
         }); 
 
 	$('.btn-new-category').on('click', function () {
