@@ -238,15 +238,15 @@ $(document).ready(function() {
 
         
     // SocketIO
-        socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_admins', {
-        'path': '/isard-admin/socket.io/',
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
+        'query': {'jwt': localStorage.getItem("token")},
+        'path': '/api/v3/socket.io/',
         'transports': ['websocket']
     });
      
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['hyper','domains_stats'])
-        console.log('Listening admins and domains_stats namespace');
+        console.log('Listening admins namespace');
     });
 
     socket.on('connect_error', function(data) {

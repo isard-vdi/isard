@@ -421,7 +421,6 @@ $(document).ready(function() {
 
     socket.on('connect', function() {
         connection_done();
-        socket.emit('join_rooms',['tagged'])
         console.log('Listening tags namespace');
     });
 

@@ -26,15 +26,16 @@ class QuotasProcess:
     def __init__(self):
         None
 
-    def get(self, user_id, category_id=False, admin=False):
+    def get(self, user_id=False, category_id=False, admin=False):
         """Used by socketio to inform of user quotas"""
         userquotas = {}
         if user_id != False:
-            with app.app_context():
-                user = r.table("users").get(user_id).run(db.conn)
-            if user == None:
-                return userquotas
-            userquotas = self.process_user_quota(user_id)
+            if isinstance(user_id, str):
+                with app.app_context():
+                    user = r.table("users").get(user_id).run(db.conn)
+                if not user:
+                    return userquotas
+            userquotas = self.process_user_quota(user["id"])
             if user["role"] == "manager":
                 userquotas["limits"] = self.process_category_limits(
                     user_id, from_user_id=True
