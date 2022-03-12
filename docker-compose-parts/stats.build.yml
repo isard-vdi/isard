@@ -16,13 +16,3 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/glances/Dockerfile
-
-  isard-grafana:
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/grafana/Dockerfile
-
-  isard-influxdb:
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/influxdb/Dockerfile

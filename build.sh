@@ -37,6 +37,7 @@ ALLINONE_PARTS="
 	squid
 	webapp
 	stats
+	monitor
 	api
 	scheduler
 	authentication
@@ -70,6 +71,7 @@ VIDEO_STANDALONE_PARTS="
 	websockify
 	squid
 	guac
+	stats
 "
 TOOLBOX_KEY="toolbox"
 TOOLBOX_PARTS="
@@ -92,6 +94,13 @@ WEB_PARTS="
 	scheduler
 	authentication
 	vpn
+	stats
+"
+MONITOR_STANDALONE_KEY="monitor"
+MONITOR_STANDALONE_PARTS="
+	network
+	monitor
+	monitor-proxy
 "
 
 docker_compose_version(){
@@ -303,6 +312,9 @@ create_docker_compose_file(){
 			;;
 		$WEB_KEY)
 			parts=$WEB_PARTS
+			;;
+		$MONITOR_STANDALONE_KEY)
+			parts=$MONITOR_STANDALONE_PARTS
 			;;
 		*)
 			echo "Error: Flavour $FLAVOUR of $config_file not found"
