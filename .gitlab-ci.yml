@@ -110,6 +110,7 @@ docker-image:
       - DOCKER_COMPOSE: build
         IMAGE:
           - api
+          - scheduler
           - authentication
           - backupninja
           - cypress

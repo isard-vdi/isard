@@ -72,9 +72,10 @@ $(document).ready(function() {
     $("#modalScheduler #send").on('click', function(e){
             var form = $('#modalAddScheduler');
             data=$('#modalAddScheduler').serializeObject();
-            socket.emit('scheduler_add',data)
+            api.ajax('/scheduler/'+data["kind"]+"/"+data["action"]+"/"+data["hour"]+"/"+data["minute"]+"/",'POST',{}).done(function(data) {
+            });
             $("#modalAddScheduler")[0].reset();
-            $("#modalAdd").modal('hide');
+            $("#modalScheduler").modal('hide');
         });
 
 	//~ Not using it now
@@ -326,9 +327,11 @@ $(document).ready(function() {
     
     scheduler_table=$('#table-scheduler').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/table/scheduler_jobs/get",
-				"dataSrc": ""
+				"url": "/scheduler",
+                "contentType": "application/json",
+                "type": 'GET',
 			},
+            "sAjaxDataProp": "",
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
 			},
@@ -369,10 +372,10 @@ $(document).ready(function() {
 							history: {history: false},
 							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
-                            api.ajax('/isard-admin/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
-                            });  
-                            //~ api.ajax('/isard-admin/admin/delete','POST',{'pk':data['id'],'table':'scheduler_jobs'}).done(function(data) {
-                            //~ });  
+                            api.ajax('/scheduler/'+data["id"],'DELETE',{}).done(function(data) {
+                                // Websocket event will delete it
+                                // scheduler_table.row('#'+data["id"]).remove().draw();
+                            });   
 						}).on('pnotify.cancel', function() {
 				});	  
         }
@@ -410,7 +413,7 @@ $(document).ready(function() {
     socket.on('backups_deleted', function(data){
         console.log('backup deleted')
         var data = JSON.parse(data);
-        var row = backups_table.row('#'+data.id).remove().draw();
+        backups_table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Backup deleted",
                 text: "Backup "+data.name+" has been deleted",
@@ -423,15 +426,13 @@ $(document).ready(function() {
     });
 
     socket.on('scheduler_jobs_data', function(data){
-        console.log('sch data received')
         var data = JSON.parse(data);
         dtUpdateInsert(scheduler_table,data,false);
     });
     
     socket.on('scheduler_jobs_deleted', function(data){
-        console.log('sch deleted')
         var data = JSON.parse(data);
-        var row = scheduler_table.row('#'+data.id).remove().draw();
+        scheduler_table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Scheduler deleted",
                 text: "Scheduler "+data.name+" has been deleted",

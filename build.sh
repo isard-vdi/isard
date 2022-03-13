@@ -38,6 +38,7 @@ ALLINONE_PARTS="
 	webapp
 	stats
 	api
+	scheduler
 	authentication
 	vpn
 	guac
@@ -88,6 +89,7 @@ WEB_PARTS="
 	portal
 	webapp
 	api
+	scheduler
 	authentication
 	vpn
 "

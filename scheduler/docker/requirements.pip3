@@ -1,0 +1,6 @@
+Flask==2.0.1
+Flask-Login==0.5.0
+Flask-Cors==3.0.10
+python-jose==3.3.0
+rethinkdb==2.4.7
+APScheduler==3.9.1
