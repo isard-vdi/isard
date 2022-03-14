@@ -666,7 +666,7 @@ function actionsDomainDetail(){
         //~ modal_edit_desktop_datatables(pk);
 });
 
-    if(url=="Desktops"){
+    if(kind=="desktop"){
         $('.btn-delete-template').remove()
 
 	$('.btn-template').on('click', function () {
