@@ -1,7 +1,7 @@
 import axios from 'axios'
 import store from '../store'
 import * as cookies from 'tiny-cookie'
-// import router from '../router';
+import router from '@/router'
 
 export default function axiosSetUp () {
   // point to your API endpoint
@@ -46,7 +46,14 @@ export default function axiosSetUp () {
       //   await store.dispatch("refreshToken");
       //   return axios(originalRequest);
       // }
-
+      if (error.response.status === 503) {
+        router.replace({ name: 'Maintenance' })
+      } else {
+        router.replace({
+          name: 'Error',
+          params: { code: error.response && error.response.status.toString() }
+        })
+      }
       return Promise.reject(error)
     }
   )
