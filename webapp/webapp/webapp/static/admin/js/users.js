@@ -185,8 +185,47 @@ $(document).ready(function() {
         if (form.parsley().isValid()){     // || 'unlimited' in formdata){   
             data=userQuota2dict(formdata);
             delete data['unlimited']
+            data['provider']='local';
             users=parseCSV()
-            socket.emit('bulkusers_add',{'data':data,'users':users})
+            var notice = new PNotify({
+                title: "Adding users",
+            });
+            var usersAdded = 1;
+            
+            users.forEach(function (value, index) {
+                data['uid'] = value['username'];
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/user" ,
+                    data: JSON.stringify(Object.assign({},data,value)) ,
+                    contentType: "application/json",
+                    success: function(data)
+                    {                        
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');      
+                    notice.update({
+                            title: "Adding users",
+                            text: "Added user (" + ( usersAdded ) + "/" + users.length + ").",
+                            hide: true,
+                            delay: 4000,
+                            opacity: 1
+                        });
+                    usersAdded ++;
+                     },
+                     error: function(data){
+                        var error = new PNotify({
+                            title: "ERROR",
+                            text: "Error adding user in line " + (index + 2),
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 15000,
+                            opacity: 1
+                        });
+                     }
+                     
+                }); 
+            });
             $('#modalAddBulkUsers #send').prop('disabled', true);
         }
     }); 
