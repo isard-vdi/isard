@@ -36,13 +36,6 @@ else:
     log.info("Debug mode: {}".format(app.debug))
 
 """
-Scheduler
-"""
-from .lib.isardScheduler import isardScheduler
-
-app.scheduler = isardScheduler()
-
-"""
 Authentication types
 """
 from .auth import authentication

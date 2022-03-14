@@ -3192,47 +3192,6 @@ def socketio_domains_virtualbuilder_add(form_data):
     )
 
 
-@socketio.on("scheduler_add", namespace="/isard-admin/sio_admins")
-def socketio_scheduler_add(form_data):
-
-    # ~ {'action': 'delete_old_stats',
-    # ~ 'hour': '00',
-    # ~ 'kind': 'cron',
-    # ~ 'minute': '00',
-    # ~ 'older': ''}
-    # ~ {'action': 'delete_old_stats',
-    # ~ 'hour': '00',
-    # ~ 'kind': 'cron',
-    # ~ 'minute': '00',
-    # ~ 'older': ''}
-    res = app.scheduler.add_scheduler(
-        form_data["kind"], form_data["action"], form_data["hour"], form_data["minute"]
-    )
-    if res is True:
-        data = json.dumps(
-            {
-                "result": True,
-                "title": "New scheduler",
-                "text": "Scheduler is being created...",
-                "icon": "success",
-                "type": "success",
-            }
-        )
-    else:
-        data = json.dumps(
-            {
-                "result": False,
-                "title": "New scheduler",
-                "text": "Scheduler can't be created.",
-                "icon": "warning",
-                "type": "error",
-            }
-        )
-    socketio.emit(
-        "add_form_result", data, namespace="/isard-admin/sio_admins", room="config"
-    )
-
-
 @socketio.on("disconnect", namespace="/isard-admin/sio_admins")
 def socketio_admins_disconnect():
     leave_room("admins")

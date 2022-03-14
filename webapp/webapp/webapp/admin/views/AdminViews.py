@@ -55,9 +55,6 @@ def admin():
 @isAdminManager
 def admin_table_get(table):
     result = app.adminapi.get_admin_table(table)
-    if table == "scheduler_jobs":
-        for i, val in enumerate(result):
-            result[i].pop("job_state", None)
     if current_user.role == "manager":
         if table == "categories":
             result = [
