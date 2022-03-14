@@ -86,7 +86,6 @@ class IsardValidator(Validator):
             self._error(field, "Range limits should be >= 1 and <= 4094")
 
 
-
 def load_validators(purge_unknown=True):
     snippets_path = os.path.join(app.root_path, "schemas/snippets")
     for snippets_filename in os.listdir(snippets_path):
