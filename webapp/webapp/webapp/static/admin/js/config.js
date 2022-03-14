@@ -128,6 +128,7 @@ $(document).ready(function() {
 			"columns": [
 				{ "data": "when"},
 				{ "data": "status"},
+                { "data": "version", "defaultContent": "Unknown"},
 				{
                 "className":      'actions-control',
                 "orderable":      false,

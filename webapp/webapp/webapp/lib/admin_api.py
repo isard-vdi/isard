@@ -1742,15 +1742,20 @@ class isardAdmin:
         id = "isard_backup_" + datetime.now().strftime("%Y%m%d-%H%M%S")
         path = "./backups/"
         os.makedirs(path, exist_ok=True)
-        dict = {
-            "id": id,
-            "filename": id + ".tar.gz",
-            "path": path,
-            "description": "",
-            "when": time.time(),
-            "data": {},
-            "status": "Initializing",
-        }
+        with app.app_context():
+            dict = {
+                "id": id,
+                "filename": id + ".tar.gz",
+                "path": path,
+                "description": "",
+                "when": time.time(),
+                "data": {},
+                "status": "Initializing",
+                "version": r.table("config")
+                .get(1)
+                .pluck("version")
+                .run(db.conn)["version"],
+            }
         with app.app_context():
             r.table("backups").insert(dict).run(db.conn)
         skip_tables = [
