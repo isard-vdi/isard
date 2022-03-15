@@ -359,7 +359,14 @@
         "desktop_new_template_forbidden": "Erreur de permission durant la création du bureau",
         "quota_general_exception": "Une erreur concernant le quota des utilisateurs est survenue",
         "desktops_get_error": "Échec lors de la récupération des bureaux",
-        "user_disabled": "L'utilisateur est désactivé"
+        "user_disabled": "L'utilisateur est désactivé",
+        "template_new_user_quota_exceeded": "Le quota d'utilisateurs pour la création de modèles est dépassé",
+        "template_new_group_quota_exceeded": "Limite de groupe de création de modèle dépassée",
+        "forbidden": "Une erreur s'est produite concernant les autorisations de ressources",
+        "desktop_action_failed": "Erreur lors de l'exécution de l'action sur le bureau",
+        "template_new_category_quota_exceeded": "La limite de catégorie de création de modèle est dépassée",
+        "desktop_start_timeout": "Un délai d'attente s'est produit au démarrage du bureau",
+        "desktop_stop_timeout": "Un dépassement de délai s'est produit lors de l'arrêt du bureau"
     },
     "validations": {
         "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
