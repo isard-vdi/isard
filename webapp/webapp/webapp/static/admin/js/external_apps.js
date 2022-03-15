@@ -18,13 +18,6 @@ $(document).ready(function() {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
         "columns": [
-            {
-                "className": 'details-control',
-                "orderable": false,
-                "data": null,
-                "width": "10px",
-                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-            },
             { "data": "id"},
             { "data": "secret"},
             { "data": "description"},
@@ -34,23 +27,7 @@ $(document).ready(function() {
         ]
     } );
 
-    $('#roles').find('tbody').on('click', 'td.details-control', function () {
-        var tr = $(this).closest('tr');
-        var row = table.row( tr );
- 
-        if ( row.child.isShown() ) {
-            // This row is already open - close it
-            row.child.hide();
-            tr.removeClass('shown');
-        }
-        else {
-            // Open this row
-            row.child( formatRoles(row.data()) ).show();
-            //~ editRole();
-            tr.addClass('shown');
-        }
-    });
-
+    
 	$('.btn-new-role').on('click', function () {
         setQuotaMax('#roles-quota');
 			$('#modalAddRole').modal({
