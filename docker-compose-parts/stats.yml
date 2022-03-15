@@ -11,7 +11,7 @@ services:
   #     - .env
   #   networks:
   #     isard-network: {}
-  #   restart: unless-stopped
+  #   restart: "no"
   #   depends_on:
   #     - isard-hypervisor
 
@@ -23,7 +23,7 @@ services:
       options:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    restart: unless-stopped
+    restart: "no"
     networks:
       isard-network: {}
     env_file:
@@ -39,7 +39,7 @@ services:
       options:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    restart: unless-stopped
+    restart: "no"
     network_mode: host
     privileged: true
     pid: host
@@ -60,7 +60,7 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.15
-    restart: unless-stopped
+    restart: "no"
     env_file:
       - .env
     environment:
@@ -85,7 +85,7 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.12
-    restart: unless-stopped
+    restart: "no"
 
   isard-loki:
     container_name: isard-loki
@@ -102,7 +102,7 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.67
-    restart: unless-stopped
+    restart: "no"
     env_file:
       - .env
 
@@ -116,7 +116,7 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.69
-    restart: unless-stopped
+    restart: "no"
     command: -config.file=/etc/promtail/config.yml -config.expand-env=true
     env_file:
       - .env

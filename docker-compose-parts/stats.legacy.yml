@@ -1,0 +1,14 @@
+version: '3.5'
+services:
+  isard-stats-go:
+    restart: unless-stopped
+  isard-stats-glances:
+    restart: unless-stopped
+  isard-grafana:
+    restart: unless-stopped
+  isard-influxdb:
+    restart: unless-stopped
+  isard-loki:
+    restart: unless-stopped
+  isard-promtail:
+    restart: unless-stopped
