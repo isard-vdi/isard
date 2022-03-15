@@ -185,6 +185,7 @@ docker-tag:
     matrix:
       - IMAGE:
           - api
+          - scheduler
           - authentication
           - backupninja
           - cypress
