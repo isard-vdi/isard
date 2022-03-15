@@ -15,9 +15,11 @@ from webapp import app
 
 from ..auth.authentication import *
 from ..lib.log import *
+from .decorators import maintenance
 
 
 @app.route("/isard-admin/about", methods=["GET"])
+@maintenance
 def about():
     return render_template(
         "pages/about.html",

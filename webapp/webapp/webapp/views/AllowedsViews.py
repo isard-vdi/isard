@@ -14,7 +14,7 @@ from webapp import app
 
 from ..lib.flask_rethink import RethinkDB
 from ..lib.log import *
-from .decorators import ownsid, ownsidortag
+from .decorators import maintenance, ownsid, ownsidortag
 
 db = RethinkDB(app)
 db.init_app(app)
@@ -38,6 +38,7 @@ quotas = QuotaLimits()
 # Will get allowed hardware resources for current_user
 @app.route("/isard-admin/domains/hardware/allowed", methods=["GET"])
 @login_required
+@maintenance
 def domains_hardware_allowed():
     return json.dumps(quotas.user_hardware_allowed(current_user.id))
 
@@ -46,6 +47,7 @@ def domains_hardware_allowed():
 @app.route("/isard-admin/<kind>/quotamax", methods=["GET"])
 @app.route("/isard-admin/<kind>/quotamax/<id>", methods=["GET"])
 @login_required
+@maintenance
 def user_quota_max(kind, id=False):
     if kind == "user":
         if id == False:
@@ -69,6 +71,7 @@ def user_quota_max(kind, id=False):
 # Get hardware for domain
 @app.route("/isard-admin/domains/hardware", methods=["POST"])
 @login_required
+@maintenance
 # @ownsid
 
 
@@ -90,6 +93,7 @@ def domains_hadware():
 # Who has acces to a table item
 @app.route("/isard-admin/alloweds/table/<table>", methods=["POST"])
 @login_required
+@maintenance
 # @ownsid
 @ownsidortag
 def alloweds_table(table):
@@ -108,6 +112,7 @@ def alloweds_table(table):
 # Gets all list of roles, categories, groups and users from a 2+ chars term
 @app.route("/isard-admin/alloweds/term/<table>", methods=["POST"])
 @login_required
+@maintenance
 def alloweds_table_term(table):
     if request.method == "POST" and table in ["roles", "categories", "groups", "users"]:
         data = request.get_json(force=True)
@@ -153,6 +158,7 @@ def alloweds_table_term(table):
 
 @app.route("/isard-admin/domains/removable", methods=["POST"])
 @login_required
+@maintenance
 @ownsid
 def domain_removable():
     if request.method == "POST":

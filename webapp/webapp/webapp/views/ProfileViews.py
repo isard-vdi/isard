@@ -12,10 +12,12 @@ from webapp import app
 
 # ~ from ..auth.authentication import *
 from ..lib.log import *
+from .decorators import maintenance
 
 
 @app.route("/isard-admin/profile", methods=["POST", "GET"])
 @login_required
+@maintenance
 def profile():
     if request.method == "POST":
         None
@@ -25,6 +27,7 @@ def profile():
 
 @app.route("/isard-admin/profile_pwd", methods=["POST"])
 @login_required
+@maintenance
 def profile_pwd():
     if request.method == "POST":
 

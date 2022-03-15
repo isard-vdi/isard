@@ -5,6 +5,14 @@
 * License: AGPLv3
 */
 
+const maintenance_url = "/maintenance"
+
+maintenance_redirect = (status) => {
+    if (status == 503) {
+        window.location.replace(maintenance_url)
+    }
+}
+
 function apiCall() {
     var self = this;
     self.ajax = function(uri,method, data) {
@@ -19,7 +27,7 @@ function apiCall() {
                     dataType: 'json',
                     data: JSON.stringify(data),
                     error: function(jqXHR) {
-                        //console.log("ajax error " + jqXHR.status);
+                        maintenance_redirect(jqXHR.status)
                     }
                 };
                 return $.ajax(request);
@@ -36,7 +44,7 @@ function apiCall() {
                     dataType: 'json',
                     data: JSON.stringify(data),
                     error: function(jqXHR) {
-                        //console.log("ajax error " + jqXHR.status);
+                        maintenance_redirect(jqXHR.status)
                     }
                 };
                 return $.ajax(request);

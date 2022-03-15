@@ -15,6 +15,7 @@ services:
       - /opt/isard/sshkeys/:/sshkeys:rw
       - /opt/isard/certs/viewers:/viewers:ro
       - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
+      - /opt/isard/config:/usr/local/etc/isardvdi
     environment:
       DOMAIN:
       LOG_LEVEL:

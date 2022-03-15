@@ -13,17 +13,19 @@ from flask_login import current_user, login_required
 from webapp import app
 
 from ..lib.log import *
-from .decorators import ownsid, ownsidortag
+from .decorators import maintenance, ownsid, ownsidortag
 
 
 @app.route("/isard-admin/media", methods=["GET"])
 @login_required
+@maintenance
 def media():
     return render_template("pages/media.html", nav="Media")
 
 
 @app.route("/isard-admin/media/get/")
 @login_required
+@maintenance
 def media_get():
     data = app.isardapi.get_user_media(current_user.id)
     return json.dumps(data), 200, {"Content-Type": "application/json"}
@@ -31,6 +33,7 @@ def media_get():
 
 @app.route("/isard-admin/domain/media", methods=["POST"])
 @login_required
+@maintenance
 def domain_media():
     if request.method == "POST":
         data = request.get_json(force=True)
@@ -44,6 +47,7 @@ def domain_media():
 
 @app.route("/isard-admin/domain/media_list", methods=["POST"])
 @login_required
+@maintenance
 def domain_media_list():
     if request.method == "POST":
         data = request.get_json(force=True)
@@ -57,6 +61,7 @@ def domain_media_list():
 
 @app.route("/isard-admin/media/installs")
 @login_required
+@maintenance
 def media_installs_get():
     return (
         json.dumps(app.isardapi.get_media_installs()),
@@ -67,6 +72,7 @@ def media_installs_get():
 
 @app.route("/isard-admin/media/select2/post", methods=["POST"])
 @login_required
+@maintenance
 def media_select2_post():
     if request.method == "POST":
         data = request.get_json(force=True)

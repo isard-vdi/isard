@@ -111,4 +111,5 @@ from .views import (
     TemplatesView,
     UsersView,
     VpnViews,
+    maintenance,
 )
