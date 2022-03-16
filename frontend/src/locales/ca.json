@@ -92,8 +92,8 @@
         "error": {
             "title": "Error",
             "codes": {
-                "401": "El teu grup no té permisos per a accedir aquesta pàgina",
-                "403": "No tens permisos per a accedir aquesta pàgina",
+                "401": "El teu grup no té permisos per accedir a aquesta pàgina",
+                "403": "No tens permisos per accedir a aquesta pàgina",
                 "500": "Error inesperat"
             },
             "go-home": "Anar al inici"
