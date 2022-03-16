@@ -3,8 +3,6 @@ package collector
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,49 +11,20 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"gitlab.com/isard/isardvdi/stats/cfg"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 type Socket struct {
-	wg     *sync.WaitGroup
+	mux    *sync.Mutex
 	domain string
 	conn   *ssh.Client
 }
 
-func NewSocket(wg *sync.WaitGroup, cfg cfg.Cfg) (*Socket, error) {
-	kHosts, err := knownhosts.New(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
-	if err != nil {
-		return nil, fmt.Errorf("read known hosts: %w", err)
-	}
-
-	b, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa"))
-	if err != nil {
-		return nil, fmt.Errorf("read private key: %w", err)
-	}
-
-	pKey, err := ssh.ParsePrivateKey(b)
-	if err != nil {
-		return nil, fmt.Errorf("parse private key: %w", err)
-	}
-
-	sshCfg := &ssh.ClientConfig{
-		User: cfg.Collectors.Socket.User,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(pKey),
-		},
-		HostKeyCallback: kHosts,
-	}
-
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", cfg.Collectors.Socket.Host, cfg.Collectors.Socket.Port), sshCfg)
-	if err != nil {
-		return nil, fmt.Errorf("connect using SSH: %w", err)
-	}
-
+func NewSocket(mux *sync.Mutex, cfg cfg.Cfg, conn *ssh.Client) *Socket {
 	return &Socket{
-		wg:     wg,
+		mux:    mux,
 		domain: cfg.Domain,
 		conn:   conn,
-	}, nil
+	}
 }
 
 func (s *Socket) String() string {
@@ -63,10 +32,7 @@ func (s *Socket) String() string {
 }
 
 func (s *Socket) Close() error {
-	err := s.conn.Close()
-	s.wg.Done()
-
-	return err
+	return nil
 }
 
 func (s *Socket) Collect(ctx context.Context) ([]*write.Point, error) {
@@ -110,12 +76,16 @@ type viewer struct {
 }
 
 func (s *Socket) collectViewers() (map[int]*viewer, error) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+
 	sess, err := s.conn.NewSession()
 	if err != nil {
 		return nil, fmt.Errorf("create ssh session: %w", err)
 	}
 	defer sess.Close()
 
+	// TODO: 5700 for websocket ports?
 	b, err := sess.CombinedOutput(`ss -t state established -o state established -t -n -p -i "( sport > 5900 )"`)
 	if err != nil {
 		return nil, fmt.Errorf("collect viewers: %w", err)

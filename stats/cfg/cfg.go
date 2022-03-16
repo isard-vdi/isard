@@ -8,8 +8,10 @@ import (
 
 type Cfg struct {
 	Log        cfg.Log
-	InfluxDB   InfluxDB
 	Domain     string
+	InfluxDB   InfluxDB
+	LibvirtURI string `mapstructure:"libvirt_uri"`
+	SSH        SSH
 	Collectors Collectors
 }
 
@@ -20,15 +22,25 @@ type InfluxDB struct {
 	Bucket  string
 }
 
+type SSH struct {
+	Host string
+	Port int
+	User string
+}
+
 type Collectors struct {
 	Hypervisor Hypervisor
+	Domain     Domain
 	System     System
 	Socket     Socket
 }
 
 type Hypervisor struct {
-	Enable     bool
-	LibvirtURI string `mapstructure:"libvirt_uri"`
+	Enable bool
+}
+
+type Domain struct {
+	Enable bool
 }
 
 type System struct {
@@ -37,9 +49,6 @@ type System struct {
 
 type Socket struct {
 	Enable bool
-	Host   string
-	Port   int
-	User   string
 }
 
 func New() Cfg {
@@ -55,6 +64,8 @@ func setDefaults() {
 	viper.BindEnv("influxdb.address", "INFLUXDB_ADDRESS")
 	viper.BindEnv("influxdb.token", "INFLUXDB_ADMIN_TOKEN_SECRET")
 
+	viper.SetDefault("domain", "")
+
 	viper.SetDefault("influxdb", map[string]interface{}{
 		"address": "http://isard-influxdb:8086",
 		"token":   "",
@@ -62,21 +73,26 @@ func setDefaults() {
 		"bucket":  "isardvdi-go",
 	})
 
-	viper.SetDefault("domain", "")
+	viper.SetDefault("libvirt_uri", "qemu+ssh://root@isard-hypervisor:2022/system")
+
+	viper.SetDefault("ssh", map[string]interface{}{
+		"host": "isard-hypervisor",
+		"port": 2022,
+		"user": "root",
+	})
 
 	viper.SetDefault("collectors", map[string]interface{}{
 		"hypervisor": map[string]interface{}{
-			"enable":      true,
-			"libvirt_uri": "qemu+ssh://root@isard-hypervisor:2022/system",
+			"enable": true,
+		},
+		"domain": map[string]interface{}{
+			"enable": true,
 		},
 		"system": map[string]interface{}{
 			"enable": true,
 		},
 		"socket": map[string]interface{}{
 			"enable": true,
-			"host":   "isard-hypervisor",
-			"port":   2022,
-			"user":   "root",
 		},
 	})
 }
