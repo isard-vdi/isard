@@ -5,6 +5,23 @@
 * License: AGPLv3
 */
 
+var DEBUG = false;
+function processError(response,form){
+    if (response.status === 0){
+        alert('Lost connection. Check your network.')
+    }else if (response.status === 409){
+        form.find("#name").addClass('js_error');
+        form.find("#name").parsley().removeError('myError');
+        form.find("#name").parsley().addError('myError', {message: jQuery.parseJSON(response.responseText).description});
+    }else{
+        alert(jQuery.parseJSON(response.responseText).description)
+    }
+    if( DEBUG ) alert(JSON.stringify(jQuery.parseJSON(response.responseText), null, 4))
+}
+
+function removeError(form){
+    form.find("#name").parsley().removeError('myError');
+}
 /**
  * Resize function without multiple trigger
  * 
