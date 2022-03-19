@@ -103,14 +103,11 @@ $(document).ready(function() {
         }); 
 
 	$('.btn-new-category').on('click', function () {
-        //setQuotaMax('#categories-quota');
 			$('#modalAddCategory').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
             $('#modalAddCategoryForm')[0].reset();
-            //~ setModalAddUser();
-            // https://github.com/dargullin/icheck/issues/159
             $('#modalAddCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
             $('#modalAddCategoryForm #ephimeral-data').hide();
             $('#modalAddCategoryForm #auto-desktops-data').hide()
@@ -300,6 +297,15 @@ function actionsCategoryDetail(){
 
         $("#modalEditCategoryForm #ephimeral-enabled").on('ifChecked', function(event){
             $("#modalEditCategoryForm #ephimeral-data").show();
+            $("#modalEditCategoryForm #ephimeral-minutes").ionRangeSlider({
+                type: "single",
+                from: category['ephimeral-minutes'],
+                min: 5,
+                max: 120,
+                step:5,
+                grid: true,
+                disable: false
+                }).data("ionRangeSlider").update();
         });
         $("#modalEditCategoryForm #ephimeral-enabled").on('ifUnchecked', function(event){
                     $("#modalEditCategoryForm #ephimeral-data").hide();
@@ -307,6 +313,15 @@ function actionsCategoryDetail(){
 
         $("#modalEditCategoryForm #auto-desktops-enabled").on('ifChecked', function(event){
                     $("#modalEditCategoryForm #auto-desktops-data").show();
+                    $("#modalEditCategoryForm #ephimeral-minutes").ionRangeSlider({
+                        type: "single",
+                        from: category['ephimeral-minutes'],
+                        min: 5,
+                        max: 120,
+                        step:5,
+                        grid: true,
+                        disable: false
+                        }).data("ionRangeSlider").update();
         });
         $("#modalEditCategoryForm #auto-desktops-enabled").on('ifUnchecked', function(event){
                     $("#modalEditCategoryForm #auto-desktops-data").hide();
