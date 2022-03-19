@@ -32,8 +32,13 @@ class IsardValidator(Validator):
     def _normalize_default_setter_genid(self, document):
         return _parse_string(document["name"])
 
+    def _normalize_default_setter_genidlower(self, document):
+        return _parse_string(document["name"]).lower()
+
     def _normalize_default_setter_gengroupid(self, document):
-        return document["parent_category"] + "-main"
+        return _parse_string(
+            document["parent_category"] + "-" + document["uid"]
+        ).lower()
 
 
 def load_validators(purge_unknown=True):
