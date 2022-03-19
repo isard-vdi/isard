@@ -26,7 +26,7 @@ db.init_app(app)
 from ..auth.authentication import *
 from .api_exceptions import Error
 from .helpers import _check
-from .validators import _validate_table
+from .validators import _validate_item, _validate_table
 
 
 def admin_table_list(table, order_by, pluck, without):
@@ -65,6 +65,10 @@ def admin_table_insert(table, data):
                     "Internal server error ",
                     traceback.format_exc(),
                 )
+        else:
+            raise Error(
+                "conflict", "Id " + data["id"] + " already exists in table " + table
+            )
 
 
 def admin_table_update(table, data):

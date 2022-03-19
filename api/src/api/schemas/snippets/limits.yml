@@ -1,0 +1,40 @@
+desktops:
+  type: integer
+  required: true
+  min: 0
+desktops_disk_size:
+  type: integer
+  required: true
+  min: 0
+isos:
+  type: integer
+  required: true
+  min: 0
+isos_disk_size:
+  type: integer
+  required: true
+  min: 0
+vcpus:
+  type: integer
+  required: true
+  min: 0
+memory:
+  type: integer
+  required: true
+  min: 1
+running:
+  type: integer
+  required: true
+  min: 0
+templates:
+  type: integer
+  required: true
+  min: 0
+templates_disk_size:
+  type: integer
+  required: true
+  min: 0
+users:
+  type: integer
+  required: true
+  min: 0

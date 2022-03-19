@@ -17,16 +17,49 @@ import sys
 import time
 import traceback
 
+import yaml
+from cerberus import Validator, rules_set_registry, schema_registry
 from rethinkdb import RethinkDB
 
 from api import app
 
-# ~ import rethinkdb as r
-# ~ from flask import app
-
+from .helpers import _parse_string
 
 r = RethinkDB()
-# import rethinkdb as r
+
+
+class IsardValidator(Validator):
+    def _normalize_default_setter_genid(self, document):
+        return _parse_string(document["name"])
+
+    def _normalize_default_setter_gengroupid(self, document):
+        return document["parent_category"] + "-main"
+
+
+def load_validators(purge_unknown=True):
+    snippets_path = os.path.join(app.root_path, "schemas/snippets")
+    for snippets_filename in os.listdir(snippets_path):
+        with open(os.path.join(snippets_path, snippets_filename)) as file:
+            snippet_schema_yml = file.read()
+            snippet_schema = yaml.load(snippet_schema_yml, Loader=yaml.FullLoader)
+            schema_registry.add(snippets_filename.split(".")[0], snippet_schema)
+
+    validators = {}
+    schema_path = os.path.join(app.root_path, "schemas")
+    for schema_filename in os.listdir(schema_path):
+        try:
+            with open(os.path.join(schema_path, schema_filename)) as file:
+                schema_yml = file.read()
+                schema = yaml.load(schema_yml, Loader=yaml.FullLoader)
+                validators[schema_filename.split(".")[0]] = IsardValidator(
+                    schema, purge_unknown=purge_unknown
+                )
+        except IsADirectoryError:
+            None
+    return validators
+
+
+app.validators = load_validators()
 
 
 class loadConfig:
@@ -44,6 +77,7 @@ class loadConfig:
                     db=app.config["RETHINKDB_DB"],
                 )
                 print("Database server OK")
+                app.system_tables = r.table_list().run(conn)
                 ready = True
             except Exception as e:
                 # print(traceback.format_exc())
