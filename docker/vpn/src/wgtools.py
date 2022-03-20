@@ -166,9 +166,7 @@ class Wg(object):
 
         print("Initializing peers...")
         if self.table == "hypervisors":
-            wglist = list(
-                r.table(self.table).pluck("id", "vpn", "hypervisor_number").run()
-            )
+            wglist = list(r.table(self.table).pluck("id", "vpn").run())
             # wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
         elif self.table == "users":
             wglist = list(r.table(self.table).pluck("id", "vpn").run())
@@ -244,22 +242,8 @@ class Wg(object):
                     self.up_peer(new_peer)
             r.table("remotevpn").insert(create_peers, conflict="update").run()
 
-    def get_hyper_subnet(self, hypervisor_number):
-        network = os.environ["WG_GUESTS_NETS"]
-        dhcp_mask = int(os.environ["WG_GUESTS_DHCP_MASK"])
-        # reserved_hosts=int(os.environ['WG_GUESTS_RESERVED_HOSTS'])
-        # users_net=os.environ['WG_USERS_NET']
-
-        nparent = ipaddress.ip_network(network, strict=False)
-        dhcpsubnets = list(nparent.subnets(new_prefix=dhcp_mask))
-
-        return dhcpsubnets[hypervisor_number]
-
     def gen_new_peer(self, peer, extra_client_nets=None):
         if self.table == "hypervisors":
-            if "hypervisor_number" not in peer.keys():
-                peer["hypervisor_number"] = 1
-            # extra_client_nets=str(self.get_hyper_subnet(peer['hypervisor_number']))
             extra_client_nets = None
         return {
             "id": peer["id"],

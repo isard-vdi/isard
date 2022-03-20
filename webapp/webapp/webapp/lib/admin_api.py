@@ -1385,21 +1385,6 @@ class isardAdmin:
                 return False
 
     def hypervisor_add(self, dict):
-        with app.app_context():
-            if (
-                len(
-                    list(
-                        r.table("hypervisors")
-                        .filter({"hypervisor_number": dict["hypervisor_number"]})
-                        .run(db.conn)
-                    )
-                )
-                != 0
-            ):
-                return "Hypervisor number already exists!"
-        if dict["id"] != "isard-hypervisor" and dict["hypervisor_number"] == 0:
-            return "Only isard-hypervisor can be the number 0"
-
         dict["status"] = "Offline"
         with app.app_context():
             result = self.check(
@@ -1417,18 +1402,6 @@ class isardAdmin:
             )
 
     def hypervisor_edit(self, dict):
-        with app.app_context():
-            old_hyp = r.table("hypervisors").get(dict["id"]).run(db.conn)
-            numbers = list(
-                r.table("hypervisors")
-                .filter({"hypervisor_number": dict["hypervisor_number"]})
-                .run(db.conn)
-            )
-        if len(numbers) != 0:
-            for hyp in numbers:
-                if hyp["id"] != dict["id"]:
-                    return "Hypervisor number already exists!"
-
         with app.app_context():
             result = self.check(
                 r.table("hypervisors").update(dict).run(db.conn), "replaced"

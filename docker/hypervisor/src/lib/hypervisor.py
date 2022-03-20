@@ -16,16 +16,10 @@ if not len(sys.argv):
 ### Setup hypervisor + certificates
 if sys.argv[1] == "setup":
     try:
-        hyp_number = SetupHypervisor()
+        SetupHypervisor()
     except:
         print(traceback.format_exc())
         exit(1)
-
-    # try:
-    #     SetupWireguard(hyp_number)
-    # except:
-    #     print(traceback.format_exc())
-    #     exit(1)
 
 if sys.argv[1] == "delete":
     try:

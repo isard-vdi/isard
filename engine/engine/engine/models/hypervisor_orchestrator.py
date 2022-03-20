@@ -48,7 +48,6 @@ from engine.services.db.hypervisors import (
     get_hypers_ids_with_status,
     get_hyps_ready_to_start,
     get_hyps_with_status,
-    get_max_hyp_number,
     update_all_hyps_status,
     update_hyp_status,
     update_hyp_thread_status,
@@ -80,7 +79,6 @@ from rethinkdb import r
 
 def test_orchestrator(
     hyp_id,
-    hyp_number=None,
     hostname=None,
     port="2022",
     cap_disk=True,
@@ -98,7 +96,6 @@ def test_orchestrator(
 
 def add_hyper_to_db(
     hyp_id,
-    hyp_number=None,
     hostname=None,
     port="2022",
     cap_disk=True,
@@ -114,9 +111,6 @@ def add_hyper_to_db(
 
     if hostname is None:
         hostname = hyp_id
-    if hyp_number is None:
-        max_hyp_number = get_max_hyp_number()
-        hyp_number = max_hyp_number + 1
 
     hypervisor = {
         "capabilities": {"disk_operations": cap_disk, "hypervisor": cap_hyper},
@@ -124,7 +118,6 @@ def add_hyper_to_db(
         "detail": "",
         "enabled": enabled,
         "hostname": hostname,
-        "hypervisor_number": hyp_number,
         "hypervisors_pools": ["default"],
         "id": hyp_id,
         "port": port,

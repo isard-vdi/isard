@@ -77,33 +77,10 @@ class ApiHypervisors:
         with app.app_context():
             hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
         if not hypervisor:
-            # Hypervisor not in database
-            with app.app_context():
-                hyper_numbers = list(
-                    r.table("hypervisors").pluck("hypervisor_number").run(db.conn)
-                )
-                hyper_numbers = [n["hypervisor_number"] for n in hyper_numbers]
-
-            # if hostname == 'isard-hypervisor':
-            #     hypervisor_number = 0
-            # else:
-            try:
-                hypervisor_number = [
-                    i for i in range(1, 999) if i not in hyper_numbers
-                ][0]
-            except:
-                log.error("There are not hyper numbers available in range")
-                return {
-                    "status": False,
-                    "msg": "There are not hyper numbers available in range",
-                    "data": data,
-                }
-
             if not self.check(
                 self.add_hyper(
                     hyper_id,
                     hostname,
-                    hypervisor_number,
                     port=port,
                     cap_disk=cap_disk,
                     cap_hyper=cap_hyper,
@@ -133,7 +110,6 @@ class ApiHypervisors:
             result = self.add_hyper(
                 hyper_id,
                 hostname,
-                hypervisor["hypervisor_number"],
                 port=port,
                 cap_disk=cap_disk,
                 cap_hyper=cap_hyper,
@@ -174,12 +150,10 @@ class ApiHypervisors:
                 }
 
             # Hypervisor already in database. Is asking for certs...
-            hypervisor_number = hypervisor["hypervisor_number"]
             # Lets check if it's fingerprint is already here
             # self.update_fingerprint(hostname,hypervisor['port'])
 
         data["certs"] = self.get_hypervisors_certs()
-        data["number"] = hypervisor_number
 
         return {"status": True, "msg": "Hypervisor added", "data": data}
 
@@ -187,7 +161,6 @@ class ApiHypervisors:
         self,
         hyper_id,
         hostname,
-        hyp_number,
         port="2022",
         cap_disk=True,
         cap_hyper=True,
@@ -211,7 +184,6 @@ class ApiHypervisors:
             "enabled": enabled,
             "hostname": hostname,
             "isard_hyper_vpn_host": isard_hyper_vpn_host,
-            "hypervisor_number": hyp_number,
             "hypervisors_pools": ["default"],
             "id": hyper_id,
             "port": port,

@@ -59,7 +59,7 @@ while True:
             .union(
                 r.table("hypervisors")
                 .without({"vpn": {"wireguard": "connected"}})
-                .pluck("id", "vpn", "hypervisor_number")
+                .pluck("id", "vpn")
                 .merge({"table": "hypers"})
                 .changes(include_initial=False)
             )

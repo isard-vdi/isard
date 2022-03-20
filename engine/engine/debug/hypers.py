@@ -12,7 +12,6 @@ json_new_hyper = """
     "detail": "" ,
     "enabled": false ,
     "hostname": "isard-hypervisor" ,
-    "hypervisor_number": 1 ,
     "hypervisors_pools": [
         "default"
     ] ,

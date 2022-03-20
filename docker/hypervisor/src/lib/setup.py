@@ -108,10 +108,6 @@ def SetupHypervisor():
     except:
         raise
 
-    ## We got the hypervisor number also
-    ## TODO: This should become an environment variable for wireguard
-    return data["number"]
-
 
 def DeleteHypervisor():
     return apic.delete("hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"))

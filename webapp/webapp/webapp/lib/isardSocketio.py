@@ -710,7 +710,6 @@ def start_config_thread():
 def socketio_hyper_add(form_data):
     if current_user.role == "admin":
         create_dict = app.isardapi.f.unflatten_dict(form_data)
-        create_dict["hypervisor_number"] = int(create_dict["hypervisor_number"])
         if "capabilities" not in create_dict:
             create_dict["capabilities"] = {}
         if "disk_operations" not in create_dict["capabilities"]:
@@ -802,35 +801,6 @@ def socketio_hyper_add(form_data):
 def socketio_hyper_edit(form_data):
     if current_user.role == "admin":
         create_dict = app.isardapi.f.unflatten_dict(form_data)
-        if (
-            "hypervisor_number" not in create_dict.keys()
-            or create_dict["id"] == "isard-hypervisor"
-        ):
-            create_dict["hypervisor_number"] = 0
-        elif (
-            create_dict["id"] != "isard-hypervisor"
-            and int(create_dict["hypervisor_number"]) == 0
-        ):
-            info = json.dumps(
-                {
-                    "result": False,
-                    "title": "Edit hypervisor",
-                    "text": "Hypervisor "
-                    + create_dict["hostname"]
-                    + " can't be number 0, only isard-hypervisor",
-                    "icon": "warning",
-                    "type": "error",
-                }
-            )
-            socketio.emit(
-                "add_form_result",
-                info,
-                namespace="/isard-admin/sio_admins",
-                room="hyper",
-            )
-            return
-        else:
-            create_dict["hypervisor_number"] = int(create_dict["hypervisor_number"])
         if "capabilities" not in create_dict:
             create_dict["capabilities"] = {}
         if "disk_operations" not in create_dict["capabilities"]:
