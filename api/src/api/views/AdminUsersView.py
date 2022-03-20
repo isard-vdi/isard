@@ -303,22 +303,22 @@ def api_v3_admin_category_insert(payload):
     except:
         raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
 
-    data = _validate_item("category", data)
+    category = _validate_item("category", data)
 
     ## Create associated Main group
     group = {
-        "description": "Group of category " + data["name"],
-        "parent_category": data["id"],
-        "uid": "main",
+        "uid": "Main",
+        "description": "[" + category["name"] + "] main group",
+        "parent_category": category["id"],
         "name": "Main",
     }
 
     group = _validate_item("group", group)
 
-    admin_table_insert("categories", data)
+    admin_table_insert("categories", category)
     admin_table_insert("groups", group)
     return (
-        json.dumps(data),
+        json.dumps(category),
         200,
         {"Content-Type": "application/json"},
     )
