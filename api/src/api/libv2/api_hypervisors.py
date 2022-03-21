@@ -226,6 +226,7 @@ class ApiHypervisors:
                 "html5_ext_port": browser_port,  # 443
                 "proxy_hyper_host": isard_proxy_hyper_url,  # Viewed from isard-video
             },
+            "info": {},
         }
 
         with app.app_context():
