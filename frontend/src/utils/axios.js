@@ -1,6 +1,5 @@
 import axios from 'axios'
 import store from '../store'
-import * as cookies from 'tiny-cookie'
 import router from '@/router'
 
 export default function axiosSetUp () {
@@ -9,11 +8,7 @@ export default function axiosSetUp () {
   // Add a request interceptor
   axios.interceptors.request.use(
     function (config) {
-      // Do something before request is sent
-      const token = store.getters.getToken ? store.getters.getToken : cookies.getCookie('authorization')
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
+      config.headers.Authorization = `Bearer ${store.getters.getToken}`
       return config
     },
     function (error) {
