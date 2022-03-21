@@ -329,65 +329,17 @@ def api_v3_admin_category_insert(payload):
 @is_admin_or_manager
 def api_v3_admin_group_insert(payload):
     try:
-        # Required
-        category_id = request.form.get("category_id", type=str)
-        group_name = request.form.get("group_name", type=str)
-
-        # Optional
-        category_limits = request.form.get("category_limits", False)
-        if category_limits == "False":
-            category_limits = False
-        if category_limits != False:
-            category_limits = json.loads(category_limits)
-        category_quota = request.form.get("category_quota", False)
-        if category_quota == "False":
-            category_quota = False
-        if category_quota != False:
-            category_quota = json.loads(category_quota)
-        group_quota = request.form.get("group_quota", False)
-        if group_quota == "False":
-            group_quota = False
-        if group_quota != False:
-            group_quota = json.loads(group_quota)
-
+        data = request.get_json()
     except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-    if category_id == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
 
-    ownsCategoryId(payload, category_id)
-    ## We should check here if limits and quotas have a correct dict schema
+    ownsCategoryId(payload, data["parent_category"])
 
-    ##
+    data = _validate_item("group", data)
 
-    group_id = users.GroupCreate(
-        category_id,
-        group_name,
-        category_limits=category_limits,
-        category_quota=category_quota,
-        group_quota=group_quota,
-    )
-    return json.dumps({"id": group_id}), 200, {"Content-Type": "application/json"}
+    admin_table_insert("groups", data)
+
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/categories", methods=["GET"])
