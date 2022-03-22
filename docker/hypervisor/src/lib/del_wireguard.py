@@ -4,8 +4,6 @@ import os
 
 
 def SetupWireguard(hypervisor):
-    # hypervisor = HYPERVISOR_NUMBER
-    # hypervisor=int(os.environ['HYPERVISOR_NUMBER'])
     network = os.environ["WG_GUESTS_NETS"]
     dhcp_mask = int(os.environ["WG_GUESTS_DHCP_MASK"])
     reserved_hosts = int(os.environ["WG_GUESTS_RESERVED_HOSTS"])

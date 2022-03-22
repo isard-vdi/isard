@@ -79,7 +79,6 @@ $(document).ready(function() {
                 },
             { "data": "enabled", "width": "10px" },
             { "data": "status", "width": "10px" },
-            { "data": "hypervisor_number" , "width": "5px" },
             { "data": "id" , "width": "10px" },
             { "data": "hostname" , "width": "100px" },
             { "data": "vpn.wireguard.connected" , "width": "10px", "defaultContent": 'NaN' },
@@ -110,7 +109,7 @@ $(document).ready(function() {
                               return renderStatus(full);
                             }},
                             {
-                            "targets": 6,
+                            "targets": 5,
                             "render": function ( data, type, full, meta ) {
                                 if (data) {
                                     return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
@@ -119,19 +118,28 @@ $(document).ready(function() {
                                 }
                             }},
                             {
-                            "targets": 8,
+                            "targets": 7,
                             "render": function ( data, type, full, meta ) {
                                 return full.viewer.proxy_video + ' ('+full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')';
                             }},
                             {
-                            "targets": 13,
+                            "targets": 12,
                             "render": function ( data, type, full, meta ) {
                                 return Math.round(data / 1024 * 10) / 10 + 'GB';
                             }},
                             {
-                            "targets": 14,
+                            "targets": 13,
                             "render": function ( data, type, full, meta ) {
                                 return full.info.cpu_cores*full.info.threads_x_core;
+                            }},
+                            {
+                            "targets": 14,
+                            "render": function ( data, type, full, meta ) {
+                                if (data) {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
+                                } else {
+                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
+                                }
                             }},
                             {
                             "targets": 15,
@@ -144,15 +152,6 @@ $(document).ready(function() {
                             }},
                             {
                             "targets": 16,
-                            "render": function ( data, type, full, meta ) {
-                                if (data) {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
-                                } else {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
-                                }
-                            }},
-                            {
-                            "targets": 17,
                             "render": function ( data, type, full, meta ) {
                               return moment.unix(full.status_time).fromNow();
                             }}
@@ -482,13 +481,6 @@ function actionsHyperDetail(){
                 $('#modalEditHyper #modalEdit #id').val(pk);
                 $('#modalEditHyper #modalEdit #fake_id').val(pk);
                 $('#modalEditHyper #modalEdit #description').val(hyp.description);
-                if(hyp.id == 'isard-hypervisor'){
-                    $('#modalEditHyper #modalEdit #hypervisor_number').val(0);
-                    $('#modalEditHyper #modalEdit #hypervisor_number').prop( "disabled", true );
-                }else{
-                    $('#modalEditHyper #modalEdit #hypervisor_number').val(hyp.hypervisor_number);
-                    $('#modalEditHyper #modalEdit #hypervisor_number').prop( "disabled", false );
-                }
                 $('#modalEditHyper #modalEdit #hostname').val(hyp.hostname);
                 $('#modalEditHyper #modalEdit #user').val(hyp.user);
                 $('#modalEditHyper #modalEdit #port').val(hyp.port);

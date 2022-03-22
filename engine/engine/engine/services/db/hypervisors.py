@@ -402,19 +402,6 @@ def get_hypers_enabled_with_capabilities_status():
     return hypers
 
 
-def get_max_hyp_number():
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-
-    hypers = list(rtable.pluck("hypervisor_number").run(r_conn))
-
-    close_rethink_connection(r_conn)
-    if len(hypers) == 0:
-        return -1
-    else:
-        return max([d["hypervisor_number"] for d in hypers])
-
-
 def get_hyp_hostname_user_port_from_id(id):
     r_conn = new_rethink_connection()
     l = r.table("hypervisors").get(id).pluck("hostname", "user", "port").run(r_conn)
