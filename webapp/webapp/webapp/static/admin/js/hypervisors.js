@@ -543,7 +543,7 @@ function actionsHyperDetail(){
                 $('#modalEditHyper #modalEdit #viewer-proxy_video').val(hyp.viewer.proxy_video);
                 $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val(hyp.viewer.spice_ext_port);
                 $('#modalEditHyper #modalEdit #viewer-html5_ext_port').val(hyp.viewer.html5_ext_port);
-                $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp.isard_hyper_vpn_host);
+                $('#modalEditHyper #modalEdit #viewer-hyper_vpn_host').val(hyp.isard_hyper_vpn_host);
                 $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp.viewer.proxy_hyper_host);
                 
             });
