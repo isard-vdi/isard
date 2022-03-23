@@ -25,7 +25,7 @@ db.init_app(app)
 
 from ..auth.authentication import *
 from .api_exceptions import Error
-from .helpers import _check
+from .helpers import _check, _parse_string
 from .validators import _validate_item, _validate_table
 
 
@@ -56,6 +56,7 @@ def admin_table_list(table, order_by, pluck, without):
 
 
 def admin_table_insert(table, data):
+    data["id"] = _parse_string(data["name"])
     _validate_table(table)
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn) == None:
