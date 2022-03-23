@@ -83,8 +83,8 @@ if __name__ == "__main__":
 
     app.register_blueprint(api_blueprint, url_prefix="")  # url_prefix /api?
 
-    # run(app)
-    if os.environ.get("LOG_LEVEL") == "DEBUG":
-        app.run(debug=True, host="0.0.0.0")
-    else:
-        app.run(host="0.0.0.0")
+    ## DEBUG mode hungs flask endpoint
+    # if os.environ.get("LOG_LEVEL") == "DEBUG":
+    #     app.run(debug=True, host="0.0.0.0")
+    # else:
+    app.run(host="0.0.0.0")
