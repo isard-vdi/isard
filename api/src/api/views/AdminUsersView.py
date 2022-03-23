@@ -174,38 +174,6 @@ def api_v3_admin_user_insert(payload):
         {"Content-Type": "application/json"},
     )
 
-    # if (
-    #     provider == None
-    #     or user_username == None
-    #     or role_id == None
-    #     or category_id == None
-    #     or group_id == None
-    # ):
-    #     log.error("Incorrect access parameters. Check your query.")
-
-    #     raise Error("bad_request", "Incorrect access parameters. Check your query.")
-    # if password == None:
-    #     password = False
-
-    # ownsCategoryId(payload, category_id)
-    # quotas.UserCreate(category_id, group_id)
-
-    # user_id = users.Create(
-    #     provider,
-    #     category_id,
-    #     user_uid,
-    #     user_username,
-    #     name,
-    #     role_id,
-    #     group_id,
-    #     password,
-    #     encrypted_password,
-    #     photo,
-    #     email,
-    #     quota,
-    # )
-    # return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
-
 
 @app.route("/api/v3/admin/user/<user_id>", methods=["DELETE"])
 @has_token
