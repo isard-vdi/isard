@@ -66,6 +66,7 @@ $(document).ready(function() {
             delete data['password-add-user'];
             delete data['password2-add-user'];
             delete data['unlimited'];
+            delete data['id'];
             data['provider']='local';
             data['username']=$('#modalAddUserForm #id').val();
             data['uid'] = data['username'];

@@ -42,6 +42,7 @@ class IsardValidator(Validator):
 
     def _normalize_default_setter_genmediaid(self, document):
         return _parse_string("_" + document["user"] + "-" + document["name"])
+
     def _normalize_default_setter_genuserid(self, document):
         return _parse_string(
             document["provider"]
@@ -58,7 +59,6 @@ class IsardValidator(Validator):
             return _parse_string("fa-circle-o")
         else:
             return _parse_string("fa-floppy-o")
-
 
 
 def load_validators(purge_unknown=True):

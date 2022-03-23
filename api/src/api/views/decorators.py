@@ -136,7 +136,7 @@ def ownsUserId(payload, user_id):
         return True
     if (
         payload["role_id"] == "manager"
-        and user_id.split["-"][1] == payload["category_id"]
+        and user_id.split("-")[1] == payload["category_id"]
     ):
         return True
     if payload["user_id"] == user_id:
