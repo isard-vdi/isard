@@ -171,7 +171,6 @@ $(document).ready(function() {
                 }
                 delete data['ephimeral-enabled'];
                 delete data['auto-desktops-enabled'];
-                data['description'] = "[" + data['parent_category'] + "] " + data['description'];
                 data=JSON.unflatten(data);
                 $.ajax({ 
                     type: "POST",

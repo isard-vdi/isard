@@ -333,6 +333,11 @@ def api_v3_admin_group_insert(payload):
     except Exception as e:
         raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
 
+    if payload["role_id"] == "manager":
+        data["parent_category"] = payload["category_id"]
+
+    data["description"] = "[" + data["parent_category"] + "] " + data["description"]
+
     ownsCategoryId(payload, data["parent_category"])
 
     data = _validate_item("group", data)
