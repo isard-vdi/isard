@@ -14,6 +14,7 @@ parent_category:
 uid:
   required: true
   type: string
+  default_setter: genidlower
 enrollment:
   type: dict
   default:
@@ -46,3 +47,10 @@ quota:
     - boolean
   default: false
   schema: quotas
+ephimeral:
+  type: dict
+  schema:
+    action:
+      type: string
+    minutes:
+      type: integer  

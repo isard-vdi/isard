@@ -583,48 +583,6 @@ class ApiUsers:
 
     ### USER Schema
 
-    def GroupCreate(
-        self,
-        category_id,
-        group_name,
-        category_limits=False,
-        category_quota=False,
-        group_quota=False,
-    ):
-        group_id = _parse_string(group_name)
-        with app.app_context():
-            category = r.table("categories").get(category_id).run(db.conn)
-            if not category:
-                raise Error(
-                    "not_found",
-                    "Category not found category_id:" + category_id,
-                    traceback.format_stack(),
-                )
-
-            group = r.table("groups").get(category_id + "-" + group_id).run(db.conn)
-            if not group:
-                group = {
-                    "description": "[" + category["name"] + "]",
-                    "id": category_id + "-" + group_id,
-                    "limits": False,
-                    "parent_category": category_id,
-                    "uid": group_id,
-                    "name": group_name,
-                    "enrollment": {"manager": False, "advanced": False, "user": False},
-                    "quota": group_quota,
-                }
-                r.table("groups").insert(group, conflict="update").run(db.conn)
-            else:
-                raise Error(
-                    "conflict",
-                    "Group "
-                    + group_name
-                    + " already exists in category "
-                    + category["name"],
-                    traceback.format_stack(),
-                )
-        return category_id + "-" + group_id
-
     def CategoriesGet(self):
         with app.app_context():
             return list(

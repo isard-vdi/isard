@@ -86,6 +86,7 @@ $(document).ready(function() {
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
+            removeError($('#modalAddGroup'))
             $('#modalAddGroupForm')[0].reset();
             //~ setModalAddUser();
 
@@ -160,14 +161,32 @@ $(document).ready(function() {
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalAddGroupForm').serializeObject();
+                data = form.serializeObject();
                 if(!data['ephimeral-enabled']){
                     delete data['ephimeral-minutes'];
                     delete data['ephimeral-action'];
+                }else{
+                    delete data['ephimeral-enabled'];
+                    data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
                 delete data['ephimeral-enabled'];
-                delete data['auto-desktops-enabled'];                
-                data['table']='groups';
-                socket.emit('role_category_group_add',data)  
+                delete data['auto-desktops-enabled'];
+                data=JSON.unflatten(data);
+                $.ajax({ 
+                    type: "POST",
+                    url:"/api/v3/admin/group",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    },
+                    error: function (jqXHR, exception) {
+                        processError(jqXHR,form)
+                    }
+
+                });  
             }
         });     
     
