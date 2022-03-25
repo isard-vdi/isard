@@ -23,8 +23,8 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 2,
-  "iteration": 1646132596803,
+  "id": 1,
+  "iteration": 1648200396401,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1871,242 +1871,13 @@
     },
     {
       "datasource": null,
-      "gridPos": {
-        "h": 3,
-        "w": 24,
-        "x": 0,
-        "y": 27
-      },
-      "id": 22,
-      "links": [],
-      "options": {
-        "content": "",
-        "mode": "markdown"
-      },
-      "pluginVersion": "8.2.5",
-      "title": "Sensors",
-      "type": "text"
-    },
-    {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "rgb(255, 0, 0)",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateReds",
-        "exponent": 1,
-        "min": null,
-        "mode": "opacity"
-      },
-      "dataFormat": "timeseries",
-      "datasource": "Glances",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 30
-      },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 21,
-      "legend": {
-        "show": false
-      },
-      "links": [],
-      "reverseYBuckets": false,
-      "targets": [
-        {
-          "alias": "AmbientTemperature",
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "sensors",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "label",
-              "operator": "=",
-              "value": "Ambient"
-            },
-            {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
-        }
-      ],
-      "title": "Ambiant temperature",
-      "tooltip": {
-        "show": true,
-        "showHistogram": false
-      },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "celsius",
-        "logBase": 1,
-        "max": null,
-        "min": "0",
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
-    },
-    {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "rgb(255, 0, 0)",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateOranges",
-        "exponent": 1,
-        "mode": "opacity"
-      },
-      "dataFormat": "timeseries",
-      "datasource": "Glances",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 30
-      },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 23,
-      "legend": {
-        "show": false
-      },
-      "links": [],
-      "reverseYBuckets": false,
-      "targets": [
-        {
-          "alias": "CpuTemperature",
-          "dsType": "influxdb",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "sensors",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "label",
-              "operator": "=",
-              "value": "CPU"
-            },
-            {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
-        }
-      ],
-      "title": "CPU temperature",
-      "tooltip": {
-        "show": true,
-        "showHistogram": false
-      },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "celsius",
-        "logBase": 1,
-        "max": null,
-        "min": "0",
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
-    },
-    {
-      "datasource": null,
       "editable": true,
       "error": false,
       "gridPos": {
         "h": 3,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 27
       },
       "id": 13,
       "links": [],
@@ -2152,7 +1923,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 39
+        "y": 30
       },
       "hiddenSeries": false,
       "id": 25,
@@ -2357,9 +2128,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": true,
-          "text": "pepino",
-          "value": "pepino"
+          "selected": false,
+          "text": "isard-labs-jhony",
+          "value": "isard-labs-jhony"
         },
         "datasource": "Glances",
         "definition": "show tag values with key=\"hostname\"",
@@ -2412,8 +2183,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "br-1d2339fa1354",
-          "value": "br-1d2339fa1354"
+          "text": "br-08ec0bb495b0",
+          "value": "br-08ec0bb495b0"
         },
         "datasource": "Glances",
         "definition": "show tag values with key=\"interface_name\"",
@@ -2439,8 +2210,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "loop0",
-          "value": "loop0"
+          "text": "dm-0",
+          "value": "dm-0"
         },
         "datasource": "Glances",
         "definition": "show tag values with key=\"disk_name\"",

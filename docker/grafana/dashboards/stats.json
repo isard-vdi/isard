@@ -23,8 +23,8 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1646987983220,
+  "id": 2,
+  "iteration": 1648202645202,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -110,7 +110,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domains\"\n  )\n  |> keep(columns: [\"_time\", \"id_domain\"])\n  |> group()\n  |> unique(column: \"id_domain\")\n  |> count(column: \"id_domain\")\n  |> yield()",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
           "refId": "A"
         }
       ],
@@ -120,8 +120,8 @@
     {
       "datasource": "Loki",
       "gridPos": {
-        "h": 8,
-        "w": 14,
+        "h": 6,
+        "w": 16,
         "x": 4,
         "y": 0
       },
@@ -147,15 +147,197 @@
     },
     {
       "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 4,
+        "h": 3,
+        "w": 2,
+        "x": 20,
+        "y": 0
+      },
+      "id": 166,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" \n    )\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer HTML5",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "displayName": "HTML5",
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 22,
+        "y": 0
+      },
+      "id": 167,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice_tls\" \n    )\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer SPICE",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 2,
+        "y": 3
+      },
+      "id": 160,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "refId": "A"
+        }
+      ],
+      "title": "Visors started",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "gridPos": {
+        "h": 2,
         "w": 2,
         "x": 0,
         "y": 4
       },
       "id": 159,
       "options": {
-        "content": "## Loki\n\n  [Loki Query Explorer](/monitor/explore?orgId=1&left=%5B%22now-1h%22,%22now%22,%22Loki%22,%7B%22refId%22:%22A%22%7D%5D)\n           ",
+        "content": "[Loki Query Explorer](/monitor/explore?orgId=1&left=%5B%22now-1h%22,%22now%22,%22Loki%22,%7B%22refId%22:%22A%22%7D%5D)\n           ",
         "mode": "markdown"
       },
       "pluginVersion": "8.2.5",
@@ -169,7 +351,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 6
       },
       "id": 6,
       "panels": [],
@@ -206,7 +388,7 @@
         "h": 3,
         "w": 2,
         "x": 0,
-        "y": 9
+        "y": 7
       },
       "id": 151,
       "options": {
@@ -227,7 +409,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domains\" and\n    r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> keep(columns: [\"_time\", \"id_domain\"])\n  |> group()\n  |> unique(column: \"id_domain\")\n  |> count(column: \"id_domain\")\n  |> yield()",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
           "refId": "A"
         }
       ],
@@ -270,7 +452,7 @@
         "h": 6,
         "w": 2,
         "x": 2,
-        "y": 9
+        "y": 7
       },
       "id": 153,
       "options": {
@@ -362,7 +544,7 @@
         "h": 2,
         "w": 2,
         "x": 4,
-        "y": 9
+        "y": 7
       },
       "id": 76,
       "interval": null,
@@ -387,7 +569,7 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domains\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpus_current\"\n  )\n  |> group(columns: [\"id_domain\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()\n",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -437,7 +619,7 @@
         "h": 6,
         "w": 2,
         "x": 6,
-        "y": 9
+        "y": 7
       },
       "id": 22,
       "interval": null,
@@ -490,9 +672,9 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 6,
-        "w": 10,
+        "w": 16,
         "x": 8,
-        "y": 9
+        "y": 7
       },
       "hiddenSeries": false,
       "id": 2,
@@ -551,7 +733,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:246",
-          "format": "short",
+          "format": "percent",
           "label": null,
           "logBase": 1,
           "max": "100",
@@ -565,7 +747,7 @@
           "logBase": 1,
           "max": null,
           "min": null,
-          "show": true
+          "show": false
         }
       ],
       "yaxis": {
@@ -580,6 +762,7 @@
           "color": {
             "mode": "thresholds"
           },
+          "decimals": 1,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -609,7 +792,7 @@
         "h": 4,
         "w": 2,
         "x": 4,
-        "y": 11
+        "y": 9
       },
       "id": 53,
       "links": [],
@@ -631,7 +814,8 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "hide": true,
+          "hide": false,
+          "query": "threads = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n     r[\"hypervisor\"] == \"${hypers}\" \n  )\n  |> findRecord(\n    fn: (key) => key[\"_measurement\"] == \"system\" and key[\"_field\"] == \"cpu_threads\",\n    idx: 0,\n  )\n\nfrom(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n     r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()\n  |> map(fn: (r) => ({_time: r[\"_time\"], _value: r[\"_value\"] / float(v: threads[\"_value\"])})\n  )\n",
           "refCount": 1,
           "refId": "A",
           "target": "alias(isard.sysstats.$hypers.system.cpu.totalth, 'cpu threads')"
@@ -643,24 +827,14 @@
       "type": "stat"
     },
     {
-      "cacheTimeout": null,
       "datasource": null,
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
+          "mappings": [],
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -673,8 +847,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "none"
+          }
         },
         "overrides": []
       },
@@ -682,36 +855,32 @@
         "h": 3,
         "w": 2,
         "x": 0,
-        "y": 12
+        "y": 10
       },
-      "id": 117,
-      "interval": null,
-      "links": [],
-      "maxDataPoints": 100,
+      "id": 161,
       "options": {
         "colorMode": "background",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
-          "fields": "/^1$/",
+          "fields": "",
           "values": false
         },
         "text": {},
-        "textMode": "name"
+        "textMode": "auto"
       },
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "",
-          "refId": "A",
-          "target": "aliasByMetric(isard.sysstats.$hypers.system.cpu.sockets.*)"
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "refId": "A"
         }
       ],
-      "title": "Sockets",
+      "title": "Visors started",
       "type": "stat"
     },
     {
@@ -721,7 +890,7 @@
         "h": 2,
         "w": 4,
         "x": 0,
-        "y": 15
+        "y": 13
       },
       "id": 155,
       "options": {
@@ -734,7 +903,7 @@
     },
     {
       "cacheTimeout": null,
-      "datasource": "Graphite",
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -773,7 +942,7 @@
         "h": 2,
         "w": 2,
         "x": 4,
-        "y": 15
+        "y": 13
       },
       "id": 82,
       "interval": null,
@@ -847,7 +1016,7 @@
         "h": 6,
         "w": 2,
         "x": 6,
-        "y": 15
+        "y": 13
       },
       "id": 20,
       "interval": null,
@@ -874,7 +1043,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisors\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] =~ /memory_(total|free|cached)/\n  )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"memory_free\"] + r[\"memory_cached\"]) / float(v: r[\"memory_total\"]) * 100.0)\n  }))\n  |> last()\n",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] =~ /mem_(total|free|cached)/)\n  |> filter(fn: (r) =>  r[\"hypervisor\"] == \"${hypers}\" )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"mem_free\"] + r[\"mem_cached\"]) / float(v: r[\"mem_total\"]) * 100.0)\n  }))\n  |> last()\n  |> yield()",
           "refCount": 0,
           "refId": "B",
           "target": "isard.sysstats.$hypers.system.mem.perc",
@@ -900,9 +1069,9 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 6,
-        "w": 10,
+        "w": 16,
         "x": 8,
-        "y": 15
+        "y": 13
       },
       "hiddenSeries": false,
       "id": 35,
@@ -935,7 +1104,7 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisors\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] =~ /memory_(total|free|cached)/\n  )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"memory_free\"] + r[\"memory_cached\"]) / float(v: r[\"memory_total\"]) * 100.0)\n  }))\n",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisor\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] =~ /mem_(total|free|cached)/\n  )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"mem_free\"] + r[\"mem_cached\"]) / float(v: r[\"mem_total\"]) * 100.0)\n  }))\n",
           "refId": "A"
         }
       ],
@@ -960,7 +1129,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:701",
-          "format": "short",
+          "format": "percent",
           "label": null,
           "logBase": 1,
           "max": "100",
@@ -974,7 +1143,7 @@
           "logBase": 1,
           "max": null,
           "min": null,
-          "show": true
+          "show": false
         }
       ],
       "yaxis": {
@@ -1022,7 +1191,7 @@
         "h": 2,
         "w": 2,
         "x": 0,
-        "y": 17
+        "y": 15
       },
       "id": 51,
       "interval": null,
@@ -1094,7 +1263,7 @@
         "h": 2,
         "w": 2,
         "x": 2,
-        "y": 17
+        "y": 15
       },
       "id": 83,
       "interval": null,
@@ -1127,7 +1296,7 @@
       "type": "stat"
     },
     {
-      "datasource": "Graphite",
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1151,7 +1320,7 @@
         "h": 4,
         "w": 2,
         "x": 4,
-        "y": 17
+        "y": 15
       },
       "id": 118,
       "links": [],
@@ -1232,7 +1401,7 @@
         "h": 2,
         "w": 2,
         "x": 0,
-        "y": 19
+        "y": 17
       },
       "id": 81,
       "interval": null,
@@ -1301,7 +1470,7 @@
         "h": 2,
         "w": 2,
         "x": 2,
-        "y": 19
+        "y": 17
       },
       "id": 21,
       "interval": null,
@@ -1326,15 +1495,243 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisors\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"memory_total\")\n  |> last()\n  |> map(fn: (r) => ({\n    _value: r[\"_value\"] * 1024\n  }))\n",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"mem_total\")\n  |> keep(columns: [\"_value\"])\n  |> last()\n  |> map(fn: (r) => ({ _value: r[\"_value\"] * 1024.0 }))\n  |> yield()",
           "refId": "A"
         }
       ],
       "title": "RAM",
       "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 0,
+        "y": 19
+      },
+      "id": 164,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" \n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer HTML5",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "displayName": "HTML5",
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 2,
+        "y": 19
+      },
+      "id": 165,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice_tls\" \n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer SPICE",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 6,
+        "w": 20,
+        "x": 4,
+        "y": 19
+      },
+      "hiddenSeries": false,
+      "id": 169,
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": true,
+        "hideEmpty": false,
+        "hideZero": false,
+        "max": false,
+        "min": false,
+        "rightSide": false,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "8.2.5",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "hide": false,
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()",
+          "refId": "A"
+        },
+        {
+          "hide": false,
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field \n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Visors:r._value, _time:r._time }))\n  |> yield()",
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Desktops/Visors Started",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:58",
+          "format": "short",
+          "label": "",
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        },
+        {
+          "$$hashKey": "object:59",
+          "format": "short",
+          "label": "",
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
     }
   ],
-  "refresh": "5s",
+  "refresh": "10s",
   "schemaVersion": 32,
   "style": "dark",
   "tags": [],
