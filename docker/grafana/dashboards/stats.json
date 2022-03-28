@@ -24,7 +24,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 2,
-  "iteration": 1648202645202,
+  "iteration": 1648622187429,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -73,7 +73,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-purple",
                 "value": null
               },
               {
@@ -158,7 +158,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-orange",
                 "value": null
               },
               {
@@ -221,7 +221,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-yellow",
                 "value": null
               },
               {
@@ -283,7 +283,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-blue",
                 "value": null
               },
               {
@@ -342,7 +342,36 @@
       },
       "pluginVersion": "8.2.5",
       "title": "Logs",
+      "transparent": true,
       "type": "text"
+    },
+    {
+      "datasource": "Loki",
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 4,
+        "y": 6
+      },
+      "id": 170,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "expr": "{job=\"containerlogs\"} |= \"error\" !=\"query\"",
+          "refId": "A"
+        }
+      ],
+      "title": "IsardVDI Error Logs",
+      "type": "logs"
     },
     {
       "collapsed": false,
@@ -351,7 +380,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 12
       },
       "id": 6,
       "panels": [],
@@ -372,7 +401,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-purple",
                 "value": null
               },
               {
@@ -388,7 +417,7 @@
         "h": 3,
         "w": 2,
         "x": 0,
-        "y": 7
+        "y": 13
       },
       "id": 151,
       "options": {
@@ -452,7 +481,7 @@
         "h": 6,
         "w": 2,
         "x": 2,
-        "y": 7
+        "y": 13
       },
       "id": 153,
       "options": {
@@ -544,7 +573,7 @@
         "h": 2,
         "w": 2,
         "x": 4,
-        "y": 7
+        "y": 13
       },
       "id": 76,
       "interval": null,
@@ -619,7 +648,7 @@
         "h": 6,
         "w": 2,
         "x": 6,
-        "y": 7
+        "y": 13
       },
       "id": 22,
       "interval": null,
@@ -655,56 +684,98 @@
       "type": "gauge"
     },
     {
-      "aliasColors": {
-        "isard.hypers.isard-hypervisor.stats.cpu_load": "#0a50a1"
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": null,
       "fieldConfig": {
         "defaults": {
-          "links": []
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cpu_usage"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "fill": 1,
-      "fillGradient": 0,
       "gridPos": {
         "h": 6,
         "w": 16,
         "x": 8,
-        "y": 7
+        "y": 13
       },
-      "hiddenSeries": false,
       "id": 2,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "percentage": false,
       "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
       "targets": [
         {
           "hide": false,
@@ -712,48 +783,10 @@
           "refId": "A"
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "CPU %",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:246",
-          "format": "percent",
-          "label": null,
-          "logBase": 1,
-          "max": "100",
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:247",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "datasource": null,
@@ -792,7 +825,7 @@
         "h": 4,
         "w": 2,
         "x": 4,
-        "y": 9
+        "y": 15
       },
       "id": 53,
       "links": [],
@@ -839,7 +872,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-blue",
                 "value": null
               },
               {
@@ -855,7 +888,7 @@
         "h": 3,
         "w": 2,
         "x": 0,
-        "y": 10
+        "y": 16
       },
       "id": 161,
       "options": {
@@ -890,7 +923,7 @@
         "h": 2,
         "w": 4,
         "x": 0,
-        "y": 13
+        "y": 19
       },
       "id": 155,
       "options": {
@@ -942,7 +975,7 @@
         "h": 2,
         "w": 2,
         "x": 4,
-        "y": 13
+        "y": 19
       },
       "id": 82,
       "interval": null,
@@ -1016,7 +1049,7 @@
         "h": 6,
         "w": 2,
         "x": 6,
-        "y": 13
+        "y": 19
       },
       "id": 20,
       "interval": null,
@@ -1054,53 +1087,97 @@
       "type": "gauge"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": null,
       "fieldConfig": {
         "defaults": {
-          "links": []
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "fill": 1,
-      "fillGradient": 0,
       "gridPos": {
         "h": 6,
         "w": 16,
         "x": 8,
-        "y": 13
+        "y": 19
       },
-      "hiddenSeries": false,
       "id": 35,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "percentage": false,
       "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
       "repeatDirection": "h",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
       "targets": [
         {
           "hide": false,
@@ -1108,48 +1185,10 @@
           "refId": "A"
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "RAM %",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:701",
-          "format": "percent",
-          "label": null,
-          "logBase": 1,
-          "max": "100",
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:702",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "cacheTimeout": null,
@@ -1191,7 +1230,7 @@
         "h": 2,
         "w": 2,
         "x": 0,
-        "y": 15
+        "y": 21
       },
       "id": 51,
       "interval": null,
@@ -1263,7 +1302,7 @@
         "h": 2,
         "w": 2,
         "x": 2,
-        "y": 15
+        "y": 21
       },
       "id": 83,
       "interval": null,
@@ -1320,7 +1359,7 @@
         "h": 4,
         "w": 2,
         "x": 4,
-        "y": 15
+        "y": 21
       },
       "id": 118,
       "links": [],
@@ -1401,7 +1440,7 @@
         "h": 2,
         "w": 2,
         "x": 0,
-        "y": 17
+        "y": 23
       },
       "id": 81,
       "interval": null,
@@ -1470,7 +1509,7 @@
         "h": 2,
         "w": 2,
         "x": 2,
-        "y": 17
+        "y": 23
       },
       "id": 21,
       "interval": null,
@@ -1515,7 +1554,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-orange",
                 "value": null
               },
               {
@@ -1531,7 +1570,7 @@
         "h": 3,
         "w": 2,
         "x": 0,
-        "y": 19
+        "y": 25
       },
       "id": 164,
       "options": {
@@ -1578,7 +1617,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-yellow",
                 "value": null
               },
               {
@@ -1594,7 +1633,7 @@
         "h": 3,
         "w": 2,
         "x": 2,
-        "y": 19
+        "y": 25
       },
       "id": 165,
       "options": {
@@ -1628,53 +1667,113 @@
       "type": "stat"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": null,
       "fieldConfig": {
-        "defaults": {},
-        "overrides": []
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Desktops"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Visors"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "fill": 1,
-      "fillGradient": 0,
       "gridPos": {
         "h": 6,
-        "w": 20,
-        "x": 4,
-        "y": 19
+        "w": 16,
+        "x": 8,
+        "y": 25
       },
-      "hiddenSeries": false,
       "id": 169,
-      "legend": {
-        "alignAsTable": false,
-        "avg": false,
-        "current": true,
-        "hideEmpty": false,
-        "hideZero": false,
-        "max": false,
-        "min": false,
-        "rightSide": false,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "percentage": false,
       "pluginVersion": "8.2.5",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
       "targets": [
         {
           "hide": false,
@@ -1683,52 +1782,14 @@
         },
         {
           "hide": false,
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field \n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Visors:r._value, _time:r._time }))\n  |> yield()",
+          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field \n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Visors:r._value, _time:r._time }))\n  |> yield()",
           "refId": "B"
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "Desktops/Visors Started",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:58",
-          "format": "short",
-          "label": "",
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:59",
-          "format": "short",
-          "label": "",
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     }
   ],
   "refresh": "10s",
