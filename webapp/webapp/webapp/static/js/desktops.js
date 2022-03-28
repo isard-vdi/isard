@@ -253,10 +253,6 @@ $(document).ready(function() {
 
         if (data.status =='Started' && table.row('#'+data.id).data().status != 'Started') {
             setViewerButtons(data,socket);
-            $('#modalOpenViewer').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
         } else {
             //~ if('ephimeral' in data && !countdown[data.id]){
                 clearInterval(countdown[data.id])
