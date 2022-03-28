@@ -40,6 +40,15 @@ class IsardValidator(Validator):
             document["parent_category"] + "-" + document["uid"]
         ).lower()
 
+    def _normalize_default_setter_genmediaid(self, document):
+        return _parse_string("_" + document["user"] + "-" + document["name"])
+
+    def _normalize_default_setter_mediaicon(self, document):
+        if document["kind"] == "iso":
+            return _parse_string("fa-circle-o")
+        else:
+            return _parse_string("fa-floppy-o")
+
 
 def load_validators(purge_unknown=True):
     snippets_path = os.path.join(app.root_path, "schemas/snippets")

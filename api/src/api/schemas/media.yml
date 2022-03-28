@@ -1,0 +1,104 @@
+id:
+  required: true
+  type: string
+  default_setter: genmediaid
+name:
+  required: true
+  type: string
+accessed:
+  type: float
+allowed:
+  schema:
+    categories:
+      type:
+        - boolean
+        - list
+    groups:
+      type:
+        - boolean
+        - list
+    roles:
+      type:
+        - boolean
+        - list
+    users:
+      type:
+        - boolean
+        - list
+category:
+  required: true
+  type: string
+description:
+  type: string
+detail:
+  type: string
+group:
+  required: true
+  type: string
+hypervisors_pools:
+  type: list
+icon:
+  type: string
+  default_setter: mediaicon
+kind:
+  required: true
+  type: string
+path:
+  type: string
+path_download:
+  type: string
+progress:
+  default:
+    schema:
+  schema:
+    received:
+      type: string
+      default: "0"
+    received_percent:
+      type: float
+      default: 0
+    speed_current:
+      type: string
+      default: ""
+    speed_download_average:
+      type: string
+      default: ""
+    speed_upload_average:
+      type: string
+      default: ""
+    time_left:
+      type: string
+      default: ""
+    time_spent:
+      type: string        
+      default: ""
+    time_total:
+      type: string
+      default: ""
+    total:
+      type: string
+      default: ""
+    total_percent:
+      default: 0
+      type: integer
+    xferd:
+      type: string
+      default: "0"
+    xferd_percent:
+      type: string
+      default: "0"
+status:
+  type: string
+  default: "DownloadStarting"
+url-isard:
+  default: False
+  type:
+    - string
+    - boolean
+url-web:
+  type: string
+user:
+  required: true
+  type: string
+username:
+  type: string
