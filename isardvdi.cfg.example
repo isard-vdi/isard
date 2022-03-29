@@ -130,10 +130,31 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 # Values can be 'admin', 'manager', 'advanced', 'user'
 #AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_DEFAULT=user
 
+## SAML
+#AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
+#AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=
+## If the key and cert files don't exist, they will be self signed automatically
+#AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE=/keys/isardvdi.key
+#AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE=/keys/isardvdi.cert
+
+### These are the fields that the SAML search responds. For example, in some installations, the field for the email is called 'mail'
+### Then, a regex is applied to this field, in case we needed to filter inside a SAML field. By default it collects the whole field. The 
+### regex match tries to extract the first group, but if there's no group it will extract the whole match
+#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_UID=
+#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_UID=.*
+#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_USERNAME=
+#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_USERNAME=.*
+#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_NAME=
+#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_NAME=.*
+#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_EMAIL=
+#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_EMAIL=.*
+#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_PHOTO=
+#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_PHOTO=.*
+
+
 ## Google
 ### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
 ### Authorized redirect URIs: https://domain.tld/authentication/callback
-### Change AUTHENTICATION_AUTHENTICATION_HOST to domain.tld
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED=false
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret

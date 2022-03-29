@@ -13,6 +13,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 
+	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
 )
 
@@ -30,6 +31,10 @@ func (a *AuthenticationServer) Serve(ctx context.Context) {
 	m.HandleFunc("/callback", a.callback)
 	m.HandleFunc("/check", a.check)
 	m.HandleFunc("/config", a.config)
+
+	// SAML authentication
+	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
+	m.HandleFunc("/saml/acs", a.Authentication.SAML().ServeACS)
 
 	s := http.Server{
 		Addr:    a.Addr,
@@ -72,6 +77,24 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 	prv := args[provider.ProviderArgsKey]
 	cID := args[provider.CategoryIDArgsKey]
 
+	// Handle SAML authentication
+	p := a.Authentication.Provider(prv)
+	if p.String() == provider.SAMLString {
+		_, err := a.Authentication.SAML().Session.GetSession(r)
+		if err != nil {
+			if err == samlsp.ErrNoSession {
+				// Hijack the URL to ensure the redirect has the correct path
+				r.URL.Path = "/authentication/login"
+
+				a.Authentication.SAML().HandleStartAuthFlow(w, r)
+				return
+			}
+
+			a.Authentication.SAML().OnError(w, r, err)
+			return
+		}
+	}
+
 	tkn, redirect, err := a.Authentication.Login(r.Context(), prv, cID, args)
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
@@ -110,7 +133,9 @@ func (a *AuthenticationServer) callback(w http.ResponseWriter, r *http.Request) 
 		w.Write([]byte(err.Error()))
 	}
 
-	tkn, redirect, err := a.Authentication.Callback(r.Context(), args)
+	ctx := context.WithValue(r.Context(), provider.HTTPRequest, r)
+
+	tkn, redirect, err := a.Authentication.Callback(ctx, args)
 	if err != nil {
 		if errors.Is(err, provider.ErrUserDisabled) {
 			http.Redirect(w, r, "/login?error=user_disabled", http.StatusFound)

@@ -12,7 +12,7 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.11
     volumes:
-      - "/opt/isard/backend/keys:/keys"
-      - "/opt/isard/backend/metadata:/metadata"
+      - "/opt/isard/authentication/keys:/keys"
+      - "/opt/isard/authentication/metadata:/metadata"
     env_file:
       - .env

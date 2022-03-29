@@ -11,6 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
+	"github.com/crewjam/saml/samlsp"
 	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
@@ -23,6 +24,7 @@ type Interface interface {
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
+	SAML() *samlsp.Middleware
 	// Refresh()
 	// Register()
 }
@@ -33,12 +35,26 @@ type Authentication struct {
 	DB              r.QueryExecutor
 	providers       map[string]provider.Provider
 	showAdminButton bool
+	saml            *samlsp.Middleware
 }
 
 func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication {
+	a := &Authentication{
+		Log:             log,
+		Secret:          cfg.Authentication.Secret,
+		DB:              db,
+		showAdminButton: cfg.ShowAdminButton,
+	}
+
 	providers := map[string]provider.Provider{
 		provider.UnknownString: &provider.Unknown{},
 		provider.FormString:    provider.InitForm(cfg.Authentication, db),
+	}
+
+	if cfg.Authentication.SAML.Enabled {
+		saml := provider.InitSAML(cfg.Authentication)
+		a.saml = saml.Middleware
+		providers[saml.String()] = saml
 	}
 
 	if cfg.Authentication.Google.Enabled {
@@ -46,13 +62,9 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 		providers[google.String()] = google
 	}
 
-	return &Authentication{
-		Log:             log,
-		Secret:          cfg.Authentication.Secret,
-		DB:              db,
-		providers:       providers,
-		showAdminButton: cfg.ShowAdminButton,
-	}
+	a.providers = providers
+
+	return a
 }
 
 func (a *Authentication) Providers() []string {
@@ -386,6 +398,18 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 			return "", "", provider.ErrUserDisabled
 		}
 
+		u.Accessed = float64(time.Now().Unix())
+
+		u2 := model.UserFromID(u.ID())
+		if err := u2.Load(ctx, a.DB); err != nil {
+			return "", "", fmt.Errorf("load user from DB: %w", err)
+		}
+
+		u.LoadWithoutOverride(u2)
+		if err := u.Update(ctx, a.DB); err != nil {
+			return "", "", fmt.Errorf("update user in the DB: %w", err)
+		}
+
 		ss, err = a.signToken(u)
 		if err != nil {
 			return "", "", err
@@ -416,4 +440,8 @@ func (a *Authentication) Check(ctx context.Context, ss string) error {
 	}
 
 	return nil
+}
+
+func (a *Authentication) SAML() *samlsp.Middleware {
+	return a.saml
 }
