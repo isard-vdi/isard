@@ -513,4 +513,4 @@ class ApiHypervisors:
                         .run(db.conn)["replaced"]
                     )
             except:
-                return False
+                raise Error("internal_server", "Could not stop the hypervisor" + hyp_id)

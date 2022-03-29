@@ -9,7 +9,6 @@ import os
 import sys
 import time
 import traceback
-from email.policy import default
 from uuid import uuid4
 
 from flask import request

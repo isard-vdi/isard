@@ -29,12 +29,10 @@ $(document).ready(function() {
             $('#modalAddHyper #modalAdd #port').val(2022)
             $('#modalAddHyper .capabilities_hypervisor').on('ifChecked', function(event){
                 $('#viewer_fields').show()
-                //if( $('#modalAddHyper #viewer-static').val()!='' && $('#modalAddHyper #viewer-proxy_video').val()=='' && $('#modalAddHyper #viewer-proxy_hyper_host').val()==''){
                     $('#modalAddHyper #viewer-static').val($('#modalAddHyper #modalAdd #hostname').val());
                     $('#modalAddHyper #viewer-proxy_video').val($('#modalAddHyper #modalAdd #hostname').val());
                     $('#modalAddHyper #viewer-proxy_hyper_host').val('isard-hypervisor');
                     $('#modalAddHyper #viewer-hyper_vpn_host').val('isard-hypervisor');                       
-                //}
                 
 
             });
@@ -483,30 +481,6 @@ function actionsHyperDetail(){
                 }); 
             }); 
 
-        // $('.btn-domstop-woviewer').on('click', function () {
-        //         var pk=$(this).closest("div").attr("data-pk");
-        //         new PNotify({
-        //                 title: 'Confirmation Needed',
-        //                     text: "Are you sure you want to FORCE stop all domains in hypervisor "+pk+" that doesn't have a client viewer now?",
-        //                     hide: false,
-        //                     opacity: 0.9,
-        //                     confirm: {
-        //                         confirm: true
-        //                     },
-        //                     buttons: {
-        //                         closer: false,
-        //                         sticker: false
-        //                     },
-        //                     history: {
-        //                         history: false
-        //                     },
-        //                     addclass: 'pnotify-center'
-        //                 }).get().on('pnotify.confirm', function() {
-        //                     api.ajax('/api/v3/hypervisor/stop/' + pk, 'PUT', {'without_viewer':true}).done(function(hyp) {});
-        //                 }).on('pnotify.cancel', function() {
-        //         }); 
-        //     });
-
     $('.btn-webstorage').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         var data = table.row("#"+pk ).data();
@@ -586,7 +560,8 @@ function actionsHyperDetail(){
                     var form = $('#modalEditHyper #modalEdit');
                     form.parsley().validate();
                     if (form.parsley().isValid()){
-                            data=$('#modalEditHyper #modalEdit').serializeObject();
+                        data=$('#modalEditHyper #modalEdit').serializeObject();
+                        data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
                             $.ajax({
                                 type: "PUT",
                                 url:"/admin/table/update/hypervisors",
