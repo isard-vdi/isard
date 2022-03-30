@@ -44,7 +44,7 @@ Request to merge user_name:branch_name into main
 
 To get things done the priority is to deal with suggestions and questions of your merge requests. Mark the merge request as ready to get another review.
 
-Tip: There is an issue icon on top right menu of gitlab that points to issue list assigned to you.
+Tip: There is a merge request icon on top right menu of gitlab that points to merge request list that are assigned to you.
 
 Please, work on priority merge resquests first.
 
