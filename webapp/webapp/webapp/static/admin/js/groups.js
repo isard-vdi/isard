@@ -304,6 +304,8 @@ $('.btn-enrollment').on('click', function () {
             backdrop: 'static',
             keyboard: false
         }).modal('show');
+        data={}
+        data['group_id']=pk;
         // setModalUser()
         // setQuotaTableDefaults('#edit-users-quota','users',pk) 
         api.ajax('/isard-admin/admin/group/enrollment/'+pk,'GET',{}).done(function(data) {
@@ -349,15 +351,26 @@ $('.btn-enrollment').on('click', function () {
     $('#manager-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#manager-key').val()==''){
             pk=$('#modalEnrollmentForm #id').val();
-            api.ajax('/isard-admin/admin/group/enrollment_reset/'+pk+'/manager','GET',{}).done(function(data) {
-                $('#manager-key').val(data);
-            });         
+            data['role']="manager";
+            data['action']="reset";
+            $.ajax({
+                type: "POST",
+                data: JSON.stringify(data),
+                url:"/api/v3/admin/group/enrollment",
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('#manager-key').val(data);
+                }
+                });         
             $('#manager-key').show();
             $('.btn-copy-manager').show();
         }
-      }); 	
+      }); 
     $('#manager-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
         pk=$('#modalEnrollmentForm #id').val();
+        data['role']="manager";
+        data['action']="disable";
         new PNotify({
             title: 'Confirmation Needed',
                 text: "Are you sure you want to delete manager code?",
@@ -376,9 +389,16 @@ $('.btn-enrollment').on('click', function () {
                 addclass: 'pnotify-center'
             }).get().on('pnotify.confirm', function() {
                 pk=$('#modalEnrollmentForm #id').val();
-                api.ajax('/isard-admin/admin/group/enrollment_disable/'+pk+'/manager','GET',{}).done(function(data) {
-                    $('#manager-key').val('');
-                }); 
+            $.ajax({
+                type: "POST",
+                data: JSON.stringify(data),
+                url:"/api/v3/admin/group/enrollment",
+                contentType: "application/json",
+                success: function(data)
+            {
+                $('#manager-key').val('');
+            }
+            })     
                 $('#manager-key').hide();
                 $('.btn-copy-manager').hide();
             }).on('pnotify.cancel', function() {
@@ -392,15 +412,26 @@ $('.btn-enrollment').on('click', function () {
         $('#advanced-check').unbind('ifChecked').on('ifChecked', function(event){
             if($('#advanced-key').val()==''){
                 pk=$('#modalEnrollmentForm #id').val();
-                api.ajax('/isard-admin/admin/group/enrollment_reset/'+pk+'/advanced','GET',{}).done(function(data) {
-                    $('#advanced-key').val(data);
-                });         
+                data['role']="advanced";
+                data['action']="reset";
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/group/enrollment",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('#advanced-key').val(data);
+                    }
+                    }); 
                 $('#advanced-key').show();
                 $('.btn-copy-advanced').show();
             }
-          }); 	
+          }); 
         $('#advanced-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
             pk=$('#modalEnrollmentForm #id').val();
+            data['role']="advanced";
+            data['action']="disable";
             new PNotify({
                 title: 'Confirmation Needed',
                     text: "Are you sure you want to delete advanced code?",
@@ -419,9 +450,16 @@ $('.btn-enrollment').on('click', function () {
                     addclass: 'pnotify-center'
                 }).get().on('pnotify.confirm', function() {
                     pk=$('#modalEnrollmentForm #id').val();
-                    api.ajax('/isard-admin/admin/group/enrollment_disable/'+pk+'/advanced','GET',{}).done(function(data) {
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/group/enrollment",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
                         $('#advanced-key').val('');
-                    }); 
+                    }
+                    })              
                     $('#advanced-key').hide();
                     $('.btn-copy-advanced').hide();
                 }).on('pnotify.cancel', function() {
@@ -435,15 +473,26 @@ $('.btn-enrollment').on('click', function () {
             $('#user-check').unbind('ifChecked').on('ifChecked', function(event){
                 if($('#user-key').val()==''){
                     pk=$('#modalEnrollmentForm #id').val();
-                    api.ajax('/isard-admin/admin/group/enrollment_reset/'+pk+'/user','GET',{}).done(function(data) {
-                        $('#user-key').val(data);
-                    });         
+                    data['role']="user";
+                    data['action']="reset";
+                    $.ajax({
+                        type: "POST",
+                        url:"/api/v3/admin/group/enrollment",
+                        data: JSON.stringify(data),
+                        contentType: "application/json",
+                        success: function(data)
+                        {
+                            $('#user-key').val(data);
+                        }
+                        });      
                     $('#user-key').show();
                     $('.btn-copy-user').show();
                 }
-              }); 	
+              }); 
             $('#user-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
                 pk=$('#modalEnrollmentForm #id').val();
+                data['role']="user";
+                data['action']="disable";
                 new PNotify({
                     title: 'Confirmation Needed',
                         text: "Are you sure you want to delete user code?",
@@ -462,9 +511,16 @@ $('.btn-enrollment').on('click', function () {
                         addclass: 'pnotify-center'
                     }).get().on('pnotify.confirm', function() {
                         pk=$('#modalEnrollmentForm #id').val();
-                        api.ajax('/isard-admin/admin/group/enrollment_disable/'+pk+'/user','GET',{}).done(function(data) {
-                            $('#user-key').val('');
-                        }); 
+                        $.ajax({
+                            type: "POST",
+                            url:"/api/v3/admin/group/enrollment",
+                            data: JSON.stringify(data),
+                            contentType: "application/json",
+                            success: function(data)
+                            {
+                                $('#user-key').val('');
+                            }
+                        })         
                         $('#user-key').hide();
                         $('.btn-copy-user').hide();
                     }).on('pnotify.cancel', function() {
