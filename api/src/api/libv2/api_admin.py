@@ -115,6 +115,37 @@ class ApiAdmin:
                     r.table("domains")
                     .get_all("desktop", index="kind")
                     .order_by("name")
+                    .pluck(
+                        "id",
+                        "icon",
+                        "image",
+                        "server",
+                        "hyp_started",
+                        "name",
+                        "kind",
+                        "description",
+                        "status",
+                        "username",
+                        "category",
+                        "group",
+                        "accessed",
+                        "detail",
+                        {
+                            "create_dict": {
+                                "hardware": {
+                                    "video": True,
+                                    "vcpus": True,
+                                    "memory": True,
+                                    "interfaces": True,
+                                    "graphics": True,
+                                    "videos": True,
+                                    "boot_order": True,
+                                    "forced_hyp": True,
+                                },
+                                "origin": True,
+                            }
+                        },
+                    )
                     .run(db.conn)
                 )
             return domains

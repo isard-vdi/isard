@@ -151,7 +151,9 @@
 
 
 function populate_tree_template(id){
+    $(":ui-fancytree").fancytree("destroy")
 	$(".template_tree").fancytree({
+
 		extensions: ["table"],
 		table: {
 			indentation: 20,      // indent 20px per node level
@@ -199,5 +201,5 @@ function populate_tree_template(id){
 		}
 		// console.log(data)
 		// console.log('Disabled template tree. The endpoint is filtering managers and admins. It is that needed?')
-		// populate_tree_template(data.kind == 'desktop' && data.create_dict.origin ? data.create_dict.origin : data.id);
+		populate_tree_template(data.kind == 'desktop' && data.create_dict.origin ? data.create_dict.origin : data.id);
 	}
