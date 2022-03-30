@@ -12,6 +12,7 @@ import deployments from './modules/deployments'
 import vpn from './modules/vpn'
 import store from '@/store/index.js'
 import { authenticationSegment, apiV3Segment, apiAdminSegment } from '@/shared/constants'
+import { getCookie } from 'tiny-cookie'
 
 Vue.use(Vuex)
 
@@ -90,28 +91,24 @@ export default new Vuex.Store({
         })
       })
     },
+    handleLoginError ({ commit }, e) {
+      if (e.response.status === 401) {
+        commit('setPageErrorMessage', i18n.t('views.login.errors.401'))
+      } else if (e.response.status === 403 && e.response.data === 'disabled user') {
+        commit('setPageErrorMessage', i18n.t('errors.user_disabled'))
+      } else if (e.response.status === 500) {
+        commit('setPageErrorMessage', i18n.t('views.login.errors.500'))
+      } else {
+        commit('setPageErrorMessage', i18n.t('views.login.errors.generic'))
+      }
+    },
     login ({ commit }, data) {
       return new Promise((resolve, reject) => {
-        axios.post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
-          const token = response.data
-          const tokenType = JSON.parse(atob(response.data.split('.')[1])).type || ''
-
-          if (tokenType === 'register') {
-            store.dispatch('formSuccess', token)
-          } else {
-            store.dispatch('loginSuccess', token)
-          }
+        axios.create().post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
+          store.dispatch('loginSuccess', response.data)
           resolve()
         }).catch(e => {
-          if (e.response.status === 401) {
-            commit('setPageErrorMessage', i18n.t('views.login.errors.401'))
-          } else if (e.response.status === 403 && e.response.data === 'disabled user') {
-            commit('setPageErrorMessage', i18n.t('errors.user_disabled'))
-          } else if (e.response.status === 500) {
-            commit('setPageErrorMessage', i18n.t('views.login.errors.500'))
-          } else {
-            commit('setPageErrorMessage', i18n.t('views.login.errors.generic'))
-          }
+          store.dispatch('handleLoginError', e)
           reject(e)
         })
       })
@@ -119,8 +116,21 @@ export default new Vuex.Store({
     async register (context, code) {
       const data = new FormData()
       data.append('code', code)
-      await axios.post(`${apiV3Segment}/user/register`, data).then(response => {
-        store.dispatch('login')
+      const registerAxios = axios.create()
+      registerAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${getCookie('authorization')}`
+        return config
+      })
+      await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
+        return new Promise((resolve, reject) => {
+          registerAxios.post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
+            store.dispatch('loginSuccess', response.data)
+            resolve()
+          }).catch(e => {
+            store.dispatch('handleLoginError', e)
+            reject(e)
+          })
+        })
       }).catch(e => {
         store.dispatch('handleRegisterError', e)
       })
