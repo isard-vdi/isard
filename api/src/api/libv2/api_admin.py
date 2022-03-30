@@ -168,6 +168,38 @@ class ApiAdmin:
                 domains = list(
                     r.table("domains")
                     .get_all("template", index="kind")
+                    .pluck(
+                        "id",
+                        "icon",
+                        "image",
+                        "server",
+                        "hyp_started",
+                        "name",
+                        "kind",
+                        "description",
+                        "username",
+                        "category",
+                        "group",
+                        "enabled",
+                        "derivates",
+                        "accessed",
+                        "detail",
+                        {
+                            "create_dict": {
+                                "hardware": {
+                                    "video": True,
+                                    "vcpus": True,
+                                    "memory": True,
+                                    "interfaces": True,
+                                    "graphics": True,
+                                    "videos": True,
+                                    "boot_order": True,
+                                    "forced_hyp": True,
+                                },
+                                "origin": True,
+                            }
+                        },
+                    )
                     .merge(
                         lambda domain: {
                             "derivates": r.db("isard")
