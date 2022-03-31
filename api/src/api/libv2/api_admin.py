@@ -56,7 +56,8 @@ def admin_table_list(table, order_by, pluck, without):
 
 
 def admin_table_insert(table, data):
-    data["id"] = _parse_string(data["name"])
+    if data["id"] == None:
+        data["id"] = _parse_string(data["name"])
     _validate_table(table)
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn) == None:
