@@ -1,0 +1,41 @@
+id:
+  required: true
+  type: string
+name:
+  required: true
+  type: string
+ifname:
+  type: string
+description:
+  type: string
+kind:
+  required: true
+  type: string
+  allowed:
+    - bridge
+    - network
+    - ovs
+    - personal
+net:
+  required: true
+  type: string
+  oneof:
+    - dependencies:
+        kind:
+          - bridge
+          - network
+    - dependencies:
+        kind:
+          - ovs
+      check_with: validate_vlan
+    - dependencies:
+        kind:
+          - personal
+      check_with: validate_vlan_range
+model:
+  required: true
+  type: string
+qos_id:
+  type: string
+allowed:
+  type: dict
