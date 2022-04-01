@@ -171,7 +171,6 @@ class ApiUsers:
 
     def Update(self, user_id, name=None, email=None, photo=None, password=None):
         self.Get(user_id)
-
         update_values = {}
         if name:
             update_values["name"] = name
@@ -179,6 +178,11 @@ class ApiUsers:
             update_values["email"] = email
         if photo:
             update_values["photo"] = photo
+        if role:
+            update_values["role"] = role
+        if quota is not None:
+            update_values["quota"] = quota
+
         if password:
             p = Password()
             update_values["password"] = p.encrypt(password)

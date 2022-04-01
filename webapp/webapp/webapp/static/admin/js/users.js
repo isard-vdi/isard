@@ -86,13 +86,24 @@ $(document).ready(function() {
 
     $("#modalEditUser #send").on('click', function(e){
         var form = $('#modalEditUserForm');
-        formdata = form.serializeObject()
+        disabled = $('#modalEditUserForm').find(':input:disabled').removeAttr('disabled');
+        formdata = form.serializeObject();
+        disabled.attr('disabled', 'disabled');
         form.parsley().validate();
         if (form.parsley().isValid()){     // || 'unlimited' in formdata){   
             data=userQuota2dict(formdata);
             delete data['unlimited']
-            //data['id']=$('#modalEditUserForm #id').val();
-            socket.emit('user_edit',data)
+            $.ajax({
+                type: "PUT",
+                url:"/api/v3/admin/user/" + data['id'],
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                }
+            });     
         }
     }); 
 

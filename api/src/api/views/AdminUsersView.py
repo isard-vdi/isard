@@ -16,7 +16,7 @@ from flask import jsonify, request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import admin_table_insert
+from ..libv2.api_admin import admin_table_insert, admin_table_update
 from ..libv2.api_exceptions import Error
 from ..libv2.api_users import ApiUsers, Password, check_category_domain
 from ..libv2.apiv2_exc import *
@@ -89,55 +89,25 @@ def api_v3_admin_users(payload):
     )
 
 
-# Update user name
+# Update user
 @app.route("/api/v3/admin/user/<id>", methods=["PUT"])
 @has_token
 def api_v3_admin_user_update(payload, id=False):
-    if id == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
-        )
+
+    try:
+        data = request.get_json()
+    except Exception as e:
+
+        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
 
     ownsUserId(payload, id)
-    try:
-        name = request.form.get("name", "")
-        email = request.form.get("email", "")
-        photo = request.form.get("photo", "")
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    ownsCategoryId(payload, data["category"])
+    itemExists("categories", data["category"])
+    itemExists("groups", data["group"])
 
-    if name == False and email == False and photo == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. Check your query. At least one parameter should be specified.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
-        )
+    quotas.UserCreate(data["category"], data["group"])
 
-    users.Update(id, user_name=name, user_email=email, user_photo=photo)
+    admin_table_update("users", data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
