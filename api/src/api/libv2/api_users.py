@@ -4,6 +4,7 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
+import logging as log
 import pprint
 import time
 from datetime import datetime, timedelta
@@ -17,6 +18,7 @@ from .api_exceptions import Error
 r = RethinkDB()
 import logging
 import traceback
+from string import ascii_lowercase, digits
 
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -645,6 +647,65 @@ class ApiUsers:
             secret = secrets.token_urlsafe(32)
             r.table("secrets").get(kid).delete().run(db.conn)
         return True
+
+    def EnrollmentAction(self, data):
+        if data["action"] == "disable":
+            with app.app_context():
+                r.table("groups").get(data["group_id"]).update(
+                    {"enrollment": {data["role"]: False}}
+                ).run(db.conn)
+            return True
+        if data["action"] == "reset":
+            chars = digits + ascii_lowercase
+        code = False
+        while code == False:
+            code = "".join([random.choice(chars) for i in range(6)])
+            if self.enrollment_code_check(code) == False:
+                with app.app_context():
+                    r.table("groups").get(data["group_id"]).update(
+                        {"enrollment": {data["role"]: code}}
+                    ).run(db.conn)
+                return code
+        return False
+
+    def enrollment_code_check(self, code):
+        with app.app_context():
+            found = list(
+                r.table("groups").filter({"enrollment": {"manager": code}}).run(db.conn)
+            )
+            if len(found) > 0:
+                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+                return {
+                    "code": code,
+                    "role": "manager",
+                    "category": category,
+                    "group": found[0]["id"],
+                }
+            found = list(
+                r.table("groups")
+                .filter({"enrollment": {"advanced": code}})
+                .run(db.conn)
+            )
+            if len(found) > 0:
+                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+                return {
+                    "code": code,
+                    "role": "advanced",
+                    "category": category,
+                    "group": found[0]["id"],
+                }
+            found = list(
+                r.table("groups").filter({"enrollment": {"user": code}}).run(db.conn)
+            )
+            if len(found) > 0:
+                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+                return {
+                    "code": code,
+                    "role": "user",
+                    "category": category,
+                    "group": found[0]["id"],
+                }
+        return False
 
 
 """

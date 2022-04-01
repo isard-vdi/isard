@@ -312,6 +312,19 @@ def api_v3_admin_group_insert(payload):
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
+# Enrollment group
+@app.route("/api/v3/admin/group/enrollment", methods=["POST"])
+@is_admin_or_manager
+def api_v3_admin_group_enrollment(payload):
+
+    data = request.get_json()
+    ownsCategoryId(payload, users.GroupGet(data["group_id"])["parent_category"])
+
+    code = users.EnrollmentAction(data)
+
+    return json.dumps(code), 200, {"Content-Type": "application/json"}
+
+
 @app.route("/api/v3/admin/categories", methods=["GET"])
 @app.route("/api/v3/admin/categories/<frontend>", methods=["GET"])
 @is_admin
