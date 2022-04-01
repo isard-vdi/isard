@@ -1274,7 +1274,7 @@ def clean_intermediate_status(reason="engine is restarting", only_domain_id=None
         update_domain_status(
             "Failed",
             d["id"],
-            detail=f"change status in domain domain {d['id']} from {d['status']} to Failed when {reason}",
+            detail=f"change status in domain {d['id']} from {d['status']} to Failed when {reason}",
         )
         for d in all_domains
         if d["status"] in status_to_failed
@@ -1285,7 +1285,7 @@ def clean_intermediate_status(reason="engine is restarting", only_domain_id=None
         update_domain_status(
             "Stopped",
             d["id"],
-            detail=f"change status in domain domain {d['id']} from {d['status']} to Stopped when {reason}",
+            detail=f"change status in domain {d['id']} from {d['status']} to Stopped when {reason}",
         )
         for d in all_domains
         if d["status"] in status_to_stopped
@@ -1297,7 +1297,7 @@ def clean_intermediate_status(reason="engine is restarting", only_domain_id=None
             "Started",
             d["id"],
             keep_hyp_id=True,
-            detail=f"change status in domain domain {d['id']} from {d['status']} to Started when {reason}",
+            detail=f"change status in domain {d['id']} from {d['status']} to Started when {reason}",
         )
         for d in all_domains
         if d["status"] in status_to_started
