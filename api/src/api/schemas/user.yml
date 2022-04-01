@@ -1,0 +1,56 @@
+id:
+  required: true
+  type: string
+  default_setter: genuserid
+accessed:
+  type: float
+active:
+  type: boolean
+email:
+  required: false
+  type: string
+group:
+  required: true
+  type: string
+name:
+  required: true
+  type: string
+category:
+  required: true
+  type: string
+description: 
+  required: false
+  type: string
+password:
+  required: true
+  type: string
+photo:
+  required: false
+provider:
+  required: true
+  type: string
+role:
+  required: true
+  type: string
+  allowed:
+    - manager
+    - user
+    - admin
+    - advanced
+username:
+  required: true
+  type: string
+uid:
+  required: true
+  type: string
+quota:
+  type: 
+    - dict
+    - boolean
+  default: false
+  schema: quotas
+active:
+  default: true
+default_templates:
+  type: list
+  required: false

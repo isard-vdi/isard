@@ -136,7 +136,7 @@ def ownsUserId(payload, user_id):
         return True
     if (
         payload["role_id"] == "manager"
-        and user_id.split["-"][1] == payload["category_id"]
+        and user_id.split("-")[1] == payload["category_id"]
     ):
         return True
     if payload["user_id"] == user_id:
@@ -196,6 +196,16 @@ def ownsDomainId(payload, desktop_id):
         "Not enough access rights this desktop_id " + str(desktop_id),
         traceback.format_stack(),
     )
+
+
+def itemExists(item_table, item_id):
+    item = r.table(item_table).get(item_id).run(db.conn)
+    if not item:
+        raise Error(
+            "not_found",
+            item_table + " not found id: " + item_id,
+            traceback.format_stack(),
+        )
 
 
 def allowedTemplateId(payload, template_id):

@@ -66,8 +66,21 @@ $(document).ready(function() {
             delete data['password-add-user'];
             delete data['password2-add-user'];
             delete data['unlimited'];
-            data['id']=data['username']=$('#modalAddUserForm #id').val();                     
-            socket.emit('user_add',data);
+            delete data['id'];
+            data['provider']='local';
+            data['username']=$('#modalAddUserForm #id').val();
+            data['uid'] = data['username'];
+            $.ajax({
+                type: "POST",
+                url:"/api/v3/admin/user" ,
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                }
+            });
         }
     }); 
 

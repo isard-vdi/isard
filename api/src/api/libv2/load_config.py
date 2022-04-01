@@ -43,6 +43,17 @@ class IsardValidator(Validator):
     def _normalize_default_setter_genmediaid(self, document):
         return _parse_string("_" + document["user"] + "-" + document["name"])
 
+    def _normalize_default_setter_genuserid(self, document):
+        return _parse_string(
+            document["provider"]
+            + "-"
+            + document["category"]
+            + "-"
+            + document["uid"]
+            + "-"
+            + document["username"]
+        )
+
     def _normalize_default_setter_mediaicon(self, document):
         if document["kind"] == "iso":
             return _parse_string("fa-circle-o")
