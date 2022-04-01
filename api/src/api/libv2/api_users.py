@@ -520,26 +520,88 @@ class ApiUsers:
                 .run(db.conn)
             )
 
-    def CategoryDelete(self, category_id):
+    def category_delete_checks(self, category_id):
         with app.app_context():
-            r.table("users").get_all(category_id, index="category").delete().run(
-                db.conn
+            category = (
+                r.table("categories").get(category_id).pluck("id", "name").run(db.conn)
             )
-            r.table("groups").get_all(
-                category_id, index="parent_category"
-            ).delete().run(db.conn)
-
-            desktops = (
-                r.table("domains")
-                .filter({"category": category_id})
-                .pluck("id", "status")
+            if category == None:
+                return []
+            else:
+                category.update({"kind": "category", "user": category["id"]})
+                categories = [category]
+            groups = list(
+                r.table("groups")
+                .filter({"parent_category": category_id})
+                .pluck("id", "name")
                 .run(db.conn)
             )
+            for g in groups:
+                g.update({"kind": "group", "user": g["id"]})
+            users = list(
+                r.table("users")
+                .get_all(category_id, index="category")
+                .pluck("id", "name")
+                .run(db.conn)
+            )
+            for u in users:
+                u.update({"kind": "user", "user": u["id"]})
 
-            for desktop in desktops:
-                ds.delete_desktop(desktop["id"], desktop["status"])
+            category_desktops = list(
+                r.table("domains")
+                .get_all(category_id, index="category")
+                .filter({"kind": "desktop"})
+                .pluck("id", "name", "kind", "user", "status", "parents")
+                .run(db.conn)
+            )
+            category_templates = list(
+                r.table("domains")
+                .get_all("template", index="kind")
+                .filter({"category": category_id})
+                .pluck("id", "name", "kind", "user", "status", "parents")
+                .run(db.conn)
+            )
+            derivated = []
+            for ut in category_templates:
+                id = ut["id"]
+                derivated = derivated + list(
+                    r.table("domains")
+                    .pluck("id", "name", "kind", "user", "status", "parents")
+                    .filter(lambda derivates: derivates["parents"].contains(id))
+                    .run(db.conn)
+                )
+                # templates = [t for t in derivated if t['kind'] != "desktop"]
+                # desktops = [d for d in derivated if d['kind'] == "desktop"]
+        domains = (
+            categories
+            + groups
+            + users
+            + category_desktops
+            + category_templates
+            + derivated
+        )
+        return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
-            return r.table("categories").get(category_id).delete().run(db.conn)
+    def CategoryDelete(self, category_id):
+        with app.app_context():
+            try:
+                for d in self.category_delete_checks(category_id):
+                    if d["kind"] == "user":
+                        r.table("users").get(d["id"]).delete().run(db.conn)
+                    elif d["kind"] == "group":
+                        r.table("groups").get(d["id"]).delete().run(db.conn)
+                    elif d["kind"] == "category":
+                        r.table("categories").get(d["id"]).delete().run(db.conn)
+                    else:
+                        ds.delete_desktop(d["id"], d["status"])
+
+            except Exception as e:
+                print(traceback.format_exc())
+                raise Error(
+                    "not_found",
+                    "Error deleting category " + category_id + "and related items. \n",
+                    traceback.format_stack(),
+                )
 
     def GroupGet(self, group_id):
         with app.app_context():
