@@ -1,5 +1,6 @@
 import pprint
 import time
+import traceback
 from datetime import datetime, timedelta
 
 # import rethinkdb as r
@@ -104,7 +105,7 @@ class DS:
                     .run(db.conn)
                 )
         for desktop in desktops_to_delete:
-            ds.delete_desktop(desktop["id"], desktop["status"])
+            self.delete_desktop(desktop["id"], desktop["status"])
 
     def WaitStatus(
         self,
@@ -230,9 +231,7 @@ class DS:
                 + transition_status
                 + "->"
                 + final_status
-                + " timed out ("
-                + str(wait_seconds)
-                + "s) for hyper_id "
+                + " timed out for hyper_id "
                 + hyper_id,
                 traceback.format_stack(),
             )
