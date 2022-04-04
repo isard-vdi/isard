@@ -437,7 +437,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
     if domain_status != None:
         if hyp_id is None or hyp_id == "":
             logs.status.debug(
-                "event in Hypervisor not in database with uri.  hyp_id:{}, uri:{}".format(
+                "event in Hypervisor not in database with uri. Domain id:{}, uri:{}".format(
                     dom_id, conn.getURI()
                 )
             )
