@@ -538,6 +538,8 @@ $(document).ready(function() {
                     $('#modalInterfacesForm #name').val(interface.name).attr("disabled",true);
                     $('#modalInterfacesForm #id').val(interface.id);
                     $('#modalInterfacesForm #description').val(interface.description);
+                    $('#modalInterfacesForm #kind').val(interface.kind)
+                    $('#modalInterfacesForm #kind').trigger('change')
                     $.each(interface,function(key,value){
                         $('#modalInterfacesForm #'+key).val(value)
                     });
