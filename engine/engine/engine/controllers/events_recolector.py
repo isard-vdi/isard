@@ -514,7 +514,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                     detail="Event received: " + domDetailToString(event, detail),
                 )
 
-        if dict_event["event"] in ("Stopped", "Shutdown"):
+        if dict_event["event"] == "Stopped":
             remove_domain_viewer_values(dom_id)
             if get_domain_status(dict_event["domain"]) != "Stopped":
                 logs.status.debug(
