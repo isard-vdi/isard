@@ -1,9 +1,11 @@
 id:
   required: true
   type: string
+  empty: false
   default_setter: genmediaid
 name:
   required: true
+  empty: false
   type: string
 accessed:
   type: float
@@ -27,6 +29,7 @@ allowed:
         - list
 category:
   required: true
+  empty: false
   type: string
 description:
   type: string
@@ -34,6 +37,7 @@ detail:
   type: string
 group:
   required: true
+  empty: false
   type: string
 hypervisors_pools:
   type: list
