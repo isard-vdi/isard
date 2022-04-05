@@ -1,6 +1,7 @@
 id:
   required: true
   type: string
+  empty: false
   default_setter: genuserid
 accessed:
   type: float
@@ -11,12 +12,15 @@ email:
   type: string
 group:
   required: true
+  empty: false
   type: string
 name:
   required: true
   type: string
+  empty: false
 category:
   required: true
+  empty: false
   type: string
 description: 
   required: false
@@ -42,6 +46,7 @@ username:
   type: string
 uid:
   required: true
+  empty: false
   type: string
 quota:
   type: 

@@ -1,18 +1,22 @@
 id:
   required: true
   type: string
+  empty: false
   default_setter: gengroupid
 name:
   required: true
+  empty: false
   type: string
 description: 
   required: false
   type: string
 parent_category: 
   required: true
+  empty: false
   type: string
 uid:
   required: true
+  empty: false
   type: string
   default_setter: genidlower
 enrollment:

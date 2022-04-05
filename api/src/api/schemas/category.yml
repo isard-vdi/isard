@@ -1,9 +1,11 @@
 id:
   required: true
   type: string
+  empty: false
   default_setter: genidlower
 name:
   required: true
+  empty: false
   type: string
 description: 
   type: string
