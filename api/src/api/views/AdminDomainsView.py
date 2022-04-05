@@ -12,7 +12,7 @@ from flask import request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import ApiAdmin
+from ..libv2.api_admin import ApiAdmin, admin_table_get, admin_table_update
 from .decorators import is_admin_or_manager
 
 admins = ApiAdmin()
@@ -30,6 +30,21 @@ def api_v3_admin_domains(payload):
         domains = [d for d in domains if d["category"] == payload["category_id"]]
     return (
         json.dumps(domains),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/domains/xml/<id>", methods=["POST", "GET"])
+@is_admin_or_manager
+def api_v3_admin_domains_xml(payload, id):
+    if request.method == "POST":
+        data = request.get_json(force=True)
+        data["status"] = "Updating"
+        data["id"] = id
+        admin_table_update("domains", data)
+    return (
+        json.dumps(admin_table_get("domains", pluck="xml", id=id)["xml"]),
         200,
         {"Content-Type": "application/json"},
     )

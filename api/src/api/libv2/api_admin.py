@@ -88,6 +88,14 @@ def admin_table_update(table, data):
                 )
 
 
+def admin_table_get(table, pluck=False, id=False):
+    _validate_table(table)
+    with app.app_context():
+        if pluck and id:
+            data = r.table(table).get(id).pluck(pluck).run(db.conn)
+            return data
+
+
 def admin_table_delete(table, data):
     _validate_table(table)
     with app.app_context():

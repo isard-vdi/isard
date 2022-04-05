@@ -632,7 +632,7 @@ function actionsDomainDetail(){
             $('#modalEditXmlForm #id').val(pk);
             $.ajax({
                 type: "GET",
-                url:"/isard-admin/admin/domains/xml/" + pk,
+                url:"/api/v3/admin/domains/xml/" + pk,
                 success: function(data)
                 {
                     $('#modalEditXmlForm #xml').val(data);
@@ -1101,7 +1101,7 @@ function modal_edit_desktop_datatables(id){
             //~ if (form.parsley().isValid()){
                     id=$('#modalEditXmlForm #id').val();
                     xml=$('#modalEditXmlForm #xml').val();
-                    api.ajax('/isard-admin/admin/domains/xml/'+id,'POST',{'xml':xml}).done(function(data) {
+                    api.ajax('/api/v3/admin/domains/xml/'+id,'POST',{'xml':xml}).done(function(data) {
                         $("#modalEditXmlForm")[0].reset();
                         $("#modalEditXml").modal('hide');
                 	}); 
