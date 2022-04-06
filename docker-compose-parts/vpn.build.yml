@@ -5,3 +5,5 @@ services:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/vpn/Dockerfile
       target: production
+      args:
+        DOCKER_IMAGE_TAG: ${DOCKER_IMAGE_TAG}

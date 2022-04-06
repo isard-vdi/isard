@@ -4,3 +4,8 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}/guac
       dockerfile: build/package/Dockerfile
+
+  isard-rdpgw:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: rdpgw/build/package/Dockerfile

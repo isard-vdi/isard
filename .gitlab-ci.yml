@@ -119,6 +119,7 @@ docker-image:
           - db
           - engine
           - grafana
+          - rdpgw
           - guac
           - hypervisor
           - influxdb
@@ -196,6 +197,7 @@ docker-tag:
           - db
           - engine
           - grafana
+          - rdpgw
           - guac
           - hypervisor
           - influxdb
