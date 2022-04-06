@@ -652,7 +652,7 @@ function actionsDomainDetail(){
         $('#modalServerForm #id').val(pk);
         $.ajax({
             type: "GET",
-            url:"/isard-admin/admin/domains/server/" + pk,
+            url:"/api/v3/admin/domains/server/" + pk,
             success: function(data)
             {
                 if(data == true){
