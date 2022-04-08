@@ -2,7 +2,7 @@
   <b-container fluid id="login" class="h-100 w-100 pt-5 pt-md-0">
     <b-row class="h-100 justify-content-center ml-2 mr-2 mr-md-5" align-v="center">
       <b-col cols="3" sm="3" md="6" lg="8" xl="8" class="d-flex justify-content-center">
-        <Logo style="max-width: 18rem;"/>
+        <Logo style="max-width: 35rem; max-height: 25rem;"/>
       </b-col>
       <b-col cols="12" sm="12" md="6" lg="4" xl="4" class="pb-5 mb-5 pb-md-0 mb-md-0 d-flex flex-column align-content-center">
         <b-row class="mr-xl-5 pr-xl-3">
